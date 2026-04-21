@@ -196,9 +196,9 @@ function processAnswers(lobby) {
 
   const alive = alivePlayers(lobby);
   if (alive.length <= 1) {
-    setTimeout(() => endGame(lobby, 'last_standing'), 4000);
+    setTimeout(() => endGame(lobby, 'last_standing'), 9000);
   } else {
-    setTimeout(() => nextQuestion(lobby), 4500);
+    setTimeout(() => nextQuestion(lobby), 9500);
   }
 }
 

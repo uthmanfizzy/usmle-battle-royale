@@ -35,47 +35,104 @@ export function playClick() {
   osc.stop(c.currentTime + 0.02);
 }
 
-export function startGameMusic() {
-  stopBgMusic();
-  stopGameMusic();
-  if (muted) return;
+// ── Quiz-show step sequencer ───────────────────────────────────────────────────
+
+// Shared noise buffer (generated once, reused for all percussion)
+let noiseBuffer = null;
+function getNoiseBuf(c) {
+  if (noiseBuffer) return noiseBuffer;
+  const len = Math.floor(c.sampleRate * 0.5);
+  noiseBuffer = c.createBuffer(1, len, c.sampleRate);
+  const d = noiseBuffer.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+  return noiseBuffer;
+}
+
+function schedNote(c, dest, freq, type, vol, t, dur) {
+  const osc = c.createOscillator();
+  const gn = c.createGain();
+  osc.type = type;
+  osc.frequency.value = freq;
+  gn.gain.setValueAtTime(vol, t);
+  gn.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  osc.connect(gn); gn.connect(dest);
+  osc.start(t); osc.stop(t + dur + 0.01);
+}
+
+function schedNoise(c, dest, vol, t, dur, hpFreq) {
+  const src = c.createBufferSource();
+  const filter = c.createBiquadFilter();
+  const gn = c.createGain();
+  filter.type = 'highpass';
+  filter.frequency.value = hpFreq;
+  src.buffer = getNoiseBuf(c);
+  src.start(t); src.stop(t + dur);
+  gn.gain.setValueAtTime(vol, t);
+  gn.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  src.connect(filter); filter.connect(gn); gn.connect(dest);
+}
+
+// Quiz-show melody & bass patterns (16 steps = 2 bars of 8th notes)
+// Key: C major   BPM: game=132, lobby=98
+const MELODY_FREQS = [
+  523.25, null, 659.25, null, 783.99, 659.25, 523.25, null,
+  587.33, null, 698.46, null, 880.00, 783.99, 659.25, null,
+];
+const BASS_FREQS = [
+  130.81, 164.81, 98.00, 123.47,
+  130.81, null,   98.00, 123.47,
+  110.00, 164.81, 110.00, 146.83,
+  87.31,  110.00, 130.81, null,
+];
+
+function startSequencer(gainNode, bpm, withDrums) {
   const c = getCtx();
-  gameGain = c.createGain();
-  gameGain.gain.value = 0.05;
-  gameGain.connect(c.destination);
+  const STEP = 60 / bpm / 2; // 8th-note duration in seconds
+  let step = 0;
 
-  // Tense pulsing: sawtooth/square bass + tremolo LFO
-  const freqs = [110, 165, 220, 293.7];
-  gameNodes = freqs.map((freq, i) => {
-    const osc = c.createOscillator();
-    const gn = c.createGain();
-    osc.type = i < 2 ? 'sawtooth' : 'square';
-    osc.frequency.value = freq;
-    gn.gain.value = 0.4 / (i + 1);
-    osc.connect(gn);
-    gn.connect(gameGain);
-    osc.start();
+  const interval = setInterval(() => {
+    if (!gainNode) return;
+    const t = c.currentTime + 0.01; // small lookahead
+    const s = step % 16;
 
-    const lfo = c.createOscillator();
-    const lg = c.createGain();
-    lfo.frequency.value = 4 + i * 0.5;
-    lg.gain.value = 0.25;
-    lfo.connect(lg);
-    lg.connect(gn.gain);
-    lfo.start();
+    // Melody (triangle — bright, quiz-show feel)
+    const mf = MELODY_FREQS[s];
+    if (mf) schedNote(c, gainNode, mf, 'triangle', 0.28, t, STEP * 0.9);
 
-    return { osc, lfo };
-  });
+    // Bass (sine — bouncy)
+    const bf = BASS_FREQS[s];
+    if (bf) schedNote(c, gainNode, bf, 'sine', 0.55, t, STEP * 0.8);
+
+    if (withDrums) {
+      // Kick on beats 1 & 3 (steps 0, 8)
+      if (s === 0 || s === 8) {
+        const ok = c.createOscillator();
+        const gk = c.createGain();
+        ok.type = 'sine';
+        ok.frequency.setValueAtTime(130, t);
+        ok.frequency.exponentialRampToValueAtTime(42, t + 0.1);
+        gk.gain.setValueAtTime(0.9, t);
+        gk.gain.exponentialRampToValueAtTime(0.0001, t + 0.13);
+        ok.connect(gk); gk.connect(gainNode);
+        ok.start(t); ok.stop(t + 0.14);
+      }
+
+      // Snare on beats 2 & 4 (steps 4, 12)
+      if (s === 4 || s === 12) {
+        schedNoise(c, gainNode, 0.45, t, 0.1, 800);
+      }
+
+      // Hi-hat every 8th note (all steps), very quiet
+      schedNoise(c, gainNode, 0.1, t, 0.035, 7000);
+    }
+
+    step++;
+  }, STEP * 1000);
+
+  return interval;
 }
 
-export function stopGameMusic() {
-  gameNodes.forEach(({ osc, lfo }) => {
-    try { osc.stop(); } catch (_) {}
-    try { lfo.stop(); } catch (_) {}
-  });
-  gameNodes = [];
-  if (gameGain) { gameGain.disconnect(); gameGain = null; }
-}
+let bgInterval = null;
 
 export function startBgMusic() {
   stopGameMusic();
@@ -83,40 +140,40 @@ export function startBgMusic() {
   if (muted) return;
   const c = getCtx();
   bgGain = c.createGain();
-  bgGain.gain.value = 0.04;
+  bgGain.gain.value = 0.04; // quieter for lobby
   bgGain.connect(c.destination);
-
-  // Ambient drone: A minor chord (A3, C4, E4, A4) with slow LFO
-  const freqs = [220, 261.6, 329.6, 440];
-  bgNodes = freqs.map((freq, i) => {
-    const osc = c.createOscillator();
-    const gn  = c.createGain();
-    osc.type = 'sine';
-    osc.frequency.value = freq;
-    gn.gain.value = 0.5 / (i + 1);
-    osc.connect(gn);
-    gn.connect(bgGain);
-    osc.start();
-
-    const lfo = c.createOscillator();
-    const lg  = c.createGain();
-    lfo.frequency.value = 0.2 + i * 0.07;
-    lg.gain.value = 2;
-    lfo.connect(lg);
-    lg.connect(osc.frequency);
-    lfo.start();
-
-    return { osc, lfo };
-  });
+  bgInterval = startSequencer(bgGain, 98, false); // slow, no drums
 }
 
 export function stopBgMusic() {
+  if (bgInterval) { clearInterval(bgInterval); bgInterval = null; }
   bgNodes.forEach(({ osc, lfo }) => {
     try { osc.stop(); } catch (_) {}
     try { lfo.stop(); } catch (_) {}
   });
   bgNodes = [];
   if (bgGain) { bgGain.disconnect(); bgGain = null; }
+}
+
+export function startGameMusic() {
+  stopBgMusic();
+  stopGameMusic();
+  if (muted) return;
+  const c = getCtx();
+  gameGain = c.createGain();
+  gameGain.gain.value = 0.055; // full energy
+  gameGain.connect(c.destination);
+  gameNodes = [{ interval: startSequencer(gameGain, 132, true) }];
+}
+
+export function stopGameMusic() {
+  gameNodes.forEach(({ interval, osc, lfo }) => {
+    if (interval) clearInterval(interval);
+    try { if (osc) osc.stop(); } catch (_) {}
+    try { if (lfo) lfo.stop(); } catch (_) {}
+  });
+  gameNodes = [];
+  if (gameGain) { gameGain.disconnect(); gameGain = null; }
 }
 
 export function playCorrect() {

@@ -127,7 +127,7 @@ export default function SoloGame({ subject, username, onBack, onTryAgain, onChan
         setBonusPoints(0);
         setQIdx(nextIdx);
       }
-    }, 2500);
+    }, 7500);
   }, [subject]);
 
   processAnswerRef.current = processAnswer;
