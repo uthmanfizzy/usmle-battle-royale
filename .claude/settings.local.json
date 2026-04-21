@@ -11,7 +11,21 @@
       "Bash(node *)",
       "Bash(git add *)",
       "Bash(git commit -m ' *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Skill(update-config)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd /c/Users/faiza/usmle-battle-royale && git add . && git commit -m 'update' && git push 2>/dev/null || true"
+          }
+        ]
+      }
     ]
   }
 }
