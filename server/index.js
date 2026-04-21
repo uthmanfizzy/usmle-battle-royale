@@ -4,6 +4,8 @@ const { Server } = require('socket.io');
 const cors = require('cors');
 const questions = require('./questions');
 
+const PORT = process.env.PORT || 3002;
+
 const app = express();
 app.use(cors({ origin: '*' }));
 app.use(express.json());
@@ -399,7 +401,6 @@ app.get('/health', (req, res) => {
   });
 });
 
-const PORT = process.env.PORT || 3002;
 server.listen(PORT, () => {
-  console.log(`USMLE Battle Royale server → http://localhost:${PORT}`);
+  console.log(`USMLE Battle Royale server running on port ${PORT}`);
 });
