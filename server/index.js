@@ -1,3 +1,5 @@
+console.log('PORT env var is:', process.env.PORT);
+
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
@@ -390,6 +392,10 @@ io.on('connection', (socket) => {
 });
 
 // ── Health check ───────────────────────────────────────────────────────────────
+
+app.get('/', (req, res) => {
+  res.status(200).send('ok');
+});
 
 app.get('/health', (req, res) => {
   res.json({
