@@ -5,24 +5,15 @@ const cors = require('cors');
 const questions = require('./questions');
 
 const app = express();
-app.use(cors({ origin: ALLOWED_ORIGINS, credentials: true }));
+app.use(cors({ origin: '*' }));
 app.use(express.json());
 
 const server = http.createServer(app);
-const ALLOWED_ORIGINS = [
-  'http://localhost:5173',
-  'http://localhost:5174',
-  'http://127.0.0.1:5173',
-  'https://client-hqhnfdod1-uthmanfizzys-projects.vercel.app',
-  // Allow any Vercel preview deployment for this project
-  /^https:\/\/.*uthmanfizzys-projects\.vercel\.app$/,
-];
 
 const io = new Server(server, {
   cors: {
-    origin: ALLOWED_ORIGINS,
+    origin: '*',
     methods: ['GET', 'POST'],
-    credentials: true,
   },
 });
 

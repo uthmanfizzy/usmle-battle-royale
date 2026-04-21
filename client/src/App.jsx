@@ -136,7 +136,7 @@ export default function App() {
     setError('');
     socket.timeout(5000).emit('create_lobby', { username }, (err, res) => {
       if (err) {
-        setError('No response from server — make sure the server is running on port 3002.');
+        setError('No response from server. Please try again.');
         return;
       }
       if (!res.ok) { setError(res.error ?? 'Failed to create lobby.'); return; }
@@ -155,7 +155,7 @@ export default function App() {
     setError('');
     socket.timeout(5000).emit('join_lobby', { username, lobbyId: code }, (err, res) => {
       if (err) {
-        setError('No response from server — make sure the server is running on port 3002.');
+        setError('No response from server. Please try again.');
         return;
       }
       if (!res.ok) { setError(res.error ?? 'Failed to join lobby.'); return; }
