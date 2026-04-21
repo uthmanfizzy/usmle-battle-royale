@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install *)",
+      "Bash(npx vite *)",
+      "Bash(node -e \"const q = require\\('./questions'\\); console.log\\('Total questions:', q.length\\); const ids = q.map\\(x=>x.id\\); const dupes = ids.filter\\(\\(id,i\\)=>ids.indexOf\\(id\\)!==i\\); console.log\\('Duplicate IDs:', dupes.length ? dupes : 'none'\\); const missingFields = q.filter\\(x=>!x.question||!x.options||x.options.length!==4||!x.correct||!x.explanation\\); console.log\\('Malformed entries:', missingFields.length ? missingFields.map\\(x=>x.id\\) : 'none'\\);\")",
+      "Bash(node --check index.js)",
+      "Bash(node index.js)",
+      "Bash(curl -s http://localhost:3002/health)",
+      "Bash(taskkill //F //PID 42736)",
+      "Bash(node *)"
+    ]
+  }
+}
