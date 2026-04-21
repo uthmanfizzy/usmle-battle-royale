@@ -1,21 +1,25 @@
 import { useState, useEffect, useCallback } from 'react';
 import socket from './socket';
+import * as audio from './audio';
 import UsernameEntry from './components/UsernameEntry';
 import LobbySelect from './components/LobbySelect';
 import JoinLobbyInput from './components/JoinLobbyInput';
+import SubjectSelect from './components/SubjectSelect';
 import Lobby from './components/Lobby';
 import GameRoom from './components/GameRoom';
 import Leaderboard from './components/Leaderboard';
 
-// phases: 'entry' | 'lobby_select' | 'join_input' | 'lobby' | 'game' | 'game_over'
+// phases: 'entry' | 'lobby_select' | 'subject_select' | 'join_input' | 'lobby' | 'game' | 'game_over'
 
 export default function App() {
   const [phase,    setPhase]    = useState('entry');
   const [username, setUsername] = useState('');
   const [lobbyId,  setLobbyId]  = useState('');
+  const [subject,  setSubject]  = useState('all');
   const [isHost,   setIsHost]   = useState(false);
   const [players,  setPlayers]  = useState([]);
   const [error,    setError]    = useState('');
+  const [muted,    setMuted]    = useState(false);
 
   // In-game
   const [question,           setQuestion]           = useState(null);
@@ -45,10 +49,10 @@ export default function App() {
   useEffect(() => {
     socket.connect();
 
-    // Any player list change in the lobby
-    socket.on('lobby_update', ({ players: ps, hostId }) => {
+    socket.on('lobby_update', ({ players: ps, hostId, subject: s }) => {
       setPlayers(ps);
       setIsHost(socket.id === hostId);
+      if (s) setSubject(s);
     });
 
     socket.on('game_start', () => {
@@ -60,6 +64,7 @@ export default function App() {
       setAnswerResult(null);
       setRoundResults(null);
       setShowingRoundResult(false);
+      audio.startBgMusic();
     });
 
     socket.on('new_question', (data) => {
@@ -85,6 +90,12 @@ export default function App() {
       setMyLives(result.lives);
       setMyScore(result.score);
       setIsAlive(result.alive);
+      if (result.correct) {
+        audio.playCorrect();
+      } else {
+        audio.playWrong();
+        if (!result.alive) audio.playEliminated();
+      }
     });
 
     socket.on('round_results', (data) => {
@@ -96,9 +107,11 @@ export default function App() {
     socket.on('game_over', (result) => {
       setGameResult(result);
       setPhase('game_over');
+      audio.stopBgMusic();
+      if (result.winner) audio.playVictory();
+      else audio.playEliminated();
     });
 
-    // Play Again: stay in same lobby, reset game state
     socket.on('game_reset', () => {
       setPhase('lobby');
       setGameResult(null);
@@ -106,6 +119,7 @@ export default function App() {
       setAnswerResult(null);
       setRoundResults(null);
       setShowingRoundResult(false);
+      audio.startBgMusic();
     });
 
     socket.on('player_left', ({ username: uname }) => {
@@ -121,6 +135,7 @@ export default function App() {
        'answer_result', 'round_results', 'game_over', 'game_reset',
        'player_left', 'error'].forEach(e => socket.off(e));
       socket.disconnect();
+      audio.stopBgMusic();
     };
   }, [showToast]);
 
@@ -132,9 +147,15 @@ export default function App() {
     setPhase('lobby_select');
   }
 
-  function handleCreateLobby() {
+  function handleShowSubjectSelect() {
     setError('');
-    socket.timeout(5000).emit('create_lobby', { username }, (err, res) => {
+    setPhase('subject_select');
+  }
+
+  function handleCreateLobby(selectedSubject) {
+    setSubject(selectedSubject);
+    setError('');
+    socket.timeout(5000).emit('create_lobby', { username, subject: selectedSubject }, (err, res) => {
       if (err) {
         setError('No response from server. Please try again.');
         return;
@@ -143,6 +164,7 @@ export default function App() {
       setLobbyId(res.lobbyId);
       setIsHost(true);
       setPhase('lobby');
+      audio.startBgMusic();
     });
   }
 
@@ -162,6 +184,7 @@ export default function App() {
       setLobbyId(res.lobbyId);
       setIsHost(false);
       setPhase('lobby');
+      audio.startBgMusic();
     });
   }
 
@@ -180,11 +203,25 @@ export default function App() {
     socket.emit('reset_game');
   }
 
+  function toggleMute() {
+    const next = !muted;
+    setMuted(next);
+    audio.setMuted(next);
+  }
+
   // ── Render ─────────────────────────────────────────────────────────────────
+
+  const showMuteBtn = ['lobby', 'game', 'game_over'].includes(phase);
 
   return (
     <div>
       {toast && <div className="notification">{toast}</div>}
+
+      {showMuteBtn && (
+        <button className="mute-btn" onClick={toggleMute} title={muted ? 'Unmute' : 'Mute'}>
+          {muted ? '🔇' : '🔊'}
+        </button>
+      )}
 
       {phase === 'entry' && (
         <UsernameEntry onJoin={handleUsernameSubmit} error={error} />
@@ -193,8 +230,16 @@ export default function App() {
       {phase === 'lobby_select' && (
         <LobbySelect
           username={username}
-          onCreateLobby={handleCreateLobby}
+          onCreateLobby={handleShowSubjectSelect}
           onJoinLobby={handleShowJoinInput}
+        />
+      )}
+
+      {phase === 'subject_select' && (
+        <SubjectSelect
+          username={username}
+          onSelect={handleCreateLobby}
+          onBack={() => { setError(''); setPhase('lobby_select'); }}
         />
       )}
 
@@ -210,6 +255,7 @@ export default function App() {
       {phase === 'lobby' && (
         <Lobby
           lobbyId={lobbyId}
+          subject={subject}
           players={players}
           isHost={isHost}
           onStartGame={handleStartGame}
@@ -235,6 +281,7 @@ export default function App() {
           showingRoundResult={showingRoundResult}
           onAnswer={handleAnswer}
           username={username}
+          onTick={audio.playTick}
         />
       )}
 

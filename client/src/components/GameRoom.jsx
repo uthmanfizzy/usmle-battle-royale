@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 
 const LABELS = ['A', 'B', 'C', 'D'];
 
-function Timer({ timeLimit, active, questionId }) {
+function Timer({ timeLimit, active, questionId, onTick }) {
   const [left, setLeft] = useState(timeLimit);
   const ref = useRef(null);
 
@@ -10,10 +10,17 @@ function Timer({ timeLimit, active, questionId }) {
     setLeft(timeLimit);
     if (!active) return;
     ref.current = setInterval(() => {
-      setLeft((t) => Math.max(0, t - 1));
+      setLeft((t) => {
+        const next = Math.max(0, t - 1);
+        return next;
+      });
     }, 1000);
     return () => clearInterval(ref.current);
   }, [timeLimit, active, questionId]);
+
+  useEffect(() => {
+    if (active && left <= 5 && left > 0 && onTick) onTick();
+  }, [left, active, onTick]);
 
   const pct  = (left / timeLimit) * 100;
   const tier = left > 10 ? 'green' : left > 5 ? 'yellow' : 'red';
@@ -60,6 +67,7 @@ export default function GameRoom({
   showingRoundResult,
   onAnswer,
   username,
+  onTick,
 }) {
   if (!question) {
     return (
@@ -92,6 +100,7 @@ export default function GameRoom({
               timeLimit={timeLimit}
               active={timerActive}
               questionId={question.id}
+              onTick={onTick}
             />
           )}
 

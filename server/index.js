@@ -38,12 +38,13 @@ function generateLobbyId() {
   return id;
 }
 
-function makeLobby(hostSocketId) {
+function makeLobby(hostSocketId, subject = 'all') {
   const id = generateLobbyId();
   const lobby = {
     id,
     hostId: hostSocketId,
     status: 'waiting',   // 'waiting' | 'question' | 'reviewing' | 'game_over'
+    subject,
     players: new Map(),  // socketId -> player
     questionQueue: [],
     questionIdx: -1,
@@ -66,6 +67,7 @@ function lobbyPayload(lobby) {
     lobbyId: lobby.id,
     hostId: lobby.hostId,
     status: lobby.status,
+    subject: lobby.subject,
     players: [...lobby.players.values()].map(p => ({
       id: p.id,
       username: p.username,
@@ -94,7 +96,10 @@ function clearTimer(lobby) {
 function startGame(lobby) {
   lobby.status = 'question';
   lobby.round = 0;
-  lobby.questionQueue = shuffle(questions);
+  const pool = lobby.subject === 'all'
+    ? questions
+    : questions.filter(q => q.subject === lobby.subject);
+  lobby.questionQueue = shuffle(pool.length >= 5 ? pool : questions);
   lobby.questionIdx = -1;
 
   for (const p of lobby.players.values()) {
@@ -243,11 +248,11 @@ io.on('connection', (socket) => {
   console.log('[+] connected:', socket.id);
 
   // ── Create a brand-new lobby ──────────────────────────────────────────────
-  socket.on('create_lobby', ({ username }, ack) => {
+  socket.on('create_lobby', ({ username, subject = 'all' }, ack) => {
     const name = (username ?? '').trim().slice(0, 20);
     if (!name) return ack({ ok: false, error: 'Username required.' });
 
-    const lobby = makeLobby(socket.id);
+    const lobby = makeLobby(socket.id, subject);
     lobby.players.set(socket.id, { id: socket.id, username: name, lives: 3, score: 0, alive: true });
 
     socket.lobbyId = lobby.id;

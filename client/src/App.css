@@ -737,6 +737,105 @@ table.lb-table tr:last-child td { border-bottom: none; }
   margin-bottom: 16px;
 }
 
+/* ── Subject Select ────────────────────────────────────────────────────── */
+.subject-screen {
+  background: radial-gradient(ellipse at center, #1a1a4e 0%, var(--bg) 70%);
+  align-items: flex-start;
+  padding: 40px 20px;
+}
+
+.subject-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 36px 40px 44px;
+  width: 100%;
+  max-width: 680px;
+  margin: 0 auto;
+  box-shadow: var(--shadow);
+}
+
+.subject-card h2 {
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--gold);
+  margin-bottom: 6px;
+}
+
+.subject-sub {
+  color: var(--text-dim);
+  font-size: 14px;
+  margin-bottom: 28px;
+}
+.subject-sub strong { color: var(--text); }
+
+.subject-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 14px;
+}
+
+.subject-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: 16px;
+  padding: 22px 16px;
+  color: var(--text);
+  transition: all 0.2s;
+  cursor: pointer;
+}
+.subject-option:hover {
+  border-color: var(--gold);
+  background: rgba(245,197,24,.07);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(0,0,0,.4);
+}
+.subj-icon  { font-size: 36px; }
+.subj-label { font-size: 15px; font-weight: 700; }
+.subj-desc  { font-size: 12px; color: var(--text-dim); text-align: center; line-height: 1.4; font-weight: 400; }
+
+/* ── Subject badge in lobby ────────────────────────────────────────────── */
+.subject-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(245,197,24,.1);
+  border: 1px solid rgba(245,197,24,.3);
+  border-radius: 20px;
+  padding: 6px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--gold);
+  margin-bottom: 20px;
+}
+
+/* ── Mute button ───────────────────────────────────────────────────────── */
+.mute-btn {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 9999;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  width: 44px;
+  height: 44px;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow);
+  transition: all 0.2s;
+}
+.mute-btn:hover {
+  border-color: var(--gold);
+  transform: scale(1.1);
+}
+
 /* ── Responsive ────────────────────────────────────────────────────────── */
 @media (max-width: 700px) {
   .players-sidebar {

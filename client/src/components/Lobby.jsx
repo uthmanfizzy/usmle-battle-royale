@@ -1,6 +1,7 @@
 import { useState } from 'react';
+import { SUBJECTS } from './SubjectSelect';
 
-export default function Lobby({ lobbyId, players, isHost, onStartGame, error }) {
+export default function Lobby({ lobbyId, subject, players, isHost, onStartGame, error }) {
   const [copied, setCopied] = useState(false);
 
   function handleCopy() {
@@ -11,11 +12,18 @@ export default function Lobby({ lobbyId, players, isHost, onStartGame, error }) 
   }
 
   const canStart = players.length >= 2;
+  const subjectInfo = SUBJECTS.find(s => s.id === subject) ?? SUBJECTS[0];
 
   return (
     <div className="screen lobby-screen">
       <div className="lobby-card">
         <h2>⚔️ Battle Lobby</h2>
+
+        {/* Subject badge */}
+        <div className="subject-badge">
+          <span>{subjectInfo.icon}</span>
+          <span>{subjectInfo.label}</span>
+        </div>
 
         {/* Lobby code display */}
         <div className="lobby-code-section">
@@ -43,9 +51,7 @@ export default function Lobby({ lobbyId, players, isHost, onStartGame, error }) 
             <div key={p.id} className="lobby-player-item">
               <span className="lobby-player-rank">#{i + 1}</span>
               <span className="lobby-player-name">{p.username}</span>
-              {p.id === players.find((_, idx) => idx === 0)?.id && (
-                <span className="host-badge">HOST</span>
-              )}
+              {i === 0 && <span className="host-badge">HOST</span>}
             </div>
           ))}
         </div>
