@@ -2,6 +2,8 @@ let ctx = null;
 let muted = false;
 let bgGain = null;
 let bgNodes = [];
+let gameGain = null;
+let gameNodes = [];
 
 function getCtx() {
   if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -14,9 +16,69 @@ export function isMuted() { return muted; }
 export function setMuted(val) {
   muted = val;
   if (bgGain) bgGain.gain.value = val ? 0 : 0.04;
+  if (gameGain) gameGain.gain.value = val ? 0 : 0.05;
+}
+
+export function playClick() {
+  if (muted) return;
+  const c = getCtx();
+  const osc = c.createOscillator();
+  const gn = c.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(800, c.currentTime);
+  osc.frequency.exponentialRampToValueAtTime(400, c.currentTime + 0.02);
+  gn.gain.setValueAtTime(0.15, c.currentTime);
+  gn.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.02);
+  osc.connect(gn);
+  gn.connect(c.destination);
+  osc.start();
+  osc.stop(c.currentTime + 0.02);
+}
+
+export function startGameMusic() {
+  stopBgMusic();
+  stopGameMusic();
+  if (muted) return;
+  const c = getCtx();
+  gameGain = c.createGain();
+  gameGain.gain.value = 0.05;
+  gameGain.connect(c.destination);
+
+  // Tense pulsing: sawtooth/square bass + tremolo LFO
+  const freqs = [110, 165, 220, 293.7];
+  gameNodes = freqs.map((freq, i) => {
+    const osc = c.createOscillator();
+    const gn = c.createGain();
+    osc.type = i < 2 ? 'sawtooth' : 'square';
+    osc.frequency.value = freq;
+    gn.gain.value = 0.4 / (i + 1);
+    osc.connect(gn);
+    gn.connect(gameGain);
+    osc.start();
+
+    const lfo = c.createOscillator();
+    const lg = c.createGain();
+    lfo.frequency.value = 4 + i * 0.5;
+    lg.gain.value = 0.25;
+    lfo.connect(lg);
+    lg.connect(gn.gain);
+    lfo.start();
+
+    return { osc, lfo };
+  });
+}
+
+export function stopGameMusic() {
+  gameNodes.forEach(({ osc, lfo }) => {
+    try { osc.stop(); } catch (_) {}
+    try { lfo.stop(); } catch (_) {}
+  });
+  gameNodes = [];
+  if (gameGain) { gameGain.disconnect(); gameGain = null; }
 }
 
 export function startBgMusic() {
+  stopGameMusic();
   stopBgMusic();
   if (muted) return;
   const c = getCtx();

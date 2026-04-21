@@ -1,4 +1,4 @@
-export default function LobbySelect({ username, onCreateLobby, onJoinLobby }) {
+export default function LobbySelect({ username, onCreateLobby, onJoinLobby, onSoloMode }) {
   return (
     <div className="screen lobby-select-screen">
       <div className="lobby-select-card">
@@ -23,6 +23,15 @@ export default function LobbySelect({ username, onCreateLobby, onJoinLobby }) {
             <div className="choice-text">
               <strong>Join Lobby</strong>
               <p>Enter a 6-character code to join a friend's game</p>
+            </div>
+            <span className="choice-arrow">›</span>
+          </button>
+
+          <button className="choice-btn choice-solo" onClick={onSoloMode}>
+            <span className="choice-icon">🎯</span>
+            <div className="choice-text">
+              <strong>Solo Practice</strong>
+              <p>Practice USMLE questions on your own — track your high score</p>
             </div>
             <span className="choice-arrow">›</span>
           </button>

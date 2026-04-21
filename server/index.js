@@ -396,6 +396,17 @@ io.on('connection', (socket) => {
   });
 });
 
+// ── REST API ───────────────────────────────────────────────────────────────────
+
+app.get('/api/questions', (req, res) => {
+  const subject = (req.query.subject || 'all').toLowerCase();
+  const pool = subject === 'all'
+    ? questions
+    : questions.filter(q => q.subject === subject);
+  const usable = pool.length >= 5 ? pool : questions;
+  res.json({ questions: shuffle(usable) });
+});
+
 // ── Health check ───────────────────────────────────────────────────────────────
 
 app.get('/', (req, res) => {

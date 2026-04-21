@@ -8,8 +8,9 @@ import SubjectSelect from './components/SubjectSelect';
 import Lobby from './components/Lobby';
 import GameRoom from './components/GameRoom';
 import Leaderboard from './components/Leaderboard';
+import SoloGame from './components/SoloGame';
 
-// phases: 'entry' | 'lobby_select' | 'subject_select' | 'join_input' | 'lobby' | 'game' | 'game_over'
+// phases: 'entry' | 'lobby_select' | 'subject_select' | 'join_input' | 'lobby' | 'game' | 'game_over' | 'solo_subject' | 'solo_game'
 
 export default function App() {
   const [phase,    setPhase]    = useState('entry');
@@ -20,6 +21,8 @@ export default function App() {
   const [players,  setPlayers]  = useState([]);
   const [error,    setError]    = useState('');
   const [muted,    setMuted]    = useState(false);
+  const [soloSubject, setSoloSubject] = useState('all');
+  const [soloKey,  setSoloKey]  = useState(0);
 
   // In-game
   const [question,           setQuestion]           = useState(null);
@@ -44,6 +47,14 @@ export default function App() {
     setTimeout(() => setToast(''), 3000);
   }, []);
 
+  // ── Global button click sound ──────────────────────────────────────────────
+
+  useEffect(() => {
+    const onBtnClick = (e) => { if (e.target.closest('button')) audio.playClick(); };
+    document.addEventListener('click', onBtnClick, true);
+    return () => document.removeEventListener('click', onBtnClick, true);
+  }, []);
+
   // ── Socket events ──────────────────────────────────────────────────────────
 
   useEffect(() => {
@@ -64,7 +75,7 @@ export default function App() {
       setAnswerResult(null);
       setRoundResults(null);
       setShowingRoundResult(false);
-      audio.startBgMusic();
+      audio.startGameMusic();
     });
 
     socket.on('new_question', (data) => {
@@ -107,7 +118,7 @@ export default function App() {
     socket.on('game_over', (result) => {
       setGameResult(result);
       setPhase('game_over');
-      audio.stopBgMusic();
+      audio.stopGameMusic();
       if (result.winner) audio.playVictory();
       else audio.playEliminated();
     });
@@ -119,6 +130,7 @@ export default function App() {
       setAnswerResult(null);
       setRoundResults(null);
       setShowingRoundResult(false);
+      audio.stopGameMusic();
       audio.startBgMusic();
     });
 
@@ -199,8 +211,51 @@ export default function App() {
     socket.emit('submit_answer', { answer });
   }
 
+  function handleShowSoloMode() {
+    setError('');
+    setPhase('solo_subject');
+  }
+
+  function handleSoloSubjectSelect(selectedSubject) {
+    setSoloSubject(selectedSubject);
+    setPhase('solo_game');
+  }
+
+  function handleSoloTryAgain() {
+    setSoloKey(k => k + 1);
+    setPhase('solo_game');
+  }
+
   function handlePlayAgain() {
     socket.emit('reset_game');
+  }
+
+  function handleReturnHome() {
+    audio.stopBgMusic();
+    audio.stopGameMusic();
+    socket.disconnect();
+    socket.connect();
+    setPhase('entry');
+    setUsername('');
+    setLobbyId('');
+    setSubject('all');
+    setIsHost(false);
+    setPlayers([]);
+    setError('');
+    setQuestion(null);
+    setRound(0);
+    setMyAnswer(null);
+    setHasAnswered(false);
+    setAnsweredCount(0);
+    setTotalAlive(0);
+    setMyLives(3);
+    setMyScore(0);
+    setIsAlive(true);
+    setAnswerResult(null);
+    setRoundResults(null);
+    setShowingRoundResult(false);
+    setGameResult(null);
+    setToast('');
   }
 
   function toggleMute() {
@@ -211,11 +266,18 @@ export default function App() {
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
-  const showMuteBtn = ['lobby', 'game', 'game_over'].includes(phase);
+  const showMuteBtn = ['lobby', 'game', 'game_over', 'solo_game'].includes(phase);
+  const showHomeBtn = phase !== 'entry';
 
   return (
     <div>
       {toast && <div className="notification">{toast}</div>}
+
+      {showHomeBtn && (
+        <button className="home-btn" onClick={handleReturnHome} title="Return to home">
+          ⌂ Home
+        </button>
+      )}
 
       {showMuteBtn && (
         <button className="mute-btn" onClick={toggleMute} title={muted ? 'Unmute' : 'Mute'}>
@@ -232,6 +294,7 @@ export default function App() {
           username={username}
           onCreateLobby={handleShowSubjectSelect}
           onJoinLobby={handleShowJoinInput}
+          onSoloMode={handleShowSoloMode}
         />
       )}
 
@@ -290,6 +353,25 @@ export default function App() {
           gameResult={gameResult}
           username={username}
           onPlayAgain={handlePlayAgain}
+        />
+      )}
+
+      {phase === 'solo_subject' && (
+        <SubjectSelect
+          username={username}
+          onSelect={handleSoloSubjectSelect}
+          onBack={() => { setError(''); setPhase('lobby_select'); }}
+        />
+      )}
+
+      {phase === 'solo_game' && (
+        <SoloGame
+          key={soloKey}
+          subject={soloSubject}
+          username={username}
+          onBack={handleReturnHome}
+          onTryAgain={handleSoloTryAgain}
+          onChangeSubject={() => setPhase('solo_subject')}
         />
       )}
     </div>
