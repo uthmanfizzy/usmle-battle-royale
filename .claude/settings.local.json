@@ -14,7 +14,8 @@
       "Bash(git push *)",
       "Skill(update-config)",
       "Bash(npm run *)",
-      "Bash(vercel --prod)"
+      "Bash(vercel --prod)",
+      "Bash(git commit *)"
     ]
   }
 }

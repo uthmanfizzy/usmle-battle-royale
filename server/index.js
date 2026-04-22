@@ -38,13 +38,14 @@ function generateLobbyId() {
   return id;
 }
 
-function makeLobby(hostSocketId, subject = 'all') {
+function makeLobby(hostSocketId, subject = 'all', difficulty = 'all') {
   const id = generateLobbyId();
   const lobby = {
     id,
     hostId: hostSocketId,
     status: 'waiting',   // 'waiting' | 'question' | 'reviewing' | 'game_over'
     subject,
+    difficulty,
     players: new Map(),  // socketId -> player
     questionQueue: [],
     questionIdx: -1,
@@ -68,6 +69,7 @@ function lobbyPayload(lobby) {
     hostId: lobby.hostId,
     status: lobby.status,
     subject: lobby.subject,
+    difficulty: lobby.difficulty,
     players: [...lobby.players.values()].map(p => ({
       id: p.id,
       username: p.username,
@@ -96,9 +98,13 @@ function clearTimer(lobby) {
 function startGame(lobby) {
   lobby.status = 'question';
   lobby.round = 0;
-  const pool = lobby.subject === 'all'
+  let pool = lobby.subject === 'all'
     ? questions
     : questions.filter(q => q.subject === lobby.subject);
+  if (lobby.difficulty && lobby.difficulty !== 'all') {
+    const filtered = pool.filter(q => q.difficulty === lobby.difficulty);
+    if (filtered.length >= 5) pool = filtered;
+  }
   lobby.questionQueue = shuffle(pool.length >= 5 ? pool : questions);
   lobby.questionIdx = -1;
 
@@ -196,9 +202,9 @@ function processAnswers(lobby) {
 
   const alive = alivePlayers(lobby);
   if (alive.length <= 1) {
-    setTimeout(() => endGame(lobby, 'last_standing'), 9000);
+    setTimeout(() => endGame(lobby, 'last_standing'), 14000);
   } else {
-    setTimeout(() => nextQuestion(lobby), 9500);
+    setTimeout(() => nextQuestion(lobby), 14500);
   }
 }
 
@@ -248,11 +254,11 @@ io.on('connection', (socket) => {
   console.log('[+] connected:', socket.id);
 
   // ── Create a brand-new lobby ──────────────────────────────────────────────
-  socket.on('create_lobby', ({ username, subject = 'all' }, ack) => {
+  socket.on('create_lobby', ({ username, subject = 'all', difficulty = 'all' }, ack) => {
     const name = (username ?? '').trim().slice(0, 20);
     if (!name) return ack({ ok: false, error: 'Username required.' });
 
-    const lobby = makeLobby(socket.id, subject);
+    const lobby = makeLobby(socket.id, subject, difficulty);
     lobby.players.set(socket.id, { id: socket.id, username: name, lives: 3, score: 0, alive: true });
 
     socket.lobbyId = lobby.id;
@@ -400,9 +406,14 @@ io.on('connection', (socket) => {
 
 app.get('/api/questions', (req, res) => {
   const subject = (req.query.subject || 'all').toLowerCase();
-  const pool = subject === 'all'
+  const difficulty = (req.query.difficulty || 'all').toLowerCase();
+  let pool = subject === 'all'
     ? questions
     : questions.filter(q => q.subject === subject);
+  if (difficulty !== 'all') {
+    const filtered = pool.filter(q => q.difficulty === difficulty);
+    if (filtered.length >= 5) pool = filtered;
+  }
   const usable = pool.length >= 5 ? pool : questions;
   res.json({ questions: shuffle(usable) });
 });

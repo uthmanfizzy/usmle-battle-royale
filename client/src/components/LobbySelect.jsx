@@ -1,7 +1,8 @@
-export default function LobbySelect({ username, onCreateLobby, onJoinLobby, onSoloMode }) {
+export default function LobbySelect({ username, onCreateLobby, onJoinLobby, onSoloMode, onBack }) {
   return (
     <div className="screen lobby-select-screen">
       <div className="lobby-select-card">
+        {onBack && <button className="back-btn" onClick={onBack}>← Back</button>}
         <div className="ls-header">
           <span className="ls-icon">⚕️</span>
           <h2>Ready for Battle</h2>

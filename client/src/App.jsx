@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 import socket from './socket';
 import * as audio from './audio';
 import UsernameEntry from './components/UsernameEntry';
+import ExamSelect from './components/ExamSelect';
+import DifficultySelect from './components/DifficultySelect';
 import LobbySelect from './components/LobbySelect';
 import JoinLobbyInput from './components/JoinLobbyInput';
 import SubjectSelect from './components/SubjectSelect';
@@ -10,7 +12,7 @@ import GameRoom from './components/GameRoom';
 import Leaderboard from './components/Leaderboard';
 import SoloGame from './components/SoloGame';
 
-// phases: 'entry' | 'lobby_select' | 'subject_select' | 'join_input' | 'lobby' | 'game' | 'game_over' | 'solo_subject' | 'solo_game'
+// phases: 'entry' | 'exam_select' | 'difficulty_select' | 'lobby_select' | 'subject_select' | 'join_input' | 'lobby' | 'game' | 'game_over' | 'solo_subject' | 'solo_game'
 
 export default function App() {
   const [phase,    setPhase]    = useState('entry');
@@ -20,7 +22,8 @@ export default function App() {
   const [isHost,   setIsHost]   = useState(false);
   const [players,  setPlayers]  = useState([]);
   const [error,    setError]    = useState('');
-  const [muted,    setMuted]    = useState(false);
+  const [muted,      setMuted]      = useState(false);
+  const [difficulty, setDifficulty] = useState('easy');
   const [soloSubject, setSoloSubject] = useState('all');
   const [soloKey,  setSoloKey]  = useState(0);
 
@@ -60,10 +63,11 @@ export default function App() {
   useEffect(() => {
     socket.connect();
 
-    socket.on('lobby_update', ({ players: ps, hostId, subject: s }) => {
+    socket.on('lobby_update', ({ players: ps, hostId, subject: s, difficulty: d }) => {
       setPlayers(ps);
       setIsHost(socket.id === hostId);
       if (s) setSubject(s);
+      if (d) setDifficulty(d);
     });
 
     socket.on('game_start', () => {
@@ -156,6 +160,15 @@ export default function App() {
   function handleUsernameSubmit(name) {
     setUsername(name);
     setError('');
+    setPhase('exam_select');
+  }
+
+  function handleSelectStep1() {
+    setPhase('difficulty_select');
+  }
+
+  function handleSelectDifficulty(diff) {
+    setDifficulty(diff);
     setPhase('lobby_select');
   }
 
@@ -167,7 +180,7 @@ export default function App() {
   function handleCreateLobby(selectedSubject) {
     setSubject(selectedSubject);
     setError('');
-    socket.timeout(5000).emit('create_lobby', { username, subject: selectedSubject }, (err, res) => {
+    socket.timeout(5000).emit('create_lobby', { username, subject: selectedSubject, difficulty }, (err, res) => {
       if (err) {
         setError('No response from server. Please try again.');
         return;
@@ -239,6 +252,7 @@ export default function App() {
     setUsername('');
     setLobbyId('');
     setSubject('all');
+    setDifficulty('easy');
     setIsHost(false);
     setPlayers([]);
     setError('');
@@ -289,12 +303,28 @@ export default function App() {
         <UsernameEntry onJoin={handleUsernameSubmit} error={error} />
       )}
 
+      {phase === 'exam_select' && (
+        <ExamSelect
+          username={username}
+          onSelectStep1={handleSelectStep1}
+        />
+      )}
+
+      {phase === 'difficulty_select' && (
+        <DifficultySelect
+          username={username}
+          onSelectDifficulty={handleSelectDifficulty}
+          onBack={() => setPhase('exam_select')}
+        />
+      )}
+
       {phase === 'lobby_select' && (
         <LobbySelect
           username={username}
           onCreateLobby={handleShowSubjectSelect}
           onJoinLobby={handleShowJoinInput}
           onSoloMode={handleShowSoloMode}
+          onBack={() => setPhase('difficulty_select')}
         />
       )}
 
@@ -303,6 +333,7 @@ export default function App() {
           username={username}
           onSelect={handleCreateLobby}
           onBack={() => { setError(''); setPhase('lobby_select'); }}
+          difficulty={difficulty}
         />
       )}
 
@@ -319,6 +350,7 @@ export default function App() {
         <Lobby
           lobbyId={lobbyId}
           subject={subject}
+          difficulty={difficulty}
           players={players}
           isHost={isHost}
           onStartGame={handleStartGame}
@@ -361,6 +393,7 @@ export default function App() {
           username={username}
           onSelect={handleSoloSubjectSelect}
           onBack={() => { setError(''); setPhase('lobby_select'); }}
+          difficulty={difficulty}
         />
       )}
 
@@ -368,6 +401,7 @@ export default function App() {
         <SoloGame
           key={soloKey}
           subject={soloSubject}
+          difficulty={difficulty}
           username={username}
           onBack={handleReturnHome}
           onTryAgain={handleSoloTryAgain}

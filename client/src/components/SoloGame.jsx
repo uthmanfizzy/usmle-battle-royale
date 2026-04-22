@@ -11,7 +11,7 @@ function saveHi(subject, score) {
   try { localStorage.setItem(`usmle-hs-${subject}`, String(score)); } catch {}
 }
 
-export default function SoloGame({ subject, username, onBack, onTryAgain, onChangeSubject }) {
+export default function SoloGame({ subject, difficulty = 'all', username, onBack, onTryAgain, onChangeSubject }) {
   const [questions, setQuestions] = useState([]);
   const [qIdx, setQIdx] = useState(0);
   const [lives, setLives] = useState(3);
@@ -55,7 +55,7 @@ export default function SoloGame({ subject, username, onBack, onTryAgain, onChan
   }, []);
 
   useEffect(() => {
-    fetch(`${SERVER_URL}/api/questions?subject=${subject}`)
+    fetch(`${SERVER_URL}/api/questions?subject=${subject}&difficulty=${difficulty}`)
       .then(r => r.json())
       .then(data => {
         setQuestions(data.questions || []);
@@ -127,7 +127,7 @@ export default function SoloGame({ subject, username, onBack, onTryAgain, onChan
         setBonusPoints(0);
         setQIdx(nextIdx);
       }
-    }, 7500);
+    }, 12500);
   }, [subject]);
 
   processAnswerRef.current = processAnswer;
