@@ -1,23 +1,51 @@
 console.log('PORT env var is:', process.env.PORT);
 
-const express = require('express');
-const http = require('http');
+const express    = require('express');
+const http       = require('http');
 const { Server } = require('socket.io');
-const cors = require('cors');
+const cors       = require('cors');
+const session    = require('express-session');
+const passport   = require('passport');
+const { Strategy: GoogleStrategy } = require('passport-google-oauth20');
+const jwt        = require('jsonwebtoken');
 
-const PORT = process.env.PORT || 3002;
+// ── Supabase (optional — game works without it) ────────────────────────────────
+
+let supabase = null;
+if (process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY) {
+  try {
+    supabase = require('./supabase');
+    console.log('[Supabase] Connected');
+  } catch (e) {
+    console.warn('[Supabase] Failed to init:', e.message);
+  }
+}
+
+// ── Constants ──────────────────────────────────────────────────────────────────
+
+const PORT       = process.env.PORT       || 3002;
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-jwt-secret-change-in-prod';
+const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
+const SERVER_URL = process.env.SERVER_URL || `http://localhost:${PORT}`;
+
+// ── Express setup ──────────────────────────────────────────────────────────────
 
 const app = express();
 app.use(cors({ origin: '*' }));
 app.use(express.json());
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'dev-session-secret',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { secure: false, sameSite: 'lax', maxAge: 15 * 60 * 1000 }, // 15 min — OAuth only
+}));
+app.use(passport.initialize());
+app.use(passport.session());
 
 const server = http.createServer(app);
 
 const io = new Server(server, {
-  cors: {
-    origin: '*',
-    methods: ['GET', 'POST'],
-  },
+  cors: { origin: '*', methods: ['GET', 'POST'] },
 });
 
 // ── Mutable question bank ──────────────────────────────────────────────────────
@@ -50,29 +78,110 @@ let gameSettings = {
   startingLives: 3,
 };
 
-// ── Stats tracking ─────────────────────────────────────────────────────────────
+// ── In-memory stats (server-lifetime counters) ────────────────────────────────
 
 let totalGamesPlayed = 0;
 const registeredPlayers = new Set();
 
-// ── In-memory state ────────────────────────────────────────────────────────────
+// ── In-memory game state ──────────────────────────────────────────────────────
 
-const lobbies = new Map();
-const globalLeaderboard = new Map();
+const lobbies         = new Map(); // lobbyId → lobby
+const globalLeaderboard = new Map(); // username → { wins, gamesPlayed, highScore }
 
 // ── Admin auth ─────────────────────────────────────────────────────────────────
 
 const ADMIN_PASSWORD = 'USMLEadmin2026';
 
 function adminAuth(req, res, next) {
-  const pass = req.headers['x-admin-password'];
-  if (pass !== ADMIN_PASSWORD) return res.status(401).json({ error: 'Unauthorized' });
+  if (req.headers['x-admin-password'] !== ADMIN_PASSWORD)
+    return res.status(401).json({ error: 'Unauthorized' });
   next();
 }
 
-// ── ID generation ──────────────────────────────────────────────────────────────
+// ── JWT helpers ────────────────────────────────────────────────────────────────
 
-const ID_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no 0/O/1/I to avoid confusion
+function verifyToken(token) {
+  try { return jwt.verify(token, JWT_SECRET); }
+  catch { return null; }
+}
+
+function requireAuth(req, res, next) {
+  const auth = req.headers.authorization;
+  if (!auth?.startsWith('Bearer ')) return res.status(401).json({ error: 'Unauthorized' });
+  const decoded = verifyToken(auth.slice(7));
+  if (!decoded) return res.status(401).json({ error: 'Invalid or expired token' });
+  req.userId = decoded.userId;
+  next();
+}
+
+// ── Passport Google OAuth ──────────────────────────────────────────────────────
+
+passport.serializeUser((user, done) => done(null, user.id));
+
+passport.deserializeUser(async (id, done) => {
+  if (!supabase) return done(null, { id });
+  try {
+    const { data } = await supabase.from('users').select('*').eq('id', id).single();
+    done(null, data || { id });
+  } catch { done(null, { id }); }
+});
+
+if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+  passport.use(new GoogleStrategy(
+    {
+      clientID:     process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      callbackURL:  `${SERVER_URL}/auth/google/callback`,
+    },
+    async (accessToken, refreshToken, profile, done) => {
+      if (!supabase) {
+        // No DB — return a minimal user object so auth still works end-to-end
+        return done(null, {
+          id: profile.id,
+          google_id: profile.id,
+          email: profile.emails?.[0]?.value,
+          username: profile.displayName,
+          avatar_url: profile.photos?.[0]?.value,
+        });
+      }
+      try {
+        const googleId   = profile.id;
+        const email      = profile.emails?.[0]?.value ?? null;
+        const avatarUrl  = profile.photos?.[0]?.value ?? null;
+        const displayName = profile.displayName ?? email ?? 'Player';
+
+        // Upsert user
+        let { data: user, error: fetchErr } = await supabase
+          .from('users').select('*').eq('google_id', googleId).single();
+
+        if (!user) {
+          const { data: created, error: createErr } = await supabase
+            .from('users')
+            .insert({ google_id: googleId, email, username: displayName, avatar_url: avatarUrl })
+            .select().single();
+          if (createErr) return done(createErr);
+          user = created;
+        } else {
+          // Refresh avatar/email silently
+          const { data: updated } = await supabase
+            .from('users')
+            .update({ email, avatar_url: avatarUrl })
+            .eq('id', user.id).select().single();
+          if (updated) user = updated;
+        }
+
+        done(null, user);
+      } catch (err) { done(err); }
+    }
+  ));
+  console.log('[Auth] Google OAuth strategy registered');
+} else {
+  console.warn('[Auth] GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET not set — OAuth disabled');
+}
+
+// ── Lobby ID generation ────────────────────────────────────────────────────────
+
+const ID_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
 function generateLobbyId() {
   let id;
@@ -87,14 +196,15 @@ function makeLobby(hostSocketId, subject = 'all') {
   const lobby = {
     id,
     hostId: hostSocketId,
-    status: 'waiting',   // 'waiting' | 'question' | 'reviewing' | 'game_over'
+    status: 'waiting',
     subject,
-    players: new Map(),  // socketId -> player
+    players:       new Map(), // socketId → player
     questionQueue: [],
-    questionIdx: -1,
-    round: 0,
-    timer: null,
-    answers: new Map(),  // socketId -> 'A'|'B'|'C'|'D'
+    questionIdx:   -1,
+    round:         0,
+    timer:         null,
+    answers:       new Map(), // socketId → answer letter
+    correctCounts: new Map(), // socketId → correct answer count (for XP)
   };
   lobbies.set(id, lobby);
   return lobby;
@@ -109,15 +219,11 @@ function alivePlayers(lobby) {
 function lobbyPayload(lobby) {
   return {
     lobbyId: lobby.id,
-    hostId: lobby.hostId,
-    status: lobby.status,
+    hostId:  lobby.hostId,
+    status:  lobby.status,
     subject: lobby.subject,
     players: [...lobby.players.values()].map(p => ({
-      id: p.id,
-      username: p.username,
-      lives: p.lives,
-      score: p.score,
-      alive: p.alive,
+      id: p.id, username: p.username, lives: p.lives, score: p.score, alive: p.alive,
     })),
   };
 }
@@ -135,16 +241,18 @@ function clearTimer(lobby) {
   if (lobby.timer) { clearTimeout(lobby.timer); lobby.timer = null; }
 }
 
-// ── Game flow (all functions scoped to a single lobby) ─────────────────────────
+// ── Game flow ──────────────────────────────────────────────────────────────────
 
 function startGame(lobby) {
-  lobby.status = 'question';
-  lobby.round = 0;
+  lobby.status       = 'question';
+  lobby.round        = 0;
+  lobby.correctCounts = new Map();
+
   const pool = lobby.subject === 'all'
     ? questionBank
     : questionBank.filter(q => q.subject === lobby.subject);
   lobby.questionQueue = shuffle(pool.length >= 5 ? pool : questionBank);
-  lobby.questionIdx = -1;
+  lobby.questionIdx   = -1;
 
   const lives = gameSettings.startingLives;
   for (const p of lobby.players.values()) {
@@ -170,16 +278,12 @@ function nextQuestion(lobby) {
   lobby.status = 'question';
   lobby.answers.clear();
 
-  const q = lobby.questionQueue[lobby.questionIdx];
+  const q         = lobby.questionQueue[lobby.questionIdx];
   const timeLimit = gameSettings.timerDuration;
 
   io.to(lobby.id).emit('new_question', {
-    id: q.id,
-    question: q.question,
-    options: q.options,
-    round: lobby.round,
-    timeLimit,
-    alivePlayers: alive.length,
+    id: q.id, question: q.question, options: q.options,
+    round: lobby.round, timeLimit, alivePlayers: alive.length,
   });
 
   lobby.timer = setTimeout(() => processAnswers(lobby), timeLimit * 1000);
@@ -191,39 +295,33 @@ function processAnswers(lobby) {
 
   const q = lobby.questionQueue[lobby.questionIdx];
   const eliminated = [];
-  const results = [];
+  const results    = [];
 
   for (const player of lobby.players.values()) {
     if (!player.alive) continue;
 
-    const answer = lobby.answers.get(player.id);
+    const answer  = lobby.answers.get(player.id);
     const correct = answer === q.correct;
 
     if (correct) {
       player.score += 100;
+      lobby.correctCounts.set(player.id, (lobby.correctCounts.get(player.id) || 0) + 1);
     } else {
       player.lives = Math.max(0, player.lives - 1);
       if (player.lives === 0) { player.alive = false; eliminated.push(player.username); }
     }
 
     results.push({
-      id: player.id,
-      username: player.username,
-      answered: answer !== undefined,
-      correct,
-      lives: player.lives,
-      alive: player.alive,
+      id: player.id, username: player.username,
+      answered: answer !== undefined, correct, lives: player.lives, alive: player.alive,
     });
 
     const sock = io.sockets.sockets.get(player.id);
     if (sock) {
       sock.emit('answer_result', {
-        correct,
-        correctAnswer: q.correct,
-        lives: player.lives,
-        alive: player.alive,
-        score: player.score,
-        explanation: q.explanation,
+        correct, correctAnswer: q.correct,
+        lives: player.lives, alive: player.alive,
+        score: player.score, explanation: q.explanation,
       });
     }
   }
@@ -233,11 +331,7 @@ function processAnswers(lobby) {
   }));
 
   io.to(lobby.id).emit('round_results', {
-    results,
-    correctAnswer: q.correct,
-    explanation: q.explanation,
-    eliminated,
-    players: snapshot,
+    results, correctAnswer: q.correct, explanation: q.explanation, eliminated, players: snapshot,
   });
 
   const alive = alivePlayers(lobby);
@@ -253,12 +347,12 @@ function endGame(lobby, reason) {
   clearTimer(lobby);
   totalGamesPlayed++;
 
-  const all = [...lobby.players.values()];
+  const all   = [...lobby.players.values()];
   const alive = alivePlayers(lobby);
 
   const sorted = [...all].sort((a, b) => {
     if (a.alive !== b.alive) return b.alive ? 1 : -1;
-    if (b.score !== a.score) return b.score - a.score;
+    if (b.score  !== a.score) return b.score - a.score;
     return b.lives - a.lives;
   });
 
@@ -283,31 +377,130 @@ function endGame(lobby, reason) {
 
   io.to(lobby.id).emit('game_over', {
     winner: winner ? { username: winner.username, score: winner.score } : null,
-    leaderboard,
-    globalLeaderboard: globalLB,
-    reason,
+    leaderboard, globalLeaderboard: globalLB, reason,
   });
+
+  // Award XP to authenticated players (fire-and-forget)
+  awardXP(lobby, sorted).catch(err => console.error('[awardXP]', err.message));
 }
+
+// ── XP system ─────────────────────────────────────────────────────────────────
+
+const XP_BY_PLACEMENT = { 1: 100, 2: 70, 3: 50 };
+const XP_FALLBACK     = 25;
+const XP_PER_CORRECT  = 5;
+
+async function awardXP(lobby, sorted) {
+  if (!supabase) return;
+
+  for (let i = 0; i < sorted.length; i++) {
+    const player = sorted[i];
+    const sock   = io.sockets.sockets.get(player.id);
+    if (!sock?.userId) continue; // skip unauthenticated players
+
+    const placement   = i + 1;
+    const baseXp      = XP_BY_PLACEMENT[placement] ?? XP_FALLBACK;
+    const correctCount = lobby.correctCounts.get(player.id) || 0;
+    const totalXp     = baseXp + correctCount * XP_PER_CORRECT;
+
+    try {
+      // Fetch current stats
+      const { data: user } = await supabase
+        .from('users')
+        .select('xp, level, games_played, games_won')
+        .eq('id', sock.userId)
+        .single();
+
+      if (!user) continue;
+
+      const newXp      = user.xp + totalXp;
+      const newLevel   = Math.floor(newXp / 500) + 1;
+      const isWinner   = placement === 1 && player.alive;
+
+      // Update user stats
+      await supabase.from('users').update({
+        xp:          newXp,
+        level:       newLevel,
+        games_played: user.games_played + 1,
+        games_won:   isWinner ? user.games_won + 1 : user.games_won,
+      }).eq('id', sock.userId);
+
+      // Record game history
+      await supabase.from('game_history').insert({
+        user_id:         sock.userId,
+        lobby_id:        lobby.id,
+        subject:         lobby.subject,
+        placement,
+        xp_earned:       totalXp,
+        correct_answers: correctCount,
+        total_questions: lobby.questionIdx + 1,
+      });
+
+      // Update subject mastery
+      if (lobby.subject !== 'all') {
+        await upsertMastery(sock.userId, lobby.subject, lobby.questionIdx + 1, correctCount);
+      }
+
+      console.log(`[XP] ${player.username} +${totalXp} XP (placement ${placement}, level ${newLevel})`);
+    } catch (err) {
+      console.error(`[XP] Error for ${player.username}:`, err.message);
+    }
+  }
+}
+
+async function upsertMastery(userId, subject, attempted, correct) {
+  const { data: existing } = await supabase
+    .from('subject_mastery')
+    .select('*').eq('user_id', userId).eq('subject', subject).single();
+
+  if (existing) {
+    const newAttempted = existing.questions_attempted + attempted;
+    const newCorrect   = existing.questions_correct   + correct;
+    await supabase.from('subject_mastery').update({
+      questions_attempted: newAttempted,
+      questions_correct:   newCorrect,
+      mastery_percent:     Math.round((newCorrect / newAttempted) * 100),
+    }).eq('id', existing.id);
+  } else {
+    await supabase.from('subject_mastery').insert({
+      user_id: userId, subject,
+      questions_attempted: attempted,
+      questions_correct:   correct,
+      mastery_percent:     attempted > 0 ? Math.round((correct / attempted) * 100) : 0,
+    });
+  }
+}
+
+// ── Socket.io — attach userId from JWT on connect ─────────────────────────────
+
+io.use((socket, next) => {
+  const token = socket.handshake.auth?.token;
+  if (token) {
+    const decoded = verifyToken(token);
+    if (decoded?.userId) socket.userId = decoded.userId;
+  }
+  next(); // always allow — userId is optional
+});
 
 // ── Socket handlers ────────────────────────────────────────────────────────────
 
 io.on('connection', (socket) => {
-  console.log('[+] connected:', socket.id);
+  console.log('[+] connected:', socket.id, socket.userId ? `(user ${socket.userId})` : '');
 
   socket.on('create_lobby', ({ username, subject = 'all' }, ack) => {
     const name = (username ?? '').trim().slice(0, 20);
     if (!name) return ack({ ok: false, error: 'Username required.' });
 
     const lobby = makeLobby(socket.id, subject);
-    lobby.players.set(socket.id, { id: socket.id, username: name, lives: gameSettings.startingLives, score: 0, alive: true });
-
+    lobby.players.set(socket.id, {
+      id: socket.id, username: name, lives: gameSettings.startingLives, score: 0, alive: true,
+    });
     socket.lobbyId = lobby.id;
     socket.join(lobby.id);
     registeredPlayers.add(name.toLowerCase());
 
     ack({ ok: true, lobbyId: lobby.id });
     io.to(lobby.id).emit('lobby_update', lobbyPayload(lobby));
-
     console.log(`Lobby ${lobby.id} created by ${name}`);
   });
 
@@ -316,23 +509,23 @@ io.on('connection', (socket) => {
     if (!name) return ack({ ok: false, error: 'Username required.' });
 
     const lobby = lobbies.get((lobbyId ?? '').toUpperCase().trim());
-    if (!lobby) return ack({ ok: false, error: 'Lobby not found. Check the code and try again.' });
-    if (lobby.status !== 'waiting') return ack({ ok: false, error: 'This game has already started.' });
+    if (!lobby)                       return ack({ ok: false, error: 'Lobby not found. Check the code and try again.' });
+    if (lobby.status !== 'waiting')   return ack({ ok: false, error: 'This game has already started.' });
 
     const taken = [...lobby.players.values()].some(
       p => p.username.toLowerCase() === name.toLowerCase()
     );
     if (taken) return ack({ ok: false, error: 'That username is already taken in this lobby.' });
 
-    lobby.players.set(socket.id, { id: socket.id, username: name, lives: gameSettings.startingLives, score: 0, alive: true });
-
+    lobby.players.set(socket.id, {
+      id: socket.id, username: name, lives: gameSettings.startingLives, score: 0, alive: true,
+    });
     socket.lobbyId = lobby.id;
     socket.join(lobby.id);
     registeredPlayers.add(name.toLowerCase());
 
     ack({ ok: true, lobbyId: lobby.id });
     io.to(lobby.id).emit('lobby_update', lobbyPayload(lobby));
-
     console.log(`${name} joined lobby ${lobby.id}`);
   });
 
@@ -341,8 +534,7 @@ io.on('connection', (socket) => {
     if (!lobby) return socket.emit('error', { message: 'Lobby not found.' });
     if (lobby.hostId !== socket.id) return socket.emit('error', { message: 'Only the host can start the game.' });
     if (lobby.status !== 'waiting') return socket.emit('error', { message: 'Game already started.' });
-    if (lobby.players.size < 2) return socket.emit('error', { message: 'Need at least 2 players to start.' });
-
+    if (lobby.players.size < 2)     return socket.emit('error', { message: 'Need at least 2 players to start.' });
     startGame(lobby);
   });
 
@@ -372,11 +564,12 @@ io.on('connection', (socket) => {
     if (!lobby) return;
 
     clearTimer(lobby);
-    lobby.status = 'waiting';
+    lobby.status        = 'waiting';
     lobby.answers.clear();
+    lobby.correctCounts = new Map();
     lobby.questionQueue = [];
-    lobby.questionIdx = -1;
-    lobby.round = 0;
+    lobby.questionIdx   = -1;
+    lobby.round         = 0;
 
     for (const p of lobby.players.values()) {
       p.lives = gameSettings.startingLives; p.score = 0; p.alive = true;
@@ -388,7 +581,6 @@ io.on('connection', (socket) => {
 
   socket.on('disconnect', () => {
     console.log('[-] disconnected:', socket.id);
-
     const lobby = lobbies.get(socket.lobbyId);
     if (!lobby) return;
 
@@ -407,12 +599,11 @@ io.on('connection', (socket) => {
 
     if (lobby.hostId === socket.id) {
       lobby.hostId = [...lobby.players.keys()][0];
-      console.log(`Lobby ${lobby.id} host transferred to ${lobby.players.get(lobby.hostId).username}`);
+      console.log(`Lobby ${lobby.id} host → ${lobby.players.get(lobby.hostId).username}`);
     }
 
     if (lobby.status === 'waiting') {
-      io.to(lobby.id).emit('lobby_update', lobbyPayload(lobby));
-      return;
+      io.to(lobby.id).emit('lobby_update', lobbyPayload(lobby)); return;
     }
 
     io.to(lobby.id).emit('player_left', { username: player.username });
@@ -439,11 +630,57 @@ io.on('connection', (socket) => {
 
 app.get('/api/questions', (req, res) => {
   const subject = (req.query.subject || 'all').toLowerCase();
-  const pool = subject === 'all'
+  const pool    = subject === 'all'
     ? questionBank
     : questionBank.filter(q => q.subject === subject);
-  const usable = pool.length >= 5 ? pool : questionBank;
-  res.json({ questions: shuffle(usable) });
+  res.json({ questions: shuffle(pool.length >= 5 ? pool : questionBank) });
+});
+
+// ── Auth API ───────────────────────────────────────────────────────────────────
+
+app.get('/auth/google', (req, res, next) => {
+  if (!process.env.GOOGLE_CLIENT_ID)
+    return res.status(503).json({ error: 'Google OAuth is not configured on this server.' });
+  passport.authenticate('google', { scope: ['profile', 'email'] })(req, res, next);
+});
+
+app.get('/auth/google/callback',
+  (req, res, next) => {
+    if (!process.env.GOOGLE_CLIENT_ID)
+      return res.redirect(`${CLIENT_URL}?auth=error&reason=not_configured`);
+    passport.authenticate('google', {
+      failureRedirect: `${CLIENT_URL}?auth=error`,
+    })(req, res, next);
+  },
+  (req, res) => {
+    const token = jwt.sign(
+      { userId: req.user.id, email: req.user.email },
+      JWT_SECRET,
+      { expiresIn: '30d' }
+    );
+    req.logout(() => {}); // session only needed for OAuth handshake — switch to JWT
+    res.redirect(`${CLIENT_URL}?token=${encodeURIComponent(token)}`);
+  }
+);
+
+app.get('/auth/me', requireAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Database not configured.' });
+  try {
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('*, subject_mastery(*)')
+      .eq('id', req.userId)
+      .single();
+    if (error || !user) return res.status(404).json({ error: 'User not found.' });
+    res.json(user);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/auth/logout', (req, res) => {
+  req.logout?.(() => {});
+  res.json({ ok: true });
 });
 
 // ── Admin API ──────────────────────────────────────────────────────────────────
@@ -461,22 +698,18 @@ app.get('/admin/stats', adminAuth, (req, res) => {
   });
 });
 
-app.get('/admin/settings', adminAuth, (req, res) => {
-  res.json(gameSettings);
-});
+app.get('/admin/settings', adminAuth, (req, res) => res.json(gameSettings));
 
 app.post('/admin/settings', adminAuth, (req, res) => {
   const { hardModeEnabled, step2Enabled, timerDuration, startingLives } = req.body;
   if (hardModeEnabled !== undefined) gameSettings.hardModeEnabled = Boolean(hardModeEnabled);
-  if (step2Enabled !== undefined) gameSettings.step2Enabled = Boolean(step2Enabled);
-  if (timerDuration !== undefined) gameSettings.timerDuration = Math.max(5, Math.min(60, Number(timerDuration)));
-  if (startingLives !== undefined) gameSettings.startingLives = Math.max(1, Math.min(10, Number(startingLives)));
+  if (step2Enabled    !== undefined) gameSettings.step2Enabled    = Boolean(step2Enabled);
+  if (timerDuration   !== undefined) gameSettings.timerDuration   = Math.max(5, Math.min(60, Number(timerDuration)));
+  if (startingLives   !== undefined) gameSettings.startingLives   = Math.max(1, Math.min(10, Number(startingLives)));
   res.json(gameSettings);
 });
 
-app.get('/admin/questions', adminAuth, (req, res) => {
-  res.json({ questions: questionBank });
-});
+app.get('/admin/questions', adminAuth, (req, res) => res.json({ questions: questionBank }));
 
 app.post('/admin/questions/bulk', adminAuth, (req, res) => {
   const { questions } = req.body;
@@ -493,16 +726,15 @@ app.post('/admin/questions/bulk', adminAuth, (req, res) => {
 
 app.post('/admin/questions', adminAuth, (req, res) => {
   const { subject, difficulty, question, options, correct, explanation } = req.body;
-  if (!subject || !question || !Array.isArray(options) || options.length !== 4 || !correct || !explanation) {
+  if (!subject || !question || !Array.isArray(options) || options.length !== 4 || !correct || !explanation)
     return res.status(400).json({ error: 'Missing required fields' });
-  }
   const newQ = { id: nextQuestionId(subject), subject, difficulty: difficulty || 'easy', question, options, correct, explanation };
   questionBank.push(newQ);
   res.json(newQ);
 });
 
 app.put('/admin/questions/:id', adminAuth, (req, res) => {
-  const id = req.params.id;
+  const id  = req.params.id;
   const idx = questionBank.findIndex(q => String(q.id) === id);
   if (idx === -1) return res.status(404).json({ error: 'Question not found' });
   questionBank[idx] = { ...questionBank[idx], ...req.body, id };
@@ -510,7 +742,7 @@ app.put('/admin/questions/:id', adminAuth, (req, res) => {
 });
 
 app.delete('/admin/questions/:id', adminAuth, (req, res) => {
-  const id = req.params.id;
+  const id  = req.params.id;
   const idx = questionBank.findIndex(q => String(q.id) === id);
   if (idx === -1) return res.status(404).json({ error: 'Question not found' });
   questionBank.splice(idx, 1);
@@ -519,19 +751,19 @@ app.delete('/admin/questions/:id', adminAuth, (req, res) => {
 
 // ── Health check ───────────────────────────────────────────────────────────────
 
-app.get('/', (req, res) => {
-  res.status(200).send('ok');
-});
+app.get('/', (req, res) => res.status(200).send('ok'));
 
-app.get('/health', (req, res) => {
-  res.json({
-    status: 'ok',
-    activeLobbies: lobbies.size,
-    lobbies: [...lobbies.values()].map(l => ({
-      id: l.id, status: l.status, players: l.players.size, round: l.round,
-    })),
-  });
-});
+app.get('/health', (req, res) => res.json({
+  status: 'ok',
+  supabase: !!supabase,
+  googleAuth: !!(process.env.GOOGLE_CLIENT_ID),
+  activeLobbies: lobbies.size,
+  lobbies: [...lobbies.values()].map(l => ({
+    id: l.id, status: l.status, players: l.players.size, round: l.round,
+  })),
+}));
+
+// ── Start ──────────────────────────────────────────────────────────────────────
 
 server.listen(PORT, () => {
   console.log(`USMLE Battle Royale server running on port ${PORT}`);
