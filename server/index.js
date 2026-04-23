@@ -24,6 +24,23 @@ const io = new Server(server, {
 
 let questionBank = [...require('./questions')];
 
+// ── Category ID helpers ────────────────────────────────────────────────────────
+
+const SUBJECT_PREFIXES = {
+  cardiology: 'CA', neurology: 'NE', pharmacology: 'PH',
+  microbiology: 'MI', biochemistry: 'BC', biostatistics: 'BS',
+  pathology: 'PT', all: 'AL',
+};
+
+function nextQuestionId(subject) {
+  const prefix = SUBJECT_PREFIXES[subject] || 'GN';
+  const nums = questionBank
+    .filter(q => q.subject === subject)
+    .map(q => { const m = String(q.id).match(/(\d+)$/); return m ? parseInt(m[1]) : 0; });
+  const max = nums.length > 0 ? Math.max(...nums) : 0;
+  return `${prefix}-${String(max + 1).padStart(3, '0')}`;
+}
+
 // ── Game settings ──────────────────────────────────────────────────────────────
 
 let gameSettings = {
@@ -464,12 +481,10 @@ app.get('/admin/questions', adminAuth, (req, res) => {
 app.post('/admin/questions/bulk', adminAuth, (req, res) => {
   const { questions } = req.body;
   if (!Array.isArray(questions)) return res.status(400).json({ error: 'Expected { questions: [...] }' });
-  let maxId = questionBank.reduce((m, q) => Math.max(m, q.id), 0);
   const added = [];
   for (const q of questions) {
     if (!q.subject || !q.question || !Array.isArray(q.options) || q.options.length !== 4 || !q.correct || !q.explanation) continue;
-    maxId++;
-    const newQ = { id: maxId, subject: q.subject, difficulty: q.difficulty || 'easy', question: q.question, options: q.options, correct: q.correct, explanation: q.explanation };
+    const newQ = { id: nextQuestionId(q.subject), subject: q.subject, difficulty: q.difficulty || 'easy', question: q.question, options: q.options, correct: q.correct, explanation: q.explanation };
     questionBank.push(newQ);
     added.push(newQ);
   }
@@ -481,23 +496,22 @@ app.post('/admin/questions', adminAuth, (req, res) => {
   if (!subject || !question || !Array.isArray(options) || options.length !== 4 || !correct || !explanation) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
-  const maxId = questionBank.reduce((m, q) => Math.max(m, q.id), 0);
-  const newQ = { id: maxId + 1, subject, difficulty: difficulty || 'easy', question, options, correct, explanation };
+  const newQ = { id: nextQuestionId(subject), subject, difficulty: difficulty || 'easy', question, options, correct, explanation };
   questionBank.push(newQ);
   res.json(newQ);
 });
 
 app.put('/admin/questions/:id', adminAuth, (req, res) => {
-  const id = parseInt(req.params.id);
-  const idx = questionBank.findIndex(q => q.id === id);
+  const id = req.params.id;
+  const idx = questionBank.findIndex(q => String(q.id) === id);
   if (idx === -1) return res.status(404).json({ error: 'Question not found' });
   questionBank[idx] = { ...questionBank[idx], ...req.body, id };
   res.json(questionBank[idx]);
 });
 
 app.delete('/admin/questions/:id', adminAuth, (req, res) => {
-  const id = parseInt(req.params.id);
-  const idx = questionBank.findIndex(q => q.id === id);
+  const id = req.params.id;
+  const idx = questionBank.findIndex(q => String(q.id) === id);
   if (idx === -1) return res.status(404).json({ error: 'Question not found' });
   questionBank.splice(idx, 1);
   res.json({ ok: true });

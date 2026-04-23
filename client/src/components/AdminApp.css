@@ -532,7 +532,6 @@
 .ap-folder-btn.active.ap-folder-microbiology { border-left: 3px solid #60e8ad; }
 .ap-folder-btn.active.ap-folder-biochemistry { border-left: 3px solid #ffc845; }
 .ap-folder-btn.active.ap-folder-biostatistics{ border-left: 3px solid #64deff; }
-.ap-folder-btn.active.ap-folder-pathology    { border-left: 3px solid #ffac64; }
 
 /* Subtle tint for inactive hover per category */
 .ap-folder-btn.ap-folder-cardiology:hover   { color: #ff8080; }
@@ -541,7 +540,6 @@
 .ap-folder-btn.ap-folder-microbiology:hover { color: #60e8ad; }
 .ap-folder-btn.ap-folder-biochemistry:hover { color: #ffc845; }
 .ap-folder-btn.ap-folder-biostatistics:hover{ color: #64deff; }
-.ap-folder-btn.ap-folder-pathology:hover    { color: #ffac64; }
 
 .ap-folder-icon { font-size: 16px; flex-shrink: 0; }
 .ap-folder-label { flex: 1; }

@@ -7,14 +7,13 @@ const AUTH_KEY = 'usmle_admin_session';
 const LETTERS = ['A', 'B', 'C', 'D'];
 
 const FOLDERS = [
-  { id: 'all',           label: 'All Questions',  icon: '🏥', prefix: null },
-  { id: 'cardiology',    label: 'Cardiology',     icon: '❤️',  prefix: 'CA' },
-  { id: 'neurology',     label: 'Neurology',      icon: '🧠', prefix: 'NE' },
-  { id: 'pharmacology',  label: 'Pharmacology',   icon: '💊', prefix: 'PH' },
-  { id: 'microbiology',  label: 'Microbiology',   icon: '🦠', prefix: 'MI' },
-  { id: 'biochemistry',  label: 'Biochemistry',   icon: '⚗️', prefix: 'BC' },
-  { id: 'biostatistics', label: 'Biostatistics',  icon: '📊', prefix: 'BS' },
-  { id: 'pathology',     label: 'Pathology',      icon: '🔬', prefix: 'PT' },
+  { id: 'all',           label: 'All Questions', icon: '🏥', prefix: null },
+  { id: 'cardiology',    label: 'Cardiology',    icon: '❤️',  prefix: 'CA' },
+  { id: 'neurology',     label: 'Neurology',     icon: '🧠', prefix: 'NE' },
+  { id: 'pharmacology',  label: 'Pharmacology',  icon: '💊', prefix: 'PH' },
+  { id: 'microbiology',  label: 'Microbiology',  icon: '🦠', prefix: 'MI' },
+  { id: 'biochemistry',  label: 'Biochemistry',  icon: '⚗️', prefix: 'BC' },
+  { id: 'biostatistics', label: 'Biostatistics', icon: '📊', prefix: 'BS' },
 ];
 
 const SUBJECTS = FOLDERS.filter(f => f.id !== 'all').map(f => f.id);
