@@ -63,11 +63,10 @@ export default function App() {
   useEffect(() => {
     socket.connect();
 
-    socket.on('lobby_update', ({ players: ps, hostId, subject: s, difficulty: d }) => {
+    socket.on('lobby_update', ({ players: ps, hostId, subject: s }) => {
       setPlayers(ps);
       setIsHost(socket.id === hostId);
       if (s) setSubject(s);
-      if (d) setDifficulty(d);
     });
 
     socket.on('game_start', () => {
@@ -180,7 +179,7 @@ export default function App() {
   function handleCreateLobby(selectedSubject) {
     setSubject(selectedSubject);
     setError('');
-    socket.timeout(5000).emit('create_lobby', { username, subject: selectedSubject, difficulty }, (err, res) => {
+    socket.timeout(5000).emit('create_lobby', { username, subject: selectedSubject }, (err, res) => {
       if (err) {
         setError('No response from server. Please try again.');
         return;
@@ -333,7 +332,6 @@ export default function App() {
           username={username}
           onSelect={handleCreateLobby}
           onBack={() => { setError(''); setPhase('lobby_select'); }}
-          difficulty={difficulty}
         />
       )}
 
@@ -350,7 +348,6 @@ export default function App() {
         <Lobby
           lobbyId={lobbyId}
           subject={subject}
-          difficulty={difficulty}
           players={players}
           isHost={isHost}
           onStartGame={handleStartGame}
@@ -393,7 +390,6 @@ export default function App() {
           username={username}
           onSelect={handleSoloSubjectSelect}
           onBack={() => { setError(''); setPhase('lobby_select'); }}
-          difficulty={difficulty}
         />
       )}
 
@@ -401,7 +397,6 @@ export default function App() {
         <SoloGame
           key={soloKey}
           subject={soloSubject}
-          difficulty={difficulty}
           username={username}
           onBack={handleReturnHome}
           onTryAgain={handleSoloTryAgain}

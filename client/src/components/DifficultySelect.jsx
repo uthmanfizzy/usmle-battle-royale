@@ -5,7 +5,7 @@ export default function DifficultySelect({ username, onSelectDifficulty, onBack 
         <button className="back-btn" onClick={onBack}>← Back</button>
         <h2>Select Difficulty</h2>
         <p className="difficulty-sub">
-          How tough do you want it, <strong>{username}</strong>?
+          Choose your mode, <strong>{username}</strong>.
         </p>
 
         <div className="difficulty-options">
@@ -14,18 +14,19 @@ export default function DifficultySelect({ username, onSelectDifficulty, onBack 
               <span className="diff-icon">🎓</span>
             </div>
             <h3>Easy Mode</h3>
-            <p>Recommended for students beginning their USMLE preparation. Questions test core concepts with straightforward clinical presentations.</p>
-            <div className="diff-tag easy-tag">Beginner Friendly</div>
+            <p>Recommended for students beginning their USMLE preparation. Questions test core concepts with clear clinical presentations.</p>
+            <div className="diff-tag easy-tag">Available Now</div>
           </button>
 
-          <button className="diff-option hard-diff" onClick={() => onSelectDifficulty('hard')}>
+          <div className="diff-option hard-diff diff-coming-soon">
+            <div className="coming-soon-badge">Coming Soon</div>
             <div className="diff-icon-wrap hard-icon-wrap">
               <span className="diff-icon">🔥</span>
             </div>
             <h3>Hard Mode</h3>
-            <p>For advanced students. Questions present concepts in tricky and complex clinical scenarios that challenge your deeper understanding.</p>
-            <div className="diff-tag hard-tag">Advanced Challenge</div>
-          </button>
+            <p>Hard mode questions are currently being developed. Check back soon!</p>
+            <div className="diff-tag hard-tag">In Development</div>
+          </div>
         </div>
       </div>
     </div>

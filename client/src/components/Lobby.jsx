@@ -1,13 +1,7 @@
 import { useState } from 'react';
 import { SUBJECTS } from './SubjectSelect';
 
-const DIFFICULTY_INFO = {
-  easy: { label: 'Easy Mode', icon: '🎓' },
-  hard: { label: 'Hard Mode', icon: '🔥' },
-  all:  { label: 'All Difficulties', icon: '⚖️' },
-};
-
-export default function Lobby({ lobbyId, subject, difficulty = 'all', players, isHost, onStartGame, error }) {
+export default function Lobby({ lobbyId, subject, players, isHost, onStartGame, error }) {
   const [copied, setCopied] = useState(false);
 
   function handleCopy() {
@@ -19,23 +13,16 @@ export default function Lobby({ lobbyId, subject, difficulty = 'all', players, i
 
   const canStart = players.length >= 2;
   const subjectInfo = SUBJECTS.find(s => s.id === subject) ?? SUBJECTS[0];
-  const diffInfo = DIFFICULTY_INFO[difficulty] ?? DIFFICULTY_INFO.all;
 
   return (
     <div className="screen lobby-screen">
       <div className="lobby-card">
         <h2>⚔️ Battle Lobby</h2>
 
-        {/* Subject + difficulty badges */}
-        <div className="lobby-badges">
-          <div className="subject-badge">
-            <span>{subjectInfo.icon}</span>
-            <span>{subjectInfo.label}</span>
-          </div>
-          <div className={`difficulty-badge diff-badge-${difficulty}`}>
-            <span>{diffInfo.icon}</span>
-            <span>{diffInfo.label}</span>
-          </div>
+        {/* Subject badge */}
+        <div className="subject-badge">
+          <span>{subjectInfo.icon}</span>
+          <span>{subjectInfo.label}</span>
         </div>
 
         {/* Lobby code display */}
