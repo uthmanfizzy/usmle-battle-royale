@@ -1,11 +1,11 @@
 const SUBJECTS = [
-  { id: 'all',           label: 'All Subjects',  icon: '🏥', desc: 'Mixed questions from all topics' },
-  { id: 'cardiology',    label: 'Cardiology',    icon: '❤️', desc: 'Heart, ECG, vascular' },
-  { id: 'neurology',     label: 'Neurology',     icon: '🧠', desc: 'Brain, nerves, seizures' },
-  { id: 'pharmacology',  label: 'Pharmacology',  icon: '💊', desc: 'Drugs, mechanisms, interactions' },
-  { id: 'microbiology',  label: 'Microbiology',  icon: '🦠', desc: 'Bacteria, viruses, fungi' },
-  { id: 'pathology',     label: 'Pathology',     icon: '🔬', desc: 'Disease mechanisms, histology' },
-  { id: 'biochemistry',  label: 'Biochemistry',  icon: '⚗️', desc: 'Metabolism, enzymes, genetics' },
+  { id: 'all',            label: 'All Subjects',   icon: '🏥', desc: 'Mixed questions from all topics' },
+  { id: 'cardiology',     label: 'Cardiology',     icon: '❤️', desc: 'Heart, ECG, vascular' },
+  { id: 'neurology',      label: 'Neurology',      icon: '🧠', desc: 'Brain, nerves, seizures' },
+  { id: 'pharmacology',   label: 'Pharmacology',   icon: '💊', desc: 'Drugs, mechanisms, interactions' },
+  { id: 'microbiology',   label: 'Microbiology',   icon: '🦠', desc: 'Bacteria, viruses, fungi' },
+  { id: 'biochemistry',   label: 'Biochemistry',   icon: '⚗️', desc: 'Metabolism, enzymes, genetics' },
+  { id: 'biostatistics',  label: 'Biostatistics',  icon: '📊', desc: 'Stats, study design, bias' },
 ];
 
 export default function SubjectSelect({ username, onSelect, onBack }) {

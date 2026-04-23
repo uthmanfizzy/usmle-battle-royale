@@ -4,7 +4,6 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
-const questions = require('./questions');
 
 const PORT = process.env.PORT || 3002;
 
@@ -21,10 +20,38 @@ const io = new Server(server, {
   },
 });
 
+// ── Mutable question bank ──────────────────────────────────────────────────────
+
+let questionBank = [...require('./questions')];
+
+// ── Game settings ──────────────────────────────────────────────────────────────
+
+let gameSettings = {
+  hardModeEnabled: false,
+  step2Enabled: false,
+  timerDuration: 20,
+  startingLives: 3,
+};
+
+// ── Stats tracking ─────────────────────────────────────────────────────────────
+
+let totalGamesPlayed = 0;
+const registeredPlayers = new Set();
+
 // ── In-memory state ────────────────────────────────────────────────────────────
 
-const lobbies = new Map();          // lobbyId -> lobby
-const globalLeaderboard = new Map(); // username -> { wins, gamesPlayed, highScore }
+const lobbies = new Map();
+const globalLeaderboard = new Map();
+
+// ── Admin auth ─────────────────────────────────────────────────────────────────
+
+const ADMIN_PASSWORD = 'USMLEadmin2026';
+
+function adminAuth(req, res, next) {
+  const pass = req.headers['x-admin-password'];
+  if (pass !== ADMIN_PASSWORD) return res.status(401).json({ error: 'Unauthorized' });
+  next();
+}
 
 // ── ID generation ──────────────────────────────────────────────────────────────
 
@@ -38,14 +65,13 @@ function generateLobbyId() {
   return id;
 }
 
-function makeLobby(hostSocketId, subject = 'all', difficulty = 'all') {
+function makeLobby(hostSocketId, subject = 'all') {
   const id = generateLobbyId();
   const lobby = {
     id,
     hostId: hostSocketId,
     status: 'waiting',   // 'waiting' | 'question' | 'reviewing' | 'game_over'
     subject,
-    difficulty,
     players: new Map(),  // socketId -> player
     questionQueue: [],
     questionIdx: -1,
@@ -69,7 +95,6 @@ function lobbyPayload(lobby) {
     hostId: lobby.hostId,
     status: lobby.status,
     subject: lobby.subject,
-    difficulty: lobby.difficulty,
     players: [...lobby.players.values()].map(p => ({
       id: p.id,
       username: p.username,
@@ -98,18 +123,15 @@ function clearTimer(lobby) {
 function startGame(lobby) {
   lobby.status = 'question';
   lobby.round = 0;
-  let pool = lobby.subject === 'all'
-    ? questions
-    : questions.filter(q => q.subject === lobby.subject);
-  if (lobby.difficulty && lobby.difficulty !== 'all') {
-    const filtered = pool.filter(q => q.difficulty === lobby.difficulty);
-    if (filtered.length >= 5) pool = filtered;
-  }
-  lobby.questionQueue = shuffle(pool.length >= 5 ? pool : questions);
+  const pool = lobby.subject === 'all'
+    ? questionBank
+    : questionBank.filter(q => q.subject === lobby.subject);
+  lobby.questionQueue = shuffle(pool.length >= 5 ? pool : questionBank);
   lobby.questionIdx = -1;
 
+  const lives = gameSettings.startingLives;
   for (const p of lobby.players.values()) {
-    p.lives = 3; p.score = 0; p.alive = true;
+    p.lives = lives; p.score = 0; p.alive = true;
   }
 
   io.to(lobby.id).emit('game_start', { message: 'Battle begins!' });
@@ -132,17 +154,18 @@ function nextQuestion(lobby) {
   lobby.answers.clear();
 
   const q = lobby.questionQueue[lobby.questionIdx];
+  const timeLimit = gameSettings.timerDuration;
 
   io.to(lobby.id).emit('new_question', {
     id: q.id,
     question: q.question,
     options: q.options,
     round: lobby.round,
-    timeLimit: 20,
+    timeLimit,
     alivePlayers: alive.length,
   });
 
-  lobby.timer = setTimeout(() => processAnswers(lobby), 20_000);
+  lobby.timer = setTimeout(() => processAnswers(lobby), timeLimit * 1000);
 }
 
 function processAnswers(lobby) {
@@ -211,6 +234,7 @@ function processAnswers(lobby) {
 function endGame(lobby, reason) {
   lobby.status = 'game_over';
   clearTimer(lobby);
+  totalGamesPlayed++;
 
   const all = [...lobby.players.values()];
   const alive = alivePlayers(lobby);
@@ -253,25 +277,23 @@ function endGame(lobby, reason) {
 io.on('connection', (socket) => {
   console.log('[+] connected:', socket.id);
 
-  // ── Create a brand-new lobby ──────────────────────────────────────────────
-  socket.on('create_lobby', ({ username, subject = 'all', difficulty = 'all' }, ack) => {
+  socket.on('create_lobby', ({ username, subject = 'all' }, ack) => {
     const name = (username ?? '').trim().slice(0, 20);
     if (!name) return ack({ ok: false, error: 'Username required.' });
 
-    const lobby = makeLobby(socket.id, subject, difficulty);
-    lobby.players.set(socket.id, { id: socket.id, username: name, lives: 3, score: 0, alive: true });
+    const lobby = makeLobby(socket.id, subject);
+    lobby.players.set(socket.id, { id: socket.id, username: name, lives: gameSettings.startingLives, score: 0, alive: true });
 
     socket.lobbyId = lobby.id;
     socket.join(lobby.id);
+    registeredPlayers.add(name.toLowerCase());
 
-    // Acknowledge directly to caller — no separate 'lobby_created' event needed.
     ack({ ok: true, lobbyId: lobby.id });
     io.to(lobby.id).emit('lobby_update', lobbyPayload(lobby));
 
     console.log(`Lobby ${lobby.id} created by ${name}`);
   });
 
-  // ── Join an existing lobby by code ────────────────────────────────────────
   socket.on('join_lobby', ({ username, lobbyId }, ack) => {
     const name = (username ?? '').trim().slice(0, 20);
     if (!name) return ack({ ok: false, error: 'Username required.' });
@@ -285,19 +307,18 @@ io.on('connection', (socket) => {
     );
     if (taken) return ack({ ok: false, error: 'That username is already taken in this lobby.' });
 
-    lobby.players.set(socket.id, { id: socket.id, username: name, lives: 3, score: 0, alive: true });
+    lobby.players.set(socket.id, { id: socket.id, username: name, lives: gameSettings.startingLives, score: 0, alive: true });
 
     socket.lobbyId = lobby.id;
     socket.join(lobby.id);
+    registeredPlayers.add(name.toLowerCase());
 
-    // Acknowledge directly to caller — no separate 'joined' event needed.
     ack({ ok: true, lobbyId: lobby.id });
     io.to(lobby.id).emit('lobby_update', lobbyPayload(lobby));
 
     console.log(`${name} joined lobby ${lobby.id}`);
   });
 
-  // ── Start game ────────────────────────────────────────────────────────────
   socket.on('start_game', () => {
     const lobby = lobbies.get(socket.lobbyId);
     if (!lobby) return socket.emit('error', { message: 'Lobby not found.' });
@@ -308,7 +329,6 @@ io.on('connection', (socket) => {
     startGame(lobby);
   });
 
-  // ── Submit answer ─────────────────────────────────────────────────────────
   socket.on('submit_answer', ({ answer }) => {
     const lobby = lobbies.get(socket.lobbyId);
     if (!lobby || lobby.status !== 'question') return;
@@ -330,7 +350,6 @@ io.on('connection', (socket) => {
     }
   });
 
-  // ── Reset / play again (stays in same lobby) ──────────────────────────────
   socket.on('reset_game', () => {
     const lobby = lobbies.get(socket.lobbyId);
     if (!lobby) return;
@@ -343,14 +362,13 @@ io.on('connection', (socket) => {
     lobby.round = 0;
 
     for (const p of lobby.players.values()) {
-      p.lives = 3; p.score = 0; p.alive = true;
+      p.lives = gameSettings.startingLives; p.score = 0; p.alive = true;
     }
 
     io.to(lobby.id).emit('game_reset', { lobbyId: lobby.id });
     io.to(lobby.id).emit('lobby_update', lobbyPayload(lobby));
   });
 
-  // ── Disconnect ────────────────────────────────────────────────────────────
   socket.on('disconnect', () => {
     console.log('[-] disconnected:', socket.id);
 
@@ -363,7 +381,6 @@ io.on('connection', (socket) => {
     lobby.players.delete(socket.id);
     lobby.answers.delete(socket.id);
 
-    // Clean up empty lobbies
     if (lobby.players.size === 0) {
       clearTimer(lobby);
       lobbies.delete(lobby.id);
@@ -371,7 +388,6 @@ io.on('connection', (socket) => {
       return;
     }
 
-    // Transfer host if the host left
     if (lobby.hostId === socket.id) {
       lobby.hostId = [...lobby.players.keys()][0];
       console.log(`Lobby ${lobby.id} host transferred to ${lobby.players.get(lobby.hostId).username}`);
@@ -406,16 +422,85 @@ io.on('connection', (socket) => {
 
 app.get('/api/questions', (req, res) => {
   const subject = (req.query.subject || 'all').toLowerCase();
-  const difficulty = (req.query.difficulty || 'all').toLowerCase();
-  let pool = subject === 'all'
-    ? questions
-    : questions.filter(q => q.subject === subject);
-  if (difficulty !== 'all') {
-    const filtered = pool.filter(q => q.difficulty === difficulty);
-    if (filtered.length >= 5) pool = filtered;
-  }
-  const usable = pool.length >= 5 ? pool : questions;
+  const pool = subject === 'all'
+    ? questionBank
+    : questionBank.filter(q => q.subject === subject);
+  const usable = pool.length >= 5 ? pool : questionBank;
   res.json({ questions: shuffle(usable) });
+});
+
+// ── Admin API ──────────────────────────────────────────────────────────────────
+
+app.get('/admin/stats', adminAuth, (req, res) => {
+  const questionsByCategory = {};
+  for (const q of questionBank) {
+    questionsByCategory[q.subject] = (questionsByCategory[q.subject] || 0) + 1;
+  }
+  res.json({
+    questionsByCategory,
+    totalQuestions: questionBank.length,
+    totalGamesPlayed,
+    totalPlayersRegistered: registeredPlayers.size,
+  });
+});
+
+app.get('/admin/settings', adminAuth, (req, res) => {
+  res.json(gameSettings);
+});
+
+app.post('/admin/settings', adminAuth, (req, res) => {
+  const { hardModeEnabled, step2Enabled, timerDuration, startingLives } = req.body;
+  if (hardModeEnabled !== undefined) gameSettings.hardModeEnabled = Boolean(hardModeEnabled);
+  if (step2Enabled !== undefined) gameSettings.step2Enabled = Boolean(step2Enabled);
+  if (timerDuration !== undefined) gameSettings.timerDuration = Math.max(5, Math.min(60, Number(timerDuration)));
+  if (startingLives !== undefined) gameSettings.startingLives = Math.max(1, Math.min(10, Number(startingLives)));
+  res.json(gameSettings);
+});
+
+app.get('/admin/questions', adminAuth, (req, res) => {
+  res.json({ questions: questionBank });
+});
+
+app.post('/admin/questions/bulk', adminAuth, (req, res) => {
+  const { questions } = req.body;
+  if (!Array.isArray(questions)) return res.status(400).json({ error: 'Expected { questions: [...] }' });
+  let maxId = questionBank.reduce((m, q) => Math.max(m, q.id), 0);
+  const added = [];
+  for (const q of questions) {
+    if (!q.subject || !q.question || !Array.isArray(q.options) || q.options.length !== 4 || !q.correct || !q.explanation) continue;
+    maxId++;
+    const newQ = { id: maxId, subject: q.subject, difficulty: q.difficulty || 'easy', question: q.question, options: q.options, correct: q.correct, explanation: q.explanation };
+    questionBank.push(newQ);
+    added.push(newQ);
+  }
+  res.json({ added: added.length, questions: added });
+});
+
+app.post('/admin/questions', adminAuth, (req, res) => {
+  const { subject, difficulty, question, options, correct, explanation } = req.body;
+  if (!subject || !question || !Array.isArray(options) || options.length !== 4 || !correct || !explanation) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
+  const maxId = questionBank.reduce((m, q) => Math.max(m, q.id), 0);
+  const newQ = { id: maxId + 1, subject, difficulty: difficulty || 'easy', question, options, correct, explanation };
+  questionBank.push(newQ);
+  res.json(newQ);
+});
+
+app.put('/admin/questions/:id', adminAuth, (req, res) => {
+  const id = parseInt(req.params.id);
+  const idx = questionBank.findIndex(q => q.id === id);
+  if (idx === -1) return res.status(404).json({ error: 'Question not found' });
+  questionBank[idx] = { ...questionBank[idx], ...req.body, id };
+  res.json(questionBank[idx]);
+});
+
+app.delete('/admin/questions/:id', adminAuth, (req, res) => {
+  const id = parseInt(req.params.id);
+  const idx = questionBank.findIndex(q => q.id === id);
+  if (idx === -1) return res.status(404).json({ error: 'Question not found' });
+  questionBank.splice(idx, 1);
+  res.json({ ok: true });
 });
 
 // ── Health check ───────────────────────────────────────────────────────────────
