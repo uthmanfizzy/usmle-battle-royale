@@ -4,8 +4,20 @@ import './AdminApp.css';
 const API = 'https://usmle-battle-royale-production.up.railway.app';
 const AUTH_KEY = 'usmle_admin_session';
 
-const SUBJECTS = ['cardiology', 'neurology', 'pharmacology', 'microbiology', 'biochemistry', 'biostatistics', 'pathology'];
 const LETTERS = ['A', 'B', 'C', 'D'];
+
+const FOLDERS = [
+  { id: 'all',           label: 'All Questions',  icon: '🏥', prefix: null },
+  { id: 'cardiology',    label: 'Cardiology',     icon: '❤️',  prefix: 'CA' },
+  { id: 'neurology',     label: 'Neurology',      icon: '🧠', prefix: 'NE' },
+  { id: 'pharmacology',  label: 'Pharmacology',   icon: '💊', prefix: 'PH' },
+  { id: 'microbiology',  label: 'Microbiology',   icon: '🦠', prefix: 'MI' },
+  { id: 'biochemistry',  label: 'Biochemistry',   icon: '⚗️', prefix: 'BC' },
+  { id: 'biostatistics', label: 'Biostatistics',  icon: '📊', prefix: 'BS' },
+  { id: 'pathology',     label: 'Pathology',      icon: '🔬', prefix: 'PT' },
+];
+
+const SUBJECTS = FOLDERS.filter(f => f.id !== 'all').map(f => f.id);
 
 function apiCall(path, options = {}) {
   return fetch(`${API}${path}`, {
@@ -114,15 +126,21 @@ function StatsPanel() {
       </div>
       <h3 className="ap-section-title">Questions by Category</h3>
       <div className="ap-cat-grid">
-        {categories.map(([cat, count]) => (
-          <div key={cat} className="ap-cat-card">
-            <div className="ap-cat-count">{count}</div>
-            <div className="ap-cat-name">{cat.charAt(0).toUpperCase() + cat.slice(1)}</div>
-            <div className="ap-cat-bar-wrap">
-              <div className="ap-cat-bar" style={{ width: `${Math.round((count / stats.totalQuestions) * 100)}%` }} />
+        {categories.map(([cat, count]) => {
+          const folder = FOLDERS.find(f => f.id === cat);
+          return (
+            <div key={cat} className="ap-cat-card">
+              <div className="ap-cat-icon">{folder?.icon || '📁'}</div>
+              <div className="ap-cat-count">{count}</div>
+              <div className={`ap-cat-name ap-subj-${cat}`}>
+                {cat.charAt(0).toUpperCase() + cat.slice(1)}
+              </div>
+              <div className="ap-cat-bar-wrap">
+                <div className="ap-cat-bar" style={{ width: `${Math.round((count / stats.totalQuestions) * 100)}%` }} />
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
@@ -130,7 +148,7 @@ function StatsPanel() {
 
 // ── Question Form Modal ────────────────────────────────────────────────────────
 
-function QuestionModal({ question, onSave, onClose }) {
+function QuestionModal({ question, defaultSubject = 'cardiology', onSave, onClose }) {
   const isEdit = !!question;
   const [form, setForm] = useState(() => question ? {
     subject: question.subject,
@@ -143,7 +161,7 @@ function QuestionModal({ question, onSave, onClose }) {
     correct: question.correct,
     explanation: question.explanation,
   } : {
-    subject: 'cardiology',
+    subject: defaultSubject === 'all' ? 'cardiology' : defaultSubject,
     difficulty: 'easy',
     question: '',
     optionA: '',
@@ -185,11 +203,20 @@ function QuestionModal({ question, onSave, onClose }) {
     }
   }
 
+  const folderForSubject = FOLDERS.find(f => f.id === form.subject);
+  const nextIdPreview = isEdit
+    ? question.id
+    : `${folderForSubject?.prefix || '??'}-###`;
+
   return (
     <div className="ap-backdrop" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="ap-modal">
         <div className="ap-modal-head">
-          <h2>{isEdit ? `Edit Question #${question.id}` : 'Add New Question'}</h2>
+          <h2>
+            {isEdit
+              ? `Edit Question · ${question.id}`
+              : `New Question · ${nextIdPreview}`}
+          </h2>
           <button className="ap-modal-x" onClick={onClose}>✕</button>
         </div>
         <form onSubmit={handleSubmit} className="ap-qform">
@@ -197,9 +224,14 @@ function QuestionModal({ question, onSave, onClose }) {
             <div className="ap-field">
               <label>Subject</label>
               <select value={form.subject} onChange={e => set('subject', e.target.value)}>
-                {SUBJECTS.map(s => (
-                  <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
-                ))}
+                {SUBJECTS.map(s => {
+                  const f = FOLDERS.find(fl => fl.id === s);
+                  return (
+                    <option key={s} value={s}>
+                      {f?.icon} {s.charAt(0).toUpperCase() + s.slice(1)}
+                    </option>
+                  );
+                })}
               </select>
             </div>
             <div className="ap-field">
@@ -232,7 +264,7 @@ function QuestionModal({ question, onSave, onClose }) {
             {LETTERS.map(l => (
               <div key={l} className="ap-field">
                 <label>
-                  <span className={`ap-letter ap-letter-${l === form.correct ? 'correct' : 'plain'}`}>{l}</span>
+                  <span className={`ap-letter ${l === form.correct ? 'ap-letter-correct' : 'ap-letter-plain'}`}>{l}</span>
                   {' '}Answer {l}
                 </label>
                 <input
@@ -278,7 +310,7 @@ function DeleteConfirm({ questionId, onConfirm, onCancel }) {
     <div className="ap-backdrop" onClick={onCancel}>
       <div className="ap-confirm" onClick={e => e.stopPropagation()}>
         <div className="ap-confirm-icon">🗑️</div>
-        <h3>Delete Question #{questionId}?</h3>
+        <h3>Delete {questionId}?</h3>
         <p>This action cannot be undone.</p>
         <div className="ap-modal-foot">
           <button className="ap-btn-sec" onClick={onCancel}>Cancel</button>
@@ -294,10 +326,10 @@ function DeleteConfirm({ questionId, onConfirm, onCancel }) {
 function QuestionsPanel() {
   const [questions, setQuestions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [activeFolder, setActiveFolder] = useState('all');
   const [modal, setModal] = useState(null); // null | 'add' | question object
   const [deleteId, setDeleteId] = useState(null);
   const [bulkMsg, setBulkMsg] = useState('');
-  const [filter, setFilter] = useState('all');
 
   useEffect(() => { loadQuestions(); }, []);
 
@@ -313,14 +345,14 @@ function QuestionsPanel() {
   }
 
   async function handleDelete() {
-    await apiCall(`/admin/questions/${deleteId}`, { method: 'DELETE' });
-    setQuestions(qs => qs.filter(q => q.id !== deleteId));
+    await apiCall(`/admin/questions/${encodeURIComponent(deleteId)}`, { method: 'DELETE' });
+    setQuestions(qs => qs.filter(q => String(q.id) !== String(deleteId)));
     setDeleteId(null);
   }
 
   function handleSaved(savedQ) {
     setQuestions(qs => {
-      const idx = qs.findIndex(q => q.id === savedQ.id);
+      const idx = qs.findIndex(q => String(q.id) === String(savedQ.id));
       if (idx >= 0) {
         const copy = [...qs];
         copy[idx] = savedQ;
@@ -354,70 +386,125 @@ function QuestionsPanel() {
     e.target.value = '';
   }
 
-  const filtered = filter === 'all' ? questions : questions.filter(q => q.subject === filter);
+  const folderCounts = FOLDERS.reduce((acc, f) => {
+    acc[f.id] = f.id === 'all'
+      ? questions.length
+      : questions.filter(q => q.subject === f.id).length;
+    return acc;
+  }, {});
+
+  const filtered = activeFolder === 'all'
+    ? questions
+    : questions.filter(q => q.subject === activeFolder);
 
   if (loading) return <div className="ap-loading">Loading questions…</div>;
 
   return (
     <div className="ap-questions">
-      <div className="ap-toolbar">
-        <div className="ap-toolbar-left">
-          <span className="ap-count">{filtered.length} of {questions.length} questions</span>
-          <select className="ap-filter" value={filter} onChange={e => setFilter(e.target.value)}>
-            <option value="all">All Subjects</option>
-            {SUBJECTS.map(s => (
-              <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
-            ))}
-          </select>
-        </div>
-        <div className="ap-toolbar-right">
-          {bulkMsg && <span className={`ap-bulk-msg ${bulkMsg.startsWith('✓') ? 'ok' : 'err'}`}>{bulkMsg}</span>}
-          <label className="ap-btn-sec ap-file-label">
-            📥 Bulk Import JSON
-            <input type="file" accept=".json" onChange={handleBulkImport} style={{ display: 'none' }} />
-          </label>
-          <button className="ap-btn-pri" onClick={() => setModal('add')}>+ Add Question</button>
-        </div>
-      </div>
+      <div className="ap-qm-layout">
 
-      <div className="ap-table-wrap">
-        <table className="ap-table">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Subject</th>
-              <th>Difficulty</th>
-              <th>Question Preview</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map(q => (
-              <tr key={q.id}>
-                <td className="ap-td-id">#{q.id}</td>
-                <td><span className={`ap-badge ap-subj-${q.subject}`}>{q.subject}</span></td>
-                <td><span className={`ap-badge ap-diff-${q.difficulty || 'easy'}`}>{q.difficulty || 'easy'}</span></td>
-                <td className="ap-td-preview" title={q.question}>
-                  {q.question.length > 90 ? q.question.slice(0, 90) + '…' : q.question}
-                </td>
-                <td>
-                  <div className="ap-row-actions">
-                    <button className="ap-edit-btn" onClick={() => setModal(q)}>Edit</button>
-                    <button className="ap-del-btn" onClick={() => setDeleteId(q.id)}>Delete</button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-            {filtered.length === 0 && (
-              <tr><td colSpan={5} className="ap-empty">No questions found.</td></tr>
-            )}
-          </tbody>
-        </table>
+        {/* ── Folder Sidebar ───────────────────────────────────────── */}
+        <aside className="ap-sidebar">
+          <div className="ap-sidebar-title">Categories</div>
+          {FOLDERS.map(f => (
+            <button
+              key={f.id}
+              className={`ap-folder-btn ${activeFolder === f.id ? 'active' : ''} ${f.id !== 'all' ? `ap-folder-${f.id}` : 'ap-folder-all'}`}
+              onClick={() => setActiveFolder(f.id)}
+            >
+              <span className="ap-folder-icon">{f.icon}</span>
+              <span className="ap-folder-label">{f.label}</span>
+              <span className="ap-folder-count">{folderCounts[f.id] || 0}</span>
+            </button>
+          ))}
+        </aside>
+
+        {/* ── Question Table ────────────────────────────────────────── */}
+        <div className="ap-qm-main">
+          <div className="ap-toolbar">
+            <div className="ap-toolbar-left">
+              <div className="ap-folder-heading">
+                {(() => {
+                  const f = FOLDERS.find(fl => fl.id === activeFolder);
+                  return (
+                    <>
+                      <span className="ap-fh-icon">{f?.icon}</span>
+                      <span className="ap-fh-name">{f?.label}</span>
+                      <span className="ap-fh-count">{filtered.length}</span>
+                    </>
+                  );
+                })()}
+              </div>
+            </div>
+            <div className="ap-toolbar-right">
+              {bulkMsg && (
+                <span className={`ap-bulk-msg ${bulkMsg.startsWith('✓') ? 'ok' : 'err'}`}>
+                  {bulkMsg}
+                </span>
+              )}
+              <label className="ap-btn-sec ap-file-label">
+                📥 Bulk Import
+                <input type="file" accept=".json" onChange={handleBulkImport} style={{ display: 'none' }} />
+              </label>
+              <button className="ap-btn-pri" onClick={() => setModal('add')}>+ Add Question</button>
+            </div>
+          </div>
+
+          <div className="ap-table-wrap">
+            <table className="ap-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Subject</th>
+                  <th>Difficulty</th>
+                  <th>Question Preview</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map(q => (
+                  <tr key={q.id}>
+                    <td className="ap-td-id">
+                      <span className="ap-id-pill">{q.id}</span>
+                    </td>
+                    <td>
+                      <span className={`ap-badge ap-subj-${q.subject}`}>
+                        {FOLDERS.find(f => f.id === q.subject)?.icon} {q.subject}
+                      </span>
+                    </td>
+                    <td>
+                      <span className={`ap-badge ap-diff-${q.difficulty || 'easy'}`}>
+                        {q.difficulty || 'easy'}
+                      </span>
+                    </td>
+                    <td className="ap-td-preview" title={q.question}>
+                      {q.question.length > 90 ? q.question.slice(0, 90) + '…' : q.question}
+                    </td>
+                    <td>
+                      <div className="ap-row-actions">
+                        <button className="ap-edit-btn" onClick={() => setModal(q)}>Edit</button>
+                        <button className="ap-del-btn" onClick={() => setDeleteId(q.id)}>Delete</button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {filtered.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="ap-empty">
+                      No questions in this category yet.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
       {modal && (
         <QuestionModal
           question={modal === 'add' ? null : modal}
+          defaultSubject={activeFolder}
           onSave={handleSaved}
           onClose={() => setModal(null)}
         />
@@ -518,10 +605,7 @@ function SettingsPanel() {
             <div className="ap-setting-desc">Seconds players have to answer each question (5–60)</div>
           </div>
           <div className="ap-stepper">
-            <button
-              type="button"
-              onClick={() => upd('timerDuration', Math.max(5, settings.timerDuration - 5))}
-            >−</button>
+            <button type="button" onClick={() => upd('timerDuration', Math.max(5, settings.timerDuration - 5))}>−</button>
             <input
               type="number"
               value={settings.timerDuration}
@@ -529,10 +613,7 @@ function SettingsPanel() {
               max={60}
               onChange={e => upd('timerDuration', Math.max(5, Math.min(60, Number(e.target.value))))}
             />
-            <button
-              type="button"
-              onClick={() => upd('timerDuration', Math.min(60, settings.timerDuration + 5))}
-            >+</button>
+            <button type="button" onClick={() => upd('timerDuration', Math.min(60, settings.timerDuration + 5))}>+</button>
             <span className="ap-stepper-unit">sec</span>
           </div>
         </div>
@@ -543,10 +624,7 @@ function SettingsPanel() {
             <div className="ap-setting-desc">How many lives each player starts with (1–10)</div>
           </div>
           <div className="ap-stepper">
-            <button
-              type="button"
-              onClick={() => upd('startingLives', Math.max(1, settings.startingLives - 1))}
-            >−</button>
+            <button type="button" onClick={() => upd('startingLives', Math.max(1, settings.startingLives - 1))}>−</button>
             <input
               type="number"
               value={settings.startingLives}
@@ -554,10 +632,7 @@ function SettingsPanel() {
               max={10}
               onChange={e => upd('startingLives', Math.max(1, Math.min(10, Number(e.target.value))))}
             />
-            <button
-              type="button"
-              onClick={() => upd('startingLives', Math.min(10, settings.startingLives + 1))}
-            >+</button>
+            <button type="button" onClick={() => upd('startingLives', Math.min(10, settings.startingLives + 1))}>+</button>
             <span className="ap-stepper-unit">lives</span>
           </div>
         </div>
@@ -604,30 +679,21 @@ export default function AdminApp() {
       </header>
 
       <nav className="ap-nav">
-        <button
-          className={`ap-nav-btn ${tab === 'stats' ? 'active' : ''}`}
-          onClick={() => setTab('stats')}
-        >
+        <button className={`ap-nav-btn ${tab === 'stats'     ? 'active' : ''}`} onClick={() => setTab('stats')}>
           📊 Stats Dashboard
         </button>
-        <button
-          className={`ap-nav-btn ${tab === 'questions' ? 'active' : ''}`}
-          onClick={() => setTab('questions')}
-        >
+        <button className={`ap-nav-btn ${tab === 'questions' ? 'active' : ''}`} onClick={() => setTab('questions')}>
           📋 Question Manager
         </button>
-        <button
-          className={`ap-nav-btn ${tab === 'settings' ? 'active' : ''}`}
-          onClick={() => setTab('settings')}
-        >
+        <button className={`ap-nav-btn ${tab === 'settings'  ? 'active' : ''}`} onClick={() => setTab('settings')}>
           ⚙️ Game Settings
         </button>
       </nav>
 
       <main className="ap-main">
-        {tab === 'stats' && <StatsPanel />}
+        {tab === 'stats'     && <StatsPanel />}
         {tab === 'questions' && <QuestionsPanel />}
-        {tab === 'settings' && <SettingsPanel />}
+        {tab === 'settings'  && <SettingsPanel />}
       </main>
     </div>
   );
