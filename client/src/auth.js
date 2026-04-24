@@ -22,3 +22,16 @@ export async function fetchMe() {
 export function redirectToGoogle() {
   window.location.href = `${SERVER_URL}/auth/google`;
 }
+
+export async function authFetch(path, options = {}) {
+  const token = getToken();
+  const res = await fetch(`${SERVER_URL}${path}`, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...options.headers,
+    },
+  });
+  return res;
+}

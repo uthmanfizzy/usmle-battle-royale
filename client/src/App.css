@@ -989,6 +989,16 @@ table.lb-table tr:last-child td { border-bottom: none; }
 }
 
 /* ── Google login / guest entry ────────────────────────────────────────── */
+/* ── Clan tag in lobby ──────────────────────────────────────────────────── */
+.lobby-clan-tag {
+  color: var(--gold);
+  font-size: 12px;
+  font-weight: 800;
+  margin-right: 6px;
+  letter-spacing: 0.3px;
+}
+
+/* ── Google login / guest entry ────────────────────────────────────────── */
 .btn-google {
   width: 100%;
   display: flex;

@@ -239,7 +239,7 @@ export default function App() {
   function handleCreateLobby(selectedSubject) {
     setSubject(selectedSubject);
     setError('');
-    socket.timeout(5000).emit('create_lobby', { username, subject: selectedSubject }, (err, res) => {
+    socket.timeout(5000).emit('create_lobby', { username, subject: selectedSubject, clanTag: user?.clan?.tag ?? null }, (err, res) => {
       if (err)      { setError('No response from server. Please try again.'); return; }
       if (!res.ok)  { setError(res.error ?? 'Failed to create lobby.'); return; }
       setLobbyId(res.lobbyId);
@@ -256,7 +256,7 @@ export default function App() {
 
   function handleJoinLobby(code) {
     setError('');
-    socket.timeout(5000).emit('join_lobby', { username, lobbyId: code }, (err, res) => {
+    socket.timeout(5000).emit('join_lobby', { username, lobbyId: code, clanTag: user?.clan?.tag ?? null }, (err, res) => {
       if (err)      { setError('No response from server. Please try again.'); return; }
       if (!res.ok)  { setError(res.error ?? 'Failed to join lobby.'); return; }
       setLobbyId(res.lobbyId);
@@ -355,6 +355,7 @@ export default function App() {
           user={user}
           onPlayNow={handlePlayNow}
           onLogout={handleLogout}
+          onUserUpdate={setUser}
         />
       )}
 

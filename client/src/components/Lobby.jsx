@@ -50,7 +50,10 @@ export default function Lobby({ lobbyId, subject, players, isHost, onStartGame, 
           {players.map((p, i) => (
             <div key={p.id} className="lobby-player-item">
               <span className="lobby-player-rank">#{i + 1}</span>
-              <span className="lobby-player-name">{p.username}</span>
+              <span className="lobby-player-name">
+                {p.clanTag && <span className="lobby-clan-tag">[{p.clanTag}]</span>}
+                {p.username}
+              </span>
               {i === 0 && <span className="host-badge">HOST</span>}
             </div>
           ))}

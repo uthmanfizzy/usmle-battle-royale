@@ -223,7 +223,7 @@ function lobbyPayload(lobby) {
     status:  lobby.status,
     subject: lobby.subject,
     players: [...lobby.players.values()].map(p => ({
-      id: p.id, username: p.username, lives: p.lives, score: p.score, alive: p.alive,
+      id: p.id, username: p.username, clanTag: p.clanTag || null, lives: p.lives, score: p.score, alive: p.alive,
     })),
   };
 }
@@ -425,6 +425,14 @@ async function awardXP(lobby, sorted) {
         games_won:   isWinner ? user.games_won + 1 : user.games_won,
       }).eq('id', sock.userId);
 
+      // Increment clan total_xp if user is in a clan
+      if (user.clan_id) {
+        const { data: clan } = await supabase.from('clans').select('total_xp').eq('id', user.clan_id).single();
+        if (clan) {
+          await supabase.from('clans').update({ total_xp: (clan.total_xp || 0) + totalXp }).eq('id', user.clan_id);
+        }
+      }
+
       // Record game history
       await supabase.from('game_history').insert({
         user_id:         sock.userId,
@@ -487,13 +495,13 @@ io.use((socket, next) => {
 io.on('connection', (socket) => {
   console.log('[+] connected:', socket.id, socket.userId ? `(user ${socket.userId})` : '');
 
-  socket.on('create_lobby', ({ username, subject = 'all' }, ack) => {
+  socket.on('create_lobby', ({ username, subject = 'all', clanTag = null }, ack) => {
     const name = (username ?? '').trim().slice(0, 20);
     if (!name) return ack({ ok: false, error: 'Username required.' });
 
     const lobby = makeLobby(socket.id, subject);
     lobby.players.set(socket.id, {
-      id: socket.id, username: name, lives: gameSettings.startingLives, score: 0, alive: true,
+      id: socket.id, username: name, clanTag: clanTag || null, lives: gameSettings.startingLives, score: 0, alive: true,
     });
     socket.lobbyId = lobby.id;
     socket.join(lobby.id);
@@ -504,7 +512,7 @@ io.on('connection', (socket) => {
     console.log(`Lobby ${lobby.id} created by ${name}`);
   });
 
-  socket.on('join_lobby', ({ username, lobbyId }, ack) => {
+  socket.on('join_lobby', ({ username, lobbyId, clanTag = null }, ack) => {
     const name = (username ?? '').trim().slice(0, 20);
     if (!name) return ack({ ok: false, error: 'Username required.' });
 
@@ -518,7 +526,7 @@ io.on('connection', (socket) => {
     if (taken) return ack({ ok: false, error: 'That username is already taken in this lobby.' });
 
     lobby.players.set(socket.id, {
-      id: socket.id, username: name, lives: gameSettings.startingLives, score: 0, alive: true,
+      id: socket.id, username: name, clanTag: clanTag || null, lives: gameSettings.startingLives, score: 0, alive: true,
     });
     socket.lobbyId = lobby.id;
     socket.join(lobby.id);
@@ -672,7 +680,27 @@ app.get('/auth/me', requireAuth, async (req, res) => {
         .order('played_at', { ascending: false }).limit(10),
     ]);
     if (userRes.error || !userRes.data) return res.status(404).json({ error: 'User not found.' });
-    res.json({ ...userRes.data, game_history: historyRes.data || [] });
+
+    const user = userRes.data;
+    let clan = null;
+
+    if (user.clan_id) {
+      const [clanRes, membersRes] = await Promise.all([
+        supabase.from('clans').select('id, name, tag, total_xp').eq('id', user.clan_id).single(),
+        supabase.from('clan_members')
+          .select('role, user:user_id(id, username, avatar_url, xp, level)')
+          .eq('clan_id', user.clan_id),
+      ]);
+      if (clanRes.data) {
+        const allMembers = (membersRes.data || [])
+          .map(m => ({ ...m.user, role: m.role }))
+          .filter(m => m?.id);
+        allMembers.sort((a, b) => (b.xp || 0) - (a.xp || 0));
+        clan = { ...clanRes.data, member_count: allMembers.length, top_members: allMembers.slice(0, 5) };
+      }
+    }
+
+    res.json({ ...user, game_history: historyRes.data || [], clan });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -681,6 +709,134 @@ app.get('/auth/me', requireAuth, async (req, res) => {
 app.post('/auth/logout', (req, res) => {
   req.logout?.(() => {});
   res.json({ ok: true });
+});
+
+// ── Clan API ───────────────────────────────────────────────────────────────────
+
+app.post('/api/clans', requireAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Database not configured.' });
+  const { name, tag } = req.body;
+  if (!name || !tag) return res.status(400).json({ error: 'name and tag required.' });
+  if (name.trim().length < 3 || name.trim().length > 50)
+    return res.status(400).json({ error: 'Clan name must be 3–50 characters.' });
+  if (!/^[A-Z0-9]{2,4}$/i.test(tag.trim()))
+    return res.status(400).json({ error: 'Tag must be 2–4 letters/numbers.' });
+  try {
+    const { data: user } = await supabase.from('users').select('clan_id').eq('id', req.userId).single();
+    if (user?.clan_id) return res.status(400).json({ error: 'Leave your current clan first.' });
+    const { data: clan, error: clanErr } = await supabase.from('clans').insert({
+      name: name.trim(), tag: tag.toUpperCase().trim(), created_by: req.userId, total_xp: 0,
+    }).select().single();
+    if (clanErr) {
+      if (clanErr.code === '23505') return res.status(409).json({ error: 'Clan name or tag already taken.' });
+      return res.status(500).json({ error: clanErr.message });
+    }
+    await Promise.all([
+      supabase.from('clan_members').insert({ clan_id: clan.id, user_id: req.userId, role: 'owner' }),
+      supabase.from('users').update({ clan_id: clan.id }).eq('id', req.userId),
+    ]);
+    res.json({ ok: true, clan });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/clans/search', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Database not configured.' });
+  const q = (req.query.q || '').trim();
+  if (q.length < 2) return res.json({ clans: [] });
+  try {
+    const { data: clans } = await supabase.from('clans')
+      .select('id, name, tag, total_xp').ilike('name', `%${q}%`).limit(10);
+    if (!clans?.length) return res.json({ clans: [] });
+    const ids = clans.map(c => c.id);
+    const { data: members } = await supabase.from('clan_members').select('clan_id').in('clan_id', ids);
+    const counts = {};
+    (members || []).forEach(m => { counts[m.clan_id] = (counts[m.clan_id] || 0) + 1; });
+    res.json({ clans: clans.map(c => ({ ...c, member_count: counts[c.id] || 0 })) });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/clans/leaderboard', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Database not configured.' });
+  try {
+    const { data: clans } = await supabase.from('clans')
+      .select('id, name, tag, total_xp').order('total_xp', { ascending: false }).limit(10);
+    if (!clans?.length) return res.json({ clans: [] });
+    const ids = clans.map(c => c.id);
+    const { data: members } = await supabase.from('clan_members').select('clan_id').in('clan_id', ids);
+    const counts = {};
+    (members || []).forEach(m => { counts[m.clan_id] = (counts[m.clan_id] || 0) + 1; });
+    res.json({ clans: clans.map(c => ({ ...c, member_count: counts[c.id] || 0 })) });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/clans/:id/join', requireAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Database not configured.' });
+  try {
+    const { data: user } = await supabase.from('users').select('clan_id').eq('id', req.userId).single();
+    if (user?.clan_id) return res.status(400).json({ error: 'Leave your current clan first.' });
+    const { data: clan } = await supabase.from('clans').select('id, name, tag').eq('id', req.params.id).single();
+    if (!clan) return res.status(404).json({ error: 'Clan not found.' });
+    await Promise.all([
+      supabase.from('clan_members').insert({ clan_id: clan.id, user_id: req.userId, role: 'member' }),
+      supabase.from('users').update({ clan_id: clan.id }).eq('id', req.userId),
+    ]);
+    res.json({ ok: true, clan });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/clans/leave', requireAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Database not configured.' });
+  try {
+    const { data: user } = await supabase.from('users').select('clan_id').eq('id', req.userId).single();
+    if (!user?.clan_id) return res.status(400).json({ error: 'You are not in a clan.' });
+    const clanId = user.clan_id;
+    const { data: membership } = await supabase.from('clan_members')
+      .select('role').eq('clan_id', clanId).eq('user_id', req.userId).single();
+    await Promise.all([
+      supabase.from('clan_members').delete().eq('clan_id', clanId).eq('user_id', req.userId),
+      supabase.from('users').update({ clan_id: null }).eq('id', req.userId),
+    ]);
+    if (membership?.role === 'owner') {
+      const { data: remaining } = await supabase.from('clan_members')
+        .select('user_id').eq('clan_id', clanId).limit(1);
+      if (!remaining?.length) {
+        await supabase.from('clans').delete().eq('id', clanId);
+        return res.json({ ok: true });
+      }
+      await supabase.from('clan_members')
+        .update({ role: 'owner' }).eq('clan_id', clanId).eq('user_id', remaining[0].user_id);
+    }
+    // Recalculate clan total_xp from remaining members
+    const { data: remainingMembers } = await supabase.from('clan_members')
+      .select('user:user_id(xp)').eq('clan_id', clanId);
+    const newTotal = (remainingMembers || []).reduce((s, m) => s + (m.user?.xp || 0), 0);
+    await supabase.from('clans').update({ total_xp: newTotal }).eq('id', clanId);
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── Leaderboard API ────────────────────────────────────────────────────────────
+
+app.get('/api/leaderboard/players', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Database not configured.' });
+  try {
+    const { data: players } = await supabase.from('users')
+      .select('id, username, avatar_url, xp, level, clan_id')
+      .order('xp', { ascending: false }).limit(50);
+    if (!players?.length) return res.json({ players: [] });
+    const clanIds = [...new Set(players.filter(p => p.clan_id).map(p => p.clan_id))];
+    const tagMap = {};
+    if (clanIds.length > 0) {
+      const { data: clans } = await supabase.from('clans').select('id, tag').in('id', clanIds);
+      (clans || []).forEach(c => { tagMap[c.id] = c.tag; });
+    }
+    res.json({
+      players: players.map((p, i) => ({
+        rank: i + 1, id: p.id, username: p.username, avatar_url: p.avatar_url,
+        xp: p.xp, level: p.level, clan_tag: p.clan_id ? tagMap[p.clan_id] : null,
+      })),
+    });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // ── Admin API ──────────────────────────────────────────────────────────────────
