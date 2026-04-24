@@ -152,6 +152,20 @@ export default function App() {
       setMyAnswer(null);
     });
 
+    socket.on('trivia_rolled', (data) => {
+      setTriviaState(prev => prev ? { ...prev, positions: data.positions } : prev);
+    });
+
+    socket.on('trivia_question', (data) => {
+      setTriviaState(prev => prev ? {
+        ...prev,
+        question:   data.question,
+        category:   data.category,
+        timeLimit:  data.timeLimit,
+        wedgeState: data.wedgeState || prev.wedgeState,
+      } : prev);
+    });
+
     socket.on('trivia_answer_result', (data) => {
       setTriviaResult(data);
       if (data.wedgeState) {
@@ -237,7 +251,7 @@ export default function App() {
       ['lobby_update', 'game_start', 'new_question', 'answer_count',
        'answer_result', 'round_results', 'game_over', 'game_reset',
        'player_left', 'error',
-       'race_progress', 'trivia_turn', 'trivia_answer_result'].forEach(e => socket.off(e));
+       'race_progress', 'trivia_turn', 'trivia_rolled', 'trivia_question', 'trivia_answer_result'].forEach(e => socket.off(e));
       socket.disconnect();
       audio.stopBgMusic();
     };

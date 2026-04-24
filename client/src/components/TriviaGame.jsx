@@ -1,17 +1,18 @@
 import { useState, useEffect, useRef } from 'react';
+import TriviaBoard from './TriviaBoard';
 
 const LABELS = ['A', 'B', 'C', 'D'];
 
 const CATEGORY_META = {
   cardiology:    { label: 'Cardiology',    color: '#e74c3c', icon: '❤️' },
   neurology:     { label: 'Neurology',     color: '#3498db', icon: '🧠' },
-  pharmacology:  { label: 'Pharmacology',  color: '#2ecc71', icon: '💊' },
-  microbiology:  { label: 'Microbiology',  color: '#f1c40f', icon: '🦠' },
-  biochemistry:  { label: 'Biochemistry',  color: '#e67e22', icon: '⚗️' },
+  pharmacology:  { label: 'Pharmacology',  color: '#f1c40f', icon: '💊' },
+  microbiology:  { label: 'Microbiology',  color: '#2ecc71', icon: '🦠' },
+  biochemistry:  { label: 'Biochemistry',  color: '#ff4b8b', icon: '⚗️' },
   biostatistics: { label: 'Biostatistics', color: '#9b59b6', icon: '📊' },
 };
 
-const CAT_ORDER = ['cardiology', 'neurology', 'pharmacology', 'microbiology', 'biochemistry', 'biostatistics'];
+const CAT_ORDER = ['cardiology','neurology','pharmacology','microbiology','biochemistry','biostatistics'];
 
 function Timer({ timeLimit, active, questionId, onTick }) {
   const [left, setLeft] = useState(timeLimit);
@@ -44,7 +45,7 @@ function WedgeTokens({ wedges }) {
   return (
     <div className="wedge-tokens">
       {CAT_ORDER.map(cat => {
-        const meta = CATEGORY_META[cat];
+        const meta   = CATEGORY_META[cat];
         const earned = wedges.includes(cat);
         return (
           <div
@@ -85,6 +86,7 @@ export default function TriviaGame({
   const {
     currentPlayerId, currentUsername, category,
     question, round, timeLimit, wedgeState, playerOrder,
+    positions,
   } = triviaState;
 
   const isMyTurn = socketId === currentPlayerId;
@@ -95,30 +97,28 @@ export default function TriviaGame({
     <div className="screen trivia-screen">
       <div className="trivia-inner">
 
-        {/* Header: round + category */}
-        <div className="trivia-header">
-          <span className="trivia-round">Round {round}</span>
-          <div
-            className="trivia-cat-badge"
-            style={{ background: catMeta.color + '22', borderColor: catMeta.color, color: catMeta.color }}
-          >
-            {catMeta.icon} {catMeta.label}
-          </div>
-          <span className="trivia-goal">Collect all 6 wedges to win</span>
+        {/* ── Board ── */}
+        <div className="trivia-board-container">
+          <TriviaBoard
+            positions={positions || {}}
+            currentPlayerId={currentPlayerId}
+            mySocketId={socketId}
+            wedgeState={wedgeState || {}}
+          />
         </div>
 
-        {/* Players board */}
+        {/* ── Players + wedges ── */}
         <div className="trivia-players-board">
           {(playerOrder || []).map(({ id, username: pname }) => {
-            const pState = wedgeState?.[id];
-            const wedges = pState?.wedges || [];
-            const isCurrentPlayer = id === currentPlayerId;
-            const isMe = id === socketId;
+            const pState   = wedgeState?.[id];
+            const wedges   = pState?.wedges || [];
+            const isCurrent = id === currentPlayerId;
+            const isMe      = id === socketId;
             return (
-              <div key={id} className={`trivia-player-row ${isCurrentPlayer ? 'current-turn' : ''}`}>
+              <div key={id} className={`trivia-player-row ${isCurrent ? 'current-turn' : ''}`}>
                 <div className="trivia-player-meta">
                   <span className="trivia-player-name">
-                    {isCurrentPlayer && <span className="turn-arrow">▶ </span>}
+                    {isCurrent && <span className="turn-arrow">▶ </span>}
                     {isMe ? `${pname} (you)` : pname}
                   </span>
                   <span className="trivia-wedge-count">{wedges.length}/6</span>
@@ -129,12 +129,24 @@ export default function TriviaGame({
           })}
         </div>
 
-        {/* Turn banner */}
+        {/* ── Turn banner ── */}
         <div className={`trivia-turn-banner ${isMyTurn ? 'my-turn' : ''}`}>
           {isMyTurn ? '🎯 Your turn — answer now!' : `⏳ ${currentUsername}'s turn`}
         </div>
 
-        {/* Question card */}
+        {/* ── Category badge ── */}
+        {category && (
+          <div className="trivia-cat-header">
+            <span className="trivia-round">Round {round}</span>
+            <div className="trivia-cat-badge"
+              style={{ background: catMeta.color + '22', borderColor: catMeta.color, color: catMeta.color }}>
+              {catMeta.icon} {catMeta.label}
+            </div>
+            <span className="trivia-goal">Collect all 6 wedges to win</span>
+          </div>
+        )}
+
+        {/* ── Question card ── */}
         <div className="trivia-question-card">
           {question ? (
             <>
@@ -190,7 +202,11 @@ export default function TriviaGame({
               )}
             </>
           ) : (
-            <div className="waiting-msg">Preparing question…</div>
+            <div className="waiting-msg">
+              {isMyTurn
+                ? '🎲 Roll the dice to move around the board…'
+                : `Waiting for ${currentUsername} to roll…`}
+            </div>
           )}
         </div>
 

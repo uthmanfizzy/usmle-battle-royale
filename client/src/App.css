@@ -1495,36 +1495,53 @@ table.lb-table tr:last-child td { border-bottom: none; }
 .trivia-screen {
   flex-direction: column;
   align-items: stretch;
-  padding: 16px;
-  gap: 14px;
-  background: radial-gradient(ellipse at top, #1a0d2e 0%, var(--bg) 70%);
+  padding: 12px;
+  gap: 12px;
+  background: radial-gradient(ellipse at top, #150d2a 0%, var(--bg) 70%);
   min-height: 100vh;
   overflow-y: auto;
 }
 
 .trivia-inner {
-  max-width: 720px;
+  max-width: 600px;
   width: 100%;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
 }
 
-.trivia-header {
+/* ── Board container ── */
+.trivia-board-container {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  padding: 4px 0;
+}
+
+.trivia-board-svg {
+  width: 100%;
+  max-width: 520px;
+  height: auto;
+  display: block;
+  filter: drop-shadow(0 0 24px rgba(93, 35, 160, 0.45));
+}
+
+/* ── Category header ── */
+.trivia-cat-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 8px;
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 12px 18px;
+  padding: 10px 16px;
 }
 
 .trivia-round {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
   color: var(--text-dim);
   text-transform: uppercase;
@@ -1537,33 +1554,33 @@ table.lb-table tr:last-child td { border-bottom: none; }
   gap: 6px;
   border: 1.5px solid;
   border-radius: 20px;
-  padding: 5px 14px;
+  padding: 4px 12px;
   font-size: 13px;
   font-weight: 700;
 }
 
 .trivia-goal {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-dim);
   font-weight: 600;
 }
 
-/* Players board */
+/* ── Players board ── */
 .trivia-players-board {
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 14px 18px;
+  padding: 10px 14px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .trivia-player-row {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 8px 10px;
+  gap: 5px;
+  padding: 6px 8px;
   border-radius: 8px;
   border: 1px solid transparent;
   transition: background 0.2s, border-color 0.2s;
@@ -1581,7 +1598,7 @@ table.lb-table tr:last-child td { border-bottom: none; }
 }
 
 .trivia-player-name {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--text);
 }
@@ -1592,30 +1609,30 @@ table.lb-table tr:last-child td { border-bottom: none; }
 }
 
 .trivia-wedge-count {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-dim);
   font-weight: 700;
   background: var(--surface);
-  padding: 2px 8px;
+  padding: 2px 7px;
   border-radius: 10px;
 }
 
-/* Wedge tokens */
+/* ── Wedge tokens ── */
 .wedge-tokens {
   display: flex;
-  gap: 6px;
+  gap: 5px;
   flex-wrap: nowrap;
 }
 
 .wedge-token {
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
   border: 2px solid var(--wedge-color, var(--border));
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 13px;
+  font-size: 12px;
   background: transparent;
   transition: background 0.3s, transform 0.3s, box-shadow 0.3s;
   flex-shrink: 0;
@@ -1623,20 +1640,20 @@ table.lb-table tr:last-child td { border-bottom: none; }
 
 .wedge-token.earned {
   background: var(--wedge-color);
-  transform: scale(1.1);
+  transform: scale(1.12);
   box-shadow: 0 0 8px var(--wedge-color);
 }
 
 .wedge-icon { line-height: 1; }
 
-/* Turn banner */
+/* ── Turn banner ── */
 .trivia-turn-banner {
   text-align: center;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 12px 20px;
-  font-size: 16px;
+  padding: 10px 18px;
+  font-size: 15px;
   font-weight: 700;
   color: var(--text-dim);
   animation: pulse 2s ease-in-out infinite;
@@ -1647,23 +1664,23 @@ table.lb-table tr:last-child td { border-bottom: none; }
   border-color: rgba(155, 89, 182, 0.5);
   background: rgba(155, 89, 182, 0.1);
   animation: none;
-  font-size: 18px;
+  font-size: 16px;
   box-shadow: 0 0 20px rgba(155, 89, 182, 0.15);
 }
 
-/* Question card */
+/* ── Question card ── */
 .trivia-question-card {
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 22px 24px;
+  padding: 18px 20px;
 }
 
-/* Result feedback */
+/* ── Result feedback ── */
 .trivia-result-feedback {
-  margin-top: 16px;
+  margin-top: 14px;
   border-radius: 12px;
-  padding: 16px 20px;
+  padding: 14px 18px;
   animation: popIn 0.35s cubic-bezier(.17,.67,.4,1.35);
 }
 
@@ -1709,7 +1726,9 @@ table.lb-table tr:last-child td { border-bottom: none; }
 }
 
 @media (max-width: 500px) {
-  .wedge-token { width: 22px; height: 22px; font-size: 10px; }
-  .wedge-tokens { gap: 4px; }
-  .trivia-player-name { font-size: 13px; }
+  .trivia-board-svg      { max-width: 100%; }
+  .wedge-token           { width: 20px; height: 20px; font-size: 9px; }
+  .wedge-tokens          { gap: 3px; }
+  .trivia-player-name    { font-size: 12px; }
+  .trivia-turn-banner    { font-size: 14px; padding: 8px 14px; }
 }
