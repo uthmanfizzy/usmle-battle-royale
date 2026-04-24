@@ -32,12 +32,13 @@ const SERVER_URL = process.env.SERVER_URL || `http://localhost:${PORT}`;
 
 const app = express();
 app.use(cors({ origin: '*' }));
+app.set('trust proxy', 1); // needed for secure cookies behind Railway's proxy
 app.use(express.json());
 app.use(session({
   secret: process.env.SESSION_SECRET || 'dev-session-secret',
   resave: false,
-  saveUninitialized: false,
-  cookie: { secure: false, sameSite: 'lax', maxAge: 15 * 60 * 1000 }, // 15 min — OAuth only
+  saveUninitialized: true, // must be true so OAuth state is saved before the redirect
+  cookie: { secure: true, sameSite: 'none', maxAge: 15 * 60 * 1000 }, // cross-origin OAuth
 }));
 app.use(passport.initialize());
 app.use(passport.session());
@@ -118,13 +119,8 @@ function requireAuth(req, res, next) {
 
 passport.serializeUser((user, done) => done(null, user.id));
 
-passport.deserializeUser(async (id, done) => {
-  if (!supabase) return done(null, { id });
-  try {
-    const { data } = await supabase.from('users').select('*').eq('id', id).single();
-    done(null, data || { id });
-  } catch { done(null, { id }); }
-});
+// Session is only used for the OAuth handshake — no need to re-fetch from DB
+passport.deserializeUser((id, done) => done(null, { id }));
 
 if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
   passport.use(new GoogleStrategy(
@@ -150,9 +146,9 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
         const avatarUrl  = profile.photos?.[0]?.value ?? null;
         const displayName = profile.displayName ?? email ?? 'Player';
 
-        // Upsert user
-        let { data: user, error: fetchErr } = await supabase
-          .from('users').select('*').eq('google_id', googleId).single();
+        // Upsert user (.maybeSingle returns null data — no error — when not found)
+        let { data: user } = await supabase
+          .from('users').select('*').eq('google_id', googleId).maybeSingle();
 
         if (!user) {
           const { data: created, error: createErr } = await supabase
@@ -652,24 +648,42 @@ app.get('/auth/google', (req, res, next) => {
   passport.authenticate('google', { scope: ['profile', 'email'] })(req, res, next);
 });
 
-app.get('/auth/google/callback',
-  (req, res, next) => {
-    if (!process.env.GOOGLE_CLIENT_ID)
-      return res.redirect(`${CLIENT_URL}?auth=error&reason=not_configured`);
-    passport.authenticate('google', {
-      failureRedirect: `${CLIENT_URL}?auth=error`,
-    })(req, res, next);
-  },
-  (req, res) => {
-    const token = jwt.sign(
-      { userId: req.user.id, email: req.user.email },
-      JWT_SECRET,
-      { expiresIn: '30d' }
-    );
-    req.logout(() => {}); // session only needed for OAuth handshake — switch to JWT
-    res.redirect(`${CLIENT_URL}?token=${encodeURIComponent(token)}`);
+const FRONTEND_URL = 'https://client-flax-psi-53.vercel.app';
+
+app.get('/auth/google/callback', (req, res) => {
+  if (!process.env.GOOGLE_CLIENT_ID) {
+    return res.redirect(`${FRONTEND_URL}/auth/callback?error=not_configured`);
   }
-);
+  passport.authenticate('google', (err, user) => {
+    if (err) {
+      console.error('[Auth] OAuth strategy error:', err.message);
+      return res.redirect(`${FRONTEND_URL}/auth/callback?error=oauth_failed`);
+    }
+    if (!user) {
+      console.error('[Auth] No user returned from Google strategy');
+      return res.redirect(`${FRONTEND_URL}/auth/callback?error=no_user`);
+    }
+    req.logIn(user, (loginErr) => {
+      if (loginErr) {
+        console.error('[Auth] Login error:', loginErr.message);
+        return res.redirect(`${FRONTEND_URL}/auth/callback?error=login_failed`);
+      }
+      try {
+        const token = jwt.sign(
+          { userId: user.id, email: user.email },
+          JWT_SECRET,
+          { expiresIn: '30d' }
+        );
+        req.logout(() => {});
+        console.log('[Auth] Login success, user:', user.id);
+        res.redirect(`${FRONTEND_URL}/auth/callback?token=${encodeURIComponent(token)}`);
+      } catch (signErr) {
+        console.error('[Auth] JWT sign error:', signErr.message);
+        res.redirect(`${FRONTEND_URL}/auth/callback?error=token_failed`);
+      }
+    });
+  })(req, res);
+});
 
 app.get('/auth/me', requireAuth, async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Database not configured.' });

@@ -58,12 +58,19 @@ export default function App() {
   // ── Auth init (runs once on mount) ────────────────────────────────────────
 
   useEffect(() => {
-    // Capture token from OAuth redirect (?token=...)
-    const params   = new URLSearchParams(window.location.search);
-    const urlToken = params.get('token');
+    // Capture token or error from OAuth redirect (?token=... or ?error=...)
+    const params    = new URLSearchParams(window.location.search);
+    const urlToken  = params.get('token');
+    const urlError  = params.get('error');
+
     if (urlToken) {
       setToken(urlToken);
-      window.history.replaceState({}, '', window.location.pathname);
+      window.history.replaceState({}, '', '/');
+    } else if (urlError) {
+      window.history.replaceState({}, '', '/');
+      setError('Google sign-in failed. Please try again.');
+      setPhase('entry');
+      return;
     }
 
     fetchMe().then(me => {
