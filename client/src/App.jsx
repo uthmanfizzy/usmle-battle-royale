@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import socket from './socket';
 import * as audio from './audio';
+import { getToken, setToken, clearToken, fetchMe, redirectToGoogle } from './auth';
 import UsernameEntry from './components/UsernameEntry';
+import Dashboard from './components/Dashboard';
 import ExamSelect from './components/ExamSelect';
 import DifficultySelect from './components/DifficultySelect';
 import LobbySelect from './components/LobbySelect';
@@ -12,10 +14,13 @@ import GameRoom from './components/GameRoom';
 import Leaderboard from './components/Leaderboard';
 import SoloGame from './components/SoloGame';
 
-// phases: 'entry' | 'exam_select' | 'difficulty_select' | 'lobby_select' | 'subject_select' | 'join_input' | 'lobby' | 'game' | 'game_over' | 'solo_subject' | 'solo_game'
+// phases: 'loading' | 'entry' | 'dashboard' | 'exam_select' | 'difficulty_select' |
+//         'lobby_select' | 'subject_select' | 'join_input' | 'lobby' | 'game' |
+//         'game_over' | 'solo_subject' | 'solo_game'
 
 export default function App() {
-  const [phase,    setPhase]    = useState('entry');
+  const [phase,    setPhase]    = useState('loading');
+  const [user,     setUser]     = useState(null);   // logged-in Google user
   const [username, setUsername] = useState('');
   const [lobbyId,  setLobbyId]  = useState('');
   const [subject,  setSubject]  = useState('all');
@@ -50,6 +55,28 @@ export default function App() {
     setTimeout(() => setToast(''), 3000);
   }, []);
 
+  // ── Auth init (runs once on mount) ────────────────────────────────────────
+
+  useEffect(() => {
+    // Capture token from OAuth redirect (?token=...)
+    const params   = new URLSearchParams(window.location.search);
+    const urlToken = params.get('token');
+    if (urlToken) {
+      setToken(urlToken);
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+
+    fetchMe().then(me => {
+      if (me) {
+        setUser(me);
+        setUsername(me.username);
+        setPhase('dashboard');
+      } else {
+        setPhase('entry');
+      }
+    });
+  }, []);
+
   // ── Global button click sound ──────────────────────────────────────────────
 
   useEffect(() => {
@@ -58,11 +85,9 @@ export default function App() {
     return () => document.removeEventListener('click', onBtnClick, true);
   }, []);
 
-  // ── Socket events ──────────────────────────────────────────────────────────
+  // ── Socket events (register once; connect later when entering game) ───────
 
   useEffect(() => {
-    socket.connect();
-
     socket.on('lobby_update', ({ players: ps, hostId, subject: s }) => {
       setPlayers(ps);
       setIsHost(socket.id === hostId);
@@ -104,9 +129,8 @@ export default function App() {
       setMyLives(result.lives);
       setMyScore(result.score);
       setIsAlive(result.alive);
-      if (result.correct) {
-        audio.playCorrect();
-      } else {
+      if (result.correct) audio.playCorrect();
+      else {
         audio.playWrong();
         if (!result.alive) audio.playEliminated();
       }
@@ -124,6 +148,13 @@ export default function App() {
       audio.stopGameMusic();
       if (result.winner) audio.playVictory();
       else audio.playEliminated();
+
+      // Refresh user stats silently after XP is awarded
+      if (getToken()) {
+        setTimeout(() => {
+          fetchMe().then(me => { if (me) setUser(me); });
+        }, 2000); // wait a moment for server to finish writing XP
+      }
     });
 
     socket.on('game_reset', () => {
@@ -154,11 +185,40 @@ export default function App() {
     };
   }, [showToast]);
 
-  // ── Handlers ───────────────────────────────────────────────────────────────
+  // ── Connect socket with JWT when entering game flow ───────────────────────
 
-  function handleUsernameSubmit(name) {
+  function connectSocket() {
+    socket.auth = { token: getToken() };
+    if (!socket.connected) socket.connect();
+  }
+
+  // ── Auth handlers ─────────────────────────────────────────────────────────
+
+  function handleGoogleLogin() {
+    redirectToGoogle();
+  }
+
+  function handleLogout() {
+    clearToken();
+    setUser(null);
+    setUsername('');
+    socket.disconnect();
+    audio.stopBgMusic();
+    audio.stopGameMusic();
+    setPhase('entry');
+  }
+
+  // ── Game-flow handlers ─────────────────────────────────────────────────────
+
+  function handleGuestLogin(name) {
     setUsername(name);
     setError('');
+    connectSocket();
+    setPhase('exam_select');
+  }
+
+  function handlePlayNow() {
+    connectSocket();
     setPhase('exam_select');
   }
 
@@ -180,11 +240,8 @@ export default function App() {
     setSubject(selectedSubject);
     setError('');
     socket.timeout(5000).emit('create_lobby', { username, subject: selectedSubject }, (err, res) => {
-      if (err) {
-        setError('No response from server. Please try again.');
-        return;
-      }
-      if (!res.ok) { setError(res.error ?? 'Failed to create lobby.'); return; }
+      if (err)      { setError('No response from server. Please try again.'); return; }
+      if (!res.ok)  { setError(res.error ?? 'Failed to create lobby.'); return; }
       setLobbyId(res.lobbyId);
       setIsHost(true);
       setPhase('lobby');
@@ -200,11 +257,8 @@ export default function App() {
   function handleJoinLobby(code) {
     setError('');
     socket.timeout(5000).emit('join_lobby', { username, lobbyId: code }, (err, res) => {
-      if (err) {
-        setError('No response from server. Please try again.');
-        return;
-      }
-      if (!res.ok) { setError(res.error ?? 'Failed to join lobby.'); return; }
+      if (err)      { setError('No response from server. Please try again.'); return; }
+      if (!res.ok)  { setError(res.error ?? 'Failed to join lobby.'); return; }
       setLobbyId(res.lobbyId);
       setIsHost(false);
       setPhase('lobby');
@@ -212,9 +266,7 @@ export default function App() {
     });
   }
 
-  function handleStartGame() {
-    socket.emit('start_game');
-  }
+  function handleStartGame()   { socket.emit('start_game'); }
 
   function handleAnswer(answer) {
     if (hasAnswered || !isAlive) return;
@@ -223,32 +275,18 @@ export default function App() {
     socket.emit('submit_answer', { answer });
   }
 
-  function handleShowSoloMode() {
-    setError('');
-    setPhase('solo_subject');
-  }
-
-  function handleSoloSubjectSelect(selectedSubject) {
-    setSoloSubject(selectedSubject);
-    setPhase('solo_game');
-  }
-
-  function handleSoloTryAgain() {
-    setSoloKey(k => k + 1);
-    setPhase('solo_game');
-  }
-
-  function handlePlayAgain() {
-    socket.emit('reset_game');
-  }
+  function handleShowSoloMode()              { setError(''); setPhase('solo_subject'); }
+  function handleSoloSubjectSelect(s)        { setSoloSubject(s); setPhase('solo_game'); }
+  function handleSoloTryAgain()              { setSoloKey(k => k + 1); setPhase('solo_game'); }
+  function handlePlayAgain()                 { socket.emit('reset_game'); }
 
   function handleReturnHome() {
     audio.stopBgMusic();
     audio.stopGameMusic();
     socket.disconnect();
-    socket.connect();
-    setPhase('entry');
-    setUsername('');
+
+    setPhase(user ? 'dashboard' : 'entry');
+    if (!user) setUsername('');
     setLobbyId('');
     setSubject('all');
     setDifficulty('easy');
@@ -280,7 +318,7 @@ export default function App() {
   // ── Render ─────────────────────────────────────────────────────────────────
 
   const showMuteBtn = ['lobby', 'game', 'game_over', 'solo_game'].includes(phase);
-  const showHomeBtn = phase !== 'entry';
+  const showHomeBtn = !['loading', 'entry', 'dashboard'].includes(phase);
 
   return (
     <div>
@@ -298,8 +336,26 @@ export default function App() {
         </button>
       )}
 
+      {phase === 'loading' && (
+        <div className="screen entry-screen">
+          <div className="spinner" style={{ width: 52, height: 52 }} />
+        </div>
+      )}
+
       {phase === 'entry' && (
-        <UsernameEntry onJoin={handleUsernameSubmit} error={error} />
+        <UsernameEntry
+          onJoin={handleGuestLogin}
+          onGoogleLogin={handleGoogleLogin}
+          error={error}
+        />
+      )}
+
+      {phase === 'dashboard' && (
+        <Dashboard
+          user={user}
+          onPlayNow={handlePlayNow}
+          onLogout={handleLogout}
+        />
       )}
 
       {phase === 'exam_select' && (

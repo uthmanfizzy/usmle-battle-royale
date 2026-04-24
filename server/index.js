@@ -666,13 +666,13 @@ app.get('/auth/google/callback',
 app.get('/auth/me', requireAuth, async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Database not configured.' });
   try {
-    const { data: user, error } = await supabase
-      .from('users')
-      .select('*, subject_mastery(*)')
-      .eq('id', req.userId)
-      .single();
-    if (error || !user) return res.status(404).json({ error: 'User not found.' });
-    res.json(user);
+    const [userRes, historyRes] = await Promise.all([
+      supabase.from('users').select('*, subject_mastery(*)').eq('id', req.userId).single(),
+      supabase.from('game_history').select('*').eq('user_id', req.userId)
+        .order('played_at', { ascending: false }).limit(10),
+    ]);
+    if (userRes.error || !userRes.data) return res.status(404).json({ error: 'User not found.' });
+    res.json({ ...userRes.data, game_history: historyRes.data || [] });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
