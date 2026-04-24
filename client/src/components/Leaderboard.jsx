@@ -50,6 +50,70 @@ export default function Leaderboard({ gameResult, username, gameMode, onPlayAgai
     );
   }
 
+  // ── Trivia Pursuit ─────────────────────────────────────────────────────────
+  if (detectedMode === 'trivia_pursuit') {
+    const { players = [] } = gameResult;
+    const CAT_COLORS = {
+      cardiology: '#e74c3c', neurology: '#3498db', pharmacology: '#2ecc71',
+      microbiology: '#f1c40f', biochemistry: '#e67e22', biostatistics: '#9b59b6',
+    };
+    const CAT_ORDER = ['cardiology', 'neurology', 'pharmacology', 'microbiology', 'biochemistry', 'biostatistics'];
+    return (
+      <div className="screen leaderboard-screen">
+        <div className="leaderboard-card">
+          <div className="victory-header">
+            <span className="victory-trophy">{isWinner ? '🏆' : winner ? '🎯' : '🤝'}</span>
+            <h2>{isWinner ? 'VICTORY!' : winner ? `${winner.username} wins!` : 'Game Over'}</h2>
+            <p>
+              {isWinner
+                ? 'You collected all 6 wedges first!'
+                : winner
+                ? `${winner.username} collected all 6 subject wedges`
+                : 'No one collected all wedges'}
+            </p>
+          </div>
+
+          <div className="lb-section">
+            <p className="section-title">🎯 Trivia Pursuit Final Standings</p>
+            <table className="lb-table">
+              <thead>
+                <tr><th>Rank</th><th>Player</th><th>Wedges</th><th>Collection</th></tr>
+              </thead>
+              <tbody>
+                {players.map(p => (
+                  <tr key={p.id} className={p.username === username ? 'me' : ''}>
+                    <td className="lb-rank">{MEDALS[p.rank - 1] ?? `#${p.rank}`}</td>
+                    <td>{p.username}{p.username === username ? ' 👤' : ''}</td>
+                    <td>{p.wedgeCount}/6</td>
+                    <td>
+                      <div style={{ display: 'flex', gap: 4 }}>
+                        {CAT_ORDER.map(cat => (
+                          <div
+                            key={cat}
+                            title={cat}
+                            style={{
+                              width: 18, height: 18,
+                              borderRadius: '50%',
+                              background: p.wedges.includes(cat) ? CAT_COLORS[cat] : 'transparent',
+                              border: `2px solid ${CAT_COLORS[cat]}`,
+                              flexShrink: 0,
+                            }}
+                          />
+                        ))}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <button className="btn-play-again" onClick={onPlayAgain}>🎯 Play Again</button>
+        </div>
+      </div>
+    );
+  }
+
   // ── Battle Royale ──────────────────────────────────────────────────────────
   const { leaderboard = [], globalLeaderboard = [] } = gameResult;
   return (

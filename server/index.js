@@ -645,7 +645,7 @@ const TRIVIA_CATS = [
   'cardiology', 'neurology', 'pharmacology',
   'microbiology', 'biochemistry', 'biostatistics',
 ];
-const TRIVIA_Q_TIME = 30;
+const TRIVIA_Q_TIME = 20;
 
 function triviaWedgeSnapshot(lobby) {
   const state = {};

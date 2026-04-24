@@ -15,7 +15,9 @@
       "Skill(update-config)",
       "Bash(npm run *)",
       "Bash(vercel --prod)",
-      "Bash(git commit *)"
+      "Bash(git commit *)",
+      "Read(//c/c/Users/faiza/usmle-battle-royale/server/**)",
+      "Bash(git restore *)"
     ]
   }
 }

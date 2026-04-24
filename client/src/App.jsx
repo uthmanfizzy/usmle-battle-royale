@@ -12,6 +12,7 @@ import SubjectSelect from './components/SubjectSelect';
 import Lobby from './components/Lobby';
 import GameRoom from './components/GameRoom';
 import SpeedRaceGame from './components/SpeedRaceGame';
+import TriviaGame from './components/TriviaGame';
 import Leaderboard from './components/Leaderboard';
 import SoloGame from './components/SoloGame';
 
@@ -35,6 +36,9 @@ export default function App() {
   const [soloKey,  setSoloKey]  = useState(0);
 
   const [raceProgress, setRaceProgress] = useState([]);
+
+  const [triviaState,  setTriviaState]  = useState(null);
+  const [triviaResult, setTriviaResult] = useState(null);
 
   // In-game
   const [question,           setQuestion]           = useState(null);
@@ -132,11 +136,29 @@ export default function App() {
       setRoundResults(null);
       setShowingRoundResult(false);
       setRaceProgress([]);
+      setTriviaState(null);
+      setTriviaResult(null);
       audio.startGameMusic();
     });
 
     socket.on('race_progress', ({ progress }) => {
       setRaceProgress(progress || []);
+    });
+
+    socket.on('trivia_turn', (data) => {
+      setTriviaState(data);
+      setTriviaResult(null);
+      setHasAnswered(false);
+      setMyAnswer(null);
+    });
+
+    socket.on('trivia_answer_result', (data) => {
+      setTriviaResult(data);
+      if (data.wedgeState) {
+        setTriviaState(prev => prev ? { ...prev, wedgeState: data.wedgeState } : prev);
+      }
+      if (data.correct) audio.playCorrect();
+      else audio.playWrong();
     });
 
     socket.on('new_question', (data) => {
@@ -197,6 +219,8 @@ export default function App() {
       setAnswerResult(null);
       setRoundResults(null);
       setShowingRoundResult(false);
+      setTriviaState(null);
+      setTriviaResult(null);
       audio.stopGameMusic();
       audio.startBgMusic();
     });
@@ -213,7 +237,7 @@ export default function App() {
       ['lobby_update', 'game_start', 'new_question', 'answer_count',
        'answer_result', 'round_results', 'game_over', 'game_reset',
        'player_left', 'error',
-       'race_progress'].forEach(e => socket.off(e));
+       'race_progress', 'trivia_turn', 'trivia_answer_result'].forEach(e => socket.off(e));
       socket.disconnect();
       audio.stopBgMusic();
     };
@@ -476,6 +500,19 @@ export default function App() {
           onAnswer={handleAnswer}
           username={username}
           onTick={audio.playTick}
+        />
+      )}
+
+      {phase === 'game' && gameMode === 'trivia_pursuit' && (
+        <TriviaGame
+          triviaState={triviaState}
+          triviaResult={triviaResult}
+          onAnswer={handleAnswer}
+          username={username}
+          socketId={socket.id}
+          onTick={audio.playTick}
+          hasAnswered={hasAnswered}
+          myAnswer={myAnswer}
         />
       )}
 
