@@ -12,7 +12,7 @@ const jwt        = require('jsonwebtoken');
 // ── Supabase (optional — game works without it) ────────────────────────────────
 
 let supabase = null;
-if (process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY) {
+if (process.env.SUPABASE_URL && (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY)) {
   try {
     supabase = require('./supabase');
     console.log('[Supabase] Connected');

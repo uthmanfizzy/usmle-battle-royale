@@ -3,7 +3,6 @@ import socket from './socket';
 import * as audio from './audio';
 import { getToken, clearToken, fetchMe, getCachedUser, redirectToGoogle } from './auth';
 import UsernameEntry from './components/UsernameEntry';
-import Dashboard from './components/Dashboard';
 import ExamSelect from './components/ExamSelect';
 import DifficultySelect from './components/DifficultySelect';
 import LobbySelect from './components/LobbySelect';
@@ -14,7 +13,7 @@ import GameRoom from './components/GameRoom';
 import Leaderboard from './components/Leaderboard';
 import SoloGame from './components/SoloGame';
 
-// phases: 'loading' | 'entry' | 'dashboard' | 'exam_select' | 'difficulty_select' |
+// phases: 'loading' | 'entry' | 'exam_select' | 'difficulty_select' |
 //         'lobby_select' | 'subject_select' | 'join_input' | 'lobby' | 'game' |
 //         'game_over' | 'solo_subject' | 'solo_game'
 
@@ -58,9 +57,9 @@ export default function App() {
   // ── Auth init (runs once on mount) ────────────────────────────────────────
 
   useEffect(() => {
-    // Handle auth errors redirected back from /auth/callback
     const params    = new URLSearchParams(window.location.search);
     const authError = params.get('auth_error');
+    const autoPlay  = params.get('play') === '1';
 
     if (authError) {
       window.history.replaceState({}, '', '/');
@@ -69,27 +68,34 @@ export default function App() {
       return;
     }
 
-    // If the URL is /dashboard, force that phase after auth check
-    const wantsDashboard = window.location.pathname === '/dashboard';
-    if (wantsDashboard) window.history.replaceState({}, '', '/');
+    const token = getToken();
 
-    // Use cached user for instant load while re-validating in background
-    const cached = getCachedUser();
-    if (cached && getToken()) {
-      setUser(cached);
-      setUsername(cached.username);
-      setPhase('dashboard');
+    if (autoPlay) {
+      // Arrived from /dashboard Play Now button
+      window.history.replaceState({}, '', '/');
+      if (!token) { setPhase('entry'); return; }
+      const cached = getCachedUser();
+      if (cached) {
+        setUser(cached);
+        setUsername(cached.username);
+        connectSocket();
+        setPhase('exam_select');
+      } else {
+        fetchMe().then(me => {
+          if (me) { setUser(me); setUsername(me.username); connectSocket(); setPhase('exam_select'); }
+          else { setPhase('entry'); }
+        });
+      }
+      return;
     }
 
-    fetchMe().then(me => {
-      if (me) {
-        setUser(me);
-        setUsername(me.username);
-        setPhase('dashboard');
-      } else if (!cached) {
-        setPhase('entry');
-      }
-    });
+    if (token) {
+      // Logged-in user landing on / → send to /dashboard
+      window.location.replace('/dashboard');
+      return;
+    }
+
+    setPhase('entry');
   }, []);
 
   // ── Global button click sound ──────────────────────────────────────────────
@@ -300,8 +306,13 @@ export default function App() {
     audio.stopGameMusic();
     socket.disconnect();
 
-    setPhase(user ? 'dashboard' : 'entry');
-    if (!user) setUsername('');
+    if (user) {
+      window.location.href = '/dashboard';
+      return;
+    }
+
+    setPhase('entry');
+    setUsername('');
     setLobbyId('');
     setSubject('all');
     setDifficulty('easy');
@@ -333,7 +344,7 @@ export default function App() {
   // ── Render ─────────────────────────────────────────────────────────────────
 
   const showMuteBtn = ['lobby', 'game', 'game_over', 'solo_game'].includes(phase);
-  const showHomeBtn = !['loading', 'entry', 'dashboard'].includes(phase);
+  const showHomeBtn = !['loading', 'entry'].includes(phase);
 
   return (
     <div>
@@ -362,15 +373,6 @@ export default function App() {
           onJoin={handleGuestLogin}
           onGoogleLogin={handleGoogleLogin}
           error={error}
-        />
-      )}
-
-      {phase === 'dashboard' && (
-        <Dashboard
-          user={user}
-          onPlayNow={handlePlayNow}
-          onLogout={handleLogout}
-          onUserUpdate={setUser}
         />
       )}
 
