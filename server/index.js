@@ -187,20 +187,32 @@ function generateLobbyId() {
   return id;
 }
 
-function makeLobby(hostSocketId, subject = 'all') {
+function makeLobby(hostSocketId, subject = 'all', gameMode = 'battle_royale') {
   const id = generateLobbyId();
   const lobby = {
     id,
     hostId: hostSocketId,
     status: 'waiting',
     subject,
-    players:       new Map(), // socketId → player
+    gameMode,
+    players:       new Map(),
     questionQueue: [],
     questionIdx:   -1,
     round:         0,
     timer:         null,
-    answers:       new Map(), // socketId → answer letter
-    correctCounts: new Map(), // socketId → correct answer count (for XP)
+    answers:       new Map(),
+    correctCounts: new Map(),
+    // Speed Race
+    raceCorrects:      null,
+    raceFinishedOrder: [],
+    raceTimer:         null,
+    // Trivia Pursuit
+    triviaPlayerOrder:     [],
+    triviaTurnIdx:         0,
+    triviaWedges:          null,
+    triviaCurrentPlayerId: null,
+    triviaCurrentCategory: null,
+    triviaCurrentQuestion: null,
   };
   lobbies.set(id, lobby);
   return lobby;
@@ -214,11 +226,12 @@ function alivePlayers(lobby) {
 
 function lobbyPayload(lobby) {
   return {
-    lobbyId: lobby.id,
-    hostId:  lobby.hostId,
-    status:  lobby.status,
-    subject: lobby.subject,
-    players: [...lobby.players.values()].map(p => ({
+    lobbyId:  lobby.id,
+    hostId:   lobby.hostId,
+    status:   lobby.status,
+    subject:  lobby.subject,
+    gameMode: lobby.gameMode,
+    players:  [...lobby.players.values()].map(p => ({
       id: p.id, username: p.username, clanTag: p.clanTag || null, lives: p.lives, score: p.score, alive: p.alive,
     })),
   };
@@ -240,8 +253,12 @@ function clearTimer(lobby) {
 // ── Game flow ──────────────────────────────────────────────────────────────────
 
 function startGame(lobby) {
-  lobby.status       = 'question';
-  lobby.round        = 0;
+  if (lobby.gameMode === 'speed_race')     return startSpeedRace(lobby);
+  if (lobby.gameMode === 'trivia_pursuit') return startTriviaPursuit(lobby);
+
+  // ── Battle Royale ─────────────────────────────────────────────────────────
+  lobby.status        = 'question';
+  lobby.round         = 0;
   lobby.correctCounts = new Map();
 
   const pool = lobby.subject === 'all'
@@ -255,7 +272,7 @@ function startGame(lobby) {
     p.lives = lives; p.score = 0; p.alive = true;
   }
 
-  io.to(lobby.id).emit('game_start', { message: 'Battle begins!' });
+  io.to(lobby.id).emit('game_start', { gameMode: 'battle_royale', message: 'Battle begins!' });
   setTimeout(() => nextQuestion(lobby), 1500);
 }
 
@@ -372,6 +389,7 @@ function endGame(lobby, reason) {
     .slice(0, 10);
 
   io.to(lobby.id).emit('game_over', {
+    gameMode: 'battle_royale',
     winner: winner ? { username: winner.username, score: winner.score } : null,
     leaderboard, globalLeaderboard: globalLB, reason,
   });
@@ -394,10 +412,17 @@ async function awardXP(lobby, sorted) {
     const sock   = io.sockets.sockets.get(player.id);
     if (!sock?.userId) continue; // skip unauthenticated players
 
-    const placement   = i + 1;
-    const baseXp      = XP_BY_PLACEMENT[placement] ?? XP_FALLBACK;
-    const correctCount = lobby.correctCounts.get(player.id) || 0;
-    const totalXp     = baseXp + correctCount * XP_PER_CORRECT;
+    const placement = i + 1;
+    const baseXp    = XP_BY_PLACEMENT[placement] ?? XP_FALLBACK;
+    let correctCount = 0;
+    if (lobby.gameMode === 'speed_race') {
+      correctCount = lobby.raceCorrects?.get(player.id) || 0;
+    } else if (lobby.gameMode === 'trivia_pursuit') {
+      correctCount = (lobby.triviaWedges?.get(player.id) || new Set()).size * 2;
+    } else {
+      correctCount = lobby.correctCounts?.get(player.id) || 0;
+    }
+    const totalXp   = baseXp + correctCount * XP_PER_CORRECT;
 
     try {
       // Fetch current stats
@@ -475,6 +500,287 @@ async function upsertMastery(userId, subject, attempted, correct) {
   }
 }
 
+// ── Speed Race ─────────────────────────────────────────────────────────────────
+
+const SPEED_RACE_GOAL    = 20;
+const SPEED_RACE_TIMEOUT = 10 * 60 * 1000; // 10 min
+const SPEED_RACE_Q_TIME  = 15;             // seconds per question
+
+function emitRaceProgress(lobby) {
+  const progress = [...lobby.players.values()].map(p => ({
+    id:       p.id,
+    username: p.username,
+    correct:  lobby.raceCorrects.get(p.id) || 0,
+    finished: lobby.raceFinishedOrder.includes(p.id),
+    position: lobby.raceFinishedOrder.includes(p.id)
+                ? lobby.raceFinishedOrder.indexOf(p.id) + 1 : null,
+  }));
+  io.to(lobby.id).emit('race_progress', { progress, goal: SPEED_RACE_GOAL });
+}
+
+function startSpeedRace(lobby) {
+  lobby.status            = 'speed_race';
+  lobby.round             = 0;
+  lobby.raceCorrects      = new Map();
+  lobby.raceFinishedOrder = [];
+
+  for (const p of lobby.players.values()) {
+    lobby.raceCorrects.set(p.id, 0);
+    p.lives = 3; p.score = 0; p.alive = true;
+  }
+
+  const pool = lobby.subject === 'all'
+    ? questionBank
+    : questionBank.filter(q => q.subject === lobby.subject);
+  lobby.questionQueue = shuffle(pool.length >= 5 ? pool : questionBank);
+  lobby.questionIdx   = -1;
+
+  io.to(lobby.id).emit('game_start', { gameMode: 'speed_race' });
+
+  lobby.raceTimer = setTimeout(() => {
+    if (lobby.status === 'speed_race') endSpeedRace(lobby, 'time_up');
+  }, SPEED_RACE_TIMEOUT);
+
+  setTimeout(() => nextSpeedQuestion(lobby), 1500);
+}
+
+function nextSpeedQuestion(lobby) {
+  if (lobby.status !== 'speed_race') return;
+
+  lobby.questionIdx++;
+  if (lobby.questionIdx >= lobby.questionQueue.length) {
+    lobby.questionQueue = shuffle([...questionBank]);
+    lobby.questionIdx   = 0;
+  }
+
+  lobby.round++;
+  lobby.answers = new Map();
+
+  const q         = lobby.questionQueue[lobby.questionIdx];
+  const timeLimit = SPEED_RACE_Q_TIME;
+
+  io.to(lobby.id).emit('new_question', {
+    id: q.id, question: q.question, options: q.options,
+    round: lobby.round, timeLimit, alivePlayers: lobby.players.size,
+  });
+
+  emitRaceProgress(lobby);
+
+  lobby.timer = setTimeout(() => processSpeedRaceAnswers(lobby), timeLimit * 1000);
+}
+
+function processSpeedRaceAnswers(lobby) {
+  clearTimer(lobby);
+  if (lobby.status !== 'speed_race') return;
+
+  const q = lobby.questionQueue[lobby.questionIdx];
+
+  for (const player of lobby.players.values()) {
+    const answer  = lobby.answers.get(player.id);
+    const correct = answer === q.correct;
+
+    if (correct) {
+      const n = (lobby.raceCorrects.get(player.id) || 0) + 1;
+      lobby.raceCorrects.set(player.id, n);
+      player.score = n;
+      if (n >= SPEED_RACE_GOAL && !lobby.raceFinishedOrder.includes(player.id)) {
+        lobby.raceFinishedOrder.push(player.id);
+      }
+    }
+
+    const sock = io.sockets.sockets.get(player.id);
+    if (sock) {
+      sock.emit('answer_result', {
+        correct, correctAnswer: q.correct,
+        lives: 3, alive: true,
+        score: lobby.raceCorrects.get(player.id) || 0,
+        explanation: q.explanation,
+      });
+    }
+  }
+
+  emitRaceProgress(lobby);
+
+  if (lobby.raceFinishedOrder.length > 0) {
+    setTimeout(() => endSpeedRace(lobby, 'goal_reached'), 3500);
+    return;
+  }
+
+  if (lobby.players.size <= 1) { endSpeedRace(lobby, 'forfeit'); return; }
+
+  setTimeout(() => nextSpeedQuestion(lobby), 3500);
+}
+
+function endSpeedRace(lobby, reason) {
+  if (lobby.status === 'game_over') return;
+  lobby.status = 'game_over';
+  clearTimer(lobby);
+  if (lobby.raceTimer) { clearTimeout(lobby.raceTimer); lobby.raceTimer = null; }
+
+  const sorted = [...lobby.players.values()].sort((a, b) => {
+    const ai = lobby.raceFinishedOrder.indexOf(a.id);
+    const bi = lobby.raceFinishedOrder.indexOf(b.id);
+    if (ai !== -1 && bi !== -1) return ai - bi;
+    if (ai !== -1) return -1;
+    if (bi !== -1) return 1;
+    return (lobby.raceCorrects.get(b.id) || 0) - (lobby.raceCorrects.get(a.id) || 0);
+  });
+
+  const podium = sorted.map((p, i) => ({
+    rank: i + 1, id: p.id, username: p.username,
+    correctCount: lobby.raceCorrects.get(p.id) || 0,
+    finished: lobby.raceFinishedOrder.includes(p.id),
+  }));
+
+  const winner = podium.length > 0
+    ? { username: podium[0].username, score: podium[0].correctCount } : null;
+
+  io.to(lobby.id).emit('game_over', { gameMode: 'speed_race', winner, podium, reason });
+  awardXP(lobby, sorted).catch(err => console.error('[awardXP speed_race]', err.message));
+}
+
+// ── Trivia Pursuit ─────────────────────────────────────────────────────────────
+
+const TRIVIA_CATS = [
+  'cardiology', 'neurology', 'pharmacology',
+  'microbiology', 'biochemistry', 'biostatistics',
+];
+const TRIVIA_Q_TIME = 30;
+
+function triviaWedgeSnapshot(lobby) {
+  const state = {};
+  for (const [sid, ws] of lobby.triviaWedges) {
+    const p = lobby.players.get(sid);
+    if (p) state[sid] = { username: p.username, wedges: [...ws] };
+  }
+  return state;
+}
+
+function startTriviaPursuit(lobby) {
+  lobby.status         = 'trivia_question';
+  lobby.round          = 0;
+  lobby.triviaWedges   = new Map();
+  lobby.triviaTurnIdx  = 0;
+
+  const players = [...lobby.players.values()];
+  lobby.triviaPlayerOrder = shuffle(players.map(p => p.id));
+
+  for (const p of players) {
+    lobby.triviaWedges.set(p.id, new Set());
+    p.lives = 3; p.score = 0; p.alive = true;
+  }
+
+  io.to(lobby.id).emit('game_start', { gameMode: 'trivia_pursuit' });
+  setTimeout(() => nextTriviaTurn(lobby), 1500);
+}
+
+function nextTriviaTurn(lobby) {
+  if (lobby.status !== 'trivia_question') return;
+
+  lobby.round++;
+  lobby.answers = new Map();
+
+  const order  = lobby.triviaPlayerOrder;
+  const sid    = order[lobby.triviaTurnIdx % order.length];
+  const player = lobby.players.get(sid);
+
+  if (!player) {
+    lobby.triviaTurnIdx++;
+    setTimeout(() => nextTriviaTurn(lobby), 200);
+    return;
+  }
+
+  lobby.triviaCurrentPlayerId = sid;
+
+  const playerWedges = lobby.triviaWedges.get(sid) || new Set();
+  const missing      = TRIVIA_CATS.filter(c => !playerWedges.has(c));
+  const category     = missing[Math.floor(Math.random() * missing.length)];
+  lobby.triviaCurrentCategory = category;
+
+  const pool = questionBank.filter(q => q.subject === category);
+  const q    = pool.length > 0
+    ? pool[Math.floor(Math.random() * pool.length)]
+    : questionBank[Math.floor(Math.random() * questionBank.length)];
+  lobby.triviaCurrentQuestion = q;
+
+  io.to(lobby.id).emit('trivia_turn', {
+    currentPlayerId: sid,
+    currentUsername: player.username,
+    category,
+    question:    { id: q.id, question: q.question, options: q.options },
+    round:       lobby.round,
+    timeLimit:   TRIVIA_Q_TIME,
+    wedgeState:  triviaWedgeSnapshot(lobby),
+    playerOrder: order.map(id => {
+      const p = lobby.players.get(id);
+      return { id, username: p?.username || '?' };
+    }),
+  });
+
+  lobby.timer = setTimeout(() => processTriviaAnswer(lobby, null), TRIVIA_Q_TIME * 1000);
+}
+
+function processTriviaAnswer(lobby, answer) {
+  clearTimer(lobby);
+  if (lobby.status !== 'trivia_question') return;
+
+  const { triviaCurrentPlayerId: sid,
+          triviaCurrentCategory: category,
+          triviaCurrentQuestion: q } = lobby;
+  const correct    = answer !== null && answer === q.correct;
+  let earnedWedge  = false;
+
+  if (correct) {
+    const wedges = lobby.triviaWedges.get(sid);
+    if (wedges && !wedges.has(category)) {
+      wedges.add(category);
+      earnedWedge = true;
+      const p = lobby.players.get(sid);
+      if (p) p.score = wedges.size;
+    }
+  }
+
+  const wedgeState = triviaWedgeSnapshot(lobby);
+
+  io.to(lobby.id).emit('trivia_answer_result', {
+    playerId: sid, correct, correctAnswer: q.correct,
+    explanation: q.explanation, earnedWedge, category, wedgeState,
+  });
+
+  const playerWedges = lobby.triviaWedges.get(sid);
+  if (playerWedges && playerWedges.size >= TRIVIA_CATS.length) {
+    setTimeout(() => endTriviaPursuit(lobby, sid), 3500);
+    return;
+  }
+
+  lobby.triviaTurnIdx++;
+  setTimeout(() => nextTriviaTurn(lobby), 4500);
+}
+
+function endTriviaPursuit(lobby, winnerId) {
+  if (lobby.status === 'game_over') return;
+  lobby.status = 'game_over';
+  clearTimer(lobby);
+
+  const sorted = [...lobby.players.values()].sort((a, b) =>
+    (lobby.triviaWedges?.get(b.id) || new Set()).size -
+    (lobby.triviaWedges?.get(a.id) || new Set()).size
+  );
+
+  const winPlayer = lobby.players.get(winnerId);
+  const winner    = winPlayer
+    ? { username: winPlayer.username, score: TRIVIA_CATS.length } : null;
+
+  const players = sorted.map((p, i) => ({
+    rank: i + 1, id: p.id, username: p.username,
+    wedgeCount: (lobby.triviaWedges?.get(p.id) || new Set()).size,
+    wedges:     [...(lobby.triviaWedges?.get(p.id) || new Set())],
+  }));
+
+  io.to(lobby.id).emit('game_over', { gameMode: 'trivia_pursuit', winner, players });
+  awardXP(lobby, sorted).catch(err => console.error('[awardXP trivia]', err.message));
+}
+
 // ── Socket.io — attach userId from JWT on connect ─────────────────────────────
 
 io.use((socket, next) => {
@@ -491,11 +797,11 @@ io.use((socket, next) => {
 io.on('connection', (socket) => {
   console.log('[+] connected:', socket.id, socket.userId ? `(user ${socket.userId})` : '');
 
-  socket.on('create_lobby', ({ username, subject = 'all', clanTag = null }, ack) => {
+  socket.on('create_lobby', ({ username, subject = 'all', gameMode = 'battle_royale', clanTag = null }, ack) => {
     const name = (username ?? '').trim().slice(0, 20);
     if (!name) return ack({ ok: false, error: 'Username required.' });
 
-    const lobby = makeLobby(socket.id, subject);
+    const lobby = makeLobby(socket.id, subject, gameMode);
     lobby.players.set(socket.id, {
       id: socket.id, username: name, clanTag: clanTag || null, lives: gameSettings.startingLives, score: 0, alive: true,
     });
@@ -544,8 +850,28 @@ io.on('connection', (socket) => {
 
   socket.on('submit_answer', ({ answer }) => {
     const lobby = lobbies.get(socket.lobbyId);
-    if (!lobby || lobby.status !== 'question') return;
+    if (!lobby) return;
 
+    // ── Speed Race ─────────────────────────────────────────────────────────
+    if (lobby.status === 'speed_race') {
+      if (lobby.answers.has(socket.id)) return;
+      lobby.answers.set(socket.id, answer);
+      const allAnswered = [...lobby.players.keys()].every(id => lobby.answers.has(id));
+      if (allAnswered) { clearTimer(lobby); setTimeout(() => processSpeedRaceAnswers(lobby), 600); }
+      return;
+    }
+
+    // ── Trivia Pursuit ─────────────────────────────────────────────────────
+    if (lobby.status === 'trivia_question') {
+      if (socket.id !== lobby.triviaCurrentPlayerId || lobby.answers.has(socket.id)) return;
+      lobby.answers.set(socket.id, answer);
+      clearTimer(lobby);
+      setTimeout(() => processTriviaAnswer(lobby, answer), 300);
+      return;
+    }
+
+    // ── Battle Royale ──────────────────────────────────────────────────────
+    if (lobby.status !== 'question') return;
     const player = lobby.players.get(socket.id);
     if (!player?.alive || lobby.answers.has(socket.id)) return;
 
@@ -568,12 +894,24 @@ io.on('connection', (socket) => {
     if (!lobby) return;
 
     clearTimer(lobby);
+    if (lobby.raceTimer) { clearTimeout(lobby.raceTimer); lobby.raceTimer = null; }
+
     lobby.status        = 'waiting';
     lobby.answers.clear();
     lobby.correctCounts = new Map();
     lobby.questionQueue = [];
     lobby.questionIdx   = -1;
     lobby.round         = 0;
+
+    // Reset mode-specific state
+    lobby.raceCorrects         = null;
+    lobby.raceFinishedOrder    = [];
+    lobby.triviaPlayerOrder    = [];
+    lobby.triviaTurnIdx        = 0;
+    lobby.triviaWedges         = null;
+    lobby.triviaCurrentPlayerId   = null;
+    lobby.triviaCurrentCategory   = null;
+    lobby.triviaCurrentQuestion   = null;
 
     for (const p of lobby.players.values()) {
       p.lives = gameSettings.startingLives; p.score = 0; p.alive = true;
@@ -625,6 +963,21 @@ io.on('connection', (socket) => {
           clearTimer(lobby);
           setTimeout(() => processAnswers(lobby), 600);
         }
+      }
+    } else if (lobby.status === 'speed_race') {
+      if (lobby.players.size <= 1) {
+        endSpeedRace(lobby, 'forfeit');
+      } else {
+        const allAnswered = [...lobby.players.keys()].every(id => lobby.answers.has(id));
+        if (allAnswered) { clearTimer(lobby); setTimeout(() => processSpeedRaceAnswers(lobby), 600); }
+      }
+    } else if (lobby.status === 'trivia_question') {
+      if (lobby.players.size <= 1) {
+        endTriviaPursuit(lobby, [...lobby.players.keys()][0]);
+      } else if (socket.id === lobby.triviaCurrentPlayerId) {
+        clearTimer(lobby);
+        lobby.triviaTurnIdx++;
+        setTimeout(() => nextTriviaTurn(lobby), 1000);
       }
     }
   });

@@ -1,7 +1,40 @@
 import { useState } from 'react';
 import { SUBJECTS } from './SubjectSelect';
 
-export default function Lobby({ lobbyId, subject, players, isHost, onStartGame, error }) {
+const MODE_INFO = {
+  battle_royale: {
+    label: '💀 Battle Royale',
+    color: '#e74c3c',
+    rules: [
+      '20 seconds to answer each question',
+      'Wrong answer = lose 1 life ❤️',
+      'Every player starts with 3 lives',
+      'Last player with lives remaining wins',
+    ],
+  },
+  speed_race: {
+    label: '⚡ Speed Race',
+    color: '#f39c12',
+    rules: [
+      '15 seconds to answer each question',
+      'No lives — wrong answers don\'t count',
+      'First to 20 correct answers wins',
+      '10-minute time limit if no one reaches 20',
+    ],
+  },
+  trivia_pursuit: {
+    label: '🎯 Trivia Pursuit',
+    color: '#9b59b6',
+    rules: [
+      'Players take turns answering questions',
+      'Each question comes from a random subject',
+      'Correct answer = earn a wedge for that subject',
+      'First player to collect all 6 subject wedges wins',
+    ],
+  },
+};
+
+export default function Lobby({ lobbyId, subject, gameMode = 'battle_royale', players, isHost, onStartGame, error }) {
   const [copied, setCopied] = useState(false);
 
   function handleCopy() {
@@ -11,21 +44,27 @@ export default function Lobby({ lobbyId, subject, players, isHost, onStartGame, 
     });
   }
 
-  const canStart = players.length >= 2;
+  const canStart   = players.length >= 2;
   const subjectInfo = SUBJECTS.find(s => s.id === subject) ?? SUBJECTS[0];
+  const modeInfo   = MODE_INFO[gameMode] || MODE_INFO.battle_royale;
 
   return (
     <div className="screen lobby-screen">
       <div className="lobby-card">
         <h2>⚔️ Battle Lobby</h2>
 
-        {/* Subject badge */}
-        <div className="subject-badge">
-          <span>{subjectInfo.icon}</span>
-          <span>{subjectInfo.label}</span>
+        {/* Mode + Subject badges */}
+        <div className="lobby-badges">
+          <div className="subject-badge">
+            <span>{subjectInfo.icon}</span>
+            <span>{subjectInfo.label}</span>
+          </div>
+          <div className="mode-badge" style={{ background: modeInfo.color }}>
+            {modeInfo.label}
+          </div>
         </div>
 
-        {/* Lobby code display */}
+        {/* Lobby code */}
         <div className="lobby-code-section">
           <p className="lobby-code-label">Lobby Code — share with friends</p>
           <div className="lobby-code-box">
@@ -37,9 +76,7 @@ export default function Lobby({ lobbyId, subject, players, isHost, onStartGame, 
         </div>
 
         {/* Player list */}
-        <p className="player-count">
-          {players.length} / ∞ players joined
-        </p>
+        <p className="player-count">{players.length} / ∞ players joined</p>
 
         <div className="player-list">
           {players.length === 0 && (
@@ -63,17 +100,11 @@ export default function Lobby({ lobbyId, subject, players, isHost, onStartGame, 
 
         {isHost ? (
           <>
-            <button
-              className="btn-start"
-              onClick={onStartGame}
-              disabled={!canStart}
-            >
+            <button className="btn-start" onClick={onStartGame} disabled={!canStart}>
               {canStart ? '⚔️ Start Battle!' : '⏳ Waiting for players…'}
             </button>
             {!canStart && (
-              <p className="need-players-hint">
-                Need at least 2 players to start
-              </p>
+              <p className="need-players-hint">Need at least 2 players to start</p>
             )}
           </>
         ) : (
@@ -83,11 +114,7 @@ export default function Lobby({ lobbyId, subject, players, isHost, onStartGame, 
         <div className="rules-box">
           <h3>How to Play</h3>
           <ul>
-            <li>20 seconds to answer each question</li>
-            <li>Wrong answer or timeout = lose 1 life ❤️</li>
-            <li>Every player starts with 3 lives</li>
-            <li>Last player with lives remaining wins</li>
-            <li>USMLE-style clinical vignette questions</li>
+            {modeInfo.rules.map((r, i) => <li key={i}>{r}</li>)}
           </ul>
         </div>
       </div>

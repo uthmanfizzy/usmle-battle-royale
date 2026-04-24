@@ -5,15 +5,17 @@ import { getToken, clearToken, fetchMe, getCachedUser, redirectToGoogle } from '
 import UsernameEntry from './components/UsernameEntry';
 import ExamSelect from './components/ExamSelect';
 import DifficultySelect from './components/DifficultySelect';
+import ModeSelect from './components/ModeSelect';
 import LobbySelect from './components/LobbySelect';
 import JoinLobbyInput from './components/JoinLobbyInput';
 import SubjectSelect from './components/SubjectSelect';
 import Lobby from './components/Lobby';
 import GameRoom from './components/GameRoom';
+import SpeedRaceGame from './components/SpeedRaceGame';
 import Leaderboard from './components/Leaderboard';
 import SoloGame from './components/SoloGame';
 
-// phases: 'loading' | 'entry' | 'exam_select' | 'difficulty_select' |
+// phases: 'loading' | 'entry' | 'exam_select' | 'difficulty_select' | 'mode_select' |
 //         'lobby_select' | 'subject_select' | 'join_input' | 'lobby' | 'game' |
 //         'game_over' | 'solo_subject' | 'solo_game'
 
@@ -28,8 +30,11 @@ export default function App() {
   const [error,    setError]    = useState('');
   const [muted,      setMuted]      = useState(false);
   const [difficulty, setDifficulty] = useState('easy');
+  const [gameMode,   setGameMode]   = useState('battle_royale');
   const [soloSubject, setSoloSubject] = useState('all');
   const [soloKey,  setSoloKey]  = useState(0);
+
+  const [raceProgress, setRaceProgress] = useState([]);
 
   // In-game
   const [question,           setQuestion]           = useState(null);
@@ -109,13 +114,15 @@ export default function App() {
   // ── Socket events (register once; connect later when entering game) ───────
 
   useEffect(() => {
-    socket.on('lobby_update', ({ players: ps, hostId, subject: s }) => {
+    socket.on('lobby_update', ({ players: ps, hostId, subject: s, gameMode: gm }) => {
       setPlayers(ps);
       setIsHost(socket.id === hostId);
       if (s) setSubject(s);
+      if (gm) setGameMode(gm);
     });
 
-    socket.on('game_start', () => {
+    socket.on('game_start', ({ gameMode: gm }) => {
+      setGameMode(gm || 'battle_royale');
       setPhase('game');
       setMyLives(3);
       setMyScore(0);
@@ -124,7 +131,12 @@ export default function App() {
       setAnswerResult(null);
       setRoundResults(null);
       setShowingRoundResult(false);
+      setRaceProgress([]);
       audio.startGameMusic();
+    });
+
+    socket.on('race_progress', ({ progress }) => {
+      setRaceProgress(progress || []);
     });
 
     socket.on('new_question', (data) => {
@@ -200,7 +212,8 @@ export default function App() {
     return () => {
       ['lobby_update', 'game_start', 'new_question', 'answer_count',
        'answer_result', 'round_results', 'game_over', 'game_reset',
-       'player_left', 'error'].forEach(e => socket.off(e));
+       'player_left', 'error',
+       'race_progress'].forEach(e => socket.off(e));
       socket.disconnect();
       audio.stopBgMusic();
     };
@@ -249,6 +262,11 @@ export default function App() {
 
   function handleSelectDifficulty(diff) {
     setDifficulty(diff);
+    setPhase('mode_select');
+  }
+
+  function handleSelectGameMode(mode) {
+    setGameMode(mode);
     setPhase('lobby_select');
   }
 
@@ -260,7 +278,7 @@ export default function App() {
   function handleCreateLobby(selectedSubject) {
     setSubject(selectedSubject);
     setError('');
-    socket.timeout(5000).emit('create_lobby', { username, subject: selectedSubject, clanTag: user?.clan?.tag ?? null }, (err, res) => {
+    socket.timeout(5000).emit('create_lobby', { username, subject: selectedSubject, gameMode, clanTag: user?.clan?.tag ?? null }, (err, res) => {
       if (err)      { setError('No response from server. Please try again.'); return; }
       if (!res.ok)  { setError(res.error ?? 'Failed to create lobby.'); return; }
       setLobbyId(res.lobbyId);
@@ -290,7 +308,8 @@ export default function App() {
   function handleStartGame()   { socket.emit('start_game'); }
 
   function handleAnswer(answer) {
-    if (hasAnswered || !isAlive) return;
+    if (hasAnswered) return;
+    if (gameMode === 'battle_royale' && !isAlive) return;
     setMyAnswer(answer);
     setHasAnswered(true);
     socket.emit('submit_answer', { answer });
@@ -391,13 +410,21 @@ export default function App() {
         />
       )}
 
+      {phase === 'mode_select' && (
+        <ModeSelect
+          username={username}
+          onSelect={handleSelectGameMode}
+          onBack={() => setPhase('difficulty_select')}
+        />
+      )}
+
       {phase === 'lobby_select' && (
         <LobbySelect
           username={username}
           onCreateLobby={handleShowSubjectSelect}
           onJoinLobby={handleShowJoinInput}
           onSoloMode={handleShowSoloMode}
-          onBack={() => setPhase('difficulty_select')}
+          onBack={() => setPhase('mode_select')}
         />
       )}
 
@@ -422,6 +449,7 @@ export default function App() {
         <Lobby
           lobbyId={lobbyId}
           subject={subject}
+          gameMode={gameMode}
           players={players}
           isHost={isHost}
           onStartGame={handleStartGame}
@@ -429,7 +457,7 @@ export default function App() {
         />
       )}
 
-      {phase === 'game' && (
+      {phase === 'game' && gameMode === 'battle_royale' && (
         <GameRoom
           question={question}
           round={round}
@@ -451,10 +479,28 @@ export default function App() {
         />
       )}
 
+      {phase === 'game' && gameMode === 'speed_race' && (
+        <SpeedRaceGame
+          question={question}
+          round={round}
+          timeLimit={timeLimit}
+          myAnswer={myAnswer}
+          hasAnswered={hasAnswered}
+          answeredCount={answeredCount}
+          totalAlive={totalAlive}
+          raceProgress={raceProgress}
+          answerResult={answerResult}
+          onAnswer={handleAnswer}
+          username={username}
+          onTick={audio.playTick}
+        />
+      )}
+
       {phase === 'game_over' && (
         <Leaderboard
           gameResult={gameResult}
           username={username}
+          gameMode={gameMode}
           onPlayAgain={handlePlayAgain}
         />
       )}

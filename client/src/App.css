@@ -1299,3 +1299,155 @@ table.lb-table tr:last-child td { border-bottom: none; }
 .diff-badge-easy { background: rgba(61,220,132,0.1); border: 1px solid rgba(61,220,132,0.3); color: var(--green); }
 .diff-badge-hard { background: rgba(255,68,85,0.1); border: 1px solid rgba(255,68,85,0.3); color: var(--red); }
 .diff-badge-all  { background: rgba(120,120,170,0.1); border: 1px solid var(--border); color: var(--text-dim); }
+
+/* ── Mode Selection ─────────────────────────────────────────────────────── */
+.mode-select-screen {
+  background: radial-gradient(ellipse at center, #1a1a4e 0%, var(--bg) 70%);
+  align-items: flex-start;
+  padding-top: 40px;
+}
+.mode-select-inner {
+  width: 100%;
+  max-width: 700px;
+  text-align: center;
+}
+.mode-select-title { font-size: 28px; font-weight: 700; margin-bottom: 6px; }
+.mode-select-sub   { color: var(--text-dim); margin-bottom: 32px; font-size: 15px; }
+.mode-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 28px;
+}
+@media (max-width: 520px) {
+  .mode-cards { grid-template-columns: 1fr; }
+}
+.mode-card {
+  background: var(--card);
+  border: 2px solid var(--mode-border, var(--border));
+  border-radius: 18px;
+  padding: 32px 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: transform 0.18s, box-shadow 0.18s, border-color 0.18s;
+  position: relative;
+  overflow: hidden;
+}
+.mode-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--mode-grad, transparent);
+  opacity: 0.08;
+  transition: opacity 0.18s;
+  border-radius: inherit;
+}
+.mode-card:hover { transform: translateY(-4px); box-shadow: 0 12px 40px rgba(0,0,0,0.5); }
+.mode-card:hover::before { opacity: 0.18; }
+.mode-card-icon   { font-size: 48px; margin-bottom: 12px; }
+.mode-card-name   { font-size: 20px; font-weight: 700; margin-bottom: 6px; color: var(--text); }
+.mode-card-tagline {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--mode-border, var(--blue));
+  margin-bottom: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.mode-card-desc   { font-size: 13px; color: var(--text-dim); line-height: 1.5; }
+
+/* Lobby mode badge */
+.lobby-badges { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-bottom: 16px; }
+.mode-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  border-radius: 20px; padding: 6px 16px;
+  font-size: 13px; font-weight: 700; color: #fff;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.4);
+}
+
+/* ── Speed Race ─────────────────────────────────────────────────────────── */
+.speed-race-screen {
+  flex-direction: column;
+  align-items: stretch;
+  padding: 16px;
+  gap: 16px;
+  background: radial-gradient(ellipse at top, #0d2137 0%, var(--bg) 70%);
+}
+.race-panel {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 20px;
+  max-width: 680px;
+  width: 100%;
+  margin: 0 auto;
+}
+.race-panel-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #3498db;
+  margin-bottom: 14px;
+  text-align: center;
+  letter-spacing: 0.02em;
+}
+.race-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.race-row:last-child { margin-bottom: 0; }
+.race-row-me .race-row-name { color: #3498db; font-weight: 700; }
+.race-row-name {
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text);
+}
+.race-medal { color: var(--gold); }
+.race-bar-track {
+  width: 160px;
+  height: 10px;
+  background: var(--surface);
+  border-radius: 5px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+@media (max-width: 480px) { .race-bar-track { width: 90px; } }
+.race-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #2980b9, #3498db);
+  border-radius: 5px;
+  transition: width 0.4s ease;
+}
+.race-row-me .race-bar-fill {
+  background: linear-gradient(90deg, #1a6fa8, #5dade2);
+}
+.race-count {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-dim);
+  white-space: nowrap;
+  min-width: 36px;
+  text-align: right;
+}
+.race-question-panel {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  max-width: 680px;
+  width: 100%;
+  margin: 0 auto;
+}
+.round-indicator {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 10px;
+}
