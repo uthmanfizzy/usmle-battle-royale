@@ -1,9 +1,12 @@
-const TOKEN_KEY  = 'usmle_jwt';
+const TOKEN_KEY  = 'authToken';
+const USER_KEY   = 'user';
 const SERVER_URL = 'https://usmle-battle-royale-production.up.railway.app';
 
-export function getToken()        { return localStorage.getItem(TOKEN_KEY); }
-export function setToken(token)   { localStorage.setItem(TOKEN_KEY, token); }
-export function clearToken()      { localStorage.removeItem(TOKEN_KEY); }
+export function getToken()              { return localStorage.getItem(TOKEN_KEY); }
+export function setToken(token)         { localStorage.setItem(TOKEN_KEY, token); }
+export function clearToken()            { localStorage.removeItem(TOKEN_KEY); localStorage.removeItem(USER_KEY); }
+export function getCachedUser()         { try { return JSON.parse(localStorage.getItem(USER_KEY)); } catch { return null; } }
+export function setCachedUser(user)     { localStorage.setItem(USER_KEY, JSON.stringify(user)); }
 
 export async function fetchMe() {
   const token = getToken();
@@ -13,7 +16,9 @@ export async function fetchMe() {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (!res.ok) { clearToken(); return null; }
-    return await res.json();
+    const user = await res.json();
+    setCachedUser(user);
+    return user;
   } catch {
     return null;
   }

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import socket from './socket';
 import * as audio from './audio';
-import { getToken, setToken, clearToken, fetchMe, redirectToGoogle } from './auth';
+import { getToken, clearToken, fetchMe, getCachedUser, redirectToGoogle } from './auth';
 import UsernameEntry from './components/UsernameEntry';
 import Dashboard from './components/Dashboard';
 import ExamSelect from './components/ExamSelect';
@@ -58,19 +58,27 @@ export default function App() {
   // ── Auth init (runs once on mount) ────────────────────────────────────────
 
   useEffect(() => {
-    // Capture token or error from OAuth redirect (?token=... or ?error=...)
+    // Handle auth errors redirected back from /auth/callback
     const params    = new URLSearchParams(window.location.search);
-    const urlToken  = params.get('token');
-    const urlError  = params.get('error');
+    const authError = params.get('auth_error');
 
-    if (urlToken) {
-      setToken(urlToken);
-      window.history.replaceState({}, '', '/');
-    } else if (urlError) {
+    if (authError) {
       window.history.replaceState({}, '', '/');
       setError('Google sign-in failed. Please try again.');
       setPhase('entry');
       return;
+    }
+
+    // If the URL is /dashboard, force that phase after auth check
+    const wantsDashboard = window.location.pathname === '/dashboard';
+    if (wantsDashboard) window.history.replaceState({}, '', '/');
+
+    // Use cached user for instant load while re-validating in background
+    const cached = getCachedUser();
+    if (cached && getToken()) {
+      setUser(cached);
+      setUsername(cached.username);
+      setPhase('dashboard');
     }
 
     fetchMe().then(me => {
@@ -78,7 +86,7 @@ export default function App() {
         setUser(me);
         setUsername(me.username);
         setPhase('dashboard');
-      } else {
+      } else if (!cached) {
         setPhase('entry');
       }
     });
