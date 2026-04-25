@@ -104,6 +104,7 @@ export default function TriviaGame({
             currentPlayerId={currentPlayerId}
             mySocketId={socketId}
             wedgeState={wedgeState || {}}
+            playerOrder={playerOrder || []}
           />
         </div>
 
