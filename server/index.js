@@ -257,6 +257,27 @@ function clearTimer(lobby) {
   if (lobby.timer) { clearTimeout(lobby.timer); lobby.timer = null; }
 }
 
+// ── Streak helpers ─────────────────────────────────────────────────────────────
+
+function updateStreak(lobby, playerId, correct) {
+  if (!lobby.streaks)       lobby.streaks       = new Map();
+  if (!lobby.bonusCorrects) lobby.bonusCorrects = new Map();
+  const old       = lobby.streaks.get(playerId) || 0;
+  const newStreak = correct ? old + 1 : 0;
+  lobby.streaks.set(playerId, newStreak);
+  if (correct && newStreak >= 3) {
+    lobby.bonusCorrects.set(playerId, (lobby.bonusCorrects.get(playerId) || 0) + 1);
+  }
+  return { streak: newStreak, onFire: correct && newStreak === 3 };
+}
+
+function streakSnapshot(lobby) {
+  const out = {};
+  if (!lobby.streaks) return out;
+  for (const [id, s] of lobby.streaks) out[id] = s;
+  return out;
+}
+
 // ── Game flow ──────────────────────────────────────────────────────────────────
 
 function startGame(lobby) {
@@ -267,6 +288,9 @@ function startGame(lobby) {
   lobby.status        = 'question';
   lobby.round         = 0;
   lobby.correctCounts = new Map();
+  lobby.streaks       = new Map();
+  lobby.bonusCorrects = new Map();
+  lobby.suddenDeath   = false;
 
   const pool = lobby.subject === 'all'
     ? questionBank
@@ -299,11 +323,12 @@ function nextQuestion(lobby) {
   lobby.answers.clear();
 
   const q         = lobby.questionQueue[lobby.questionIdx];
-  const timeLimit = gameSettings.timerDuration;
+  const timeLimit = lobby.suddenDeath ? 5 : gameSettings.timerDuration;
 
   io.to(lobby.id).emit('new_question', {
     id: q.id, question: q.question, options: q.options,
     round: lobby.round, timeLimit, alivePlayers: alive.length,
+    suddenDeath: lobby.suddenDeath || false,
   });
 
   lobby.timer = setTimeout(() => processAnswers(lobby), timeLimit * 1000);
@@ -315,7 +340,7 @@ function processAnswers(lobby) {
   clearTimer(lobby);
   lobby.status = 'reviewing';
 
-  const q = lobby.questionQueue[lobby.questionIdx];
+  const q          = lobby.questionQueue[lobby.questionIdx];
   const eliminated = [];
   const results    = [];
 
@@ -325,17 +350,29 @@ function processAnswers(lobby) {
     const answer  = lobby.answers.get(player.id);
     const correct = answer === q.correct;
 
-    if (correct) {
-      player.score += 100;
-      lobby.correctCounts.set(player.id, (lobby.correctCounts.get(player.id) || 0) + 1);
+    const { streak, onFire } = updateStreak(lobby, player.id, correct);
+
+    if (lobby.suddenDeath) {
+      // In sudden death any wrong/no answer eliminates immediately
+      if (!correct) {
+        player.lives = 0;
+        player.alive = false;
+        eliminated.push(player.username);
+      }
     } else {
-      player.lives = Math.max(0, player.lives - 1);
-      if (player.lives === 0) { player.alive = false; eliminated.push(player.username); }
+      if (correct) {
+        player.score += 100;
+        lobby.correctCounts.set(player.id, (lobby.correctCounts.get(player.id) || 0) + 1);
+      } else {
+        player.lives = Math.max(0, player.lives - 1);
+        if (player.lives === 0) { player.alive = false; eliminated.push(player.username); }
+      }
     }
 
     results.push({
       id: player.id, username: player.username,
       answered: answer !== undefined, correct, lives: player.lives, alive: player.alive,
+      streak,
     });
 
     const sock = io.sockets.sockets.get(player.id);
@@ -344,12 +381,14 @@ function processAnswers(lobby) {
         correct, correctAnswer: q.correct,
         lives: player.lives, alive: player.alive,
         score: player.score, explanation: q.explanation,
+        streak, onFire,
       });
     }
   }
 
   const snapshot = [...lobby.players.values()].map(p => ({
     id: p.id, username: p.username, lives: p.lives, score: p.score, alive: p.alive,
+    streak: lobby.streaks?.get(p.id) || 0,
   }));
 
   io.to(lobby.id).emit('round_results', {
@@ -357,11 +396,22 @@ function processAnswers(lobby) {
   });
 
   const alive = alivePlayers(lobby);
+
   if (alive.length <= 1) {
-    setTimeout(() => endGame(lobby, 'last_standing'), 14000);
-  } else {
-    setTimeout(() => nextQuestion(lobby), 14500);
+    setTimeout(() => endGame(lobby, 'last_standing'), lobby.suddenDeath ? 4000 : 14000);
+    return;
   }
+
+  // Trigger sudden death when exactly 2 players remain for the first time
+  if (alive.length === 2 && !lobby.suddenDeath) {
+    lobby.suddenDeath = true;
+    // Emit announcement after round results have been shown, then give 3s for the screen
+    setTimeout(() => io.to(lobby.id).emit('sudden_death'), 14000);
+    setTimeout(() => nextQuestion(lobby), 17000);
+    return;
+  }
+
+  setTimeout(() => nextQuestion(lobby), lobby.suddenDeath ? 4500 : 14500);
 }
 
 function endGame(lobby, reason) {
@@ -431,7 +481,8 @@ async function awardXP(lobby, sorted) {
     } else {
       correctCount = lobby.correctCounts?.get(player.id) || 0;
     }
-    const totalXp   = baseXp + correctCount * XP_PER_CORRECT;
+    const bonusCorrects = lobby.bonusCorrects?.get(player.id) || 0;
+    const totalXp   = baseXp + correctCount * XP_PER_CORRECT + bonusCorrects * XP_PER_CORRECT;
 
     try {
       // Fetch current stats
@@ -520,6 +571,7 @@ function emitRaceProgress(lobby) {
     id:       p.id,
     username: p.username,
     correct:  lobby.raceCorrects.get(p.id) || 0,
+    streak:   lobby.streaks?.get(p.id) || 0,
     finished: lobby.raceFinishedOrder.includes(p.id),
     position: lobby.raceFinishedOrder.includes(p.id)
                 ? lobby.raceFinishedOrder.indexOf(p.id) + 1 : null,
@@ -532,6 +584,8 @@ function startSpeedRace(lobby) {
   lobby.raceCorrects      = new Map();
   lobby.raceFinishedOrder = [];
   lobby.speedPlayers      = new Map(); // playerId → { idx, timer, botTimer, finished }
+  lobby.streaks           = new Map();
+  lobby.bonusCorrects     = new Map();
 
   for (const p of lobby.players.values()) {
     lobby.raceCorrects.set(p.id, 0);
@@ -601,6 +655,7 @@ function advanceSpeedPlayer(lobby, playerId, answer) {
 
   const q       = lobby.questionQueue[state.idx % lobby.questionQueue.length];
   const correct = answer !== null && answer === q.correct;
+  const { streak, onFire } = updateStreak(lobby, playerId, correct);
 
   if (correct) {
     const n = (lobby.raceCorrects.get(playerId) || 0) + 1;
@@ -623,6 +678,7 @@ function advanceSpeedPlayer(lobby, playerId, answer) {
         correct, correctAnswer: q.correct,
         lives: 3, alive: true,
         score: lobby.raceCorrects.get(playerId) || 0,
+        streak, onFire,
       });
     }
   }
@@ -718,8 +774,15 @@ function scheduleBotAnswers(lobby, q, timeLimitSec) {
     setTimeout(() => {
       if (lobby.status !== 'question') return;
       if (lobby.answers.has(bot.id)) return;
-      const correct = Math.random() < BOT_ACCURACY[bot.difficulty];
-      lobby.answers.set(bot.id, correct ? q.correct : randomWrongAnswer(q.correct));
+      const correct    = Math.random() < BOT_ACCURACY[bot.difficulty];
+      const botAnswer  = correct ? q.correct : randomWrongAnswer(q.correct);
+      lobby.answers.set(bot.id, botAnswer);
+      // In sudden death a wrong answer triggers immediate processing
+      if (lobby.suddenDeath && !correct) {
+        clearTimer(lobby);
+        setTimeout(() => processAnswers(lobby), 200);
+        return;
+      }
       const alive        = alivePlayers(lobby);
       const answeredCount = [...lobby.answers.keys()].filter(id => lobby.players.get(id)?.alive).length;
       io.to(lobby.id).emit('answer_count', { answered: answeredCount, total: alive.length });
@@ -773,6 +836,8 @@ function startTriviaPursuit(lobby) {
   lobby.triviaIsHQ             = false;
   lobby.triviaCanEarnWedge     = false;
   lobby.triviaIsFinalQuestion  = false;
+  lobby.streaks                = new Map();
+  lobby.bonusCorrects          = new Map();
 
   const players = [...lobby.players.values()];
   lobby.triviaPlayerOrder = shuffle(players.map(p => p.id));
@@ -927,6 +992,8 @@ function processTriviaAnswer(lobby, answer) {
   const correct   = answer !== null && answer === q.correct;
   let earnedWedge = false;
 
+  const { streak, onFire } = updateStreak(lobby, sid, correct);
+
   if (correct && canEarnWedge) {
     const wedges = lobby.triviaWedges.get(sid);
     if (wedges && !wedges.has(category)) {
@@ -946,6 +1013,7 @@ function processTriviaAnswer(lobby, answer) {
   io.to(lobby.id).emit('trivia_answer_result', {
     playerId: sid, correct, correctAnswer: q.correct, explanation: q.explanation,
     earnedWedge, category, isHQ, canEarnWedge, isFinalQuestion, allWedges, wedgeState,
+    streak, onFire, streaks: streakSnapshot(lobby),
   });
 
   if (correct && isFinalQuestion) {
@@ -1123,6 +1191,16 @@ io.on('connection', (socket) => {
     if (!player?.alive || lobby.answers.has(socket.id)) return;
 
     lobby.answers.set(socket.id, answer);
+
+    // Sudden death: wrong answer triggers immediate processing
+    if (lobby.suddenDeath) {
+      const q = lobby.questionQueue[lobby.questionIdx];
+      if (answer !== q.correct) {
+        clearTimer(lobby);
+        setTimeout(() => processAnswers(lobby), 200);
+        return;
+      }
+    }
 
     const alive = alivePlayers(lobby);
     const answeredCount = [...lobby.answers.keys()]

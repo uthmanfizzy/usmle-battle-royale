@@ -68,7 +68,24 @@ export default function GameRoom({
   onAnswer,
   username,
   onTick,
+  streaks = {},
+  suddenDeath = false,
+  showSuddenDeathScreen = false,
 }) {
+  if (showSuddenDeathScreen) {
+    return (
+      <div className="screen sd-announcement-screen">
+        <div className="sd-announcement">
+          <div className="sd-bolt">⚡</div>
+          <h1 className="sd-title">SUDDEN DEATH</h1>
+          <div className="sd-bolt">⚡</div>
+          <p className="sd-subtitle">One wrong answer and you're out</p>
+          <p className="sd-timer-note">5 seconds per question</p>
+        </div>
+      </div>
+    );
+  }
+
   if (!question) {
     return (
       <div className="screen game-screen">
@@ -83,7 +100,7 @@ export default function GameRoom({
   const timerActive = !hasAnswered && isAlive && !showingRoundResult;
 
   return (
-    <div className="screen game-screen">
+    <div className={`screen game-screen ${suddenDeath ? 'sudden-death-mode' : ''}`}>
       {/* Fixed top bar */}
       <div className="game-topbar">
         <span className="topbar-round">Round {round}</span>
@@ -162,19 +179,27 @@ export default function GameRoom({
         {/* Sidebar player list */}
         <aside className="players-sidebar">
           <div className="sidebar-title">Players</div>
-          {players.map((p) => (
-            <div key={p.id} className={`sidebar-player ${!p.alive ? 'dead' : ''}`}>
-              <span className={`sp-name ${p.username === username ? 'sp-you' : ''}`}>
-                {p.username}{p.username === username ? ' (you)' : ''}
-              </span>
-              <div className="sp-lives">
-                {[1, 2, 3].map((i) => (
-                  <span key={i}>{i <= p.lives ? '❤️' : '🖤'}</span>
-                ))}
+          {players.map((p) => {
+            const streak = streaks[p.id] || 0;
+            return (
+              <div key={p.id} className={`sidebar-player ${!p.alive ? 'dead' : ''}`}>
+                <span className={`sp-name ${p.username === username ? 'sp-you' : ''}`}>
+                  {p.username}{p.username === username ? ' (you)' : ''}
+                  {streak >= 1 && (
+                    <span className={`streak-badge ${streak >= 3 ? 'on-fire' : ''}`}>
+                      🔥{streak}
+                    </span>
+                  )}
+                </span>
+                <div className="sp-lives">
+                  {[1, 2, 3].map((i) => (
+                    <span key={i}>{i <= p.lives ? '❤️' : '🖤'}</span>
+                  ))}
+                </div>
+                {!p.alive && <span className="sp-elim">ELIMINATED</span>}
               </div>
-              {!p.alive && <span className="sp-elim">ELIMINATED</span>}
-            </div>
-          ))}
+            );
+          })}
         </aside>
       </div>
     </div>
@@ -195,7 +220,11 @@ function RoundResult({ answerResult, roundResults, isAlive }) {
           <div className="rr-header">
             <span className="rr-icon">{correct ? '✅' : '❌'}</span>
             <span className={`rr-label ${correct ? 'correct' : 'wrong'}`}>
-              {correct ? 'CORRECT! +100 pts' : 'WRONG!'}
+              {correct
+                ? (answerResult.streak >= 3
+                    ? `CORRECT! +100 pts 🔥 Streak x${answerResult.streak}!`
+                    : 'CORRECT! +100 pts')
+                : 'WRONG!'}
             </span>
           </div>
           {!correct && (

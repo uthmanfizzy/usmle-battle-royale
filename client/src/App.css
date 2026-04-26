@@ -538,6 +538,88 @@ button:active:not(:disabled) { transform: scale(0.97); }
   letter-spacing: 0.5px;
 }
 
+/* ── Streak badge ──────────────────────────────────────────────────────── */
+.streak-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  margin-left: 5px;
+  padding: 1px 5px;
+  border-radius: 8px;
+  background: rgba(255, 150, 0, 0.15);
+  color: #ff9600;
+  letter-spacing: 0.02em;
+  vertical-align: middle;
+}
+.streak-badge.on-fire {
+  background: rgba(255, 80, 0, 0.2);
+  color: #ff5500;
+  animation: firePulse 0.8s ease-in-out infinite alternate;
+}
+@keyframes firePulse {
+  from { box-shadow: 0 0 4px rgba(255, 80, 0, 0.4); }
+  to   { box-shadow: 0 0 12px rgba(255, 80, 0, 0.8); }
+}
+
+/* ── Sudden death ──────────────────────────────────────────────────────── */
+.game-screen.sudden-death-mode {
+  background: radial-gradient(ellipse at center, #2d0000 0%, #0f0000 100%) !important;
+  --border: #5a1010;
+  --surface: #1a0505;
+  --card: #1f0808;
+}
+.game-screen.sudden-death-mode .game-topbar {
+  background: rgba(180, 0, 0, 0.3);
+  border-bottom: 1px solid #8b0000;
+}
+
+.sd-announcement-screen {
+  background: radial-gradient(ellipse at center, #6b0000 0%, #1a0000 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.sd-announcement {
+  text-align: center;
+  animation: sdBurst 0.4s ease-out;
+}
+@keyframes sdBurst {
+  from { transform: scale(0.6); opacity: 0; }
+  to   { transform: scale(1);   opacity: 1; }
+}
+.sd-bolt {
+  font-size: 72px;
+  animation: sdFlash 0.5s ease-in-out infinite alternate;
+  display: block;
+  line-height: 1;
+}
+@keyframes sdFlash {
+  from { opacity: 0.6; transform: scale(0.95); }
+  to   { opacity: 1;   transform: scale(1.05); }
+}
+.sd-title {
+  font-size: clamp(42px, 10vw, 80px);
+  font-weight: 900;
+  color: #ff2020;
+  letter-spacing: 0.08em;
+  text-shadow: 0 0 40px rgba(255, 0, 0, 0.8), 0 0 80px rgba(255, 0, 0, 0.4);
+  margin: 12px 0;
+  line-height: 1;
+}
+.sd-subtitle {
+  font-size: 20px;
+  color: #ff8080;
+  margin-top: 16px;
+  font-weight: 600;
+}
+.sd-timer-note {
+  font-size: 15px;
+  color: rgba(255, 128, 128, 0.7);
+  margin-top: 8px;
+  letter-spacing: 0.05em;
+}
+
 /* Waiting spinner */
 .waiting-screen {
   display: flex;

@@ -75,6 +75,7 @@ export default function TriviaGame({
   onTick,
   hasAnswered,
   myAnswer,
+  streaks = {},
 }) {
   const [rolling, setRolling] = useState(false);
 
@@ -142,12 +143,16 @@ export default function TriviaGame({
             const wedges    = pState?.wedges || [];
             const isCurrent = id === currentPlayerId;
             const isMe      = id === socketId;
+            const streak    = streaks[id] || 0;
             return (
               <div key={id} className={`trivia-player-row ${isCurrent ? 'current-turn' : ''}`}>
                 <div className="trivia-player-meta">
                   <span className="trivia-player-name">
                     {isCurrent && <span className="turn-arrow">▶ </span>}
                     {isMe ? `${pname} (you)` : pname}
+                    {streak >= 1 && (
+                      <span className={`streak-badge ${streak >= 3 ? 'on-fire' : ''}`}>🔥{streak}</span>
+                    )}
                   </span>
                   <span className="trivia-wedge-count">{wedges.length}/6</span>
                 </div>

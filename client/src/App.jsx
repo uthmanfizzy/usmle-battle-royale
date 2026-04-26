@@ -37,6 +37,9 @@ export default function App() {
 
   const [raceProgress, setRaceProgress] = useState([]);
   const [openToQuickJoin, setOpenToQuickJoin] = useState(true);
+  const [streaks, setStreaks] = useState({});
+  const [suddenDeath, setSuddenDeath] = useState(false);
+  const [showSuddenDeathScreen, setShowSuddenDeathScreen] = useState(false);
 
   const [triviaState,     setTriviaState]     = useState(null);
   const [triviaResult,    setTriviaResult]    = useState(null);
@@ -142,11 +145,27 @@ export default function App() {
       setTriviaState(null);
       setTriviaResult(null);
       setTriviaDiceValue(null);
+      setStreaks({});
+      setSuddenDeath(false);
+      setShowSuddenDeathScreen(false);
       audio.startGameMusic();
+    });
+
+    socket.on('sudden_death', () => {
+      setSuddenDeath(true);
+      setShowSuddenDeathScreen(true);
+      setShowingRoundResult(false);
+      audio.playWrong(); // reuse for dramatic effect
+      setTimeout(() => setShowSuddenDeathScreen(false), 3000);
     });
 
     socket.on('race_progress', ({ progress }) => {
       setRaceProgress(progress || []);
+      if (progress) {
+        const s = {};
+        progress.forEach(p => { s[p.id] = p.streak || 0; });
+        setStreaks(s);
+      }
     });
 
     socket.on('trivia_turn', (data) => {
@@ -180,6 +199,8 @@ export default function App() {
 
     socket.on('trivia_answer_result', (data) => {
       setTriviaResult(data);
+      if (data.streaks) setStreaks(data.streaks);
+      if (data.onFire && data.playerId === socket.id) showToast('🔥 You\'re on fire!');
       if (data.wedgeState) {
         setTriviaState(prev => prev ? { ...prev, wedgeState: data.wedgeState } : prev);
       }
@@ -210,6 +231,10 @@ export default function App() {
       setMyLives(result.lives);
       setMyScore(result.score);
       setIsAlive(result.alive);
+      if (typeof result.streak === 'number') {
+        setStreaks(prev => ({ ...prev, [socket.id]: result.streak }));
+      }
+      if (result.onFire) showToast('🔥 You\'re on fire!');
       if (result.correct) audio.playCorrect();
       else {
         audio.playWrong();
@@ -221,6 +246,11 @@ export default function App() {
       setRoundResults(data);
       setPlayers(data.players);
       setShowingRoundResult(true);
+      if (data.players) {
+        const s = {};
+        data.players.forEach(p => { s[p.id] = p.streak || 0; });
+        setStreaks(s);
+      }
     });
 
     socket.on('game_over', (result) => {
@@ -248,6 +278,9 @@ export default function App() {
       setTriviaState(null);
       setTriviaResult(null);
       setTriviaDiceValue(null);
+      setStreaks({});
+      setSuddenDeath(false);
+      setShowSuddenDeathScreen(false);
       audio.stopGameMusic();
       audio.startBgMusic();
     });
@@ -263,7 +296,7 @@ export default function App() {
     return () => {
       ['lobby_update', 'game_start', 'new_question', 'answer_count',
        'answer_result', 'round_results', 'game_over', 'game_reset',
-       'player_left', 'error',
+       'player_left', 'error', 'sudden_death',
        'race_progress', 'trivia_turn', 'trivia_rolled', 'trivia_question', 'trivia_answer_result'].forEach(e => socket.off(e));
       socket.disconnect();
       audio.stopBgMusic();
@@ -573,6 +606,9 @@ export default function App() {
           onAnswer={handleAnswer}
           username={username}
           onTick={audio.playTick}
+          streaks={streaks}
+          suddenDeath={suddenDeath}
+          showSuddenDeathScreen={showSuddenDeathScreen}
         />
       )}
 
@@ -588,6 +624,7 @@ export default function App() {
           onTick={audio.playTick}
           hasAnswered={hasAnswered}
           myAnswer={myAnswer}
+          streaks={streaks}
         />
       )}
 
@@ -605,6 +642,7 @@ export default function App() {
           onAnswer={handleAnswer}
           username={username}
           onTick={audio.playTick}
+          streaks={streaks}
         />
       )}
 

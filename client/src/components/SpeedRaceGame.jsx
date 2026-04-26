@@ -40,6 +40,7 @@ export default function SpeedRaceGame({
   onAnswer,
   username,
   onTick,
+  streaks = {},
 }) {
   const GOAL = 20;
   const sortedProgress = [...(raceProgress || [])].sort((a, b) => b.correct - a.correct);
@@ -50,11 +51,16 @@ export default function SpeedRaceGame({
       {/* Race progress panel */}
       <div className="race-panel">
         <div className="race-panel-title">⚡ Speed Race — First to {GOAL} wins!</div>
-        {sortedProgress.map(p => (
+        {sortedProgress.map(p => {
+          const streak = p.streak || streaks[p.id] || 0;
+          return (
           <div key={p.id} className={`race-row ${p.username === username ? 'race-row-me' : ''}`}>
             <div className="race-row-name">
               {p.position && <span className="race-medal">#{p.position} </span>}
               {p.username === username ? `${p.username} (you)` : p.username}
+              {streak >= 1 && (
+                <span className={`streak-badge ${streak >= 3 ? 'on-fire' : ''}`}>🔥{streak}</span>
+              )}
             </div>
             <div className="race-bar-track">
               <div
@@ -64,7 +70,8 @@ export default function SpeedRaceGame({
             </div>
             <div className="race-count">{p.correct}/{GOAL}</div>
           </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Question panel */}
