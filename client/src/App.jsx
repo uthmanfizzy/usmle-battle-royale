@@ -6,6 +6,7 @@ import UsernameEntry from './components/UsernameEntry';
 import ExamSelect from './components/ExamSelect';
 import DifficultySelect from './components/DifficultySelect';
 import ModeSelect from './components/ModeSelect';
+import HowToPlay from './components/HowToPlay';
 import LobbySelect from './components/LobbySelect';
 import JoinLobbyInput from './components/JoinLobbyInput';
 import SubjectSelect from './components/SubjectSelect';
@@ -17,7 +18,7 @@ import Leaderboard from './components/Leaderboard';
 import SoloGame from './components/SoloGame';
 
 // phases: 'loading' | 'entry' | 'exam_select' | 'difficulty_select' | 'mode_select' |
-//         'lobby_select' | 'subject_select' | 'join_input' | 'lobby' | 'game' |
+//         'how_to_play' | 'lobby_select' | 'subject_select' | 'join_input' | 'lobby' | 'game' |
 //         'game_over' | 'solo_subject' | 'solo_game'
 
 export default function App() {
@@ -351,6 +352,10 @@ export default function App() {
 
   function handleSelectGameMode(mode) {
     setGameMode(mode);
+    setPhase('how_to_play');
+  }
+
+  function handleHowToPlayContinue() {
     setPhase('lobby_select');
   }
 
@@ -540,6 +545,14 @@ export default function App() {
           username={username}
           onSelect={handleSelectGameMode}
           onBack={() => setPhase('difficulty_select')}
+        />
+      )}
+
+      {phase === 'how_to_play' && (
+        <HowToPlay
+          gameMode={gameMode}
+          onContinue={handleHowToPlayContinue}
+          onBack={() => setPhase('mode_select')}
         />
       )}
 
