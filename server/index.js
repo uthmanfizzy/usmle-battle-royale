@@ -257,6 +257,23 @@ function clearTimer(lobby) {
   if (lobby.timer) { clearTimeout(lobby.timer); lobby.timer = null; }
 }
 
+// ── Power-up system ────────────────────────────────────────────────────────────
+
+const POWERUP_POOL = ['50_50', 'extra_time', 'skip', 'freeze', 'double_xp'];
+
+function assignPowerups(lobby) {
+  lobby.playerPowerups   = new Map();
+  lobby.usedPowerupThisQ = new Set();
+  lobby.frozenPlayers    = new Map();
+  lobby.pendingDoubleXp  = new Set();
+  lobby.powerupXpBonus   = new Map();
+  for (const p of lobby.players.values()) {
+    if (p.isBot) continue;
+    const picks = shuffle([...POWERUP_POOL]).slice(0, 2);
+    lobby.playerPowerups.set(p.id, picks);
+  }
+}
+
 // ── Streak helpers ─────────────────────────────────────────────────────────────
 
 function updateStreak(lobby, playerId, correct) {
@@ -291,6 +308,7 @@ function startGame(lobby) {
   lobby.streaks       = new Map();
   lobby.bonusCorrects = new Map();
   lobby.suddenDeath   = false;
+  assignPowerups(lobby);
 
   const pool = lobby.subject === 'all'
     ? questionBank
@@ -304,6 +322,10 @@ function startGame(lobby) {
   }
 
   io.to(lobby.id).emit('game_start', { gameMode: 'battle_royale', message: 'Battle begins!' });
+  for (const [pid, pups] of lobby.playerPowerups) {
+    const sock = io.sockets.sockets.get(pid);
+    if (sock) sock.emit('powerup_assigned', { powerups: pups });
+  }
   setTimeout(() => nextQuestion(lobby), 1500);
 }
 
@@ -321,6 +343,8 @@ function nextQuestion(lobby) {
   lobby.round++;
   lobby.status = 'question';
   lobby.answers.clear();
+  if (lobby.usedPowerupThisQ) lobby.usedPowerupThisQ.clear();
+  if (lobby.frozenPlayers)   lobby.frozenPlayers.clear();
 
   const q         = lobby.questionQueue[lobby.questionIdx];
   const timeLimit = lobby.suddenDeath ? 5 : gameSettings.timerDuration;
@@ -331,7 +355,8 @@ function nextQuestion(lobby) {
     suddenDeath: lobby.suddenDeath || false,
   });
 
-  lobby.timer = setTimeout(() => processAnswers(lobby), timeLimit * 1000);
+  lobby.timerEnd = Date.now() + timeLimit * 1000;
+  lobby.timer    = setTimeout(() => processAnswers(lobby), timeLimit * 1000);
   scheduleBotAnswers(lobby, q, timeLimit);
 }
 
@@ -347,14 +372,29 @@ function processAnswers(lobby) {
   for (const player of lobby.players.values()) {
     if (!player.alive) continue;
 
-    const answer  = lobby.answers.get(player.id);
-    const correct = answer === q.correct;
+    const answer      = lobby.answers.get(player.id);
+    const frozenUntil = lobby.frozenPlayers?.get(player.id);
+    const isFrozen    = frozenUntil && Date.now() < frozenUntil;
+    const isSkip      = answer === '__skip__' || isFrozen;
 
-    const { streak, onFire } = updateStreak(lobby, player.id, correct);
+    let correct = false;
+    let streak  = lobby.streaks?.get(player.id) || 0;
+    let onFire  = false;
+
+    if (!isSkip) {
+      const sr = updateStreak(lobby, player.id, answer === q.correct);
+      streak  = sr.streak;
+      onFire  = sr.onFire;
+      correct = answer === q.correct;
+    }
+
+    if (correct && lobby.pendingDoubleXp?.has(player.id)) {
+      lobby.powerupXpBonus.set(player.id, (lobby.powerupXpBonus.get(player.id) || 0) + XP_PER_CORRECT);
+      lobby.pendingDoubleXp.delete(player.id);
+    }
 
     if (lobby.suddenDeath) {
-      // In sudden death any wrong/no answer eliminates immediately
-      if (!correct) {
+      if (!correct && !isSkip) {
         player.lives = 0;
         player.alive = false;
         eliminated.push(player.username);
@@ -363,7 +403,7 @@ function processAnswers(lobby) {
       if (correct) {
         player.score += 100;
         lobby.correctCounts.set(player.id, (lobby.correctCounts.get(player.id) || 0) + 1);
-      } else {
+      } else if (!isSkip) {
         player.lives = Math.max(0, player.lives - 1);
         if (player.lives === 0) { player.alive = false; eliminated.push(player.username); }
       }
@@ -482,7 +522,8 @@ async function awardXP(lobby, sorted) {
       correctCount = lobby.correctCounts?.get(player.id) || 0;
     }
     const bonusCorrects = lobby.bonusCorrects?.get(player.id) || 0;
-    const totalXp   = baseXp + correctCount * XP_PER_CORRECT + bonusCorrects * XP_PER_CORRECT;
+    const powerupBonus  = lobby.powerupXpBonus?.get(player.id) || 0;
+    const totalXp   = baseXp + correctCount * XP_PER_CORRECT + bonusCorrects * XP_PER_CORRECT + powerupBonus;
 
     try {
       // Fetch current stats
@@ -586,11 +627,12 @@ function startSpeedRace(lobby) {
   lobby.speedPlayers      = new Map(); // playerId → { idx, timer, botTimer, finished }
   lobby.streaks           = new Map();
   lobby.bonusCorrects     = new Map();
+  assignPowerups(lobby);
 
   for (const p of lobby.players.values()) {
     lobby.raceCorrects.set(p.id, 0);
     p.lives = 3; p.score = 0; p.alive = true;
-    lobby.speedPlayers.set(p.id, { idx: 0, timer: null, botTimer: null, finished: false });
+    lobby.speedPlayers.set(p.id, { idx: 0, timer: null, botTimer: null, finished: false, timerEnd: 0, usedPowerupThisQ: false });
   }
 
   const pool = lobby.subject === 'all'
@@ -599,6 +641,10 @@ function startSpeedRace(lobby) {
   lobby.questionQueue = shuffle(pool.length >= 5 ? pool : questionBank);
 
   io.to(lobby.id).emit('game_start', { gameMode: 'speed_race' });
+  for (const [pid, pups] of lobby.playerPowerups) {
+    const sock = io.sockets.sockets.get(pid);
+    if (sock) sock.emit('powerup_assigned', { powerups: pups });
+  }
 
   lobby.raceTimer = setTimeout(() => {
     if (lobby.status === 'speed_race') endSpeedRace(lobby, 'time_up');
@@ -630,7 +676,9 @@ function sendSpeedQuestion(lobby, playerId) {
   }
 
   clearTimeout(state.timer);
-  state.timer = setTimeout(() => advanceSpeedPlayer(lobby, playerId, null), timeLimit * 1000);
+  state.timerEnd         = Date.now() + timeLimit * 1000;
+  state.usedPowerupThisQ = false;
+  state.timer            = setTimeout(() => advanceSpeedPlayer(lobby, playerId, null), timeLimit * 1000);
 
   if (player.isBot) {
     clearTimeout(state.botTimer);
@@ -653,11 +701,18 @@ function advanceSpeedPlayer(lobby, playerId, answer) {
   state.timer = null;
   state.botTimer = null;
 
-  const q       = lobby.questionQueue[state.idx % lobby.questionQueue.length];
-  const correct = answer !== null && answer === q.correct;
-  const { streak, onFire } = updateStreak(lobby, playerId, correct);
+  const q      = lobby.questionQueue[state.idx % lobby.questionQueue.length];
+  const isSkip = answer === '__skip__';
+  const correct = !isSkip && answer !== null && answer === q.correct;
+  const { streak, onFire } = isSkip
+    ? { streak: lobby.streaks?.get(playerId) || 0, onFire: false }
+    : updateStreak(lobby, playerId, answer !== null && answer === q.correct);
 
   if (correct) {
+    if (lobby.pendingDoubleXp?.has(playerId)) {
+      lobby.powerupXpBonus.set(playerId, (lobby.powerupXpBonus.get(playerId) || 0) + XP_PER_CORRECT);
+      lobby.pendingDoubleXp.delete(playerId);
+    }
     const n = (lobby.raceCorrects.get(playerId) || 0) + 1;
     lobby.raceCorrects.set(playerId, n);
     player.score = n;
@@ -1157,6 +1212,103 @@ io.on('connection', (socket) => {
     io.to(lobby.id).emit('lobby_update', lobbyPayload(lobby));
   });
 
+  socket.on('use_powerup', ({ type, targetId }) => {
+    const lobby = lobbies.get(socket.lobbyId);
+    if (!lobby) return;
+
+    const powerups = lobby.playerPowerups?.get(socket.id);
+    if (!powerups || !powerups.includes(type)) return;
+
+    const isSpeedRace    = lobby.status === 'speed_race';
+    const isBattleRoyale = lobby.status === 'question';
+    if (!isSpeedRace && !isBattleRoyale) return;
+
+    // Freeze is BR-only
+    if (type === 'freeze' && !isBattleRoyale) return;
+
+    // One powerup per question
+    if (isSpeedRace) {
+      const state = lobby.speedPlayers?.get(socket.id);
+      if (!state || state.usedPowerupThisQ) return;
+      state.usedPowerupThisQ = true;
+    } else {
+      if (!lobby.usedPowerupThisQ) lobby.usedPowerupThisQ = new Set();
+      if (lobby.usedPowerupThisQ.has(socket.id)) return;
+      lobby.usedPowerupThisQ.add(socket.id);
+    }
+
+    // Consume powerup
+    const idx = powerups.indexOf(type);
+    powerups.splice(idx, 1);
+
+    if (type === '50_50') {
+      let q;
+      if (isSpeedRace) {
+        const state = lobby.speedPlayers?.get(socket.id);
+        if (!state) return;
+        q = lobby.questionQueue[state.idx % lobby.questionQueue.length];
+      } else {
+        q = lobby.questionQueue[lobby.questionIdx];
+      }
+      const wrong  = ['A', 'B', 'C', 'D'].filter(o => o !== q.correct);
+      const hidden = shuffle(wrong).slice(0, 2);
+      socket.emit('powerup_result', { type: '50_50', hiddenOptions: hidden });
+
+    } else if (type === 'extra_time') {
+      const bonus = 10;
+      socket.emit('powerup_result', { type: 'extra_time', bonusSeconds: bonus });
+      if (isBattleRoyale && lobby.timerEnd) {
+        clearTimeout(lobby.timer);
+        lobby.timerEnd += bonus * 1000;
+        const remaining = lobby.timerEnd - Date.now();
+        if (remaining > 0) lobby.timer = setTimeout(() => processAnswers(lobby), remaining);
+      } else if (isSpeedRace) {
+        const state = lobby.speedPlayers?.get(socket.id);
+        if (state && state.timerEnd) {
+          clearTimeout(state.timer);
+          state.timerEnd += bonus * 1000;
+          const remaining = state.timerEnd - Date.now();
+          if (remaining > 0) state.timer = setTimeout(() => advanceSpeedPlayer(lobby, socket.id, null), remaining);
+        }
+      }
+
+    } else if (type === 'skip') {
+      socket.emit('powerup_result', { type: 'skip' });
+      if (isSpeedRace) {
+        advanceSpeedPlayer(lobby, socket.id, '__skip__');
+      } else {
+        const player = lobby.players.get(socket.id);
+        if (player?.alive && !lobby.answers.has(socket.id)) {
+          lobby.answers.set(socket.id, '__skip__');
+          const alive = alivePlayers(lobby);
+          const answeredCount = [...lobby.answers.keys()].filter(id => lobby.players.get(id)?.alive).length;
+          io.to(lobby.id).emit('answer_count', { answered: answeredCount, total: alive.length });
+          if (answeredCount >= alive.length) { clearTimer(lobby); setTimeout(() => processAnswers(lobby), 600); }
+        }
+      }
+
+    } else if (type === 'freeze') {
+      if (!targetId) return;
+      const target = lobby.players.get(targetId);
+      if (!target?.alive) return;
+      if (!lobby.frozenPlayers) lobby.frozenPlayers = new Map();
+      lobby.frozenPlayers.set(targetId, Date.now() + 5000);
+      const targetSock = io.sockets.sockets.get(targetId);
+      if (targetSock) targetSock.emit('frozen', { duration: 5000 });
+      socket.emit('powerup_result', { type: 'freeze', targetUsername: target.username });
+      setTimeout(() => {
+        if (lobby.frozenPlayers) lobby.frozenPlayers.delete(targetId);
+        const ts = io.sockets.sockets.get(targetId);
+        if (ts) ts.emit('unfrozen');
+      }, 5000);
+
+    } else if (type === 'double_xp') {
+      if (!lobby.pendingDoubleXp) lobby.pendingDoubleXp = new Set();
+      lobby.pendingDoubleXp.add(socket.id);
+      socket.emit('powerup_result', { type: 'double_xp' });
+    }
+  });
+
   socket.on('start_game', () => {
     const lobby = lobbies.get(socket.lobbyId);
     if (!lobby) return socket.emit('error', { message: 'Lobby not found.' });
@@ -1169,6 +1321,10 @@ io.on('connection', (socket) => {
   socket.on('submit_answer', ({ answer }) => {
     const lobby = lobbies.get(socket.lobbyId);
     if (!lobby) return;
+
+    // Reject answer if player is currently frozen
+    const frozenUntil = lobby.frozenPlayers?.get(socket.id);
+    if (frozenUntil && Date.now() < frozenUntil) return;
 
     // ── Speed Race ─────────────────────────────────────────────────────────
     if (lobby.status === 'speed_race') {

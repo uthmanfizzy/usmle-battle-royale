@@ -17,7 +17,9 @@
       "Bash(vercel --prod)",
       "Bash(git commit *)",
       "Read(//c/c/Users/faiza/usmle-battle-royale/server/**)",
-      "Bash(git restore *)"
+      "Bash(git restore *)",
+      "Bash(gh auth *)",
+      "Bash(npx --no-install vite build --mode production)"
     ]
   }
 }

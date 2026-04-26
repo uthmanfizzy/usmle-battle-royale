@@ -46,6 +46,14 @@ export default function App() {
   const [triviaResult,    setTriviaResult]    = useState(null);
   const [triviaDiceValue, setTriviaDiceValue] = useState(null);
 
+  // Power-ups
+  const [myPowerups,        setMyPowerups]        = useState([]);
+  const [usedPowerupThisQ,  setUsedPowerupThisQ]  = useState(false);
+  const [isFrozen,          setIsFrozen]          = useState(false);
+  const [hiddenOptions,     setHiddenOptions]     = useState([]);
+  const [extraTimeBonus,    setExtraTimeBonus]    = useState(0);
+  const [showPowerupIntro,  setShowPowerupIntro]  = useState(false);
+
   // In-game
   const [question,           setQuestion]           = useState(null);
   const [round,              setRound]              = useState(0);
@@ -149,8 +157,43 @@ export default function App() {
       setStreaks({});
       setSuddenDeath(false);
       setShowSuddenDeathScreen(false);
+      setMyPowerups([]);
+      setUsedPowerupThisQ(false);
+      setIsFrozen(false);
+      setHiddenOptions([]);
+      setExtraTimeBonus(0);
+      setShowPowerupIntro(false);
       audio.startGameMusic();
     });
+
+    socket.on('powerup_assigned', ({ powerups }) => {
+      setMyPowerups(powerups || []);
+      setShowPowerupIntro(true);
+      setTimeout(() => setShowPowerupIntro(false), 3000);
+    });
+
+    socket.on('powerup_result', (data) => {
+      setUsedPowerupThisQ(true);
+      setMyPowerups(prev => {
+        const copy = [...prev];
+        const idx  = copy.indexOf(data.type);
+        if (idx !== -1) copy.splice(idx, 1);
+        return copy;
+      });
+      if (data.type === '50_50')     setHiddenOptions(data.hiddenOptions || []);
+      if (data.type === 'extra_time') setExtraTimeBonus(prev => prev + (data.bonusSeconds || 0));
+      if (data.type === 'skip') { setMyAnswer('__skip__'); setHasAnswered(true); }
+      if (data.type === 'double_xp') showToast('⭐ Double XP on your next correct answer!');
+      if (data.type === 'freeze')    showToast(`❄️ ${data.targetUsername} frozen for 5 seconds!`);
+    });
+
+    socket.on('frozen', ({ duration }) => {
+      setIsFrozen(true);
+      showToast('❄️ You have been frozen! You cannot answer for 5 seconds.');
+      setTimeout(() => setIsFrozen(false), duration);
+    });
+
+    socket.on('unfrozen', () => setIsFrozen(false));
 
     socket.on('sudden_death', () => {
       setSuddenDeath(true);
@@ -220,6 +263,9 @@ export default function App() {
       setAnswerResult(null);
       setRoundResults(null);
       setShowingRoundResult(false);
+      setUsedPowerupThisQ(false);
+      setHiddenOptions([]);
+      setExtraTimeBonus(0);
     });
 
     socket.on('answer_count', ({ answered, total }) => {
@@ -282,6 +328,12 @@ export default function App() {
       setStreaks({});
       setSuddenDeath(false);
       setShowSuddenDeathScreen(false);
+      setMyPowerups([]);
+      setUsedPowerupThisQ(false);
+      setIsFrozen(false);
+      setHiddenOptions([]);
+      setExtraTimeBonus(0);
+      setShowPowerupIntro(false);
       audio.stopGameMusic();
       audio.startBgMusic();
     });
@@ -298,7 +350,8 @@ export default function App() {
       ['lobby_update', 'game_start', 'new_question', 'answer_count',
        'answer_result', 'round_results', 'game_over', 'game_reset',
        'player_left', 'error', 'sudden_death',
-       'race_progress', 'trivia_turn', 'trivia_rolled', 'trivia_question', 'trivia_answer_result'].forEach(e => socket.off(e));
+       'race_progress', 'trivia_turn', 'trivia_rolled', 'trivia_question', 'trivia_answer_result',
+       'powerup_assigned', 'powerup_result', 'frozen', 'unfrozen'].forEach(e => socket.off(e));
       socket.disconnect();
       audio.stopBgMusic();
     };
@@ -435,6 +488,10 @@ export default function App() {
 
   function handleTriviaRoll() {
     socket.emit('trivia_roll');
+  }
+
+  function handleUsePowerup(type, targetId) {
+    socket.emit('use_powerup', { type, targetId: targetId || null });
   }
 
   function handleAnswer(answer) {
@@ -622,6 +679,14 @@ export default function App() {
           streaks={streaks}
           suddenDeath={suddenDeath}
           showSuddenDeathScreen={showSuddenDeathScreen}
+          myPowerups={myPowerups}
+          usedPowerupThisQ={usedPowerupThisQ}
+          onUsePowerup={handleUsePowerup}
+          isFrozen={isFrozen}
+          hiddenOptions={hiddenOptions}
+          extraTimeBonus={extraTimeBonus}
+          showPowerupIntro={showPowerupIntro}
+          socketId={socket.id}
         />
       )}
 
@@ -656,6 +721,13 @@ export default function App() {
           username={username}
           onTick={audio.playTick}
           streaks={streaks}
+          myPowerups={myPowerups}
+          usedPowerupThisQ={usedPowerupThisQ}
+          onUsePowerup={handleUsePowerup}
+          hiddenOptions={hiddenOptions}
+          extraTimeBonus={extraTimeBonus}
+          showPowerupIntro={showPowerupIntro}
+          socketId={socket.id}
         />
       )}
 

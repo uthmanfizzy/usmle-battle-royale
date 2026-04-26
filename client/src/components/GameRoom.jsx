@@ -1,38 +1,40 @@
 import { useState, useEffect, useRef } from 'react';
+import PowerupBar from './PowerupBar';
 
 const LABELS = ['A', 'B', 'C', 'D'];
 
-function Timer({ timeLimit, active, questionId, onTick }) {
+function Timer({ timeLimit, active, questionId, onTick, bonusSeconds = 0 }) {
   const [left, setLeft] = useState(timeLimit);
   const ref = useRef(null);
+  const prevBonusRef = useRef(0);
 
   useEffect(() => {
+    prevBonusRef.current = 0;
     setLeft(timeLimit);
     if (!active) return;
-    ref.current = setInterval(() => {
-      setLeft((t) => {
-        const next = Math.max(0, t - 1);
-        return next;
-      });
-    }, 1000);
+    ref.current = setInterval(() => setLeft((t) => Math.max(0, t - 1)), 1000);
     return () => clearInterval(ref.current);
   }, [timeLimit, active, questionId]);
+
+  useEffect(() => {
+    if (bonusSeconds > prevBonusRef.current && active) {
+      setLeft(prev => prev + (bonusSeconds - prevBonusRef.current));
+    }
+    prevBonusRef.current = bonusSeconds;
+  }, [bonusSeconds, active]);
 
   useEffect(() => {
     if (active && left <= 5 && left > 0 && onTick) onTick();
   }, [left, active, onTick]);
 
-  const pct  = (left / timeLimit) * 100;
+  const pct  = Math.min(100, (left / timeLimit) * 100);
   const tier = left > 10 ? 'green' : left > 5 ? 'yellow' : 'red';
 
   return (
     <div className="timer-wrap">
       <div className={`timer-number ${tier}`}>{left}s</div>
       <div className="timer-track">
-        <div
-          className={`timer-fill ${tier}`}
-          style={{ width: `${pct}%` }}
-        />
+        <div className={`timer-fill ${tier}`} style={{ width: `${pct}%` }} />
       </div>
     </div>
   );
@@ -71,6 +73,14 @@ export default function GameRoom({
   streaks = {},
   suddenDeath = false,
   showSuddenDeathScreen = false,
+  myPowerups = [],
+  usedPowerupThisQ = false,
+  onUsePowerup,
+  isFrozen = false,
+  hiddenOptions = [],
+  extraTimeBonus = 0,
+  showPowerupIntro = false,
+  socketId,
 }) {
   if (showSuddenDeathScreen) {
     return (
@@ -81,6 +91,35 @@ export default function GameRoom({
           <div className="sd-bolt">⚡</div>
           <p className="sd-subtitle">One wrong answer and you're out</p>
           <p className="sd-timer-note">5 seconds per question</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (showPowerupIntro && myPowerups.length > 0) {
+    const POWERUP_META = {
+      '50_50': { icon: '🎯', label: '50/50' },
+      extra_time: { icon: '⏰', label: '+10s' },
+      skip: { icon: '⏭️', label: 'Skip' },
+      freeze: { icon: '❄️', label: 'Freeze' },
+      double_xp: { icon: '⭐', label: '2× XP' },
+    };
+    return (
+      <div className="screen powerup-intro-screen">
+        <div className="powerup-intro-card">
+          <div className="powerup-intro-title">⚡ Your Power-Ups!</div>
+          <p className="powerup-intro-sub">Use them wisely — one per question</p>
+          <div className="powerup-intro-list">
+            {myPowerups.map(type => {
+              const m = POWERUP_META[type] || { icon: '❓', label: type };
+              return (
+                <div key={type} className="powerup-intro-item">
+                  <span className="powerup-intro-icon">{m.icon}</span>
+                  <span className="powerup-intro-label">{m.label}</span>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
     );
@@ -118,6 +157,7 @@ export default function GameRoom({
               active={timerActive}
               questionId={question.id}
               onTick={onTick}
+              bonusSeconds={extraTimeBonus}
             />
           )}
 
@@ -127,6 +167,7 @@ export default function GameRoom({
             <div className="options">
               {question.options.map((opt, i) => {
                 const label    = LABELS[i];
+                if (hiddenOptions.includes(label)) return null;
                 const isMine   = myAnswer === label;
                 const isRight  = showingRoundResult && roundResults?.correctAnswer === label;
                 const isWrong  = showingRoundResult && isMine && roundResults?.correctAnswer !== label;
@@ -141,7 +182,7 @@ export default function GameRoom({
                       isWrong ? 'wrong'    : '',
                     ].join(' ')}
                     onClick={() => onAnswer(label)}
-                    disabled={hasAnswered || !isAlive || showingRoundResult}
+                    disabled={hasAnswered || !isAlive || showingRoundResult || isFrozen}
                   >
                     <span className="opt-label">{label}</span>
                     <span className="opt-text">{opt}</span>
@@ -165,6 +206,19 @@ export default function GameRoom({
               </p>
             )}
           </div>
+
+          {!showingRoundResult && isAlive && (
+            <PowerupBar
+              powerups={myPowerups}
+              usedPowerupThisQ={usedPowerupThisQ}
+              onUse={onUsePowerup}
+              gameMode="battle_royale"
+              players={players}
+              mySocketId={socketId}
+              isFrozen={isFrozen}
+              hasAnswered={hasAnswered}
+            />
+          )}
 
           {/* Round result */}
           {showingRoundResult && roundResults && (

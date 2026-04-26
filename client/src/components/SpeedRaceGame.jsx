@@ -1,12 +1,15 @@
 import { useState, useEffect, useRef } from 'react';
+import PowerupBar from './PowerupBar';
 
 const LABELS = ['A', 'B', 'C', 'D'];
 
-function Timer({ timeLimit, active, questionId, onTick }) {
+function Timer({ timeLimit, active, questionId, onTick, bonusSeconds = 0 }) {
   const [left, setLeft] = useState(timeLimit);
   const ref = useRef(null);
+  const prevBonusRef = useRef(0);
 
   useEffect(() => {
+    prevBonusRef.current = 0;
     setLeft(timeLimit);
     if (!active) return;
     ref.current = setInterval(() => setLeft(t => Math.max(0, t - 1)), 1000);
@@ -14,10 +17,17 @@ function Timer({ timeLimit, active, questionId, onTick }) {
   }, [timeLimit, active, questionId]);
 
   useEffect(() => {
+    if (bonusSeconds > prevBonusRef.current && active) {
+      setLeft(prev => prev + (bonusSeconds - prevBonusRef.current));
+    }
+    prevBonusRef.current = bonusSeconds;
+  }, [bonusSeconds, active]);
+
+  useEffect(() => {
     if (active && left <= 5 && left > 0 && onTick) onTick();
   }, [left, active, onTick]);
 
-  const pct  = (left / timeLimit) * 100;
+  const pct  = Math.min(100, (left / timeLimit) * 100);
   const tier = left > 10 ? 'green' : left > 5 ? 'yellow' : 'red';
   return (
     <div className="timer-wrap">
@@ -41,9 +51,46 @@ export default function SpeedRaceGame({
   username,
   onTick,
   streaks = {},
+  myPowerups = [],
+  usedPowerupThisQ = false,
+  onUsePowerup,
+  hiddenOptions = [],
+  extraTimeBonus = 0,
+  showPowerupIntro = false,
+  socketId,
 }) {
   const GOAL = 20;
   const sortedProgress = [...(raceProgress || [])].sort((a, b) => b.correct - a.correct);
+
+  const POWERUP_META = {
+    '50_50': { icon: '🎯', label: '50/50' },
+    extra_time: { icon: '⏰', label: '+10s' },
+    skip: { icon: '⏭️', label: 'Skip' },
+    freeze: { icon: '❄️', label: 'Freeze' },
+    double_xp: { icon: '⭐', label: '2× XP' },
+  };
+
+  if (showPowerupIntro && myPowerups.length > 0) {
+    return (
+      <div className="screen powerup-intro-screen">
+        <div className="powerup-intro-card">
+          <div className="powerup-intro-title">⚡ Your Power-Ups!</div>
+          <p className="powerup-intro-sub">Use them wisely — one per question</p>
+          <div className="powerup-intro-list">
+            {myPowerups.map(type => {
+              const m = POWERUP_META[type] || { icon: '❓', label: type };
+              return (
+                <div key={type} className="powerup-intro-item">
+                  <span className="powerup-intro-icon">{m.icon}</span>
+                  <span className="powerup-intro-label">{m.label}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="screen game-screen speed-race-screen">
@@ -85,12 +132,14 @@ export default function SpeedRaceGame({
               active={!hasAnswered}
               questionId={question.id}
               onTick={onTick}
+              bonusSeconds={extraTimeBonus}
             />
 
             <div className="question-text">{question.question}</div>
 
             <div className="options-grid">
               {LABELS.map((opt, i) => {
+                if (hiddenOptions.includes(opt)) return null;
                 const val = question.options[i];
                 let cls = 'option-btn';
                 if (answerResult) {
@@ -109,6 +158,17 @@ export default function SpeedRaceGame({
                 );
               })}
             </div>
+
+            <PowerupBar
+              powerups={myPowerups}
+              usedPowerupThisQ={usedPowerupThisQ}
+              onUse={onUsePowerup}
+              gameMode="speed_race"
+              players={sortedProgress}
+              mySocketId={socketId}
+              isFrozen={false}
+              hasAnswered={hasAnswered}
+            />
 
             {answerResult && (
               <div className={`answer-feedback ${answerResult.correct ? 'correct' : 'wrong'}`}>

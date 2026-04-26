@@ -2296,3 +2296,207 @@ table.lb-table tr:last-child td { border-bottom: none; }
   .dice-face, .dice-rolling { font-size: 56px; }
   .btn-roll              { font-size: 18px; padding: 14px 36px; }
 }
+
+/* ── Power-Up Intro Screen ─────────────────────────────────────────────────── */
+
+.powerup-intro-screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(ellipse at center, #1a1a4e 0%, #090914 100%);
+}
+
+.powerup-intro-card {
+  background: var(--card);
+  border: 2px solid #f9ca24;
+  border-radius: 20px;
+  padding: 40px 48px;
+  text-align: center;
+  box-shadow: 0 0 60px rgba(249,202,36,0.2);
+  animation: puIntroIn 0.4s ease;
+}
+
+@keyframes puIntroIn {
+  from { transform: scale(0.8); opacity: 0; }
+  to   { transform: scale(1);   opacity: 1; }
+}
+
+.powerup-intro-title {
+  font-size: 28px;
+  font-weight: 800;
+  color: #f9ca24;
+  margin-bottom: 8px;
+  letter-spacing: 1px;
+}
+
+.powerup-intro-sub {
+  font-size: 14px;
+  color: var(--text-dim);
+  margin-bottom: 28px;
+}
+
+.powerup-intro-list {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+}
+
+.powerup-intro-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 20px;
+  min-width: 80px;
+}
+
+.powerup-intro-icon {
+  font-size: 32px;
+}
+
+.powerup-intro-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-dim);
+}
+
+/* ── Power-Up Bar ──────────────────────────────────────────────────────────── */
+
+.powerup-bar {
+  margin-top: 16px;
+  text-align: center;
+}
+
+.powerup-frozen-notice {
+  background: rgba(116,185,255,0.15);
+  border: 1px solid #74b9ff;
+  color: #74b9ff;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 10px;
+  animation: frozenPulse 1s ease-in-out infinite;
+}
+
+@keyframes frozenPulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.5; }
+}
+
+.powerup-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 8px;
+}
+
+.powerup-btns {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.powerup-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 2px solid var(--pu-color, #999);
+  background: color-mix(in srgb, var(--pu-color, #999) 12%, transparent);
+  color: var(--pu-color, #999);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
+  min-width: 64px;
+}
+
+.powerup-btn:hover:not(.powerup-disabled) {
+  background: color-mix(in srgb, var(--pu-color, #999) 28%, transparent);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--pu-color, #999) 50%, transparent);
+  transform: translateY(-2px);
+}
+
+.powerup-btn:active:not(.powerup-disabled) {
+  transform: translateY(0);
+}
+
+.powerup-btn.powerup-disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.pu-icon  { font-size: 20px; line-height: 1; }
+.pu-label { font-size: 11px; }
+
+/* ── Freeze Picker ─────────────────────────────────────────────────────────── */
+
+.freeze-picker-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+
+.freeze-picker {
+  background: var(--card);
+  border: 2px solid #74b9ff;
+  border-radius: 16px;
+  padding: 28px 32px;
+  text-align: center;
+  min-width: 240px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 0 40px rgba(116,185,255,0.3);
+}
+
+.freeze-picker-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #74b9ff;
+  margin-bottom: 6px;
+}
+
+.freeze-target-btn {
+  padding: 10px 16px;
+  border-radius: 10px;
+  border: 1px solid #74b9ff;
+  background: rgba(116,185,255,0.12);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.freeze-target-btn:hover {
+  background: rgba(116,185,255,0.28);
+}
+
+.freeze-cancel-btn {
+  padding: 8px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 13px;
+  cursor: pointer;
+  margin-top: 4px;
+}
+
+.freeze-cancel-btn:hover {
+  background: var(--surface);
+}
