@@ -3,6 +3,8 @@ import TriviaBoard from './TriviaBoard';
 
 const LABELS = ['A', 'B', 'C', 'D'];
 
+const DICE_FACES = { 1: '⚀', 2: '⚁', 3: '⚂', 4: '⚃', 5: '⚄', 6: '⚅' };
+
 const CATEGORY_META = {
   cardiology:    { label: 'Cardiology',    color: '#e74c3c', icon: '❤️' },
   neurology:     { label: 'Neurology',     color: '#3498db', icon: '🧠' },
@@ -66,12 +68,31 @@ export default function TriviaGame({
   triviaState,
   triviaResult,
   onAnswer,
+  onRoll,
+  diceValue,
   username,
   socketId,
   onTick,
   hasAnswered,
   myAnswer,
 }) {
+  const [rolling, setRolling] = useState(false);
+
+  // Stop rolling animation when server responds with dice value
+  useEffect(() => {
+    if (diceValue !== null) setRolling(false);
+  }, [diceValue]);
+
+  // Reset rolling when turn changes to a new player
+  const prevPlayerRef = useRef(null);
+  useEffect(() => {
+    if (!triviaState) return;
+    if (triviaState.currentPlayerId !== prevPlayerRef.current) {
+      prevPlayerRef.current = triviaState.currentPlayerId;
+      setRolling(false);
+    }
+  }, [triviaState?.currentPlayerId]);
+
   if (!triviaState) {
     return (
       <div className="screen trivia-screen">
@@ -93,6 +114,12 @@ export default function TriviaGame({
   const catMeta  = CATEGORY_META[category] || { label: category, color: '#9b59b6', icon: '❓' };
   const canAnswer = isMyTurn && !hasAnswered;
 
+  function handleRollClick() {
+    if (rolling || diceValue !== null || !isMyTurn) return;
+    setRolling(true);
+    onRoll();
+  }
+
   return (
     <div className="screen trivia-screen">
       <div className="trivia-inner">
@@ -111,8 +138,8 @@ export default function TriviaGame({
         {/* ── Players + wedges ── */}
         <div className="trivia-players-board">
           {(playerOrder || []).map(({ id, username: pname }) => {
-            const pState   = wedgeState?.[id];
-            const wedges   = pState?.wedges || [];
+            const pState    = wedgeState?.[id];
+            const wedges    = pState?.wedges || [];
             const isCurrent = id === currentPlayerId;
             const isMe      = id === socketId;
             return (
@@ -132,10 +159,10 @@ export default function TriviaGame({
 
         {/* ── Turn banner ── */}
         <div className={`trivia-turn-banner ${isMyTurn ? 'my-turn' : ''}`}>
-          {isMyTurn ? '🎯 Your turn — answer now!' : `⏳ ${currentUsername}'s turn`}
+          {isMyTurn ? '🎯 Your turn!' : `⏳ ${currentUsername}'s turn`}
         </div>
 
-        {/* ── Category badge ── */}
+        {/* ── Category badge (shown once category is known) ── */}
         {category && (
           <div className="trivia-cat-header">
             <span className="trivia-round">Round {round}</span>
@@ -147,7 +174,7 @@ export default function TriviaGame({
           </div>
         )}
 
-        {/* ── Question card ── */}
+        {/* ── Question card / Roll area ── */}
         <div className="trivia-question-card">
           {question ? (
             <>
@@ -203,10 +230,52 @@ export default function TriviaGame({
               )}
             </>
           ) : (
-            <div className="waiting-msg">
-              {isMyTurn
-                ? '🎲 Roll the dice to move around the board…'
-                : `Waiting for ${currentUsername} to roll…`}
+            /* ── Roll phase ── */
+            <div className="trivia-roll-area">
+              {isMyTurn ? (
+                <>
+                  {rolling ? (
+                    <div className="dice-display">
+                      <span className="dice-rolling">🎲</span>
+                      <p className="dice-label">Rolling…</p>
+                    </div>
+                  ) : diceValue !== null ? (
+                    <div className="dice-display">
+                      <span className="dice-face">{DICE_FACES[diceValue] ?? '🎲'}</span>
+                      <p className="dice-label">You rolled a <strong>{diceValue}</strong>!</p>
+                      {category && (
+                        <p className="dice-category" style={{ color: catMeta.color }}>
+                          {catMeta.icon} Moving to {catMeta.label} space…
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <button className="btn-roll" onClick={handleRollClick}>
+                      🎲 Roll Dice
+                    </button>
+                  )}
+                </>
+              ) : (
+                <>
+                  {diceValue !== null ? (
+                    <div className="dice-display">
+                      <span className="dice-face">{DICE_FACES[diceValue] ?? '🎲'}</span>
+                      <p className="dice-label">
+                        <strong>{currentUsername}</strong> rolled a <strong>{diceValue}</strong>
+                      </p>
+                      {category && (
+                        <p className="dice-category" style={{ color: catMeta.color }}>
+                          {catMeta.icon} Moving to {catMeta.label} space…
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="waiting-msg">
+                      Waiting for <strong>{currentUsername}</strong> to roll…
+                    </p>
+                  )}
+                </>
+              )}
             </div>
           )}
         </div>

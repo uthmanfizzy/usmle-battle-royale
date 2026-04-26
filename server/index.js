@@ -207,12 +207,16 @@ function makeLobby(hostSocketId, subject = 'all', gameMode = 'battle_royale') {
     raceFinishedOrder: [],
     raceTimer:         null,
     // Trivia Pursuit
-    triviaPlayerOrder:     [],
-    triviaTurnIdx:         0,
-    triviaWedges:          null,
-    triviaCurrentPlayerId: null,
-    triviaCurrentCategory: null,
-    triviaCurrentQuestion: null,
+    triviaPlayerOrder:      [],
+    triviaTurnIdx:          0,
+    triviaWedges:           null,
+    triviaPositions:        null,
+    triviaCurrentPlayerId:  null,
+    triviaCurrentCategory:  null,
+    triviaCurrentQuestion:  null,
+    triviaIsHQ:             false,
+    triviaCanEarnWedge:     false,
+    triviaIsFinalQuestion:  false,
   };
   lobbies.set(id, lobby);
   return lobby;
@@ -639,16 +643,24 @@ function endSpeedRace(lobby, reason) {
   awardXP(lobby, sorted).catch(err => console.error('[awardXP speed_race]', err.message));
 }
 
-// ── Trivia Pursuit ─────────────────────────────────────────────────────────────
+// ── Trivia Pursuit (Board Game) ──────────────────────────────────────────────
 
-const TRIVIA_CATS = [
-  'cardiology', 'neurology', 'pharmacology',
-  'microbiology', 'biochemistry', 'biostatistics',
-];
-const TRIVIA_Q_TIME = 20;
+const TRIVIA_CATS      = ['cardiology','neurology','pharmacology','microbiology','biochemistry','biostatistics'];
+const TRIVIA_Q_TIME    = 20;
+const TRIVIA_BOARD_SIZE = 36;
+
+// 6 sectors × 6 spaces; sector i starts with HQ for TRIVIA_CATS[i]
+const TRIVIA_BOARD = (() => {
+  const b = [];
+  for (let s = 0; s < 6; s++)
+    for (let i = 0; i < 6; i++)
+      b.push({ category: TRIVIA_CATS[(s + i) % 6], isHQ: i === 0 });
+  return b;
+})();
 
 function triviaWedgeSnapshot(lobby) {
   const state = {};
+  if (!lobby.triviaWedges) return state;
   for (const [sid, ws] of lobby.triviaWedges) {
     const p = lobby.players.get(sid);
     if (p) state[sid] = { username: p.username, wedges: [...ws] };
@@ -656,17 +668,47 @@ function triviaWedgeSnapshot(lobby) {
   return state;
 }
 
+function triviaPositionSnapshot(lobby) {
+  const pos = {};
+  if (!lobby.triviaPositions) return pos;
+  for (const [sid, position] of lobby.triviaPositions) pos[sid] = position;
+  return pos;
+}
+
+function buildTurnPayload(lobby) {
+  const order = lobby.triviaPlayerOrder;
+  return {
+    currentPlayerId: lobby.triviaCurrentPlayerId,
+    currentUsername: lobby.players.get(lobby.triviaCurrentPlayerId)?.username || '?',
+    round:       lobby.round,
+    wedgeState:  triviaWedgeSnapshot(lobby),
+    positions:   triviaPositionSnapshot(lobby),
+    playerOrder: order.map(id => {
+      const p = lobby.players.get(id);
+      return { id, username: p?.username || '?' };
+    }),
+  };
+}
+
 function startTriviaPursuit(lobby) {
-  lobby.status         = 'trivia_question';
-  lobby.round          = 0;
-  lobby.triviaWedges   = new Map();
-  lobby.triviaTurnIdx  = 0;
+  lobby.status             = 'trivia_roll';
+  lobby.round              = 0;
+  lobby.triviaWedges       = new Map();
+  lobby.triviaPositions    = new Map();
+  lobby.triviaTurnIdx      = 0;
+  lobby.triviaCurrentPlayerId  = null;
+  lobby.triviaCurrentCategory  = null;
+  lobby.triviaCurrentQuestion  = null;
+  lobby.triviaIsHQ             = false;
+  lobby.triviaCanEarnWedge     = false;
+  lobby.triviaIsFinalQuestion  = false;
 
   const players = [...lobby.players.values()];
   lobby.triviaPlayerOrder = shuffle(players.map(p => p.id));
 
   for (const p of players) {
     lobby.triviaWedges.set(p.id, new Set());
+    lobby.triviaPositions.set(p.id, 0);
     p.lives = 3; p.score = 0; p.alive = true;
   }
 
@@ -675,10 +717,11 @@ function startTriviaPursuit(lobby) {
 }
 
 function nextTriviaTurn(lobby) {
-  if (lobby.status !== 'trivia_question') return;
+  if (lobby.status === 'game_over') return;
 
   lobby.round++;
   lobby.answers = new Map();
+  lobby.triviaIsFinalQuestion = false;
 
   const order  = lobby.triviaPlayerOrder;
   const sid    = order[lobby.triviaTurnIdx % order.length];
@@ -692,45 +735,103 @@ function nextTriviaTurn(lobby) {
 
   lobby.triviaCurrentPlayerId = sid;
 
+  // If player already has all wedges → send final question
   const playerWedges = lobby.triviaWedges.get(sid) || new Set();
-  const missing      = TRIVIA_CATS.filter(c => !playerWedges.has(c));
-  const category     = missing[Math.floor(Math.random() * missing.length)];
-  lobby.triviaCurrentCategory = category;
+  if (playerWedges.size >= TRIVIA_CATS.length) {
+    lobby.status            = 'trivia_question';
+    lobby.triviaIsFinalQuestion = true;
 
-  const pool = questionBank.filter(q => q.subject === category);
-  const q    = pool.length > 0
-    ? pool[Math.floor(Math.random() * pool.length)]
-    : questionBank[Math.floor(Math.random() * questionBank.length)];
-  lobby.triviaCurrentQuestion = q;
+    io.to(lobby.id).emit('trivia_turn', { ...buildTurnPayload(lobby), phase: 'final_question' });
 
-  io.to(lobby.id).emit('trivia_turn', {
-    currentPlayerId: sid,
-    currentUsername: player.username,
-    category,
-    question:    { id: q.id, question: q.question, options: q.options },
-    round:       lobby.round,
-    timeLimit:   TRIVIA_Q_TIME,
-    wedgeState:  triviaWedgeSnapshot(lobby),
-    playerOrder: order.map(id => {
-      const p = lobby.players.get(id);
-      return { id, username: p?.username || '?' };
-    }),
+    setTimeout(() => {
+      if (lobby.status !== 'trivia_question') return;
+      const q = questionBank[Math.floor(Math.random() * questionBank.length)];
+      lobby.triviaCurrentQuestion = q;
+      lobby.triviaCurrentCategory = q.subject;
+      lobby.triviaCanEarnWedge    = false;
+
+      io.to(lobby.id).emit('trivia_question', {
+        question: { id: q.id, question: q.question, options: q.options },
+        category: q.subject, isHQ: false, canEarnWedge: false,
+        isFinalQuestion: true, round: lobby.round, timeLimit: TRIVIA_Q_TIME,
+        wedgeState: triviaWedgeSnapshot(lobby),
+      });
+      lobby.timer = setTimeout(() => processTriviaAnswer(lobby, null), TRIVIA_Q_TIME * 1000);
+    }, 1500);
+    return;
+  }
+
+  // Regular roll turn
+  lobby.status = 'trivia_roll';
+  io.to(lobby.id).emit('trivia_turn', { ...buildTurnPayload(lobby), phase: 'roll' });
+
+  // Auto-skip if player goes idle
+  lobby.timer = setTimeout(() => {
+    if (lobby.status !== 'trivia_roll') return;
+    lobby.triviaTurnIdx++;
+    setTimeout(() => nextTriviaTurn(lobby), 300);
+  }, 30000);
+}
+
+function handleTriviaRoll(lobby) {
+  clearTimer(lobby);
+  if (lobby.status !== 'trivia_roll') return;
+
+  const dice   = Math.floor(Math.random() * 6) + 1;
+  const sid    = lobby.triviaCurrentPlayerId;
+  const oldPos = lobby.triviaPositions?.get(sid) ?? 0;
+  const newPos = (oldPos + dice) % TRIVIA_BOARD_SIZE;
+
+  lobby.triviaPositions.set(sid, newPos);
+  lobby.status = 'trivia_question';
+
+  const space = TRIVIA_BOARD[newPos];
+  lobby.triviaCurrentCategory = space.category;
+  lobby.triviaIsHQ            = space.isHQ;
+
+  const playerWedges   = lobby.triviaWedges.get(sid) || new Set();
+  const canEarnWedge   = space.isHQ && !playerWedges.has(space.category);
+  lobby.triviaCanEarnWedge = canEarnWedge;
+
+  io.to(lobby.id).emit('trivia_rolled', {
+    currentPlayerId: sid, dice, oldPosition: oldPos, newPosition: newPos,
+    category: space.category, isHQ: space.isHQ, canEarnWedge,
+    positions: triviaPositionSnapshot(lobby),
   });
 
-  lobby.timer = setTimeout(() => processTriviaAnswer(lobby, null), TRIVIA_Q_TIME * 1000);
+  // Send question after movement animation
+  setTimeout(() => {
+    if (lobby.status !== 'trivia_question') return;
+    const pool = questionBank.filter(q => q.subject === space.category);
+    const q    = pool.length > 0
+      ? pool[Math.floor(Math.random() * pool.length)]
+      : questionBank[Math.floor(Math.random() * questionBank.length)];
+    lobby.triviaCurrentQuestion = q;
+
+    io.to(lobby.id).emit('trivia_question', {
+      question: { id: q.id, question: q.question, options: q.options },
+      category: space.category, isHQ: space.isHQ, canEarnWedge,
+      isFinalQuestion: false, round: lobby.round, timeLimit: TRIVIA_Q_TIME,
+      wedgeState: triviaWedgeSnapshot(lobby),
+    });
+    lobby.timer = setTimeout(() => processTriviaAnswer(lobby, null), TRIVIA_Q_TIME * 1000);
+  }, 1800);
 }
 
 function processTriviaAnswer(lobby, answer) {
   clearTimer(lobby);
   if (lobby.status !== 'trivia_question') return;
 
-  const { triviaCurrentPlayerId: sid,
-          triviaCurrentCategory: category,
-          triviaCurrentQuestion: q } = lobby;
-  const correct    = answer !== null && answer === q.correct;
-  let earnedWedge  = false;
+  const { triviaCurrentPlayerId: sid, triviaCurrentCategory: category,
+          triviaCurrentQuestion: q,   triviaCanEarnWedge: canEarnWedge,
+          triviaIsFinalQuestion: isFinalQuestion, triviaIsHQ: isHQ } = lobby;
 
-  if (correct) {
+  if (!q) { lobby.triviaTurnIdx++; setTimeout(() => nextTriviaTurn(lobby), 300); return; }
+
+  const correct   = answer !== null && answer === q.correct;
+  let earnedWedge = false;
+
+  if (correct && canEarnWedge) {
     const wedges = lobby.triviaWedges.get(sid);
     if (wedges && !wedges.has(category)) {
       wedges.add(category);
@@ -740,16 +841,19 @@ function processTriviaAnswer(lobby, answer) {
     }
   }
 
-  const wedgeState = triviaWedgeSnapshot(lobby);
+  const wedgeState   = triviaWedgeSnapshot(lobby);
+  const playerWedges = lobby.triviaWedges.get(sid);
+  const allWedges    = playerWedges && playerWedges.size >= TRIVIA_CATS.length;
+
+  lobby.status = 'trivia_result';
 
   io.to(lobby.id).emit('trivia_answer_result', {
-    playerId: sid, correct, correctAnswer: q.correct,
-    explanation: q.explanation, earnedWedge, category, wedgeState,
+    playerId: sid, correct, correctAnswer: q.correct, explanation: q.explanation,
+    earnedWedge, category, isHQ, canEarnWedge, isFinalQuestion, allWedges, wedgeState,
   });
 
-  const playerWedges = lobby.triviaWedges.get(sid);
-  if (playerWedges && playerWedges.size >= TRIVIA_CATS.length) {
-    setTimeout(() => endTriviaPursuit(lobby, sid), 3500);
+  if (correct && isFinalQuestion) {
+    setTimeout(() => endTriviaPursuit(lobby, sid), 3000);
     return;
   }
 
@@ -768,8 +872,7 @@ function endTriviaPursuit(lobby, winnerId) {
   );
 
   const winPlayer = lobby.players.get(winnerId);
-  const winner    = winPlayer
-    ? { username: winPlayer.username, score: TRIVIA_CATS.length } : null;
+  const winner    = winPlayer ? { username: winPlayer.username, score: TRIVIA_CATS.length } : null;
 
   const players = sorted.map((p, i) => ({
     rank: i + 1, id: p.id, username: p.username,
@@ -887,6 +990,13 @@ io.on('connection', (socket) => {
       clearTimer(lobby);
       setTimeout(() => processAnswers(lobby), 600);
     }
+  });
+
+  socket.on('trivia_roll', () => {
+    const lobby = lobbies.get(socket.lobbyId);
+    if (!lobby) return;
+    if (socket.id !== lobby.triviaCurrentPlayerId) return;
+    handleTriviaRoll(lobby);
   });
 
   socket.on('reset_game', () => {

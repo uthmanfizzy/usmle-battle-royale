@@ -37,8 +37,9 @@ export default function App() {
 
   const [raceProgress, setRaceProgress] = useState([]);
 
-  const [triviaState,  setTriviaState]  = useState(null);
-  const [triviaResult, setTriviaResult] = useState(null);
+  const [triviaState,     setTriviaState]     = useState(null);
+  const [triviaResult,    setTriviaResult]    = useState(null);
+  const [triviaDiceValue, setTriviaDiceValue] = useState(null);
 
   // In-game
   const [question,           setQuestion]           = useState(null);
@@ -138,6 +139,7 @@ export default function App() {
       setRaceProgress([]);
       setTriviaState(null);
       setTriviaResult(null);
+      setTriviaDiceValue(null);
       audio.startGameMusic();
     });
 
@@ -150,10 +152,18 @@ export default function App() {
       setTriviaResult(null);
       setHasAnswered(false);
       setMyAnswer(null);
+      setTriviaDiceValue(null);
     });
 
     socket.on('trivia_rolled', (data) => {
-      setTriviaState(prev => prev ? { ...prev, positions: data.positions } : prev);
+      setTriviaDiceValue(data.dice);
+      setTriviaState(prev => prev ? {
+        ...prev,
+        positions:    data.positions,
+        category:     data.category,
+        isHQ:         data.isHQ,
+        canEarnWedge: data.canEarnWedge,
+      } : prev);
     });
 
     socket.on('trivia_question', (data) => {
@@ -235,6 +245,7 @@ export default function App() {
       setShowingRoundResult(false);
       setTriviaState(null);
       setTriviaResult(null);
+      setTriviaDiceValue(null);
       audio.stopGameMusic();
       audio.startBgMusic();
     });
@@ -344,6 +355,10 @@ export default function App() {
   }
 
   function handleStartGame()   { socket.emit('start_game'); }
+
+  function handleTriviaRoll() {
+    socket.emit('trivia_roll');
+  }
 
   function handleAnswer(answer) {
     if (hasAnswered) return;
@@ -522,6 +537,8 @@ export default function App() {
           triviaState={triviaState}
           triviaResult={triviaResult}
           onAnswer={handleAnswer}
+          onRoll={handleTriviaRoll}
+          diceValue={triviaDiceValue}
           username={username}
           socketId={socket.id}
           onTick={audio.playTick}
