@@ -7,16 +7,18 @@ const AUTH_KEY = 'usmle_admin_session';
 const LETTERS = ['A', 'B', 'C', 'D'];
 
 const FOLDERS = [
-  { id: 'all',           label: 'All Questions', icon: '🏥', prefix: null },
-  { id: 'cardiology',    label: 'Cardiology',    icon: '❤️',  prefix: 'CA' },
-  { id: 'neurology',     label: 'Neurology',     icon: '🧠', prefix: 'NE' },
-  { id: 'pharmacology',  label: 'Pharmacology',  icon: '💊', prefix: 'PH' },
-  { id: 'microbiology',  label: 'Microbiology',  icon: '🦠', prefix: 'MI' },
-  { id: 'biochemistry',  label: 'Biochemistry',  icon: '⚗️', prefix: 'BC' },
-  { id: 'biostatistics', label: 'Biostatistics', icon: '📊', prefix: 'BS' },
+  { id: 'all',           label: 'All Questions',   icon: '🏥', prefix: null,  special: false },
+  { id: '__images__',    label: 'Image Questions',  icon: '🖼️', prefix: null,  special: true  },
+  { id: 'scan_master',   label: 'Scan Master',      icon: '🔬', prefix: 'SM',  special: false },
+  { id: 'cardiology',    label: 'Cardiology',       icon: '❤️',  prefix: 'CA',  special: false },
+  { id: 'neurology',     label: 'Neurology',        icon: '🧠', prefix: 'NE',  special: false },
+  { id: 'pharmacology',  label: 'Pharmacology',     icon: '💊', prefix: 'PH',  special: false },
+  { id: 'microbiology',  label: 'Microbiology',     icon: '🦠', prefix: 'MI',  special: false },
+  { id: 'biochemistry',  label: 'Biochemistry',     icon: '⚗️', prefix: 'BC',  special: false },
+  { id: 'biostatistics', label: 'Biostatistics',    icon: '📊', prefix: 'BS',  special: false },
 ];
 
-const SUBJECTS = FOLDERS.filter(f => f.id !== 'all').map(f => f.id);
+const SUBJECTS = FOLDERS.filter(f => !f.special && f.id !== 'all').map(f => f.id);
 
 function apiCall(path, options = {}) {
   return fetch(`${API}${path}`, {
@@ -149,32 +151,74 @@ function StatsPanel() {
 
 function QuestionModal({ question, defaultSubject = 'cardiology', onSave, onClose }) {
   const isEdit = !!question;
-  const [form, setForm] = useState(() => question ? {
-    subject: question.subject,
-    difficulty: question.difficulty || 'easy',
-    question: question.question,
-    optionA: question.options[0] || '',
-    optionB: question.options[1] || '',
-    optionC: question.options[2] || '',
-    optionD: question.options[3] || '',
-    correct: question.correct,
-    explanation: question.explanation,
-  } : {
-    subject: defaultSubject === 'all' ? 'cardiology' : defaultSubject,
-    difficulty: 'easy',
-    question: '',
-    optionA: '',
-    optionB: '',
-    optionC: '',
-    optionD: '',
-    correct: 'A',
-    explanation: '',
-  });
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
+  const defaultSubjectResolved = (defaultSubject === 'all' || defaultSubject === '__images__') ? 'cardiology' : defaultSubject;
 
-  function set(key, val) {
-    setForm(f => ({ ...f, [key]: val }));
+  const [form, setForm] = useState(() => question ? {
+    subject:      question.subject,
+    difficulty:   question.difficulty || 'easy',
+    question:     question.question,
+    optionA:      question.options[0] || '',
+    optionB:      question.options[1] || '',
+    optionC:      question.options[2] || '',
+    optionD:      question.options[3] || '',
+    correct:      question.correct,
+    explanation:  question.explanation,
+    image_url:    question.image_url || '',
+    questionType: question.image_url ? 'image' : 'text',
+  } : {
+    subject:      defaultSubjectResolved,
+    difficulty:   'easy',
+    question:     '',
+    optionA:      '',
+    optionB:      '',
+    optionC:      '',
+    optionD:      '',
+    correct:      'A',
+    explanation:  '',
+    image_url:    '',
+    questionType: 'text',
+  });
+
+  const [saving,       setSaving]       = useState(false);
+  const [error,        setError]        = useState('');
+  const [uploading,    setUploading]    = useState(false);
+  const [uploadError,  setUploadError]  = useState('');
+
+  function set(key, val) { setForm(f => ({ ...f, [key]: val })); }
+
+  async function handleImageFile(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const allowed = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!allowed.includes(file.type)) {
+      setUploadError('Only JPG, PNG, and WEBP images are allowed.');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setUploadError('Image must be under 5MB.');
+      return;
+    }
+    setUploadError('');
+    setUploading(true);
+    try {
+      const base64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload  = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      const res  = await apiCall('/admin/upload-image', {
+        method: 'POST',
+        body:   JSON.stringify({ base64, filename: file.name, mimeType: file.type }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Upload failed');
+      set('image_url', data.url);
+    } catch (err) {
+      setUploadError(err.message);
+    }
+    setUploading(false);
+    e.target.value = '';
   }
 
   async function handleSubmit(e) {
@@ -182,12 +226,13 @@ function QuestionModal({ question, defaultSubject = 'cardiology', onSave, onClos
     setSaving(true);
     setError('');
     const payload = {
-      subject: form.subject,
-      difficulty: form.difficulty,
-      question: form.question.trim(),
-      options: [form.optionA.trim(), form.optionB.trim(), form.optionC.trim(), form.optionD.trim()],
-      correct: form.correct,
+      subject:     form.subject,
+      difficulty:  form.difficulty,
+      question:    form.question.trim(),
+      options:     [form.optionA.trim(), form.optionB.trim(), form.optionC.trim(), form.optionD.trim()],
+      correct:     form.correct,
       explanation: form.explanation.trim(),
+      image_url:   form.questionType === 'image' ? form.image_url : '',
     };
     try {
       const res = isEdit
@@ -203,33 +248,45 @@ function QuestionModal({ question, defaultSubject = 'cardiology', onSave, onClos
   }
 
   const folderForSubject = FOLDERS.find(f => f.id === form.subject);
-  const nextIdPreview = isEdit
-    ? question.id
-    : `${folderForSubject?.prefix || '??'}-###`;
+  const nextIdPreview    = isEdit ? question.id : `${folderForSubject?.prefix || '??'}-###`;
 
   return (
     <div className="ap-backdrop" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="ap-modal">
         <div className="ap-modal-head">
-          <h2>
-            {isEdit
-              ? `Edit Question · ${question.id}`
-              : `New Question · ${nextIdPreview}`}
-          </h2>
+          <h2>{isEdit ? `Edit Question · ${question.id}` : `New Question · ${nextIdPreview}`}</h2>
           <button className="ap-modal-x" onClick={onClose}>✕</button>
         </div>
         <form onSubmit={handleSubmit} className="ap-qform">
+
+          {/* Question Type Toggle */}
+          <div className="ap-field">
+            <label>Question Type</label>
+            <div className="ap-type-toggle">
+              <button
+                type="button"
+                className={`ap-type-btn ${form.questionType === 'text' ? 'active' : ''}`}
+                onClick={() => set('questionType', 'text')}
+              >
+                📝 Text Question
+              </button>
+              <button
+                type="button"
+                className={`ap-type-btn ${form.questionType === 'image' ? 'active' : ''}`}
+                onClick={() => { set('questionType', 'image'); if (form.subject !== 'scan_master') set('subject', 'scan_master'); }}
+              >
+                🖼️ Image Question
+              </button>
+            </div>
+          </div>
+
           <div className="ap-row-3">
             <div className="ap-field">
               <label>Subject</label>
               <select value={form.subject} onChange={e => set('subject', e.target.value)}>
                 {SUBJECTS.map(s => {
                   const f = FOLDERS.find(fl => fl.id === s);
-                  return (
-                    <option key={s} value={s}>
-                      {f?.icon} {s.charAt(0).toUpperCase() + s.slice(1)}
-                    </option>
-                  );
+                  return <option key={s} value={s}>{f?.icon} {s.charAt(0).toUpperCase() + s.slice(1).replace('_', ' ')}</option>;
                 })}
               </select>
             </div>
@@ -247,6 +304,47 @@ function QuestionModal({ question, defaultSubject = 'cardiology', onSave, onClos
               </select>
             </div>
           </div>
+
+          {/* Image upload section */}
+          {form.questionType === 'image' && (
+            <div className="ap-field ap-image-field">
+              <label>Medical Image</label>
+              {form.image_url ? (
+                <div className="ap-image-preview-wrap">
+                  <img src={form.image_url} alt="Preview" className="ap-image-preview" />
+                  <div className="ap-image-preview-actions">
+                    <label className="ap-btn-sec ap-file-label">
+                      🔄 Replace Image
+                      <input type="file" accept="image/jpeg,image/png,image/webp" onChange={handleImageFile} style={{ display: 'none' }} />
+                    </label>
+                    <button type="button" className="ap-btn-danger ap-btn-sm" onClick={() => set('image_url', '')}>Remove</button>
+                  </div>
+                </div>
+              ) : (
+                <label className={`ap-image-upload-zone ${uploading ? 'uploading' : ''}`}>
+                  <input type="file" accept="image/jpeg,image/png,image/webp" onChange={handleImageFile} style={{ display: 'none' }} disabled={uploading} />
+                  {uploading ? (
+                    <><div className="ap-upload-spinner" /><span>Uploading…</span></>
+                  ) : (
+                    <><span className="ap-upload-icon">📤</span><span>Click to upload image</span><span className="ap-upload-hint">JPG, PNG, WEBP · max 5MB</span></>
+                  )}
+                </label>
+              )}
+              {uploadError && <div className="ap-error ap-upload-error">{uploadError}</div>}
+              {form.questionType === 'image' && !form.image_url && !uploading && (
+                <div className="ap-image-url-alt">
+                  <label style={{ marginBottom: 4 }}>Or paste image URL directly:</label>
+                  <input
+                    type="url"
+                    value={form.image_url}
+                    onChange={e => set('image_url', e.target.value)}
+                    placeholder="https://…"
+                    className="ap-input-plain"
+                  />
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="ap-field">
             <label>Question Text</label>
@@ -292,7 +390,7 @@ function QuestionModal({ question, defaultSubject = 'cardiology', onSave, onClos
 
           <div className="ap-modal-foot">
             <button type="button" className="ap-btn-sec" onClick={onClose}>Cancel</button>
-            <button type="submit" className="ap-btn-pri" disabled={saving}>
+            <button type="submit" className="ap-btn-pri" disabled={saving || uploading}>
               {saving ? 'Saving…' : isEdit ? 'Save Changes' : 'Add Question'}
             </button>
           </div>
@@ -386,14 +484,14 @@ function QuestionsPanel() {
   }
 
   const folderCounts = FOLDERS.reduce((acc, f) => {
-    acc[f.id] = f.id === 'all'
-      ? questions.length
-      : questions.filter(q => q.subject === f.id).length;
+    if (f.id === 'all')        acc[f.id] = questions.length;
+    else if (f.id === '__images__') acc[f.id] = questions.filter(q => q.image_url).length;
+    else                       acc[f.id] = questions.filter(q => q.subject === f.id).length;
     return acc;
   }, {});
 
-  const filtered = activeFolder === 'all'
-    ? questions
+  const filtered = activeFolder === 'all'       ? questions
+    : activeFolder === '__images__'             ? questions.filter(q => q.image_url)
     : questions.filter(q => q.subject === activeFolder);
 
   if (loading) return <div className="ap-loading">Loading questions…</div>;
@@ -456,6 +554,7 @@ function QuestionsPanel() {
                   <th>ID</th>
                   <th>Subject</th>
                   <th>Difficulty</th>
+                  <th>Image</th>
                   <th>Question Preview</th>
                   <th>Actions</th>
                 </tr>
@@ -476,8 +575,13 @@ function QuestionsPanel() {
                         {q.difficulty || 'easy'}
                       </span>
                     </td>
+                    <td className="ap-td-thumb">
+                      {q.image_url
+                        ? <img src={q.image_url} alt="" className="ap-thumb" title={q.image_url} />
+                        : <span className="ap-no-image">—</span>}
+                    </td>
                     <td className="ap-td-preview" title={q.question}>
-                      {q.question.length > 90 ? q.question.slice(0, 90) + '…' : q.question}
+                      {q.question.length > 80 ? q.question.slice(0, 80) + '…' : q.question}
                     </td>
                     <td>
                       <div className="ap-row-actions">
@@ -489,7 +593,7 @@ function QuestionsPanel() {
                 ))}
                 {filtered.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="ap-empty">
+                    <td colSpan={6} className="ap-empty">
                       No questions in this category yet.
                     </td>
                   </tr>

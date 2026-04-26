@@ -33,7 +33,7 @@ const SERVER_URL = process.env.SERVER_URL || `http://localhost:${PORT}`;
 const app = express();
 app.use(cors({ origin: '*' }));
 app.set('trust proxy', 1); // needed for secure cookies behind Railway's proxy
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 app.use(session({
   secret: process.env.SESSION_SECRET || 'dev-session-secret',
   resave: false,
@@ -58,7 +58,7 @@ let questionBank = [...require('./questions')];
 const SUBJECT_PREFIXES = {
   cardiology: 'CA', neurology: 'NE', pharmacology: 'PH',
   microbiology: 'MI', biochemistry: 'BC', biostatistics: 'BS',
-  pathology: 'PT', all: 'AL',
+  pathology: 'PT', all: 'AL', scan_master: 'SM',
 };
 
 function nextQuestionId(subject) {
@@ -301,7 +301,16 @@ function startGame(lobby) {
   if (lobby.gameMode === 'speed_race')     return startSpeedRace(lobby);
   if (lobby.gameMode === 'trivia_pursuit') return startTriviaPursuit(lobby);
 
-  // ── Battle Royale ─────────────────────────────────────────────────────────
+  // ── Battle Royale & Scan Master ────────────────────────────────────────────
+  // Guard: Scan Master needs image questions
+  if (lobby.gameMode === 'scan_master') {
+    const imagePool = questionBank.filter(q => q.image_url);
+    if (imagePool.length < 1) {
+      io.to(lobby.id).emit('error', { message: 'No image questions available yet. Add some via the admin panel.' });
+      return;
+    }
+  }
+
   lobby.status        = 'question';
   lobby.round         = 0;
   lobby.correctCounts = new Map();
@@ -310,10 +319,16 @@ function startGame(lobby) {
   lobby.suddenDeath   = false;
   assignPowerups(lobby);
 
-  const pool = lobby.subject === 'all'
-    ? questionBank
-    : questionBank.filter(q => q.subject === lobby.subject);
-  lobby.questionQueue = shuffle(pool.length >= 5 ? pool : questionBank);
+  let pool;
+  if (lobby.gameMode === 'scan_master') {
+    pool = questionBank.filter(q => q.image_url);
+  } else {
+    const raw = lobby.subject === 'all'
+      ? questionBank
+      : questionBank.filter(q => q.subject === lobby.subject);
+    pool = raw.length >= 5 ? raw : questionBank;
+  }
+  lobby.questionQueue = shuffle(pool);
   lobby.questionIdx   = -1;
 
   const lives = gameSettings.startingLives;
@@ -321,7 +336,7 @@ function startGame(lobby) {
     p.lives = lives; p.score = 0; p.alive = true;
   }
 
-  io.to(lobby.id).emit('game_start', { gameMode: 'battle_royale', message: 'Battle begins!' });
+  io.to(lobby.id).emit('game_start', { gameMode: lobby.gameMode, message: 'Battle begins!' });
   for (const [pid, pups] of lobby.playerPowerups) {
     const sock = io.sockets.sockets.get(pid);
     if (sock) sock.emit('powerup_assigned', { powerups: pups });
@@ -347,12 +362,15 @@ function nextQuestion(lobby) {
   if (lobby.frozenPlayers)   lobby.frozenPlayers.clear();
 
   const q         = lobby.questionQueue[lobby.questionIdx];
-  const timeLimit = lobby.suddenDeath ? 5 : gameSettings.timerDuration;
+  const timeLimit = lobby.suddenDeath ? 5
+    : lobby.gameMode === 'scan_master' ? 25
+    : gameSettings.timerDuration;
 
   io.to(lobby.id).emit('new_question', {
     id: q.id, question: q.question, options: q.options,
     round: lobby.round, timeLimit, alivePlayers: alive.length,
     suddenDeath: lobby.suddenDeath || false,
+    image_url: q.image_url || null,
   });
 
   lobby.timerEnd = Date.now() + timeLimit * 1000;
@@ -488,7 +506,7 @@ function endGame(lobby, reason) {
     .slice(0, 10);
 
   io.to(lobby.id).emit('game_over', {
-    gameMode: 'battle_royale',
+    gameMode: lobby.gameMode,
     winner: winner ? { username: winner.username, score: winner.score } : null,
     leaderboard, globalLeaderboard: globalLB, reason,
   });
@@ -1822,11 +1840,41 @@ app.post('/admin/questions/bulk', adminAuth, (req, res) => {
   res.json({ added: added.length, questions: added });
 });
 
+app.post('/admin/upload-image', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured. Cannot upload images.' });
+  const { base64, filename, mimeType } = req.body;
+  if (!base64 || !filename || !mimeType) return res.status(400).json({ error: 'base64, filename, and mimeType required.' });
+
+  const allowed = ['image/jpeg', 'image/png', 'image/webp'];
+  if (!allowed.includes(mimeType)) return res.status(400).json({ error: 'Only JPG, PNG, and WEBP are allowed.' });
+
+  try {
+    const b64Data = base64.includes(',') ? base64.split(',')[1] : base64;
+    const buffer  = Buffer.from(b64Data, 'base64');
+    if (buffer.length > 5 * 1024 * 1024) return res.status(400).json({ error: 'Image must be under 5MB.' });
+
+    const ext        = mimeType === 'image/jpeg' ? 'jpg' : mimeType.split('/')[1];
+    const safeName   = filename.replace(/[^a-zA-Z0-9._-]/g, '_').split('.')[0];
+    const uniqueName = `${Date.now()}-${safeName}.${ext}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('question-images')
+      .upload(uniqueName, buffer, { contentType: mimeType, upsert: false });
+    if (uploadError) throw uploadError;
+
+    const { data: urlData } = supabase.storage.from('question-images').getPublicUrl(uniqueName);
+    res.json({ ok: true, url: urlData.publicUrl });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post('/admin/questions', adminAuth, (req, res) => {
-  const { subject, difficulty, question, options, correct, explanation } = req.body;
+  const { subject, difficulty, question, options, correct, explanation, image_url } = req.body;
   if (!subject || !question || !Array.isArray(options) || options.length !== 4 || !correct || !explanation)
     return res.status(400).json({ error: 'Missing required fields' });
   const newQ = { id: nextQuestionId(subject), subject, difficulty: difficulty || 'easy', question, options, correct, explanation };
+  if (image_url) newQ.image_url = image_url;
   questionBank.push(newQ);
   res.json(newQ);
 });

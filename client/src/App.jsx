@@ -414,7 +414,12 @@ export default function App() {
 
   function handleShowSubjectSelect() {
     setError('');
-    setPhase('subject_select');
+    // Scan Master has no subject selection — always uses image questions
+    if (gameMode === 'scan_master') {
+      handleCreateLobby('scan_master');
+    } else {
+      setPhase('subject_select');
+    }
   }
 
   function handleCreateLobby(selectedSubject) {
@@ -657,7 +662,7 @@ export default function App() {
         />
       )}
 
-      {phase === 'game' && gameMode === 'battle_royale' && (
+      {phase === 'game' && (gameMode === 'battle_royale' || gameMode === 'scan_master') && (
         <GameRoom
           question={question}
           round={round}
@@ -687,6 +692,7 @@ export default function App() {
           extraTimeBonus={extraTimeBonus}
           showPowerupIntro={showPowerupIntro}
           socketId={socket.id}
+          gameMode={gameMode}
         />
       )}
 

@@ -62,6 +62,15 @@ function TrivialPursuitIcon() {
 
 const MODES = [
   {
+    id:          'scan_master',
+    name:        'Scan Master',
+    icon:        '🔬',
+    tagline:     'Identify conditions from medical images',
+    description: 'Study real medical images — ECGs, X-rays, histology, dermatology and more. Last doctor standing wins.',
+    gradient:    'linear-gradient(135deg, #00b894 0%, #00695c 100%)',
+    border:      '#00cec9',
+  },
+  {
     id:          'battle_royale',
     name:        'Battle Royale',
     icon:        '💀',

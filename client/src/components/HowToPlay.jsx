@@ -1,4 +1,19 @@
 const MODE_DATA = {
+  scan_master: {
+    title:    '🔬 Scan Master',
+    subtitle: 'Identify Conditions from Medical Images',
+    gradient: 'linear-gradient(135deg, #00b894 0%, #00695c 100%)',
+    accent:   '#00cec9',
+    rules: [
+      { icon: '🖼️', text: 'Study the medical image carefully before answering' },
+      { icon: '⏱️', text: 'You have 25 seconds to answer each question' },
+      { icon: '🔬', text: 'Questions include ECGs, X-rays, histology, dermatology and more' },
+      { icon: '❤️', text: 'Wrong answer or running out of time = lose a life' },
+      { icon: '🎮', text: 'You start with 3 lives' },
+      { icon: '💀', text: 'Lose all 3 lives and you are eliminated' },
+      { icon: '🏆', text: 'Last player standing wins and earns the most XP' },
+    ],
+  },
   battle_royale: {
     title:    '⚔️ Battle Royale',
     subtitle: 'Last Doctor Standing Wins',

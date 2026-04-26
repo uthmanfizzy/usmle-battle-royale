@@ -81,6 +81,7 @@ export default function GameRoom({
   extraTimeBonus = 0,
   showPowerupIntro = false,
   socketId,
+  gameMode = 'battle_royale',
 }) {
   if (showSuddenDeathScreen) {
     return (
@@ -162,6 +163,16 @@ export default function GameRoom({
           )}
 
           <div className="question-card">
+            {question.image_url && (
+              <div className="question-image-wrap">
+                <img
+                  src={question.image_url}
+                  alt="Medical scan"
+                  className="question-image"
+                  onError={e => { e.target.style.display = 'none'; }}
+                />
+              </div>
+            )}
             <p className="question-text">{question.question}</p>
 
             <div className="options">
