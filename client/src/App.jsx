@@ -36,6 +36,7 @@ export default function App() {
   const [soloKey,  setSoloKey]  = useState(0);
 
   const [raceProgress, setRaceProgress] = useState([]);
+  const [openToQuickJoin, setOpenToQuickJoin] = useState(true);
 
   const [triviaState,     setTriviaState]     = useState(null);
   const [triviaResult,    setTriviaResult]    = useState(null);
@@ -119,11 +120,12 @@ export default function App() {
   // ── Socket events (register once; connect later when entering game) ───────
 
   useEffect(() => {
-    socket.on('lobby_update', ({ players: ps, hostId, subject: s, gameMode: gm }) => {
+    socket.on('lobby_update', ({ players: ps, hostId, subject: s, gameMode: gm, openToQuickJoin: otqj }) => {
       setPlayers(ps);
       setIsHost(socket.id === hostId);
       if (s) setSubject(s);
       if (gm) setGameMode(gm);
+      if (typeof otqj === 'boolean') setOpenToQuickJoin(otqj);
     });
 
     socket.on('game_start', ({ gameMode: gm }) => {
@@ -357,6 +359,41 @@ export default function App() {
   function handleStartGame()   { socket.emit('start_game'); }
   function handleAddBot(difficulty)  { socket.emit('add_bot',    { difficulty }); }
   function handleRemoveBot(botId)    { socket.emit('remove_bot', { botId }); }
+  function handleToggleQuickJoin(open) { socket.emit('toggle_quick_join', { open }); }
+
+  function handleQuickJoin({ onCreating, onError } = {}) {
+    setError('');
+    socket.timeout(8000).emit('quick_join', { username, gameMode, clanTag: user?.clan?.tag ?? null }, (err, res) => {
+      if (err) {
+        setError('Quick join timed out. Please try again.');
+        if (onError) onError();
+        return;
+      }
+      if (!res.ok) {
+        setError(res.error ?? 'Quick join failed.');
+        if (onError) onError();
+        return;
+      }
+      if (res.created) {
+        if (onCreating) onCreating();
+        setTimeout(() => {
+          setLobbyId(res.lobbyId);
+          setSubject(res.subject || 'all');
+          setIsHost(true);
+          setOpenToQuickJoin(true);
+          setPhase('lobby');
+          audio.startBgMusic();
+        }, 1200);
+      } else {
+        setLobbyId(res.lobbyId);
+        setSubject(res.subject || 'all');
+        setIsHost(false);
+        setOpenToQuickJoin(true);
+        setPhase('lobby');
+        audio.startBgMusic();
+      }
+    });
+  }
 
   function handleTriviaRoll() {
     socket.emit('trivia_roll');
@@ -479,6 +516,7 @@ export default function App() {
           onCreateLobby={handleShowSubjectSelect}
           onJoinLobby={handleShowJoinInput}
           onSoloMode={handleShowSoloMode}
+          onQuickJoin={handleQuickJoin}
           onBack={() => setPhase('mode_select')}
         />
       )}
@@ -510,6 +548,8 @@ export default function App() {
           onStartGame={handleStartGame}
           onAddBot={handleAddBot}
           onRemoveBot={handleRemoveBot}
+          openToQuickJoin={openToQuickJoin}
+          onToggleQuickJoin={handleToggleQuickJoin}
           error={error}
         />
       )}

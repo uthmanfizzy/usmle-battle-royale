@@ -947,6 +947,68 @@ table.lb-table tr:last-child td { border-bottom: none; }
   transform: scale(1.1);
 }
 
+/* ── Quick Join button ─────────────────────────────────────────────────── */
+.choice-quick-join {
+  border-color: rgba(46, 204, 113, 0.5);
+  background: rgba(46, 204, 113, 0.05);
+  order: -1;
+}
+.choice-quick-join:hover:not(:disabled) {
+  background: rgba(46, 204, 113, 0.1);
+  border-color: #2ecc71;
+  box-shadow: 0 6px 24px rgba(46, 204, 113, 0.2);
+}
+.choice-quick-join .choice-icon { color: #2ecc71; }
+.choice-quick-join .choice-text strong { color: #2ecc71; }
+.choice-quick-join:disabled { opacity: 0.85; cursor: default; transform: none; }
+
+@keyframes qjSpin {
+  to { transform: rotate(360deg); }
+}
+.qj-spinner {
+  display: inline-block;
+  width: 28px;
+  height: 28px;
+  border: 3px solid rgba(46, 204, 113, 0.25);
+  border-top-color: #2ecc71;
+  border-radius: 50%;
+  animation: qjSpin 0.7s linear infinite;
+}
+
+/* ── Quick Join lobby status ───────────────────────────────────────────── */
+.qj-status-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin-bottom: 14px;
+  font-size: 13px;
+}
+.qj-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.qj-status-dot.open  { background: #2ecc71; box-shadow: 0 0 6px rgba(46,204,113,0.6); }
+.qj-status-dot.closed { background: #888; }
+.qj-status-label { flex: 1; color: var(--text-dim); }
+.qj-toggle-btn {
+  padding: 4px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: background 0.2s;
+}
+.qj-toggle-btn.on  { background: rgba(231,76,60,0.15); color: #e74c3c; }
+.qj-toggle-btn.off { background: rgba(46,204,113,0.15); color: #2ecc71; }
+.qj-toggle-btn:hover { filter: brightness(1.2); }
+
 /* ── Solo Practice ─────────────────────────────────────────────────────── */
 .choice-solo {
   border-color: rgba(245, 197, 24, 0.25);

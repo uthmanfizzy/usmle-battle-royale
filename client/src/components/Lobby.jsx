@@ -43,7 +43,9 @@ const BOT_OPTIONS = [
 
 export default function Lobby({
   lobbyId, subject, gameMode = 'battle_royale',
-  players, isHost, onStartGame, onAddBot, onRemoveBot, error,
+  players, isHost, onStartGame, onAddBot, onRemoveBot,
+  openToQuickJoin = true, onToggleQuickJoin,
+  error,
 }) {
   const [copied,      setCopied]      = useState(false);
   const [showBotMenu, setShowBotMenu] = useState(false);
@@ -75,6 +77,22 @@ export default function Lobby({
           <div className="mode-badge" style={{ background: modeInfo.color }}>
             {modeInfo.label}
           </div>
+        </div>
+
+        {/* Quick Join status */}
+        <div className="qj-status-row">
+          <span className={`qj-status-dot ${openToQuickJoin ? 'open' : 'closed'}`} />
+          <span className="qj-status-label">
+            {openToQuickJoin ? '⚡ Open to Quick Join' : '🔒 Closed to Quick Join'}
+          </span>
+          {isHost && (
+            <button
+              className={`qj-toggle-btn ${openToQuickJoin ? 'on' : 'off'}`}
+              onClick={() => onToggleQuickJoin && onToggleQuickJoin(!openToQuickJoin)}
+            >
+              {openToQuickJoin ? 'Turn Off' : 'Turn On'}
+            </button>
+          )}
         </div>
 
         {/* Lobby code */}

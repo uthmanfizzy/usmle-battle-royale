@@ -195,6 +195,7 @@ function makeLobby(hostSocketId, subject = 'all', gameMode = 'battle_royale') {
     status: 'waiting',
     subject,
     gameMode,
+    openToQuickJoin: true,
     players:       new Map(),
     questionQueue: [],
     questionIdx:   -1,
@@ -230,12 +231,13 @@ function alivePlayers(lobby) {
 
 function lobbyPayload(lobby) {
   return {
-    lobbyId:  lobby.id,
-    hostId:   lobby.hostId,
-    status:   lobby.status,
-    subject:  lobby.subject,
-    gameMode: lobby.gameMode,
-    players:  [...lobby.players.values()].map(p => ({
+    lobbyId:         lobby.id,
+    hostId:          lobby.hostId,
+    status:          lobby.status,
+    subject:         lobby.subject,
+    gameMode:        lobby.gameMode,
+    openToQuickJoin: lobby.openToQuickJoin !== false,
+    players:         [...lobby.players.values()].map(p => ({
       id: p.id, username: p.username, clanTag: p.clanTag || null,
       lives: p.lives, score: p.score, alive: p.alive, isBot: p.isBot || false,
     })),
@@ -1034,6 +1036,57 @@ io.on('connection', (socket) => {
     ack({ ok: true, lobbyId: lobby.id });
     io.to(lobby.id).emit('lobby_update', lobbyPayload(lobby));
     console.log(`${name} joined lobby ${lobby.id}`);
+  });
+
+  socket.on('quick_join', ({ username, gameMode = 'battle_royale', clanTag = null }, ack) => {
+    const name = (username ?? '').trim().slice(0, 20);
+    if (!name) return ack({ ok: false, error: 'Username required.' });
+
+    // Find best open lobby: same mode, waiting, open to quick join, no username clash
+    const candidates = [...lobbies.values()]
+      .filter(l =>
+        l.status === 'waiting' &&
+        l.openToQuickJoin !== false &&
+        l.gameMode === gameMode &&
+        l.players.size >= 1 &&
+        ![...l.players.values()].some(p => p.username.toLowerCase() === name.toLowerCase())
+      )
+      .sort((a, b) => b.players.size - a.players.size);
+
+    if (candidates.length > 0) {
+      const lobby = candidates[0];
+      lobby.players.set(socket.id, {
+        id: socket.id, username: name, clanTag: clanTag || null,
+        lives: gameSettings.startingLives, score: 0, alive: true,
+      });
+      socket.lobbyId = lobby.id;
+      socket.join(lobby.id);
+      registeredPlayers.add(name.toLowerCase());
+      ack({ ok: true, lobbyId: lobby.id, subject: lobby.subject, created: false });
+      io.to(lobby.id).emit('lobby_update', lobbyPayload(lobby));
+      console.log(`${name} quick-joined lobby ${lobby.id}`);
+      return;
+    }
+
+    // No open lobby — create a new one
+    const lobby = makeLobby(socket.id, 'all', gameMode);
+    lobby.players.set(socket.id, {
+      id: socket.id, username: name, clanTag: clanTag || null,
+      lives: gameSettings.startingLives, score: 0, alive: true,
+    });
+    socket.lobbyId = lobby.id;
+    socket.join(lobby.id);
+    registeredPlayers.add(name.toLowerCase());
+    ack({ ok: true, lobbyId: lobby.id, subject: 'all', created: true });
+    io.to(lobby.id).emit('lobby_update', lobbyPayload(lobby));
+    console.log(`${name} quick-join: no open lobby, created ${lobby.id}`);
+  });
+
+  socket.on('toggle_quick_join', ({ open }) => {
+    const lobby = lobbies.get(socket.lobbyId);
+    if (!lobby || lobby.hostId !== socket.id || lobby.status !== 'waiting') return;
+    lobby.openToQuickJoin = Boolean(open);
+    io.to(lobby.id).emit('lobby_update', lobbyPayload(lobby));
   });
 
   socket.on('start_game', () => {
