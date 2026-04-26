@@ -355,6 +355,8 @@ export default function App() {
   }
 
   function handleStartGame()   { socket.emit('start_game'); }
+  function handleAddBot(difficulty)  { socket.emit('add_bot',    { difficulty }); }
+  function handleRemoveBot(botId)    { socket.emit('remove_bot', { botId }); }
 
   function handleTriviaRoll() {
     socket.emit('trivia_roll');
@@ -506,6 +508,8 @@ export default function App() {
           players={players}
           isHost={isHost}
           onStartGame={handleStartGame}
+          onAddBot={handleAddBot}
+          onRemoveBot={handleRemoveBot}
           error={error}
         />
       )}

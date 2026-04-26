@@ -28,14 +28,25 @@ const MODE_INFO = {
     rules: [
       'Players take turns answering questions',
       'Each question comes from a random subject',
-      'Correct answer = earn a wedge for that subject',
+      'Correct answer on HQ space = earn a wedge',
       'First player to collect all 6 subject wedges wins',
     ],
   },
 };
 
-export default function Lobby({ lobbyId, subject, gameMode = 'battle_royale', players, isHost, onStartGame, error }) {
-  const [copied, setCopied] = useState(false);
+const BOT_OPTIONS = [
+  { id: 'easy',   label: '🟢 Easy Bot',   accuracy: '40%',  timing: '12–18s reaction' },
+  { id: 'medium', label: '🟡 Medium Bot', accuracy: '65%',  timing: '8–14s reaction'  },
+  { id: 'hard',   label: '🔴 Hard Bot',   accuracy: '85%',  timing: '3–8s reaction'   },
+  { id: 'expert', label: '⚡ Expert Bot', accuracy: '95%',  timing: '1–3s reaction'   },
+];
+
+export default function Lobby({
+  lobbyId, subject, gameMode = 'battle_royale',
+  players, isHost, onStartGame, onAddBot, onRemoveBot, error,
+}) {
+  const [copied,      setCopied]      = useState(false);
+  const [showBotMenu, setShowBotMenu] = useState(false);
 
   function handleCopy() {
     navigator.clipboard.writeText(lobbyId).then(() => {
@@ -44,9 +55,11 @@ export default function Lobby({ lobbyId, subject, gameMode = 'battle_royale', pl
     });
   }
 
-  const canStart   = players.length >= 2;
+  const botCount    = players.filter(p => p.isBot).length;
+  const canAddBot   = isHost && botCount < 3;
+  const canStart    = players.length >= 2;
   const subjectInfo = SUBJECTS.find(s => s.id === subject) ?? SUBJECTS[0];
-  const modeInfo   = MODE_INFO[gameMode] || MODE_INFO.battle_royale;
+  const modeInfo    = MODE_INFO[gameMode] || MODE_INFO.battle_royale;
 
   return (
     <div className="screen lobby-screen">
@@ -85,16 +98,53 @@ export default function Lobby({ lobbyId, subject, gameMode = 'battle_royale', pl
             </p>
           )}
           {players.map((p, i) => (
-            <div key={p.id} className="lobby-player-item">
+            <div key={p.id} className={`lobby-player-item ${p.isBot ? 'is-bot' : ''}`}>
               <span className="lobby-player-rank">#{i + 1}</span>
               <span className="lobby-player-name">
                 {p.clanTag && <span className="lobby-clan-tag">[{p.clanTag}]</span>}
                 {p.username}
               </span>
-              {i === 0 && <span className="host-badge">HOST</span>}
+              {!p.isBot && i === 0 && <span className="host-badge">HOST</span>}
+              {isHost && p.isBot && (
+                <button
+                  className="bot-remove-btn"
+                  onClick={() => onRemoveBot(p.id)}
+                  title="Remove bot"
+                >
+                  ✕
+                </button>
+              )}
             </div>
           ))}
         </div>
+
+        {/* Add Bot — host only */}
+        {isHost && (
+          <div className="add-bot-wrap">
+            <button
+              className="btn-add-bot"
+              onClick={() => setShowBotMenu(m => !m)}
+              disabled={!canAddBot}
+            >
+              🤖 Add Bot{botCount > 0 ? ` (${botCount}/3)` : ''}
+            </button>
+
+            {showBotMenu && canAddBot && (
+              <div className="bot-menu">
+                {BOT_OPTIONS.map(opt => (
+                  <button
+                    key={opt.id}
+                    className="bot-menu-item"
+                    onClick={() => { onAddBot(opt.id); setShowBotMenu(false); }}
+                  >
+                    <span className="bot-diff-label">{opt.label}</span>
+                    <span className="bot-diff-stats">{opt.accuracy} correct · {opt.timing}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {error && <p className="error-msg">{error}</p>}
 
@@ -104,7 +154,7 @@ export default function Lobby({ lobbyId, subject, gameMode = 'battle_royale', pl
               {canStart ? '⚔️ Start Battle!' : '⏳ Waiting for players…'}
             </button>
             {!canStart && (
-              <p className="need-players-hint">Need at least 2 players to start</p>
+              <p className="need-players-hint">Need at least 2 players (or add a bot)</p>
             )}
           </>
         ) : (

@@ -236,7 +236,8 @@ function lobbyPayload(lobby) {
     subject:  lobby.subject,
     gameMode: lobby.gameMode,
     players:  [...lobby.players.values()].map(p => ({
-      id: p.id, username: p.username, clanTag: p.clanTag || null, lives: p.lives, score: p.score, alive: p.alive,
+      id: p.id, username: p.username, clanTag: p.clanTag || null,
+      lives: p.lives, score: p.score, alive: p.alive, isBot: p.isBot || false,
     })),
   };
 }
@@ -304,9 +305,11 @@ function nextQuestion(lobby) {
   });
 
   lobby.timer = setTimeout(() => processAnswers(lobby), timeLimit * 1000);
+  scheduleBotAnswers(lobby, q, timeLimit);
 }
 
 function processAnswers(lobby) {
+  if (lobby.status !== 'question') return;
   clearTimer(lobby);
   lobby.status = 'reviewing';
 
@@ -571,6 +574,7 @@ function nextSpeedQuestion(lobby) {
   emitRaceProgress(lobby);
 
   lobby.timer = setTimeout(() => processSpeedRaceAnswers(lobby), timeLimit * 1000);
+  scheduleBotSpeedAnswers(lobby, q, timeLimit);
 }
 
 function processSpeedRaceAnswers(lobby) {
@@ -657,6 +661,67 @@ const TRIVIA_BOARD = (() => {
       b.push({ category: TRIVIA_CATS[(s + i) % 6], isHQ: i === 0 });
   return b;
 })();
+
+// ── Bot system ────────────────────────────────────────────────────────────────
+
+const BOT_NAMES = [
+  'Dr. Neural', 'Dr. Cortex', 'Dr. Synapse', 'Dr. Axon',
+  'Dr. Dendrite', 'Dr. Medulla', 'Dr. Thalamus', 'Dr. Hypothalamus',
+  'Dr. Cerebrum', 'Dr. Ventricle', 'Dr. Cochlea', 'Dr. Retina',
+];
+
+const BOT_ACCURACY = { easy: 0.40, medium: 0.65, hard: 0.85, expert: 0.95 };
+
+// Reaction time [minMs, maxMs] — capped to (timeLimit - 500ms) at call site
+const BOT_REACTION_MS = {
+  easy:   [12000, 18000],
+  medium: [8000,  14000],
+  hard:   [3000,  8000],
+  expert: [1000,  3000],
+};
+
+function randomWrongAnswer(correct) {
+  const opts = ['A', 'B', 'C', 'D'].filter(o => o !== correct);
+  return opts[Math.floor(Math.random() * opts.length)];
+}
+
+function botReactionDelay(difficulty, timeLimitSec) {
+  const [minMs, maxMs] = BOT_REACTION_MS[difficulty] || [5000, 10000];
+  const raw = Math.floor(Math.random() * (maxMs - minMs) + minMs);
+  return Math.min(raw, (timeLimitSec - 0.6) * 1000);
+}
+
+function scheduleBotAnswers(lobby, q, timeLimitSec) {
+  const bots = [...lobby.players.values()].filter(p => p.isBot && p.alive);
+  for (const bot of bots) {
+    const delay = botReactionDelay(bot.difficulty, timeLimitSec);
+    setTimeout(() => {
+      if (lobby.status !== 'question') return;
+      if (lobby.answers.has(bot.id)) return;
+      const correct = Math.random() < BOT_ACCURACY[bot.difficulty];
+      lobby.answers.set(bot.id, correct ? q.correct : randomWrongAnswer(q.correct));
+      const alive        = alivePlayers(lobby);
+      const answeredCount = [...lobby.answers.keys()].filter(id => lobby.players.get(id)?.alive).length;
+      io.to(lobby.id).emit('answer_count', { answered: answeredCount, total: alive.length });
+      if (answeredCount >= alive.length) { clearTimer(lobby); setTimeout(() => processAnswers(lobby), 600); }
+    }, delay);
+  }
+}
+
+function scheduleBotSpeedAnswers(lobby, q, timeLimitSec) {
+  const bots = [...lobby.players.values()].filter(p => p.isBot);
+  for (const bot of bots) {
+    const delay = botReactionDelay(bot.difficulty, timeLimitSec);
+    setTimeout(() => {
+      if (lobby.status !== 'speed_race') return;
+      if (lobby.answers.has(bot.id)) return;
+      const correct = Math.random() < BOT_ACCURACY[bot.difficulty];
+      lobby.answers.set(bot.id, correct ? q.correct : randomWrongAnswer(q.correct));
+      const allAnswered = [...lobby.players.keys()].every(id => lobby.answers.has(id));
+      if (allAnswered) { clearTimer(lobby); setTimeout(() => processSpeedRaceAnswers(lobby), 600); }
+    }, delay);
+  }
+}
 
 function triviaWedgeSnapshot(lobby) {
   const state = {};
@@ -756,7 +821,15 @@ function nextTriviaTurn(lobby) {
         isFinalQuestion: true, round: lobby.round, timeLimit: TRIVIA_Q_TIME,
         wedgeState: triviaWedgeSnapshot(lobby),
       });
-      lobby.timer = setTimeout(() => processTriviaAnswer(lobby, null), TRIVIA_Q_TIME * 1000);
+      if (player?.isBot) {
+        lobby.timer = setTimeout(() => {
+          if (lobby.status !== 'trivia_question') return;
+          const correct = Math.random() < BOT_ACCURACY[player.difficulty];
+          processTriviaAnswer(lobby, correct ? q.correct : randomWrongAnswer(q.correct));
+        }, botReactionDelay(player.difficulty, TRIVIA_Q_TIME));
+      } else {
+        lobby.timer = setTimeout(() => processTriviaAnswer(lobby, null), TRIVIA_Q_TIME * 1000);
+      }
     }, 1500);
     return;
   }
@@ -765,12 +838,20 @@ function nextTriviaTurn(lobby) {
   lobby.status = 'trivia_roll';
   io.to(lobby.id).emit('trivia_turn', { ...buildTurnPayload(lobby), phase: 'roll' });
 
-  // Auto-skip if player goes idle
-  lobby.timer = setTimeout(() => {
-    if (lobby.status !== 'trivia_roll') return;
-    lobby.triviaTurnIdx++;
-    setTimeout(() => nextTriviaTurn(lobby), 300);
-  }, 30000);
+  if (player.isBot) {
+    // Bot auto-rolls after a short dramatic pause
+    lobby.timer = setTimeout(() => {
+      if (lobby.status !== 'trivia_roll') return;
+      handleTriviaRoll(lobby);
+    }, 1200 + Math.floor(Math.random() * 1300));
+  } else {
+    // Auto-skip if human player goes idle for 30s
+    lobby.timer = setTimeout(() => {
+      if (lobby.status !== 'trivia_roll') return;
+      lobby.triviaTurnIdx++;
+      setTimeout(() => nextTriviaTurn(lobby), 300);
+    }, 30000);
+  }
 }
 
 function handleTriviaRoll(lobby) {
@@ -814,7 +895,16 @@ function handleTriviaRoll(lobby) {
       isFinalQuestion: false, round: lobby.round, timeLimit: TRIVIA_Q_TIME,
       wedgeState: triviaWedgeSnapshot(lobby),
     });
-    lobby.timer = setTimeout(() => processTriviaAnswer(lobby, null), TRIVIA_Q_TIME * 1000);
+    const botP = lobby.players.get(sid);
+    if (botP?.isBot) {
+      lobby.timer = setTimeout(() => {
+        if (lobby.status !== 'trivia_question') return;
+        const correct = Math.random() < BOT_ACCURACY[botP.difficulty];
+        processTriviaAnswer(lobby, correct ? q.correct : randomWrongAnswer(q.correct));
+      }, botReactionDelay(botP.difficulty, TRIVIA_Q_TIME));
+    } else {
+      lobby.timer = setTimeout(() => processTriviaAnswer(lobby, null), TRIVIA_Q_TIME * 1000);
+    }
   }, 1800);
 }
 
@@ -997,6 +1087,36 @@ io.on('connection', (socket) => {
     if (!lobby) return;
     if (socket.id !== lobby.triviaCurrentPlayerId) return;
     handleTriviaRoll(lobby);
+  });
+
+  socket.on('add_bot', ({ difficulty }) => {
+    const lobby = lobbies.get(socket.lobbyId);
+    if (!lobby || lobby.hostId !== socket.id || lobby.status !== 'waiting') return;
+    const bots = [...lobby.players.values()].filter(p => p.isBot);
+    if (bots.length >= 3) return;
+    if (!BOT_ACCURACY[difficulty]) return;
+
+    const usedNames = new Set([...lobby.players.values()].map(p => p.username));
+    const available = BOT_NAMES.filter(n => !usedNames.has(`${n} 🤖`));
+    if (available.length === 0) return;
+
+    const name  = available[Math.floor(Math.random() * available.length)];
+    const botId = `bot-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    lobby.players.set(botId, {
+      id: botId, username: `${name} 🤖`, clanTag: null,
+      lives: gameSettings.startingLives, score: 0, alive: true,
+      isBot: true, difficulty,
+    });
+    io.to(lobby.id).emit('lobby_update', lobbyPayload(lobby));
+  });
+
+  socket.on('remove_bot', ({ botId }) => {
+    const lobby = lobbies.get(socket.lobbyId);
+    if (!lobby || lobby.hostId !== socket.id || lobby.status !== 'waiting') return;
+    const bot = lobby.players.get(botId);
+    if (!bot?.isBot) return;
+    lobby.players.delete(botId);
+    io.to(lobby.id).emit('lobby_update', lobbyPayload(lobby));
   });
 
   socket.on('reset_game', () => {

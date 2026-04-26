@@ -170,9 +170,87 @@ button:active:not(:disabled) { transform: scale(0.97); }
   border-bottom: 1px solid var(--border);
 }
 .lobby-player-item:last-child { border-bottom: none; }
+.lobby-player-item.is-bot { opacity: 0.85; }
 
 .lobby-player-rank  { color: var(--text-dim); font-size: 13px; min-width: 24px; }
 .lobby-player-name  { flex: 1; font-weight: 600; }
+
+/* ── Bot remove button ── */
+.bot-remove-btn {
+  background: transparent;
+  border: 1px solid rgba(255,68,85,0.35);
+  color: var(--red);
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  font-size: 11px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.15s, border-color 0.15s;
+}
+.bot-remove-btn:hover { background: rgba(255,68,85,0.12); border-color: var(--red); }
+
+/* ── Add Bot area ── */
+.add-bot-wrap {
+  position: relative;
+  margin-bottom: 14px;
+}
+
+.btn-add-bot {
+  background: var(--surface);
+  border: 1px dashed var(--border);
+  color: var(--text-dim);
+  padding: 9px 18px;
+  border-radius: var(--radius);
+  font-size: 13px;
+  font-weight: 600;
+  width: 100%;
+  transition: border-color 0.2s, color 0.2s;
+}
+.btn-add-bot:hover:not(:disabled) {
+  border-color: rgba(155,89,182,0.6);
+  color: #9b59b6;
+}
+.btn-add-bot:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.bot-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0; right: 0;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 12px 36px rgba(0,0,0,0.45);
+  overflow: hidden;
+  z-index: 100;
+  animation: popIn 0.18s ease both;
+}
+
+.bot-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 13px 18px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  gap: 12px;
+  transition: background 0.15s;
+}
+.bot-menu-item:last-child { border-bottom: none; }
+.bot-menu-item:hover { background: var(--surface); }
+
+.bot-diff-label {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+.bot-diff-stats {
+  font-size: 11px;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
 
 .host-badge {
   background: var(--gold);
