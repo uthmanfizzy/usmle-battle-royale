@@ -108,9 +108,6 @@ export default function SpeedRaceGame({
                 {answerResult.correct
                   ? `✓ Correct! (${answerResult.score}/${GOAL})`
                   : `✗ Wrong — Answer: ${answerResult.correctAnswer}`}
-                {answerResult.explanation && (
-                  <p className="explanation">{answerResult.explanation}</p>
-                )}
               </div>
             )}
           </>

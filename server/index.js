@@ -511,7 +511,7 @@ async function upsertMastery(userId, subject, attempted, correct) {
 
 const SPEED_RACE_GOAL    = 20;
 const SPEED_RACE_TIMEOUT = 10 * 60 * 1000; // 10 min
-const SPEED_RACE_Q_TIME  = 15;             // seconds per question
+const SPEED_RACE_Q_TIME  = 10;             // seconds per question
 
 function emitRaceProgress(lobby) {
   const progress = [...lobby.players.values()].map(p => ({
@@ -527,20 +527,20 @@ function emitRaceProgress(lobby) {
 
 function startSpeedRace(lobby) {
   lobby.status            = 'speed_race';
-  lobby.round             = 0;
   lobby.raceCorrects      = new Map();
   lobby.raceFinishedOrder = [];
+  lobby.speedPlayers      = new Map(); // playerId → { idx, timer, botTimer, finished }
 
   for (const p of lobby.players.values()) {
     lobby.raceCorrects.set(p.id, 0);
     p.lives = 3; p.score = 0; p.alive = true;
+    lobby.speedPlayers.set(p.id, { idx: 0, timer: null, botTimer: null, finished: false });
   }
 
   const pool = lobby.subject === 'all'
     ? questionBank
     : questionBank.filter(q => q.subject === lobby.subject);
   lobby.questionQueue = shuffle(pool.length >= 5 ? pool : questionBank);
-  lobby.questionIdx   = -1;
 
   io.to(lobby.id).emit('game_start', { gameMode: 'speed_race' });
 
@@ -548,80 +548,98 @@ function startSpeedRace(lobby) {
     if (lobby.status === 'speed_race') endSpeedRace(lobby, 'time_up');
   }, SPEED_RACE_TIMEOUT);
 
-  setTimeout(() => nextSpeedQuestion(lobby), 1500);
+  setTimeout(() => {
+    for (const p of lobby.players.values()) sendSpeedQuestion(lobby, p.id);
+    emitRaceProgress(lobby);
+  }, 1500);
 }
 
-function nextSpeedQuestion(lobby) {
+function sendSpeedQuestion(lobby, playerId) {
   if (lobby.status !== 'speed_race') return;
+  const player = lobby.players.get(playerId);
+  const state  = lobby.speedPlayers?.get(playerId);
+  if (!player || !state || state.finished) return;
 
-  lobby.questionIdx++;
-  if (lobby.questionIdx >= lobby.questionQueue.length) {
-    lobby.questionQueue = shuffle([...questionBank]);
-    lobby.questionIdx   = 0;
-  }
-
-  lobby.round++;
-  lobby.answers = new Map();
-
-  const q         = lobby.questionQueue[lobby.questionIdx];
+  const q         = lobby.questionQueue[state.idx % lobby.questionQueue.length];
   const timeLimit = SPEED_RACE_Q_TIME;
 
-  io.to(lobby.id).emit('new_question', {
-    id: q.id, question: q.question, options: q.options,
-    round: lobby.round, timeLimit, alivePlayers: lobby.players.size,
-  });
+  if (!player.isBot) {
+    const sock = io.sockets.sockets.get(playerId);
+    if (sock) {
+      sock.emit('new_question', {
+        id: q.id, question: q.question, options: q.options,
+        round: state.idx + 1, timeLimit, alivePlayers: lobby.players.size,
+      });
+    }
+  }
 
-  emitRaceProgress(lobby);
+  clearTimeout(state.timer);
+  state.timer = setTimeout(() => advanceSpeedPlayer(lobby, playerId, null), timeLimit * 1000);
 
-  lobby.timer = setTimeout(() => processSpeedRaceAnswers(lobby), timeLimit * 1000);
-  scheduleBotSpeedAnswers(lobby, q, timeLimit);
+  if (player.isBot) {
+    clearTimeout(state.botTimer);
+    const delay = botReactionDelay(player.difficulty, timeLimit);
+    state.botTimer = setTimeout(() => {
+      const correct = Math.random() < BOT_ACCURACY[player.difficulty];
+      advanceSpeedPlayer(lobby, playerId, correct ? q.correct : randomWrongAnswer(q.correct));
+    }, delay);
+  }
 }
 
-function processSpeedRaceAnswers(lobby) {
-  clearTimer(lobby);
+function advanceSpeedPlayer(lobby, playerId, answer) {
   if (lobby.status !== 'speed_race') return;
+  const player = lobby.players.get(playerId);
+  const state  = lobby.speedPlayers?.get(playerId);
+  if (!player || !state || state.finished) return;
 
-  const q = lobby.questionQueue[lobby.questionIdx];
+  clearTimeout(state.timer);
+  clearTimeout(state.botTimer);
+  state.timer = null;
+  state.botTimer = null;
 
-  for (const player of lobby.players.values()) {
-    const answer  = lobby.answers.get(player.id);
-    const correct = answer === q.correct;
+  const q       = lobby.questionQueue[state.idx % lobby.questionQueue.length];
+  const correct = answer !== null && answer === q.correct;
 
-    if (correct) {
-      const n = (lobby.raceCorrects.get(player.id) || 0) + 1;
-      lobby.raceCorrects.set(player.id, n);
-      player.score = n;
-      if (n >= SPEED_RACE_GOAL && !lobby.raceFinishedOrder.includes(player.id)) {
-        lobby.raceFinishedOrder.push(player.id);
-      }
+  if (correct) {
+    const n = (lobby.raceCorrects.get(playerId) || 0) + 1;
+    lobby.raceCorrects.set(playerId, n);
+    player.score = n;
+
+    if (n >= SPEED_RACE_GOAL && !lobby.raceFinishedOrder.includes(playerId)) {
+      lobby.raceFinishedOrder.push(playerId);
+      state.finished = true;
+      emitRaceProgress(lobby);
+      setTimeout(() => endSpeedRace(lobby, 'goal_reached'), 500);
+      return;
     }
+  }
 
-    const sock = io.sockets.sockets.get(player.id);
+  if (!player.isBot) {
+    const sock = io.sockets.sockets.get(playerId);
     if (sock) {
       sock.emit('answer_result', {
         correct, correctAnswer: q.correct,
         lives: 3, alive: true,
-        score: lobby.raceCorrects.get(player.id) || 0,
-        explanation: q.explanation,
+        score: lobby.raceCorrects.get(playerId) || 0,
       });
     }
   }
 
   emitRaceProgress(lobby);
-
-  if (lobby.raceFinishedOrder.length > 0) {
-    setTimeout(() => endSpeedRace(lobby, 'goal_reached'), 3500);
-    return;
-  }
-
-  if (lobby.players.size <= 1) { endSpeedRace(lobby, 'forfeit'); return; }
-
-  setTimeout(() => nextSpeedQuestion(lobby), 3500);
+  state.idx++;
+  setTimeout(() => sendSpeedQuestion(lobby, playerId), 150);
 }
 
 function endSpeedRace(lobby, reason) {
   if (lobby.status === 'game_over') return;
   lobby.status = 'game_over';
+
+  if (lobby.speedPlayers) {
+    for (const state of lobby.speedPlayers.values()) {
+      clearTimeout(state.timer);
+      clearTimeout(state.botTimer);
+    }
+  }
   clearTimer(lobby);
   if (lobby.raceTimer) { clearTimeout(lobby.raceTimer); lobby.raceTimer = null; }
 
@@ -708,20 +726,6 @@ function scheduleBotAnswers(lobby, q, timeLimitSec) {
   }
 }
 
-function scheduleBotSpeedAnswers(lobby, q, timeLimitSec) {
-  const bots = [...lobby.players.values()].filter(p => p.isBot);
-  for (const bot of bots) {
-    const delay = botReactionDelay(bot.difficulty, timeLimitSec);
-    setTimeout(() => {
-      if (lobby.status !== 'speed_race') return;
-      if (lobby.answers.has(bot.id)) return;
-      const correct = Math.random() < BOT_ACCURACY[bot.difficulty];
-      lobby.answers.set(bot.id, correct ? q.correct : randomWrongAnswer(q.correct));
-      const allAnswered = [...lobby.players.keys()].every(id => lobby.answers.has(id));
-      if (allAnswered) { clearTimer(lobby); setTimeout(() => processSpeedRaceAnswers(lobby), 600); }
-    }, delay);
-  }
-}
 
 function triviaWedgeSnapshot(lobby) {
   const state = {};
@@ -1047,10 +1051,7 @@ io.on('connection', (socket) => {
 
     // ── Speed Race ─────────────────────────────────────────────────────────
     if (lobby.status === 'speed_race') {
-      if (lobby.answers.has(socket.id)) return;
-      lobby.answers.set(socket.id, answer);
-      const allAnswered = [...lobby.players.keys()].every(id => lobby.answers.has(id));
-      if (allAnswered) { clearTimer(lobby); setTimeout(() => processSpeedRaceAnswers(lobby), 600); }
+      advanceSpeedPlayer(lobby, socket.id, answer);
       return;
     }
 
@@ -1195,12 +1196,13 @@ io.on('connection', (socket) => {
         }
       }
     } else if (lobby.status === 'speed_race') {
-      if (lobby.players.size <= 1) {
-        endSpeedRace(lobby, 'forfeit');
-      } else {
-        const allAnswered = [...lobby.players.keys()].every(id => lobby.answers.has(id));
-        if (allAnswered) { clearTimer(lobby); setTimeout(() => processSpeedRaceAnswers(lobby), 600); }
+      const state = lobby.speedPlayers?.get(socket.id);
+      if (state) {
+        clearTimeout(state.timer);
+        clearTimeout(state.botTimer);
+        lobby.speedPlayers.delete(socket.id);
       }
+      if (lobby.players.size <= 1) endSpeedRace(lobby, 'forfeit');
     } else if (lobby.status === 'trivia_question') {
       if (lobby.players.size <= 1) {
         endTriviaPursuit(lobby, [...lobby.players.keys()][0]);

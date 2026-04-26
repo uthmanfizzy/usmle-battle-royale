@@ -1448,6 +1448,108 @@ table.lb-table tr:last-child td { border-bottom: none; }
 }
 .mode-card-desc   { font-size: 13px; color: var(--text-dim); line-height: 1.5; }
 
+.mode-card-guide-btn {
+  display: inline-block;
+  margin-top: 10px;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #3498db;
+  border: 1px solid #3498db;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+  letter-spacing: 0.03em;
+}
+.mode-card-guide-btn:hover {
+  background: #3498db;
+  color: #fff;
+}
+
+/* Speed Race How to Play modal */
+.mode-guide-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  padding: 20px;
+}
+.mode-guide-card {
+  background: var(--card);
+  border: 1px solid #3498db;
+  border-radius: 20px;
+  max-width: 480px;
+  width: 100%;
+  overflow: hidden;
+  animation: popIn 0.25s ease-out;
+  box-shadow: 0 20px 60px rgba(52, 152, 219, 0.3);
+}
+.mode-guide-header {
+  padding: 28px 28px 20px;
+  text-align: center;
+}
+.mode-guide-icon  { font-size: 44px; display: block; margin-bottom: 8px; }
+.mode-guide-title { font-size: 24px; font-weight: 700; color: #fff; margin-bottom: 4px; }
+.mode-guide-tagline { font-size: 13px; color: rgba(255,255,255,0.7); letter-spacing: 0.04em; }
+.mode-guide-body {
+  padding: 20px 28px;
+}
+.mode-guide-rules-title {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-dim);
+  margin-bottom: 14px;
+}
+.mode-guide-rules {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.mode-guide-rule {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  font-size: 14px;
+  color: var(--text);
+  line-height: 1.4;
+}
+.mode-guide-rule-num {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #2980b9;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1px;
+}
+.mode-guide-close {
+  display: block;
+  width: calc(100% - 56px);
+  margin: 0 28px 24px;
+  padding: 12px;
+  background: linear-gradient(135deg, #2980b9, #1a5276);
+  border: none;
+  border-radius: 12px;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+.mode-guide-close:hover { opacity: 0.85; }
+
 /* Lobby mode badge */
 .lobby-badges { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-bottom: 16px; }
 .mode-badge {

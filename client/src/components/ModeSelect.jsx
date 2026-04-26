@@ -1,3 +1,40 @@
+import { useState } from 'react';
+
+const SPEED_RACE_RULES = [
+  'Each player races through questions independently at their own pace',
+  '10 seconds to answer each question',
+  'Wrong answer or timeout = immediate next question, no penalty',
+  'First player to answer 20 questions correctly wins',
+  'A 10-minute time limit applies if no one reaches 20',
+  'No lives — just race to 20!',
+];
+
+function SpeedRaceGuide({ onClose }) {
+  return (
+    <div className="mode-guide-overlay" onClick={onClose}>
+      <div className="mode-guide-card" onClick={e => e.stopPropagation()}>
+        <div className="mode-guide-header" style={{ background: 'linear-gradient(135deg, #2980b9 0%, #1a5276 100%)' }}>
+          <span className="mode-guide-icon">🏁</span>
+          <h2 className="mode-guide-title">Speed Race</h2>
+          <p className="mode-guide-tagline">First to 20 correct answers wins</p>
+        </div>
+        <div className="mode-guide-body">
+          <h3 className="mode-guide-rules-title">How to Play</h3>
+          <ul className="mode-guide-rules">
+            {SPEED_RACE_RULES.map((rule, i) => (
+              <li key={i} className="mode-guide-rule">
+                <span className="mode-guide-rule-num">{i + 1}</span>
+                <span>{rule}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+        <button className="mode-guide-close" onClick={onClose}>Got it!</button>
+      </div>
+    </div>
+  );
+}
+
 function TrivialPursuitIcon() {
   const colors = ['#e74c3c', '#3498db', '#2ecc71', '#f1c40f', '#e67e22', '#9b59b6'];
   const cx = 50, cy = 50, r = 46;
@@ -54,8 +91,12 @@ const MODES = [
 ];
 
 export default function ModeSelect({ username, onSelect, onBack }) {
+  const [showGuide, setShowGuide] = useState(false);
+
   return (
     <div className="screen mode-select-screen">
+      {showGuide && <SpeedRaceGuide onClose={() => setShowGuide(false)} />}
+
       <div className="mode-select-inner">
         <h2 className="mode-select-title">Choose Game Mode</h2>
         <p className="mode-select-sub">Playing as <strong>{username}</strong></p>
@@ -72,6 +113,17 @@ export default function ModeSelect({ username, onSelect, onBack }) {
               <h3 className="mode-card-name">{m.name}</h3>
               <div className="mode-card-tagline">{m.tagline}</div>
               <p className="mode-card-desc">{m.description}</p>
+              {m.id === 'speed_race' && (
+                <span
+                  className="mode-card-guide-btn"
+                  role="button"
+                  tabIndex={0}
+                  onClick={e => { e.stopPropagation(); setShowGuide(true); }}
+                  onKeyDown={e => { if (e.key === 'Enter') { e.stopPropagation(); setShowGuide(true); } }}
+                >
+                  How to Play
+                </span>
+              )}
             </button>
           ))}
         </div>
