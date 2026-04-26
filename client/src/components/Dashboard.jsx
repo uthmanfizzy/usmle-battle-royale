@@ -17,8 +17,111 @@ function fmtDate(str) {
   return new Date(str).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
+// ── Username Change Modal ──────────────────────────────────────────────────────
+const MS_PER_YEAR = 365 * 24 * 60 * 60 * 1000;
+
+function fmtLong(date) {
+  return new Date(date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+}
+
+function UsernameChangeModal({ user, onClose, onSuccess }) {
+  const [newUsername, setNewUsername] = useState('');
+  const [loading,     setLoading]     = useState(false);
+  const [error,       setError]       = useState('');
+
+  const trimmed    = newUsername.trim();
+  const validLen   = trimmed.length >= 3 && trimmed.length <= 20;
+  const validChars = trimmed.length === 0 || /^[a-zA-Z0-9_]+$/.test(trimmed);
+  const isSame     = trimmed.toLowerCase() === (user.username || '').toLowerCase();
+  const canSubmit  = trimmed.length > 0 && validLen && validChars && !isSame;
+
+  const lastChange    = user.last_username_change ? new Date(user.last_username_change) : null;
+  const nextChangeDate = lastChange ? new Date(lastChange.getTime() + MS_PER_YEAR) : null;
+  const canChange      = !nextChangeDate || nextChangeDate <= new Date();
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    if (!canSubmit) return;
+    setLoading(true); setError('');
+    try {
+      const res  = await authFetch('/auth/username', {
+        method: 'PUT',
+        body: JSON.stringify({ username: trimmed }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error || 'Failed to change username.'); setLoading(false); return; }
+      onSuccess(data.username, data.last_username_change);
+    } catch {
+      setError('Network error. Please try again.');
+    }
+    setLoading(false);
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-card" onClick={e => e.stopPropagation()}>
+        <div className="modal-header">
+          <h3 className="modal-title">Change Username</h3>
+          <button className="modal-close-btn" onClick={onClose}>✕</button>
+        </div>
+
+        {lastChange && (
+          <p className="username-meta">Last changed: {fmtLong(lastChange)}</p>
+        )}
+
+        {!canChange ? (
+          <div className="username-cooldown-box">
+            <p>You can next change your username on:</p>
+            <strong className="username-next-date">{fmtLong(nextChangeDate)}</strong>
+            <p className="username-cooldown-note">Username changes are limited to once per year.</p>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="modal-form">
+            <div className="modal-field">
+              <label>New Username</label>
+              <input
+                type="text"
+                value={newUsername}
+                onChange={e => setNewUsername(e.target.value)}
+                placeholder={user.username}
+                maxLength={20}
+                autoFocus
+              />
+            </div>
+
+            {trimmed.length > 0 && (
+              <div className="username-hints">
+                <span className={validLen ? 'hint-ok' : 'hint-err'}>
+                  {validLen ? '✓' : '✗'} 3–20 characters
+                </span>
+                <span className={validChars ? 'hint-ok' : 'hint-err'}>
+                  {validChars ? '✓' : '✗'} Letters, numbers, underscores only
+                </span>
+                {isSame && trimmed.length > 0 && (
+                  <span className="hint-err">✗ Same as current username</span>
+                )}
+              </div>
+            )}
+
+            {error && <p className="modal-error">{error}</p>}
+
+            <p className="username-warning">
+              ⚠️ You can only change your username once per year.
+            </p>
+
+            <button className="btn-primary" type="submit" disabled={loading || !canSubmit}>
+              {loading ? 'Saving…' : 'Change Username'}
+            </button>
+          </form>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Home Section ───────────────────────────────────────────────────────────────
-function HomeSection({ user }) {
+function HomeSection({ user, onUserUpdate }) {
+  const [showUsernameModal, setShowUsernameModal] = useState(false);
   const xp          = user.xp    || 0;
   const level       = user.level || 1;
   const xpIntoLevel = xp % 500;
@@ -54,6 +157,17 @@ function HomeSection({ user }) {
             <div className="profile-details">
               <h2 className="profile-username">{user.username}</h2>
               <span className="level-badge">Level {level}</span>
+              {user.last_username_change && (
+                <span className="username-last-changed">
+                  Name changed {fmtDate(user.last_username_change)}
+                </span>
+              )}
+              <button
+                className="btn-change-username"
+                onClick={() => setShowUsernameModal(true)}
+              >
+                ✏️ Change Username
+              </button>
             </div>
           </div>
           <div className="xp-section">
@@ -127,6 +241,17 @@ function HomeSection({ user }) {
           </table>
         )}
       </div>
+
+      {showUsernameModal && (
+        <UsernameChangeModal
+          user={user}
+          onClose={() => setShowUsernameModal(false)}
+          onSuccess={(newUsername, lastChanged) => {
+            onUserUpdate({ ...user, username: newUsername, last_username_change: lastChanged });
+            setShowUsernameModal(false);
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -472,7 +597,7 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
         </div>
 
         {/* Tab content */}
-        {dashTab === 'home'        && <HomeSection user={user} />}
+        {dashTab === 'home'        && <HomeSection user={user} onUserUpdate={onUserUpdate} />}
         {dashTab === 'leaderboard' && <LeaderboardSection userId={user.id} />}
         {dashTab === 'clans'       && <ClanSection user={user} onUserUpdate={onUserUpdate} />}
 

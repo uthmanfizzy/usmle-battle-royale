@@ -1188,6 +1188,62 @@ app.post('/auth/logout', (req, res) => {
   res.json({ ok: true });
 });
 
+app.put('/auth/username', requireAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Database not configured.' });
+
+  const { username: newUsername } = req.body;
+  if (!newUsername || typeof newUsername !== 'string')
+    return res.status(400).json({ error: 'Username required.' });
+
+  const trimmed = newUsername.trim();
+  if (trimmed.length < 3 || trimmed.length > 20)
+    return res.status(400).json({ error: 'Username must be 3–20 characters.' });
+  if (!/^[a-zA-Z0-9_]+$/.test(trimmed))
+    return res.status(400).json({ error: 'Username can only contain letters, numbers, and underscores.' });
+
+  try {
+    const { data: user, error: userErr } = await supabase
+      .from('users').select('username, last_username_change').eq('id', req.userId).single();
+    if (userErr || !user) return res.status(404).json({ error: 'User not found.' });
+
+    // 365-day cooldown
+    if (user.last_username_change) {
+      const lastChange = new Date(user.last_username_change);
+      const msElapsed  = Date.now() - lastChange.getTime();
+      const MS_PER_YEAR = 365 * 24 * 60 * 60 * 1000;
+      if (msElapsed < MS_PER_YEAR) {
+        const nextChange = new Date(lastChange.getTime() + MS_PER_YEAR);
+        return res.status(429).json({
+          error: `You can next change your username on ${nextChange.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}.`,
+          nextChange: nextChange.toISOString(),
+        });
+      }
+    }
+
+    // Same name
+    if (trimmed.toLowerCase() === user.username?.toLowerCase())
+      return res.status(400).json({ error: 'That is already your username.' });
+
+    // Uniqueness check
+    const { data: existing } = await supabase
+      .from('users').select('id').ilike('username', trimmed).neq('id', req.userId).maybeSingle();
+    if (existing) return res.status(409).json({ error: 'That username is already taken.' });
+
+    const now = new Date().toISOString();
+    const { data: updated, error: updateErr } = await supabase
+      .from('users')
+      .update({ username: trimmed, last_username_change: now })
+      .eq('id', req.userId)
+      .select('username, last_username_change')
+      .single();
+    if (updateErr) return res.status(500).json({ error: updateErr.message });
+
+    res.json({ ok: true, username: updated.username, last_username_change: updated.last_username_change });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── Clan API ───────────────────────────────────────────────────────────────────
 
 app.post('/api/clans', requireAuth, async (req, res) => {
