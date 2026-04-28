@@ -969,3 +969,89 @@
 
 .ap-folder-scan_master .ap-folder-icon,
 .ap-subj-scan_master { color: #00cec9; }
+
+/* ── Game Mode Badges (table) ─────────────────────────────────────────────── */
+
+.ap-gm-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.ap-gm-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.ap-gm-badge-battle_royale  { background: rgba(231,76,60,.15);  border: 1px solid rgba(231,76,60,.35);  }
+.ap-gm-badge-speed_race     { background: rgba(52,152,219,.15); border: 1px solid rgba(52,152,219,.35); }
+.ap-gm-badge-trivia_pursuit { background: rgba(155,89,182,.15); border: 1px solid rgba(155,89,182,.35); }
+.ap-gm-badge-scan_master    { background: rgba(0,184,148,.15);  border: 1px solid rgba(0,184,148,.35);  }
+
+.ap-td-modes { width: 130px; }
+
+/* ── Game Mode Checkboxes (form) ──────────────────────────────────────────── */
+
+.ap-gm-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.ap-gm-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 2px solid var(--border);
+  background: var(--surface);
+  cursor: pointer;
+  transition: all 0.15s;
+  user-select: none;
+}
+
+.ap-gm-item input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--blue);
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.ap-gm-item.checked {
+  border-color: rgba(74,158,255,.5);
+  background: rgba(74,158,255,.08);
+}
+
+.ap-gm-item.disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.ap-gm-icon  { font-size: 16px; flex-shrink: 0; }
+.ap-gm-label { font-size: 13px; font-weight: 600; color: var(--text); flex: 1; }
+.ap-gm-hint  { font-size: 11px; color: var(--text-dim); font-style: italic; white-space: nowrap; }
+
+/* ── Game Mode Filter Dropdown ────────────────────────────────────────────── */
+
+.ap-gm-filter {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 7px 12px;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.ap-gm-filter:focus { border-color: var(--blue); }

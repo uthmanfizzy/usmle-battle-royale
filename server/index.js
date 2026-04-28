@@ -304,7 +304,7 @@ function startGame(lobby) {
   // ── Battle Royale & Scan Master ────────────────────────────────────────────
   // Guard: Scan Master needs image questions
   if (lobby.gameMode === 'scan_master') {
-    const imagePool = questionBank.filter(q => q.image_url);
+    const imagePool = questionBank.filter(q => q.image_url && (q.game_modes || []).includes('scan_master'));
     if (imagePool.length < 1) {
       io.to(lobby.id).emit('error', { message: 'No image questions available yet. Add some via the admin panel.' });
       return;
@@ -321,12 +321,13 @@ function startGame(lobby) {
 
   let pool;
   if (lobby.gameMode === 'scan_master') {
-    pool = questionBank.filter(q => q.image_url);
+    pool = questionBank.filter(q => q.image_url && (q.game_modes || []).includes('scan_master'));
   } else {
+    const brPool = questionBank.filter(q => (q.game_modes || ['battle_royale']).includes('battle_royale'));
     const raw = lobby.subject === 'all'
-      ? questionBank
-      : questionBank.filter(q => q.subject === lobby.subject);
-    pool = raw.length >= 5 ? raw : questionBank;
+      ? brPool
+      : brPool.filter(q => q.subject === lobby.subject);
+    pool = raw.length >= 5 ? raw : brPool;
   }
   lobby.questionQueue = shuffle(pool);
   lobby.questionIdx   = -1;
@@ -653,10 +654,11 @@ function startSpeedRace(lobby) {
     lobby.speedPlayers.set(p.id, { idx: 0, timer: null, botTimer: null, finished: false, timerEnd: 0, usedPowerupThisQ: false });
   }
 
+  const srBank = questionBank.filter(q => (q.game_modes || ['speed_race']).includes('speed_race'));
   const pool = lobby.subject === 'all'
-    ? questionBank
-    : questionBank.filter(q => q.subject === lobby.subject);
-  lobby.questionQueue = shuffle(pool.length >= 5 ? pool : questionBank);
+    ? srBank
+    : srBank.filter(q => q.subject === lobby.subject);
+  lobby.questionQueue = shuffle(pool.length >= 5 ? pool : srBank);
 
   io.to(lobby.id).emit('game_start', { gameMode: 'speed_race' });
   for (const [pid, pups] of lobby.playerPowerups) {
@@ -1027,10 +1029,11 @@ function handleTriviaRoll(lobby) {
   // Send question after movement animation
   setTimeout(() => {
     if (lobby.status !== 'trivia_question') return;
-    const pool = questionBank.filter(q => q.subject === space.category);
+    const tpBank = questionBank.filter(q => (q.game_modes || ['trivia_pursuit']).includes('trivia_pursuit'));
+    const pool = tpBank.filter(q => q.subject === space.category);
     const q    = pool.length > 0
       ? pool[Math.floor(Math.random() * pool.length)]
-      : questionBank[Math.floor(Math.random() * questionBank.length)];
+      : tpBank[Math.floor(Math.random() * tpBank.length)];
     lobby.triviaCurrentQuestion = q;
 
     io.to(lobby.id).emit('trivia_question', {
@@ -1834,6 +1837,8 @@ app.post('/admin/questions/bulk', adminAuth, (req, res) => {
   for (const q of questions) {
     if (!q.subject || !q.question || !Array.isArray(q.options) || q.options.length !== 4 || !q.correct || !q.explanation) continue;
     const newQ = { id: nextQuestionId(q.subject), subject: q.subject, difficulty: q.difficulty || 'easy', question: q.question, options: q.options, correct: q.correct, explanation: q.explanation };
+    if (q.image_url) newQ.image_url = q.image_url;
+    newQ.game_modes = Array.isArray(q.game_modes) && q.game_modes.length > 0 ? q.game_modes : (q.image_url ? ['scan_master'] : ['battle_royale', 'speed_race', 'trivia_pursuit']);
     questionBank.push(newQ);
     added.push(newQ);
   }
@@ -1870,11 +1875,12 @@ app.post('/admin/upload-image', adminAuth, async (req, res) => {
 });
 
 app.post('/admin/questions', adminAuth, (req, res) => {
-  const { subject, difficulty, question, options, correct, explanation, image_url } = req.body;
+  const { subject, difficulty, question, options, correct, explanation, image_url, game_modes } = req.body;
   if (!subject || !question || !Array.isArray(options) || options.length !== 4 || !correct || !explanation)
     return res.status(400).json({ error: 'Missing required fields' });
   const newQ = { id: nextQuestionId(subject), subject, difficulty: difficulty || 'easy', question, options, correct, explanation };
   if (image_url) newQ.image_url = image_url;
+  newQ.game_modes = Array.isArray(game_modes) && game_modes.length > 0 ? game_modes : ['battle_royale', 'speed_race', 'trivia_pursuit'];
   questionBank.push(newQ);
   res.json(newQ);
 });

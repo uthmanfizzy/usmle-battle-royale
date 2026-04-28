@@ -6,6 +6,13 @@ const AUTH_KEY = 'usmle_admin_session';
 
 const LETTERS = ['A', 'B', 'C', 'D'];
 
+const GAME_MODES = [
+  { id: 'battle_royale',  label: 'Battle Royale',  icon: '⚔️', color: '#e74c3c' },
+  { id: 'speed_race',     label: 'Speed Race',     icon: '⚡', color: '#3498db' },
+  { id: 'trivia_pursuit', label: 'Trivia Pursuit', icon: '🎯', color: '#9b59b6' },
+  { id: 'scan_master',    label: 'Scan Master',    icon: '🔬', color: '#00b894' },
+];
+
 const FOLDERS = [
   { id: 'all',           label: 'All Questions',   icon: '🏥', prefix: null,  special: false },
   { id: '__images__',    label: 'Image Questions',  icon: '🖼️', prefix: null,  special: true  },
@@ -165,6 +172,7 @@ function QuestionModal({ question, defaultSubject = 'cardiology', onSave, onClos
     explanation:  question.explanation,
     image_url:    question.image_url || '',
     questionType: question.image_url ? 'image' : 'text',
+    game_modes:   question.game_modes || (question.image_url ? ['scan_master'] : ['battle_royale', 'speed_race', 'trivia_pursuit']),
   } : {
     subject:      defaultSubjectResolved,
     difficulty:   'easy',
@@ -177,6 +185,7 @@ function QuestionModal({ question, defaultSubject = 'cardiology', onSave, onClos
     explanation:  '',
     image_url:    '',
     questionType: 'text',
+    game_modes:   ['battle_royale', 'speed_race', 'trivia_pursuit'],
   });
 
   const [saving,       setSaving]       = useState(false);
@@ -233,6 +242,7 @@ function QuestionModal({ question, defaultSubject = 'cardiology', onSave, onClos
       correct:     form.correct,
       explanation: form.explanation.trim(),
       image_url:   form.questionType === 'image' ? form.image_url : '',
+      game_modes:  form.game_modes,
     };
     try {
       const res = isEdit
@@ -266,14 +276,14 @@ function QuestionModal({ question, defaultSubject = 'cardiology', onSave, onClos
               <button
                 type="button"
                 className={`ap-type-btn ${form.questionType === 'text' ? 'active' : ''}`}
-                onClick={() => set('questionType', 'text')}
+                onClick={() => setForm(f => ({ ...f, questionType: 'text', game_modes: f.game_modes.filter(m => m !== 'scan_master').length > 0 ? f.game_modes.filter(m => m !== 'scan_master') : ['battle_royale', 'speed_race', 'trivia_pursuit'] }))}
               >
                 📝 Text Question
               </button>
               <button
                 type="button"
                 className={`ap-type-btn ${form.questionType === 'image' ? 'active' : ''}`}
-                onClick={() => { set('questionType', 'image'); if (form.subject !== 'scan_master') set('subject', 'scan_master'); }}
+                onClick={() => setForm(f => ({ ...f, questionType: 'image', game_modes: ['scan_master'], subject: f.subject !== 'scan_master' ? 'scan_master' : f.subject }))}
               >
                 🖼️ Image Question
               </button>
@@ -386,6 +396,42 @@ function QuestionModal({ question, defaultSubject = 'cardiology', onSave, onClos
             />
           </div>
 
+          <div className="ap-field">
+            <label>Game Modes <span style={{ color: 'var(--red)', marginLeft: 2 }}>*</span></label>
+            <div className="ap-gm-grid">
+              {GAME_MODES.map(gm => {
+                const needsImage = gm.id === 'scan_master';
+                const isImageMode = form.questionType === 'image';
+                const isDisabled = needsImage ? !form.image_url : isImageMode;
+                const isChecked = form.game_modes.includes(gm.id);
+                return (
+                  <label
+                    key={gm.id}
+                    className={`ap-gm-item${isChecked ? ' checked' : ''}${isDisabled ? ' disabled' : ''}`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      disabled={isDisabled}
+                      onChange={e => {
+                        if (isDisabled) return;
+                        const modes = e.target.checked
+                          ? [...form.game_modes, gm.id]
+                          : form.game_modes.filter(m => m !== gm.id);
+                        if (modes.length > 0) set('game_modes', modes);
+                      }}
+                    />
+                    <span className="ap-gm-icon">{gm.icon}</span>
+                    <span className="ap-gm-label">{gm.label}</span>
+                    {needsImage && !form.image_url && (
+                      <span className="ap-gm-hint">image required</span>
+                    )}
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+
           {error && <div className="ap-error">{error}</div>}
 
           <div className="ap-modal-foot">
@@ -427,6 +473,7 @@ function QuestionsPanel() {
   const [modal, setModal] = useState(null); // null | 'add' | question object
   const [deleteId, setDeleteId] = useState(null);
   const [bulkMsg, setBulkMsg] = useState('');
+  const [gameModeFilter, setGameModeFilter] = useState('all');
 
   useEffect(() => { loadQuestions(); }, []);
 
@@ -490,9 +537,12 @@ function QuestionsPanel() {
     return acc;
   }, {});
 
-  const filtered = activeFolder === 'all'       ? questions
+  const baseFiltered = activeFolder === 'all'       ? questions
     : activeFolder === '__images__'             ? questions.filter(q => q.image_url)
     : questions.filter(q => q.subject === activeFolder);
+  const filtered = gameModeFilter === 'all'
+    ? baseFiltered
+    : baseFiltered.filter(q => (q.game_modes || []).includes(gameModeFilter));
 
   if (loading) return <div className="ap-loading">Loading questions…</div>;
 
@@ -532,6 +582,16 @@ function QuestionsPanel() {
                   );
                 })()}
               </div>
+              <select
+                className="ap-gm-filter"
+                value={gameModeFilter}
+                onChange={e => setGameModeFilter(e.target.value)}
+              >
+                <option value="all">All Modes</option>
+                {GAME_MODES.map(gm => (
+                  <option key={gm.id} value={gm.id}>{gm.icon} {gm.label}</option>
+                ))}
+              </select>
             </div>
             <div className="ap-toolbar-right">
               {bulkMsg && (
@@ -555,6 +615,7 @@ function QuestionsPanel() {
                   <th>Subject</th>
                   <th>Difficulty</th>
                   <th>Image</th>
+                  <th>Game Modes</th>
                   <th>Question Preview</th>
                   <th>Actions</th>
                 </tr>
@@ -580,6 +641,18 @@ function QuestionsPanel() {
                         ? <img src={q.image_url} alt="" className="ap-thumb" title={q.image_url} />
                         : <span className="ap-no-image">—</span>}
                     </td>
+                    <td className="ap-td-modes">
+                      <div className="ap-gm-badges">
+                        {(q.game_modes || ['battle_royale', 'speed_race', 'trivia_pursuit']).map(mode => {
+                          const gm = GAME_MODES.find(g => g.id === mode);
+                          return gm ? (
+                            <span key={mode} className={`ap-gm-badge ap-gm-badge-${mode}`} title={gm.label}>
+                              {gm.icon}
+                            </span>
+                          ) : null;
+                        })}
+                      </div>
+                    </td>
                     <td className="ap-td-preview" title={q.question}>
                       {q.question.length > 80 ? q.question.slice(0, 80) + '…' : q.question}
                     </td>
@@ -593,7 +666,7 @@ function QuestionsPanel() {
                 ))}
                 {filtered.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="ap-empty">
+                    <td colSpan={7} className="ap-empty">
                       No questions in this category yet.
                     </td>
                   </tr>
