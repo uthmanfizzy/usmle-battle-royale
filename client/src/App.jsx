@@ -16,10 +16,11 @@ import SpeedRaceGame from './components/SpeedRaceGame';
 import TriviaGame from './components/TriviaGame';
 import Leaderboard from './components/Leaderboard';
 import SoloGame from './components/SoloGame';
+import TowerMode from './components/TowerMode';
 
 // phases: 'loading' | 'entry' | 'exam_select' | 'difficulty_select' | 'mode_select' |
 //         'how_to_play' | 'lobby_select' | 'subject_select' | 'join_input' | 'lobby' | 'game' |
-//         'game_over' | 'solo_subject' | 'solo_game'
+//         'game_over' | 'solo_subject' | 'solo_game' | 'tower'
 
 export default function App() {
   const [phase,    setPhase]    = useState('loading');
@@ -405,7 +406,11 @@ export default function App() {
 
   function handleSelectGameMode(mode) {
     setGameMode(mode);
-    setPhase('how_to_play');
+    if (mode === 'tower') {
+      setPhase('tower');
+    } else {
+      setPhase('how_to_play');
+    }
   }
 
   function handleHowToPlayContinue() {
@@ -554,7 +559,7 @@ export default function App() {
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
-  const showMuteBtn = ['lobby', 'game', 'game_over', 'solo_game'].includes(phase);
+  const showMuteBtn = ['lobby', 'game', 'game_over', 'solo_game', 'tower'].includes(phase);
   const showHomeBtn = !['loading', 'entry'].includes(phase);
 
   return (
@@ -762,6 +767,13 @@ export default function App() {
           onBack={handleReturnHome}
           onTryAgain={handleSoloTryAgain}
           onChangeSubject={() => setPhase('solo_subject')}
+        />
+      )}
+
+      {phase === 'tower' && (
+        <TowerMode
+          username={username}
+          onBack={() => setPhase('mode_select')}
         />
       )}
     </div>

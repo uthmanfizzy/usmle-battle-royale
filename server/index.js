@@ -1901,6 +1901,27 @@ app.delete('/admin/questions/:id', adminAuth, (req, res) => {
   res.json({ ok: true });
 });
 
+// ── Tower Progress API ─────────────────────────────────────────────────────────
+
+app.get('/api/tower/progress', requireAuth, async (req, res) => {
+  if (!supabase) return res.json({ floor: 1 });
+  try {
+    const { data } = await supabase.from('users').select('tower_floor').eq('id', req.userId).single();
+    res.json({ floor: data?.tower_floor || 1 });
+  } catch { res.json({ floor: 1 }); }
+});
+
+app.put('/api/tower/progress', requireAuth, async (req, res) => {
+  if (!supabase) return res.json({ ok: true });
+  const { floor } = req.body;
+  if (!floor || typeof floor !== 'number' || floor < 1 || floor > 101)
+    return res.status(400).json({ error: 'Invalid floor' });
+  try {
+    await supabase.from('users').update({ tower_floor: floor }).eq('id', req.userId);
+    res.json({ ok: true });
+  } catch { res.json({ ok: true }); }
+});
+
 // ── Health check ───────────────────────────────────────────────────────────────
 
 app.get('/', (req, res) => res.status(200).send('ok'));

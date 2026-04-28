@@ -1760,6 +1760,50 @@ table.lb-table tr:last-child td { border-bottom: none; }
   color: #fff;
 }
 
+/* Tower mode card — dark/gold featured card */
+.mode-card-tower {
+  grid-column: 1 / -1;
+  flex-direction: row;
+  align-items: center;
+  gap: 20px;
+  text-align: left;
+  padding: 24px 28px;
+  border-color: #c9a84c !important;
+  position: relative;
+}
+.mode-card-tower .mode-card-icon  { font-size: 52px; margin: 0; flex-shrink: 0; }
+.mode-card-tower .mode-card-name  { font-size: 22px; }
+.mode-card-tower .mode-card-tagline { text-align: left; }
+.mode-card-tower .mode-card-desc  { text-align: left; }
+
+.mode-card-tower-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Solo badge */
+.mode-card-solo-badge {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  background: rgba(245,197,24,.15);
+  color: #f5c518;
+  border: 1px solid rgba(245,197,24,.35);
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+@media (max-width: 680px) {
+  .mode-card-tower { flex-direction: column; text-align: center; }
+  .mode-card-tower .mode-card-tagline,
+  .mode-card-tower .mode-card-desc { text-align: center; }
+}
+
 /* Speed Race How to Play modal */
 .mode-guide-overlay {
   position: fixed;

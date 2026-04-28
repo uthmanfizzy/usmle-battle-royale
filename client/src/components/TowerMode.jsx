@@ -1,0 +1,682 @@
+import { useState, useEffect, useRef } from 'react';
+import * as audio from '../audio';
+import { getToken } from '../auth';
+import './TowerMode.css';
+
+const SERVER = 'https://usmle-battle-royale-production.up.railway.app';
+const LABELS  = ['A', 'B', 'C', 'D'];
+
+// ── Zone & floor data ──────────────────────────────────────────────────────────
+
+const ZONES = [
+  {
+    id: 1,  start: 1,   end: 10,
+    name: 'The Basement',       subject: 'biochemistry',  color: '#c9a84c',
+    desc: 'Deep beneath the hospital, the foundations of biochemistry echo through stone walls. Master the basics or be buried here forever.',
+    story: 'You descend into the dimly lit basement. The smell of old textbooks fills the air. Enzyme pathways are scrawled across the crumbling walls.',
+  },
+  {
+    id: 2,  start: 11,  end: 20,
+    name: 'The Laboratory',     subject: 'microbiology',  color: '#00b894',
+    desc: 'Culture plates and microscopes everywhere. Invisible enemies lurk in every petri dish. Identify them or be consumed.',
+    story: 'You push through the lab doors. Incubators hum. Cultures grow in the dim light. The microbial world awaits your expertise.',
+  },
+  {
+    id: 3,  start: 21,  end: 30,
+    name: 'The Ward',           subject: 'pharmacology',  color: '#4a9eff',
+    desc: 'Medication carts line the hallways. Every drug interaction, every mechanism — your patients depend on your knowledge.',
+    story: 'The ward is eerily quiet at this hour. A medication cart stands unattended. Every label matters. Every interaction could be the difference.',
+  },
+  {
+    id: 4,  start: 31,  end: 40,
+    name: 'The Clinic',         subject: 'neurology',     color: '#a29bfe',
+    desc: 'Neurological exams await. Reflex hammers and MRI films are scattered across darkened examination rooms.',
+    story: 'You enter the neurology clinic. A patient gazes blankly ahead. Cortex, brainstem, peripheral nerves — can you navigate them all?',
+  },
+  {
+    id: 5,  start: 41,  end: 50,
+    name: 'The Cardio Unit',    subject: 'cardiology',    color: '#e17055',
+    desc: 'ECG tracings paper the walls. The rhythms of the heart are your language here. One misread and the case collapses.',
+    story: 'Monitors beep steadily. A 12-lead ECG rolls off the printer. The Cardio Unit demands precision above all else.',
+  },
+  {
+    id: 6,  start: 51,  end: 60,
+    name: 'The Research Floor', subject: 'biostatistics', color: '#fd79a8',
+    desc: 'Whiteboards covered in p-values and confidence intervals. The numbers tell the truth — if you know how to read them.',
+    story: 'Stacks of journal articles tower around you. P-values and NNTs guard every door. Evidence-based medicine is your only weapon.',
+  },
+  {
+    id: 7,  start: 61,  end: 70,
+    name: 'Mixed Challenge',    subject: 'all',            color: '#fdcb6e',
+    desc: 'All disciplines collide here. No single subject can carry you — breadth is your only weapon.',
+    story: 'The walls shift between departments. Cardiology bleeds into pharmacology. Neurology overlaps with biochemistry. The true test begins.',
+  },
+  {
+    id: 8,  start: 71,  end: 80,
+    name: 'The Gauntlet',       subject: 'all',            color: '#d63031',
+    desc: 'Few reach this floor. The questions are harder, the pressure immense. Only the relentless survive.',
+    story: 'The corridor narrows. Torches flicker. You are one of the few who made it this far. The Gauntlet shows no mercy.',
+  },
+  {
+    id: 9,  start: 81,  end: 90,
+    name: 'The Penthouse',      subject: 'all',            color: '#e84393',
+    desc: 'Near the summit. The air grows thin. Every answer feels like the last.',
+    story: 'Floor-to-ceiling windows reveal the city far below. You are almost there. The Penthouse belongs only to the elite.',
+  },
+  {
+    id: 10, start: 91,  end: 100,
+    name: 'The Summit',         subject: 'all',            color: '#f5c518',
+    desc: 'The final ten floors. Boss encounters on every level. Only legends reach the top.',
+    story: "Wind howls at the summit. The final guardian waits. Everything you've learned brought you here. Give everything.",
+  },
+];
+
+const BOSS_NAMES = {
+  10:  'The Metabolic Guardian',
+  20:  'The Microbial Overlord',
+  30:  'The Pharmacological Titan',
+  40:  'The Neural Architect',
+  50:  'The Cardiac Sentinel',
+  60:  'The Statistical Oracle',
+  70:  'The Polymathic Gatekeeper',
+  80:  'The Iron Gauntlet',
+  90:  'The Penthouse Warden',
+  100: 'The Summit Master',
+};
+
+function getZone(floor) {
+  return ZONES.find(z => floor >= z.start && floor <= z.end) || ZONES[0];
+}
+
+function floorType(floor) {
+  if (floor % 10 === 0) return 'boss';
+  if (floor % 5 === 0)  return 'challenge';
+  return 'normal';
+}
+
+function floorTarget(floor) {
+  const t = floorType(floor);
+  if (t === 'boss')      return 10;
+  if (t === 'challenge') return 5;
+  return 3;
+}
+
+function floorName(floor) {
+  const t = floorType(floor);
+  if (t === 'boss')      return BOSS_NAMES[floor] || `Boss: Floor ${floor}`;
+  if (t === 'challenge') return `Challenge — Floor ${floor}`;
+  return `Floor ${floor}`;
+}
+
+function typeTag(type) {
+  if (type === 'boss')      return { label: 'BOSS',      color: '#ff4455' };
+  if (type === 'challenge') return { label: 'CHALLENGE', color: '#fdcb6e' };
+  return                           { label: 'NORMAL',    color: '#3ddc84' };
+}
+
+// ── Progress persistence ───────────────────────────────────────────────────────
+
+function loadProgress(username) {
+  try {
+    const raw = localStorage.getItem(`tower_${username}`);
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return { floor: 1 };
+}
+
+function saveProgress(username, floor) {
+  try { localStorage.setItem(`tower_${username}`, JSON.stringify({ floor })); } catch {}
+  const token = getToken();
+  if (token) {
+    fetch(`${SERVER}/api/tower/progress`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ floor }),
+    }).catch(() => {});
+  }
+}
+
+// ── Main component ─────────────────────────────────────────────────────────────
+
+export default function TowerMode({ username, onBack }) {
+  const saved = loadProgress(username);
+
+  // which floor is unlocked/current (highest reached)
+  const [unlockedFloor, setUnlockedFloor] = useState(saved.floor || 1);
+  // which floor is actively being played right now
+  const [activeFloor,   setActiveFloor]   = useState(saved.floor || 1);
+
+  // view state machine
+  const [view, setView] = useState('map'); // 'map' | 'intro' | 'playing' | 'cleared' | 'failed'
+
+  // floor gameplay state
+  const [questions,     setQuestions]     = useState([]);
+  const [qIdx,          setQIdx]          = useState(0);
+  const [lives,         setLives]         = useState(3);
+  const [correctCount,  setCorrectCount]  = useState(0);
+  const [selected,      setSelected]      = useState(null);
+  const [revealed,      setRevealed]      = useState(false);
+  const [timeLeft,      setTimeLeft]      = useState(20);
+  const [loading,       setLoading]       = useState(false);
+  const [bossKilled,    setBossKilled]    = useState(false); // wrong answer on boss floor
+
+  // refs to avoid stale closures in timer/processAnswer
+  const timerRef        = useRef(null);
+  const timeLeftRef     = useRef(20);
+  const revealedRef     = useRef(false);
+  const livesRef        = useRef(3);
+  const correctRef      = useRef(0);
+  const qIdxRef         = useRef(0);
+  const questionsRef    = useRef([]);
+  const processRef      = useRef(null);
+
+  revealedRef.current   = revealed;
+  livesRef.current      = lives;
+  correctRef.current    = correctCount;
+  qIdxRef.current       = qIdx;
+  questionsRef.current  = questions;
+
+  useEffect(() => {
+    audio.stopBgMusic();
+    audio.startGameMusic();
+    return () => audio.stopGameMusic();
+  }, []);
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
+
+  function stopTimer() {
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+  }
+
+  function startTimer() {
+    stopTimer();
+    timeLeftRef.current = 20;
+    setTimeLeft(20);
+    timerRef.current = setInterval(() => {
+      timeLeftRef.current -= 1;
+      setTimeLeft(timeLeftRef.current);
+      if (timeLeftRef.current <= 5 && timeLeftRef.current > 0) audio.playTick();
+      if (timeLeftRef.current <= 0) {
+        stopTimer();
+        processRef.current?.(null);
+      }
+    }, 1000);
+  }
+
+  async function fetchQuestions(subject) {
+    setLoading(true);
+    try {
+      const res  = await fetch(`${SERVER}/api/questions?subject=${subject}`);
+      const data = await res.json();
+      const qs   = data.questions || [];
+      setQuestions(qs);
+      questionsRef.current = qs;
+    } catch {
+      setQuestions([]);
+    }
+    setLoading(false);
+  }
+
+  function enterFloor(floor) {
+    const zone = getZone(floor);
+    setActiveFloor(floor);
+    setLives(3);         livesRef.current    = 3;
+    setCorrectCount(0);  correctRef.current  = 0;
+    setQIdx(0);          qIdxRef.current     = 0;
+    setSelected(null);
+    setRevealed(false);  revealedRef.current = false;
+    setBossKilled(false);
+    fetchQuestions(zone.subject);
+    setView('intro');
+  }
+
+  function beginPlaying() {
+    setView('playing');
+    startTimer();
+  }
+
+  // ── Process answer ─────────────────────────────────────────────────────────
+
+  function processAnswer(label) {
+    if (revealedRef.current) return;
+    stopTimer();
+
+    const qs = questionsRef.current;
+    const q  = qs[qIdxRef.current % Math.max(qs.length, 1)];
+    if (!q) return;
+
+    revealedRef.current = true;
+    setRevealed(true);
+    setSelected(label);
+
+    const correct   = label !== null && label === q.correct;
+    const type      = floorType(activeFloor);
+    const target    = floorTarget(activeFloor);
+
+    if (correct) {
+      audio.playCorrect();
+      const newCorrect = correctRef.current + 1;
+      correctRef.current = newCorrect;
+      setCorrectCount(newCorrect);
+
+      setTimeout(() => {
+        if (newCorrect >= target) {
+          // Floor cleared
+          const next = activeFloor + 1;
+          const newUnlocked = Math.max(next, unlockedFloor);
+          setUnlockedFloor(newUnlocked);
+          saveProgress(username, newUnlocked);
+          setView('cleared');
+        } else {
+          // Next question
+          const nextIdx = qIdxRef.current + 1;
+          qIdxRef.current = nextIdx;
+          setQIdx(nextIdx);
+          revealedRef.current = false;
+          setRevealed(false);
+          setSelected(null);
+          startTimer();
+        }
+      }, 2200);
+
+    } else {
+      audio.playWrong();
+
+      if (type === 'boss') {
+        setBossKilled(true);
+        setTimeout(() => setView('failed'), 2200);
+      } else {
+        const newLives = livesRef.current - 1;
+        livesRef.current = newLives;
+        setLives(newLives);
+
+        if (newLives <= 0) {
+          audio.playEliminated();
+          setTimeout(() => setView('failed'), 2200);
+        } else {
+          setTimeout(() => {
+            const nextIdx = qIdxRef.current + 1;
+            qIdxRef.current = nextIdx;
+            setQIdx(nextIdx);
+            revealedRef.current = false;
+            setRevealed(false);
+            setSelected(null);
+            startTimer();
+          }, 2200);
+        }
+      }
+    }
+  }
+
+  processRef.current = processAnswer;
+
+  // ── Derived ────────────────────────────────────────────────────────────────
+
+  const zone    = getZone(activeFloor);
+  const type    = floorType(activeFloor);
+  const target  = floorTarget(activeFloor);
+  const tag     = typeTag(type);
+  const q       = questions.length > 0 ? questions[qIdx % questions.length] : null;
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // VIEW: MAP
+  // ════════════════════════════════════════════════════════════════════════════
+
+  if (view === 'map') {
+    const displayZone = getZone(unlockedFloor);
+
+    return (
+      <div className="tw-screen" style={{ '--zc': displayZone.color }}>
+        <div className="tw-map-wrap">
+
+          {/* Header */}
+          <div className="tw-header">
+            <div className="tw-title-row">
+              <span className="tw-castle-icon">🏰</span>
+              <h1 className="tw-title">The Tower</h1>
+            </div>
+            <div className="tw-global-prog">
+              <span className="tw-prog-label">Floor {unlockedFloor} / 100</span>
+              <div className="tw-prog-track">
+                <div className="tw-prog-fill" style={{ width: `${Math.max((unlockedFloor - 1), 0)}%` }} />
+              </div>
+            </div>
+          </div>
+
+          {/* Zone banner */}
+          <div className="tw-zone-banner">
+            <div className="tw-zb-meta">
+              <span className="tw-zb-num">Zone {displayZone.id} of 10</span>
+              <span className="tw-zb-subject">
+                {displayZone.subject === 'all' ? 'All Subjects' : displayZone.subject.charAt(0).toUpperCase() + displayZone.subject.slice(1)}
+              </span>
+            </div>
+            <div className="tw-zb-name" style={{ color: displayZone.color }}>{displayZone.name}</div>
+            <p className="tw-zb-desc">{displayZone.desc}</p>
+          </div>
+
+          {/* Floor list — current zone */}
+          <div className="tw-floor-list">
+            {Array.from({ length: 10 }, (_, i) => {
+              const floor       = displayZone.end - i;
+              const ft          = floorType(floor);
+              const ftag        = typeTag(ft);
+              const completed   = floor < unlockedFloor;
+              const isCurrent   = floor === unlockedFloor;
+              const locked      = floor > unlockedFloor;
+
+              return (
+                <div
+                  key={floor}
+                  className={`tw-floor-row ${completed ? 'completed' : ''} ${isCurrent ? 'current' : ''} ${locked ? 'locked' : ''}`}
+                  onClick={() => isCurrent && enterFloor(floor)}
+                >
+                  <div className="tw-fr-num">
+                    <span className="tw-fr-status">
+                      {completed ? '✓' : isCurrent ? '▶' : '🔒'}
+                    </span>
+                    <span>{floor}</span>
+                  </div>
+                  <div className="tw-fr-info">
+                    <span className="tw-fr-name">{floorName(floor)}</span>
+                    <span className="tw-fr-type" style={{ color: ftag.color }}>{ftag.label}</span>
+                  </div>
+                  <div className="tw-fr-req">
+                    {ft === 'boss' ? '⚡ 10 correct, 0 wrong'
+                      : ft === 'challenge' ? `⚔️ ${floorTarget(floor)} correct, 3 lives`
+                      : `✅ ${floorTarget(floor)} correct, 3 lives`}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Actions */}
+          <div className="tw-map-actions">
+            {unlockedFloor > 1 && (
+              <div className="tw-continue-hint">Continue from Floor {unlockedFloor}</div>
+            )}
+            <button
+              className="tw-enter-btn"
+              style={{ background: `linear-gradient(135deg, ${displayZone.color} 0%, ${displayZone.color}99 100%)` }}
+              onClick={() => enterFloor(unlockedFloor)}
+            >
+              Enter Floor {unlockedFloor} →
+            </button>
+            {unlockedFloor > 1 && (
+              <button className="tw-secondary-btn tw-danger-btn" onClick={() => {
+                if (window.confirm('Reset all progress and start from Floor 1?')) {
+                  saveProgress(username, 1);
+                  setUnlockedFloor(1);
+                  setActiveFloor(1);
+                }
+              }}>
+                Start Over
+              </button>
+            )}
+            <button className="tw-secondary-btn" onClick={onBack}>← Back to Menu</button>
+          </div>
+
+        </div>
+      </div>
+    );
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // VIEW: INTRO
+  // ════════════════════════════════════════════════════════════════════════════
+
+  if (view === 'intro') {
+    const isZoneEntry = activeFloor === zone.start;
+
+    return (
+      <div className="tw-screen tw-center-screen" style={{ '--zc': zone.color }}>
+        <div className="tw-intro-card">
+
+          {isZoneEntry && (
+            <div className="tw-zone-entry">
+              <div className="tw-ze-eyebrow">Entering Zone {zone.id} of 10</div>
+              <div className="tw-ze-name" style={{ color: zone.color }}>{zone.name}</div>
+              <p className="tw-ze-story">{zone.story}</p>
+            </div>
+          )}
+
+          <div className="tw-floor-intro">
+            <div className="tw-fi-badge" style={{ color: tag.color, borderColor: tag.color }}>
+              {tag.label}
+            </div>
+            <h2 className="tw-fi-name">{floorName(activeFloor)}</h2>
+            <div className="tw-fi-num">Floor {activeFloor} of 100</div>
+
+            <div className="tw-fi-rules">
+              {type === 'boss' ? (
+                <>
+                  <div className="tw-fi-rule">⚡ Answer {target} questions correctly</div>
+                  <div className="tw-fi-rule tw-fi-danger">💀 One wrong answer restarts this boss floor</div>
+                  <div className="tw-fi-rule tw-fi-danger">🏆 Perfect run required — no mistakes allowed</div>
+                </>
+              ) : (
+                <>
+                  <div className="tw-fi-rule">
+                    {type === 'challenge' ? '⚔️' : '✅'} Answer {target} questions correctly to pass
+                  </div>
+                  <div className="tw-fi-rule">❤️ 3 lives — each wrong answer costs one life</div>
+                  <div className="tw-fi-rule">🔄 Lose all lives and the floor resets</div>
+                </>
+              )}
+            </div>
+          </div>
+
+          <button
+            className="tw-begin-btn"
+            style={{ background: `linear-gradient(135deg, ${zone.color} 0%, ${zone.color}aa 100%)` }}
+            onClick={beginPlaying}
+            disabled={loading}
+          >
+            {loading ? 'Loading Questions…' : type === 'boss' ? '⚡ Challenge Boss' : 'Begin Floor →'}
+          </button>
+          <button className="tw-secondary-btn" onClick={() => setView('map')}>← Back to Tower</button>
+
+        </div>
+      </div>
+    );
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // VIEW: PLAYING
+  // ════════════════════════════════════════════════════════════════════════════
+
+  if (view === 'playing') {
+    const pct  = (timeLeft / 20) * 100;
+    const tier = timeLeft > 10 ? 'green' : timeLeft > 5 ? 'yellow' : 'red';
+
+    return (
+      <div className="tw-screen tw-playing-screen" style={{ '--zc': zone.color }}>
+
+        {/* Top bar */}
+        <div className="tw-topbar">
+          <div className="tw-tb-left">
+            <span className="tw-tb-floor">🏰 Floor {activeFloor}</span>
+            <span className="tw-tb-zone" style={{ color: zone.color }}>{zone.name}</span>
+          </div>
+
+          <div className="tw-tb-mid">
+            <div className="tw-dots">
+              {Array.from({ length: target }, (_, i) => (
+                <span key={i} className={`tw-dot ${i < correctCount ? 'filled' : ''}`} />
+              ))}
+            </div>
+            <div className="tw-dot-label">{correctCount} / {target} correct</div>
+          </div>
+
+          <div className="tw-tb-right">
+            {type === 'boss' ? (
+              <span className="tw-boss-badge">⚡ NO MISTAKES</span>
+            ) : (
+              <div className="tw-hearts">
+                {[1, 2, 3].map(i => (
+                  <span key={i} className={`tw-heart ${i > lives ? 'dead' : ''}`}>
+                    {i <= lives ? '❤️' : '🖤'}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Timer */}
+        {!revealed && (
+          <div className="tw-timer-wrap">
+            <div className={`tw-timer-num ${tier}`}>{timeLeft}s</div>
+            <div className="tw-timer-track">
+              <div className={`tw-timer-fill ${tier}`} style={{ width: `${pct}%` }} />
+            </div>
+          </div>
+        )}
+
+        {/* Question card */}
+        <div className="tw-q-wrap">
+          {q ? (
+            <>
+              {q.image_url && (
+                <img src={q.image_url} alt="" className="tw-q-img" />
+              )}
+              <div className="tw-q-text">{q.question}</div>
+              <div className="tw-options">
+                {q.options.map((opt, i) => {
+                  const label   = LABELS[i];
+                  const isMine  = selected === label;
+                  const isRight = revealed && q.correct === label;
+                  const isWrong = revealed && isMine && q.correct !== label;
+                  return (
+                    <button
+                      key={i}
+                      className={`tw-opt ${isMine ? 'selected' : ''} ${isRight ? 'correct' : ''} ${isWrong ? 'wrong' : ''}`}
+                      onClick={() => processAnswer(label)}
+                      disabled={revealed}
+                    >
+                      <span className="tw-opt-lbl">{label}</span>
+                      <span className="tw-opt-txt">{opt}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {revealed && (
+                <div className={`tw-reveal ${selected === q.correct ? 'correct' : 'wrong'}`}>
+                  <div className="tw-rv-head">
+                    <span className="tw-rv-icon">
+                      {selected === q.correct ? '✅' : bossKilled ? '💀' : '❌'}
+                    </span>
+                    <span className="tw-rv-label">
+                      {selected === null ? "TIME'S UP!"
+                        : selected === q.correct ? 'CORRECT!'
+                        : bossKilled ? 'BOSS FLOOR FAILED!'
+                        : lives <= 1 && type !== 'boss' ? 'FLOOR FAILED!'
+                        : 'WRONG!'}
+                    </span>
+                  </div>
+                  <div className="tw-rv-expl">
+                    <strong>Correct: {q.correct}</strong>
+                    <p>{q.explanation}</p>
+                  </div>
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="tw-loading-q">Loading question…</div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // VIEW: CLEARED
+  // ════════════════════════════════════════════════════════════════════════════
+
+  if (view === 'cleared') {
+    const nextFloor  = activeFloor + 1;
+    const nextZone   = getZone(nextFloor);
+    const isLastFloor = activeFloor >= 100;
+    const isBossFloor = type === 'boss';
+
+    return (
+      <div className="tw-screen tw-center-screen" style={{ '--zc': zone.color }}>
+        <div className="tw-result-card tw-cleared">
+          <div className="tw-rc-icon">{isBossFloor ? '🏆' : '🌟'}</div>
+          <h2 className="tw-rc-title">{isBossFloor ? 'Boss Defeated!' : 'Floor Cleared!'}</h2>
+          <div className="tw-rc-floor" style={{ color: zone.color }}>
+            {floorName(activeFloor)} — Complete
+          </div>
+          <p className="tw-rc-detail">
+            {isBossFloor ? `Perfect run! ${target}/${target} correct.` : `${correctCount}/${target} correct answers.`}
+          </p>
+
+          {isLastFloor ? (
+            <div className="tw-summit-msg">
+              <div className="tw-summit-crown">👑</div>
+              <h3>YOU CONQUERED THE TOWER!</h3>
+              <p>All 100 floors cleared. You have reached the summit. You are a true master of medicine.</p>
+              <button className="tw-enter-btn" style={{ background: 'linear-gradient(135deg, #f5c518, #c49b10)' }} onClick={() => setView('map')}>
+                Return to Tower
+              </button>
+            </div>
+          ) : (
+            <>
+              {getZone(nextFloor).id !== zone.id && (
+                <div className="tw-new-zone-hint" style={{ color: nextZone.color }}>
+                  New zone unlocked: {nextZone.name}
+                </div>
+              )}
+              <div className="tw-rc-next">Floor {nextFloor} unlocked →</div>
+              <button
+                className="tw-enter-btn"
+                style={{ background: `linear-gradient(135deg, ${nextZone.color} 0%, ${nextZone.color}99 100%)` }}
+                onClick={() => enterFloor(nextFloor)}
+              >
+                Enter Floor {nextFloor} →
+              </button>
+              <button className="tw-secondary-btn" onClick={() => setView('map')}>
+                Back to Tower Map
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // VIEW: FAILED
+  // ════════════════════════════════════════════════════════════════════════════
+
+  if (view === 'failed') {
+    return (
+      <div className="tw-screen tw-center-screen" style={{ '--zc': zone.color }}>
+        <div className="tw-result-card tw-failed">
+          <div className="tw-rc-icon">{type === 'boss' ? '💀' : '💔'}</div>
+          <h2 className="tw-rc-title">{type === 'boss' ? 'Defeated by the Boss' : 'Floor Failed'}</h2>
+          <div className="tw-rc-floor" style={{ color: '#ff4455' }}>{floorName(activeFloor)}</div>
+          <p className="tw-rc-detail">
+            {type === 'boss'
+              ? 'The boss demands a flawless performance. One wrong answer ends your run on this floor. Study and try again.'
+              : 'You lost all your lives. Lives refill fully at the start of every attempt.'}
+          </p>
+          <button
+            className="tw-enter-btn"
+            style={{ background: 'linear-gradient(135deg, #c0392b, #922b21)' }}
+            onClick={() => enterFloor(activeFloor)}
+          >
+            ↺ Retry Floor {activeFloor}
+          </button>
+          <button className="tw-secondary-btn" onClick={() => setView('map')}>
+            Back to Tower Map
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return null;
+}

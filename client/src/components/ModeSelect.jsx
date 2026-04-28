@@ -62,13 +62,14 @@ function TrivialPursuitIcon() {
 
 const MODES = [
   {
-    id:          'scan_master',
-    name:        'Scan Master',
-    icon:        '🔬',
-    tagline:     'Identify conditions from medical images',
-    description: 'Study real medical images — ECGs, X-rays, histology, dermatology and more. Last doctor standing wins.',
-    gradient:    'linear-gradient(135deg, #00b894 0%, #00695c 100%)',
-    border:      '#00cec9',
+    id:          'tower',
+    name:        'The Tower',
+    icon:        '🏰',
+    tagline:     'Climb 100 floors of medical knowledge',
+    description: 'Solo story mode. Ascend 10 zones across 100 floors. Normal, challenge, and boss floors await. How far can you go?',
+    gradient:    'linear-gradient(135deg, #2c1f00 0%, #1a1200 100%)',
+    border:      '#c9a84c',
+    solo:        true,
   },
   {
     id:          'battle_royale',
@@ -97,6 +98,15 @@ const MODES = [
     gradient:    'linear-gradient(135deg, #9b59b6 0%, #6c3483 100%)',
     border:      '#9b59b6',
   },
+  {
+    id:          'scan_master',
+    name:        'Scan Master',
+    icon:        '🔬',
+    tagline:     'Identify conditions from medical images',
+    description: 'Study real medical images — ECGs, X-rays, histology, dermatology and more. Last doctor standing wins.',
+    gradient:    'linear-gradient(135deg, #00b894 0%, #00695c 100%)',
+    border:      '#00cec9',
+  },
 ];
 
 export default function ModeSelect({ username, onSelect, onBack }) {
@@ -114,10 +124,11 @@ export default function ModeSelect({ username, onSelect, onBack }) {
           {MODES.map(m => (
             <button
               key={m.id}
-              className="mode-card"
+              className={`mode-card ${m.id === 'tower' ? 'mode-card-tower' : ''}`}
               onClick={() => onSelect(m.id)}
               style={{ '--mode-grad': m.gradient, '--mode-border': m.border }}
             >
+              {m.solo && <span className="mode-card-solo-badge">Solo</span>}
               <div className="mode-card-icon">{m.iconEl || m.icon}</div>
               <h3 className="mode-card-name">{m.name}</h3>
               <div className="mode-card-tagline">{m.tagline}</div>
