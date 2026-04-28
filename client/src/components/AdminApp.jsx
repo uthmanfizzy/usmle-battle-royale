@@ -697,133 +697,376 @@ function QuestionsPanel() {
   );
 }
 
+// ── Settings helpers ───────────────────────────────────────────────────────────
+
+function withDefaults(raw) {
+  return {
+    // kept for server compatibility
+    hardModeEnabled:         raw.hardModeEnabled         ?? false,
+    step2Enabled:            raw.step2Enabled            ?? false,
+    timerDuration:           raw.timerDefault            ?? raw.timerDuration            ?? 20,
+    startingLives:           raw.battleRoyaleLives       ?? raw.startingLives            ?? 3,
+    // Question settings
+    timerDefault:            raw.timerDefault            ?? raw.timerDuration            ?? 20,
+    timerSpeedRace:          raw.timerSpeedRace          ?? 10,
+    timerTriviaPursuit:      raw.timerTriviaPursuit      ?? 25,
+    timerScanMaster:         raw.timerScanMaster         ?? 25,
+    explanationTime:         raw.explanationTime         ?? 5,
+    speedRaceQuestions:      raw.speedRaceQuestions      ?? 20,
+    battleRoyaleMaxQ:        raw.battleRoyaleMaxQ        ?? 0,
+    minQuestionsPerCategory: raw.minQuestionsPerCategory ?? 5,
+    // Lives & difficulty
+    battleRoyaleLives:       raw.battleRoyaleLives       ?? raw.startingLives            ?? 3,
+    suddenDeathTrigger:      raw.suddenDeathTrigger      ?? 2,
+    suddenDeathTimer:        raw.suddenDeathTimer        ?? 5,
+    towerFloorLives:         raw.towerFloorLives         ?? 3,
+    bossTolerance:           raw.bossTolerance           ?? 0,
+    // Lobby
+    maxPlayersPerLobby:      raw.maxPlayersPerLobby      ?? 10,
+    minPlayersToStart:       raw.minPlayersToStart       ?? 2,
+    maxBotsPerLobby:         raw.maxBotsPerLobby         ?? 3,
+    lobbyAutoStart:          raw.lobbyAutoStart          ?? 0,
+    allowGuests:             raw.allowGuests             ?? true,
+    allowQuickJoin:          raw.allowQuickJoin          ?? true,
+  };
+}
+
+function SliderRow({ label, desc, min, max, step, unit, value, onChange }) {
+  return (
+    <div className="ap-srow">
+      <div className="ap-srow-info">
+        <div className="ap-srow-label">{label}</div>
+        <div className="ap-srow-desc">{desc}</div>
+      </div>
+      <div className="ap-srow-ctrl">
+        <div className="ap-slider-ctrl">
+          <input
+            type="range"
+            min={min} max={max} step={step} value={value}
+            onChange={e => onChange(Number(e.target.value))}
+            className="ap-range"
+          />
+          <div className="ap-range-val">
+            <input
+              type="number"
+              min={min} max={max} value={value}
+              onChange={e => {
+                const v = Math.max(min, Math.min(max, Number(e.target.value)));
+                if (!isNaN(v)) onChange(v);
+              }}
+              className="ap-range-num"
+            />
+            <span className="ap-range-unit">{unit}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ToggleRow({ label, desc, checked, onChange }) {
+  return (
+    <div className="ap-srow">
+      <div className="ap-srow-info">
+        <div className="ap-srow-label">{label}</div>
+        <div className="ap-srow-desc">{desc}</div>
+      </div>
+      <div className="ap-srow-ctrl">
+        <label className="ap-toggle">
+          <input type="checkbox" checked={checked} onChange={e => onChange(e.target.checked)} />
+          <span className="ap-slider" />
+        </label>
+      </div>
+    </div>
+  );
+}
+
+function SectionSaveBtn({ saving, saved, onSave }) {
+  return (
+    <div className="ap-section-footer">
+      <button
+        className={`ap-section-save-btn ${saved ? 'saved' : ''}`}
+        onClick={onSave}
+        disabled={saving}
+      >
+        {saving ? 'Saving…' : saved ? '✓ Saved!' : 'Save Settings'}
+      </button>
+    </div>
+  );
+}
+
 // ── Settings Panel ─────────────────────────────────────────────────────────────
 
 function SettingsPanel() {
   const [settings, setSettings] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [error, setError] = useState('');
+  const [loading,  setLoading]  = useState(true);
+  const [error,    setError]    = useState('');
+  const [saving,   setSaving]   = useState({ questions: false, lives: false, lobby: false });
+  const [saved,    setSaved]    = useState({ questions: false, lives: false, lobby: false });
 
   useEffect(() => {
     apiCall('/admin/settings')
       .then(r => r.json())
-      .then(setSettings)
+      .then(raw => setSettings(withDefaults(raw)))
       .catch(() => setError('Failed to load settings.'))
       .finally(() => setLoading(false));
   }, []);
 
-  async function handleSave() {
-    setSaving(true);
-    setSaved(false);
+  async function saveSection(section) {
+    setSaving(s => ({ ...s, [section]: true }));
+    setSaved(s  => ({ ...s, [section]: false }));
     setError('');
     try {
-      const res = await apiCall('/admin/settings', {
-        method: 'POST',
-        body: JSON.stringify(settings),
-      });
+      const res  = await apiCall('/admin/settings', { method: 'POST', body: JSON.stringify(settings) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Save failed');
-      setSettings(data);
-      setSaved(true);
-      setTimeout(() => setSaved(false), 3000);
+      setSettings(withDefaults(data));
+      setSaved(s => ({ ...s, [section]: true }));
+      setTimeout(() => setSaved(s => ({ ...s, [section]: false })), 3000);
     } catch (err) {
       setError(err.message);
     }
-    setSaving(false);
+    setSaving(s => ({ ...s, [section]: false }));
   }
 
-  function upd(key, val) {
-    setSettings(s => ({ ...s, [key]: val }));
-  }
+  function upd(key, val) { setSettings(s => ({ ...s, [key]: val })); }
 
-  if (loading) return <div className="ap-loading">Loading settings…</div>;
+  if (loading)   return <div className="ap-loading">Loading settings…</div>;
   if (!settings) return <div className="ap-error">{error || 'Failed to load settings.'}</div>;
 
   return (
-    <div className="ap-settings">
-      <div className="ap-settings-grid">
+    <div className="ap-settings-v2">
 
-        <div className="ap-setting-card">
-          <div className="ap-setting-info">
-            <div className="ap-setting-title">Hard Mode</div>
-            <div className="ap-setting-desc">Enable high-difficulty game mode globally</div>
-          </div>
-          <label className="ap-toggle">
-            <input
-              type="checkbox"
-              checked={settings.hardModeEnabled}
-              onChange={e => upd('hardModeEnabled', e.target.checked)}
-            />
-            <span className="ap-slider" />
-          </label>
-        </div>
-
-        <div className="ap-setting-card">
-          <div className="ap-setting-info">
-            <div className="ap-setting-title">Step 2 Mode</div>
-            <div className="ap-setting-desc">Enable USMLE Step 2 CK question bank</div>
-          </div>
-          <label className="ap-toggle">
-            <input
-              type="checkbox"
-              checked={settings.step2Enabled}
-              onChange={e => upd('step2Enabled', e.target.checked)}
-            />
-            <span className="ap-slider" />
-          </label>
-        </div>
-
-        <div className="ap-setting-card">
-          <div className="ap-setting-info">
-            <div className="ap-setting-title">Question Timer</div>
-            <div className="ap-setting-desc">Seconds players have to answer each question (5–60)</div>
-          </div>
-          <div className="ap-stepper">
-            <button type="button" onClick={() => upd('timerDuration', Math.max(5, settings.timerDuration - 5))}>−</button>
-            <input
-              type="number"
-              value={settings.timerDuration}
-              min={5}
-              max={60}
-              onChange={e => upd('timerDuration', Math.max(5, Math.min(60, Number(e.target.value))))}
-            />
-            <button type="button" onClick={() => upd('timerDuration', Math.min(60, settings.timerDuration + 5))}>+</button>
-            <span className="ap-stepper-unit">sec</span>
+      {/* ── 1. QUESTION SETTINGS ──────────────────────────────────────── */}
+      <div className="ap-settings-section">
+        <div className="ap-section-hd">
+          <div className="ap-section-icon">❓</div>
+          <div>
+            <h2 className="ap-section-title-lg">Question Settings</h2>
+            <p className="ap-section-subtitle">Timer durations and question counts per game mode</p>
           </div>
         </div>
 
-        <div className="ap-setting-card">
-          <div className="ap-setting-info">
-            <div className="ap-setting-title">Starting Lives</div>
-            <div className="ap-setting-desc">How many lives each player starts with (1–10)</div>
+        <div className="ap-settings-rows">
+          <SliderRow label="Default Question Timer"
+            desc="Fallback timer for modes without a specific setting"
+            min={5} max={60} step={1} unit="sec"
+            value={settings.timerDefault}
+            onChange={v => upd('timerDefault', v)} />
+
+          <SliderRow label="Speed Race Timer"
+            desc="Seconds per question in Speed Race mode"
+            min={5} max={30} step={1} unit="sec"
+            value={settings.timerSpeedRace}
+            onChange={v => upd('timerSpeedRace', v)} />
+
+          <SliderRow label="Trivia Pursuit Timer"
+            desc="Seconds per question in Trivia Pursuit"
+            min={10} max={60} step={1} unit="sec"
+            value={settings.timerTriviaPursuit}
+            onChange={v => upd('timerTriviaPursuit', v)} />
+
+          <SliderRow label="Scan Master Timer"
+            desc="Seconds per question in Scan Master mode"
+            min={15} max={60} step={1} unit="sec"
+            value={settings.timerScanMaster}
+            onChange={v => upd('timerScanMaster', v)} />
+
+          <SliderRow label="Explanation Display Time"
+            desc="How long to show the answer explanation before moving on"
+            min={3} max={30} step={1} unit="sec"
+            value={settings.explanationTime}
+            onChange={v => upd('explanationTime', v)} />
+
+          <SliderRow label="Speed Race Question Count"
+            desc="Number of correct answers needed to win a Speed Race game"
+            min={5} max={50} step={5} unit="questions"
+            value={settings.speedRaceQuestions}
+            onChange={v => upd('speedRaceQuestions', v)} />
+
+          <div className="ap-srow">
+            <div className="ap-srow-info">
+              <div className="ap-srow-label">Battle Royale Max Questions</div>
+              <div className="ap-srow-desc">Cap the total questions per game, or leave unlimited (game ends when 1 player remains)</div>
+            </div>
+            <div className="ap-srow-ctrl">
+              <div className="ap-chip-group">
+                {[
+                  { label: 'Unlimited', value: 0 },
+                  { label: '50',  value: 50  },
+                  { label: '100', value: 100 },
+                  { label: '150', value: 150 },
+                  { label: '200', value: 200 },
+                ].map(opt => (
+                  <button
+                    key={opt.value}
+                    className={`ap-chip ${settings.battleRoyaleMaxQ === opt.value ? 'active' : ''}`}
+                    onClick={() => upd('battleRoyaleMaxQ', opt.value)}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
-          <div className="ap-stepper">
-            <button type="button" onClick={() => upd('startingLives', Math.max(1, settings.startingLives - 1))}>−</button>
-            <input
-              type="number"
-              value={settings.startingLives}
-              min={1}
-              max={10}
-              onChange={e => upd('startingLives', Math.max(1, Math.min(10, Number(e.target.value))))}
-            />
-            <button type="button" onClick={() => upd('startingLives', Math.min(10, settings.startingLives + 1))}>+</button>
-            <span className="ap-stepper-unit">lives</span>
-          </div>
+
+          <SliderRow label="Minimum Questions per Category"
+            desc="A category is hidden in mode select if it has fewer questions than this threshold"
+            min={1} max={20} step={1} unit="questions"
+            value={settings.minQuestionsPerCategory}
+            onChange={v => upd('minQuestionsPerCategory', v)} />
         </div>
 
+        <SectionSaveBtn saving={saving.questions} saved={saved.questions} onSave={() => saveSection('questions')} />
       </div>
 
-      {error && <div className="ap-error ap-settings-error">{error}</div>}
+      {/* ── 2. LIVES & DIFFICULTY ─────────────────────────────────────── */}
+      <div className="ap-settings-section">
+        <div className="ap-section-hd">
+          <div className="ap-section-icon">❤️</div>
+          <div>
+            <h2 className="ap-section-title-lg">Lives &amp; Difficulty</h2>
+            <p className="ap-section-subtitle">Lives, sudden death, and boss floor mechanics</p>
+          </div>
+        </div>
 
-      <button
-        className={`ap-btn-pri ap-save-btn ${saved ? 'ap-saved' : ''}`}
-        onClick={handleSave}
-        disabled={saving}
-      >
-        {saving ? 'Saving…' : saved ? '✓ Settings Saved!' : 'Save Settings'}
-      </button>
+        <div className="ap-settings-rows">
+          <div className="ap-srow">
+            <div className="ap-srow-info">
+              <div className="ap-srow-label">Battle Royale Starting Lives</div>
+              <div className="ap-srow-desc">How many lives each player starts with in Battle Royale</div>
+            </div>
+            <div className="ap-srow-ctrl">
+              <div className="ap-chip-group">
+                {[1, 2, 3, 5].map(n => (
+                  <button
+                    key={n}
+                    className={`ap-chip ap-chip-lg ${settings.battleRoyaleLives === n ? 'active' : ''}`}
+                    onClick={() => upd('battleRoyaleLives', n)}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <SliderRow label="Sudden Death Trigger"
+            desc="Sudden death activates when this many players remain"
+            min={2} max={10} step={1} unit="players"
+            value={settings.suddenDeathTrigger}
+            onChange={v => upd('suddenDeathTrigger', v)} />
+
+          <SliderRow label="Sudden Death Timer"
+            desc="Seconds per question during sudden death phase"
+            min={3} max={10} step={1} unit="sec"
+            value={settings.suddenDeathTimer}
+            onChange={v => upd('suddenDeathTimer', v)} />
+
+          <SliderRow label="Tower Floor Lives"
+            desc="Lives per floor in The Tower mode (normal and challenge floors)"
+            min={1} max={5} step={1} unit="lives"
+            value={settings.towerFloorLives}
+            onChange={v => upd('towerFloorLives', v)} />
+
+          <div className="ap-srow">
+            <div className="ap-srow-info">
+              <div className="ap-srow-label">Boss Floor Tolerance</div>
+              <div className="ap-srow-desc">How many wrong answers are allowed before failing a boss floor</div>
+            </div>
+            <div className="ap-srow-ctrl">
+              <div className="ap-chip-group">
+                <button
+                  className={`ap-chip ${settings.bossTolerance === 0 ? 'active' : ''}`}
+                  onClick={() => upd('bossTolerance', 0)}
+                >
+                  Zero mistakes
+                </button>
+                <button
+                  className={`ap-chip ${settings.bossTolerance === 1 ? 'active' : ''}`}
+                  onClick={() => upd('bossTolerance', 1)}
+                >
+                  Allow 1 mistake
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <SectionSaveBtn saving={saving.lives} saved={saved.lives} onSave={() => saveSection('lives')} />
+      </div>
+
+      {/* ── 3. LOBBY SETTINGS ─────────────────────────────────────────── */}
+      <div className="ap-settings-section">
+        <div className="ap-section-hd">
+          <div className="ap-section-icon">🏠</div>
+          <div>
+            <h2 className="ap-section-title-lg">Lobby Settings</h2>
+            <p className="ap-section-subtitle">Player limits, bots, and join behaviour</p>
+          </div>
+        </div>
+
+        <div className="ap-settings-rows">
+          <SliderRow label="Maximum Players per Lobby"
+            desc="Hard cap on how many players can join a single lobby"
+            min={2} max={20} step={1} unit="players"
+            value={settings.maxPlayersPerLobby}
+            onChange={v => upd('maxPlayersPerLobby', v)} />
+
+          <SliderRow label="Minimum Players to Start"
+            desc="A game cannot start until at least this many players are ready"
+            min={1} max={5} step={1} unit="players"
+            value={settings.minPlayersToStart}
+            onChange={v => upd('minPlayersToStart', v)} />
+
+          <SliderRow label="Maximum Bots per Lobby"
+            desc="Bots fill empty slots automatically — set to 0 to disable bots entirely"
+            min={0} max={5} step={1} unit="bots"
+            value={settings.maxBotsPerLobby}
+            onChange={v => upd('maxBotsPerLobby', v)} />
+
+          <div className="ap-srow">
+            <div className="ap-srow-info">
+              <div className="ap-srow-label">Lobby Auto-Start Timer</div>
+              <div className="ap-srow-desc">Automatically start the game after this delay once minimum players have joined</div>
+            </div>
+            <div className="ap-srow-ctrl">
+              <div className="ap-chip-group">
+                {[
+                  { label: 'Off',   value: 0   },
+                  { label: '30s',   value: 30  },
+                  { label: '1 min', value: 60  },
+                  { label: '2 min', value: 120 },
+                  { label: '5 min', value: 300 },
+                ].map(opt => (
+                  <button
+                    key={opt.value}
+                    className={`ap-chip ${settings.lobbyAutoStart === opt.value ? 'active' : ''}`}
+                    onClick={() => upd('lobbyAutoStart', opt.value)}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <ToggleRow label="Allow Guests"
+            desc="Let players join without creating an account"
+            checked={settings.allowGuests}
+            onChange={v => upd('allowGuests', v)} />
+
+          <ToggleRow label="Allow Quick Join"
+            desc="Enable the Quick Join button globally — players can jump into any open lobby"
+            checked={settings.allowQuickJoin}
+            onChange={v => upd('allowQuickJoin', v)} />
+        </div>
+
+        <SectionSaveBtn saving={saving.lobby} saved={saved.lobby} onSave={() => saveSection('lobby')} />
+      </div>
+
+      {error && <div className="ap-error" style={{ marginTop: 4 }}>{error}</div>}
+
     </div>
   );
 }
