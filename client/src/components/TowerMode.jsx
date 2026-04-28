@@ -114,6 +114,14 @@ function typeTag(type) {
   return                           { label: 'NORMAL',    color: '#3ddc84' };
 }
 
+function calcFloorXp(floorNum, livesLost) {
+  const t = floorType(floorNum);
+  let xp = t === 'boss' ? 150 : t === 'challenge' ? 60 : 30;
+  if (livesLost === 0) xp += 20;        // perfect run bonus
+  if (floorNum % 10 === 0) xp += 200;   // zone completion bonus
+  return xp;
+}
+
 // ── Progress persistence ───────────────────────────────────────────────────────
 
 function loadProgress(username) {
@@ -121,11 +129,11 @@ function loadProgress(username) {
     const raw = localStorage.getItem(`tower_${username}`);
     if (raw) return JSON.parse(raw);
   } catch {}
-  return { floor: 1 };
+  return { floor: 1, xp: 0 };
 }
 
-function saveProgress(username, floor) {
-  try { localStorage.setItem(`tower_${username}`, JSON.stringify({ floor })); } catch {}
+function saveProgress(username, floor, xp = 0) {
+  try { localStorage.setItem(`tower_${username}`, JSON.stringify({ floor, xp })); } catch {}
   const token = getToken();
   if (token) {
     fetch(`${SERVER}/api/tower/progress`, {
@@ -141,46 +149,69 @@ function saveProgress(username, floor) {
 export default function TowerMode({ username, onBack }) {
   const saved = loadProgress(username);
 
-  // which floor is unlocked/current (highest reached)
-  const [unlockedFloor, setUnlockedFloor] = useState(saved.floor || 1);
-  // which floor is actively being played right now
-  const [activeFloor,   setActiveFloor]   = useState(saved.floor || 1);
+  const [unlockedFloor,   setUnlockedFloor]   = useState(saved.floor || 1);
+  const [activeFloor,     setActiveFloor]     = useState(saved.floor || 1);
+  const [view,            setView]            = useState('map');
 
-  // view state machine
-  const [view, setView] = useState('map'); // 'map' | 'intro' | 'playing' | 'cleared' | 'failed'
+  const [questions,       setQuestions]       = useState([]);
+  const [qIdx,            setQIdx]            = useState(0);
+  const [lives,           setLives]           = useState(3);
+  const [correctCount,    setCorrectCount]    = useState(0);
+  const [selected,        setSelected]        = useState(null);
+  const [revealed,        setRevealed]        = useState(false);
+  const [timeLeft,        setTimeLeft]        = useState(20);
+  const [loading,         setLoading]         = useState(false);
+  const [bossKilled,      setBossKilled]      = useState(false);
+  const [introCountdown,  setIntroCountdown]  = useState(3);
+  const [xpEarned,        setXpEarned]        = useState(0);
+  const [xpBreakdown,     setXpBreakdown]     = useState([]);
+  const [totalXp,         setTotalXp]         = useState(saved.xp || 0);
 
-  // floor gameplay state
-  const [questions,     setQuestions]     = useState([]);
-  const [qIdx,          setQIdx]          = useState(0);
-  const [lives,         setLives]         = useState(3);
-  const [correctCount,  setCorrectCount]  = useState(0);
-  const [selected,      setSelected]      = useState(null);
-  const [revealed,      setRevealed]      = useState(false);
-  const [timeLeft,      setTimeLeft]      = useState(20);
-  const [loading,       setLoading]       = useState(false);
-  const [bossKilled,    setBossKilled]    = useState(false); // wrong answer on boss floor
+  // refs to prevent stale closures in timer / processAnswer
+  const timerRef          = useRef(null);
+  const timeLeftRef       = useRef(20);
+  const revealedRef       = useRef(false);
+  const livesRef          = useRef(3);
+  const correctRef        = useRef(0);
+  const qIdxRef           = useRef(0);
+  const questionsRef      = useRef([]);
+  const processRef        = useRef(null);
+  const livesLostRef      = useRef(0);
+  const activeFloorRef    = useRef(saved.floor || 1);
+  const unlockedFloorRef  = useRef(saved.floor || 1);
+  const totalXpRef        = useRef(saved.xp || 0);
+  const beginPlayingRef   = useRef(null);
 
-  // refs to avoid stale closures in timer/processAnswer
-  const timerRef        = useRef(null);
-  const timeLeftRef     = useRef(20);
-  const revealedRef     = useRef(false);
-  const livesRef        = useRef(3);
-  const correctRef      = useRef(0);
-  const qIdxRef         = useRef(0);
-  const questionsRef    = useRef([]);
-  const processRef      = useRef(null);
-
-  revealedRef.current   = revealed;
-  livesRef.current      = lives;
-  correctRef.current    = correctCount;
-  qIdxRef.current       = qIdx;
-  questionsRef.current  = questions;
+  // keep refs in sync with state at each render
+  revealedRef.current      = revealed;
+  livesRef.current         = lives;
+  correctRef.current       = correctCount;
+  qIdxRef.current          = qIdx;
+  questionsRef.current     = questions;
+  activeFloorRef.current   = activeFloor;
+  unlockedFloorRef.current = unlockedFloor;
 
   useEffect(() => {
     audio.stopBgMusic();
     audio.startGameMusic();
     return () => audio.stopGameMusic();
   }, []);
+
+  // 3-second intro countdown → auto-advance to boss_warning or playing
+  useEffect(() => {
+    if (view !== 'intro') return;
+    let cnt = 3;
+    const cntId = setInterval(() => {
+      cnt -= 1;
+      setIntroCountdown(cnt);
+    }, 1000);
+    const advId = setTimeout(() => {
+      clearInterval(cntId);
+      if (floorType(activeFloorRef.current) === 'boss') setView('boss_warning');
+      else beginPlayingRef.current?.();
+    }, 3000);
+    return () => { clearInterval(cntId); clearTimeout(advId); };
+  }, [view]);
 
   // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -203,6 +234,12 @@ export default function TowerMode({ username, onBack }) {
     }, 1000);
   }
 
+  function beginPlaying() {
+    setView('playing');
+    startTimer();
+  }
+  beginPlayingRef.current = beginPlaying;
+
   async function fetchQuestions(subject) {
     setLoading(true);
     try {
@@ -220,19 +257,19 @@ export default function TowerMode({ username, onBack }) {
   function enterFloor(floor) {
     const zone = getZone(floor);
     setActiveFloor(floor);
+    activeFloorRef.current = floor;
     setLives(3);         livesRef.current    = 3;
     setCorrectCount(0);  correctRef.current  = 0;
     setQIdx(0);          qIdxRef.current     = 0;
     setSelected(null);
     setRevealed(false);  revealedRef.current = false;
     setBossKilled(false);
+    livesLostRef.current = 0;
+    setIntroCountdown(3);
+    setXpEarned(0);
+    setXpBreakdown([]);
     fetchQuestions(zone.subject);
     setView('intro');
-  }
-
-  function beginPlaying() {
-    setView('playing');
-    startTimer();
   }
 
   // ── Process answer ─────────────────────────────────────────────────────────
@@ -249,9 +286,10 @@ export default function TowerMode({ username, onBack }) {
     setRevealed(true);
     setSelected(label);
 
-    const correct   = label !== null && label === q.correct;
-    const type      = floorType(activeFloor);
-    const target    = floorTarget(activeFloor);
+    const correct = label !== null && label === q.correct;
+    const floor   = activeFloorRef.current;
+    const type    = floorType(floor);
+    const target  = floorTarget(floor);
 
     if (correct) {
       audio.playCorrect();
@@ -261,14 +299,35 @@ export default function TowerMode({ username, onBack }) {
 
       setTimeout(() => {
         if (newCorrect >= target) {
-          // Floor cleared
-          const next = activeFloor + 1;
-          const newUnlocked = Math.max(next, unlockedFloor);
+          // ── Floor cleared: calculate XP ──
+          const baseXp       = type === 'boss' ? 150 : type === 'challenge' ? 60 : 30;
+          const perfectBonus = livesLostRef.current === 0 ? 20 : 0;
+          const zoneBonus    = floor % 10 === 0 ? 200 : 0;
+          const xp           = baseXp + perfectBonus + zoneBonus;
+          const newTotal     = totalXpRef.current + xp;
+          totalXpRef.current = newTotal;
+
+          const breakdown = [
+            {
+              label: type === 'boss' ? 'Boss defeated' : type === 'challenge' ? 'Challenge cleared' : 'Floor cleared',
+              xp: baseXp,
+            },
+            ...(perfectBonus > 0 ? [{ label: 'Perfect run bonus', xp: perfectBonus }] : []),
+            ...(zoneBonus    > 0 ? [{ label: 'Zone completed!',   xp: zoneBonus    }] : []),
+          ];
+
+          setXpEarned(xp);
+          setXpBreakdown(breakdown);
+          setTotalXp(newTotal);
+
+          const next        = floor + 1;
+          const newUnlocked = Math.max(next, unlockedFloorRef.current);
           setUnlockedFloor(newUnlocked);
-          saveProgress(username, newUnlocked);
+          unlockedFloorRef.current = newUnlocked;
+          saveProgress(username, newUnlocked, newTotal);
           setView('cleared');
         } else {
-          // Next question
+          // next question
           const nextIdx = qIdxRef.current + 1;
           qIdxRef.current = nextIdx;
           setQIdx(nextIdx);
@@ -286,6 +345,7 @@ export default function TowerMode({ username, onBack }) {
         setBossKilled(true);
         setTimeout(() => setView('failed'), 2200);
       } else {
+        livesLostRef.current += 1;
         const newLives = livesRef.current - 1;
         livesRef.current = newLives;
         setLives(newLives);
@@ -312,11 +372,11 @@ export default function TowerMode({ username, onBack }) {
 
   // ── Derived ────────────────────────────────────────────────────────────────
 
-  const zone    = getZone(activeFloor);
-  const type    = floorType(activeFloor);
-  const target  = floorTarget(activeFloor);
-  const tag     = typeTag(type);
-  const q       = questions.length > 0 ? questions[qIdx % questions.length] : null;
+  const zone   = getZone(activeFloor);
+  const type   = floorType(activeFloor);
+  const target = floorTarget(activeFloor);
+  const tag    = typeTag(type);
+  const q      = questions.length > 0 ? questions[qIdx % questions.length] : null;
 
   // ════════════════════════════════════════════════════════════════════════════
   // VIEW: MAP
@@ -329,7 +389,6 @@ export default function TowerMode({ username, onBack }) {
       <div className="tw-screen" style={{ '--zc': displayZone.color }}>
         <div className="tw-map-wrap">
 
-          {/* Header */}
           <div className="tw-header">
             <div className="tw-title-row">
               <span className="tw-castle-icon">🏰</span>
@@ -341,9 +400,11 @@ export default function TowerMode({ username, onBack }) {
                 <div className="tw-prog-fill" style={{ width: `${Math.max((unlockedFloor - 1), 0)}%` }} />
               </div>
             </div>
+            {totalXp > 0 && (
+              <div className="tw-map-xp">⚡ {totalXp.toLocaleString()} Tower XP</div>
+            )}
           </div>
 
-          {/* Zone banner */}
           <div className="tw-zone-banner">
             <div className="tw-zb-meta">
               <span className="tw-zb-num">Zone {displayZone.id} of 10</span>
@@ -355,15 +416,14 @@ export default function TowerMode({ username, onBack }) {
             <p className="tw-zb-desc">{displayZone.desc}</p>
           </div>
 
-          {/* Floor list — current zone */}
           <div className="tw-floor-list">
             {Array.from({ length: 10 }, (_, i) => {
-              const floor       = displayZone.end - i;
-              const ft          = floorType(floor);
-              const ftag        = typeTag(ft);
-              const completed   = floor < unlockedFloor;
-              const isCurrent   = floor === unlockedFloor;
-              const locked      = floor > unlockedFloor;
+              const floor     = displayZone.end - i;
+              const ft        = floorType(floor);
+              const ftag      = typeTag(ft);
+              const completed = floor < unlockedFloor;
+              const isCurrent = floor === unlockedFloor;
+              const locked    = floor > unlockedFloor;
 
               return (
                 <div
@@ -391,7 +451,6 @@ export default function TowerMode({ username, onBack }) {
             })}
           </div>
 
-          {/* Actions */}
           <div className="tw-map-actions">
             {unlockedFloor > 1 && (
               <div className="tw-continue-hint">Continue from Floor {unlockedFloor}</div>
@@ -406,9 +465,10 @@ export default function TowerMode({ username, onBack }) {
             {unlockedFloor > 1 && (
               <button className="tw-secondary-btn tw-danger-btn" onClick={() => {
                 if (window.confirm('Reset all progress and start from Floor 1?')) {
-                  saveProgress(username, 1);
-                  setUnlockedFloor(1);
-                  setActiveFloor(1);
+                  saveProgress(username, 1, 0);
+                  setUnlockedFloor(1); unlockedFloorRef.current = 1;
+                  setActiveFloor(1);  activeFloorRef.current  = 1;
+                  setTotalXp(0);      totalXpRef.current      = 0;
                 }
               }}>
                 Start Over
@@ -423,7 +483,7 @@ export default function TowerMode({ username, onBack }) {
   }
 
   // ════════════════════════════════════════════════════════════════════════════
-  // VIEW: INTRO
+  // VIEW: INTRO  (auto-advances after 3 seconds)
   // ════════════════════════════════════════════════════════════════════════════
 
   if (view === 'intro') {
@@ -467,16 +527,65 @@ export default function TowerMode({ username, onBack }) {
             </div>
           </div>
 
+          <div className="tw-intro-countdown">
+            <div className="tw-ic-num" key={introCountdown}>
+              {introCountdown > 0 ? introCountdown : '…'}
+            </div>
+            <p className="tw-ic-label">
+              {introCountdown > 0 ? `Starting in ${introCountdown}s` : 'Loading…'}
+              {' — '}
+              <span
+                className="tw-ic-skip"
+                role="button"
+                tabIndex={0}
+                onClick={() => {
+                  if (type === 'boss') setView('boss_warning');
+                  else beginPlaying();
+                }}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    if (type === 'boss') setView('boss_warning');
+                    else beginPlaying();
+                  }
+                }}
+              >
+                skip
+              </span>
+            </p>
+          </div>
+
+          <button className="tw-secondary-btn" onClick={() => setView('map')}>← Back to Tower</button>
+
+        </div>
+      </div>
+    );
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // VIEW: BOSS WARNING  (dramatic entrance before boss floor)
+  // ════════════════════════════════════════════════════════════════════════════
+
+  if (view === 'boss_warning') {
+    return (
+      <div className="tw-screen tw-center-screen tw-boss-warning-screen">
+        <div className="tw-boss-warning-card">
+          <div className="tw-bw-icon">⚠️</div>
+          <div className="tw-bw-eyebrow">Boss Floor {activeFloor} of 100</div>
+          <h2 className="tw-bw-name">{floorName(activeFloor)}</h2>
+          <p className="tw-bw-zone">{zone.name}</p>
+          <div className="tw-bw-rules">
+            <div className="tw-bw-rule">⚡ Answer {target} questions correctly</div>
+            <div className="tw-bw-rule tw-bw-danger">💀 ONE wrong answer = immediate failure</div>
+            <div className="tw-bw-rule tw-bw-danger">🏆 A flawless performance is required</div>
+          </div>
           <button
-            className="tw-begin-btn"
-            style={{ background: `linear-gradient(135deg, ${zone.color} 0%, ${zone.color}aa 100%)` }}
+            className="tw-enter-btn tw-boss-challenge-btn"
             onClick={beginPlaying}
             disabled={loading}
           >
-            {loading ? 'Loading Questions…' : type === 'boss' ? '⚡ Challenge Boss' : 'Begin Floor →'}
+            {loading ? 'Loading Questions…' : '⚡ Challenge the Boss'}
           </button>
           <button className="tw-secondary-btn" onClick={() => setView('map')}>← Back to Tower</button>
-
         </div>
       </div>
     );
@@ -493,7 +602,6 @@ export default function TowerMode({ username, onBack }) {
     return (
       <div className="tw-screen tw-playing-screen" style={{ '--zc': zone.color }}>
 
-        {/* Top bar */}
         <div className="tw-topbar">
           <div className="tw-tb-left">
             <span className="tw-tb-floor">🏰 Floor {activeFloor}</span>
@@ -506,7 +614,7 @@ export default function TowerMode({ username, onBack }) {
                 <span key={i} className={`tw-dot ${i < correctCount ? 'filled' : ''}`} />
               ))}
             </div>
-            <div className="tw-dot-label">{correctCount} / {target} correct</div>
+            <div className="tw-dot-label">Question {correctCount + 1} of {target}</div>
           </div>
 
           <div className="tw-tb-right">
@@ -524,7 +632,6 @@ export default function TowerMode({ username, onBack }) {
           </div>
         </div>
 
-        {/* Timer */}
         {!revealed && (
           <div className="tw-timer-wrap">
             <div className={`tw-timer-num ${tier}`}>{timeLeft}s</div>
@@ -534,7 +641,6 @@ export default function TowerMode({ username, onBack }) {
           </div>
         )}
 
-        {/* Question card */}
         <div className="tw-q-wrap">
           {q ? (
             <>
@@ -577,7 +683,7 @@ export default function TowerMode({ username, onBack }) {
                     </span>
                   </div>
                   <div className="tw-rv-expl">
-                    <strong>Correct: {q.correct}</strong>
+                    <strong>Correct answer: {q.correct}</strong>
                     <p>{q.explanation}</p>
                   </div>
                 </div>
@@ -592,26 +698,43 @@ export default function TowerMode({ username, onBack }) {
   }
 
   // ════════════════════════════════════════════════════════════════════════════
-  // VIEW: CLEARED
+  // VIEW: CLEARED  🎉
   // ════════════════════════════════════════════════════════════════════════════
 
   if (view === 'cleared') {
-    const nextFloor  = activeFloor + 1;
-    const nextZone   = getZone(nextFloor);
+    const nextFloor   = activeFloor + 1;
+    const nextZone    = getZone(nextFloor);
     const isLastFloor = activeFloor >= 100;
     const isBossFloor = type === 'boss';
 
     return (
       <div className="tw-screen tw-center-screen" style={{ '--zc': zone.color }}>
         <div className="tw-result-card tw-cleared">
-          <div className="tw-rc-icon">{isBossFloor ? '🏆' : '🌟'}</div>
+          <div className="tw-rc-icon">{isBossFloor ? '🏆' : '🎉'}</div>
           <h2 className="tw-rc-title">{isBossFloor ? 'Boss Defeated!' : 'Floor Cleared!'}</h2>
           <div className="tw-rc-floor" style={{ color: zone.color }}>
             {floorName(activeFloor)} — Complete
           </div>
           <p className="tw-rc-detail">
-            {isBossFloor ? `Perfect run! ${target}/${target} correct.` : `${correctCount}/${target} correct answers.`}
+            {isBossFloor
+              ? `Perfect run! All ${target} answers correct.`
+              : `${correctCount} of ${target} correct answers.`}
           </p>
+
+          {xpEarned > 0 && (
+            <div className="tw-xp-block">
+              <div className="tw-xp-total">+{xpEarned} XP</div>
+              <div className="tw-xp-breakdown">
+                {xpBreakdown.map((row, i) => (
+                  <div key={i} className="tw-xp-row">
+                    <span>{row.label}</span>
+                    <span className="tw-xp-val">+{row.xp}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="tw-xp-cumulative">Total Tower XP: {totalXp.toLocaleString()}</div>
+            </div>
+          )}
 
           {isLastFloor ? (
             <div className="tw-summit-msg">
@@ -626,7 +749,7 @@ export default function TowerMode({ username, onBack }) {
             <>
               {getZone(nextFloor).id !== zone.id && (
                 <div className="tw-new-zone-hint" style={{ color: nextZone.color }}>
-                  New zone unlocked: {nextZone.name}
+                  🔓 New zone unlocked: {nextZone.name}
                 </div>
               )}
               <div className="tw-rc-next">Floor {nextFloor} unlocked →</div>
@@ -648,7 +771,7 @@ export default function TowerMode({ username, onBack }) {
   }
 
   // ════════════════════════════════════════════════════════════════════════════
-  // VIEW: FAILED
+  // VIEW: FAILED  💀
   // ════════════════════════════════════════════════════════════════════════════
 
   if (view === 'failed') {
@@ -656,19 +779,21 @@ export default function TowerMode({ username, onBack }) {
       <div className="tw-screen tw-center-screen" style={{ '--zc': zone.color }}>
         <div className="tw-result-card tw-failed">
           <div className="tw-rc-icon">{type === 'boss' ? '💀' : '💔'}</div>
-          <h2 className="tw-rc-title">{type === 'boss' ? 'Defeated by the Boss' : 'Floor Failed'}</h2>
+          <h2 className="tw-rc-title">
+            {type === 'boss' ? 'Boss Defeated You 💀' : 'Floor Failed 💀'}
+          </h2>
           <div className="tw-rc-floor" style={{ color: '#ff4455' }}>{floorName(activeFloor)}</div>
           <p className="tw-rc-detail">
             {type === 'boss'
-              ? 'The boss demands a flawless performance. One wrong answer ends your run on this floor. Study and try again.'
-              : 'You lost all your lives. Lives refill fully at the start of every attempt.'}
+              ? 'The boss demands a flawless performance. One wrong answer ends your run. Study the explanation and try again.'
+              : 'You lost all your lives. Lives fully refill at the start of each attempt.'}
           </p>
           <button
             className="tw-enter-btn"
             style={{ background: 'linear-gradient(135deg, #c0392b, #922b21)' }}
             onClick={() => enterFloor(activeFloor)}
           >
-            ↺ Retry Floor {activeFloor}
+            ↺ Try Again
           </button>
           <button className="tw-secondary-btn" onClick={() => setView('map')}>
             Back to Tower Map
