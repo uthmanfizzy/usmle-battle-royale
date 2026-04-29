@@ -2086,7 +2086,7 @@ app.get('/api/tower/leaderboard', async (req, res) => {
 const WELCOME_ANNOUNCEMENT = {
   id: 'welcome-default',
   title: 'Welcome to Med Royale! 🏥',
-  body: 'Welcome to Med Royale - the most fun way to prepare for your medical exams. We are just getting started and have big plans ahead. Good luck on your journey to becoming a doctor. Study hard, play hard!',
+  message: 'Welcome to Med Royale - the most fun way to prepare for your medical exams. We are just getting started and have big plans ahead. Good luck on your journey to becoming a doctor. Study hard, play hard!',
   category: 'Update',
   pinned: true,
   urgent: false,
@@ -2106,7 +2106,7 @@ app.get('/api/announcements', async (req, res) => {
     if (list.length === 0) {
       const { data: inserted } = await supabase
         .from('announcements')
-        .insert({ title: WELCOME_ANNOUNCEMENT.title, body: WELCOME_ANNOUNCEMENT.body, category: 'Update', pinned: true, urgent: false })
+        .insert({ title: WELCOME_ANNOUNCEMENT.title, message: WELCOME_ANNOUNCEMENT.message, category: 'Update', pinned: true, urgent: false })
         .select().single();
       list = inserted ? [inserted] : [WELCOME_ANNOUNCEMENT];
     }
@@ -2119,12 +2119,12 @@ app.get('/api/announcements', async (req, res) => {
 
 app.post('/admin/announcements', adminAuth, async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Database not configured.' });
-  const { title, body, category, pinned, urgent } = req.body;
-  if (!title?.trim() || !body?.trim()) return res.status(400).json({ error: 'title and body are required.' });
+  const { title, message, category, pinned, urgent } = req.body;
+  if (!title?.trim() || !message?.trim()) return res.status(400).json({ error: 'title and message are required.' });
   try {
     const { data, error } = await supabase
       .from('announcements')
-      .insert({ title: title.trim(), body: body.trim(), category: category || 'Update', pinned: !!pinned, urgent: !!urgent })
+      .insert({ title: title.trim(), message: message.trim(), category: category || 'Update', pinned: !!pinned, urgent: !!urgent })
       .select().single();
     if (error) throw error;
     res.json(data);
@@ -2133,11 +2133,11 @@ app.post('/admin/announcements', adminAuth, async (req, res) => {
 
 app.put('/admin/announcements/:id', adminAuth, async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Database not configured.' });
-  const { title, body, category, pinned, urgent } = req.body;
+  const { title, message, category, pinned, urgent } = req.body;
   try {
     const { data, error } = await supabase
       .from('announcements')
-      .update({ title: title?.trim(), body: body?.trim(), category, pinned: !!pinned, urgent: !!urgent })
+      .update({ title: title?.trim(), message: message?.trim(), category, pinned: !!pinned, urgent: !!urgent })
       .eq('id', req.params.id)
       .select().single();
     if (error) throw error;

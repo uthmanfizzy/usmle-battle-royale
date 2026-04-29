@@ -603,7 +603,7 @@ function WelcomePopup({ announcement, onClose }) {
         <div className="welcome-icon">🏥</div>
         <h2 className="welcome-title">{announcement?.title || 'Welcome to Med Royale!'}</h2>
         <p className="welcome-body">
-          {announcement?.body || 'The most fun way to prepare for your medical exams. Study hard, play hard!'}
+          {announcement?.message || 'The most fun way to prepare for your medical exams. Study hard, play hard!'}
         </p>
         <div className="welcome-founder">
           <div className="ann-founder-avatar">F</div>
@@ -666,7 +666,7 @@ function AnnouncementsSection() {
               </div>
             </div>
             <h3 className="ann-title">{a.title}</h3>
-            <p className="ann-body">{a.body}</p>
+            <p className="ann-body">{a.message}</p>
             <div className="ann-foot">
               <span className="ann-date">
                 {new Date(a.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}

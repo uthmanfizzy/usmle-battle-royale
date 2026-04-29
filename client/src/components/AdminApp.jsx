@@ -763,7 +763,7 @@ function AnnouncementModal({ announcement, onSave, onClose }) {
   const isEdit = !!announcement;
   const [form, setForm] = useState({
     title:    announcement?.title    || '',
-    body:     announcement?.body     || '',
+    message:  announcement?.message  || '',
     category: announcement?.category || 'Update',
     pinned:   announcement?.pinned   || false,
     urgent:   announcement?.urgent   || false,
@@ -775,7 +775,7 @@ function AnnouncementModal({ announcement, onSave, onClose }) {
 
   async function handleSubmit(e) {
     e.preventDefault();
-    if (!form.title.trim() || !form.body.trim()) { setError('Title and message are required.'); return; }
+    if (!form.title.trim() || !form.message.trim()) { setError('Title and message are required.'); return; }
     setSaving(true); setError('');
     try {
       const res = isEdit
@@ -813,8 +813,8 @@ function AnnouncementModal({ announcement, onSave, onClose }) {
           <div className="ap-field">
             <label>Message</label>
             <textarea
-              value={form.body}
-              onChange={e => set('body', e.target.value)}
+              value={form.message}
+              onChange={e => set('message', e.target.value)}
               rows={6}
               placeholder="Write your message here…"
               required
@@ -923,7 +923,7 @@ function AnnouncementsPanel() {
               </div>
             </div>
             <h3 className="ap-ann-card-title">{a.title}</h3>
-            <p className="ap-ann-card-body">{a.body}</p>
+            <p className="ap-ann-card-body">{a.message}</p>
             <div className="ap-ann-card-foot">
               <span className="ap-ann-card-date">
                 {new Date(a.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}

@@ -79,7 +79,7 @@ CREATE TABLE IF NOT EXISTS game_history (
 CREATE TABLE IF NOT EXISTS announcements (
   id         UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
   title      TEXT        NOT NULL,
-  body       TEXT        NOT NULL,
+  message    TEXT        NOT NULL,
   category   TEXT        NOT NULL DEFAULT 'Update' CHECK (category IN ('Update', 'News', 'Maintenance', 'Event')),
   pinned     BOOLEAN     NOT NULL DEFAULT false,
   urgent     BOOLEAN     NOT NULL DEFAULT false,
