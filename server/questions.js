@@ -1,4 +1,146 @@
 const questions = [
+  // ── BIOSTATISTICS ────────────────────────────────────────────────────────────
+  {
+    id: 'BS-001', subject: 'biostatistics',
+    difficulty: 'easy',
+    game_modes: ['battle_royale', 'speed_race', 'trivia_pursuit'],
+    question: "A new rapid strep test is evaluated in 200 patients. The test correctly identifies 90 of 100 patients who actually have Group A Streptococcus pharyngitis, and correctly rules out the infection in 80 of 100 patients who do not have it. What are the sensitivity and specificity of this test, respectively?",
+    options: [
+      "Sensitivity 80%, Specificity 90%",
+      "Sensitivity 90%, Specificity 80%",
+      "Sensitivity 90%, Specificity 90%",
+      "Sensitivity 80%, Specificity 80%"
+    ],
+    correct: "B",
+    explanation: "Sensitivity = TP/(TP+FN) = 90/100 = 90%. It answers: 'If you have the disease, how likely is the test positive?' Specificity = TN/(TN+FP) = 80/100 = 80%. It answers: 'If you don't have the disease, how likely is the test negative?' A highly sensitive test minimises false negatives and is used to rule OUT disease (SnNout). A highly specific test minimises false positives and is used to rule IN disease (SpPin)."
+  },
+  {
+    id: 'BS-002', subject: 'biostatistics',
+    difficulty: 'easy',
+    game_modes: ['battle_royale', 'speed_race', 'trivia_pursuit'],
+    question: "A cancer screening test has sensitivity 80% and specificity 95%. Applied in Population A (prevalence 1%) and Population B (prevalence 10%), the positive predictive value (PPV) differs significantly between the two populations. Which statement best explains why PPV is higher in Population B?",
+    options: [
+      "Specificity increases in high-prevalence populations, reducing false positives",
+      "More true positives exist relative to false positives in a higher-prevalence population",
+      "Sensitivity increases in high-prevalence populations, increasing true positives",
+      "PPV is a fixed property of the test and does not change with prevalence"
+    ],
+    correct: "B",
+    explanation: "PPV = TP/(TP+FP). Sensitivity and specificity are intrinsic properties of the test and do not change with prevalence. However, in a higher-prevalence population there are more true positives relative to false positives, so the fraction of positive tests that are truly positive (PPV) rises. Conversely, NPV falls as prevalence rises (more true positives means more missed if the test is negative). This is why even a specific test performs poorly as a screening tool in low-prevalence populations — most positives are false positives."
+  },
+  {
+    id: 'BS-003', subject: 'biostatistics',
+    difficulty: 'easy',
+    game_modes: ['battle_royale', 'speed_race', 'trivia_pursuit'],
+    question: "A 20-year cohort study follows 500 smokers and 500 non-smokers. By study end, 100 smokers and 20 non-smokers have developed lung cancer. What is the relative risk (RR) of lung cancer in smokers compared to non-smokers?",
+    options: [
+      "RR = 5",
+      "RR = 0.2",
+      "RR = 8",
+      "RR = 3"
+    ],
+    correct: "A",
+    explanation: "Relative Risk (RR) = [incidence in exposed] / [incidence in unexposed]. Incidence in smokers = 100/500 = 0.20 (20%). Incidence in non-smokers = 20/500 = 0.04 (4%). RR = 0.20 / 0.04 = 5. Smokers have 5 times the risk of developing lung cancer compared to non-smokers. RR is calculated from cohort studies (prospective exposure → outcome design) where true incidence rates can be measured. An RR of 1.0 means no association; RR > 1 indicates increased risk in the exposed group."
+  },
+  {
+    id: 'BS-004', subject: 'biostatistics',
+    difficulty: 'easy',
+    game_modes: ['battle_royale', 'speed_race', 'trivia_pursuit'],
+    question: "A case-control study investigates alcohol use and esophageal cancer. Of 100 cases (esophageal cancer), 70 report regular alcohol use. Of 100 healthy controls, 30 report regular alcohol use. What is the odds ratio (OR) for esophageal cancer associated with alcohol use?",
+    options: [
+      "OR = 2.3",
+      "OR = 5.4",
+      "OR = 3.5",
+      "OR = 7.0"
+    ],
+    correct: "B",
+    explanation: "OR = (a × d) / (b × c), where a = cases exposed (70), b = cases unexposed (30), c = controls exposed (30), d = controls unexposed (70). OR = (70 × 70)/(30 × 30) = 4900/900 ≈ 5.4. Odds of alcohol use among cases = 70/30; odds among controls = 30/70. The OR is the preferred measure in case-control studies because true incidence cannot be determined (study starts with known outcomes). When disease prevalence is low, OR approximates RR."
+  },
+  {
+    id: 'BS-005', subject: 'biostatistics',
+    difficulty: 'easy',
+    game_modes: ['battle_royale', 'speed_race', 'trivia_pursuit'],
+    question: "A cohort study reports that the incidence of myocardial infarction is 12 per 1,000 person-years in hypertensive patients and 4 per 1,000 person-years in normotensive patients. What is the attributable risk (risk difference) of hypertension for myocardial infarction?",
+    options: [
+      "3 per 1,000 person-years",
+      "8 per 1,000 person-years",
+      "16 per 1,000 person-years",
+      "48 per 1,000 person-years"
+    ],
+    correct: "B",
+    explanation: "Attributable Risk (AR) = Incidence in exposed − Incidence in unexposed = 12 − 4 = 8 per 1,000 person-years. This represents the excess risk of MI attributable to hypertension above the background rate. It is distinct from the Relative Risk (RR = 12/4 = 3), which measures the strength of association. AR is the most useful measure for public health: it quantifies how much disease would be prevented if the exposure were eliminated. Option A is the reciprocal of RR; Option D is the product of the two rates."
+  },
+  {
+    id: 'BS-006', subject: 'biostatistics',
+    difficulty: 'easy',
+    game_modes: ['battle_royale', 'speed_race', 'trivia_pursuit'],
+    question: "A clinical trial of 30 patients finds no statistically significant difference in blood pressure reduction between a new drug and placebo (p = 0.12). The researchers conclude the drug is ineffective. Which error is most likely occurring, and how does sample size relate to it?",
+    options: [
+      "Type I error (α); increased by small sample size",
+      "Type II error (β); increased by small sample size",
+      "Type I error (α); unaffected by sample size",
+      "Type II error (β); decreased by small sample size"
+    ],
+    correct: "B",
+    explanation: "A Type II error (β) is failing to reject a false null hypothesis — concluding no effect exists when one truly does. Small sample sizes reduce statistical power (Power = 1 − β), making Type II errors more likely. This study likely lacked adequate power to detect a true antihypertensive effect. Type I error (α) = incorrectly rejecting a true null hypothesis (false positive), conventionally set at 0.05. Increasing sample size increases power, reducing the risk of Type II error without inflating Type I error, provided α is held constant."
+  },
+  {
+    id: 'BS-007', subject: 'biostatistics',
+    difficulty: 'easy',
+    game_modes: ['battle_royale', 'speed_race', 'trivia_pursuit'],
+    question: "A randomized controlled trial comparing two antibiotics for pneumonia reports a p-value of 0.03 for the primary outcome. Which of the following is the most accurate interpretation of this p-value?",
+    options: [
+      "There is a 3% probability that the null hypothesis is true",
+      "There is a 3% probability of obtaining a difference this large or larger by chance alone, assuming the null hypothesis is true",
+      "There is a 97% probability that the new antibiotic is superior",
+      "The treatment difference is clinically meaningful"
+    ],
+    correct: "B",
+    explanation: "A p-value is the probability of obtaining results at least as extreme as those observed, assuming the null hypothesis (no true difference) is true. P = 0.03 means that if both antibiotics were equally effective, there would be only a 3% chance of observing this large a difference by random chance. It does NOT mean: the probability the null is true (A), the probability the alternative is true (C), or that the effect is clinically significant (D). A very large study can yield p < 0.05 for a trivially small and clinically irrelevant difference — always assess effect size alongside p-values."
+  },
+  {
+    id: 'BS-008', subject: 'biostatistics',
+    difficulty: 'easy',
+    game_modes: ['battle_royale', 'speed_race', 'trivia_pursuit'],
+    question: "A trial reports that a new statin reduces LDL by a mean of 18 mg/dL (95% CI: 10–26 mg/dL) compared to placebo. Which statement about this confidence interval is most accurate?",
+    options: [
+      "There is a 95% probability that the true LDL reduction lies between 10 and 26 mg/dL",
+      "If the experiment were repeated 100 times, approximately 95 of the resulting confidence intervals would contain the true mean difference",
+      "The p-value for this result is exactly 0.05",
+      "The drug reduces LDL by exactly 18 mg/dL in all patients"
+    ],
+    correct: "B",
+    explanation: "A 95% CI means: if this study were repeated many times and a CI constructed from each sample, 95% of those intervals would contain the true population parameter — not that this specific interval has a 95% chance of containing it (the true value either is or is not within any given interval). Since the CI (10–26) does not include 0, the result is statistically significant (p < 0.05), but not necessarily exactly 0.05 (C). Option D confuses the sample estimate with a fixed population truth. Wider CIs reflect greater uncertainty (smaller samples); narrower CIs reflect greater precision (larger samples)."
+  },
+  {
+    id: 'BS-009', subject: 'biostatistics',
+    difficulty: 'easy',
+    game_modes: ['battle_royale', 'speed_race', 'trivia_pursuit'],
+    question: "A researcher randomly assigns 1,000 participants to receive either a new vaccine or a placebo and follows them for 6 months to compare COVID-19 infection rates. Which study design is this, and what is its greatest methodological advantage?",
+    options: [
+      "Prospective cohort study; ability to calculate relative risk directly",
+      "Randomized controlled trial; randomization distributes known and unknown confounders equally between groups",
+      "Case-control study; efficiency for studying rare outcomes",
+      "Cross-sectional study; simultaneous measurement of exposure and outcome"
+    ],
+    correct: "B",
+    explanation: "This is a randomized controlled trial (RCT), the gold standard for establishing causation. Random assignment ensures that both known and unknown confounders are equally distributed between groups, so any outcome difference can be attributed to the intervention. Cohort studies follow exposure → outcome prospectively and can calculate RR, but without randomization, confounding by indication persists. Case-control studies start from outcomes and look backward — ideal for rare diseases but cannot establish causality. Cross-sectional studies capture a single snapshot; they cannot establish temporal sequence between exposure and disease."
+  },
+  {
+    id: 'BS-010', subject: 'biostatistics',
+    difficulty: 'easy',
+    game_modes: ['battle_royale', 'speed_race', 'trivia_pursuit'],
+    question: "A case-control study finds an association between cell phone use and glioblastoma. Patients with glioblastoma reported significantly more historical cell phone use than matched controls. Critics note that patients with brain tumors may have searched their memories more thoroughly for a possible cause of their illness. Which bias most threatens the validity of this finding?",
+    options: [
+      "Selection bias — cases and controls were recruited from different populations",
+      "Lead-time bias — early tumour detection makes survival appear prolonged",
+      "Recall bias — cases are more motivated than controls to remember past exposures",
+      "Hawthorne effect — participants change behaviour because they know they are being studied"
+    ],
+    correct: "C",
+    explanation: "Recall bias occurs when cases and controls differ systematically in their ability or motivation to remember prior exposures. Cases (with disease) are more likely to scrutinise their past for possible causes, over-reporting exposures compared to controls. This is a fundamental limitation of retrospective case-control studies. Selection bias (A) involves non-random differences in who is enrolled in each group. Lead-time bias (B) occurs in screening studies where earlier detection inflates apparent survival time without actually delaying death. The Hawthorne effect (D) describes behaviour change due to observation, not differential recall."
+  },
+
   // ── CARDIOLOGY ──────────────────────────────────────────────────────────────
   // Zone 5: Floors 41-50
   {
