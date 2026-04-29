@@ -74,6 +74,18 @@ CREATE TABLE IF NOT EXISTS game_history (
   played_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- ── announcements ─────────────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS announcements (
+  id         UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  title      TEXT        NOT NULL,
+  body       TEXT        NOT NULL,
+  category   TEXT        NOT NULL DEFAULT 'Update' CHECK (category IN ('Update', 'News', 'Maintenance', 'Event')),
+  pinned     BOOLEAN     NOT NULL DEFAULT false,
+  urgent     BOOLEAN     NOT NULL DEFAULT false,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- ── Indexes ────────────────────────────────────────────────────────────────────
 
 CREATE INDEX IF NOT EXISTS idx_users_google_id     ON users(google_id);
@@ -91,6 +103,7 @@ ALTER TABLE subject_mastery ENABLE ROW LEVEL SECURITY;
 ALTER TABLE clan_members   ENABLE ROW LEVEL SECURITY;
 ALTER TABLE clans          ENABLE ROW LEVEL SECURITY;
 ALTER TABLE game_history   ENABLE ROW LEVEL SECURITY;
+ALTER TABLE announcements  ENABLE ROW LEVEL SECURITY;
 
 -- Allow the server (authenticated via anon key + service role) full access.
 -- Replace with fine-grained policies when you add client-side Supabase calls.
@@ -108,3 +121,6 @@ CREATE POLICY IF NOT EXISTS "server_full_access_clan_members"
 
 CREATE POLICY IF NOT EXISTS "server_full_access_history"
   ON game_history FOR ALL USING (true) WITH CHECK (true);
+
+CREATE POLICY IF NOT EXISTS "server_full_access_announcements"
+  ON announcements FOR ALL USING (true) WITH CHECK (true);

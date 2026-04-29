@@ -2081,6 +2081,79 @@ app.get('/api/tower/leaderboard', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// ── Announcements API ─────────────────────────────────────────────────────────
+
+const WELCOME_ANNOUNCEMENT = {
+  id: 'welcome-default',
+  title: 'Welcome to Med Royale! 🏥',
+  body: 'Welcome to Med Royale - the most fun way to prepare for your medical exams. We are just getting started and have big plans ahead. Good luck on your journey to becoming a doctor. Study hard, play hard!',
+  category: 'Update',
+  pinned: true,
+  urgent: false,
+  created_at: new Date().toISOString(),
+};
+
+app.get('/api/announcements', async (req, res) => {
+  if (!supabase) return res.json({ announcements: [WELCOME_ANNOUNCEMENT] });
+  try {
+    const { data, error } = await supabase
+      .from('announcements')
+      .select('*')
+      .order('pinned', { ascending: false })
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    let list = data || [];
+    if (list.length === 0) {
+      const { data: inserted } = await supabase
+        .from('announcements')
+        .insert({ title: WELCOME_ANNOUNCEMENT.title, body: WELCOME_ANNOUNCEMENT.body, category: 'Update', pinned: true, urgent: false })
+        .select().single();
+      list = inserted ? [inserted] : [WELCOME_ANNOUNCEMENT];
+    }
+    res.json({ announcements: list });
+  } catch (err) {
+    console.error('[Announcements] GET error:', err.message);
+    res.json({ announcements: [WELCOME_ANNOUNCEMENT] });
+  }
+});
+
+app.post('/admin/announcements', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Database not configured.' });
+  const { title, body, category, pinned, urgent } = req.body;
+  if (!title?.trim() || !body?.trim()) return res.status(400).json({ error: 'title and body are required.' });
+  try {
+    const { data, error } = await supabase
+      .from('announcements')
+      .insert({ title: title.trim(), body: body.trim(), category: category || 'Update', pinned: !!pinned, urgent: !!urgent })
+      .select().single();
+    if (error) throw error;
+    res.json(data);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.put('/admin/announcements/:id', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Database not configured.' });
+  const { title, body, category, pinned, urgent } = req.body;
+  try {
+    const { data, error } = await supabase
+      .from('announcements')
+      .update({ title: title?.trim(), body: body?.trim(), category, pinned: !!pinned, urgent: !!urgent })
+      .eq('id', req.params.id)
+      .select().single();
+    if (error) throw error;
+    res.json(data);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.delete('/admin/announcements/:id', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Database not configured.' });
+  try {
+    const { error } = await supabase.from('announcements').delete().eq('id', req.params.id);
+    if (error) throw error;
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // ── Health check ───────────────────────────────────────────────────────────────
 
 app.get('/', (req, res) => res.status(200).send('ok'));

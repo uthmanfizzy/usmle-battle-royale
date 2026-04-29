@@ -2,6 +2,19 @@ import { useState, useEffect, useCallback } from 'react';
 import { fetchMe, authFetch } from '../auth';
 import './Dashboard.css';
 
+const SERVER_URL = 'https://usmle-battle-royale-production.up.railway.app';
+const ANN_READ_KEY    = 'mrb_read_announcements';
+const ANN_WELCOME_KEY = 'mrb_welcome_v1';
+const ANN_CAT_COLORS  = { Update: '#3498db', News: '#9b59b6', Maintenance: '#e67e22', Event: '#27ae60' };
+
+function getReadIds() {
+  try { return new Set(JSON.parse(localStorage.getItem(ANN_READ_KEY) || '[]')); }
+  catch { return new Set(); }
+}
+function saveReadIds(ids) {
+  localStorage.setItem(ANN_READ_KEY, JSON.stringify([...ids]));
+}
+
 const SUBJECTS = [
   { id: 'cardiology',    label: 'Cardiology',    icon: '❤️' },
   { id: 'neurology',     label: 'Neurology',     icon: '🧠' },
@@ -582,24 +595,140 @@ function ClanSection({ user, onUserUpdate }) {
   );
 }
 
+// ── Welcome Popup ──────────────────────────────────────────────────────────────
+function WelcomePopup({ announcement, onClose }) {
+  return (
+    <div className="welcome-overlay" onClick={onClose}>
+      <div className="welcome-popup" onClick={e => e.stopPropagation()}>
+        <div className="welcome-icon">🏥</div>
+        <h2 className="welcome-title">{announcement?.title || 'Welcome to Med Royale!'}</h2>
+        <p className="welcome-body">
+          {announcement?.body || 'The most fun way to prepare for your medical exams. Study hard, play hard!'}
+        </p>
+        <div className="welcome-founder">
+          <div className="ann-founder-avatar">F</div>
+          <div>
+            <div className="ann-founder-name">Dr-Fiz</div>
+            <div className="ann-founder-role">Founder</div>
+          </div>
+        </div>
+        <button className="btn-primary welcome-btn" onClick={onClose}>Let's Go! 🚀</button>
+      </div>
+    </div>
+  );
+}
+
+// ── Announcements Section ──────────────────────────────────────────────────────
+function AnnouncementsSection() {
+  const [announcements, setAnnouncements] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch(`${SERVER_URL}/api/announcements`)
+      .then(r => r.json())
+      .then(d => {
+        const list = d.announcements || [];
+        setAnnouncements(list);
+        const readIds = getReadIds();
+        list.forEach(a => readIds.add(String(a.id)));
+        saveReadIds(readIds);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <div className="lb-loading"><div className="spinner" /></div>;
+
+  return (
+    <div className="dash-content">
+      <div className="ann-feed">
+        {announcements.length === 0 && (
+          <div className="dash-card" style={{ textAlign: 'center', padding: 32 }}>
+            <p className="no-history">No announcements yet. Check back soon!</p>
+          </div>
+        )}
+        {announcements.map(a => (
+          <div key={a.id} className={`ann-card${a.urgent ? ' ann-urgent' : ''}`}>
+            {a.pinned && <div className="ann-pin-bar">📌 Pinned</div>}
+            <div className="ann-card-head">
+              <div className="ann-founder-row">
+                <div className="ann-founder-avatar">F</div>
+                <div>
+                  <div className="ann-founder-name">Dr-Fiz</div>
+                  <div className="ann-founder-role">Founder</div>
+                </div>
+              </div>
+              <div className="ann-badges">
+                {a.urgent && <span className="ann-badge ann-badge-urgent">URGENT</span>}
+                <span className="ann-badge ann-badge-cat" style={{ background: ANN_CAT_COLORS[a.category] || '#555' }}>
+                  {a.category}
+                </span>
+              </div>
+            </div>
+            <h3 className="ann-title">{a.title}</h3>
+            <p className="ann-body">{a.body}</p>
+            <div className="ann-foot">
+              <span className="ann-date">
+                {new Date(a.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── Main Dashboard ─────────────────────────────────────────────────────────────
 export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
-  const [dashTab, setDashTab] = useState('home'); // 'home' | 'leaderboard' | 'clans'
+  const [dashTab,      setDashTab]      = useState('home');
+  const [unreadCount,  setUnreadCount]  = useState(0);
+  const [showWelcome,  setShowWelcome]  = useState(false);
+  const [welcomeAnn,   setWelcomeAnn]   = useState(null);
+
+  useEffect(() => {
+    fetch(`${SERVER_URL}/api/announcements`)
+      .then(r => r.json())
+      .then(d => {
+        const list = d.announcements || [];
+        const readIds = getReadIds();
+        const unread = list.filter(a => !readIds.has(String(a.id))).length;
+        setUnreadCount(unread);
+        if (!localStorage.getItem(ANN_WELCOME_KEY) && list.length > 0) {
+          setWelcomeAnn(list.find(a => a.pinned) || list[0]);
+          setShowWelcome(true);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  function handleAnnouncementsTab() {
+    setDashTab('announcements');
+    setUnreadCount(0);
+  }
+
+  function handleWelcomeClose() {
+    setShowWelcome(false);
+    localStorage.setItem(ANN_WELCOME_KEY, '1');
+  }
 
   return (
     <div className="dashboard-screen">
       <div className="dashboard-container">
 
+        {showWelcome && <WelcomePopup announcement={welcomeAnn} onClose={handleWelcomeClose} />}
+
         {/* Header */}
         <div className="dash-header">
-          <div className="dash-logo">⚕️ USMLE Battle Royale</div>
+          <div className="dash-logo">⚕️ Med Royale</div>
           <button className="btn-logout" onClick={onLogout}>Sign Out</button>
         </div>
 
         {/* Tab content */}
-        {dashTab === 'home'        && <HomeSection user={user} onUserUpdate={onUserUpdate} />}
-        {dashTab === 'leaderboard' && <LeaderboardSection userId={user.id} />}
-        {dashTab === 'clans'       && <ClanSection user={user} onUserUpdate={onUserUpdate} />}
+        {dashTab === 'home'          && <HomeSection user={user} onUserUpdate={onUserUpdate} />}
+        {dashTab === 'leaderboard'   && <LeaderboardSection userId={user.id} />}
+        {dashTab === 'clans'         && <ClanSection user={user} onUserUpdate={onUserUpdate} />}
+        {dashTab === 'announcements' && <AnnouncementsSection />}
 
         {/* Bottom navigation */}
         <nav className="dash-nav">
@@ -623,6 +752,15 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
           >
             <span className="nav-icon">🛡️</span>
             <span className="nav-label">Clans</span>
+          </button>
+          <button
+            className={`dash-nav-btn ${dashTab === 'announcements' ? 'active' : ''}`}
+            onClick={handleAnnouncementsTab}
+            style={{ position: 'relative' }}
+          >
+            {unreadCount > 0 && <span className="ann-unread-dot" />}
+            <span className="nav-icon">📣</span>
+            <span className="nav-label">News</span>
           </button>
           <button className="dash-nav-btn dash-nav-play" onClick={onPlayNow}>
             <span className="nav-icon">⚔️</span>

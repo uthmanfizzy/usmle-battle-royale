@@ -754,6 +754,204 @@ function QuestionsPanel() {
   );
 }
 
+// ── Announcements Panel ────────────────────────────────────────────────────────
+
+const ANN_CATEGORIES = ['Update', 'News', 'Maintenance', 'Event'];
+const ANN_CAT_COLORS = { Update: '#3498db', News: '#9b59b6', Maintenance: '#e67e22', Event: '#27ae60' };
+
+function AnnouncementModal({ announcement, onSave, onClose }) {
+  const isEdit = !!announcement;
+  const [form, setForm] = useState({
+    title:    announcement?.title    || '',
+    body:     announcement?.body     || '',
+    category: announcement?.category || 'Update',
+    pinned:   announcement?.pinned   || false,
+    urgent:   announcement?.urgent   || false,
+  });
+  const [saving, setSaving] = useState(false);
+  const [error,  setError]  = useState('');
+
+  function set(key, val) { setForm(f => ({ ...f, [key]: val })); }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    if (!form.title.trim() || !form.body.trim()) { setError('Title and message are required.'); return; }
+    setSaving(true); setError('');
+    try {
+      const res = isEdit
+        ? await apiCall(`/admin/announcements/${announcement.id}`, { method: 'PUT', body: JSON.stringify(form) })
+        : await apiCall('/admin/announcements', { method: 'POST', body: JSON.stringify(form) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Save failed');
+      onSave(data);
+    } catch (err) {
+      setError(err.message);
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="ap-backdrop" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="ap-modal ap-ann-modal">
+        <div className="ap-modal-head">
+          <h2>{isEdit ? 'Edit Announcement' : 'New Announcement'}</h2>
+          <button className="ap-modal-x" onClick={onClose}>✕</button>
+        </div>
+        <form onSubmit={handleSubmit} className="ap-qform">
+          <div className="ap-field">
+            <label>Title</label>
+            <input
+              type="text"
+              value={form.title}
+              onChange={e => set('title', e.target.value)}
+              placeholder="Announcement title…"
+              maxLength={200}
+              required
+              autoFocus
+            />
+          </div>
+          <div className="ap-field">
+            <label>Message</label>
+            <textarea
+              value={form.body}
+              onChange={e => set('body', e.target.value)}
+              rows={6}
+              placeholder="Write your message here…"
+              required
+            />
+          </div>
+          <div className="ap-row-3">
+            <div className="ap-field">
+              <label>Category</label>
+              <select value={form.category} onChange={e => set('category', e.target.value)}>
+                {ANN_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+            <div className="ap-field ap-field-toggle">
+              <label>Pin to Top</label>
+              <label className="ap-toggle">
+                <input type="checkbox" checked={form.pinned} onChange={e => set('pinned', e.target.checked)} />
+                <span className="ap-slider" />
+              </label>
+            </div>
+            <div className="ap-field ap-field-toggle">
+              <label>Mark Urgent</label>
+              <label className="ap-toggle">
+                <input type="checkbox" checked={form.urgent} onChange={e => set('urgent', e.target.checked)} />
+                <span className="ap-slider" />
+              </label>
+            </div>
+          </div>
+          {error && <div className="ap-error">{error}</div>}
+          <div className="ap-modal-foot">
+            <button type="button" className="ap-btn-sec" onClick={onClose}>Cancel</button>
+            <button type="submit" className="ap-btn-pri" disabled={saving}>
+              {saving ? 'Saving…' : isEdit ? 'Save Changes' : 'Post Announcement'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function AnnouncementsPanel() {
+  const [list,    setList]    = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [modal,   setModal]   = useState(null);
+  const [delId,   setDelId]   = useState(null);
+  const [error,   setError]   = useState('');
+
+  useEffect(() => { load(); }, []);
+
+  async function load() {
+    setLoading(true);
+    try {
+      const res  = await apiCall('/api/announcements');
+      const data = await res.json();
+      setList(data.announcements || []);
+    } catch { setError('Failed to load announcements.'); }
+    setLoading(false);
+  }
+
+  async function handleDelete() {
+    try {
+      await apiCall(`/admin/announcements/${encodeURIComponent(delId)}`, { method: 'DELETE' });
+      setList(a => a.filter(x => x.id !== delId));
+    } catch { setError('Delete failed.'); }
+    setDelId(null);
+  }
+
+  function handleSaved(saved) {
+    setList(prev => {
+      const idx = prev.findIndex(a => a.id === saved.id);
+      if (idx >= 0) { const copy = [...prev]; copy[idx] = saved; return copy; }
+      return [saved, ...prev];
+    });
+    setModal(null);
+  }
+
+  if (loading) return <div className="ap-loading">Loading announcements…</div>;
+
+  return (
+    <div className="ap-ann-panel">
+      <div className="ap-ann-toolbar">
+        <h2 className="ap-ann-title">📣 Announcements</h2>
+        <button className="ap-btn-pri" onClick={() => setModal('new')}>+ New Announcement</button>
+      </div>
+      {error && <div className="ap-error">{error}</div>}
+
+      <div className="ap-ann-list">
+        {list.length === 0 && (
+          <div className="ap-empty" style={{ textAlign: 'center', padding: 40 }}>
+            No announcements yet. Create your first one!
+          </div>
+        )}
+        {list.map(a => (
+          <div key={a.id} className={`ap-ann-card${a.urgent ? ' ap-ann-urgent' : ''}${a.pinned ? ' ap-ann-pinned' : ''}`}>
+            <div className="ap-ann-card-head">
+              <div className="ap-ann-badges">
+                {a.pinned && <span className="ap-ann-badge-pin">📌 Pinned</span>}
+                {a.urgent && <span className="ap-ann-badge-urgent">🔴 Urgent</span>}
+                <span className="ap-ann-badge-cat" style={{ background: ANN_CAT_COLORS[a.category] || '#555' }}>
+                  {a.category}
+                </span>
+              </div>
+              <div className="ap-ann-card-actions">
+                <button className="ap-edit-btn" onClick={() => setModal(a)}>Edit</button>
+                <button className="ap-del-btn" onClick={() => setDelId(a.id)}>Delete</button>
+              </div>
+            </div>
+            <h3 className="ap-ann-card-title">{a.title}</h3>
+            <p className="ap-ann-card-body">{a.body}</p>
+            <div className="ap-ann-card-foot">
+              <span className="ap-ann-card-date">
+                {new Date(a.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {modal && (
+        <AnnouncementModal
+          announcement={modal === 'new' ? null : modal}
+          onSave={handleSaved}
+          onClose={() => setModal(null)}
+        />
+      )}
+
+      {delId !== null && (
+        <DeleteConfirm
+          questionId="this announcement"
+          onConfirm={handleDelete}
+          onCancel={() => setDelId(null)}
+        />
+      )}
+    </div>
+  );
+}
+
 // ── Settings helpers ───────────────────────────────────────────────────────────
 
 function withDefaults(raw) {
@@ -1715,21 +1913,25 @@ export default function AdminApp() {
       </header>
 
       <nav className="ap-nav">
-        <button className={`ap-nav-btn ${tab === 'stats'     ? 'active' : ''}`} onClick={() => setTab('stats')}>
+        <button className={`ap-nav-btn ${tab === 'stats'         ? 'active' : ''}`} onClick={() => setTab('stats')}>
           📊 Stats Dashboard
         </button>
-        <button className={`ap-nav-btn ${tab === 'questions' ? 'active' : ''}`} onClick={() => setTab('questions')}>
+        <button className={`ap-nav-btn ${tab === 'questions'     ? 'active' : ''}`} onClick={() => setTab('questions')}>
           📋 Question Manager
         </button>
-        <button className={`ap-nav-btn ${tab === 'settings'  ? 'active' : ''}`} onClick={() => setTab('settings')}>
+        <button className={`ap-nav-btn ${tab === 'announcements' ? 'active' : ''}`} onClick={() => setTab('announcements')}>
+          📣 Announcements
+        </button>
+        <button className={`ap-nav-btn ${tab === 'settings'      ? 'active' : ''}`} onClick={() => setTab('settings')}>
           ⚙️ Game Settings
         </button>
       </nav>
 
       <main className="ap-main">
-        {tab === 'stats'     && <StatsPanel />}
-        {tab === 'questions' && <QuestionsPanel />}
-        {tab === 'settings'  && <SettingsPanel />}
+        {tab === 'stats'         && <StatsPanel />}
+        {tab === 'questions'     && <QuestionsPanel />}
+        {tab === 'announcements' && <AnnouncementsPanel />}
+        {tab === 'settings'      && <SettingsPanel />}
       </main>
     </div>
   );
