@@ -14,15 +14,31 @@ const GAME_MODES = [
 ];
 
 const FOLDERS = [
-  { id: 'all',           label: 'All Questions',   icon: '🏥', prefix: null,  special: false },
-  { id: '__images__',    label: 'Image Questions',  icon: '🖼️', prefix: null,  special: true  },
-  { id: 'scan_master',   label: 'Scan Master',      icon: '🔬', prefix: 'SM',  special: false },
-  { id: 'cardiology',    label: 'Cardiology',       icon: '❤️',  prefix: 'CA',  special: false },
-  { id: 'neurology',     label: 'Neurology',        icon: '🧠', prefix: 'NE',  special: false },
-  { id: 'pharmacology',  label: 'Pharmacology',     icon: '💊', prefix: 'PH',  special: false },
-  { id: 'microbiology',  label: 'Microbiology',     icon: '🦠', prefix: 'MI',  special: false },
-  { id: 'biochemistry',  label: 'Biochemistry',     icon: '⚗️', prefix: 'BC',  special: false },
-  { id: 'biostatistics', label: 'Biostatistics',    icon: '📊', prefix: 'BS',  special: false },
+  { id: 'all',              label: 'All Questions',                icon: '🏥', prefix: null,  special: false },
+  { id: '__images__',       label: 'Image Questions',              icon: '🖼️', prefix: null,  special: true  },
+  { id: 'scan_master',      label: 'Scan Master',                  icon: '🔬', prefix: 'SM',  special: false },
+  { id: 'cardiology',       label: 'Cardiology',                   icon: '❤️',  prefix: 'CA',  special: false },
+  { id: 'neurology',        label: 'Neurology',                    icon: '🧠', prefix: 'NE',  special: false },
+  { id: 'pharmacology',     label: 'Pharmacology',                 icon: '💊', prefix: 'PH',  special: false },
+  { id: 'microbiology',     label: 'Microbiology',                 icon: '🦠', prefix: 'MI',  special: false },
+  { id: 'biochemistry',     label: 'Biochemistry',                 icon: '⚗️', prefix: 'BC',  special: false },
+  { id: 'biostatistics',    label: 'Biostatistics',                icon: '📊', prefix: 'BS',  special: false },
+  // Coming soon
+  { id: '__cs_sep__',       label: '',                             icon: '',   prefix: null,  special: true,  separator: true },
+  { id: 'pulmonology',      label: 'Pulmonology',                  icon: '🫁', prefix: 'PL',  special: false, comingSoon: true },
+  { id: 'nephrology',       label: 'Nephrology',                   icon: '💧', prefix: 'NP',  special: false, comingSoon: true },
+  { id: 'gastroenterology', label: 'Gastroenterology',             icon: '🫃', prefix: 'GI',  special: false, comingSoon: true },
+  { id: 'endocrinology',    label: 'Endocrinology',                icon: '🦋', prefix: 'EN',  special: false, comingSoon: true },
+  { id: 'haematology',      label: 'Haematology',                  icon: '🩸', prefix: 'HM',  special: false, comingSoon: true },
+  { id: 'immunology',       label: 'Immunology',                   icon: '🛡️', prefix: 'IM',  special: false, comingSoon: true },
+  { id: 'musculoskeletal',  label: 'Musculoskeletal',              icon: '🦴', prefix: 'MS',  special: false, comingSoon: true },
+  { id: 'dermatology',      label: 'Dermatology',                  icon: '🩹', prefix: 'DR',  special: false, comingSoon: true },
+  { id: 'reproductive',     label: 'Reproductive & Obstetrics',    icon: '👶', prefix: 'OB',  special: false, comingSoon: true },
+  { id: 'psychiatry',       label: 'Psychiatry & Behav. Science',  icon: '🧠', prefix: 'PS',  special: false, comingSoon: true },
+  { id: 'ophthalmology',    label: 'Ophthalmology',                icon: '👁️', prefix: 'OP',  special: false, comingSoon: true },
+  { id: 'ent',              label: 'ENT',                          icon: '👂', prefix: 'ET',  special: false, comingSoon: true },
+  { id: 'genetics',         label: 'Genetics & Embryology',        icon: '🧬', prefix: 'GC',  special: false, comingSoon: true },
+  { id: 'anatomy',          label: 'Anatomy',                      icon: '🫀', prefix: 'AN',  special: false, comingSoon: true },
 ];
 
 const SUBJECTS = FOLDERS.filter(f => !f.special && f.id !== 'all').map(f => f.id);
@@ -307,10 +323,18 @@ function QuestionModal({ question, defaultSubject = 'cardiology', onSave, onClos
             <div className="ap-field">
               <label>Subject</label>
               <select value={form.subject} onChange={e => set('subject', e.target.value)}>
-                {SUBJECTS.map(s => {
-                  const f = FOLDERS.find(fl => fl.id === s);
-                  return <option key={s} value={s}>{f?.icon} {s.charAt(0).toUpperCase() + s.slice(1).replace('_', ' ')}</option>;
-                })}
+                <optgroup label="Active Subjects">
+                  {SUBJECTS.filter(s => !FOLDERS.find(f => f.id === s)?.comingSoon).map(s => {
+                    const f = FOLDERS.find(fl => fl.id === s);
+                    return <option key={s} value={s}>{f?.icon} {f?.label || s}</option>;
+                  })}
+                </optgroup>
+                <optgroup label="Coming Soon">
+                  {SUBJECTS.filter(s => FOLDERS.find(f => f.id === s)?.comingSoon).map(s => {
+                    const f = FOLDERS.find(fl => fl.id === s);
+                    return <option key={s} value={s}>{f?.icon} {f?.label || s} (Coming Soon)</option>;
+                  })}
+                </optgroup>
               </select>
             </div>
             <div className="ap-field">
@@ -544,9 +568,10 @@ function QuestionsPanel() {
   }
 
   const folderCounts = FOLDERS.reduce((acc, f) => {
-    if (f.id === 'all')        acc[f.id] = questions.length;
+    if (f.separator)                acc[f.id] = 0;
+    else if (f.id === 'all')        acc[f.id] = questions.length;
     else if (f.id === '__images__') acc[f.id] = questions.filter(q => q.image_url).length;
-    else                       acc[f.id] = questions.filter(q => q.subject === f.id).length;
+    else                            acc[f.id] = questions.filter(q => q.subject === f.id).length;
     return acc;
   }, {});
 
@@ -566,17 +591,36 @@ function QuestionsPanel() {
         {/* ── Folder Sidebar ───────────────────────────────────────── */}
         <aside className="ap-sidebar">
           <div className="ap-sidebar-title">Categories</div>
-          {FOLDERS.map(f => (
-            <button
-              key={f.id}
-              className={`ap-folder-btn ${activeFolder === f.id ? 'active' : ''} ${f.id !== 'all' ? `ap-folder-${f.id}` : 'ap-folder-all'}`}
-              onClick={() => setActiveFolder(f.id)}
-            >
-              <span className="ap-folder-icon">{f.icon}</span>
-              <span className="ap-folder-label">{f.label}</span>
-              <span className="ap-folder-count">{folderCounts[f.id] || 0}</span>
-            </button>
-          ))}
+          {FOLDERS.map(f => {
+            if (f.separator) {
+              return <div key={f.id} className="ap-sidebar-separator">Coming Soon</div>;
+            }
+            if (f.special && f.id === '__images__') {
+              return (
+                <button
+                  key={f.id}
+                  className={`ap-folder-btn ${activeFolder === f.id ? 'active' : ''} ap-folder-images`}
+                  onClick={() => setActiveFolder(f.id)}
+                >
+                  <span className="ap-folder-icon">{f.icon}</span>
+                  <span className="ap-folder-label">{f.label}</span>
+                  <span className="ap-folder-count">{folderCounts[f.id] || 0}</span>
+                </button>
+              );
+            }
+            return (
+              <button
+                key={f.id}
+                className={`ap-folder-btn ${activeFolder === f.id ? 'active' : ''} ${f.id !== 'all' ? `ap-folder-${f.id}` : 'ap-folder-all'} ${f.comingSoon ? 'ap-folder-cs' : ''}`}
+                onClick={() => !f.comingSoon && setActiveFolder(f.id)}
+              >
+                <span className="ap-folder-icon">{f.icon}</span>
+                <span className="ap-folder-label">{f.label}</span>
+                <span className="ap-folder-count">{folderCounts[f.id] || 0}</span>
+                {f.comingSoon && <span className="ap-folder-cs-tag">Soon</span>}
+              </button>
+            );
+          })}
         </aside>
 
         {/* ── Question Table ────────────────────────────────────────── */}

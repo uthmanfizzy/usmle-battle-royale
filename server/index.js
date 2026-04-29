@@ -59,6 +59,12 @@ const SUBJECT_PREFIXES = {
   cardiology: 'CA', neurology: 'NE', pharmacology: 'PH',
   microbiology: 'MI', biochemistry: 'BC', biostatistics: 'BS',
   pathology: 'PT', all: 'AL', scan_master: 'SM',
+  // Coming soon subjects
+  pulmonology: 'PL', nephrology: 'NP', gastroenterology: 'GI',
+  endocrinology: 'EN', haematology: 'HM', immunology: 'IM',
+  musculoskeletal: 'MS', dermatology: 'DR', reproductive: 'OB',
+  psychiatry: 'PS', ophthalmology: 'OP', ent: 'ET',
+  genetics: 'GC', anatomy: 'AN',
 };
 
 function nextQuestionId(subject) {

@@ -921,7 +921,7 @@ table.lb-table tr:last-child td { border-bottom: none; }
   border-radius: 20px;
   padding: 36px 40px 44px;
   width: 100%;
-  max-width: 680px;
+  max-width: 880px;
   margin: 0 auto;
   box-shadow: var(--shadow);
 }
@@ -968,6 +968,75 @@ table.lb-table tr:last-child td { border-bottom: none; }
 .subj-icon  { font-size: 36px; }
 .subj-label { font-size: 15px; font-weight: 700; }
 .subj-desc  { font-size: 12px; color: var(--text-dim); text-align: center; line-height: 1.4; font-weight: 400; }
+
+/* ── Coming Soon subjects ───────────────────────────────────────────────── */
+.subj-cs-section {
+  margin-top: 32px;
+}
+
+.subj-cs-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.subj-cs-line {
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.subj-cs-title {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+.subj-cs-sub {
+  font-size: 13px;
+  color: var(--text-dim);
+  margin: 0 0 16px;
+  text-align: center;
+  line-height: 1.5;
+}
+
+.subject-grid-cs {
+  grid-template-columns: repeat(auto-fill, minmax(155px, 1fr));
+}
+
+.subject-option-cs {
+  position: relative;
+  opacity: 0.55;
+  cursor: not-allowed;
+  border-style: dashed;
+  border-color: rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.02);
+}
+.subject-option-cs:hover {
+  transform: none;
+  box-shadow: none;
+  border-color: rgba(255,255,255,0.18);
+  background: rgba(255,255,255,0.03);
+  opacity: 0.65;
+}
+
+.subj-cs-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  background: rgba(255,255,255,0.08);
+  color: var(--text-dim);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 20px;
+  padding: 2px 9px;
+  margin-top: 2px;
+}
 
 /* ── Subject badge in lobby ────────────────────────────────────────────── */
 .subject-badge {

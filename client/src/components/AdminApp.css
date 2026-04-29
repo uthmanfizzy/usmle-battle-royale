@@ -561,6 +561,39 @@
   color: var(--text);
 }
 
+/* Sidebar separator between active and coming-soon folders */
+.ap-sidebar-separator {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  padding: 10px 12px 4px;
+  opacity: 0.6;
+}
+
+/* Coming soon folder buttons */
+.ap-folder-btn.ap-folder-cs {
+  opacity: 0.5;
+  cursor: default;
+}
+.ap-folder-btn.ap-folder-cs:hover {
+  background: transparent;
+  color: var(--text-dim);
+}
+
+.ap-folder-cs-tag {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  background: rgba(255,255,255,0.07);
+  color: var(--text-dim);
+  border-radius: 4px;
+  padding: 1px 5px;
+  flex-shrink: 0;
+}
+
 /* ── Question Table Area ──────────────────────────────────────────────────── */
 
 .ap-qm-main {
