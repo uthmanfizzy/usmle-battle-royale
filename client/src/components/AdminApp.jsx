@@ -1011,6 +1011,399 @@ function AnnouncementsPanel() {
   );
 }
 
+// ── Tower Editor ──────────────────────────────────────────────────────────────
+
+const TE_ZONES = [
+  { id: 1,  start: 1,  end: 10,  name: 'The Basement',            subject: 'biochemistry',     color: '#6c5ce7', icon: '🧱' },
+  { id: 2,  start: 11, end: 20,  name: 'The Laboratory',          subject: 'microbiology',     color: '#00b894', icon: '🧫' },
+  { id: 3,  start: 21, end: 30,  name: 'The Ward',                subject: 'pharmacology',     color: '#0984e3', icon: '💊' },
+  { id: 4,  start: 31, end: 40,  name: 'The Clinic',              subject: 'neurology',        color: '#fd79a8', icon: '🧠' },
+  { id: 5,  start: 41, end: 50,  name: 'The Cardio Unit',         subject: 'cardiology',       color: '#e17055', icon: '❤️' },
+  { id: 6,  start: 51, end: 60,  name: 'The Research Floor',      subject: 'biostatistics',    color: '#00cec9', icon: '📊' },
+  { id: 7,  start: 61, end: 70,  name: 'The GI Tract',            subject: 'gastroenterology', color: '#fdcb6e', icon: '🫃' },
+  { id: 8,  start: 71, end: 80,  name: 'The Lungs',               subject: 'pulmonology',      color: '#74b9ff', icon: '🫁' },
+  { id: 9,  start: 81, end: 90,  name: 'The Reproductive System', subject: 'reproductive',     color: '#e84393', icon: '👶' },
+  { id: 10, start: 91, end: 100, name: 'The Summit',              subject: 'all',              color: '#f5c518', icon: '🏆' },
+];
+
+const TE_BOSS_NAMES = {
+  10: 'The Biochemistry Titan',    20: 'The Microbiology Overlord',
+  30: 'The Pharmacology Guardian', 40: 'The Neural Nexus',
+  50: 'The Cardiac Colossus',      60: 'The Statistics Sage',
+  70: 'The GI Guardian',           80: 'The Pulmonary Sentinel',
+  90: 'The Obstetric Warden',      100: 'The Supreme Physician',
+};
+
+function teFloorType(f) {
+  if (f % 10 === 0) return 'boss';
+  if (f % 5 === 0) return 'challenge';
+  return 'normal';
+}
+
+const TE_REQUIRED = { normal: 3, challenge: 5, boss: 10 };
+
+function teFloorName(floor) {
+  const type = teFloorType(floor);
+  if (type === 'boss') return TE_BOSS_NAMES[floor] || `Boss Floor ${floor}`;
+  if (type === 'challenge') return `Floor ${floor} — Challenge`;
+  return `Floor ${floor}`;
+}
+
+function TowerEditorPanel() {
+  const [questions, setQuestions]   = useState([]);
+  const [loading,   setLoading]     = useState(true);
+  const [search,    setSearch]      = useState('');
+  const [floorFilter, setFloorFilter] = useState('all');
+  const [collapsed, setCollapsed]   = useState({});
+  const [addingTo,  setAddingTo]    = useState(null);
+  const [addSearch, setAddSearch]   = useState('');
+  const [updating,  setUpdating]    = useState({});
+  const [busyZone,  setBusyZone]    = useState(null);
+
+  useEffect(() => { loadAll(); }, []);
+
+  async function loadAll() {
+    setLoading(true);
+    try {
+      const res  = await apiCall('/admin/questions');
+      const data = await res.json();
+      setQuestions(data.questions || []);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // Build floor→questions map
+  const floorMap = {};
+  for (let i = 1; i <= 100; i++) floorMap[i] = [];
+  for (const q of questions) {
+    const f = q.tower_floor;
+    if (f >= 1 && f <= 100) floorMap[f].push(q);
+  }
+
+  // Summary
+  let readyFloors = 0;
+  let neededTotal = 0;
+  for (let i = 1; i <= 100; i++) {
+    const req = TE_REQUIRED[teFloorType(i)];
+    if (floorMap[i].length >= req) readyFloors++;
+    else neededTotal += req - floorMap[i].length;
+  }
+
+  async function patchFloor(question, newFloor) {
+    const id  = question.id;
+    setUpdating(u => ({ ...u, [id]: true }));
+    try {
+      const modes    = Array.isArray(question.game_modes) ? question.game_modes : [];
+      const newModes = newFloor != null && !modes.includes('tower') ? [...modes, 'tower'] : modes;
+      const body     = { tower_floor: newFloor ?? null };
+      if (newFloor != null) body.game_modes = newModes;
+      const res  = await apiCall(`/admin/questions/${encodeURIComponent(id)}`, {
+        method: 'PUT',
+        body:   JSON.stringify(body),
+      });
+      const updated = await res.json();
+      if (!res.ok) throw new Error(updated.error || 'Update failed');
+      setQuestions(qs => qs.map(q => q.id === updated.id ? updated : q));
+      return updated;
+    } catch (err) {
+      alert('Error: ' + err.message);
+    } finally {
+      setUpdating(u => ({ ...u, [id]: false }));
+    }
+  }
+
+  async function clearFloor(floor) {
+    const assigned = floorMap[floor];
+    if (!assigned.length) return;
+    if (!window.confirm(`Remove all ${assigned.length} question(s) from Floor ${floor}?`)) return;
+    for (const q of assigned) await patchFloor(q, null);
+  }
+
+  async function autoAssignZone(zone) {
+    const pool = questions.filter(q => {
+      const isSubj  = zone.subject === 'all' || q.subject === zone.subject;
+      const tf      = q.tower_floor;
+      const inZone  = tf >= zone.start && tf <= zone.end;
+      const unset   = !tf || tf < 1 || tf > 100;
+      return isSubj && (inZone || unset);
+    });
+
+    if (!pool.length) {
+      alert(`No questions available for ${zone.name}. Add questions for "${zone.subject === 'all' ? 'any subject' : zone.subject}" in Question Manager first.`);
+      return;
+    }
+
+    const floorList  = Array.from({ length: 10 }, (_, i) => zone.start + i);
+    const totalSlots = floorList.reduce((s, f) => s + TE_REQUIRED[teFloorType(f)], 0);
+    if (!window.confirm(`Auto-assign ${pool.length} question(s) across floors ${zone.start}–${zone.end} (${totalSlots} slots total)? Existing zone assignments will be cleared first.`)) return;
+
+    setBusyZone(zone.id);
+
+    // Clear zone
+    for (const f of floorList) {
+      for (const q of [...floorMap[f]]) await patchFloor(q, null);
+    }
+
+    // Assign round-robin
+    let pi = 0;
+    for (const floor of floorList) {
+      const req = TE_REQUIRED[teFloorType(floor)];
+      for (let j = 0; j < req && pi < pool.length; j++, pi++) {
+        await patchFloor(pool[pi], floor);
+      }
+    }
+
+    setBusyZone(null);
+  }
+
+  function shouldShowFloor(floor) {
+    const type  = teFloorType(floor);
+    const req   = TE_REQUIRED[type];
+    const count = floorMap[floor]?.length || 0;
+    const ready = count >= req;
+    if (search) return String(floor).includes(search.trim());
+    if (floorFilter === 'ready')     return ready;
+    if (floorFilter === 'incomplete') return !ready;
+    if (floorFilter === 'boss')      return type === 'boss';
+    if (floorFilter === 'challenge') return type === 'challenge';
+    return true;
+  }
+
+  if (loading) return <div className="ap-loading">Loading Tower Editor…</div>;
+
+  return (
+    <div className="te-panel">
+
+      {/* ── Summary bar ─────────────────────────────────────── */}
+      <div className="te-summary">
+        <div className="te-summary-left">
+          <div className="te-summary-stat">
+            <span className="te-sum-val te-sum-green">{readyFloors}</span>
+            <span className="te-sum-lbl">/ 100 floors ready</span>
+          </div>
+          <div className="te-summary-divider" />
+          <div className="te-summary-stat">
+            <span className="te-sum-val te-sum-red">{neededTotal}</span>
+            <span className="te-sum-lbl">questions still needed</span>
+          </div>
+        </div>
+        <div className="te-summary-right">
+          <div className="te-sum-bar-wrap">
+            <div className="te-sum-bar">
+              <div className="te-sum-fill" style={{ width: `${readyFloors}%` }} />
+            </div>
+            <span className="te-sum-pct">{readyFloors}%</span>
+          </div>
+          <button className="ap-btn-sec te-reload-btn" onClick={loadAll}>↺ Reload</button>
+        </div>
+      </div>
+
+      {/* ── Controls ────────────────────────────────────────── */}
+      <div className="te-controls">
+        <div className="te-search-wrap">
+          <span className="te-search-icon">🔍</span>
+          <input
+            type="number"
+            min={1} max={100}
+            className="te-search-input"
+            placeholder="Jump to floor…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+          {search && (
+            <button className="te-search-clear" onClick={() => setSearch('')}>✕</button>
+          )}
+        </div>
+        <div className="te-filter-pills">
+          {[
+            { id: 'all',        label: 'All Floors'   },
+            { id: 'ready',      label: '✅ Ready'      },
+            { id: 'incomplete', label: '⚠️ Incomplete' },
+            { id: 'boss',       label: '🔴 Boss Only'  },
+            { id: 'challenge',  label: '🟡 Challenge'  },
+          ].map(f => (
+            <button
+              key={f.id}
+              className={`te-filter-pill ${floorFilter === f.id ? 'active' : ''}`}
+              onClick={() => setFloorFilter(f.id)}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Zone sections ───────────────────────────────────── */}
+      {TE_ZONES.map(zone => {
+        const visibleFloors = Array.from({ length: 10 }, (_, i) => zone.start + i).filter(shouldShowFloor);
+        if (!visibleFloors.length) return null;
+
+        const zoneReady  = visibleFloors.filter(f => floorMap[f].length >= TE_REQUIRED[teFloorType(f)]).length;
+        const isCollapsed = collapsed[zone.id];
+        const isBusy     = busyZone === zone.id;
+
+        return (
+          <div key={zone.id} className="te-zone" style={{ '--zc': zone.color }}>
+            <div className="te-zone-head" onClick={() => setCollapsed(c => ({ ...c, [zone.id]: !c[zone.id] }))}>
+              <div className="te-zone-head-l">
+                <span className="te-zone-icon">{zone.icon}</span>
+                <div className="te-zone-meta">
+                  <span className="te-zone-title">Zone {zone.id} — {zone.name}</span>
+                  <span className="te-zone-subj">{zone.subject === 'all' ? 'All Subjects' : zone.subject.charAt(0).toUpperCase() + zone.subject.slice(1)}</span>
+                </div>
+                <span className={`te-zone-badge ${zoneReady === visibleFloors.length ? 'all-ready' : ''}`}>
+                  {zoneReady}/{visibleFloors.length} ready
+                </span>
+              </div>
+              <div className="te-zone-head-r" onClick={e => e.stopPropagation()}>
+                <button
+                  className="te-auto-btn"
+                  onClick={() => autoAssignZone(zone)}
+                  disabled={isBusy}
+                >
+                  {isBusy ? '⏳ Assigning…' : '⚡ Auto Assign'}
+                </button>
+                <span className="te-chevron" onClick={e => { e.stopPropagation(); setCollapsed(c => ({ ...c, [zone.id]: !c[zone.id] })); }}>
+                  {isCollapsed ? '▶' : '▼'}
+                </span>
+              </div>
+            </div>
+
+            {!isCollapsed && (
+              <div className="te-floor-grid">
+                {visibleFloors.map(floor => {
+                  const type     = teFloorType(floor);
+                  const req      = TE_REQUIRED[type];
+                  const assigned = floorMap[floor] || [];
+                  const count    = assigned.length;
+                  const ready    = count >= req;
+                  const pct      = Math.min(100, (count / req) * 100);
+                  const isHere   = addingTo === floor;
+
+                  const available = questions.filter(q => {
+                    const isSubj = zone.subject === 'all' || q.subject === zone.subject;
+                    return isSubj && q.tower_floor !== floor;
+                  }).filter(q => {
+                    if (!addSearch.trim()) return true;
+                    const s = addSearch.toLowerCase();
+                    return String(q.id).toLowerCase().includes(s) || q.question.toLowerCase().includes(s);
+                  });
+
+                  return (
+                    <div key={floor} className={`te-floor-card te-ft-${type} ${ready ? 'te-ready' : 'te-incomplete'}`}>
+                      {/* Floor header */}
+                      <div className="te-fc-head">
+                        <div className="te-fc-head-l">
+                          <span className="te-floor-num">Floor {floor}</span>
+                          <span className={`te-type-badge te-tb-${type}`}>{type.toUpperCase()}</span>
+                        </div>
+                        <button
+                          className="te-clear-btn"
+                          onClick={() => clearFloor(floor)}
+                          disabled={count === 0 || isBusy}
+                          title="Remove all questions from this floor"
+                        >
+                          Clear
+                        </button>
+                      </div>
+
+                      {/* Floor name */}
+                      <div className="te-floor-name">{teFloorName(floor)}</div>
+
+                      {/* Progress */}
+                      <div className="te-fc-progress">
+                        <div className="te-fc-bar"><div className="te-fc-fill" style={{ width: `${pct}%` }} /></div>
+                        <div className="te-fc-pinfo">
+                          <span className="te-fc-count">{count}/{req} questions</span>
+                          {ready
+                            ? <span className="te-status-ok">✅ Ready</span>
+                            : <span className="te-status-warn">⚠️ Needs {req - count} more</span>}
+                        </div>
+                      </div>
+
+                      {/* Assigned questions */}
+                      <div className="te-q-list">
+                        {assigned.length === 0 && (
+                          <div className="te-q-empty">No questions assigned yet</div>
+                        )}
+                        {assigned.map(q => (
+                          <div key={q.id} className="te-q-row">
+                            <div className="te-q-info">
+                              <span className="te-q-id">{q.id}</span>
+                              <span className="te-q-preview" title={q.question}>
+                                {q.question.length > 60 ? q.question.slice(0, 60) + '…' : q.question}
+                              </span>
+                            </div>
+                            <button
+                              className="te-remove-btn"
+                              onClick={() => patchFloor(q, null)}
+                              disabled={!!updating[q.id] || isBusy}
+                            >
+                              {updating[q.id] ? '…' : 'Remove'}
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Add question */}
+                      {isHere ? (
+                        <div className="te-add-panel">
+                          <div className="te-add-search-row">
+                            <input
+                              type="text"
+                              className="te-add-search"
+                              placeholder="Search by ID or question text…"
+                              value={addSearch}
+                              onChange={e => setAddSearch(e.target.value)}
+                              autoFocus
+                            />
+                            <button className="te-add-cancel" onClick={() => { setAddingTo(null); setAddSearch(''); }}>✕</button>
+                          </div>
+                          <div className="te-add-list">
+                            {available.slice(0, 25).map(q => (
+                              <button
+                                key={q.id}
+                                className="te-add-opt"
+                                onClick={() => { patchFloor(q, floor); setAddingTo(null); setAddSearch(''); }}
+                                disabled={!!updating[q.id]}
+                              >
+                                <span className="te-add-opt-id">{q.id}</span>
+                                <span className="te-add-opt-txt">{q.question.slice(0, 75)}{q.question.length > 75 ? '…' : ''}</span>
+                                {q.tower_floor ? (
+                                  <span className="te-add-opt-cur">Currently Floor {q.tower_floor}</span>
+                                ) : null}
+                              </button>
+                            ))}
+                            {available.length === 0 && (
+                              <div className="te-add-empty">No matching questions found for this zone's subject</div>
+                            )}
+                            {available.length > 25 && (
+                              <div className="te-add-more">Showing 25 of {available.length} — refine search to narrow</div>
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        <button
+                          className="te-add-btn"
+                          onClick={() => { setAddingTo(floor); setAddSearch(''); }}
+                          disabled={isBusy}
+                        >
+                          + Add Question
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ── Settings helpers ───────────────────────────────────────────────────────────
 
 function withDefaults(raw) {
@@ -1978,6 +2371,9 @@ export default function AdminApp() {
         <button className={`ap-nav-btn ${tab === 'questions'     ? 'active' : ''}`} onClick={() => setTab('questions')}>
           📋 Question Manager
         </button>
+        <button className={`ap-nav-btn ${tab === 'tower'          ? 'active' : ''}`} onClick={() => setTab('tower')}>
+          🏰 Tower Editor
+        </button>
         <button className={`ap-nav-btn ${tab === 'announcements' ? 'active' : ''}`} onClick={() => setTab('announcements')}>
           📣 Announcements
         </button>
@@ -1989,6 +2385,7 @@ export default function AdminApp() {
       <main className="ap-main">
         {tab === 'stats'         && <StatsPanel />}
         {tab === 'questions'     && <QuestionsPanel />}
+        {tab === 'tower'         && <TowerEditorPanel />}
         {tab === 'announcements' && <AnnouncementsPanel />}
         {tab === 'settings'      && <SettingsPanel />}
       </main>
