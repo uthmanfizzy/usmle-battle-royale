@@ -701,33 +701,62 @@ function QuestionsPanel() {
 
 function withDefaults(raw) {
   return {
-    // kept for server compatibility
-    hardModeEnabled:         raw.hardModeEnabled         ?? false,
-    step2Enabled:            raw.step2Enabled            ?? false,
-    timerDuration:           raw.timerDefault            ?? raw.timerDuration            ?? 20,
-    startingLives:           raw.battleRoyaleLives       ?? raw.startingLives            ?? 3,
-    // Question settings
-    timerDefault:            raw.timerDefault            ?? raw.timerDuration            ?? 20,
-    timerSpeedRace:          raw.timerSpeedRace          ?? 10,
-    timerTriviaPursuit:      raw.timerTriviaPursuit      ?? 25,
-    timerScanMaster:         raw.timerScanMaster         ?? 25,
-    explanationTime:         raw.explanationTime         ?? 5,
-    speedRaceQuestions:      raw.speedRaceQuestions      ?? 20,
-    battleRoyaleMaxQ:        raw.battleRoyaleMaxQ        ?? 0,
-    minQuestionsPerCategory: raw.minQuestionsPerCategory ?? 5,
-    // Lives & difficulty
-    battleRoyaleLives:       raw.battleRoyaleLives       ?? raw.startingLives            ?? 3,
-    suddenDeathTrigger:      raw.suddenDeathTrigger      ?? 2,
-    suddenDeathTimer:        raw.suddenDeathTimer        ?? 5,
-    towerFloorLives:         raw.towerFloorLives         ?? 3,
-    bossTolerance:           raw.bossTolerance           ?? 0,
-    // Lobby
-    maxPlayersPerLobby:      raw.maxPlayersPerLobby      ?? 10,
-    minPlayersToStart:       raw.minPlayersToStart       ?? 2,
-    maxBotsPerLobby:         raw.maxBotsPerLobby         ?? 3,
-    lobbyAutoStart:          raw.lobbyAutoStart          ?? 0,
-    allowGuests:             raw.allowGuests             ?? true,
-    allowQuickJoin:          raw.allowQuickJoin          ?? true,
+    // legacy compat
+    hardModeEnabled:          raw.hardModeEnabled         ?? false,
+    step2Enabled:             raw.step2Enabled            ?? false,
+    timerDuration:            raw.timerDefault            ?? raw.timerDuration            ?? 20,
+    startingLives:            raw.battleRoyaleLives       ?? raw.startingLives            ?? 3,
+    // Section 1: Question settings
+    timerDefault:             raw.timerDefault            ?? raw.timerDuration            ?? 20,
+    timerSpeedRace:           raw.timerSpeedRace          ?? 10,
+    timerTriviaPursuit:       raw.timerTriviaPursuit      ?? 25,
+    timerScanMaster:          raw.timerScanMaster         ?? 25,
+    explanationTime:          raw.explanationTime         ?? 5,
+    speedRaceQuestions:       raw.speedRaceQuestions      ?? 20,
+    battleRoyaleMaxQ:         raw.battleRoyaleMaxQ        ?? 0,
+    minQuestionsPerCategory:  raw.minQuestionsPerCategory ?? 5,
+    // Section 2: Lives & difficulty
+    battleRoyaleLives:        raw.battleRoyaleLives       ?? raw.startingLives            ?? 3,
+    suddenDeathTrigger:       raw.suddenDeathTrigger      ?? 2,
+    suddenDeathTimer:         raw.suddenDeathTimer        ?? 5,
+    towerFloorLives:          raw.towerFloorLives         ?? 3,
+    bossTolerance:            raw.bossTolerance           ?? 0,
+    // Section 3: Lobby
+    maxPlayersPerLobby:       raw.maxPlayersPerLobby      ?? 10,
+    minPlayersToStart:        raw.minPlayersToStart       ?? 2,
+    maxBotsPerLobby:          raw.maxBotsPerLobby         ?? 3,
+    lobbyAutoStart:           raw.lobbyAutoStart          ?? 0,
+    allowGuests:              raw.allowGuests             ?? true,
+    allowQuickJoin:           raw.allowQuickJoin          ?? true,
+    // Section 4: XP & Progression
+    xpFirst:                  raw.xpFirst                 ?? 100,
+    xpSecond:                 raw.xpSecond                ?? 70,
+    xpThird:                  raw.xpThird                 ?? 50,
+    xpOther:                  raw.xpOther                 ?? 25,
+    xpPerCorrect:             raw.xpPerCorrect            ?? 5,
+    xpDailyChallenge:         raw.xpDailyChallenge        ?? 50,
+    xpPerLevel:               raw.xpPerLevel              ?? 500,
+    streakBonusMultiplier:    raw.streakBonusMultiplier   ?? 2,
+    // Section 5: Game modes
+    modesBattleRoyale:        raw.modesBattleRoyale       ?? true,
+    modesSpeedRace:           raw.modesSpeedRace          ?? true,
+    modesTriviaPursuit:       raw.modesTriviaPursuit      ?? true,
+    modesScanMaster:          raw.modesScanMaster         ?? true,
+    modesTower:               raw.modesTower              ?? true,
+    dailyChallengeEnabled:    raw.dailyChallengeEnabled   ?? true,
+    weeklyTournamentEnabled:  raw.weeklyTournamentEnabled ?? false,
+    powerUpsEnabled:          raw.powerUpsEnabled         ?? true,
+    // Section 6: Maintenance
+    maintenanceMode:          raw.maintenanceMode         ?? false,
+    maintenanceMessage:       raw.maintenanceMessage      ?? '',
+    maxConcurrentLobbies:     raw.maxConcurrentLobbies    ?? 0,
+    // Section 7: UI
+    showStreakCounter:         raw.showStreakCounter        ?? true,
+    showPlayerCount:          raw.showPlayerCount         ?? true,
+    showCorrectAnswer:        raw.showCorrectAnswer       ?? true,
+    showGameLeaderboard:      raw.showGameLeaderboard     ?? true,
+    soundEffectsEnabled:      raw.soundEffectsEnabled     ?? true,
+    backgroundMusicEnabled:   raw.backgroundMusicEnabled  ?? true,
   };
 }
 
@@ -795,14 +824,35 @@ function SectionSaveBtn({ saving, saved, onSave }) {
   );
 }
 
+function TextareaRow({ label, desc, value, onChange, placeholder }) {
+  return (
+    <div className="ap-srow ap-srow-tall">
+      <div className="ap-srow-info">
+        <div className="ap-srow-label">{label}</div>
+        <div className="ap-srow-desc">{desc}</div>
+      </div>
+      <div className="ap-srow-ctrl ap-srow-ctrl-wide">
+        <textarea
+          className="ap-settings-textarea"
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          placeholder={placeholder}
+          rows={2}
+        />
+      </div>
+    </div>
+  );
+}
+
 // ── Settings Panel ─────────────────────────────────────────────────────────────
 
 function SettingsPanel() {
   const [settings, setSettings] = useState(null);
   const [loading,  setLoading]  = useState(true);
   const [error,    setError]    = useState('');
-  const [saving,   setSaving]   = useState({ questions: false, lives: false, lobby: false });
-  const [saved,    setSaved]    = useState({ questions: false, lives: false, lobby: false });
+  const [saving,   setSaving]   = useState({ questions: false, lives: false, lobby: false, xp: false, modes: false, maintenance: false, ui: false });
+  const [saved,    setSaved]    = useState({ questions: false, lives: false, lobby: false, xp: false, modes: false, maintenance: false, ui: false });
+  const [resetMsg, setResetMsg] = useState('');
 
   useEffect(() => {
     apiCall('/admin/settings')
@@ -827,6 +877,20 @@ function SettingsPanel() {
       setError(err.message);
     }
     setSaving(s => ({ ...s, [section]: false }));
+  }
+
+  async function handleReset(endpoint, confirmMsg, successMsg) {
+    if (!window.confirm(confirmMsg)) return;
+    setResetMsg('');
+    try {
+      const res  = await apiCall(endpoint, { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Reset failed');
+      setResetMsg(`✓ ${successMsg}`);
+    } catch (err) {
+      setResetMsg(`✗ ${err.message}`);
+    }
+    setTimeout(() => setResetMsg(''), 4000);
   }
 
   function upd(key, val) { setSettings(s => ({ ...s, [key]: val })); }
@@ -1063,6 +1127,266 @@ function SettingsPanel() {
         </div>
 
         <SectionSaveBtn saving={saving.lobby} saved={saved.lobby} onSave={() => saveSection('lobby')} />
+      </div>
+
+      {/* ── 4. XP & PROGRESSION ───────────────────────────────────────── */}
+      <div className="ap-settings-section">
+        <div className="ap-section-hd">
+          <div className="ap-section-icon">⚡</div>
+          <div>
+            <h2 className="ap-section-title-lg">XP &amp; Progression</h2>
+            <p className="ap-section-subtitle">Experience points awarded per game outcome and level thresholds</p>
+          </div>
+        </div>
+
+        <div className="ap-settings-rows">
+          <SliderRow label="XP for 1st Place"
+            desc="XP awarded to the winner of a multiplayer game"
+            min={10} max={500} step={5} unit="XP"
+            value={settings.xpFirst}
+            onChange={v => upd('xpFirst', v)} />
+
+          <SliderRow label="XP for 2nd Place"
+            desc="XP awarded to the runner-up"
+            min={5} max={400} step={5} unit="XP"
+            value={settings.xpSecond}
+            onChange={v => upd('xpSecond', v)} />
+
+          <SliderRow label="XP for 3rd Place"
+            desc="XP awarded to the third-place player"
+            min={5} max={300} step={5} unit="XP"
+            value={settings.xpThird}
+            onChange={v => upd('xpThird', v)} />
+
+          <SliderRow label="XP for 4th Place and Below"
+            desc="XP awarded to all other players who participated"
+            min={0} max={200} step={5} unit="XP"
+            value={settings.xpOther}
+            onChange={v => upd('xpOther', v)} />
+
+          <SliderRow label="XP per Correct Answer Bonus"
+            desc="Bonus XP added for each correct answer during a game"
+            min={0} max={50} step={1} unit="XP"
+            value={settings.xpPerCorrect}
+            onChange={v => upd('xpPerCorrect', v)} />
+
+          <SliderRow label="XP per Daily Challenge"
+            desc="XP awarded for completing the daily challenge"
+            min={10} max={500} step={10} unit="XP"
+            value={settings.xpDailyChallenge}
+            onChange={v => upd('xpDailyChallenge', v)} />
+
+          <SliderRow label="XP Required per Level"
+            desc="Total XP needed to advance from one level to the next"
+            min={100} max={5000} step={100} unit="XP"
+            value={settings.xpPerLevel}
+            onChange={v => upd('xpPerLevel', v)} />
+
+          <div className="ap-srow">
+            <div className="ap-srow-info">
+              <div className="ap-srow-label">Streak Bonus Multiplier</div>
+              <div className="ap-srow-desc">XP multiplier applied when a player answers 3+ correct in a row</div>
+            </div>
+            <div className="ap-srow-ctrl">
+              <div className="ap-chip-group">
+                {[2, 3, 4, 5].map(n => (
+                  <button
+                    key={n}
+                    className={`ap-chip ap-chip-lg ${settings.streakBonusMultiplier === n ? 'active' : ''}`}
+                    onClick={() => upd('streakBonusMultiplier', n)}
+                  >
+                    {n}×
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <SectionSaveBtn saving={saving.xp} saved={saved.xp} onSave={() => saveSection('xp')} />
+      </div>
+
+      {/* ── 5. GAME MODE SETTINGS ─────────────────────────────────────── */}
+      <div className="ap-settings-section">
+        <div className="ap-section-hd">
+          <div className="ap-section-icon">🎮</div>
+          <div>
+            <h2 className="ap-section-title-lg">Game Mode Settings</h2>
+            <p className="ap-section-subtitle">Enable or disable individual game modes and features globally</p>
+          </div>
+        </div>
+
+        <div className="ap-settings-rows">
+          <div className="ap-srow-divider">Game Modes</div>
+          <ToggleRow label="⚔️ Battle Royale"
+            desc="Last doctor standing elimination mode"
+            checked={settings.modesBattleRoyale}
+            onChange={v => upd('modesBattleRoyale', v)} />
+          <ToggleRow label="⚡ Speed Race"
+            desc="First to 20 correct answers wins"
+            checked={settings.modesSpeedRace}
+            onChange={v => upd('modesSpeedRace', v)} />
+          <ToggleRow label="🎯 Trivia Pursuit"
+            desc="Collect all 6 subject wedges to win"
+            checked={settings.modesTriviaPursuit}
+            onChange={v => upd('modesTriviaPursuit', v)} />
+          <ToggleRow label="🔬 Scan Master"
+            desc="Identify conditions from medical images"
+            checked={settings.modesScanMaster}
+            onChange={v => upd('modesScanMaster', v)} />
+          <ToggleRow label="🏰 The Tower"
+            desc="Solo 100-floor climbing challenge"
+            checked={settings.modesTower}
+            onChange={v => upd('modesTower', v)} />
+
+          <div className="ap-srow-divider">Features</div>
+          <ToggleRow label="Hard Mode"
+            desc="Restrict question pool to hard-difficulty questions only"
+            checked={settings.hardModeEnabled}
+            onChange={v => upd('hardModeEnabled', v)} />
+          <ToggleRow label="Step 2 Questions"
+            desc="Include Step 2 level questions in the question pool"
+            checked={settings.step2Enabled}
+            onChange={v => upd('step2Enabled', v)} />
+          <ToggleRow label="Daily Challenge"
+            desc="Enable the daily challenge mode for all players"
+            checked={settings.dailyChallengeEnabled}
+            onChange={v => upd('dailyChallengeEnabled', v)} />
+          <ToggleRow label="Weekly Tournament"
+            desc="Enable weekly ranked tournament events"
+            checked={settings.weeklyTournamentEnabled}
+            onChange={v => upd('weeklyTournamentEnabled', v)} />
+          <ToggleRow label="Power-Ups"
+            desc="Enable the power-up system globally across all game modes"
+            checked={settings.powerUpsEnabled}
+            onChange={v => upd('powerUpsEnabled', v)} />
+        </div>
+
+        <SectionSaveBtn saving={saving.modes} saved={saved.modes} onSave={() => saveSection('modes')} />
+      </div>
+
+      {/* ── 6. MAINTENANCE ────────────────────────────────────────────── */}
+      <div className="ap-settings-section">
+        <div className="ap-section-hd">
+          <div className="ap-section-icon">🔧</div>
+          <div>
+            <h2 className="ap-section-title-lg">Maintenance</h2>
+            <p className="ap-section-subtitle">Maintenance mode, lobby limits, and data resets</p>
+          </div>
+        </div>
+
+        <div className="ap-settings-rows">
+          <ToggleRow label="Maintenance Mode"
+            desc="When on, all users see a maintenance page instead of the game"
+            checked={settings.maintenanceMode}
+            onChange={v => upd('maintenanceMode', v)} />
+
+          <TextareaRow label="Maintenance Message"
+            desc="Custom message shown to users during maintenance"
+            value={settings.maintenanceMessage}
+            onChange={v => upd('maintenanceMessage', v)}
+            placeholder="We'll be back shortly. Thank you for your patience." />
+
+          <div className="ap-srow">
+            <div className="ap-srow-info">
+              <div className="ap-srow-label">Max Concurrent Lobbies</div>
+              <div className="ap-srow-desc">Cap on how many active lobbies can run simultaneously (0 = unlimited)</div>
+            </div>
+            <div className="ap-srow-ctrl">
+              <div className="ap-chip-group">
+                {[
+                  { label: 'Unlimited', value: 0   },
+                  { label: '10',        value: 10  },
+                  { label: '25',        value: 25  },
+                  { label: '50',        value: 50  },
+                  { label: '100',       value: 100 },
+                ].map(opt => (
+                  <button
+                    key={opt.value}
+                    className={`ap-chip ${settings.maxConcurrentLobbies === opt.value ? 'active' : ''}`}
+                    onClick={() => upd('maxConcurrentLobbies', opt.value)}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <SectionSaveBtn saving={saving.maintenance} saved={saved.maintenance} onSave={() => saveSection('maintenance')} />
+
+        <div className="ap-danger-zone">
+          <div className="ap-danger-zone-title">⚠️ Danger Zone</div>
+          <p className="ap-danger-zone-desc">These actions are irreversible. They will affect all players immediately.</p>
+          <div className="ap-danger-actions">
+            <button
+              className="ap-btn-danger"
+              onClick={() => handleReset(
+                '/admin/reset-leaderboards',
+                'Reset ALL player XP and levels to zero? This cannot be undone.',
+                'All leaderboards reset successfully.',
+              )}
+            >
+              🗑️ Reset All Leaderboards
+            </button>
+            <button
+              className="ap-btn-danger"
+              onClick={() => handleReset(
+                '/admin/reset-tower-progress',
+                'Reset ALL player Tower progress to Floor 1? This cannot be undone.',
+                'All Tower progress reset successfully.',
+              )}
+            >
+              🏰 Reset All Tower Progress
+            </button>
+          </div>
+          {resetMsg && (
+            <div className={`ap-reset-msg ${resetMsg.startsWith('✓') ? 'ok' : 'err'}`}>
+              {resetMsg}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── 7. UI SETTINGS ────────────────────────────────────────────── */}
+      <div className="ap-settings-section">
+        <div className="ap-section-hd">
+          <div className="ap-section-icon">🎨</div>
+          <div>
+            <h2 className="ap-section-title-lg">UI Settings</h2>
+            <p className="ap-section-subtitle">Control what players see and hear during gameplay</p>
+          </div>
+        </div>
+
+        <div className="ap-settings-rows">
+          <ToggleRow label="Show Streak Counter"
+            desc="Display the consecutive correct answer streak counter during games"
+            checked={settings.showStreakCounter}
+            onChange={v => upd('showStreakCounter', v)} />
+          <ToggleRow label="Show Player Count in Lobby"
+            desc="Show how many players are in a lobby before the game starts"
+            checked={settings.showPlayerCount}
+            onChange={v => upd('showPlayerCount', v)} />
+          <ToggleRow label="Show Correct Answer After Question"
+            desc="Reveal the correct answer and explanation after each question"
+            checked={settings.showCorrectAnswer}
+            onChange={v => upd('showCorrectAnswer', v)} />
+          <ToggleRow label="Show Leaderboard During Game"
+            desc="Display the live player ranking panel during gameplay"
+            checked={settings.showGameLeaderboard}
+            onChange={v => upd('showGameLeaderboard', v)} />
+          <ToggleRow label="Sound Effects"
+            desc="Enable in-game sound effects globally (correct, wrong, tick, etc.)"
+            checked={settings.soundEffectsEnabled}
+            onChange={v => upd('soundEffectsEnabled', v)} />
+          <ToggleRow label="Background Music"
+            desc="Enable background music globally across all screens"
+            checked={settings.backgroundMusicEnabled}
+            onChange={v => upd('backgroundMusicEnabled', v)} />
+        </div>
+
+        <SectionSaveBtn saving={saving.ui} saved={saved.ui} onSave={() => saveSection('ui')} />
       </div>
 
       {error && <div className="ap-error" style={{ marginTop: 4 }}>{error}</div>}

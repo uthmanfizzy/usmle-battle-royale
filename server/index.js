@@ -73,10 +73,62 @@ function nextQuestionId(subject) {
 // ── Game settings ──────────────────────────────────────────────────────────────
 
 let gameSettings = {
+  // legacy compat
   hardModeEnabled: false,
   step2Enabled: false,
   timerDuration: 20,
   startingLives: 3,
+  // Section 1: Question settings
+  timerDefault: 20,
+  timerSpeedRace: 10,
+  timerTriviaPursuit: 25,
+  timerScanMaster: 25,
+  explanationTime: 5,
+  speedRaceQuestions: 20,
+  battleRoyaleMaxQ: 0,
+  minQuestionsPerCategory: 5,
+  // Section 2: Lives & difficulty
+  battleRoyaleLives: 3,
+  suddenDeathTrigger: 2,
+  suddenDeathTimer: 5,
+  towerFloorLives: 3,
+  bossTolerance: 0,
+  // Section 3: Lobby
+  maxPlayersPerLobby: 10,
+  minPlayersToStart: 2,
+  maxBotsPerLobby: 3,
+  lobbyAutoStart: 0,
+  allowGuests: true,
+  allowQuickJoin: true,
+  // Section 4: XP & Progression
+  xpFirst: 100,
+  xpSecond: 70,
+  xpThird: 50,
+  xpOther: 25,
+  xpPerCorrect: 5,
+  xpDailyChallenge: 50,
+  xpPerLevel: 500,
+  streakBonusMultiplier: 2,
+  // Section 5: Game Mode toggles
+  modesBattleRoyale: true,
+  modesSpeedRace: true,
+  modesTriviaPursuit: true,
+  modesScanMaster: true,
+  modesTower: true,
+  dailyChallengeEnabled: true,
+  weeklyTournamentEnabled: false,
+  powerUpsEnabled: true,
+  // Section 6: Maintenance
+  maintenanceMode: false,
+  maintenanceMessage: '',
+  maxConcurrentLobbies: 0,
+  // Section 7: UI
+  showStreakCounter: true,
+  showPlayerCount: true,
+  showCorrectAnswer: true,
+  showGameLeaderboard: true,
+  soundEffectsEnabled: true,
+  backgroundMusicEnabled: true,
 };
 
 // ── In-memory stats (server-lifetime counters) ────────────────────────────────
@@ -1820,12 +1872,49 @@ app.get('/admin/stats', adminAuth, (req, res) => {
 app.get('/admin/settings', adminAuth, (req, res) => res.json(gameSettings));
 
 app.post('/admin/settings', adminAuth, (req, res) => {
-  const { hardModeEnabled, step2Enabled, timerDuration, startingLives } = req.body;
-  if (hardModeEnabled !== undefined) gameSettings.hardModeEnabled = Boolean(hardModeEnabled);
-  if (step2Enabled    !== undefined) gameSettings.step2Enabled    = Boolean(step2Enabled);
-  if (timerDuration   !== undefined) gameSettings.timerDuration   = Math.max(5, Math.min(60, Number(timerDuration)));
-  if (startingLives   !== undefined) gameSettings.startingLives   = Math.max(1, Math.min(10, Number(startingLives)));
+  const b = req.body;
+  // Legacy compat
+  if (b.hardModeEnabled !== undefined) gameSettings.hardModeEnabled = Boolean(b.hardModeEnabled);
+  if (b.step2Enabled    !== undefined) gameSettings.step2Enabled    = Boolean(b.step2Enabled);
+  if (b.timerDuration   !== undefined) gameSettings.timerDuration   = Math.max(5, Math.min(60, Number(b.timerDuration)));
+  if (b.startingLives   !== undefined) gameSettings.startingLives   = Math.max(1, Math.min(10, Number(b.startingLives)));
+  // Numeric fields
+  const numFields = [
+    'timerDefault','timerSpeedRace','timerTriviaPursuit','timerScanMaster','explanationTime',
+    'speedRaceQuestions','battleRoyaleMaxQ','minQuestionsPerCategory',
+    'battleRoyaleLives','suddenDeathTrigger','suddenDeathTimer','towerFloorLives','bossTolerance',
+    'maxPlayersPerLobby','minPlayersToStart','maxBotsPerLobby','lobbyAutoStart',
+    'xpFirst','xpSecond','xpThird','xpOther','xpPerCorrect','xpDailyChallenge','xpPerLevel','streakBonusMultiplier',
+    'maxConcurrentLobbies',
+  ];
+  // Boolean fields
+  const boolFields = [
+    'allowGuests','allowQuickJoin',
+    'modesBattleRoyale','modesSpeedRace','modesTriviaPursuit','modesScanMaster','modesTower',
+    'dailyChallengeEnabled','weeklyTournamentEnabled','powerUpsEnabled',
+    'maintenanceMode','showStreakCounter','showPlayerCount','showCorrectAnswer',
+    'showGameLeaderboard','soundEffectsEnabled','backgroundMusicEnabled',
+  ];
+  for (const k of numFields)  { if (b[k] !== undefined) gameSettings[k] = Number(b[k]); }
+  for (const k of boolFields) { if (b[k] !== undefined) gameSettings[k] = Boolean(b[k]); }
+  if (b.maintenanceMessage !== undefined) gameSettings.maintenanceMessage = String(b.maintenanceMessage).slice(0, 500);
   res.json(gameSettings);
+});
+
+app.post('/admin/reset-leaderboards', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Database not configured.' });
+  try {
+    await supabase.from('users').update({ xp: 0, level: 1 }).not('id', 'is', null);
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/admin/reset-tower-progress', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Database not configured.' });
+  try {
+    await supabase.from('users').update({ tower_floor: 1 }).not('id', 'is', null);
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 app.get('/admin/questions', adminAuth, (req, res) => res.json({ questions: questionBank }));
