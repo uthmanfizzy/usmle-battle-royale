@@ -1,8 +1,10 @@
 const questions = [
   // ── CARDIOLOGY ──────────────────────────────────────────────────────────────
+  // Zone 5: Floors 41-50
   {
     id: 'CA-001', subject: 'cardiology',
-    game_modes: ['battle_royale', 'speed_race', 'trivia_pursuit'],
+    game_modes: ['battle_royale', 'speed_race', 'trivia_pursuit', 'tower'],
+    tower_floor: 41,
     question: "A 45-year-old man presents with crushing substernal chest pain radiating to the left arm, diaphoresis, and nausea for 2 hours. ECG shows ST-segment elevation in leads II, III, and aVF. Which vessel is most likely occluded?",
     options: ["Left anterior descending artery", "Left circumflex artery", "Right coronary artery", "Left main coronary artery"],
     correct: "C",
@@ -10,7 +12,8 @@ const questions = [
   },
   {
     id: 'CA-002', subject: 'cardiology',
-    game_modes: ['battle_royale', 'speed_race', 'trivia_pursuit'],
+    game_modes: ['battle_royale', 'speed_race', 'trivia_pursuit', 'tower'],
+    tower_floor: 42,
     question: "A 5-year-old boy has had fever for 7 days, bilateral conjunctival injection, strawberry tongue, erythema of the palms and soles, cervical lymphadenopathy, and a maculopapular rash. Which complication is the most feared?",
     options: ["Mitral valve regurgitation", "Coronary artery aneurysms", "Glomerulonephritis", "Pericardial effusion"],
     correct: "B",
@@ -18,7 +21,8 @@ const questions = [
   },
   {
     id: 'CA-003', subject: 'cardiology',
-    game_modes: ['battle_royale', 'speed_race', 'trivia_pursuit'],
+    game_modes: ['battle_royale', 'speed_race', 'trivia_pursuit', 'tower'],
+    tower_floor: 43,
     question: "A 58-year-old man with anterior STEMI undergoes successful PCI. On day 3, he develops new-onset fever, pleuritic chest pain, and a friction rub. ECG shows diffuse saddle-shaped ST elevation. What is the most likely diagnosis?",
     options: ["Reinfarction with re-occlusion of the LAD stent", "Dressler syndrome (post-MI pericarditis)", "Left ventricular free wall rupture", "Pulmonary embolism"],
     correct: "B",
@@ -26,9 +30,11 @@ const questions = [
   },
 
   // ── PATHOLOGY ────────────────────────────────────────────────────────────────
+  // Zone 10: Floors 91-100 (All Subjects)
   {
     id: 'PT-001', subject: 'pathology',
-    game_modes: ['battle_royale', 'speed_race', 'trivia_pursuit'],
+    game_modes: ['battle_royale', 'speed_race', 'trivia_pursuit', 'tower'],
+    tower_floor: 91,
     question: "A 28-year-old woman with a history of recurrent UTIs presents with flank pain and hematuria. Imaging reveals bilateral enlarged kidneys with multiple cysts. Her father had similar findings. Which gene is most likely mutated?",
     options: ["VHL", "PKD1", "WT1", "NF1"],
     correct: "B",
@@ -36,7 +42,8 @@ const questions = [
   },
   {
     id: 'PT-002', subject: 'pathology',
-    game_modes: ['battle_royale', 'speed_race', 'trivia_pursuit'],
+    game_modes: ['battle_royale', 'speed_race', 'trivia_pursuit', 'tower'],
+    tower_floor: 92,
     question: "A patient with type 1 diabetes mellitus undergoes annual renal screening. Which finding is the earliest detectable sign of diabetic nephropathy?",
     options: ["Increased serum creatinine", "Decreased GFR on CKD-EPI equation", "Microalbuminuria (30–300 mg/day)", "Gross proteinuria (>3.5 g/day)"],
     correct: "C",
@@ -44,7 +51,8 @@ const questions = [
   },
   {
     id: 'PT-003', subject: 'pathology',
-    game_modes: ['battle_royale', 'speed_race', 'trivia_pursuit'],
+    game_modes: ['battle_royale', 'speed_race', 'trivia_pursuit', 'tower'],
+    tower_floor: 93,
     question: "A 55-year-old woman presents with fatigue, weight gain, constipation, dry skin, and a TSH of 18 mIU/L with free T4 of 0.4 ng/dL. Which antibody is most commonly responsible for this condition?",
     options: ["Anti-thyroid peroxidase (anti-TPO) antibodies", "TSH receptor-stimulating antibodies", "Anti-thyroglobulin antibodies only", "Anti-microsomal antibodies only"],
     correct: "A",
@@ -52,7 +60,8 @@ const questions = [
   },
   {
     id: 'PT-004', subject: 'pathology',
-    game_modes: ['battle_royale', 'speed_race', 'trivia_pursuit'],
+    game_modes: ['battle_royale', 'speed_race', 'trivia_pursuit', 'tower'],
+    tower_floor: 94,
     question: "A 55-year-old woman undergoes biopsy of a 1.8 cm breast mass. Pathology shows malignant cells arranged in a glandular pattern with necrotic debris in the center of the ducts, confined to the ductal system without basement membrane invasion. What is the diagnosis?",
     options: ["Invasive ductal carcinoma (IDC)", "Invasive lobular carcinoma", "Ductal carcinoma in situ (DCIS), comedo type", "Fibroadenoma with atypical ductal hyperplasia"],
     correct: "C",
@@ -60,7 +69,8 @@ const questions = [
   },
   {
     id: 'PT-005', subject: 'pathology',
-    game_modes: ['battle_royale', 'speed_race', 'trivia_pursuit'],
+    game_modes: ['battle_royale', 'speed_race', 'trivia_pursuit', 'tower'],
+    tower_floor: 95,
     question: "Autopsy of a 75-year-old man reveals bilateral hippocampal atrophy. Microscopic examination shows neurofibrillary tangles (paired helical filaments of hyperphosphorylated tau) and neuritic plaques (amyloid-beta core with dystrophic neurites). These findings are most characteristic of which condition?",
     options: ["Normal aging changes of the hippocampus", "Lewy body disease with hippocampal extension", "Alzheimer's disease neuropathology", "Frontotemporal lobar degeneration (FTLD-tau)"],
     correct: "C",
@@ -68,9 +78,11 @@ const questions = [
   },
 
   // ── MICROBIOLOGY ─────────────────────────────────────────────────────────────
+  // Zone 2: Floors 11-20
   {
     id: 'MI-001', subject: 'microbiology',
-    game_modes: ['battle_royale', 'speed_race', 'trivia_pursuit'],
+    game_modes: ['battle_royale', 'speed_race', 'trivia_pursuit', 'tower'],
+    tower_floor: 11,
     question: "A 22-year-old college student presents with fever, severe headache, neck stiffness, and a petechial rash. CSF shows: WBC 1200 (90% neutrophils), protein 180 mg/dL, glucose 30 mg/dL (serum glucose 90). What is the most likely causative organism?",
     options: ["Streptococcus pneumoniae", "Neisseria meningitidis", "Listeria monocytogenes", "Haemophilus influenzae"],
     correct: "B",
@@ -78,7 +90,8 @@ const questions = [
   },
   {
     id: 'MI-002', subject: 'microbiology',
-    game_modes: ['battle_royale', 'speed_race', 'trivia_pursuit'],
+    game_modes: ['battle_royale', 'speed_race', 'trivia_pursuit', 'tower'],
+    tower_floor: 12,
     question: "A 4-year-old unvaccinated child presents with a barking cough, inspiratory stridor, and a low-grade fever. Neck X-ray shows a 'steeple sign' (subglottic narrowing). What is the most likely causative organism?",
     options: ["Haemophilus influenzae type b", "Parainfluenza virus type 1", "Respiratory syncytial virus (RSV)", "Staphylococcus aureus"],
     correct: "B",
@@ -86,7 +99,8 @@ const questions = [
   },
   {
     id: 'MI-003', subject: 'microbiology',
-    game_modes: ['battle_royale', 'speed_race', 'trivia_pursuit'],
+    game_modes: ['battle_royale', 'speed_race', 'trivia_pursuit', 'tower'],
+    tower_floor: 13,
     question: "A 45-year-old spelunker from Ohio presents with fever, cough, and hilar adenopathy. His job involves cleaning bat droppings. Lung biopsy shows macrophages filled with small oval yeast forms (2–4 µm). What is the diagnosis?",
     options: ["Coccidioidomycosis", "Histoplasmosis", "Blastomycosis", "Cryptococcosis"],
     correct: "B",
@@ -94,7 +108,8 @@ const questions = [
   },
   {
     id: 'MI-004', subject: 'microbiology',
-    game_modes: ['battle_royale', 'speed_race', 'trivia_pursuit'],
+    game_modes: ['battle_royale', 'speed_race', 'trivia_pursuit', 'tower'],
+    tower_floor: 14,
     question: "A 3-day-old neonate develops purulent conjunctivitis. Gram stain shows gram-negative intracellular diplococci. The mother had untreated gonorrhea during pregnancy. Which agent is used as prophylaxis in all newborns at birth to prevent this condition?",
     options: ["Topical erythromycin 0.5% ointment", "Topical silver nitrate 1% drops", "IM ceftriaxone prophylaxis", "Topical gentamicin drops"],
     correct: "A",
@@ -102,7 +117,8 @@ const questions = [
   },
   {
     id: 'MI-005', subject: 'microbiology',
-    game_modes: ['battle_royale', 'speed_race', 'trivia_pursuit'],
+    game_modes: ['battle_royale', 'speed_race', 'trivia_pursuit', 'tower'],
+    tower_floor: 15,
     question: "A 28-year-old man presents with a painless penile ulcer (chancre) with a clean base and indurated edges, and non-tender inguinal lymphadenopathy. Dark-field microscopy shows motile spirochetes. RPR and FTA-ABS are positive. What is the drug of choice?",
     options: ["Doxycycline 100 mg BID x 14 days", "Benzathine penicillin G 2.4 million units IM once", "Ceftriaxone 1 g IV daily x 10 days", "Azithromycin 2 g orally once"],
     correct: "B",
@@ -110,7 +126,8 @@ const questions = [
   },
   {
     id: 'MI-006', subject: 'microbiology',
-    game_modes: ['battle_royale', 'speed_race', 'trivia_pursuit'],
+    game_modes: ['battle_royale', 'speed_race', 'trivia_pursuit', 'tower'],
+    tower_floor: 16,
     question: "A 50-year-old man returns from sub-Saharan Africa with cyclic fevers every 48 hours, headache, and splenomegaly. Blood smear shows ring-form trophozoites with Schüffner dots in enlarged RBCs. Which Plasmodium species is responsible?",
     options: ["Plasmodium falciparum", "Plasmodium vivax or Plasmodium ovale", "Plasmodium malariae", "Plasmodium knowlesi"],
     correct: "B",
@@ -118,9 +135,11 @@ const questions = [
   },
 
   // ── PHARMACOLOGY ─────────────────────────────────────────────────────────────
+  // Zone 3: Floors 21-30
   {
     id: 'PH-001', subject: 'pharmacology',
-    game_modes: ['battle_royale', 'speed_race', 'trivia_pursuit'],
+    game_modes: ['battle_royale', 'speed_race', 'trivia_pursuit', 'tower'],
+    tower_floor: 21,
     question: "A 32-year-old woman ingests an unknown quantity of acetaminophen 8 hours ago. She is currently asymptomatic. Which antidote should be administered and why?",
     options: ["Flumazenil — reverses CNS depression", "Naloxone — reverses opioid receptor effects", "N-acetylcysteine — replenishes glutathione to neutralize NAPQI", "Activated charcoal alone — sufficient if within 1 hour of ingestion"],
     correct: "C",
@@ -128,7 +147,8 @@ const questions = [
   },
   {
     id: 'PH-002', subject: 'pharmacology',
-    game_modes: ['battle_royale', 'speed_race', 'trivia_pursuit'],
+    game_modes: ['battle_royale', 'speed_race', 'trivia_pursuit', 'tower'],
+    tower_floor: 22,
     question: "A loop diuretic is prescribed for a patient with heart failure. Which is the primary mechanism of action of furosemide?",
     options: ["Inhibits carbonic anhydrase in the proximal tubule", "Blocks the Na-K-2Cl cotransporter in the thick ascending limb of Henle", "Antagonizes aldosterone receptors in the collecting duct", "Blocks epithelial sodium channels in the distal convoluted tubule"],
     correct: "B",
@@ -136,7 +156,8 @@ const questions = [
   },
   {
     id: 'PH-003', subject: 'pharmacology',
-    game_modes: ['battle_royale', 'speed_race', 'trivia_pursuit'],
+    game_modes: ['battle_royale', 'speed_race', 'trivia_pursuit', 'tower'],
+    tower_floor: 23,
     question: "A 28-year-old woman on oral contraceptive pills (OCPs) starts rifampin for latent TB treatment. She uses OCPs as her sole contraception. What is the mechanism of the drug interaction she must be counseled about?",
     options: ["Rifampin inhibits CYP450, increasing OCP hormone levels and causing toxicity", "Rifampin induces CYP3A4, increasing OCP metabolism and reducing contraceptive efficacy", "Rifampin has no interaction with OCPs at standard doses", "Rifampin competes with estrogen for plasma protein binding"],
     correct: "B",
@@ -144,7 +165,8 @@ const questions = [
   },
   {
     id: 'PH-004', subject: 'pharmacology',
-    game_modes: ['battle_royale', 'speed_race', 'trivia_pursuit'],
+    game_modes: ['battle_royale', 'speed_race', 'trivia_pursuit', 'tower'],
+    tower_floor: 24,
     question: "A 55-year-old man with hypertension and diabetes develops a dry, persistent cough after starting a new antihypertensive. He is switched to an ARB. What is the mechanism of the dry cough caused by the original drug?",
     options: ["Beta-1 blockade causing bronchospasm", "Accumulation of bradykinin due to ACE inhibition", "Calcium channel blockade causing mucus hypersecretion", "Sodium retention causing post-nasal drip"],
     correct: "B",
@@ -152,7 +174,8 @@ const questions = [
   },
   {
     id: 'PH-005', subject: 'pharmacology',
-    game_modes: ['battle_royale', 'speed_race', 'trivia_pursuit'],
+    game_modes: ['battle_royale', 'speed_race', 'trivia_pursuit', 'tower'],
+    tower_floor: 25,
     question: "A 28-year-old woman with bipolar disorder takes valproic acid. She becomes pregnant. Which specific fetal risk is most directly attributable to valproic acid?",
     options: ["Ebstein anomaly (tricuspid valve displacement)", "Neural tube defects (spina bifida, anencephaly)", "Cleft palate and micrognathia", "Digit hypoplasia and nail dysplasia"],
     correct: "B",
@@ -160,7 +183,8 @@ const questions = [
   },
   {
     id: 'PH-006', subject: 'pharmacology',
-    game_modes: ['battle_royale', 'speed_race', 'trivia_pursuit'],
+    game_modes: ['battle_royale', 'speed_race', 'trivia_pursuit', 'tower'],
+    tower_floor: 26,
     question: "A 30-year-old man with schizophrenia develops high fever (40°C), lead-pipe muscle rigidity, diaphoresis, altered consciousness, and autonomic instability after his haloperidol dose is doubled. CK is 12,000 U/L. What is the pathophysiological mechanism?",
     options: ["Serotonin syndrome from dopamine-serotonin imbalance", "Dopamine receptor blockade in the hypothalamus causing disinhibited thermogenesis and rigidity", "Malignant hyperthermia from ryanodine receptor mutation triggered by antipsychotics", "Anticholinergic toxidrome causing central hyperthermia"],
     correct: "B",
@@ -168,9 +192,11 @@ const questions = [
   },
 
   // ── NEUROLOGY ────────────────────────────────────────────────────────────────
+  // Zone 4: Floors 31-40
   {
     id: 'NE-001', subject: 'neurology',
-    game_modes: ['battle_royale', 'speed_race', 'trivia_pursuit'],
+    game_modes: ['battle_royale', 'speed_race', 'trivia_pursuit', 'tower'],
+    tower_floor: 31,
     question: "A 72-year-old man presents with a 6-month history of resting 'pill-rolling' tremor in his right hand, cogwheel rigidity, bradykinesia, and shuffling gait with reduced arm swing. What is the primary pathological finding in this disease?",
     options: ["Neurofibrillary tangles in the hippocampus", "Loss of dopaminergic neurons in the substantia nigra pars compacta with Lewy body formation", "Huntingtin protein aggregation in the striatum", "TDP-43 inclusions in the motor cortex"],
     correct: "B",
@@ -178,7 +204,8 @@ const questions = [
   },
   {
     id: 'NE-002', subject: 'neurology',
-    game_modes: ['battle_royale', 'speed_race', 'trivia_pursuit'],
+    game_modes: ['battle_royale', 'speed_race', 'trivia_pursuit', 'tower'],
+    tower_floor: 32,
     question: "A 45-year-old woman presents with severe unilateral headache behind the right eye, ptosis, and a dilated, unreactive pupil. MRI shows a 7 mm posterior communicating artery aneurysm. Which structure is being compressed?",
     options: ["Optic nerve (CN II)", "Oculomotor nerve (CN III)", "Trochlear nerve (CN IV)", "Abducens nerve (CN VI)"],
     correct: "B",
@@ -186,7 +213,8 @@ const questions = [
   },
   {
     id: 'NE-003', subject: 'neurology',
-    game_modes: ['battle_royale', 'speed_race', 'trivia_pursuit'],
+    game_modes: ['battle_royale', 'speed_race', 'trivia_pursuit', 'tower'],
+    tower_floor: 33,
     question: "An 80-year-old man develops fluctuating confusion over weeks, vivid visual hallucinations, and Parkinsonian features. After a small dose of haloperidol for agitation, he develops severe extrapyramidal rigidity. What is the most likely diagnosis?",
     options: ["Vascular dementia with superimposed delirium", "Lewy body dementia", "Frontotemporal dementia", "Normal pressure hydrocephalus"],
     correct: "B",
@@ -194,7 +222,8 @@ const questions = [
   },
   {
     id: 'NE-004', subject: 'neurology',
-    game_modes: ['battle_royale', 'speed_race', 'trivia_pursuit'],
+    game_modes: ['battle_royale', 'speed_race', 'trivia_pursuit', 'tower'],
+    tower_floor: 34,
     question: "A 55-year-old man presents with episodic, excruciating unilateral facial pain in the right cheek and jaw triggered by chewing and light touch, lasting seconds to 2 minutes. Neurological exam is completely normal. What is the first-line pharmacological treatment?",
     options: ["Gabapentin 300 mg TID", "Carbamazepine 200 mg BID", "Sumatriptan 6 mg SC", "Indomethacin 25 mg TID"],
     correct: "B",
@@ -202,7 +231,8 @@ const questions = [
   },
   {
     id: 'NE-005', subject: 'neurology',
-    game_modes: ['battle_royale', 'speed_race', 'trivia_pursuit'],
+    game_modes: ['battle_royale', 'speed_race', 'trivia_pursuit', 'tower'],
+    tower_floor: 35,
     question: "A 62-year-old hypertensive man presents with sudden severe 'thunderclap' headache ('worst headache of my life'), vomiting, and neck stiffness. CT head is negative for blood. Lumbar puncture shows xanthochromia and RBCs in all 4 tubes. What is the most likely source of bleeding?",
     options: ["Hypertensive hemorrhage in the basal ganglia", "Ruptured arteriovenous malformation in the cortex", "Ruptured saccular (berry) aneurysm at the circle of Willis", "Subdural hematoma from bridging vein rupture"],
     correct: "C",
@@ -210,9 +240,11 @@ const questions = [
   },
 
   // ── BIOCHEMISTRY ─────────────────────────────────────────────────────────────
+  // Zone 1: Floors 1-10
   {
     id: 'BC-001', subject: 'biochemistry',
-    game_modes: ['battle_royale', 'speed_race', 'trivia_pursuit'],
+    game_modes: ['battle_royale', 'speed_race', 'trivia_pursuit', 'tower'],
+    tower_floor: 1,
     question: "A newborn screens positive for phenylketonuria (PKU). The deficient enzyme converts phenylalanine to tyrosine using tetrahydrobiopterin (BH4) as a cofactor. Which enzyme is deficient in classic PKU?",
     options: ["Tyrosine hydroxylase", "Phenylalanine hydroxylase", "Homogentisate oxidase", "Fumarylacetoacetate hydrolase"],
     correct: "B",
@@ -220,7 +252,8 @@ const questions = [
   },
   {
     id: 'BC-002', subject: 'biochemistry',
-    game_modes: ['battle_royale', 'speed_race', 'trivia_pursuit'],
+    game_modes: ['battle_royale', 'speed_race', 'trivia_pursuit', 'tower'],
+    tower_floor: 2,
     question: "A 6-month-old boy presents with severe hypoglycemia, hepatomegaly, and lactic acidosis after fasting. Liver biopsy shows massive glycogen accumulation. Enzyme analysis reveals absent glucose-6-phosphatase activity. What is the diagnosis?",
     options: ["Pompe disease (GSD type II)", "McArdle disease (GSD type V)", "Von Gierke disease (GSD type Ia)", "Cori disease (GSD type III)"],
     correct: "C",
@@ -228,7 +261,8 @@ const questions = [
   },
   {
     id: 'BC-003', subject: 'biochemistry',
-    game_modes: ['battle_royale', 'speed_race', 'trivia_pursuit'],
+    game_modes: ['battle_royale', 'speed_race', 'trivia_pursuit', 'tower'],
+    tower_floor: 3,
     question: "A 2-year-old boy presents with intellectual disability, compulsive self-mutilation (lip and finger biting), hyperuricemia, gout, and choreoathetosis. Which enzyme is deficient?",
     options: ["Adenosine deaminase (ADA)", "Hypoxanthine-guanine phosphoribosyltransferase (HGPRT)", "Purine nucleoside phosphorylase (PNP)", "Xanthine oxidase"],
     correct: "B",
@@ -236,7 +270,8 @@ const questions = [
   },
   {
     id: 'BC-004', subject: 'biochemistry',
-    game_modes: ['battle_royale', 'speed_race', 'trivia_pursuit'],
+    game_modes: ['battle_royale', 'speed_race', 'trivia_pursuit', 'tower'],
+    tower_floor: 4,
     question: "A 6-month-old girl of Ashkenazi Jewish descent presents with progressive neurodegeneration, a cherry-red spot on the macula, hyperreflexia, and no organomegaly. Enzyme analysis reveals absent hexosaminidase A activity. What substrate accumulates in neurons?",
     options: ["Glucocerebroside", "GM2 ganglioside", "Sphingomyelin", "Ceramide trihexoside"],
     correct: "B",
@@ -244,7 +279,8 @@ const questions = [
   },
   {
     id: 'BC-005', subject: 'biochemistry',
-    game_modes: ['battle_royale', 'speed_race', 'trivia_pursuit'],
+    game_modes: ['battle_royale', 'speed_race', 'trivia_pursuit', 'tower'],
+    tower_floor: 5,
     question: "A 1-week-old neonate presents with lethargy, poor feeding, and urine with a sweet, maple syrup odor. Plasma amino acids show elevated leucine, isoleucine, and valine. Which enzyme is deficient?",
     options: ["Propionyl-CoA carboxylase", "Branched-chain alpha-ketoacid dehydrogenase (BCKDH)", "Methylmalonyl-CoA mutase", "Isovaleryl-CoA dehydrogenase"],
     correct: "B",
@@ -252,7 +288,8 @@ const questions = [
   },
   {
     id: 'BC-006', subject: 'biochemistry',
-    game_modes: ['battle_royale', 'speed_race', 'trivia_pursuit'],
+    game_modes: ['battle_royale', 'speed_race', 'trivia_pursuit', 'tower'],
+    tower_floor: 6,
     question: "A 25-year-old man presents with dark urine that turns black on standing, arthritis of large joints, and bluish-black discoloration of his ear cartilage (ochronosis). Urine homogentisic acid is markedly elevated. Which enzyme is deficient?",
     options: ["Phenylalanine hydroxylase", "Tyrosinase", "Homogentisate oxidase", "Fumarylacetoacetase"],
     correct: "C",
