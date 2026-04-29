@@ -129,6 +129,40 @@ let gameSettings = {
   showGameLeaderboard: true,
   soundEffectsEnabled: true,
   backgroundMusicEnabled: true,
+  // Section 8: Tower / Story Mode
+  towerQuestionsNormal: 3,
+  towerQuestionsChallenge: 5,
+  towerQuestionsBoss: 10,
+  towerQuestionTimer: 20,
+  towerXpNormal: 30,
+  towerXpChallenge: 60,
+  towerXpBoss: 150,
+  towerXpPerfectBonus: 20,
+  towerXpZoneBonus: 200,
+  towerTotalFloors: 100,
+  towerChallengeInterval: 5,
+  towerBossInterval: 10,
+  // Zone customisation
+  towerZone1Name: 'The Basement',
+  towerZone1Desc: 'Deep beneath the hospital, the foundations of biochemistry echo through stone walls. Master the basics or be buried here forever.',
+  towerZone2Name: 'The Laboratory',
+  towerZone2Desc: 'Culture plates and microscopes everywhere. Invisible enemies lurk in every petri dish. Identify them or be consumed.',
+  towerZone3Name: 'The Ward',
+  towerZone3Desc: 'Medication carts line the hallways. Every drug interaction, every mechanism — your patients depend on your knowledge.',
+  towerZone4Name: 'The Clinic',
+  towerZone4Desc: 'Neurological exams await. Reflex hammers and MRI films are scattered across darkened examination rooms.',
+  towerZone5Name: 'The Cardio Unit',
+  towerZone5Desc: 'ECG tracings paper the walls. The rhythms of the heart are your language here. One misread and the case collapses.',
+  towerZone6Name: 'The Research Floor',
+  towerZone6Desc: 'Whiteboards covered in p-values and confidence intervals. The numbers tell the truth — if you know how to read them.',
+  towerZone7Name: 'Mixed Challenge',
+  towerZone7Desc: 'All disciplines collide here. No single subject can carry you — breadth is your only weapon.',
+  towerZone8Name: 'The Gauntlet',
+  towerZone8Desc: 'Few reach this floor. The questions are harder, the pressure immense. Only the relentless survive.',
+  towerZone9Name: 'The Penthouse',
+  towerZone9Desc: 'Near the summit. The air grows thin. Every answer feels like the last.',
+  towerZone10Name: 'The Summit',
+  towerZone10Desc: 'The final ten floors. Boss encounters on every level. Only legends reach the top.',
 };
 
 // ── In-memory stats (server-lifetime counters) ────────────────────────────────
@@ -1886,6 +1920,9 @@ app.post('/admin/settings', adminAuth, (req, res) => {
     'maxPlayersPerLobby','minPlayersToStart','maxBotsPerLobby','lobbyAutoStart',
     'xpFirst','xpSecond','xpThird','xpOther','xpPerCorrect','xpDailyChallenge','xpPerLevel','streakBonusMultiplier',
     'maxConcurrentLobbies',
+    'towerQuestionsNormal','towerQuestionsChallenge','towerQuestionsBoss','towerQuestionTimer',
+    'towerXpNormal','towerXpChallenge','towerXpBoss','towerXpPerfectBonus','towerXpZoneBonus',
+    'towerTotalFloors','towerChallengeInterval','towerBossInterval',
   ];
   // Boolean fields
   const boolFields = [
@@ -1898,6 +1935,12 @@ app.post('/admin/settings', adminAuth, (req, res) => {
   for (const k of numFields)  { if (b[k] !== undefined) gameSettings[k] = Number(b[k]); }
   for (const k of boolFields) { if (b[k] !== undefined) gameSettings[k] = Boolean(b[k]); }
   if (b.maintenanceMessage !== undefined) gameSettings.maintenanceMessage = String(b.maintenanceMessage).slice(0, 500);
+  // Zone names and descriptions
+  for (let i = 1; i <= 10; i++) {
+    const nk = `towerZone${i}Name`, dk = `towerZone${i}Desc`;
+    if (b[nk] !== undefined) gameSettings[nk] = String(b[nk]).slice(0, 100);
+    if (b[dk] !== undefined) gameSettings[dk] = String(b[dk]).slice(0, 500);
+  }
   res.json(gameSettings);
 });
 

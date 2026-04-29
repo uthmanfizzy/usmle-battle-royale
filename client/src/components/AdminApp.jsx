@@ -27,6 +27,19 @@ const FOLDERS = [
 
 const SUBJECTS = FOLDERS.filter(f => !f.special && f.id !== 'all').map(f => f.id);
 
+const DEFAULT_TOWER_ZONES = [
+  { name: 'The Basement',       desc: 'Deep beneath the hospital, the foundations of biochemistry echo through stone walls. Master the basics or be buried here forever.' },
+  { name: 'The Laboratory',     desc: 'Culture plates and microscopes everywhere. Invisible enemies lurk in every petri dish. Identify them or be consumed.' },
+  { name: 'The Ward',           desc: 'Medication carts line the hallways. Every drug interaction, every mechanism — your patients depend on your knowledge.' },
+  { name: 'The Clinic',         desc: 'Neurological exams await. Reflex hammers and MRI films are scattered across darkened examination rooms.' },
+  { name: 'The Cardio Unit',    desc: 'ECG tracings paper the walls. The rhythms of the heart are your language here. One misread and the case collapses.' },
+  { name: 'The Research Floor', desc: 'Whiteboards covered in p-values and confidence intervals. The numbers tell the truth — if you know how to read them.' },
+  { name: 'Mixed Challenge',    desc: 'All disciplines collide here. No single subject can carry you — breadth is your only weapon.' },
+  { name: 'The Gauntlet',       desc: 'Few reach this floor. The questions are harder, the pressure immense. Only the relentless survive.' },
+  { name: 'The Penthouse',      desc: 'Near the summit. The air grows thin. Every answer feels like the last.' },
+  { name: 'The Summit',         desc: 'The final ten floors. Boss encounters on every level. Only legends reach the top.' },
+];
+
 function apiCall(path, options = {}) {
   return fetch(`${API}${path}`, {
     ...options,
@@ -757,6 +770,25 @@ function withDefaults(raw) {
     showGameLeaderboard:      raw.showGameLeaderboard     ?? true,
     soundEffectsEnabled:      raw.soundEffectsEnabled     ?? true,
     backgroundMusicEnabled:   raw.backgroundMusicEnabled  ?? true,
+    // Section 8: Tower / Story Mode
+    towerQuestionsNormal:     raw.towerQuestionsNormal    ?? 3,
+    towerQuestionsChallenge:  raw.towerQuestionsChallenge ?? 5,
+    towerQuestionsBoss:       raw.towerQuestionsBoss      ?? 10,
+    towerQuestionTimer:       raw.towerQuestionTimer      ?? 20,
+    towerXpNormal:            raw.towerXpNormal           ?? 30,
+    towerXpChallenge:         raw.towerXpChallenge        ?? 60,
+    towerXpBoss:              raw.towerXpBoss             ?? 150,
+    towerXpPerfectBonus:      raw.towerXpPerfectBonus     ?? 20,
+    towerXpZoneBonus:         raw.towerXpZoneBonus        ?? 200,
+    towerTotalFloors:         raw.towerTotalFloors        ?? 100,
+    towerChallengeInterval:   raw.towerChallengeInterval  ?? 5,
+    towerBossInterval:        raw.towerBossInterval       ?? 10,
+    ...Object.fromEntries(
+      DEFAULT_TOWER_ZONES.flatMap((z, i) => [
+        [`towerZone${i + 1}Name`, raw[`towerZone${i + 1}Name`] ?? z.name],
+        [`towerZone${i + 1}Desc`, raw[`towerZone${i + 1}Desc`] ?? z.desc],
+      ])
+    ),
   };
 }
 
@@ -844,14 +876,42 @@ function TextareaRow({ label, desc, value, onChange, placeholder }) {
   );
 }
 
+function ZoneRow({ zoneNum, name, desc, onNameChange, onDescChange }) {
+  return (
+    <div className="ap-zone-row">
+      <div className="ap-zone-header">
+        <span className="ap-zone-badge">Zone {zoneNum}</span>
+      </div>
+      <div className="ap-zone-fields">
+        <input
+          type="text"
+          className="ap-input-plain"
+          value={name}
+          onChange={e => onNameChange(e.target.value)}
+          placeholder={`Zone ${zoneNum} name`}
+          maxLength={100}
+        />
+        <textarea
+          className="ap-settings-textarea"
+          value={desc}
+          onChange={e => onDescChange(e.target.value)}
+          placeholder="Zone description…"
+          rows={2}
+          maxLength={500}
+        />
+      </div>
+    </div>
+  );
+}
+
 // ── Settings Panel ─────────────────────────────────────────────────────────────
 
 function SettingsPanel() {
   const [settings, setSettings] = useState(null);
   const [loading,  setLoading]  = useState(true);
   const [error,    setError]    = useState('');
-  const [saving,   setSaving]   = useState({ questions: false, lives: false, lobby: false, xp: false, modes: false, maintenance: false, ui: false });
-  const [saved,    setSaved]    = useState({ questions: false, lives: false, lobby: false, xp: false, modes: false, maintenance: false, ui: false });
+  const [saving,   setSaving]   = useState({ questions: false, lives: false, lobby: false, xp: false, modes: false, maintenance: false, ui: false, tower: false });
+  const [saved,    setSaved]    = useState({ questions: false, lives: false, lobby: false, xp: false, modes: false, maintenance: false, ui: false, tower: false });
   const [resetMsg, setResetMsg] = useState('');
 
   useEffect(() => {
@@ -1387,6 +1447,195 @@ function SettingsPanel() {
         </div>
 
         <SectionSaveBtn saving={saving.ui} saved={saved.ui} onSave={() => saveSection('ui')} />
+      </div>
+
+      {/* ── 8. TOWER / STORY MODE ─────────────────────────────────────── */}
+      <div className="ap-settings-section">
+        <div className="ap-section-hd">
+          <div className="ap-section-icon">🏰</div>
+          <div>
+            <h2 className="ap-section-title-lg">Tower / Story Mode</h2>
+            <p className="ap-section-subtitle">Floor structure, XP rewards, zone customisation, and floor type intervals</p>
+          </div>
+        </div>
+
+        <div className="ap-settings-rows">
+          <div className="ap-srow-divider">Mode Toggle</div>
+          <ToggleRow label="🏰 Enable The Tower"
+            desc="Allow players to access The Tower solo climbing mode"
+            checked={settings.modesTower}
+            onChange={v => upd('modesTower', v)} />
+
+          <div className="ap-srow-divider">Floor Structure</div>
+          <SliderRow label="Questions per Normal Floor"
+            desc="How many correct answers are required to clear a standard floor"
+            min={1} max={10} step={1} unit="questions"
+            value={settings.towerQuestionsNormal}
+            onChange={v => upd('towerQuestionsNormal', v)} />
+
+          <SliderRow label="Questions per Challenge Floor"
+            desc="Correct answers required on every 5th floor (challenge)"
+            min={3} max={15} step={1} unit="questions"
+            value={settings.towerQuestionsChallenge}
+            onChange={v => upd('towerQuestionsChallenge', v)} />
+
+          <SliderRow label="Questions per Boss Floor"
+            desc="Correct answers required on every 10th floor (boss) — all must be correct"
+            min={5} max={20} step={1} unit="questions"
+            value={settings.towerQuestionsBoss}
+            onChange={v => upd('towerQuestionsBoss', v)} />
+
+          <SliderRow label="Lives per Floor"
+            desc="How many lives players start with on each normal and challenge floor"
+            min={1} max={5} step={1} unit="lives"
+            value={settings.towerFloorLives}
+            onChange={v => upd('towerFloorLives', v)} />
+
+          <div className="ap-srow">
+            <div className="ap-srow-info">
+              <div className="ap-srow-label">Boss Floor Tolerance</div>
+              <div className="ap-srow-desc">How many wrong answers are allowed before failing a boss floor</div>
+            </div>
+            <div className="ap-srow-ctrl">
+              <div className="ap-chip-group">
+                <button
+                  className={`ap-chip ${settings.bossTolerance === 0 ? 'active' : ''}`}
+                  onClick={() => upd('bossTolerance', 0)}
+                >
+                  Zero mistakes
+                </button>
+                <button
+                  className={`ap-chip ${settings.bossTolerance === 1 ? 'active' : ''}`}
+                  onClick={() => upd('bossTolerance', 1)}
+                >
+                  Allow 1 mistake
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <SliderRow label="Question Timer per Floor"
+            desc="Seconds allowed per question inside The Tower"
+            min={10} max={60} step={5} unit="sec"
+            value={settings.towerQuestionTimer}
+            onChange={v => upd('towerQuestionTimer', v)} />
+
+          <div className="ap-srow">
+            <div className="ap-srow-info">
+              <div className="ap-srow-label">Total Number of Floors</div>
+              <div className="ap-srow-desc">Total floors in The Tower — changing this resets any existing progress thresholds</div>
+            </div>
+            <div className="ap-srow-ctrl">
+              <div className="ap-chip-group">
+                {[50, 100, 200].map(n => (
+                  <button
+                    key={n}
+                    className={`ap-chip ap-chip-lg ${settings.towerTotalFloors === n ? 'active' : ''}`}
+                    onClick={() => upd('towerTotalFloors', n)}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="ap-srow-divider">Floor Type Intervals</div>
+          <SliderRow label="Challenge Floor Every X Floors"
+            desc="A challenge floor appears every X floors (e.g. 5 = floors 5, 10, 15…)"
+            min={3} max={10} step={1} unit="floors"
+            value={settings.towerChallengeInterval}
+            onChange={v => upd('towerChallengeInterval', v)} />
+
+          <SliderRow label="Boss Floor Every Y Floors"
+            desc="A boss floor appears every Y floors (e.g. 10 = floors 10, 20, 30…)"
+            min={5} max={20} step={5} unit="floors"
+            value={settings.towerBossInterval}
+            onChange={v => upd('towerBossInterval', v)} />
+
+          <div className="ap-srow-divider">XP Rewards</div>
+          <SliderRow label="XP for Normal Floor"
+            desc="Base XP awarded when a standard floor is cleared"
+            min={10} max={200} step={5} unit="XP"
+            value={settings.towerXpNormal}
+            onChange={v => upd('towerXpNormal', v)} />
+
+          <SliderRow label="XP for Challenge Floor"
+            desc="Base XP awarded when a challenge floor is cleared"
+            min={20} max={300} step={10} unit="XP"
+            value={settings.towerXpChallenge}
+            onChange={v => upd('towerXpChallenge', v)} />
+
+          <SliderRow label="XP for Boss Floor"
+            desc="Base XP awarded when a boss floor is defeated"
+            min={50} max={500} step={10} unit="XP"
+            value={settings.towerXpBoss}
+            onChange={v => upd('towerXpBoss', v)} />
+
+          <SliderRow label="Perfect Run Bonus XP"
+            desc="Extra XP added when a floor is cleared without losing any lives"
+            min={0} max={100} step={5} unit="XP"
+            value={settings.towerXpPerfectBonus}
+            onChange={v => upd('towerXpPerfectBonus', v)} />
+
+          <SliderRow label="Zone Completion Bonus XP"
+            desc="Extra XP awarded on boss floors for completing an entire zone"
+            min={0} max={500} step={25} unit="XP"
+            value={settings.towerXpZoneBonus}
+            onChange={v => upd('towerXpZoneBonus', v)} />
+        </div>
+
+        <SectionSaveBtn saving={saving.tower} saved={saved.tower} onSave={() => saveSection('tower')} />
+
+        {/* Zone customisation */}
+        <div className="ap-zone-editor">
+          <div className="ap-zone-editor-title">Zone Names &amp; Descriptions</div>
+          <p className="ap-zone-editor-desc">Customise the name and flavour text shown to players as they enter each zone.</p>
+          <div className="ap-zone-list">
+            {DEFAULT_TOWER_ZONES.map((_, i) => (
+              <ZoneRow
+                key={i}
+                zoneNum={i + 1}
+                name={settings[`towerZone${i + 1}Name`]}
+                desc={settings[`towerZone${i + 1}Desc`]}
+                onNameChange={v => upd(`towerZone${i + 1}Name`, v)}
+                onDescChange={v => upd(`towerZone${i + 1}Desc`, v)}
+              />
+            ))}
+          </div>
+          <div className="ap-section-footer">
+            <button
+              className={`ap-section-save-btn ${saved.tower ? 'saved' : ''}`}
+              onClick={() => saveSection('tower')}
+              disabled={saving.tower}
+            >
+              {saving.tower ? 'Saving…' : saved.tower ? '✓ Saved!' : 'Save Zone Names'}
+            </button>
+          </div>
+        </div>
+
+        {/* Reset danger action */}
+        <div className="ap-danger-zone" style={{ margin: '0 24px 24px' }}>
+          <div className="ap-danger-zone-title">⚠️ Danger Zone</div>
+          <p className="ap-danger-zone-desc">Resets all player Tower progress to Floor 1. This cannot be undone.</p>
+          <div className="ap-danger-actions">
+            <button
+              className="ap-btn-danger"
+              onClick={() => handleReset(
+                '/admin/reset-tower-progress',
+                'Reset ALL player Tower progress to Floor 1? This cannot be undone.',
+                'All Tower progress reset successfully.',
+              )}
+            >
+              🏰 Reset All Tower Progress
+            </button>
+          </div>
+          {resetMsg && (
+            <div className={`ap-reset-msg ${resetMsg.startsWith('✓') ? 'ok' : 'err'}`}>
+              {resetMsg}
+            </div>
+          )}
+        </div>
       </div>
 
       {error && <div className="ap-error" style={{ marginTop: 4 }}>{error}</div>}
