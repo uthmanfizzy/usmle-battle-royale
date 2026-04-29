@@ -86,6 +86,22 @@ CREATE TABLE IF NOT EXISTS announcements (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- ── subjects ──────────────────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS subjects (
+  id            TEXT        PRIMARY KEY,
+  name          TEXT        NOT NULL,
+  icon          TEXT        NOT NULL DEFAULT '📚',
+  active        BOOLEAN     NOT NULL DEFAULT false,
+  min_questions INTEGER     NOT NULL DEFAULT 5,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE subjects ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY IF NOT EXISTS "server_full_access_subjects"
+  ON subjects FOR ALL USING (true) WITH CHECK (true);
+
 -- ── Indexes ────────────────────────────────────────────────────────────────────
 
 CREATE INDEX IF NOT EXISTS idx_users_google_id     ON users(google_id);

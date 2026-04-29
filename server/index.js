@@ -2100,6 +2100,82 @@ app.get('/api/tower/leaderboard', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// ── Subjects API ──────────────────────────────────────────────────────────────
+
+const SUBJECT_DEFAULTS = [
+  { id: 'cardiology',       name: 'Cardiology',                  icon: '❤️',  active: true  },
+  { id: 'neurology',        name: 'Neurology',                   icon: '🧠', active: true  },
+  { id: 'pharmacology',     name: 'Pharmacology',                icon: '💊', active: true  },
+  { id: 'microbiology',     name: 'Microbiology',                icon: '🦠', active: true  },
+  { id: 'biochemistry',     name: 'Biochemistry',                icon: '⚗️', active: true  },
+  { id: 'biostatistics',    name: 'Biostatistics',               icon: '📊', active: true  },
+  { id: 'pathology',        name: 'Pathology',                   icon: '🔬', active: false },
+  { id: 'pulmonology',      name: 'Pulmonology',                 icon: '🫁', active: false },
+  { id: 'nephrology',       name: 'Nephrology',                  icon: '💧', active: false },
+  { id: 'gastroenterology', name: 'Gastroenterology',            icon: '🫃', active: false },
+  { id: 'endocrinology',    name: 'Endocrinology',               icon: '🦋', active: false },
+  { id: 'haematology',      name: 'Haematology',                 icon: '🩸', active: false },
+  { id: 'immunology',       name: 'Immunology',                  icon: '🛡️', active: false },
+  { id: 'musculoskeletal',  name: 'Musculoskeletal',             icon: '🦴', active: false },
+  { id: 'dermatology',      name: 'Dermatology',                 icon: '🩹', active: false },
+  { id: 'reproductive',     name: 'Reproductive & Obstetrics',   icon: '👶', active: false },
+  { id: 'psychiatry',       name: 'Psychiatry & Behav. Science', icon: '🧠', active: false },
+  { id: 'ophthalmology',    name: 'Ophthalmology',               icon: '👁️', active: false },
+  { id: 'ent',              name: 'ENT',                         icon: '👂', active: false },
+  { id: 'genetics',         name: 'Genetics & Embryology',       icon: '🧬', active: false },
+  { id: 'anatomy',          name: 'Anatomy',                     icon: '🫀', active: false },
+];
+
+app.get('/api/subjects', async (req, res) => {
+  if (!supabase) return res.json({ subjects: SUBJECT_DEFAULTS });
+  try {
+    let { data, error } = await supabase
+      .from('subjects')
+      .select('id, name, icon, active, min_questions')
+      .order('active', { ascending: false })
+      .order('name',   { ascending: true  });
+    if (error) throw error;
+    let list = data || [];
+    // Seed on first run
+    if (list.length === 0) {
+      const { data: inserted } = await supabase.from('subjects').insert(SUBJECT_DEFAULTS).select('id, name, icon, active, min_questions');
+      list = inserted || SUBJECT_DEFAULTS;
+    } else {
+      // Insert any subjects added to defaults since last run
+      const dbIds   = new Set(list.map(s => s.id));
+      const missing = SUBJECT_DEFAULTS.filter(s => !dbIds.has(s.id));
+      if (missing.length) {
+        const { data: newRows } = await supabase.from('subjects').insert(missing).select('id, name, icon, active, min_questions');
+        if (newRows) list = [...list, ...newRows];
+      }
+    }
+    res.json({ subjects: list });
+  } catch (err) {
+    console.error('[Subjects] GET error:', err.message);
+    res.json({ subjects: SUBJECT_DEFAULTS });
+  }
+});
+
+app.put('/admin/subjects/:id', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Database not configured.' });
+  const id     = req.params.id;
+  const active = !!req.body.active;
+  try {
+    const { data: existing } = await supabase.from('subjects').select('id').eq('id', id).single();
+    if (existing) {
+      const { data, error } = await supabase.from('subjects').update({ active }).eq('id', id).select('id, name, icon, active, min_questions').single();
+      if (error) throw error;
+      return res.json(data);
+    }
+    // Upsert if row missing (e.g. table was just created)
+    const def = SUBJECT_DEFAULTS.find(s => s.id === id);
+    if (!def) return res.status(404).json({ error: 'Subject not found' });
+    const { data, error } = await supabase.from('subjects').insert({ ...def, active }).select('id, name, icon, active, min_questions').single();
+    if (error) throw error;
+    res.json(data);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // ── Announcements API ─────────────────────────────────────────────────────────
 
 const WELCOME_ANNOUNCEMENT = {

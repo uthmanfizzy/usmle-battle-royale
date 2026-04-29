@@ -1011,6 +1011,175 @@ function AnnouncementsPanel() {
   );
 }
 
+// ── Subjects Panel ─────────────────────────────────────────────────────────────
+
+const MIN_QUESTIONS_TO_ACTIVATE = 5;
+
+function SubjectCard({ subject, qCount, onToggle, saving }) {
+  const folder  = FOLDERS.find(f => f.id === subject.id);
+  const icon    = folder?.icon || subject.icon || '📚';
+  const hasEnough = qCount >= MIN_QUESTIONS_TO_ACTIVATE;
+
+  let badgeLabel, badgeCls;
+  if (subject.active)    { badgeLabel = 'Active';      badgeCls = 'sj-badge-active';   }
+  else if (qCount === 0) { badgeLabel = 'Coming Soon'; badgeCls = 'sj-badge-cs';       }
+  else if (!hasEnough)   { badgeLabel = 'Low Content'; badgeCls = 'sj-badge-low';      }
+  else                   { badgeLabel = 'Inactive';    badgeCls = 'sj-badge-inactive'; }
+
+  return (
+    <div className={`sj-card ${subject.active ? 'sj-card-on' : 'sj-card-off'}`}>
+      <div className="sj-card-left">
+        <span className="sj-icon">{icon}</span>
+        <div className="sj-info">
+          <span className="sj-name">{subject.name}</span>
+          <div className="sj-meta">
+            <span className="sj-qcount">{qCount} question{qCount !== 1 ? 's' : ''}</span>
+            <span className={`sj-badge ${badgeCls}`}>{badgeLabel}</span>
+          </div>
+          {!subject.active && qCount === 0 && (
+            <div className="sj-warn">⚠️ Add at least {MIN_QUESTIONS_TO_ACTIVATE} questions before activating</div>
+          )}
+          {!subject.active && qCount > 0 && !hasEnough && (
+            <div className="sj-warn">⚠️ Add {MIN_QUESTIONS_TO_ACTIVATE - qCount} more question{MIN_QUESTIONS_TO_ACTIVATE - qCount !== 1 ? 's' : ''} before activating</div>
+          )}
+        </div>
+      </div>
+      <div className="sj-card-right">
+        <span className="sj-toggle-label">{subject.active ? 'On' : 'Off'}</span>
+        <label className={`ap-toggle${saving ? ' sj-saving' : ''}`} title={saving ? 'Saving…' : (subject.active ? 'Deactivate subject' : 'Activate subject')}>
+          <input
+            type="checkbox"
+            checked={!!subject.active}
+            disabled={saving}
+            onChange={onToggle}
+          />
+          <span className="ap-slider" />
+        </label>
+      </div>
+    </div>
+  );
+}
+
+function SubjectsPanel() {
+  const [subjects,  setSubjects]  = useState([]);
+  const [questions, setQuestions] = useState([]);
+  const [loading,   setLoading]   = useState(true);
+  const [saving,    setSaving]    = useState({});
+  const [error,     setError]     = useState('');
+
+  useEffect(() => {
+    Promise.all([
+      apiCall('/api/subjects').then(r => r.json()),
+      apiCall('/admin/questions').then(r => r.json()),
+    ])
+      .then(([subData, qData]) => {
+        setSubjects(subData.subjects || []);
+        setQuestions(qData.questions || []);
+      })
+      .catch(() => setError('Failed to load data.'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  function qCount(subjectId) {
+    return questions.filter(q => q.subject === subjectId).length;
+  }
+
+  async function toggleSubject(id, currentActive) {
+    setSaving(s => ({ ...s, [id]: true }));
+    setError('');
+    try {
+      const res  = await apiCall(`/admin/subjects/${encodeURIComponent(id)}`, {
+        method: 'PUT',
+        body:   JSON.stringify({ active: !currentActive }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Update failed');
+      setSubjects(prev => prev.map(s => s.id === data.id ? { ...s, active: data.active } : s));
+    } catch (err) {
+      setError(err.message);
+    }
+    setSaving(s => ({ ...s, [id]: false }));
+  }
+
+  if (loading) return <div className="ap-loading">Loading subjects…</div>;
+
+  const activeList   = subjects.filter(s =>  s.active);
+  const inactiveList = subjects.filter(s => !s.active);
+  const totalQ       = questions.length;
+
+  return (
+    <div className="sj-panel">
+      {error && <div className="ap-error" style={{ marginBottom: 16 }}>{error}</div>}
+
+      {/* Summary */}
+      <div className="sj-summary">
+        <div className="sj-sum-stat">
+          <span className="sj-sum-val" style={{ color: '#2ecc71' }}>{activeList.length}</span>
+          <span className="sj-sum-lbl">active subjects</span>
+        </div>
+        <div className="sj-sum-div" />
+        <div className="sj-sum-stat">
+          <span className="sj-sum-val">{subjects.length}</span>
+          <span className="sj-sum-lbl">total subjects</span>
+        </div>
+        <div className="sj-sum-div" />
+        <div className="sj-sum-stat">
+          <span className="sj-sum-val">{totalQ}</span>
+          <span className="sj-sum-lbl">total questions</span>
+        </div>
+        <div className="sj-sum-hint">
+          Toggle subjects on to make them selectable in-game. Subjects need at least {MIN_QUESTIONS_TO_ACTIVATE} questions to go live.
+        </div>
+      </div>
+
+      {/* Active */}
+      <div className="sj-section">
+        <div className="sj-section-hd">
+          <span className="sj-section-dot sj-dot-active" />
+          <span className="sj-section-title">Active Subjects</span>
+          <span className="sj-section-count">{activeList.length}</span>
+        </div>
+        <p className="sj-section-desc">These subjects appear as selectable options in-game right now.</p>
+        <div className="sj-list">
+          {activeList.length === 0 && (
+            <div className="ap-empty" style={{ padding: 24 }}>No active subjects yet. Toggle a subject below to make it available to players.</div>
+          )}
+          {activeList.map(s => (
+            <SubjectCard
+              key={s.id}
+              subject={s}
+              qCount={qCount(s.id)}
+              saving={!!saving[s.id]}
+              onToggle={() => toggleSubject(s.id, s.active)}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Inactive */}
+      <div className="sj-section">
+        <div className="sj-section-hd">
+          <span className="sj-section-dot sj-dot-inactive" />
+          <span className="sj-section-title">Coming Soon / Inactive</span>
+          <span className="sj-section-count">{inactiveList.length}</span>
+        </div>
+        <p className="sj-section-desc">Greyed out for players. Add questions then toggle on to activate.</p>
+        <div className="sj-list">
+          {inactiveList.map(s => (
+            <SubjectCard
+              key={s.id}
+              subject={s}
+              qCount={qCount(s.id)}
+              saving={!!saving[s.id]}
+              onToggle={() => toggleSubject(s.id, s.active)}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Tower Editor ──────────────────────────────────────────────────────────────
 
 const TE_ZONES = [
@@ -2371,6 +2540,9 @@ export default function AdminApp() {
         <button className={`ap-nav-btn ${tab === 'questions'     ? 'active' : ''}`} onClick={() => setTab('questions')}>
           📋 Question Manager
         </button>
+        <button className={`ap-nav-btn ${tab === 'subjects'        ? 'active' : ''}`} onClick={() => setTab('subjects')}>
+          📚 Subjects
+        </button>
         <button className={`ap-nav-btn ${tab === 'tower'          ? 'active' : ''}`} onClick={() => setTab('tower')}>
           🏰 Tower Editor
         </button>
@@ -2385,6 +2557,7 @@ export default function AdminApp() {
       <main className="ap-main">
         {tab === 'stats'         && <StatsPanel />}
         {tab === 'questions'     && <QuestionsPanel />}
+        {tab === 'subjects'      && <SubjectsPanel />}
         {tab === 'tower'         && <TowerEditorPanel />}
         {tab === 'announcements' && <AnnouncementsPanel />}
         {tab === 'settings'      && <SettingsPanel />}
