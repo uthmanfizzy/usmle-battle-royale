@@ -161,12 +161,12 @@ let gameSettings = {
   towerZone5Desc: 'ECG tracings paper the walls. The rhythms of the heart are your language here. One misread and the case collapses.',
   towerZone6Name: 'The Research Floor',
   towerZone6Desc: 'Whiteboards covered in p-values and confidence intervals. The numbers tell the truth — if you know how to read them.',
-  towerZone7Name: 'Mixed Challenge',
-  towerZone7Desc: 'All disciplines collide here. No single subject can carry you — breadth is your only weapon.',
-  towerZone8Name: 'The Gauntlet',
-  towerZone8Desc: 'Few reach this floor. The questions are harder, the pressure immense. Only the relentless survive.',
-  towerZone9Name: 'The Penthouse',
-  towerZone9Desc: 'Near the summit. The air grows thin. Every answer feels like the last.',
+  towerZone7Name: 'The GI Tract',
+  towerZone7Desc: 'The gut is more complex than it appears. Motility disorders, inflammatory conditions, and neoplasms hide behind everyday symptoms.',
+  towerZone8Name: 'The Lungs',
+  towerZone8Desc: 'Breath by breath, the pulmonary floor tests your knowledge of obstruction, restriction, infection and beyond. Every wheeze has a reason.',
+  towerZone9Name: 'The Reproductive System',
+  towerZone9Desc: 'Obstetrics and reproductive medicine collide at the upper floors. From conception to complications — nothing here is straightforward.',
   towerZone10Name: 'The Summit',
   towerZone10Desc: 'The final ten floors. Boss encounters on every level. Only legends reach the top.',
 };
@@ -1618,8 +1618,26 @@ io.on('connection', (socket) => {
 // ── REST API ───────────────────────────────────────────────────────────────────
 
 app.get('/api/questions', (req, res) => {
-  const subject = (req.query.subject || 'all').toLowerCase();
-  const pool    = subject === 'all'
+  const subject    = (req.query.subject || 'all').toLowerCase();
+  const towerFloor = parseInt(req.query.tower_floor);
+
+  if (!isNaN(towerFloor) && towerFloor >= 1 && towerFloor <= 100) {
+    const zoneNum   = Math.ceil(towerFloor / 10);
+    const zoneStart = (zoneNum - 1) * 10 + 1;
+    const zoneEnd   = zoneNum * 10;
+    const towerPool = questionBank.filter(q =>
+      Array.isArray(q.game_modes) && q.game_modes.includes('tower') &&
+      q.tower_floor >= zoneStart && q.tower_floor <= zoneEnd
+    );
+    if (towerPool.length >= 3) {
+      return res.json({ questions: shuffle(towerPool) });
+    }
+    // Fallback: serve subject questions when no tower-specific questions exist yet
+    const fallback = subject === 'all' ? questionBank : questionBank.filter(q => q.subject === subject);
+    return res.json({ questions: shuffle(fallback.length >= 5 ? fallback : questionBank) });
+  }
+
+  const pool = subject === 'all'
     ? questionBank
     : questionBank.filter(q => q.subject === subject);
   res.json({ questions: shuffle(pool.length >= 5 ? pool : questionBank) });
@@ -2013,12 +2031,13 @@ app.post('/admin/upload-image', adminAuth, async (req, res) => {
 });
 
 app.post('/admin/questions', adminAuth, (req, res) => {
-  const { subject, difficulty, question, options, correct, explanation, image_url, game_modes } = req.body;
+  const { subject, difficulty, question, options, correct, explanation, image_url, game_modes, tower_floor } = req.body;
   if (!subject || !question || !Array.isArray(options) || options.length !== 4 || !correct || !explanation)
     return res.status(400).json({ error: 'Missing required fields' });
   const newQ = { id: nextQuestionId(subject), subject, difficulty: difficulty || 'easy', question, options, correct, explanation };
   if (image_url) newQ.image_url = image_url;
   newQ.game_modes = Array.isArray(game_modes) && game_modes.length > 0 ? game_modes : ['battle_royale', 'speed_race', 'trivia_pursuit'];
+  if (tower_floor != null && !isNaN(parseInt(tower_floor))) newQ.tower_floor = parseInt(tower_floor);
   questionBank.push(newQ);
   res.json(newQ);
 });

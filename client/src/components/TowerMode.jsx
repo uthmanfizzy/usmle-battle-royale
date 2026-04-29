@@ -47,21 +47,21 @@ const ZONES = [
   },
   {
     id: 7,  start: 61,  end: 70,
-    name: 'Mixed Challenge',    subject: 'all',            color: '#fdcb6e',
-    desc: 'All disciplines collide here. No single subject can carry you — breadth is your only weapon.',
-    story: 'The walls shift between departments. Cardiology bleeds into pharmacology. Neurology overlaps with biochemistry. The true test begins.',
+    name: 'The GI Tract',       subject: 'gastroenterology', color: '#fdcb6e',
+    desc: 'The gut is more complex than it appears. Motility disorders, inflammatory conditions, and neoplasms hide behind everyday symptoms.',
+    story: 'The GI unit stretches before you — colonoscopy reports stacked high, biopsy results pending. The gut tells its own story.',
   },
   {
     id: 8,  start: 71,  end: 80,
-    name: 'The Gauntlet',       subject: 'all',            color: '#d63031',
-    desc: 'Few reach this floor. The questions are harder, the pressure immense. Only the relentless survive.',
-    story: 'The corridor narrows. Torches flicker. You are one of the few who made it this far. The Gauntlet shows no mercy.',
+    name: 'The Lungs',          subject: 'pulmonology',      color: '#74b9ff',
+    desc: 'Breath by breath, the pulmonary floor tests your knowledge of obstruction, restriction, infection and beyond. Every wheeze has a reason.',
+    story: 'The respiratory ward echoes with the hiss of ventilators. Peak flow charts and CT chest films litter every surface. Breathe carefully.',
   },
   {
     id: 9,  start: 81,  end: 90,
-    name: 'The Penthouse',      subject: 'all',            color: '#e84393',
-    desc: 'Near the summit. The air grows thin. Every answer feels like the last.',
-    story: 'Floor-to-ceiling windows reveal the city far below. You are almost there. The Penthouse belongs only to the elite.',
+    name: 'The Reproductive System', subject: 'reproductive', color: '#e84393',
+    desc: 'Obstetrics and reproductive medicine collide at the upper floors. From conception to complications — nothing here is straightforward.',
+    story: 'The maternity wing is busy. Fetal heart tracings, hormone panels, and obstetric emergencies demand your attention. Life itself hangs in the balance.',
   },
   {
     id: 10, start: 91,  end: 100,
@@ -78,9 +78,9 @@ const BOSS_NAMES = {
   40:  'The Neural Architect',
   50:  'The Cardiac Sentinel',
   60:  'The Statistical Oracle',
-  70:  'The Polymathic Gatekeeper',
-  80:  'The Iron Gauntlet',
-  90:  'The Penthouse Warden',
+  70:  'The GI Guardian',
+  80:  'The Pulmonary Sentinel',
+  90:  'The Obstetric Warden',
   100: 'The Summit Master',
 };
 
@@ -99,9 +99,9 @@ const ZONE_BADGES = [
   { floor: 40,  icon: '🧠',  name: 'Neuro Ace',         desc: 'Completed The Clinic' },
   { floor: 50,  icon: '❤️',  name: 'Cardio Champion',   desc: 'Completed The Cardio Unit' },
   { floor: 60,  icon: '📊',  name: 'Stats Scholar',     desc: 'Completed The Research Floor' },
-  { floor: 70,  icon: '🏆',  name: 'Polymathic',        desc: 'Completed Mixed Challenge' },
-  { floor: 80,  icon: '⚔️',  name: 'Gauntlet Runner',   desc: 'Completed The Gauntlet' },
-  { floor: 90,  icon: '🌟',  name: 'Penthouse Elite',   desc: 'Completed The Penthouse' },
+  { floor: 70,  icon: '🫃',  name: 'GI Specialist',     desc: 'Completed The GI Tract' },
+  { floor: 80,  icon: '🫁',  name: 'Pulmonology Pro',   desc: 'Completed The Lungs' },
+  { floor: 90,  icon: '👶',  name: 'OB/GYN Expert',     desc: 'Completed The Reproductive System' },
   { floor: 100, icon: '👑',  name: 'Summit Master',     desc: 'Conquered The Summit' },
 ];
 
@@ -276,10 +276,11 @@ export default function TowerMode({ username, onBack }) {
     setLbLoading(false);
   }
 
-  async function fetchQuestions(subject) {
+  async function fetchQuestions(floor) {
+    const zone = getZone(floor);
     setLoading(true);
     try {
-      const res  = await fetch(`${SERVER}/api/questions?subject=${subject}`);
+      const res  = await fetch(`${SERVER}/api/questions?tower_floor=${floor}&subject=${zone.subject}`);
       const data = await res.json();
       const qs   = data.questions || [];
       setQuestions(qs);
@@ -304,7 +305,7 @@ export default function TowerMode({ username, onBack }) {
     setIntroCountdown(3);
     setXpEarned(0);
     setXpBreakdown([]);
-    fetchQuestions(zone.subject);
+    fetchQuestions(floor);
     setView('intro');
   }
 

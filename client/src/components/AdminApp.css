@@ -1443,6 +1443,56 @@
   .ap-zone-editor-desc  { padding: 0 16px 10px; }
 }
 
+/* ── Tower Floor Field ────────────────────────────────────────────────── */
+.ap-tower-floor-field { margin-top: 4px; }
+
+.ap-tower-floor-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.ap-tower-floor-input {
+  width: 100px !important;
+  flex-shrink: 0;
+}
+
+.ap-tower-zone-tag {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--gold);
+  background: rgba(245, 197, 24, 0.1);
+  border: 1px solid rgba(245, 197, 24, 0.3);
+  border-radius: 20px;
+  padding: 4px 12px;
+}
+
+.ap-td-floor { min-width: 110px; }
+
+.ap-floor-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ap-floor-pill {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--gold);
+  white-space: nowrap;
+}
+
+.ap-floor-zone {
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+.ap-gm-badge-tower {
+  background: rgba(245, 197, 24, 0.15) !important;
+  color: #c49b10 !important;
+}
+
 /* ── Announcements Panel ───────────────────────────────────────────────── */
 .ap-ann-panel {
   padding: 24px;

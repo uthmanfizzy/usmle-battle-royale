@@ -11,7 +11,27 @@ const GAME_MODES = [
   { id: 'speed_race',     label: 'Speed Race',     icon: '⚡', color: '#3498db' },
   { id: 'trivia_pursuit', label: 'Trivia Pursuit', icon: '🎯', color: '#9b59b6' },
   { id: 'scan_master',    label: 'Scan Master',    icon: '🔬', color: '#00b894' },
+  { id: 'tower',          label: 'The Tower',      icon: '🏰', color: '#f5c518' },
 ];
+
+const TOWER_ZONE_LABELS = [
+  'Zone 1 — Biochemistry',
+  'Zone 2 — Microbiology',
+  'Zone 3 — Pharmacology',
+  'Zone 4 — Neurology',
+  'Zone 5 — Cardiology',
+  'Zone 6 — Biostatistics',
+  'Zone 7 — Gastroenterology',
+  'Zone 8 — Pulmonology',
+  'Zone 9 — Reproductive',
+  'Zone 10 — All Subjects',
+];
+
+function getTowerZone(floor) {
+  const n = parseInt(floor);
+  if (!n || n < 1 || n > 100) return '';
+  return TOWER_ZONE_LABELS[Math.ceil(n / 10) - 1] || '';
+}
 
 const FOLDERS = [
   { id: 'all',              label: 'All Questions',                icon: '🏥', prefix: null,  special: false },
@@ -50,9 +70,9 @@ const DEFAULT_TOWER_ZONES = [
   { name: 'The Clinic',         desc: 'Neurological exams await. Reflex hammers and MRI films are scattered across darkened examination rooms.' },
   { name: 'The Cardio Unit',    desc: 'ECG tracings paper the walls. The rhythms of the heart are your language here. One misread and the case collapses.' },
   { name: 'The Research Floor', desc: 'Whiteboards covered in p-values and confidence intervals. The numbers tell the truth — if you know how to read them.' },
-  { name: 'Mixed Challenge',    desc: 'All disciplines collide here. No single subject can carry you — breadth is your only weapon.' },
-  { name: 'The Gauntlet',       desc: 'Few reach this floor. The questions are harder, the pressure immense. Only the relentless survive.' },
-  { name: 'The Penthouse',      desc: 'Near the summit. The air grows thin. Every answer feels like the last.' },
+  { name: 'The GI Tract',            desc: 'The gut is more complex than it appears. Motility disorders, inflammatory conditions, and neoplasms hide behind everyday symptoms.' },
+  { name: 'The Lungs',               desc: 'Breath by breath, the pulmonary floor tests your knowledge of obstruction, restriction, infection and beyond. Every wheeze has a reason.' },
+  { name: 'The Reproductive System', desc: 'Obstetrics and reproductive medicine collide at the upper floors. From conception to complications — nothing here is straightforward.' },
   { name: 'The Summit',         desc: 'The final ten floors. Boss encounters on every level. Only legends reach the top.' },
 ];
 
@@ -202,6 +222,7 @@ function QuestionModal({ question, defaultSubject = 'cardiology', onSave, onClos
     image_url:    question.image_url || '',
     questionType: question.image_url ? 'image' : 'text',
     game_modes:   question.game_modes || (question.image_url ? ['scan_master'] : ['battle_royale', 'speed_race', 'trivia_pursuit']),
+    tower_floor:  question.tower_floor || '',
   } : {
     subject:      defaultSubjectResolved,
     difficulty:   'easy',
@@ -215,6 +236,7 @@ function QuestionModal({ question, defaultSubject = 'cardiology', onSave, onClos
     image_url:    '',
     questionType: 'text',
     game_modes:   ['battle_royale', 'speed_race', 'trivia_pursuit'],
+    tower_floor:  '',
   });
 
   const [saving,       setSaving]       = useState(false);
@@ -272,6 +294,7 @@ function QuestionModal({ question, defaultSubject = 'cardiology', onSave, onClos
       explanation: form.explanation.trim(),
       image_url:   form.questionType === 'image' ? form.image_url : '',
       game_modes:  form.game_modes,
+      tower_floor: form.game_modes.includes('tower') && form.tower_floor !== '' ? parseInt(form.tower_floor) : null,
     };
     try {
       const res = isEdit
@@ -468,6 +491,31 @@ function QuestionModal({ question, defaultSubject = 'cardiology', onSave, onClos
               })}
             </div>
           </div>
+
+          {form.game_modes.includes('tower') && (
+            <div className="ap-field ap-tower-floor-field">
+              <label>Tower Floor <span style={{ color: 'var(--red)', marginLeft: 2 }}>*</span></label>
+              <div className="ap-tower-floor-row">
+                <input
+                  type="number"
+                  min={1}
+                  max={100}
+                  value={form.tower_floor}
+                  onChange={e => set('tower_floor', e.target.value)}
+                  placeholder="1 – 100"
+                  className="ap-input-plain ap-tower-floor-input"
+                />
+                {form.tower_floor !== '' && (
+                  <span className="ap-tower-zone-tag">
+                    📍 {getTowerZone(form.tower_floor)}
+                  </span>
+                )}
+              </div>
+              <div className="ap-srow-desc" style={{ marginTop: 4 }}>
+                Assign this question to a specific tower floor (1–100). Zone auto-fills based on the floor number.
+              </div>
+            </div>
+          )}
 
           {error && <div className="ap-error">{error}</div>}
 
@@ -673,6 +721,7 @@ function QuestionsPanel() {
                   <th>Difficulty</th>
                   <th>Image</th>
                   <th>Game Modes</th>
+                  <th>Tower Floor</th>
                   <th>Question Preview</th>
                   <th>Actions</th>
                 </tr>
@@ -710,6 +759,16 @@ function QuestionsPanel() {
                         })}
                       </div>
                     </td>
+                    <td className="ap-td-floor">
+                      {(q.game_modes || []).includes('tower') && q.tower_floor
+                        ? (
+                          <div className="ap-floor-cell">
+                            <span className="ap-floor-pill">🏰 {q.tower_floor}</span>
+                            <span className="ap-floor-zone">{getTowerZone(q.tower_floor)}</span>
+                          </div>
+                        )
+                        : <span className="ap-no-image">—</span>}
+                    </td>
                     <td className="ap-td-preview" title={q.question}>
                       {q.question.length > 80 ? q.question.slice(0, 80) + '…' : q.question}
                     </td>
@@ -723,7 +782,7 @@ function QuestionsPanel() {
                 ))}
                 {filtered.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="ap-empty">
+                    <td colSpan={8} className="ap-empty">
                       No questions in this category yet.
                     </td>
                   </tr>
