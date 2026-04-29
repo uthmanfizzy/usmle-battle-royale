@@ -1,4 +1,56 @@
 const questions = [
+  // ── BUZZ FUN ─────────────────────────────────────────────────────────────────
+  {
+    id: 'BF-001', subject: 'pathology',
+    difficulty: 'easy',
+    buzz_type: 'BUZZWORD',
+    game_modes: ['buzz_fun'],
+    question: 'Kimmelstiel-Wilson nodules',
+    options: ['Diabetic nephropathy', 'IgA nephropathy', 'Minimal change disease', 'FSGS'],
+    correct: 'A',
+    explanation: 'Kimmelstiel-Wilson nodules are pathognomonic of diabetic nephropathy — nodular glomerulosclerosis from mesangial matrix expansion due to chronic hyperglycaemia.'
+  },
+  {
+    id: 'BF-002', subject: 'neurology',
+    difficulty: 'easy',
+    buzz_type: 'TRIAD',
+    game_modes: ['buzz_fun'],
+    question: 'Fever + Neck stiffness + Photophobia',
+    options: ['Bacterial meningitis', 'Subarachnoid haemorrhage', 'Viral encephalitis', 'Migraine with aura'],
+    correct: 'A',
+    explanation: 'The classic triad of bacterial meningitis is fever, neck stiffness (meningismus), and photophobia. Kernig and Brudzinski signs may also be present.'
+  },
+  {
+    id: 'BF-003', subject: 'cardiology',
+    difficulty: 'easy',
+    buzz_type: 'ASSOCIATION',
+    game_modes: ['buzz_fun'],
+    question: 'Carey Coombs murmur',
+    options: ['Acute rheumatic fever', 'Mitral valve prolapse', 'Aortic stenosis', 'Atrial septal defect'],
+    correct: 'A',
+    explanation: 'The Carey Coombs murmur is a short mid-diastolic rumble in acute rheumatic fever, caused by inflammation of the mitral valve leaflets (mitral valvulitis).'
+  },
+  {
+    id: 'BF-004', subject: 'pharmacology',
+    difficulty: 'easy',
+    buzz_type: 'SIDE_EFFECT',
+    game_modes: ['buzz_fun'],
+    question: 'Cinchonism: tinnitus, vertigo, headache',
+    options: ['Quinine / Quinidine', 'Chloroquine', 'Mefloquine', 'Doxycycline'],
+    correct: 'A',
+    explanation: 'Cinchonism — tinnitus, vertigo, headache, visual disturbances — is the classic toxicity of quinine and quinidine (cinchona alkaloids). High doses cause cardiac arrhythmias.'
+  },
+  {
+    id: 'BF-005', subject: 'microbiology',
+    difficulty: 'easy',
+    buzz_type: 'ASSOCIATION',
+    game_modes: ['buzz_fun'],
+    question: '"Ghon complex" on chest X-ray',
+    options: ['Primary TB (Mycobacterium tuberculosis)', 'Histoplasma capsulatum', 'Sarcoidosis', 'Lung adenocarcinoma'],
+    correct: 'A',
+    explanation: 'The Ghon complex — calcified subpleural parenchymal focus + calcified hilar lymph node — is the radiological hallmark of healed primary TB infection.'
+  },
+
   // ── BIOSTATISTICS ────────────────────────────────────────────────────────────
   {
     id: 'BS-001', subject: 'biostatistics',

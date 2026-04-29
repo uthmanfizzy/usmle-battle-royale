@@ -12,6 +12,7 @@ const GAME_MODES = [
   { id: 'trivia_pursuit', label: 'Trivia Pursuit', icon: '🎯', color: '#9b59b6' },
   { id: 'scan_master',    label: 'Scan Master',    icon: '🔬', color: '#00b894' },
   { id: 'tower',          label: 'The Tower',      icon: '🏰', color: '#f5c518' },
+  { id: 'buzz_fun',       label: 'Buzz Fun',       icon: '⚡', color: '#e67e22' },
 ];
 
 const TOWER_ZONE_LABELS = [
@@ -36,6 +37,7 @@ function getTowerZone(floor) {
 const FOLDERS = [
   { id: 'all',              label: 'All Questions',                icon: '🏥', prefix: null,  special: false },
   { id: '__images__',       label: 'Image Questions',              icon: '🖼️', prefix: null,  special: true  },
+  { id: 'buzz_fun',         label: 'Buzz Fun',                     icon: '⚡', prefix: 'BF',  special: true  },
   { id: 'scan_master',      label: 'Scan Master',                  icon: '🔬', prefix: 'SM',  special: false },
   { id: 'cardiology',       label: 'Cardiology',                   icon: '❤️',  prefix: 'CA',  special: false },
   { id: 'neurology',        label: 'Neurology',                    icon: '🧠', prefix: 'NE',  special: false },
@@ -223,6 +225,7 @@ function QuestionModal({ question, defaultSubject = 'cardiology', onSave, onClos
     questionType: question.image_url ? 'image' : 'text',
     game_modes:   question.game_modes || (question.image_url ? ['scan_master'] : ['battle_royale', 'speed_race', 'trivia_pursuit']),
     tower_floor:  question.tower_floor || '',
+    buzz_type:    question.buzz_type || 'BUZZWORD',
   } : {
     subject:      defaultSubjectResolved,
     difficulty:   'easy',
@@ -237,6 +240,7 @@ function QuestionModal({ question, defaultSubject = 'cardiology', onSave, onClos
     questionType: 'text',
     game_modes:   ['battle_royale', 'speed_race', 'trivia_pursuit'],
     tower_floor:  '',
+    buzz_type:    'BUZZWORD',
   });
 
   const [saving,       setSaving]       = useState(false);
@@ -295,6 +299,7 @@ function QuestionModal({ question, defaultSubject = 'cardiology', onSave, onClos
       image_url:   form.questionType === 'image' ? form.image_url : '',
       game_modes:  form.game_modes,
       tower_floor: form.game_modes.includes('tower') && form.tower_floor !== '' ? parseInt(form.tower_floor) : null,
+      buzz_type:   form.game_modes.includes('buzz_fun') ? form.buzz_type : undefined,
     };
     try {
       const res = isEdit
@@ -492,6 +497,18 @@ function QuestionModal({ question, defaultSubject = 'cardiology', onSave, onClos
             </div>
           </div>
 
+          {form.game_modes.includes('buzz_fun') && (
+            <div className="ap-field">
+              <label>Buzz Type <span style={{ color: 'var(--red)', marginLeft: 2 }}>*</span></label>
+              <select value={form.buzz_type} onChange={e => set('buzz_type', e.target.value)}>
+                <option value="BUZZWORD">BUZZWORD — single pathognomonic term</option>
+                <option value="TRIAD">TRIAD — classic 3-symptom triad</option>
+                <option value="ASSOCIATION">ASSOCIATION — HY clinical association</option>
+                <option value="SIDE_EFFECT">SIDE EFFECT — drug side effect</option>
+              </select>
+            </div>
+          )}
+
           {form.game_modes.includes('tower') && (
             <div className="ap-field ap-tower-floor-field">
               <label>Tower Floor <span style={{ color: 'var(--red)', marginLeft: 2 }}>*</span></label>
@@ -619,12 +636,14 @@ function QuestionsPanel() {
     if (f.separator)                acc[f.id] = 0;
     else if (f.id === 'all')        acc[f.id] = questions.length;
     else if (f.id === '__images__') acc[f.id] = questions.filter(q => q.image_url).length;
+    else if (f.id === 'buzz_fun')   acc[f.id] = questions.filter(q => (q.game_modes || []).includes('buzz_fun')).length;
     else                            acc[f.id] = questions.filter(q => q.subject === f.id).length;
     return acc;
   }, {});
 
   const baseFiltered = activeFolder === 'all'       ? questions
     : activeFolder === '__images__'             ? questions.filter(q => q.image_url)
+    : activeFolder === 'buzz_fun'              ? questions.filter(q => (q.game_modes || []).includes('buzz_fun'))
     : questions.filter(q => q.subject === activeFolder);
   const filtered = gameModeFilter === 'all'
     ? baseFiltered
@@ -643,11 +662,11 @@ function QuestionsPanel() {
             if (f.separator) {
               return <div key={f.id} className="ap-sidebar-separator">Coming Soon</div>;
             }
-            if (f.special && f.id === '__images__') {
+            if (f.special && (f.id === '__images__' || f.id === 'buzz_fun')) {
               return (
                 <button
                   key={f.id}
-                  className={`ap-folder-btn ${activeFolder === f.id ? 'active' : ''} ap-folder-images`}
+                  className={`ap-folder-btn ${activeFolder === f.id ? 'active' : ''} ap-folder-${f.id === '__images__' ? 'images' : 'buzz-fun'}`}
                   onClick={() => setActiveFolder(f.id)}
                 >
                   <span className="ap-folder-icon">{f.icon}</span>

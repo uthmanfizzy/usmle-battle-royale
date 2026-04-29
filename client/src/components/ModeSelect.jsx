@@ -107,6 +107,15 @@ const MODES = [
     gradient:    'linear-gradient(135deg, #00b894 0%, #00695c 100%)',
     border:      '#00cec9',
   },
+  {
+    id:          'buzz_fun',
+    name:        'Buzz Fun',
+    icon:        '⚡',
+    tagline:     'Buzzwords, triads & classic HY associations',
+    description: 'Flash cards of buzzwords, triads, side effects and classic associations. 8 seconds each — fast answers earn bonus points!',
+    gradient:    'linear-gradient(135deg, #e67e22 0%, #c0392b 100%)',
+    border:      '#e67e22',
+  },
 ];
 
 export default function ModeSelect({ username, onSelect, onBack }) {

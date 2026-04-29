@@ -389,9 +389,115 @@ function streakSnapshot(lobby) {
 
 // ── Game flow ──────────────────────────────────────────────────────────────────
 
+// ── Buzz Fun ───────────────────────────────────────────────────────────────────
+
+const BUZZ_FUN_ROUNDS = 30;
+
+function startBuzzFun(lobby) {
+  const pool = questionBank.filter(q => (q.game_modes || []).includes('buzz_fun'));
+  if (pool.length < 1) {
+    io.to(lobby.id).emit('error', { message: 'No Buzz Fun questions available. Add some via the admin panel.' });
+    return;
+  }
+
+  lobby.status          = 'buzz_fun_question';
+  lobby.round           = 0;
+  lobby.streaks         = new Map();
+  lobby.buzzFirstCorrect = null;
+  lobby.buzzAnswerTimes  = new Map();
+  lobby.buzzTimerStart   = 0;
+
+  const shuffled = shuffle(pool);
+  lobby.questionQueue = shuffled.slice(0, Math.min(BUZZ_FUN_ROUNDS, shuffled.length));
+  lobby.questionIdx   = -1;
+
+  for (const p of lobby.players.values()) { p.score = 0; p.alive = true; p.lives = 3; }
+
+  io.to(lobby.id).emit('game_start', { gameMode: 'buzz_fun', message: 'Buzz Fun begins!' });
+  setTimeout(() => nextBuzzFunQuestion(lobby), 1500);
+}
+
+function nextBuzzFunQuestion(lobby) {
+  lobby.questionIdx++;
+  if (lobby.questionIdx >= lobby.questionQueue.length) { endGame(lobby, 'questions_exhausted'); return; }
+
+  lobby.round++;
+  lobby.status            = 'buzz_fun_question';
+  lobby.answers.clear();
+  lobby.buzzFirstCorrect  = null;
+  lobby.buzzAnswerTimes   = new Map();
+  lobby.buzzTimerStart    = Date.now();
+
+  const q         = lobby.questionQueue[lobby.questionIdx];
+  const timeLimit = 8;
+
+  io.to(lobby.id).emit('new_question', {
+    id: q.id, question: q.question, options: q.options,
+    round: lobby.round, timeLimit, alivePlayers: lobby.players.size,
+    buzz_type: q.buzz_type || 'BUZZWORD',
+    totalRounds: lobby.questionQueue.length,
+  });
+
+  lobby.timerEnd = Date.now() + timeLimit * 1000;
+  lobby.timer    = setTimeout(() => processBuzzFunAnswers(lobby), timeLimit * 1000);
+  scheduleBotAnswers(lobby, q, timeLimit);
+}
+
+function processBuzzFunAnswers(lobby) {
+  if (lobby.status !== 'buzz_fun_question') return;
+  clearTimer(lobby);
+  lobby.status = 'buzz_fun_reviewing';
+
+  const q       = lobby.questionQueue[lobby.questionIdx];
+  const results = [];
+
+  for (const player of lobby.players.values()) {
+    const answer     = lobby.answers.get(player.id);
+    const correct    = answer === q.correct;
+    const answerTime = lobby.buzzAnswerTimes.get(player.id) ?? null;
+
+    let pointsEarned = 0;
+    if (correct) {
+      pointsEarned = 100;
+      if (answerTime !== null) {
+        const speedBonus = Math.round(50 * Math.max(0, 1 - answerTime / 8000));
+        pointsEarned += speedBonus;
+      }
+      if (lobby.buzzFirstCorrect === player.id) pointsEarned += 50;
+      player.score += pointsEarned;
+    }
+
+    const sr = updateStreak(lobby, player.id, correct);
+    results.push({ id: player.id, username: player.username, answered: answer !== undefined, correct, lives: 3, alive: true, streak: sr.streak });
+
+    const sock = io.sockets.sockets.get(player.id);
+    if (sock) sock.emit('answer_result', {
+      correct, correctAnswer: q.correct, lives: 3, alive: true,
+      score: player.score, explanation: q.explanation,
+      streak: sr.streak, onFire: sr.onFire, pointsEarned,
+    });
+  }
+
+  const snapshot = [...lobby.players.values()].map(p => ({
+    id: p.id, username: p.username, lives: 3, score: p.score, alive: true,
+    streak: lobby.streaks?.get(p.id) || 0,
+  }));
+
+  io.to(lobby.id).emit('round_results', {
+    results, correctAnswer: q.correct, explanation: q.explanation, eliminated: [], players: snapshot,
+  });
+
+  if (lobby.questionIdx >= lobby.questionQueue.length - 1) {
+    setTimeout(() => endGame(lobby, 'questions_exhausted'), 4500);
+    return;
+  }
+  setTimeout(() => nextBuzzFunQuestion(lobby), 4500);
+}
+
 function startGame(lobby) {
   if (lobby.gameMode === 'speed_race')     return startSpeedRace(lobby);
   if (lobby.gameMode === 'trivia_pursuit') return startTriviaPursuit(lobby);
+  if (lobby.gameMode === 'buzz_fun')       return startBuzzFun(lobby);
 
   // ── Battle Royale & Scan Master ────────────────────────────────────────────
   // Guard: Scan Master needs image questions
@@ -1439,6 +1545,23 @@ io.on('connection', (socket) => {
     const frozenUntil = lobby.frozenPlayers?.get(socket.id);
     if (frozenUntil && Date.now() < frozenUntil) return;
 
+    // ── Buzz Fun ───────────────────────────────────────────────────────────
+    if (lobby.status === 'buzz_fun_question') {
+      if (lobby.answers.has(socket.id)) return;
+      const player = lobby.players.get(socket.id);
+      if (!player) return;
+      const elapsed = Date.now() - lobby.buzzTimerStart;
+      lobby.answers.set(socket.id, answer);
+      lobby.buzzAnswerTimes.set(socket.id, elapsed);
+      const q = lobby.questionQueue[lobby.questionIdx];
+      if (answer === q.correct && !lobby.buzzFirstCorrect) lobby.buzzFirstCorrect = socket.id;
+      const answeredCount = lobby.answers.size;
+      const totalPlayers  = lobby.players.size;
+      io.to(lobby.id).emit('answer_count', { answered: answeredCount, total: totalPlayers });
+      if (answeredCount >= totalPlayers) { clearTimer(lobby); setTimeout(() => processBuzzFunAnswers(lobby), 600); }
+      return;
+    }
+
     // ── Speed Race ─────────────────────────────────────────────────────────
     if (lobby.status === 'speed_race') {
       advanceSpeedPlayer(lobby, socket.id, answer);
@@ -2031,13 +2154,14 @@ app.post('/admin/upload-image', adminAuth, async (req, res) => {
 });
 
 app.post('/admin/questions', adminAuth, (req, res) => {
-  const { subject, difficulty, question, options, correct, explanation, image_url, game_modes, tower_floor } = req.body;
+  const { subject, difficulty, question, options, correct, explanation, image_url, game_modes, tower_floor, buzz_type } = req.body;
   if (!subject || !question || !Array.isArray(options) || options.length !== 4 || !correct || !explanation)
     return res.status(400).json({ error: 'Missing required fields' });
   const newQ = { id: nextQuestionId(subject), subject, difficulty: difficulty || 'easy', question, options, correct, explanation };
   if (image_url) newQ.image_url = image_url;
   newQ.game_modes = Array.isArray(game_modes) && game_modes.length > 0 ? game_modes : ['battle_royale', 'speed_race', 'trivia_pursuit'];
   if (tower_floor != null && !isNaN(parseInt(tower_floor))) newQ.tower_floor = parseInt(tower_floor);
+  if (buzz_type && newQ.game_modes.includes('buzz_fun')) newQ.buzz_type = buzz_type;
   questionBank.push(newQ);
   res.json(newQ);
 });

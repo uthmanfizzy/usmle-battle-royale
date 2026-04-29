@@ -73,6 +73,21 @@ const MODE_DATA = {
       { icon: '🏆', text: 'Conquer all 100 floors to earn the Tower Master crown' },
     ],
   },
+  buzz_fun: {
+    title:    '⚡ Buzz Fun',
+    subtitle: 'Buzzwords, Triads & Classic Associations',
+    gradient: 'linear-gradient(135deg, #e67e22 0%, #c0392b 100%)',
+    accent:   '#e67e22',
+    rules: [
+      { icon: '⚡', text: 'Flash cards of buzzwords, triads, side effects and classic HY associations' },
+      { icon: '⏱️', text: '8 seconds per card — speed matters!' },
+      { icon: '🃏', text: '30 cards per game — every round is a new term to identify' },
+      { icon: '🏆', text: 'Correct answer = 100 pts + up to 50 speed bonus' },
+      { icon: '🥇', text: 'First player to answer correctly earns an extra 50 bonus points' },
+      { icon: '🔥', text: 'Build a streak of correct answers for fire status' },
+      { icon: '📊', text: 'Highest score after all 30 cards wins — no lives, just points!' },
+    ],
+  },
 };
 
 export default function HowToPlay({ gameMode, onContinue, onBack }) {

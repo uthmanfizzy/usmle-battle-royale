@@ -17,6 +17,7 @@ import TriviaGame from './components/TriviaGame';
 import Leaderboard from './components/Leaderboard';
 import SoloGame from './components/SoloGame';
 import TowerMode from './components/TowerMode';
+import BuzzFunGame from './components/BuzzFunGame';
 
 // phases: 'loading' | 'entry' | 'exam_select' | 'difficulty_select' | 'mode_select' |
 //         'how_to_play' | 'lobby_select' | 'subject_select' | 'join_input' | 'lobby' | 'game' |
@@ -736,6 +737,26 @@ export default function App() {
           extraTimeBonus={extraTimeBonus}
           showPowerupIntro={showPowerupIntro}
           socketId={socket.id}
+        />
+      )}
+
+      {phase === 'game' && gameMode === 'buzz_fun' && (
+        <BuzzFunGame
+          question={question}
+          round={round}
+          timeLimit={timeLimit}
+          myAnswer={myAnswer}
+          hasAnswered={hasAnswered}
+          answeredCount={answeredCount}
+          totalAlive={totalAlive}
+          myScore={myScore}
+          players={players}
+          answerResult={answerResult}
+          roundResults={roundResults}
+          showingRoundResult={showingRoundResult}
+          onAnswer={handleAnswer}
+          username={username}
+          onTick={audio.playTick}
         />
       )}
 
