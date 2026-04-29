@@ -58,6 +58,21 @@ const MODE_DATA = {
       { icon: '📚', text: 'Categories: Cardiology, Neurology, Pharmacology, Microbiology, Biochemistry, Biostatistics' },
     ],
   },
+  tower: {
+    title:    '🏰 The Tower',
+    subtitle: '100 Floors of Medical Mastery',
+    gradient: 'linear-gradient(135deg, #c9a84c 0%, #7d6006 100%)',
+    accent:   '#c9a84c',
+    rules: [
+      { icon: '🏰', text: 'Climb 100 floors across 10 zones of medical knowledge' },
+      { icon: '✅', text: 'Normal floors: answer 3 questions correctly to advance' },
+      { icon: '⚔️', text: 'Challenge floors (every 5th): answer 5 questions with 3 lives' },
+      { icon: '👹', text: 'Boss floors (every 10th): answer 10 perfectly — one wrong answer fails the floor' },
+      { icon: '⚡', text: 'Earn XP every floor: 30 normal, 60 challenge, 150 boss — plus zone and perfect bonuses' },
+      { icon: '🔒', text: 'Progress is saved — return any time and pick up where you left off' },
+      { icon: '🏆', text: 'Conquer all 100 floors to earn the Tower Master crown' },
+    ],
+  },
 };
 
 export default function HowToPlay({ gameMode, onContinue, onBack }) {

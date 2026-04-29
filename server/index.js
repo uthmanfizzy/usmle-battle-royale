@@ -1922,6 +1922,27 @@ app.put('/api/tower/progress', requireAuth, async (req, res) => {
   } catch { res.json({ ok: true }); }
 });
 
+app.get('/api/tower/leaderboard', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Database not configured.' });
+  try {
+    const { data: players } = await supabase.from('users')
+      .select('username, avatar_url, tower_floor')
+      .gt('tower_floor', 1)
+      .order('tower_floor', { ascending: false })
+      .limit(50);
+    if (!players?.length) return res.json({ players: [] });
+    res.json({
+      players: players.map((p, i) => ({
+        rank: i + 1,
+        username: p.username,
+        avatar_url: p.avatar_url,
+        highestFloor: p.tower_floor,
+        floorsCleared: Math.max(0, (p.tower_floor || 1) - 1),
+      })),
+    });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // ── Health check ───────────────────────────────────────────────────────────────
 
 app.get('/', (req, res) => res.status(200).send('ok'));

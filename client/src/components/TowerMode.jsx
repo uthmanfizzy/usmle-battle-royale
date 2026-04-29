@@ -84,6 +84,27 @@ const BOSS_NAMES = {
   100: 'The Summit Master',
 };
 
+const MILESTONE_BADGES = [
+  { floor: 10,  icon: '🥉', name: 'Tower Rookie',   desc: 'Cleared Floor 10' },
+  { floor: 25,  icon: '🥈', name: 'Quarter Master', desc: 'Reached Floor 25' },
+  { floor: 50,  icon: '🥇', name: 'Halfway Hero',   desc: 'Reached Floor 50' },
+  { floor: 75,  icon: '💎', name: 'Summit Chaser',  desc: 'Reached Floor 75' },
+  { floor: 100, icon: '👑', name: 'Tower Master',   desc: 'Conquered all 100 floors' },
+];
+
+const ZONE_BADGES = [
+  { floor: 10,  icon: '⚗️',  name: 'Biochem Survivor',  desc: 'Completed The Basement' },
+  { floor: 20,  icon: '🔬',  name: 'Micro Warrior',     desc: 'Completed The Laboratory' },
+  { floor: 30,  icon: '💊',  name: 'Pharma Knight',     desc: 'Completed The Ward' },
+  { floor: 40,  icon: '🧠',  name: 'Neuro Ace',         desc: 'Completed The Clinic' },
+  { floor: 50,  icon: '❤️',  name: 'Cardio Champion',   desc: 'Completed The Cardio Unit' },
+  { floor: 60,  icon: '📊',  name: 'Stats Scholar',     desc: 'Completed The Research Floor' },
+  { floor: 70,  icon: '🏆',  name: 'Polymathic',        desc: 'Completed Mixed Challenge' },
+  { floor: 80,  icon: '⚔️',  name: 'Gauntlet Runner',   desc: 'Completed The Gauntlet' },
+  { floor: 90,  icon: '🌟',  name: 'Penthouse Elite',   desc: 'Completed The Penthouse' },
+  { floor: 100, icon: '👑',  name: 'Summit Master',     desc: 'Conquered The Summit' },
+];
+
 function getZone(floor) {
   return ZONES.find(z => floor >= z.start && floor <= z.end) || ZONES[0];
 }
@@ -166,6 +187,9 @@ export default function TowerMode({ username, onBack }) {
   const [xpEarned,        setXpEarned]        = useState(0);
   const [xpBreakdown,     setXpBreakdown]     = useState([]);
   const [totalXp,         setTotalXp]         = useState(saved.xp || 0);
+  const [mapTab,          setMapTab]          = useState('map');
+  const [lbData,          setLbData]          = useState(null);
+  const [lbLoading,       setLbLoading]       = useState(false);
 
   // refs to prevent stale closures in timer / processAnswer
   const timerRef          = useRef(null);
@@ -239,6 +263,18 @@ export default function TowerMode({ username, onBack }) {
     startTimer();
   }
   beginPlayingRef.current = beginPlaying;
+
+  async function fetchLeaderboard() {
+    setLbLoading(true);
+    try {
+      const res  = await fetch(`${SERVER}/api/tower/leaderboard`);
+      const data = await res.json();
+      setLbData(data);
+    } catch {
+      setLbData({ players: [] });
+    }
+    setLbLoading(false);
+  }
 
   async function fetchQuestions(subject) {
     setLoading(true);
@@ -384,6 +420,9 @@ export default function TowerMode({ username, onBack }) {
 
   if (view === 'map') {
     const displayZone = getZone(unlockedFloor);
+    const earnedMilestones = MILESTONE_BADGES.filter(b => unlockedFloor > b.floor);
+    const earnedZones      = ZONE_BADGES.filter(b => unlockedFloor > b.floor);
+    const allBadges        = [...earnedMilestones, ...earnedZones];
 
     return (
       <div className="tw-screen" style={{ '--zc': displayZone.color }}>
@@ -405,77 +444,147 @@ export default function TowerMode({ username, onBack }) {
             )}
           </div>
 
-          <div className="tw-zone-banner">
-            <div className="tw-zb-meta">
-              <span className="tw-zb-num">Zone {displayZone.id} of 10</span>
-              <span className="tw-zb-subject">
-                {displayZone.subject === 'all' ? 'All Subjects' : displayZone.subject.charAt(0).toUpperCase() + displayZone.subject.slice(1)}
-              </span>
-            </div>
-            <div className="tw-zb-name" style={{ color: displayZone.color }}>{displayZone.name}</div>
-            <p className="tw-zb-desc">{displayZone.desc}</p>
+          <div className="tw-map-tabs">
+            <button
+              className={`tw-map-tab ${mapTab === 'map' ? 'active' : ''}`}
+              onClick={() => setMapTab('map')}
+            >
+              🗺️ Tower Map
+            </button>
+            <button
+              className={`tw-map-tab ${mapTab === 'leaderboard' ? 'active' : ''}`}
+              onClick={() => { setMapTab('leaderboard'); if (!lbData) fetchLeaderboard(); }}
+            >
+              🏆 Leaderboard
+            </button>
           </div>
 
-          <div className="tw-floor-list">
-            {Array.from({ length: 10 }, (_, i) => {
-              const floor     = displayZone.end - i;
-              const ft        = floorType(floor);
-              const ftag      = typeTag(ft);
-              const completed = floor < unlockedFloor;
-              const isCurrent = floor === unlockedFloor;
-              const locked    = floor > unlockedFloor;
+          {mapTab === 'map' && (
+            <>
+              <div className="tw-zone-banner">
+                <div className="tw-zb-meta">
+                  <span className="tw-zb-num">Zone {displayZone.id} of 10</span>
+                  <span className="tw-zb-subject">
+                    {displayZone.subject === 'all' ? 'All Subjects' : displayZone.subject.charAt(0).toUpperCase() + displayZone.subject.slice(1)}
+                  </span>
+                </div>
+                <div className="tw-zb-name" style={{ color: displayZone.color }}>{displayZone.name}</div>
+                <p className="tw-zb-desc">{displayZone.desc}</p>
+              </div>
 
-              return (
-                <div
-                  key={floor}
-                  className={`tw-floor-row ${completed ? 'completed' : ''} ${isCurrent ? 'current' : ''} ${locked ? 'locked' : ''}`}
-                  onClick={() => isCurrent && enterFloor(floor)}
-                >
-                  <div className="tw-fr-num">
-                    <span className="tw-fr-status">
-                      {completed ? '✓' : isCurrent ? '▶' : '🔒'}
-                    </span>
-                    <span>{floor}</span>
-                  </div>
-                  <div className="tw-fr-info">
-                    <span className="tw-fr-name">{floorName(floor)}</span>
-                    <span className="tw-fr-type" style={{ color: ftag.color }}>{ftag.label}</span>
-                  </div>
-                  <div className="tw-fr-req">
-                    {ft === 'boss' ? '⚡ 10 correct, 0 wrong'
-                      : ft === 'challenge' ? `⚔️ ${floorTarget(floor)} correct, 3 lives`
-                      : `✅ ${floorTarget(floor)} correct, 3 lives`}
+              <div className="tw-floor-list">
+                {Array.from({ length: 10 }, (_, i) => {
+                  const floor     = displayZone.end - i;
+                  const ft        = floorType(floor);
+                  const ftag      = typeTag(ft);
+                  const completed = floor < unlockedFloor;
+                  const isCurrent = floor === unlockedFloor;
+                  const locked    = floor > unlockedFloor;
+
+                  return (
+                    <div
+                      key={floor}
+                      className={`tw-floor-row ${completed ? 'completed' : ''} ${isCurrent ? 'current' : ''} ${locked ? 'locked' : ''}`}
+                      onClick={() => isCurrent && enterFloor(floor)}
+                    >
+                      <div className="tw-fr-num">
+                        <span className="tw-fr-status">
+                          {completed ? '✓' : isCurrent ? '▶' : '🔒'}
+                        </span>
+                        <span>{floor}</span>
+                      </div>
+                      <div className="tw-fr-info">
+                        <span className="tw-fr-name">{floorName(floor)}</span>
+                        <span className="tw-fr-type" style={{ color: ftag.color }}>{ftag.label}</span>
+                      </div>
+                      <div className="tw-fr-req">
+                        {ft === 'boss' ? '⚡ 10 correct, 0 wrong'
+                          : ft === 'challenge' ? `⚔️ ${floorTarget(floor)} correct, 3 lives`
+                          : `✅ ${floorTarget(floor)} correct, 3 lives`}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {allBadges.length > 0 && (
+                <div className="tw-badges-section">
+                  <div className="tw-badges-title">🎖️ Your Badges</div>
+                  <div className="tw-badges-grid">
+                    {allBadges.map((b, i) => (
+                      <div key={i} className="tw-badge">
+                        <div className="tw-badge-icon">{b.icon}</div>
+                        <div className="tw-badge-name">{b.name}</div>
+                        <div className="tw-badge-desc">{b.desc}</div>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              );
-            })}
-          </div>
+              )}
 
-          <div className="tw-map-actions">
-            {unlockedFloor > 1 && (
-              <div className="tw-continue-hint">Continue from Floor {unlockedFloor}</div>
-            )}
-            <button
-              className="tw-enter-btn"
-              style={{ background: `linear-gradient(135deg, ${displayZone.color} 0%, ${displayZone.color}99 100%)` }}
-              onClick={() => enterFloor(unlockedFloor)}
-            >
-              Enter Floor {unlockedFloor} →
-            </button>
-            {unlockedFloor > 1 && (
-              <button className="tw-secondary-btn tw-danger-btn" onClick={() => {
-                if (window.confirm('Reset all progress and start from Floor 1?')) {
-                  saveProgress(username, 1, 0);
-                  setUnlockedFloor(1); unlockedFloorRef.current = 1;
-                  setActiveFloor(1);  activeFloorRef.current  = 1;
-                  setTotalXp(0);      totalXpRef.current      = 0;
-                }
-              }}>
-                Start Over
-              </button>
-            )}
-            <button className="tw-secondary-btn" onClick={onBack}>← Back to Menu</button>
-          </div>
+              <div className="tw-map-actions">
+                {unlockedFloor > 1 && (
+                  <div className="tw-continue-hint">Continue from Floor {unlockedFloor}</div>
+                )}
+                <button
+                  className="tw-enter-btn"
+                  style={{ background: `linear-gradient(135deg, ${displayZone.color} 0%, ${displayZone.color}99 100%)` }}
+                  onClick={() => enterFloor(unlockedFloor)}
+                >
+                  Enter Floor {unlockedFloor} →
+                </button>
+                {unlockedFloor > 1 && (
+                  <button className="tw-secondary-btn tw-danger-btn" onClick={() => {
+                    if (window.confirm('Reset all progress and start from Floor 1?')) {
+                      saveProgress(username, 1, 0);
+                      setUnlockedFloor(1); unlockedFloorRef.current = 1;
+                      setActiveFloor(1);  activeFloorRef.current  = 1;
+                      setTotalXp(0);      totalXpRef.current      = 0;
+                    }
+                  }}>
+                    Start Over
+                  </button>
+                )}
+                <button className="tw-secondary-btn" onClick={onBack}>← Back to Menu</button>
+              </div>
+            </>
+          )}
+
+          {mapTab === 'leaderboard' && (
+            <div className="tw-lb-wrap">
+              {lbLoading ? (
+                <div className="tw-lb-loading">Loading leaderboard…</div>
+              ) : lbData?.players?.length > 0 ? (
+                <div className="tw-lb-table">
+                  <div className="tw-lb-header">
+                    <span className="tw-lb-col-rank">Rank</span>
+                    <span className="tw-lb-col-user">Player</span>
+                    <span className="tw-lb-col-floor">Highest Floor</span>
+                    <span className="tw-lb-col-cleared">Floors Cleared</span>
+                  </div>
+                  {lbData.players.map(p => (
+                    <div
+                      key={p.username}
+                      className={`tw-lb-row ${p.username === username ? 'tw-lb-me' : ''}`}
+                    >
+                      <span className="tw-lb-col-rank tw-lb-rank-num">#{p.rank}</span>
+                      <span className="tw-lb-col-user tw-lb-username">{p.username}</span>
+                      <span className="tw-lb-col-floor">Floor {p.highestFloor}</span>
+                      <span className="tw-lb-col-cleared">{p.floorsCleared}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="tw-lb-empty">
+                  <div className="tw-lb-empty-icon">🏰</div>
+                  <p>No tower climbers yet — be the first to make the board!</p>
+                </div>
+              )}
+              <div className="tw-lb-actions">
+                <button className="tw-secondary-btn" onClick={onBack}>← Back to Menu</button>
+              </div>
+            </div>
+          )}
 
         </div>
       </div>

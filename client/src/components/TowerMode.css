@@ -956,6 +956,198 @@
    RESPONSIVE
 ══════════════════════════════════════════════════════════════════════════════ */
 
+/* ══════════════════════════════════════════════════════════════════════════════
+   MAP TABS
+══════════════════════════════════════════════════════════════════════════════ */
+
+.tw-map-tabs {
+  display: flex;
+  gap: 8px;
+  margin: 12px 0 20px;
+  background: rgba(255,255,255,0.04);
+  border-radius: 12px;
+  padding: 4px;
+}
+
+.tw-map-tab {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: #aaa;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px 8px;
+  border-radius: 9px;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+  letter-spacing: 0.3px;
+}
+
+.tw-map-tab.active {
+  background: rgba(201, 168, 76, 0.18);
+  color: #c9a84c;
+}
+
+.tw-map-tab:hover:not(.active) {
+  background: rgba(255,255,255,0.07);
+  color: #ddd;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   BADGES
+══════════════════════════════════════════════════════════════════════════════ */
+
+.tw-badges-section {
+  margin: 24px 0 8px;
+}
+
+.tw-badges-title {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: #888;
+  margin-bottom: 12px;
+}
+
+.tw-badges-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 10px;
+}
+
+.tw-badge {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(201, 168, 76, 0.3);
+  border-radius: 10px;
+  padding: 12px 8px;
+  text-align: center;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.tw-badge:hover {
+  background: rgba(201, 168, 76, 0.1);
+  border-color: rgba(201, 168, 76, 0.6);
+}
+
+.tw-badge-icon {
+  font-size: 24px;
+  margin-bottom: 6px;
+}
+
+.tw-badge-name {
+  font-size: 11px;
+  font-weight: 700;
+  color: #c9a84c;
+  margin-bottom: 3px;
+  line-height: 1.3;
+}
+
+.tw-badge-desc {
+  font-size: 10px;
+  color: #777;
+  line-height: 1.3;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   LEADERBOARD TAB
+══════════════════════════════════════════════════════════════════════════════ */
+
+.tw-lb-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin-bottom: 12px;
+}
+
+.tw-lb-loading {
+  text-align: center;
+  color: #777;
+  padding: 40px 0;
+  font-size: 14px;
+}
+
+.tw-lb-table {
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.07);
+}
+
+.tw-lb-header,
+.tw-lb-row {
+  display: grid;
+  grid-template-columns: 52px 1fr 130px 120px;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 16px;
+}
+
+.tw-lb-header {
+  background: rgba(201, 168, 76, 0.12);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: #888;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+}
+
+.tw-lb-row {
+  background: rgba(255,255,255,0.025);
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  font-size: 13px;
+  transition: background 0.15s;
+}
+
+.tw-lb-row:last-child { border-bottom: none; }
+
+.tw-lb-row:hover { background: rgba(255,255,255,0.05); }
+
+.tw-lb-me {
+  background: rgba(201, 168, 76, 0.1) !important;
+  border-left: 3px solid #c9a84c;
+}
+
+.tw-lb-rank-num {
+  font-weight: 700;
+  color: #c9a84c;
+  font-size: 13px;
+}
+
+.tw-lb-username {
+  font-weight: 600;
+  color: #eee;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tw-lb-empty {
+  text-align: center;
+  padding: 48px 20px;
+  color: #666;
+}
+
+.tw-lb-empty-icon {
+  font-size: 40px;
+  margin-bottom: 12px;
+}
+
+.tw-lb-empty p {
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.tw-lb-actions {
+  margin-top: 20px;
+  display: flex;
+  justify-content: center;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   RESPONSIVE
+══════════════════════════════════════════════════════════════════════════════ */
+
 @media (max-width: 600px) {
   .tw-intro-card { padding: 28px 20px; }
   .tw-result-card { padding: 36px 24px; }
@@ -966,4 +1158,8 @@
   .tw-tb-mid { order: 3; width: 100%; flex-direction: row; justify-content: center; }
   .tw-ic-num { font-size: 44px; }
   .tw-xp-total { font-size: 28px; }
+  .tw-lb-header,
+  .tw-lb-row { grid-template-columns: 42px 1fr 100px; }
+  .tw-lb-col-cleared { display: none; }
+  .tw-badges-grid { grid-template-columns: repeat(auto-fill, minmax(85px, 1fr)); }
 }

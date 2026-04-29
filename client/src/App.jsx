@@ -406,14 +406,11 @@ export default function App() {
 
   function handleSelectGameMode(mode) {
     setGameMode(mode);
-    if (mode === 'tower') {
-      setPhase('tower');
-    } else {
-      setPhase('how_to_play');
-    }
+    setPhase('how_to_play');
   }
 
   function handleHowToPlayContinue() {
+    if (gameMode === 'tower') { setPhase('tower'); return; }
     setPhase('lobby_select');
   }
 
