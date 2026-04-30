@@ -18,6 +18,7 @@ import Leaderboard from './components/Leaderboard';
 import SoloGame from './components/SoloGame';
 import TowerMode from './components/TowerMode';
 import BuzzFunGame from './components/BuzzFunGame';
+import LandingPage from './components/LandingPage';
 
 // phases: 'loading' | 'entry' | 'exam_select' | 'difficulty_select' | 'mode_select' |
 //         'how_to_play' | 'lobby_select' | 'subject_select' | 'join_input' | 'lobby' | 'game' |
@@ -120,7 +121,7 @@ export default function App() {
       return;
     }
 
-    setPhase('entry');
+    setPhase('landing');
   }, []);
 
   // ── Global button click sound ──────────────────────────────────────────────
@@ -558,7 +559,7 @@ export default function App() {
   // ── Render ─────────────────────────────────────────────────────────────────
 
   const showMuteBtn = ['lobby', 'game', 'game_over', 'solo_game', 'tower'].includes(phase);
-  const showHomeBtn = !['loading', 'entry'].includes(phase);
+  const showHomeBtn = !['loading', 'entry', 'landing'].includes(phase);
 
   return (
     <div>
@@ -574,6 +575,10 @@ export default function App() {
         <button className="mute-btn" onClick={toggleMute} title={muted ? 'Unmute' : 'Mute'}>
           {muted ? '🔇' : '🔊'}
         </button>
+      )}
+
+      {phase === 'landing' && (
+        <LandingPage onSignIn={() => setPhase('entry')} />
       )}
 
       {phase === 'loading' && (
