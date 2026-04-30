@@ -578,7 +578,7 @@ export default function App() {
       )}
 
       {phase === 'landing' && (
-        <LandingPage onSignIn={() => setPhase('entry')} />
+        <LandingPage onSignIn={handleGoogleLogin} />
       )}
 
       {phase === 'loading' && (

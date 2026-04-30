@@ -47,6 +47,30 @@ const MODES = [
   { icon: '🎮', name: 'Solo Practice',  desc: 'Practice at your own pace. Track your mastery per subject.',   color: '#6c5ce7', glow: 'rgba(108,92,231,0.35)'  },
 ];
 
+const FEATURES = [
+  { icon: '🏆', title: 'Real-time Multiplayer',    desc: 'Compete live against classmates from anywhere in the world. Real stakes, real adrenaline.', color: '#e67e22' },
+  { icon: '📊', title: 'Performance Analytics',    desc: 'Track your accuracy, spot weak areas and measure improvement after every session.',          color: '#3498db' },
+  { icon: '🧬', title: 'Subject Mastery',          desc: 'Level up in each subject as you answer more questions correctly. Watch your mastery grow.',  color: '#9b59b6' },
+  { icon: '👥', title: 'Clan System',              desc: 'Create or join a clan, compete together as a team and climb the clan leaderboard.',          color: '#27ae60' },
+  { icon: '🔥', title: 'Streak Bonuses',           desc: 'Answer 3 in a row correctly and earn double XP. Stay hot or start over.',                   color: '#e74c3c' },
+  { icon: '📢', title: 'Daily Challenges',         desc: 'New questions every day. Build a study streak and never let your momentum drop.',            color: '#c9a84c' },
+];
+
+const STEPS = [
+  { num: '01', icon: '🔑', title: 'Sign in with Google', desc: 'No registration form, no credit card. One click and you are in instantly.' },
+  { num: '02', icon: '🎮', title: 'Choose Your Game Mode', desc: '7 different ways to study. Pick based on your mood — competitive, solo, or quick fire.' },
+  { num: '03', icon: '🏆', title: 'Compete and Learn', desc: 'Real-time battles with instant explanations. Every wrong answer teaches you something.' },
+];
+
+const COMING_SOON = [
+  { flag: '🇬🇧', name: 'PLAB',  country: 'United Kingdom' },
+  { flag: '🇦🇺', name: 'AMC',   country: 'Australia' },
+  { flag: '🇨🇦', name: 'MCCQE', country: 'Canada' },
+  { flag: '🇮🇳', name: 'FMGE',  country: 'India' },
+  { flag: '🇸🇦', name: 'Saudi Medical Licensing', country: 'Saudi Arabia' },
+  { flag: '🇳🇬', name: 'MDCN',  country: 'Nigeria' },
+];
+
 // ── Hooks ──────────────────────────────────────────────────────────────────────
 
 function useInView(threshold = 0.15) {
@@ -112,6 +136,23 @@ function ModeCard({ mode, index }) {
       <div className="lp-mode-color-bar" style={{ background: mode.color }} />
       <h3 className="lp-mode-name">{mode.name}</h3>
       <p className="lp-mode-desc">{mode.desc}</p>
+    </div>
+  );
+}
+
+function FeatureCard({ feature, index }) {
+  const [ref, inView] = useInView(0.1);
+  return (
+    <div
+      ref={ref}
+      className={`lp-feat-card ${inView ? 'lp-visible' : ''}`}
+      style={{ '--feat-color': feature.color, animationDelay: `${index * 0.08}s` }}
+    >
+      <div className="lp-feat-icon-wrap" style={{ background: `${feature.color}18`, border: `1px solid ${feature.color}40` }}>
+        <span className="lp-feat-icon">{feature.icon}</span>
+      </div>
+      <h3 className="lp-feat-title">{feature.title}</h3>
+      <p className="lp-feat-desc">{feature.desc}</p>
     </div>
   );
 }
@@ -292,6 +333,135 @@ export default function LandingPage({ onSignIn }) {
           <button className="lp-cta-primary" onClick={onSignIn}>Play All Modes Free →</button>
         </div>
       </section>
+
+      {/* ── Features ───────────────────────────────────────────────────── */}
+      <section id="features-cards" className="lp-features-section">
+        <div className="lp-section-header">
+          <p className="lp-section-eyebrow">Why Med Royale</p>
+          <h2 className="lp-section-title">Everything You Need to<br /><span className="lp-title-accent">Ace Your Exams</span></h2>
+          <p className="lp-section-sub">Built by medical students, for medical students.</p>
+        </div>
+        <div className="lp-features-grid">
+          {FEATURES.map((f, i) => <FeatureCard key={f.title} feature={f} index={i} />)}
+        </div>
+      </section>
+
+      {/* ── How It Works ───────────────────────────────────────────────── */}
+      <section className="lp-hiw-section">
+        <div className="lp-hiw-inner">
+          <div className="lp-section-header">
+            <p className="lp-section-eyebrow">How It Works</p>
+            <h2 className="lp-section-title">Get Started in<br /><span className="lp-title-accent">30 Seconds</span></h2>
+          </div>
+
+          <div className="lp-steps">
+            {STEPS.map((step, i) => (
+              <div key={step.num} className="lp-step-wrap">
+                <div className="lp-step">
+                  <div className="lp-step-num">{step.num}</div>
+                  <div className="lp-step-icon">{step.icon}</div>
+                  <h3 className="lp-step-title">{step.title}</h3>
+                  <p className="lp-step-desc">{step.desc}</p>
+                </div>
+                {i < STEPS.length - 1 && (
+                  <div className="lp-step-arrow">→</div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          <div className="lp-hiw-cta">
+            <button className="lp-cta-primary lp-cta-large" onClick={onSignIn}>
+              Start Playing Free 🎮
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Coming Soon Exams ──────────────────────────────────────────── */}
+      <section className="lp-coming-section">
+        <div className="lp-section-header">
+          <p className="lp-section-eyebrow">Global Expansion</p>
+          <h2 className="lp-section-title">More Exams<br /><span className="lp-title-accent">Coming Soon</span></h2>
+          <p className="lp-section-sub">We are expanding to cover medical licensing exams worldwide.</p>
+        </div>
+
+        <div className="lp-coming-grid">
+          {COMING_SOON.map((exam) => (
+            <div key={exam.name} className="lp-coming-card">
+              <span className="lp-coming-badge">Coming Soon</span>
+              <span className="lp-coming-flag">{exam.flag}</span>
+              <h4 className="lp-coming-name">{exam.name}</h4>
+              <p className="lp-coming-country">{exam.country}</p>
+            </div>
+          ))}
+        </div>
+
+        <p className="lp-coming-hint">Join now and be ready when your exam is added.</p>
+      </section>
+
+      {/* ── Final CTA ──────────────────────────────────────────────────── */}
+      <section className="lp-cta-section">
+        <div className="lp-cta-glow lp-cta-glow-left" />
+        <div className="lp-cta-glow lp-cta-glow-right" />
+        <div className="lp-cta-inner">
+          <h2 className="lp-cta-title">Ready to Start Winning?</h2>
+          <p className="lp-cta-sub">Join medical students studying smarter with Med Royale</p>
+          <button className="lp-cta-primary lp-cta-large lp-cta-google" onClick={onSignIn}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
+              <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+              <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+              <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+            </svg>
+            Sign in with Google
+          </button>
+          <p className="lp-cta-disclaimer">100% Free. No credit card required.</p>
+        </div>
+      </section>
+
+      {/* ── Footer ─────────────────────────────────────────────────────── */}
+      <footer className="lp-footer">
+        <div className="lp-footer-inner">
+          <div className="lp-footer-brand">
+            <div className="lp-footer-logo">
+              <span>⚕️</span>
+              <span className="lp-footer-logo-text">Med Royale</span>
+            </div>
+            <p className="lp-footer-tagline">Built for future doctors</p>
+            <div className="lp-footer-social">
+              <a href="#" className="lp-social-btn" aria-label="Twitter/X">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.73-8.835L1.254 2.25H8.08l4.253 5.622L18.244 2.25zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+              </a>
+              <a href="#" className="lp-social-btn" aria-label="Instagram">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><circle cx="12" cy="12" r="5"/><circle cx="17.5" cy="6.5" r="1.5" fill="currentColor" stroke="none"/></svg>
+              </a>
+              <a href="#" className="lp-social-btn" aria-label="Discord">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>
+              </a>
+            </div>
+          </div>
+
+          <div className="lp-footer-links-col">
+            <h4 className="lp-footer-col-title">Product</h4>
+            <a href="#" className="lp-footer-link" onClick={e => { e.preventDefault(); scrollTo('modes'); }}>Game Modes</a>
+            <a href="#" className="lp-footer-link" onClick={e => { e.preventDefault(); scrollTo('features-cards'); }}>Features</a>
+            <a href="#" className="lp-footer-link" onClick={e => { e.preventDefault(); scrollTo('exams'); }}>Exams</a>
+          </div>
+
+          <div className="lp-footer-links-col">
+            <h4 className="lp-footer-col-title">Company</h4>
+            <a href="#" className="lp-footer-link">About</a>
+            <a href="#" className="lp-footer-link">Contact</a>
+            <a href="#" className="lp-footer-link">Privacy Policy</a>
+            <a href="#" className="lp-footer-link">Terms of Service</a>
+          </div>
+        </div>
+
+        <div className="lp-footer-bottom">
+          <p>© 2026 Med Royale. All rights reserved.</p>
+        </div>
+      </footer>
 
     </div>
   );
