@@ -3,466 +3,536 @@ import './LandingPage.css';
 
 // ── Data ───────────────────────────────────────────────────────────────────────
 
-const FLOATING_ICONS = [
-  { icon: '❤️', x: 8,  y: 18, size: 26, dur: 14, delay: 0   },
-  { icon: '🧠', x: 22, y: 65, size: 20, dur: 17, delay: 2.5 },
-  { icon: '💊', x: 78, y: 12, size: 22, dur: 13, delay: 1.2 },
-  { icon: '🦠', x: 88, y: 52, size: 24, dur: 18, delay: 3.8 },
-  { icon: '🔬', x: 48, y: 82, size: 18, dur: 15, delay: 0.7 },
-  { icon: '🩺', x: 62, y: 28, size: 22, dur: 16, delay: 2.1 },
-  { icon: '⚗️', x: 14, y: 74, size: 19, dur: 19, delay: 4.2 },
-  { icon: '🫁', x: 92, y: 22, size: 21, dur: 12, delay: 1.8 },
-  { icon: '🫀', x: 36, y: 44, size: 18, dur: 20, delay: 3.3 },
-  { icon: '🩸', x: 68, y: 72, size: 17, dur: 14, delay: 0.4 },
-  { icon: '💉', x: 4,  y: 50, size: 20, dur: 16, delay: 5.0 },
-  { icon: '🧬', x: 54, y: 88, size: 22, dur: 18, delay: 2.9 },
-  { icon: '💊', x: 40, y: 10, size: 16, dur: 15, delay: 6.1 },
-  { icon: '❤️', x: 75, y: 85, size: 18, dur: 13, delay: 4.7 },
-];
-
 const EXAMS = [
-  { name: 'USMLE Step 1', available: true  },
-  { name: 'USMLE Step 2', available: false },
-  { name: 'PLAB',         available: false },
-  { name: 'AMC Australia', available: false },
-  { name: 'MCCQE Canada', available: false },
-  { name: 'MRCP',         available: false },
-  { name: 'FMGE India',   available: false },
+  { name: 'USMLE Step 1', live: true  },
+  { name: 'USMLE Step 2', live: false },
+  { name: 'PLAB',         live: false },
+  { name: 'AMC Australia',live: false },
+  { name: 'MCCQE Canada', live: false },
+  { name: 'FMGE India',   live: false },
+  { name: 'MRCP',         live: false },
 ];
 
 const STATS = [
-  { value: 6,      suffix: '+', label: 'Subjects Available', icon: '📚', isText: false },
-  { value: 7,      suffix: '+', label: 'Game Modes',         icon: '🎮', isText: false },
-  { value: 100,    suffix: '',  label: 'Tower Floors',       icon: '🏰', isText: false },
-  { value: 'Free', suffix: '',  label: 'Forever',            icon: '✨', isText: true  },
+  { value: 7,   suffix: '+', label: 'Game Modes',   icon: '🎮', isInf: false },
+  { value: 100, suffix: '',  label: 'Tower Floors', icon: '🏰', isInf: false },
+  { value: 6,   suffix: '+', label: 'Subjects',     icon: '📚', isInf: false },
+  { value: 0,   suffix: '',  label: 'Questions',    icon: '❓', isInf: true  },
 ];
 
 const MODES = [
-  { icon: '⚔️', name: 'Battle Royale',  desc: 'Last doctor standing wins. 3 lives. No mercy.',                color: '#e74c3c', glow: 'rgba(231,76,60,0.35)'   },
-  { icon: '⚡', name: 'Speed Race',     desc: 'First to 20 correct answers wins. Think fast.',                color: '#3498db', glow: 'rgba(52,152,219,0.35)'  },
-  { icon: '🎯', name: 'Trivia Pursuit', desc: 'Collect all 6 subject wedges on a real game board.',           color: '#9b59b6', glow: 'rgba(155,89,182,0.35)'  },
-  { icon: '🏰', name: 'The Tower',      desc: '100 floors of medical knowledge. Can you reach the summit?',   color: '#c9a84c', glow: 'rgba(201,168,76,0.35)'  },
-  { icon: '🔬', name: 'Scan Master',    desc: 'Identify conditions from real medical images.',                 color: '#00b894', glow: 'rgba(0,184,148,0.35)'   },
-  { icon: '⚡', name: 'Buzz Fun',       desc: 'Buzzwords, triads and HY associations. 8 seconds. Go.',        color: '#e67e22', glow: 'rgba(230,126,34,0.35)'  },
-  { icon: '🎮', name: 'Solo Practice',  desc: 'Practice at your own pace. Track your mastery per subject.',   color: '#6c5ce7', glow: 'rgba(108,92,231,0.35)'  },
-];
-
-const FEATURES = [
-  { icon: '🏆', title: 'Real-time Multiplayer',    desc: 'Compete live against classmates from anywhere in the world. Real stakes, real adrenaline.', color: '#e67e22' },
-  { icon: '📊', title: 'Performance Analytics',    desc: 'Track your accuracy, spot weak areas and measure improvement after every session.',          color: '#3498db' },
-  { icon: '🧬', title: 'Subject Mastery',          desc: 'Level up in each subject as you answer more questions correctly. Watch your mastery grow.',  color: '#9b59b6' },
-  { icon: '👥', title: 'Clan System',              desc: 'Create or join a clan, compete together as a team and climb the clan leaderboard.',          color: '#27ae60' },
-  { icon: '🔥', title: 'Streak Bonuses',           desc: 'Answer 3 in a row correctly and earn double XP. Stay hot or start over.',                   color: '#e74c3c' },
-  { icon: '📢', title: 'Daily Challenges',         desc: 'New questions every day. Build a study streak and never let your momentum drop.',            color: '#c9a84c' },
+  { icon: '⚔️', name: 'Battle Royale',  desc: 'Wrong answer = lose a life. 3 lives. Last doctor standing wins.',   color: '#EF4444', featured: true  },
+  { icon: '⚡', name: 'Speed Race',     desc: 'First to 20 correct answers wins.',                                  color: '#3B82F6', featured: false },
+  { icon: '🎯', name: 'Trivia Pursuit', desc: 'Collect all 6 subject wedges.',                                      color: '#8B5CF6', featured: false },
+  { icon: '🏰', name: 'The Tower',      desc: '100 floors. Boss every 10th.',                                       color: '#F59E0B', featured: false },
+  { icon: '🔬', name: 'Scan Master',    desc: 'Identify conditions from images.',                                   color: '#10B981', featured: false },
+  { icon: '⚡', name: 'Buzz Fun',       desc: 'HY associations. 8 seconds each.',                                   color: '#F97316', featured: false },
+  { icon: '🎮', name: 'Solo Practice',  desc: 'Study at your own pace.',                                            color: '#6366F1', featured: false },
 ];
 
 const STEPS = [
-  { num: '01', icon: '🔑', title: 'Sign in with Google', desc: 'No registration form, no credit card. One click and you are in instantly.' },
-  { num: '02', icon: '🎮', title: 'Choose Your Game Mode', desc: '7 different ways to study. Pick based on your mood — competitive, solo, or quick fire.' },
-  { num: '03', icon: '🏆', title: 'Compete and Learn', desc: 'Real-time battles with instant explanations. Every wrong answer teaches you something.' },
+  { num: '01', icon: '🔑', title: 'Sign in with Google',    desc: 'One click, no forms, no downloads'      },
+  { num: '02', icon: '⚔️', title: 'Pick your battleground', desc: '7 game modes, thousands of questions'  },
+  { num: '03', icon: '🏆', title: 'Study and compete',      desc: 'Learn through winning every round'     },
 ];
 
-const COMING_SOON = [
+const GLOBAL = [
   { flag: '🇬🇧', name: 'PLAB',  country: 'United Kingdom' },
-  { flag: '🇦🇺', name: 'AMC',   country: 'Australia' },
-  { flag: '🇨🇦', name: 'MCCQE', country: 'Canada' },
-  { flag: '🇮🇳', name: 'FMGE',  country: 'India' },
-  { flag: '🇸🇦', name: 'Saudi Medical Licensing', country: 'Saudi Arabia' },
-  { flag: '🇳🇬', name: 'MDCN',  country: 'Nigeria' },
+  { flag: '🇦🇺', name: 'AMC',   country: 'Australia'      },
+  { flag: '🇨🇦', name: 'MCCQE', country: 'Canada'         },
+  { flag: '🇮🇳', name: 'FMGE',  country: 'India'          },
+  { flag: '🇳🇬', name: 'MDCN',  country: 'Nigeria'        },
 ];
 
 // ── Hooks ──────────────────────────────────────────────────────────────────────
 
-function useInView(threshold = 0.15) {
-  const ref  = useRef(null);
+function useInView(threshold = 0.12) {
+  const ref = useRef(null);
   const [inView, setInView] = useState(false);
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const obs = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting) { setInView(true); obs.disconnect(); }
-    }, { threshold });
+    const obs = new IntersectionObserver(
+      ([e]) => { if (e.isIntersecting) { setInView(true); obs.disconnect(); } },
+      { threshold }
+    );
     obs.observe(el);
     return () => obs.disconnect();
   }, [threshold]);
   return [ref, inView];
 }
 
-function useCountUp(target, duration = 1800, active = false) {
+function useCountUp(target, active, dur = 1600) {
   const [val, setVal] = useState(0);
   useEffect(() => {
     if (!active) return;
-    let start = null;
-    const step = (ts) => {
-      if (!start) start = ts;
-      const p = Math.min((ts - start) / duration, 1);
-      const eased = 1 - Math.pow(1 - p, 3);
-      setVal(Math.round(eased * target));
-      if (p < 1) requestAnimationFrame(step);
+    let raf;
+    const t0 = performance.now();
+    const tick = (now) => {
+      const p = Math.min((now - t0) / dur, 1);
+      setVal(Math.round((1 - (1 - p) ** 3) * target));
+      if (p < 1) raf = requestAnimationFrame(tick);
     };
-    requestAnimationFrame(step);
-  }, [active, target, duration]);
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [active, target, dur]);
   return val;
 }
 
-// ── Sub-components ─────────────────────────────────────────────────────────────
+// ── Mockup components ──────────────────────────────────────────────────────────
+
+function LobbyMockup() {
+  return (
+    <div className="lp-mockup">
+      <div className="lp-mock-topbar">
+        <span className="lp-mtb-dot r" /><span className="lp-mtb-dot y" /><span className="lp-mtb-dot g" />
+        <span className="lp-mtb-title">⚔️ Battle Royale · Lobby MXQR7</span>
+      </div>
+      <div className="lp-mock-body">
+        {[
+          { name: 'DrFiz',    host: true,  delay: '0s'    },
+          { name: 'MedBoss',  host: false, delay: '0.25s' },
+          { name: 'CardioQ',  host: false, delay: '0.5s'  },
+          { name: 'Joining…', host: false, delay: '0.8s', joining: true },
+        ].map((p, i) => (
+          <div key={i} className={`lp-mock-player ${p.joining ? 'joining' : ''}`} style={{ animationDelay: p.delay }}>
+            <span className={`lp-mp-status ${p.joining ? 'pulse' : 'on'}`} />
+            <span className="lp-mp-name">{p.name}</span>
+            {p.host && <span className="lp-mp-badge">Host</span>}
+            {!p.host && !p.joining && <span className="lp-mp-check">✓</span>}
+          </div>
+        ))}
+        <button className="lp-mock-btn">Start Game →</button>
+      </div>
+    </div>
+  );
+}
+
+function ProgressMockup() {
+  const subjects = [
+    { name: 'Cardiology',   pct: 84, color: '#EF4444' },
+    { name: 'Pharmacology', pct: 67, color: '#8B5CF6' },
+    { name: 'Neurology',    pct: 78, color: '#3B82F6' },
+    { name: 'Microbiology', pct: 41, color: '#10B981' },
+    { name: 'Biochemistry', pct: 55, color: '#F59E0B' },
+  ];
+  return (
+    <div className="lp-mockup">
+      <div className="lp-mock-topbar">
+        <span className="lp-mtb-dot r" /><span className="lp-mtb-dot y" /><span className="lp-mtb-dot g" />
+        <span className="lp-mtb-title">📊 Subject Mastery</span>
+      </div>
+      <div className="lp-mock-body">
+        <div className="lp-mock-xp">
+          <span>Level 12 · 4,200 XP</span>
+          <div className="lp-mock-xpbar"><div className="lp-mock-xpfill" /></div>
+        </div>
+        {subjects.map((s, i) => (
+          <div key={i} className="lp-mock-subj" style={{ animationDelay: `${i * 0.1}s` }}>
+            <span className="lp-ms-name">{s.name}</span>
+            <div className="lp-ms-track">
+              <div className="lp-ms-fill" style={{ '--w': `${s.pct}%`, background: s.color }} />
+            </div>
+            <span className="lp-ms-pct">{s.pct}%</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function TowerMockup() {
+  const floors = [
+    { n: 10, label: '👹 Boss Floor',    cls: 'boss',      current: true  },
+    { n: 9,  label: '⚔️ Challenge',    cls: 'challenge', done: true     },
+    { n: 8,  label: '✅ Normal',        cls: 'normal',    done: true     },
+    { n: 7,  label: '✅ Normal',        cls: 'normal',    done: true     },
+    { n: 6,  label: '✅ Normal',        cls: 'normal',    done: true     },
+  ];
+  return (
+    <div className="lp-mockup">
+      <div className="lp-mock-topbar">
+        <span className="lp-mtb-dot r" /><span className="lp-mtb-dot y" /><span className="lp-mtb-dot g" />
+        <span className="lp-mtb-title">🏰 The Tower · Zone 1</span>
+      </div>
+      <div className="lp-mock-body">
+        {floors.map((f, i) => (
+          <div key={i} className={`lp-mock-floor ${f.cls} ${f.current ? 'current' : ''} ${f.done ? 'done' : ''}`}
+            style={{ animationDelay: `${i * 0.12}s` }}>
+            <span className="lp-mf-n">F{f.n}</span>
+            <span className="lp-mf-l">{f.label}</span>
+            {f.current && <span className="lp-mf-you">← You</span>}
+          </div>
+        ))}
+        <div className="lp-mock-tprog">
+          <span>Zone Progress</span>
+          <div className="lp-mock-tpbar"><div className="lp-mock-tpfill" /></div>
+          <span>9/10</span>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function StatCard({ stat, active }) {
-  const count = useCountUp(stat.isText ? 0 : stat.value, 1800, active);
+  const count = useCountUp(stat.isInf ? 0 : stat.value, active);
   return (
-    <div className="lp-stat-card">
-      <div className="lp-stat-icon">{stat.icon}</div>
-      <div className="lp-stat-value">
-        {stat.isText ? stat.value : `${count}${stat.suffix}`}
-      </div>
-      <div className="lp-stat-label">{stat.label}</div>
+    <div className="lp-sc">
+      <div className="lp-sc-num">{stat.isInf ? '∞' : `${count}${stat.suffix}`}</div>
+      <div className="lp-sc-label">{stat.icon} {stat.label}</div>
     </div>
   );
 }
 
-function ModeCard({ mode, index }) {
-  const [ref, inView] = useInView(0.1);
-  return (
-    <div
-      ref={ref}
-      className={`lp-mode-card ${inView ? 'lp-visible' : ''}`}
-      style={{
-        '--mode-color': mode.color,
-        '--mode-glow': mode.glow,
-        animationDelay: `${index * 0.07}s`,
-      }}
-    >
-      <div className="lp-mode-icon">{mode.icon}</div>
-      <div className="lp-mode-color-bar" style={{ background: mode.color }} />
-      <h3 className="lp-mode-name">{mode.name}</h3>
-      <p className="lp-mode-desc">{mode.desc}</p>
-    </div>
-  );
-}
-
-function FeatureCard({ feature, index }) {
-  const [ref, inView] = useInView(0.1);
-  return (
-    <div
-      ref={ref}
-      className={`lp-feat-card ${inView ? 'lp-visible' : ''}`}
-      style={{ '--feat-color': feature.color, animationDelay: `${index * 0.08}s` }}
-    >
-      <div className="lp-feat-icon-wrap" style={{ background: `${feature.color}18`, border: `1px solid ${feature.color}40` }}>
-        <span className="lp-feat-icon">{feature.icon}</span>
-      </div>
-      <h3 className="lp-feat-title">{feature.title}</h3>
-      <p className="lp-feat-desc">{feature.desc}</p>
-    </div>
-  );
-}
-
-// ── Main Component ─────────────────────────────────────────────────────────────
+// ── Main ───────────────────────────────────────────────────────────────────────
 
 export default function LandingPage({ onSignIn }) {
-  const [scrolled,    setScrolled]    = useState(false);
-  const [mobileOpen,  setMobileOpen]  = useState(false);
+  const [scrolled,   setScrolled]   = useState(false);
+  const [menuOpen,   setMenuOpen]   = useState(false);
+  const [statsRef,   statsVisible]  = useInView(0.2);
 
-  const modesRef = useRef(null);
-  const [statsRef, statsInView] = useInView(0.2);
+  const modesRef    = useRef(null);
+  const featuresRef = useRef(null);
+  const examsRef    = useRef(null);
 
-  // Scroll listener for navbar
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 40);
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
+    const fn = () => setScrolled(window.scrollY > 50);
+    window.addEventListener('scroll', fn, { passive: true });
+    return () => window.removeEventListener('scroll', fn);
   }, []);
 
-  // Close mobile menu on resize
   useEffect(() => {
-    const onResize = () => { if (window.innerWidth > 768) setMobileOpen(false); };
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
+    const fn = () => { if (window.innerWidth > 768) setMenuOpen(false); };
+    window.addEventListener('resize', fn);
+    return () => window.removeEventListener('resize', fn);
   }, []);
 
-  const scrollTo = useCallback((id) => {
-    setMobileOpen(false);
-    const el = id === 'modes' ? modesRef.current : document.getElementById(id);
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const goTo = useCallback((ref) => {
+    setMenuOpen(false);
+    ref?.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, []);
+
+  const goToId = useCallback((id) => {
+    setMenuOpen(false);
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, []);
 
   return (
-    <div className="lp-root">
+    <div className="lp">
+      <div className="lp-grid-bg" />
 
-      {/* ── Navbar ─────────────────────────────────────────────────────── */}
-      <nav className={`lp-nav ${scrolled ? 'lp-nav-solid' : ''}`}>
+      {/* ── Nav ─────────────────────────────────────────────────────────── */}
+      <nav className={`lp-nav ${scrolled ? 'solid' : ''}`}>
         <div className="lp-nav-inner">
-          <a href="/" className="lp-logo" onClick={e => e.preventDefault()}>
-            <span className="lp-logo-symbol">⚕️</span>
+          <button className="lp-logo" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+            <span className="lp-logo-icon">⚕️</span>
             <span className="lp-logo-text">Med Royale</span>
-          </a>
+          </button>
 
-          <div className={`lp-nav-links ${mobileOpen ? 'lp-nav-open' : ''}`}>
-            <button className="lp-nav-link" onClick={() => scrollTo('features')}>Features</button>
-            <button className="lp-nav-link" onClick={() => scrollTo('modes')}>Game Modes</button>
-            <button className="lp-nav-link" onClick={() => scrollTo('exams')}>Exams</button>
-            <button className="lp-signin-btn lp-signin-mobile" onClick={onSignIn}>Sign In</button>
+          <div className={`lp-nav-links ${menuOpen ? 'open' : ''}`}>
+            <button className="lp-nl" onClick={() => goToId('lp-feats')}>Features</button>
+            <button className="lp-nl" onClick={() => goTo(modesRef)}>Game Modes</button>
+            <button className="lp-nl" onClick={() => goTo(examsRef)}>Exams</button>
+            <button className="lp-nl" onClick={() => goToId('lp-leaderboard')}>Leaderboard</button>
+            <button className="lp-nav-cta mobile-only" onClick={onSignIn}>Play Free →</button>
           </div>
 
-          <button className="lp-signin-btn lp-signin-desktop" onClick={onSignIn}>Sign In</button>
-
-          <button
-            className={`lp-burger ${mobileOpen ? 'lp-burger-open' : ''}`}
-            onClick={() => setMobileOpen(o => !o)}
-            aria-label="Toggle menu"
-          >
+          <button className="lp-nav-cta desktop-only" onClick={onSignIn}>Play Free →</button>
+          <button className={`lp-burger ${menuOpen ? 'open' : ''}`} onClick={() => setMenuOpen(o => !o)} aria-label="Menu">
             <span /><span /><span />
           </button>
         </div>
       </nav>
+      {menuOpen && <div className="lp-overlay" onClick={() => setMenuOpen(false)} />}
 
-      {mobileOpen && <div className="lp-mobile-overlay" onClick={() => setMobileOpen(false)} />}
-
-      {/* ── Hero ───────────────────────────────────────────────────────── */}
+      {/* ── Hero ────────────────────────────────────────────────────────── */}
       <section className="lp-hero">
-        {/* Animated background */}
-        <div className="lp-hero-bg">
-          <div className="lp-hero-glow lp-hero-glow-purple" />
-          <div className="lp-hero-glow lp-hero-glow-gold" />
-          <div className="lp-hero-grid" />
-          {FLOATING_ICONS.map((item, i) => (
-            <span
-              key={i}
-              className="lp-float-icon"
-              style={{
-                left: `${item.x}%`,
-                top:  `${item.y}%`,
-                fontSize: item.size,
-                animationDuration: `${item.dur}s`,
-                animationDelay: `${item.delay}s`,
-              }}
-            >
-              {item.icon}
-            </span>
-          ))}
-        </div>
+        <div className="lp-orb orb-1" />
+        <div className="lp-orb orb-2" />
+        <div className="lp-orb orb-3" />
 
-        <div className="lp-hero-content">
-          <div className="lp-hero-badge">
-            <span className="lp-badge-dot" />
-            Free for all medical students
+        <div className="lp-hero-wrap">
+          {/* Left: text */}
+          <div className="lp-hero-text">
+            <div className="lp-hero-pill">
+              <span className="lp-pill-pulse" />
+              USMLE Step 1 · Live Now
+            </div>
+            <h1 className="lp-h1">
+              Study Smarter.<br />
+              <span className="lp-grad">Beat Everyone.</span>
+            </h1>
+            <p className="lp-hero-sub">
+              The world's first multiplayer medical exam battle platform.
+              Turn revision into competition.
+            </p>
+            <div className="lp-hero-btns">
+              <button className="lp-btn-pri" onClick={onSignIn}>Start for Free →</button>
+              <button className="lp-btn-ghost" onClick={() => goTo(modesRef)}>See it in action ▶</button>
+            </div>
+            <div className="lp-hero-perks">
+              <span>⚡ Free forever</span>
+              <span className="lp-dot-sep">·</span>
+              <span>🎮 7 game modes</span>
+              <span className="lp-dot-sep">·</span>
+              <span>🌍 Global leaderboards</span>
+            </div>
           </div>
 
-          <h1 className="lp-hero-title">
-            Master Medicine.<br />
-            Beat Your Friends.<br />
-            <span className="lp-title-accent">Ace Your Exams.</span>
-          </h1>
+          {/* Right: floating UI cards */}
+          <div className="lp-hero-vis">
+            {/* Question card */}
+            <div className="lp-fc lp-fc-q">
+              <div className="lp-fc-head">
+                <span className="lp-fc-badge">⚔️ Battle Royale</span>
+                <span className="lp-fc-rnd">Round 3 / 20</span>
+              </div>
+              <p className="lp-fc-qtext">A 72-year-old with atrial fibrillation presents with nausea, yellow-green visual halos and bradycardia after dose adjustment…</p>
+              <div className="lp-fc-opts">
+                <div className="lp-opt correct">A — Digoxin toxicity ✓</div>
+                <div className="lp-opt">B — Hypertensive emergency</div>
+                <div className="lp-opt">C — MI with heart block</div>
+                <div className="lp-opt">D — Aortic stenosis</div>
+              </div>
+              <div className="lp-fc-timebar"><div className="lp-fc-timefill" /></div>
+            </div>
 
-          <p className="lp-hero-sub">
-            The world's first multiplayer medical exam preparation platform.
-            Battle classmates in real-time, climb leaderboards and make studying actually fun.
-          </p>
-
-          <div className="lp-hero-cta">
-            <button className="lp-cta-primary" onClick={onSignIn}>
-              Start Playing Free 🎮
-            </button>
-            <button className="lp-cta-secondary" onClick={() => scrollTo('modes')}>
-              Watch How It Works ▶
-            </button>
-          </div>
-
-          <div className="lp-hero-proof">
-            <div className="lp-proof-avatars">
-              {['👨‍⚕️','👩‍⚕️','🧑‍⚕️','👩‍⚕️'].map((a, i) => (
-                <span key={i} className="lp-proof-avatar" style={{ left: i * 24 }}>{a}</span>
+            {/* Leaderboard card */}
+            <div className="lp-fc lp-fc-lb">
+              <div className="lp-fc-lbtitle">🏆 Live Scores</div>
+              {[
+                { r:1, n:'DrFiz',   s:2400, fire:true  },
+                { r:2, n:'You',     s:2100, me:true    },
+                { r:3, n:'MedBoss', s:1850             },
+              ].map(p => (
+                <div key={p.r} className={`lp-lb-row ${p.me ? 'me' : ''}`}>
+                  <span className="lp-lb-r">{p.r}</span>
+                  <span className="lp-lb-n">{p.n}{p.fire ? ' 🔥' : ''}</span>
+                  <span className="lp-lb-s">{p.s.toLocaleString()}</span>
+                </div>
               ))}
             </div>
-            <span className="lp-proof-text">Join hundreds of medical students studying smarter</span>
+
+            {/* Sudden death card */}
+            <div className="lp-fc lp-fc-sd">
+              <div className="lp-sd-label">⚡ SUDDEN DEATH</div>
+              <div className="lp-sd-vs">
+                <div className="lp-sd-p">DrFiz<br /><span className="lp-sd-life">❤️</span></div>
+                <div className="lp-sd-sep">VS</div>
+                <div className="lp-sd-p">MedBoss<br /><span className="lp-sd-life">❤️</span></div>
+              </div>
+              <div className="lp-sd-clock">5 seconds…</div>
+            </div>
           </div>
         </div>
 
-        <div className="lp-scroll-indicator" onClick={() => scrollTo('exams')}>
-          <div className="lp-scroll-dot" />
+        <div className="lp-scroll-hint" onClick={() => goTo(examsRef)}>
+          <div className="lp-scroll-mouse"><div className="lp-scroll-wheel" /></div>
         </div>
       </section>
 
-      {/* ── Exam Badges Marquee ─────────────────────────────────────────── */}
-      <section id="exams" className="lp-exams">
-        <p className="lp-exams-label">Supported &amp; upcoming exams</p>
-        <div className="lp-marquee-wrap">
+      {/* ── Exam Strip ──────────────────────────────────────────────────── */}
+      <section ref={examsRef} className="lp-strip-section">
+        <p className="lp-strip-label">Preparing students for exams worldwide</p>
+        <div className="lp-marquee">
           <div className="lp-marquee-track">
-            {[...EXAMS, ...EXAMS, ...EXAMS].map((exam, i) => (
-              <div
-                key={i}
-                className={`lp-exam-badge ${exam.available ? 'lp-exam-active' : 'lp-exam-soon'}`}
-              >
-                <span className="lp-exam-icon">{exam.available ? '✅' : '🔜'}</span>
-                <span className="lp-exam-name">{exam.name}</span>
-                <span className={`lp-exam-tag ${exam.available ? '' : 'lp-exam-tag-soon'}`}>
-                  {exam.available ? 'Available Now' : 'Coming Soon'}
-                </span>
+            {[...EXAMS, ...EXAMS, ...EXAMS].map((e, i) => (
+              <div key={i} className={`lp-exam-pill ${e.live ? 'live' : ''}`}>
+                <span className={`lp-exam-indicator ${e.live ? 'live' : ''}`} />
+                <span className="lp-exam-name">{e.name}</span>
+                <span className={`lp-exam-tag ${e.live ? 'live' : ''}`}>{e.live ? 'Live' : 'Soon'}</span>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ── Stats ──────────────────────────────────────────────────────── */}
-      <section id="features" className="lp-stats-section">
-        <div ref={statsRef} className="lp-stats-grid">
-          {STATS.map((stat, i) => (
-            <StatCard key={i} stat={stat} active={statsInView} />
-          ))}
+      {/* ── Stats ───────────────────────────────────────────────────────── */}
+      <section className="lp-stats-section">
+        <div ref={statsRef} className="lp-stats-row">
+          {STATS.map((s, i) => <StatCard key={i} stat={s} active={statsVisible} />)}
         </div>
       </section>
 
-      {/* ── Game Modes ─────────────────────────────────────────────────── */}
-      <section id="modes" ref={modesRef} className="lp-modes-section">
-        <div className="lp-section-header">
-          <p className="lp-section-eyebrow">Game Modes</p>
-          <h2 className="lp-section-title">7 Ways to Study.<br /><span className="lp-title-accent">0 Ways to Be Bored.</span></h2>
-          <p className="lp-section-sub">
-            Every mode is a different way to test yourself. Pick your battle or try them all.
-          </p>
+      {/* ── Game Modes Bento ────────────────────────────────────────────── */}
+      <section ref={modesRef} className="lp-modes-section">
+        <div className="lp-section-hd">
+          <span className="lp-eyebrow">Game Modes</span>
+          <h2 className="lp-section-h2">One Platform.<br /><span className="lp-grad">Seven Battlegrounds.</span></h2>
+          <p className="lp-section-p">Every study session feels different</p>
         </div>
 
-        <div className="lp-modes-grid">
-          {MODES.map((mode, i) => (
-            <ModeCard key={mode.name} mode={mode} index={i} />
+        <div className="lp-bento">
+          {/* Featured — Battle Royale */}
+          <div className="lp-bc lp-bc-feat" style={{ '--c': MODES[0].color }}>
+            <div className="lp-bc-glow" />
+            <div className="lp-bc-feat-top">
+              <span className="lp-bc-tag">Most Popular</span>
+              <span className="lp-bc-icon">{MODES[0].icon}</span>
+            </div>
+            <h3 className="lp-bc-name">{MODES[0].name}</h3>
+            <p className="lp-bc-desc">{MODES[0].desc}</p>
+            <div className="lp-bc-fight">
+              <div className="lp-bf-p p1">DrFiz ❤️❤️❤️</div>
+              <div className="lp-bf-vs">VS</div>
+              <div className="lp-bf-p p2">MedBoss ❤️</div>
+            </div>
+          </div>
+
+          {/* Small mode cards */}
+          {MODES.slice(1).map((m) => (
+            <div key={m.id || m.name} className="lp-bc lp-bc-sm" style={{ '--c': m.color }}>
+              <div className="lp-bc-sm-glow" />
+              <span className="lp-bc-sm-icon">{m.icon}</span>
+              <h4 className="lp-bc-sm-name">{m.name}</h4>
+              <p className="lp-bc-sm-desc">{m.desc}</p>
+            </div>
           ))}
         </div>
 
         <div className="lp-modes-cta">
-          <button className="lp-cta-primary" onClick={onSignIn}>Play All Modes Free →</button>
+          <button className="lp-btn-pri" onClick={onSignIn}>Play All Modes Free →</button>
         </div>
       </section>
 
-      {/* ── Features ───────────────────────────────────────────────────── */}
-      <section id="features-cards" className="lp-features-section">
-        <div className="lp-section-header">
-          <p className="lp-section-eyebrow">Why Med Royale</p>
-          <h2 className="lp-section-title">Everything You Need to<br /><span className="lp-title-accent">Ace Your Exams</span></h2>
-          <p className="lp-section-sub">Built by medical students, for medical students.</p>
+      {/* ── Features ────────────────────────────────────────────────────── */}
+      <section id="lp-feats" ref={featuresRef} className="lp-feats-section">
+        <div className="lp-section-hd">
+          <span className="lp-eyebrow">Features</span>
+          <h2 className="lp-section-h2">Built to make you<br /><span className="lp-grad">actually study.</span></h2>
         </div>
-        <div className="lp-features-grid">
-          {FEATURES.map((f, i) => <FeatureCard key={f.title} feature={f} index={i} />)}
+
+        {/* Row 1 */}
+        <div className="lp-feat-row">
+          <div className="lp-feat-text">
+            <span className="lp-feat-num">01</span>
+            <h3 className="lp-feat-title">Real-time multiplayer battles</h3>
+            <p className="lp-feat-desc">Challenge classmates from anywhere. Live lobbies, instant results, real competition. No more studying alone in silence.</p>
+            <button className="lp-feat-link" onClick={onSignIn}>Get started →</button>
+          </div>
+          <div className="lp-feat-vis"><LobbyMockup /></div>
+        </div>
+
+        {/* Row 2 (flipped) */}
+        <div className="lp-feat-row flip">
+          <div className="lp-feat-text">
+            <span className="lp-feat-num">02</span>
+            <h3 className="lp-feat-title">Track every step of your progress</h3>
+            <p className="lp-feat-desc">Subject mastery bars, performance graphs, streak counters and XP levels. Know exactly where you stand and what to fix.</p>
+            <button className="lp-feat-link" onClick={onSignIn}>Get started →</button>
+          </div>
+          <div className="lp-feat-vis"><ProgressMockup /></div>
+        </div>
+
+        {/* Row 3 */}
+        <div className="lp-feat-row">
+          <div className="lp-feat-text">
+            <span className="lp-feat-num">03</span>
+            <h3 className="lp-feat-title">Climb The Tower. All 100 floors.</h3>
+            <p className="lp-feat-desc">A solo adventure through every USMLE subject. Normal floors, challenge floors and brutal boss floors. Progress saves automatically.</p>
+            <button className="lp-feat-link" onClick={onSignIn}>Get started →</button>
+          </div>
+          <div className="lp-feat-vis"><TowerMockup /></div>
         </div>
       </section>
 
-      {/* ── How It Works ───────────────────────────────────────────────── */}
+      {/* ── How It Works ────────────────────────────────────────────────── */}
       <section className="lp-hiw-section">
-        <div className="lp-hiw-inner">
-          <div className="lp-section-header">
-            <p className="lp-section-eyebrow">How It Works</p>
-            <h2 className="lp-section-title">Get Started in<br /><span className="lp-title-accent">30 Seconds</span></h2>
-          </div>
-
-          <div className="lp-steps">
-            {STEPS.map((step, i) => (
-              <div key={step.num} className="lp-step-wrap">
-                <div className="lp-step">
-                  <div className="lp-step-num">{step.num}</div>
-                  <div className="lp-step-icon">{step.icon}</div>
-                  <h3 className="lp-step-title">{step.title}</h3>
-                  <p className="lp-step-desc">{step.desc}</p>
-                </div>
-                {i < STEPS.length - 1 && (
-                  <div className="lp-step-arrow">→</div>
-                )}
-              </div>
-            ))}
-          </div>
-
-          <div className="lp-hiw-cta">
-            <button className="lp-cta-primary lp-cta-large" onClick={onSignIn}>
-              Start Playing Free 🎮
-            </button>
-          </div>
+        <div className="lp-section-hd">
+          <span className="lp-eyebrow">How It Works</span>
+          <h2 className="lp-section-h2">Up and running<br /><span className="lp-grad">in 30 seconds.</span></h2>
         </div>
-      </section>
-
-      {/* ── Coming Soon Exams ──────────────────────────────────────────── */}
-      <section className="lp-coming-section">
-        <div className="lp-section-header">
-          <p className="lp-section-eyebrow">Global Expansion</p>
-          <h2 className="lp-section-title">More Exams<br /><span className="lp-title-accent">Coming Soon</span></h2>
-          <p className="lp-section-sub">We are expanding to cover medical licensing exams worldwide.</p>
-        </div>
-
-        <div className="lp-coming-grid">
-          {COMING_SOON.map((exam) => (
-            <div key={exam.name} className="lp-coming-card">
-              <span className="lp-coming-badge">Coming Soon</span>
-              <span className="lp-coming-flag">{exam.flag}</span>
-              <h4 className="lp-coming-name">{exam.name}</h4>
-              <p className="lp-coming-country">{exam.country}</p>
+        <div className="lp-hiw-steps">
+          {STEPS.map((s, i) => (
+            <div key={i} className="lp-hiw-step">
+              {i < STEPS.length - 1 && <div className="lp-hiw-line" />}
+              <div className="lp-hiw-bubble">{s.num}</div>
+              <div className="lp-hiw-icon">{s.icon}</div>
+              <h3 className="lp-hiw-title">{s.title}</h3>
+              <p className="lp-hiw-desc">{s.desc}</p>
             </div>
           ))}
         </div>
-
-        <p className="lp-coming-hint">Join now and be ready when your exam is added.</p>
-      </section>
-
-      {/* ── Final CTA ──────────────────────────────────────────────────── */}
-      <section className="lp-cta-section">
-        <div className="lp-cta-glow lp-cta-glow-left" />
-        <div className="lp-cta-glow lp-cta-glow-right" />
-        <div className="lp-cta-inner">
-          <h2 className="lp-cta-title">Ready to Start Winning?</h2>
-          <p className="lp-cta-sub">Join medical students studying smarter with Med Royale</p>
-          <button className="lp-cta-primary lp-cta-large lp-cta-google" onClick={onSignIn}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
-              <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-              <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-              <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
-              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-            </svg>
-            Sign in with Google
-          </button>
-          <p className="lp-cta-disclaimer">100% Free. No credit card required.</p>
+        <div className="lp-hiw-cta">
+          <button className="lp-btn-pri lp-btn-lg" onClick={onSignIn}>Start Playing Free 🎮</button>
         </div>
       </section>
 
-      {/* ── Footer ─────────────────────────────────────────────────────── */}
+      {/* ── Going Global ────────────────────────────────────────────────── */}
+      <section className="lp-global-section">
+        <div className="lp-section-hd">
+          <span className="lp-eyebrow">Going Global</span>
+          <h2 className="lp-section-h2">USMLE is<br /><span className="lp-grad">just the beginning.</span></h2>
+          <p className="lp-section-p">Expanding to cover licensing exams worldwide</p>
+        </div>
+        <div className="lp-global-grid">
+          {GLOBAL.map((g) => (
+            <div key={g.name} className="lp-gc">
+              <span className="lp-gc-pill">Coming Soon</span>
+              <span className="lp-gc-flag">{g.flag}</span>
+              <span className="lp-gc-name">{g.name}</span>
+              <span className="lp-gc-country">{g.country}</span>
+            </div>
+          ))}
+        </div>
+        <p className="lp-global-hint">Join now and be ready when your exam launches.</p>
+      </section>
+
+      {/* ── Final CTA ───────────────────────────────────────────────────── */}
+      <section className="lp-fcta">
+        <div className="lp-fcta-orb orb-a" />
+        <div className="lp-fcta-orb orb-b" />
+        <div className="lp-fcta-inner">
+          <h2 className="lp-fcta-h2">Your exam<br /><span className="lp-grad">is waiting.</span></h2>
+          <p className="lp-fcta-p">Join medical students who study smarter with Med Royale</p>
+          <button className="lp-btn-pri lp-btn-xl lp-btn-glow" onClick={onSignIn}>
+            Start Playing Free →
+          </button>
+          <p className="lp-fcta-fine">No credit card. No download. Just sign in.</p>
+        </div>
+      </section>
+
+      {/* ── Footer ──────────────────────────────────────────────────────── */}
       <footer className="lp-footer">
         <div className="lp-footer-inner">
           <div className="lp-footer-brand">
-            <div className="lp-footer-logo">
-              <span>⚕️</span>
-              <span className="lp-footer-logo-text">Med Royale</span>
-            </div>
-            <p className="lp-footer-tagline">Built for future doctors</p>
-            <div className="lp-footer-social">
-              <a href="#" className="lp-social-btn" aria-label="Twitter/X">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.73-8.835L1.254 2.25H8.08l4.253 5.622L18.244 2.25zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+            <div className="lp-footer-logo">⚕️ <span>Med Royale</span></div>
+            <p className="lp-footer-tl">Built for future doctors 🏥</p>
+            <div className="lp-socials">
+              <a href="#" className="lp-soc" aria-label="Twitter">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.73-8.835L1.254 2.25H8.08l4.253 5.622L18.244 2.25zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
               </a>
-              <a href="#" className="lp-social-btn" aria-label="Instagram">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><circle cx="12" cy="12" r="5"/><circle cx="17.5" cy="6.5" r="1.5" fill="currentColor" stroke="none"/></svg>
+              <a href="#" className="lp-soc" aria-label="Discord">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>
               </a>
-              <a href="#" className="lp-social-btn" aria-label="Discord">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>
+              <a href="#" className="lp-soc" aria-label="Instagram">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="5"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/></svg>
               </a>
             </div>
           </div>
-
-          <div className="lp-footer-links-col">
-            <h4 className="lp-footer-col-title">Product</h4>
-            <a href="#" className="lp-footer-link" onClick={e => { e.preventDefault(); scrollTo('modes'); }}>Game Modes</a>
-            <a href="#" className="lp-footer-link" onClick={e => { e.preventDefault(); scrollTo('features-cards'); }}>Features</a>
-            <a href="#" className="lp-footer-link" onClick={e => { e.preventDefault(); scrollTo('exams'); }}>Exams</a>
+          <div className="lp-footer-col">
+            <h4>Product</h4>
+            <button onClick={() => goToId('lp-feats')}>Features</button>
+            <button onClick={() => goTo(modesRef)}>Game Modes</button>
+            <button onClick={() => goToId('lp-leaderboard')}>Leaderboard</button>
           </div>
-
-          <div className="lp-footer-links-col">
-            <h4 className="lp-footer-col-title">Company</h4>
-            <a href="#" className="lp-footer-link">About</a>
-            <a href="#" className="lp-footer-link">Contact</a>
-            <a href="#" className="lp-footer-link">Privacy Policy</a>
-            <a href="#" className="lp-footer-link">Terms of Service</a>
+          <div className="lp-footer-col">
+            <h4>Exams</h4>
+            <button>USMLE Step 1</button>
+            <button>Coming Soon →</button>
+          </div>
+          <div className="lp-footer-col">
+            <h4>Company</h4>
+            <button>About</button>
+            <button>Contact</button>
+            <button>Privacy Policy</button>
+            <button>Terms of Service</button>
           </div>
         </div>
-
-        <div className="lp-footer-bottom">
-          <p>© 2026 Med Royale. All rights reserved.</p>
+        <div className="lp-footer-bar">
+          <span>© 2026 Med Royale. All rights reserved.</span>
         </div>
       </footer>
-
     </div>
   );
 }
