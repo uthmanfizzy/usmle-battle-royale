@@ -14,6 +14,11 @@
   --text-dim:  #7878aa;
   --radius:    12px;
   --shadow:    0 8px 32px rgba(0,0,0,0.5);
+  /* Theme system — overridden by theme.js */
+  --color-primary:       #7C3AED;
+  --color-primary-light: #9D5CF5;
+  --color-primary-dark:  #5B21B6;
+  --color-glow:          rgba(124,58,237,0.35);
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }

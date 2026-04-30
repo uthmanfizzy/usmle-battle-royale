@@ -1,0 +1,337 @@
+/* ═══════════════════════════════════════════════════════════════════
+   MED ROYALE — GLOBAL THEME SYSTEM
+   Defines --color-primary vars + pixel-art theme overrides
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── Default colour variables ───────────────────────────────────── */
+:root {
+  --color-primary:       #7C3AED;
+  --color-primary-light: #9D5CF5;
+  --color-primary-dark:  #5B21B6;
+  --color-glow:          rgba(124,58,237,0.35);
+}
+
+/* ── Propagate into scoped component vars ────────────────────────── */
+/* LandingPage and StatsPage use --purple locally; tie them to root */
+.lp { --purple: var(--color-primary); --purple2: var(--color-primary-light); }
+.sp { --purple: var(--color-primary); --purple2: var(--color-primary-light); }
+
+/* btn-view-stats in dashboard uses hardcoded purple — override via var */
+.btn-view-stats {
+  background: color-mix(in srgb, var(--color-primary) 15%, transparent) !important;
+  border-color: color-mix(in srgb, var(--color-primary) 50%, transparent) !important;
+  color: var(--color-primary-light) !important;
+}
+.btn-view-stats:hover {
+  background: color-mix(in srgb, var(--color-primary) 28%, transparent) !important;
+  border-color: var(--color-primary) !important;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   PIXEL ART THEME
+   ══════════════════════════════════════════════════════════════════ */
+
+/* ── Scanline overlay ────────────────────────────────────────────── */
+html[data-theme="pixel"]::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent 0px,
+    transparent 2px,
+    rgba(0,0,0,0.055) 2px,
+    rgba(0,0,0,0.055) 4px
+  );
+  pointer-events: none;
+  z-index: 99998;
+}
+
+/* ── Pixel grid background ───────────────────────────────────────── */
+html[data-theme="pixel"] body {
+  background-image:
+    linear-gradient(rgba(255,255,255,0.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.018) 1px, transparent 1px) !important;
+  background-size: 8px 8px !important;
+}
+
+/* ── Strip border radius everywhere ─────────────────────────────── */
+html[data-theme="pixel"] *:not(img):not(canvas) {
+  border-radius: 0 !important;
+}
+
+/* ── Pixel font — applied selectively to titles/labels ───────────── */
+html[data-theme="pixel"] .profile-username,
+html[data-theme="pixel"] .sp-username,
+html[data-theme="pixel"] .card-title,
+html[data-theme="pixel"] .sp-panel-title,
+html[data-theme="pixel"] .sp-cp-lvl,
+html[data-theme="pixel"] .dash-logo,
+html[data-theme="pixel"] .lp-eyebrow,
+html[data-theme="pixel"] .stat-val,
+html[data-theme="pixel"] .sp-qstat-val,
+html[data-theme="pixel"] .sp-rp-val,
+html[data-theme="pixel"] .level-badge,
+html[data-theme="pixel"] .sp-lvl-badge,
+html[data-theme="pixel"] .lp-bc-name,
+html[data-theme="pixel"] .sp-fc-badge,
+html[data-theme="pixel"] .ap-theme-name,
+html[data-theme="pixel"] .nav-label,
+html[data-theme="pixel"] .sp-nav-brand {
+  font-family: 'Press Start 2P', monospace !important;
+  line-height: 1.8 !important;
+}
+
+/* Slightly smaller so press-start-2p is readable */
+html[data-theme="pixel"] .card-title       { font-size: 8px !important; }
+html[data-theme="pixel"] .nav-label        { font-size: 7px !important; }
+html[data-theme="pixel"] .sp-panel-title   { font-size: 11px !important; }
+html[data-theme="pixel"] .sp-cp-lvl        { font-size: 7px !important; }
+html[data-theme="pixel"] .sp-qstat-val     { font-size: 13px !important; }
+html[data-theme="pixel"] .sp-rp-val        { font-size: 13px !important; }
+html[data-theme="pixel"] .lp-eyebrow       { font-size: 7px !important; letter-spacing: 1px !important; }
+html[data-theme="pixel"] .lp-bc-name       { font-size: 11px !important; }
+html[data-theme="pixel"] .ap-theme-name    { font-size: 9px !important; line-height: 2 !important; }
+
+/* ── Pixel card borders ───────────────────────────────────────────── */
+html[data-theme="pixel"] .dash-card,
+html[data-theme="pixel"] .sp-panel,
+html[data-theme="pixel"] .sp-hero-card,
+html[data-theme="pixel"] .sp-rank-pill,
+html[data-theme="pixel"] .ap-theme-card,
+html[data-theme="pixel"] .lb-tab-bar,
+html[data-theme="pixel"] .modal-card,
+html[data-theme="pixel"] .welcome-popup,
+html[data-theme="pixel"] .lp-fc,
+html[data-theme="pixel"] .lp-bc,
+html[data-theme="pixel"] .lp-mockup,
+html[data-theme="pixel"] .bf-mockup,
+html[data-theme="pixel"] .lp-gc,
+html[data-theme="pixel"] .ann-card {
+  border: 2px solid var(--color-primary) !important;
+  box-shadow:
+    6px 6px 0 0 rgba(0,0,0,0.75),
+    inset 0 0 0 1px rgba(255,255,255,0.04) !important;
+}
+
+html[data-theme="pixel"] .dash-card:hover,
+html[data-theme="pixel"] .sp-panel:hover,
+html[data-theme="pixel"] .lp-bc:hover,
+html[data-theme="pixel"] .lp-gc:hover {
+  box-shadow:
+    6px 6px 0 0 var(--color-primary),
+    inset 0 0 0 1px rgba(255,255,255,0.08) !important;
+}
+
+/* ── Pixel buttons ───────────────────────────────────────────────── */
+html[data-theme="pixel"] button {
+  box-shadow: 4px 4px 0 rgba(0,0,0,0.65) !important;
+  transition: transform 0.05s steps(1) !important, box-shadow 0.05s steps(1) !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.5px !important;
+}
+html[data-theme="pixel"] button:active:not(:disabled) {
+  transform: translate(3px, 3px) scale(1) !important;
+  box-shadow: 1px 1px 0 rgba(0,0,0,0.65) !important;
+}
+html[data-theme="pixel"] .btn-primary,
+html[data-theme="pixel"] .lp-btn-pri,
+html[data-theme="pixel"] .sp-nav-back {
+  background: var(--color-primary) !important;
+}
+html[data-theme="pixel"] .btn-primary:hover:not(:disabled),
+html[data-theme="pixel"] .lp-btn-pri:hover {
+  background: var(--color-primary-light) !important;
+}
+
+/* ── Pixel progress bars (health bar segmented style) ────────────── */
+html[data-theme="pixel"] .xp-fill,
+html[data-theme="pixel"] .sp-xp-fill,
+html[data-theme="pixel"] .mastery-fill,
+html[data-theme="pixel"] .sp-skill-fill,
+html[data-theme="pixel"] .lp-fc-timefill,
+html[data-theme="pixel"] .mock-xpfill,
+html[data-theme="pixel"] .lp-mock-xpfill,
+html[data-theme="pixel"] .lp-ms-fill {
+  background: repeating-linear-gradient(
+    90deg,
+    var(--color-primary) 0px,
+    var(--color-primary) 10px,
+    rgba(0,0,0,0.35) 10px,
+    rgba(0,0,0,0.35) 12px
+  ) !important;
+  transition: width 0.25s steps(10) !important;
+  animation: none !important;
+}
+
+html[data-theme="pixel"] .xp-track,
+html[data-theme="pixel"] .sp-xp-track,
+html[data-theme="pixel"] .mastery-track,
+html[data-theme="pixel"] .sp-skill-track {
+  border: 1px solid var(--color-primary) !important;
+}
+
+/* Shimmer off */
+html[data-theme="pixel"] .sp-xp-shimmer { display: none !important; }
+
+/* ── Pixel XP bar in dashboard ───────────────────────────────────── */
+html[data-theme="pixel"] .xp-fill {
+  background: repeating-linear-gradient(
+    90deg,
+    var(--gold, #f5c518) 0px,
+    var(--gold, #f5c518) 10px,
+    rgba(0,0,0,0.35) 10px,
+    rgba(0,0,0,0.35) 12px
+  ) !important;
+}
+
+/* ── Stop smooth animations, use stepped ─────────────────────────── */
+html[data-theme="pixel"] .lp-orb,
+html[data-theme="pixel"] .sp-particles { display: none !important; }
+
+html[data-theme="pixel"] .lp-fc {
+  animation: none !important;
+}
+
+html[data-theme="pixel"] .lp-hero-pill,
+html[data-theme="pixel"] .sp-hero-card,
+html[data-theme="pixel"] .sp-rank-pill,
+html[data-theme="pixel"] .sp-skill-row,
+html[data-theme="pixel"] .sp-cp {
+  animation-timing-function: steps(4, end) !important;
+  transition-timing-function: steps(4, end) !important;
+}
+
+/* Avatar rings: stepped spin */
+html[data-theme="pixel"] .sp-avatar-ring {
+  animation: ring-spin 1.5s steps(8) infinite !important;
+}
+html[data-theme="pixel"] .sp-avatar-ring2 {
+  animation: ring-spin 2.5s steps(8) reverse infinite !important;
+}
+
+/* ── Inputs ──────────────────────────────────────────────────────── */
+html[data-theme="pixel"] input,
+html[data-theme="pixel"] select,
+html[data-theme="pixel"] textarea {
+  border: 2px solid var(--color-primary) !important;
+  box-shadow: 3px 3px 0 rgba(0,0,0,0.5) !important;
+}
+html[data-theme="pixel"] input:focus,
+html[data-theme="pixel"] select:focus {
+  border-color: var(--color-primary-light) !important;
+  outline: none !important;
+}
+
+/* ── Nav ─────────────────────────────────────────────────────────── */
+html[data-theme="pixel"] .dash-nav {
+  border-top: 2px solid var(--color-primary) !important;
+}
+html[data-theme="pixel"] .dash-nav-btn.active {
+  border-top: 3px solid var(--color-primary) !important;
+  color: var(--color-primary-light) !important;
+  background: rgba(0,0,0,0.4) !important;
+}
+html[data-theme="pixel"] .sp-nav {
+  border-bottom: 2px solid var(--color-primary) !important;
+}
+html[data-theme="pixel"] .lp-nav.solid {
+  border-bottom: 2px solid var(--color-primary) !important;
+}
+
+/* ── Modal / dialog pixel look ───────────────────────────────────── */
+html[data-theme="pixel"] .modal-overlay,
+html[data-theme="pixel"] .welcome-overlay {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background: rgba(0,0,0,0.88) !important;
+}
+html[data-theme="pixel"] .modal-card,
+html[data-theme="pixel"] .welcome-popup {
+  animation: pixel-pop 0.15s steps(3) both !important;
+}
+@keyframes pixel-pop {
+  from { transform: scale(0.85); opacity: 0; }
+  to   { transform: scale(1);    opacity: 1; }
+}
+
+/* ── Level badge ─────────────────────────────────────────────────── */
+html[data-theme="pixel"] .sp-lvl-badge,
+html[data-theme="pixel"] .level-badge {
+  box-shadow: 2px 2px 0 rgba(0,0,0,0.6) !important;
+  font-family: 'Press Start 2P', monospace !important;
+  font-size: 7px !important;
+}
+
+/* ── Loading spinner → pixel ─────────────────────────────────────── */
+html[data-theme="pixel"] .spinner,
+html[data-theme="pixel"] .sp-load-ring {
+  border-radius: 0 !important;
+  border: 3px solid var(--color-primary) !important;
+  border-top-color: transparent !important;
+  animation: sp-spin 0.6s steps(8) infinite !important;
+}
+
+/* ── Exam marquee pills ───────────────────────────────────────────── */
+html[data-theme="pixel"] .lp-exam-pill {
+  border: 2px solid var(--color-primary) !important;
+  box-shadow: 3px 3px 0 rgba(0,0,0,0.6) !important;
+}
+
+/* ── Hero section ────────────────────────────────────────────────── */
+html[data-theme="pixel"] .lp-hero {
+  background: none !important;
+}
+html[data-theme="pixel"] .lp-grid-bg {
+  background-image:
+    linear-gradient(var(--color-primary, rgba(124,58,237,0.07)) 1px, transparent 1px),
+    linear-gradient(90deg, var(--color-primary, rgba(124,58,237,0.07)) 1px, transparent 1px) !important;
+  background-size: 16px 16px !important;
+  opacity: 0.3 !important;
+}
+
+/* ── Checkpoint circles in journey ──────────────────────────────── */
+html[data-theme="pixel"] .sp-cp.current .sp-cp-circle {
+  animation: cp-pixel-pulse 0.6s steps(2) infinite !important;
+}
+@keyframes cp-pixel-pulse {
+  0%   { box-shadow: 0 0 0 0 var(--color-primary); }
+  100% { box-shadow: 0 0 0 6px rgba(0,0,0,0); }
+}
+
+/* ── Stats-page hero glow off, replace with pixel border ─────────── */
+html[data-theme="pixel"] .sp-hero-glow { display: none !important; }
+html[data-theme="pixel"] .sp-hero-card {
+  border: 2px solid var(--color-primary) !important;
+}
+
+/* ── Pill-pulse: step animation ──────────────────────────────────── */
+html[data-theme="pixel"] .lp-pill-pulse {
+  animation: pulse-dot 0.8s steps(2) infinite !important;
+}
+
+/* ── Remove backdrop filters (expensive + looks wrong in pixel theme) */
+html[data-theme="pixel"] .lp-fc,
+html[data-theme="pixel"] .lp-btn-ghost,
+html[data-theme="pixel"] .lp-nav,
+html[data-theme="pixel"] .sp-panel {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* ── Appearance section preview cards: pixel variant ────────────── */
+html[data-theme="pixel"] .ap-prev-pixel {
+  border: 2px solid var(--color-primary) !important;
+}
+
+/* ── Bento glow off in pixel mode ────────────────────────────────── */
+html[data-theme="pixel"] .lp-bc-glow,
+html[data-theme="pixel"] .lp-bc-sm-glow,
+html[data-theme="pixel"] .sp-rp-glow,
+html[data-theme="pixel"] .sp-skill-glow-line { display: none !important; }
+
+/* ── Checkopoint line ────────────────────────────────────────────── */
+html[data-theme="pixel"] .sp-cp-line.lit {
+  background: var(--color-primary) !important;
+  box-shadow: none !important;
+}

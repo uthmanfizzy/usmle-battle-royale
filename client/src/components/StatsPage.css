@@ -8,8 +8,8 @@
   --bg:      #05050f;
   --bg2:     #0a0a18;
   --bg3:     #0f0f20;
-  --purple:  #7C3AED;
-  --purple2: #9D5CF5;
+  --purple:  var(--color-primary, #7C3AED);
+  --purple2: var(--color-primary-light, #9D5CF5);
   --gold:    #F59E0B;
   --gold2:   #FFD700;
   --glass:   rgba(255,255,255,0.03);

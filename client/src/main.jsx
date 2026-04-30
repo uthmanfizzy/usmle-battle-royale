@@ -6,10 +6,13 @@ import AdminApp from './components/AdminApp';
 import AuthCallback from './components/AuthCallback';
 import DashboardPage from './components/DashboardPage';
 import StatsPage from './components/StatsPage';
+import { ThemeProvider } from './theme';
 import './App.css';
+import './themes.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
+    <ThemeProvider>
     <BrowserRouter>
       <Routes>
         <Route path="/admin/*" element={<AdminApp />} />
@@ -19,5 +22,6 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         <Route path="/*" element={<App />} />
       </Routes>
     </BrowserRouter>
+    </ThemeProvider>
   </React.StrictMode>
 );

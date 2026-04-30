@@ -1,0 +1,337 @@
+/* ═══════════════════════════════════════════════════════════
+   APPEARANCE SECTION
+   ═══════════════════════════════════════════════════════════ */
+
+.ap-content { gap: 16px; }
+.ap-card    { padding: 24px 28px !important; }
+
+/* ── Theme cards ──────────────────────────────────────────── */
+.ap-themes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.ap-theme-card {
+  position: relative;
+  background: var(--surface);
+  border: 2px solid var(--border);
+  padding: 0;
+  cursor: pointer;
+  border-radius: 14px;
+  overflow: hidden;
+  transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+}
+.ap-theme-card:hover {
+  border-color: var(--color-primary);
+  transform: translateY(-2px);
+}
+.ap-theme-card.ap-selected {
+  border-color: var(--tc, var(--color-primary));
+  box-shadow: 0 0 20px color-mix(in srgb, var(--tc, var(--color-primary)) 40%, transparent),
+              0 0 40px color-mix(in srgb, var(--tc, var(--color-primary)) 15%, transparent);
+}
+
+.ap-tick {
+  position: absolute;
+  top: 10px; right: 10px;
+  z-index: 10;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: var(--tc, var(--color-primary));
+  color: #fff;
+  font-size: 11px;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 10px rgba(0,0,0,0.4);
+}
+
+.ap-theme-name {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text);
+  padding: 14px 16px 4px;
+}
+.ap-theme-desc {
+  font-size: 12px;
+  color: var(--text-dim);
+  padding: 0 16px 14px;
+  line-height: 1.4;
+}
+
+/* ── Mini previews ────────────────────────────────────────── */
+.ap-prev {
+  width: 100%;
+  height: 130px;
+  background: #090914;
+  overflow: hidden;
+  position: relative;
+  flex-shrink: 0;
+}
+
+/* Nav bar mock */
+.ap-prev-nav {
+  height: 22px;
+  background: rgba(255,255,255,0.03);
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8px;
+  gap: 6px;
+}
+.ap-prev-nav-px {
+  border-bottom: 2px solid;
+}
+.ap-prev-logo {
+  width: 40px; height: 7px;
+  border-radius: 4px;
+  background: rgba(255,255,255,0.2);
+}
+.ap-prev-logo-px {
+  width: auto; height: auto;
+  border-radius: 0;
+  background: none;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 6px;
+  font-weight: 400;
+}
+.ap-prev-btn-sm {
+  width: 28px; height: 10px;
+  border-radius: 5px;
+  flex-shrink: 0;
+}
+.ap-prev-btn-px { border-radius: 0 !important; }
+
+/* Body mock */
+.ap-prev-body {
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  position: relative;
+}
+.ap-prev-body-px { background: #05050f; }
+
+/* Pixel grid overlay */
+.ap-prev-pgrid {
+  position: absolute;
+  inset: 0;
+  background-size: 8px 8px;
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* Card mock */
+.ap-prev-card {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 8px;
+  padding: 6px 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.ap-prev-card-px {
+  border-radius: 0 !important;
+}
+
+/* Avatar mock */
+.ap-prev-avatar {
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.15);
+  flex-shrink: 0;
+}
+.ap-prev-avatar-px { border-radius: 0 !important; }
+
+/* Line mocks */
+.ap-prev-lines { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+.ap-prev-line { height: 5px; border-radius: 3px; background: rgba(255,255,255,0.12); }
+.ap-prev-line-lg  { width: 70%; }
+.ap-prev-line-md  { width: 45%; }
+.ap-prev-line-px  { border-radius: 0 !important; height: 4px; }
+
+/* XP bar mock */
+.ap-prev-xpbar {
+  height: 6px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.ap-prev-xpbar-px { border-radius: 0 !important; }
+.ap-prev-xpfill {
+  height: 100%;
+  border-radius: 3px;
+}
+.ap-prev-xpfill-px { border-radius: 0 !important; }
+
+/* Stats row mock */
+.ap-prev-stats {
+  display: flex;
+  gap: 4px;
+}
+.ap-prev-stat {
+  flex: 1;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 5px;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: center;
+}
+.ap-prev-stat-val { font-size: 7px; font-weight: 800; }
+.ap-prev-stat-lbl { width: 16px; height: 3px; background: rgba(255,255,255,0.1); border-radius: 2px; }
+
+/* Scanlines overlay on pixel preview */
+.ap-prev-scanlines {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent, transparent 2px,
+    rgba(0,0,0,0.06) 2px, rgba(0,0,0,0.06) 4px
+  );
+  pointer-events: none;
+}
+
+/* ── Colour picker ────────────────────────────────────────── */
+.ap-colors {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.ap-color-btn {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 12px 8px 10px;
+  cursor: pointer;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
+}
+.ap-color-btn:hover {
+  border-color: var(--c);
+  transform: translateY(-2px);
+}
+.ap-color-btn.ap-col-selected {
+  border-color: var(--c);
+  box-shadow: 0 0 16px color-mix(in srgb, var(--c) 40%, transparent);
+}
+
+.ap-swatch {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: var(--c);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--c) 60%, transparent);
+  transition: box-shadow 0.15s;
+}
+.ap-col-selected .ap-swatch {
+  box-shadow: 0 0 16px color-mix(in srgb, var(--c) 80%, transparent);
+}
+
+.ap-col-check {
+  position: absolute;
+  top: 6px; right: 6px;
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: var(--c);
+  color: #fff;
+  font-size: 8px;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ap-col-label {
+  font-size: 9px;
+  color: var(--text-dim);
+  font-weight: 600;
+  text-align: center;
+  line-height: 1.3;
+}
+
+/* ── Save row ─────────────────────────────────────────────── */
+.ap-save-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 0;
+}
+
+.ap-apply {
+  background: var(--color-primary) !important;
+  color: #fff;
+  padding: 12px 28px;
+  font-size: 14px;
+  font-weight: 700;
+  border: none;
+}
+.ap-apply:hover {
+  background: var(--color-primary-light) !important;
+}
+
+.btn-secondary {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  padding: 11px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  transition: border-color 0.15s, color 0.15s;
+}
+.btn-secondary:hover { border-color: var(--text-dim); color: var(--text); }
+
+.ap-saved-note {
+  font-size: 12px;
+  color: var(--color-primary-light);
+  font-weight: 600;
+}
+
+/* ── Pixel theme overrides for this section ───────────────── */
+html[data-theme="pixel"] .ap-theme-card {
+  border: 2px solid var(--color-primary) !important;
+  box-shadow: 4px 4px 0 rgba(0,0,0,0.7) !important;
+}
+html[data-theme="pixel"] .ap-theme-card.ap-selected {
+  box-shadow: 4px 4px 0 var(--color-primary) !important;
+}
+html[data-theme="pixel"] .ap-color-btn {
+  border: 2px solid var(--color-primary) !important;
+  box-shadow: 3px 3px 0 rgba(0,0,0,0.6) !important;
+}
+html[data-theme="pixel"] .ap-color-btn.ap-col-selected {
+  box-shadow: 3px 3px 0 var(--c) !important;
+}
+html[data-theme="pixel"] .ap-swatch {
+  border-radius: 0 !important;
+  box-shadow: 2px 2px 0 rgba(0,0,0,0.5) !important;
+}
+html[data-theme="pixel"] .ap-col-check {
+  border-radius: 0 !important;
+}
+html[data-theme="pixel"] .ap-tick {
+  border-radius: 0 !important;
+}
+
+/* ── Responsive ───────────────────────────────────────────── */
+@media (max-width: 600px) {
+  .ap-themes { grid-template-columns: 1fr; }
+  .ap-colors  { grid-template-columns: repeat(4, 1fr); }
+  .ap-col-label { display: none; }
+  .ap-swatch { width: 32px; height: 32px; }
+}

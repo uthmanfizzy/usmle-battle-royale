@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { fetchMe, authFetch } from '../auth';
+import AppearanceSection from './AppearanceSection';
 import './Dashboard.css';
 
 const SERVER_URL = 'https://usmle-battle-royale-production.up.railway.app';
@@ -735,6 +736,7 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
         {dashTab === 'leaderboard'   && <LeaderboardSection userId={user.id} />}
         {dashTab === 'clans'         && <ClanSection user={user} onUserUpdate={onUserUpdate} />}
         {dashTab === 'announcements' && <AnnouncementsSection />}
+        {dashTab === 'appearance'    && <AppearanceSection />}
 
         {/* Bottom navigation */}
         <nav className="dash-nav">
@@ -767,6 +769,13 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
             {unreadCount > 0 && <span className="ann-unread-dot" />}
             <span className="nav-icon">📣</span>
             <span className="nav-label">News</span>
+          </button>
+          <button
+            className={`dash-nav-btn ${dashTab === 'appearance' ? 'active' : ''}`}
+            onClick={() => setDashTab('appearance')}
+          >
+            <span className="nav-icon">🎨</span>
+            <span className="nav-label">Theme</span>
           </button>
           <button
             className="dash-nav-btn"
