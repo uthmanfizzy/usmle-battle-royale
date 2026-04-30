@@ -181,6 +181,12 @@ function HomeSection({ user, onUserUpdate }) {
               >
                 ✏️ Change Username
               </button>
+              <button
+                className="btn-view-stats"
+                onClick={() => window.location.href = '/stats'}
+              >
+                📊 View Full Stats
+              </button>
             </div>
           </div>
           <div className="xp-section">
@@ -761,6 +767,13 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
             {unreadCount > 0 && <span className="ann-unread-dot" />}
             <span className="nav-icon">📣</span>
             <span className="nav-label">News</span>
+          </button>
+          <button
+            className="dash-nav-btn"
+            onClick={() => window.location.href = '/stats'}
+          >
+            <span className="nav-icon">📊</span>
+            <span className="nav-label">Stats</span>
           </button>
           <button className="dash-nav-btn dash-nav-play" onClick={onPlayNow}>
             <span className="nav-icon">⚔️</span>

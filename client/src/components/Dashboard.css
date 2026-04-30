@@ -361,6 +361,7 @@
   position: fixed;
   bottom: 0; left: 0; right: 0;
   background: var(--surface);
+  overflow-x: auto;
   border-top: 1px solid var(--border);
   display: flex;
   z-index: 500;
@@ -408,6 +409,20 @@
   transition: border-color 0.15s, color 0.15s;
 }
 .btn-change-username:hover { border-color: var(--gold); color: var(--gold); }
+
+.btn-view-stats {
+  background: rgba(124,58,237,0.12);
+  border: 1px solid rgba(124,58,237,0.35);
+  color: #9D5CF5;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 5px 12px;
+  cursor: pointer;
+  border-radius: 8px;
+  align-self: flex-start;
+  transition: background 0.15s, border-color 0.15s;
+}
+.btn-view-stats:hover { background: rgba(124,58,237,0.22); border-color: rgba(124,58,237,0.6); }
 
 .username-last-changed {
   font-size: 11px;
