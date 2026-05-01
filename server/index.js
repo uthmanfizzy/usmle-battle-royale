@@ -777,6 +777,7 @@ async function awardXP(lobby, sorted) {
         user_id:         sock.userId,
         lobby_id:        lobby.id,
         subject:         lobby.subject,
+        game_mode:       lobby.gameMode || 'battle_royale',
         placement,
         xp_earned:       totalXp,
         correct_answers: correctCount,
@@ -2374,6 +2375,66 @@ app.delete('/admin/announcements/:id', adminAuth, async (req, res) => {
 });
 
 // ── Health check ───────────────────────────────────────────────────────────────
+
+// ── Stats endpoints ────────────────────────────────────────────────────────────
+
+app.get('/api/stats/xp-history', requireAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Database not configured.' });
+  try {
+    const since = new Date();
+    since.setDate(since.getDate() - 29);
+    since.setHours(0, 0, 0, 0);
+
+    const { data } = await supabase
+      .from('game_history')
+      .select('xp_earned, played_at')
+      .eq('user_id', req.userId)
+      .gte('played_at', since.toISOString());
+
+    const days = [];
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      days.push({ date: d.toISOString().slice(0, 10), xp: 0 });
+    }
+    (data || []).forEach(g => {
+      const day = g.played_at ? g.played_at.slice(0, 10) : null;
+      if (!day) return;
+      const entry = days.find(d => d.date === day);
+      if (entry) entry.xp += g.xp_earned || 0;
+    });
+
+    res.json({ days });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/stats/global', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Database not configured.' });
+  try {
+    const [usersRes, histRes] = await Promise.all([
+      supabase.from('users').select('games_played, games_won, tower_floor, tower_progress').gt('games_played', 0),
+      supabase.from('game_history').select('correct_answers, total_questions'),
+    ]);
+
+    const users = usersRes.data || [];
+    const hist  = histRes.data  || [];
+
+    let totalC = 0, totalQ = 0;
+    hist.forEach(g => { totalC += g.correct_answers || 0; totalQ += g.total_questions || 0; });
+    const accuracy = totalQ > 0 ? Math.round((totalC / totalQ) * 100) : 50;
+
+    let totalPlayed = 0, totalWon = 0, totalFloor = 0;
+    users.forEach(u => {
+      totalPlayed += u.games_played || 0;
+      totalWon    += u.games_won    || 0;
+      totalFloor  += u.tower_floor || u.tower_progress || 0;
+    });
+    const winRate  = totalPlayed > 0 ? Math.round((totalWon / totalPlayed) * 100) : 20;
+    const avgFloor = users.length  > 0 ? Math.round(totalFloor / users.length) : 5;
+
+    res.json({ accuracy, win_rate: winRate, tower_floor: avgFloor });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
 
 app.get('/', (req, res) => res.status(200).send('ok'));
 
