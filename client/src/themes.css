@@ -131,8 +131,8 @@ html[data-theme="pixel"] button {
   letter-spacing: 0.5px !important;
 }
 html[data-theme="pixel"] button:active:not(:disabled) {
-  transform: translate(3px, 3px) scale(1) !important;
-  box-shadow: 1px 1px 0 rgba(0,0,0,0.65) !important;
+  transform: translate(2px, 2px) scale(1) !important;
+  box-shadow: 2px 2px 0 rgba(0,0,0,0.65) !important;
 }
 html[data-theme="pixel"] .btn-primary,
 html[data-theme="pixel"] .lp-btn-pri,
@@ -334,4 +334,611 @@ html[data-theme="pixel"] .sp-skill-glow-line { display: none !important; }
 html[data-theme="pixel"] .sp-cp-line.lit {
   background: var(--color-primary) !important;
   box-shadow: none !important;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   PIXEL THEME — EXTENDED COMPONENT STYLES
+   ══════════════════════════════════════════════════════════════════ */
+
+/* ── .pixel-border utility (usable outside theme too) ────────────── */
+.pixel-border {
+  box-shadow: 4px 0 0 0 currentColor, -4px 0 0 0 currentColor,
+              0 4px 0 0 currentColor, 0 -4px 0 0 currentColor !important;
+}
+
+/* ── Body text → Courier New ─────────────────────────────────────── */
+html[data-theme="pixel"] body {
+  font-family: 'Courier New', Courier, monospace !important;
+}
+
+/* ── All headings → Press Start 2P ──────────────────────────────── */
+html[data-theme="pixel"] h1,
+html[data-theme="pixel"] h2,
+html[data-theme="pixel"] h3,
+html[data-theme="pixel"] h4 {
+  font-family: 'Press Start 2P', monospace !important;
+  line-height: 1.8 !important;
+}
+html[data-theme="pixel"] h1 { font-size: clamp(12px, 2.8vw, 20px) !important; }
+html[data-theme="pixel"] h2 { font-size: clamp(10px, 2vw, 16px) !important; }
+html[data-theme="pixel"] h3 { font-size: 9px !important; }
+html[data-theme="pixel"] h4 { font-size: 8px !important; }
+
+/* ── All buttons → Press Start 2P ────────────────────────────────── */
+html[data-theme="pixel"] button {
+  font-family: 'Press Start 2P', monospace !important;
+  font-size: clamp(6px, 1.2vw, 9px) !important;
+  line-height: 1.6 !important;
+}
+
+/* ── Game cards: sharp pixel borders ────────────────────────────── */
+html[data-theme="pixel"] .question-card,
+html[data-theme="pixel"] .lobby-card,
+html[data-theme="pixel"] .entry-card,
+html[data-theme="pixel"] .leaderboard-card,
+html[data-theme="pixel"] .lobby-select-card,
+html[data-theme="pixel"] .join-card,
+html[data-theme="pixel"] .subject-card,
+html[data-theme="pixel"] .solo-card,
+html[data-theme="pixel"] .solo-gameover,
+html[data-theme="pixel"] .rules-box,
+html[data-theme="pixel"] .bot-menu,
+html[data-theme="pixel"] .round-result {
+  border: 2px solid var(--color-primary) !important;
+  box-shadow: 6px 6px 0 0 rgba(0,0,0,0.75),
+              inset 0 0 0 1px rgba(255,255,255,0.04) !important;
+}
+
+html[data-theme="pixel"] .question-card:hover,
+html[data-theme="pixel"] .lobby-card:hover {
+  box-shadow: 6px 6px 0 0 var(--color-primary),
+              inset 0 0 0 1px rgba(255,255,255,0.06) !important;
+}
+
+/* ── Timer bar → segmented RPG health blocks ─────────────────────── */
+html[data-theme="pixel"] .timer-track {
+  border: 1px solid var(--color-primary) !important;
+  border-radius: 0 !important;
+}
+html[data-theme="pixel"] .timer-fill {
+  border-radius: 0 !important;
+  transition: width 1s steps(10) !important;
+  animation: none !important;
+}
+html[data-theme="pixel"] .timer-fill.green {
+  background: repeating-linear-gradient(
+    90deg, #3ddc84 0px, #3ddc84 10px,
+    rgba(0,0,0,0.35) 10px, rgba(0,0,0,0.35) 12px
+  ) !important;
+}
+html[data-theme="pixel"] .timer-fill.yellow {
+  background: repeating-linear-gradient(
+    90deg, #ffaa00 0px, #ffaa00 10px,
+    rgba(0,0,0,0.35) 10px, rgba(0,0,0,0.35) 12px
+  ) !important;
+}
+html[data-theme="pixel"] .timer-fill.red {
+  background: repeating-linear-gradient(
+    90deg, #ff4455 0px, #ff4455 10px,
+    rgba(0,0,0,0.35) 10px, rgba(0,0,0,0.35) 12px
+  ) !important;
+  animation: none !important;
+}
+html[data-theme="pixel"] .timer-number {
+  font-family: 'Press Start 2P', monospace !important;
+  font-size: 18px !important;
+}
+html[data-theme="pixel"] .timer-number.red {
+  animation: pixel-blink 0.4s steps(1) infinite !important;
+}
+@keyframes pixel-blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+
+/* ── Question card: old game dialog box ──────────────────────────── */
+html[data-theme="pixel"] .question-text {
+  font-family: 'Courier New', Courier, monospace !important;
+  font-size: 14px !important;
+  line-height: 1.9 !important;
+  border-bottom: 1px dashed var(--color-primary) !important;
+  padding-bottom: 18px !important;
+  margin-bottom: 18px !important;
+}
+
+/* Answer options with ► game menu selector */
+html[data-theme="pixel"] .option-btn {
+  border: 2px solid rgba(255,255,255,0.12) !important;
+  box-shadow: 3px 3px 0 rgba(0,0,0,0.6) !important;
+  font-family: 'Courier New', Courier, monospace !important;
+  font-size: 14px !important;
+  transition: none !important;
+}
+html[data-theme="pixel"] .option-btn:hover:not(:disabled) {
+  border-color: var(--color-primary) !important;
+  background: rgba(0,0,0,0.35) !important;
+  transform: none !important;
+}
+html[data-theme="pixel"] .option-btn:hover:not(:disabled) .opt-label::before,
+html[data-theme="pixel"] .option-btn.selected .opt-label::before {
+  content: '► ';
+  color: var(--color-primary-light);
+  font-size: 11px;
+}
+html[data-theme="pixel"] .option-btn.selected {
+  border-color: var(--color-primary-light) !important;
+  background: rgba(0,0,0,0.4) !important;
+}
+html[data-theme="pixel"] .option-btn.correct {
+  border-color: #3ddc84 !important;
+  box-shadow: 3px 3px 0 rgba(61,220,132,0.4) !important;
+}
+html[data-theme="pixel"] .option-btn.wrong {
+  border-color: #ff4455 !important;
+  box-shadow: 3px 3px 0 rgba(255,68,85,0.4) !important;
+}
+html[data-theme="pixel"] .opt-label {
+  font-family: 'Press Start 2P', monospace !important;
+  font-size: 9px !important;
+  min-width: 28px !important;
+}
+
+/* ── XP bar label → HP style ─────────────────────────────────────── */
+html[data-theme="pixel"] .xp-section {
+  position: relative !important;
+}
+html[data-theme="pixel"] .xp-label-row {
+  font-family: 'Press Start 2P', monospace !important;
+  font-size: 6px !important;
+  margin-bottom: 6px !important;
+}
+html[data-theme="pixel"] .xp-total::before { content: 'HP: '; }
+html[data-theme="pixel"] .sp-xp-meta {
+  font-family: 'Press Start 2P', monospace !important;
+  font-size: 6px !important;
+  margin-bottom: 6px !important;
+}
+html[data-theme="pixel"] .sp-xp-cur::before { content: 'HP '; }
+html[data-theme="pixel"] .sp-xp-total-label {
+  font-family: 'Courier New', monospace !important;
+  font-size: 11px !important;
+  margin-top: 5px !important;
+  color: var(--color-primary) !important;
+}
+
+/* ── Stats grid → RPG character sheet ───────────────────────────── */
+html[data-theme="pixel"] .stat-item {
+  border: 1px solid var(--color-primary) !important;
+  padding: 12px 10px !important;
+  box-shadow: 2px 2px 0 rgba(0,0,0,0.5) !important;
+}
+html[data-theme="pixel"] .stat-label {
+  font-family: 'Press Start 2P', monospace !important;
+  font-size: 6px !important;
+  color: var(--color-primary) !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.5px !important;
+}
+
+/* ── Mastery bars → segmented ────────────────────────────────────── */
+html[data-theme="pixel"] .mastery-label {
+  font-family: 'Press Start 2P', monospace !important;
+  font-size: 7px !important;
+}
+
+/* ── Lobby → RPG party roster ────────────────────────────────────── */
+html[data-theme="pixel"] .player-list {
+  border: 2px solid var(--color-primary) !important;
+}
+html[data-theme="pixel"] .lobby-player-item {
+  border-bottom: 1px dashed var(--color-primary) !important;
+  padding: 10px 8px 10px 4px !important;
+}
+html[data-theme="pixel"] .lobby-player-item::before {
+  content: '► ';
+  color: var(--color-primary);
+  font-size: 9px;
+  flex-shrink: 0;
+}
+html[data-theme="pixel"] .lobby-player-name {
+  font-family: 'Courier New', Courier, monospace !important;
+  font-size: 13px !important;
+}
+html[data-theme="pixel"] .lobby-player-rank {
+  font-family: 'Press Start 2P', monospace !important;
+  font-size: 7px !important;
+}
+html[data-theme="pixel"] .lobby-code-value {
+  font-family: 'Press Start 2P', monospace !important;
+  font-size: 18px !important;
+  letter-spacing: 5px !important;
+}
+html[data-theme="pixel"] .lobby-code-box {
+  border: 2px solid var(--color-primary) !important;
+  box-shadow: 4px 4px 0 rgba(0,0,0,0.7) !important;
+}
+html[data-theme="pixel"] .host-badge {
+  font-family: 'Press Start 2P', monospace !important;
+  font-size: 6px !important;
+  box-shadow: 2px 2px 0 rgba(0,0,0,0.5) !important;
+  letter-spacing: 0 !important;
+}
+html[data-theme="pixel"] .lobby-code-label {
+  font-family: 'Press Start 2P', monospace !important;
+  font-size: 7px !important;
+}
+
+/* READY/WAITING status indicator in lobby */
+html[data-theme="pixel"] .waiting-pulse {
+  font-family: 'Press Start 2P', monospace !important;
+  font-size: 8px !important;
+  animation: pixel-blink 0.8s steps(1) infinite !important;
+  color: var(--color-primary) !important;
+}
+
+/* ── Navigation → RPG game menu ──────────────────────────────────── */
+html[data-theme="pixel"] .dash-nav-btn {
+  font-family: 'Press Start 2P', monospace !important;
+  font-size: 6px !important;
+  position: relative !important;
+}
+html[data-theme="pixel"] .dash-nav-btn.active::after {
+  content: '▲';
+  position: absolute;
+  top: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 7px;
+  color: var(--color-primary);
+  line-height: 1;
+}
+html[data-theme="pixel"] .nav-icon {
+  display: block !important;
+}
+
+/* ── Game topbar ─────────────────────────────────────────────────── */
+html[data-theme="pixel"] .game-topbar {
+  border-bottom: 2px solid var(--color-primary) !important;
+  box-shadow: 0 4px 0 rgba(0,0,0,0.5) !important;
+}
+html[data-theme="pixel"] .topbar-score {
+  font-family: 'Press Start 2P', monospace !important;
+  font-size: 10px !important;
+}
+html[data-theme="pixel"] .topbar-round {
+  font-family: 'Courier New', monospace !important;
+  font-weight: 700 !important;
+}
+html[data-theme="pixel"] .home-btn {
+  font-family: 'Press Start 2P', monospace !important;
+  font-size: 6px !important;
+  border: 1px solid var(--color-primary) !important;
+}
+
+/* ── Players sidebar → party roster ─────────────────────────────── */
+html[data-theme="pixel"] .players-sidebar {
+  border-left: 2px solid var(--color-primary) !important;
+}
+html[data-theme="pixel"] .sidebar-title {
+  font-family: 'Press Start 2P', monospace !important;
+  font-size: 6px !important;
+  color: var(--color-primary) !important;
+  border-bottom: 1px solid var(--color-primary) !important;
+  padding-bottom: 8px !important;
+}
+html[data-theme="pixel"] .sidebar-player {
+  border-bottom: 1px dashed rgba(255,255,255,0.1) !important;
+}
+html[data-theme="pixel"] .sp-name {
+  font-family: 'Courier New', monospace !important;
+  font-size: 12px !important;
+}
+html[data-theme="pixel"] .sp-elim {
+  font-family: 'Press Start 2P', monospace !important;
+  font-size: 6px !important;
+}
+
+/* ── Round result overlay ────────────────────────────────────────── */
+html[data-theme="pixel"] .rr-label {
+  font-family: 'Press Start 2P', monospace !important;
+  font-size: clamp(10px, 2vw, 15px) !important;
+  line-height: 1.8 !important;
+}
+html[data-theme="pixel"] .rr-explanation {
+  font-family: 'Courier New', Courier, monospace !important;
+  border: 1px solid var(--color-primary) !important;
+  box-shadow: 3px 3px 0 rgba(0,0,0,0.5) !important;
+}
+
+/* ── Sudden death → pixel horror ────────────────────────────────── */
+html[data-theme="pixel"] .sd-title {
+  font-family: 'Press Start 2P', monospace !important;
+  font-size: clamp(18px, 5vw, 40px) !important;
+  text-shadow: 4px 4px 0 rgba(180, 0, 0, 0.9),
+               8px 8px 0 rgba(0,0,0,0.5) !important;
+  animation-timing-function: steps(4, end) !important;
+}
+html[data-theme="pixel"] .sd-subtitle,
+html[data-theme="pixel"] .sd-timer-note {
+  font-family: 'Courier New', monospace !important;
+}
+
+/* ── Solo screen ─────────────────────────────────────────────────── */
+html[data-theme="pixel"] .solo-topbar {
+  border: 2px solid var(--color-primary) !important;
+  box-shadow: 4px 4px 0 rgba(0,0,0,0.6) !important;
+}
+html[data-theme="pixel"] .sgo-stats {
+  font-family: 'Courier New', monospace !important;
+}
+
+/* ── Subject select → pixel dungeon map ─────────────────────────── */
+html[data-theme="pixel"] .subject-option {
+  border: 2px solid rgba(255,255,255,0.15) !important;
+  box-shadow: 3px 3px 0 rgba(0,0,0,0.5) !important;
+  transition: none !important;
+}
+html[data-theme="pixel"] .subject-option:hover {
+  border-color: var(--color-primary) !important;
+  background: rgba(0,0,0,0.35) !important;
+  transform: none !important;
+  box-shadow: 4px 4px 0 var(--color-primary) !important;
+}
+html[data-theme="pixel"] .subj-label {
+  font-family: 'Press Start 2P', monospace !important;
+  font-size: 7px !important;
+}
+html[data-theme="pixel"] .subj-desc {
+  font-family: 'Courier New', monospace !important;
+  font-size: 11px !important;
+}
+html[data-theme="pixel"] .subject-card h2 {
+  font-size: 10px !important;
+}
+
+/* ── Choice buttons (lobby select) → RPG menu options ───────────── */
+html[data-theme="pixel"] .choice-btn {
+  border: 2px solid rgba(255,255,255,0.15) !important;
+  box-shadow: 4px 4px 0 rgba(0,0,0,0.6) !important;
+  transition: none !important;
+}
+html[data-theme="pixel"] .choice-btn:hover {
+  border-color: var(--color-primary) !important;
+  background: rgba(0,0,0,0.35) !important;
+  transform: none !important;
+  box-shadow: 4px 4px 0 var(--color-primary) !important;
+}
+html[data-theme="pixel"] .choice-text strong {
+  font-family: 'Press Start 2P', monospace !important;
+  font-size: 7px !important;
+}
+html[data-theme="pixel"] .choice-text p {
+  font-family: 'Courier New', monospace !important;
+  font-size: 12px !important;
+}
+
+/* ── Leaderboard → arcade high score table ───────────────────────── */
+html[data-theme="pixel"] .section-title {
+  font-family: 'Press Start 2P', monospace !important;
+  font-size: 8px !important;
+  letter-spacing: 1px !important;
+  border-bottom: 2px solid var(--color-primary) !important;
+  padding-bottom: 10px !important;
+}
+html[data-theme="pixel"] table.lb-table th {
+  font-family: 'Press Start 2P', monospace !important;
+  font-size: 6px !important;
+  letter-spacing: 0.5px !important;
+  border-bottom: 2px solid var(--color-primary) !important;
+  background: rgba(0,0,0,0.5) !important;
+  border-radius: 0 !important;
+}
+html[data-theme="pixel"] table.lb-table td {
+  font-family: 'Courier New', Courier, monospace !important;
+  font-size: 13px !important;
+  border-bottom: 1px dashed rgba(255,255,255,0.1) !important;
+}
+html[data-theme="pixel"] .lb-rank {
+  font-family: 'Press Start 2P', monospace !important;
+  font-size: 9px !important;
+}
+
+/* Top 3 ranks → 1ST 2ND 3RD ordinals */
+html[data-theme="pixel"] table.lb-table tbody tr:nth-child(1) .lb-rank { font-size: 0 !important; }
+html[data-theme="pixel"] table.lb-table tbody tr:nth-child(1) .lb-rank::before {
+  content: '1ST'; font-family: 'Press Start 2P', monospace;
+  font-size: 9px; color: var(--gold, #f5c518);
+}
+html[data-theme="pixel"] table.lb-table tbody tr:nth-child(2) .lb-rank { font-size: 0 !important; }
+html[data-theme="pixel"] table.lb-table tbody tr:nth-child(2) .lb-rank::before {
+  content: '2ND'; font-family: 'Press Start 2P', monospace;
+  font-size: 9px; color: #c0c0c0;
+}
+html[data-theme="pixel"] table.lb-table tbody tr:nth-child(3) .lb-rank { font-size: 0 !important; }
+html[data-theme="pixel"] table.lb-table tbody tr:nth-child(3) .lb-rank::before {
+  content: '3RD'; font-family: 'Press Start 2P', monospace;
+  font-size: 9px; color: #cd7f32;
+}
+
+html[data-theme="pixel"] .victory-header h2 {
+  font-size: clamp(10px, 2.5vw, 18px) !important;
+  text-shadow: 3px 3px 0 rgba(0,0,0,0.7) !important;
+}
+html[data-theme="pixel"] .btn-play-again {
+  box-shadow: 5px 5px 0 rgba(0,0,0,0.7) !important;
+  text-shadow: 2px 2px 0 rgba(0,0,0,0.5) !important;
+}
+
+/* ── Landing page hero → large pixelated title ───────────────────── */
+html[data-theme="pixel"] .lp-h1 {
+  font-family: 'Press Start 2P', monospace !important;
+  font-size: clamp(14px, 3vw, 26px) !important;
+  line-height: 2 !important;
+  letter-spacing: 0 !important;
+  text-shadow: 4px 4px 0 rgba(0,0,0,0.8),
+               -2px -2px 0 rgba(0,0,0,0.4) !important;
+  -webkit-text-fill-color: unset !important;
+  background: none !important;
+  color: var(--color-primary-light) !important;
+}
+
+html[data-theme="pixel"] .lp-hero-sub {
+  font-family: 'Courier New', Courier, monospace !important;
+  font-size: 14px !important;
+  line-height: 1.8 !important;
+}
+
+/* Scanline overlay specifically on hero section */
+html[data-theme="pixel"] .lp-hero {
+  position: relative !important;
+  overflow: hidden !important;
+}
+html[data-theme="pixel"] .lp-hero::before {
+  content: '' !important;
+  position: absolute !important;
+  inset: 0 !important;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent 0px, transparent 3px,
+    rgba(0,0,0,0.06) 3px, rgba(0,0,0,0.06) 4px
+  ) !important;
+  pointer-events: none !important;
+  z-index: 10 !important;
+}
+
+/* Section headers → pixel labels */
+html[data-theme="pixel"] .lp-section-h2 {
+  font-size: clamp(10px, 2.2vw, 18px) !important;
+  letter-spacing: 0 !important;
+}
+html[data-theme="pixel"] .lp-feat-title {
+  font-size: clamp(9px, 1.8vw, 14px) !important;
+  letter-spacing: 0 !important;
+}
+html[data-theme="pixel"] .lp-hiw-title {
+  font-size: 8px !important;
+  letter-spacing: 0 !important;
+}
+html[data-theme="pixel"] .lp-hiw-desc,
+html[data-theme="pixel"] .lp-section-p,
+html[data-theme="pixel"] .lp-feat-p {
+  font-family: 'Courier New', Courier, monospace !important;
+}
+html[data-theme="pixel"] .lp-sc-num {
+  font-family: 'Press Start 2P', monospace !important;
+  font-size: clamp(14px, 3vw, 24px) !important;
+  letter-spacing: 0 !important;
+  -webkit-text-fill-color: var(--color-primary-light) !important;
+  background: none !important;
+  background-clip: unset !important;
+  line-height: 1.6 !important;
+}
+html[data-theme="pixel"] .lp-sc-label {
+  font-family: 'Courier New', monospace !important;
+  font-size: 11px !important;
+}
+
+/* Stats row: pixel dividers */
+html[data-theme="pixel"] .lp-stats-row {
+  border: 2px solid var(--color-primary) !important;
+  background: rgba(0,0,0,0.5) !important;
+  box-shadow: 6px 6px 0 rgba(0,0,0,0.7) !important;
+}
+html[data-theme="pixel"] .lp-sc {
+  border-right: 1px solid var(--color-primary) !important;
+}
+
+/* Hero pill */
+html[data-theme="pixel"] .lp-hero-pill {
+  border: 1px solid var(--color-primary) !important;
+  box-shadow: 2px 2px 0 rgba(0,0,0,0.5) !important;
+  font-family: 'Press Start 2P', monospace !important;
+  font-size: 7px !important;
+  letter-spacing: 0 !important;
+}
+
+/* ── How it works steps → pixel dungeon steps ────────────────────── */
+html[data-theme="pixel"] .lp-hiw-bubble {
+  border: 2px solid var(--color-primary) !important;
+  box-shadow: 3px 3px 0 rgba(0,0,0,0.6) !important;
+  font-family: 'Press Start 2P', monospace !important;
+  font-size: 9px !important;
+}
+html[data-theme="pixel"] .lp-hiw-line {
+  border-top: 2px dashed var(--color-primary) !important;
+  background: none !important;
+  height: 0 !important;
+  top: calc(50% - 1px) !important;
+}
+html[data-theme="pixel"] .lp-hiw-step {
+  gap: 10px !important;
+}
+
+/* ── Notifications → pixel alerts ───────────────────────────────── */
+html[data-theme="pixel"] .notification {
+  border: 2px solid var(--color-primary) !important;
+  box-shadow: 5px 5px 0 rgba(0,0,0,0.7) !important;
+  font-family: 'Courier New', Courier, monospace !important;
+  animation: none !important;
+}
+
+/* ── Code input → retro terminal ─────────────────────────────────── */
+html[data-theme="pixel"] .code-input {
+  border: 2px solid var(--color-primary) !important;
+  box-shadow: 4px 4px 0 rgba(0,0,0,0.6) !important;
+  font-family: 'Press Start 2P', monospace !important;
+  font-size: 20px !important;
+  letter-spacing: 8px !important;
+}
+
+/* ── Answer progress badge → pixel ──────────────────────────────── */
+html[data-theme="pixel"] .answer-progress {
+  border: 1px solid var(--color-primary) !important;
+  font-family: 'Courier New', monospace !important;
+  box-shadow: 2px 2px 0 rgba(0,0,0,0.5) !important;
+}
+html[data-theme="pixel"] .answer-progress .dot {
+  border-radius: 0 !important;
+  animation: pixel-blink 0.6s steps(1) infinite !important;
+}
+
+/* ── Streak badge → pixel hot streak ────────────────────────────── */
+html[data-theme="pixel"] .streak-badge {
+  font-family: 'Press Start 2P', monospace !important;
+  font-size: 7px !important;
+  box-shadow: 2px 2px 0 rgba(0,0,0,0.5) !important;
+  animation: none !important;
+}
+html[data-theme="pixel"] .streak-badge.on-fire {
+  animation: pixel-blink 0.5s steps(1) infinite !important;
+}
+
+/* ── Dashboard header ────────────────────────────────────────────── */
+html[data-theme="pixel"] .btn-logout {
+  font-family: 'Press Start 2P', monospace !important;
+  font-size: 6px !important;
+  border: 1px solid var(--color-primary) !important;
+  box-shadow: 2px 2px 0 rgba(0,0,0,0.5) !important;
+}
+html[data-theme="pixel"] .profile-username {
+  line-height: 2 !important;
+}
+
+/* ── Victory trophy bounce → pixel pop ──────────────────────────── */
+html[data-theme="pixel"] .victory-trophy {
+  animation: pixel-pop 0.2s steps(3) both !important;
+}
+
+/* ── Tab bar → pixel menu tabs ───────────────────────────────────── */
+html[data-theme="pixel"] .lb-tab-bar button {
+  font-size: 6px !important;
+}
+
+/* ── GameMode/Exam/Difficulty select cards ───────────────────────── */
+html[data-theme="pixel"] .choice-btn.choice-quick-join {
+  border-color: rgba(46,204,113,0.6) !important;
+}
+html[data-theme="pixel"] .choice-btn.choice-quick-join:hover {
+  border-color: #2ecc71 !important;
+  box-shadow: 4px 4px 0 rgba(46,204,113,0.5) !important;
 }

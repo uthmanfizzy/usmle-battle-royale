@@ -19,7 +19,9 @@
       "Read(//c/c/Users/faiza/usmle-battle-royale/server/**)",
       "Bash(git restore *)",
       "Bash(gh auth *)",
-      "Bash(npx --no-install vite build --mode production)"
+      "Bash(npx --no-install vite build --mode production)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\faiza\\\\usmle-battle-royale\" -Recurse -Directory)",
+      "Bash(Select-Object -ExpandProperty FullName)"
     ]
   }
 }
