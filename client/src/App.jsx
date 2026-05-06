@@ -124,14 +124,6 @@ export default function App() {
     setPhase('landing');
   }, []);
 
-  // ── Global button click sound ──────────────────────────────────────────────
-
-  useEffect(() => {
-    const onBtnClick = (e) => { if (e.target.closest('button')) audio.playClick(); };
-    document.addEventListener('click', onBtnClick, true);
-    return () => document.removeEventListener('click', onBtnClick, true);
-  }, []);
-
   // ── Socket events (register once; connect later when entering game) ───────
 
   useEffect(() => {

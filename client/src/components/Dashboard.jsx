@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { fetchMe, authFetch } from '../auth';
-import AppearanceSection, { DefaultPreview, PixelPreview } from './AppearanceSection';
+import { DefaultPreview, PixelPreview } from './AppearanceSection';
 import { useTheme, PALETTE } from '../theme';
 import './Dashboard.css';
 
@@ -824,7 +824,6 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
         {dashTab === 'leaderboard'   && <LeaderboardSection userId={user.id} />}
         {dashTab === 'clans'         && <ClanSection user={user} onUserUpdate={onUserUpdate} />}
         {dashTab === 'announcements' && <AnnouncementsSection />}
-        {dashTab === 'appearance'    && <AppearanceSection />}
 
         {/* Bottom navigation */}
         <nav className="dash-nav">
@@ -857,20 +856,6 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
             {unreadCount > 0 && <span className="ann-unread-dot" />}
             <span className="nav-icon">📣</span>
             <span className="nav-label">News</span>
-          </button>
-          <button
-            className={`dash-nav-btn ${dashTab === 'appearance' ? 'active' : ''}`}
-            onClick={() => setDashTab('appearance')}
-          >
-            <span className="nav-icon">🎨</span>
-            <span className="nav-label">Theme</span>
-          </button>
-          <button
-            className="dash-nav-btn"
-            onClick={() => window.location.href = '/stats'}
-          >
-            <span className="nav-icon">📊</span>
-            <span className="nav-label">Stats</span>
           </button>
           <button className="dash-nav-btn dash-nav-play" onClick={onPlayNow}>
             <span className="nav-icon">⚔️</span>
