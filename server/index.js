@@ -8,6 +8,8 @@ const session    = require('express-session');
 const passport   = require('passport');
 const { Strategy: GoogleStrategy } = require('passport-google-oauth20');
 const jwt        = require('jsonwebtoken');
+const fs         = require('fs');
+const path       = require('path');
 
 // ── Supabase (optional — game works without it) ────────────────────────────────
 
@@ -52,6 +54,13 @@ const io = new Server(server, {
 // ── Mutable question bank ──────────────────────────────────────────────────────
 
 let questionBank = [...require('./questions')];
+
+const QUESTIONS_FILE = path.join(__dirname, 'questions.js');
+
+function persistQuestions() {
+  const content = `const questions = ${JSON.stringify(questionBank, null, 2)};\n\nmodule.exports = questions;\n`;
+  fs.writeFileSync(QUESTIONS_FILE, content, 'utf8');
+}
 
 // ── Category ID helpers ────────────────────────────────────────────────────────
 
@@ -2114,15 +2123,36 @@ app.post('/admin/questions/bulk', adminAuth, (req, res) => {
   const { questions } = req.body;
   if (!Array.isArray(questions)) return res.status(400).json({ error: 'Expected { questions: [...] }' });
   const added = [];
+  const skipped = [];
   for (const q of questions) {
-    if (!q.subject || !q.question || !Array.isArray(q.options) || q.options.length !== 4 || !q.correct || !q.explanation) continue;
-    const newQ = { id: nextQuestionId(q.subject), subject: q.subject, difficulty: q.difficulty || 'easy', question: q.question, options: q.options, correct: q.correct, explanation: q.explanation };
+    const missing = [];
+    if (!q.subject)                                              missing.push('subject');
+    if (!q.question)                                             missing.push('question');
+    if (!Array.isArray(q.options) || q.options.length !== 4)    missing.push('options (must be array of 4)');
+    if (!q.correct)                                              missing.push('correct');
+    if (!q.explanation)                                          missing.push('explanation');
+    if (missing.length) { skipped.push({ question: q.question || '?', missing }); continue; }
+
+    const newQ = {
+      id: nextQuestionId(q.subject),
+      subject: q.subject,
+      difficulty: q.difficulty || 'easy',
+      question: q.question,
+      options: q.options,
+      correct: q.correct,
+      explanation: q.explanation,
+    };
     if (q.image_url) newQ.image_url = q.image_url;
-    newQ.game_modes = Array.isArray(q.game_modes) && q.game_modes.length > 0 ? q.game_modes : (q.image_url ? ['scan_master'] : ['battle_royale', 'speed_race', 'trivia_pursuit']);
+    newQ.game_modes = Array.isArray(q.game_modes) && q.game_modes.length > 0
+      ? q.game_modes
+      : (q.image_url ? ['scan_master'] : ['battle_royale', 'speed_race', 'trivia_pursuit']);
+    if (q.tower_floor != null && !isNaN(parseInt(q.tower_floor))) newQ.tower_floor = parseInt(q.tower_floor);
+    if (q.buzz_type && newQ.game_modes.includes('buzz_fun')) newQ.buzz_type = q.buzz_type;
     questionBank.push(newQ);
     added.push(newQ);
   }
-  res.json({ added: added.length, questions: added });
+  persistQuestions();
+  res.json({ added: added.length, skipped: skipped.length, questions: added, ...(skipped.length ? { skippedDetails: skipped } : {}) });
 });
 
 app.post('/admin/upload-image', adminAuth, async (req, res) => {
@@ -2164,6 +2194,7 @@ app.post('/admin/questions', adminAuth, (req, res) => {
   if (tower_floor != null && !isNaN(parseInt(tower_floor))) newQ.tower_floor = parseInt(tower_floor);
   if (buzz_type && newQ.game_modes.includes('buzz_fun')) newQ.buzz_type = buzz_type;
   questionBank.push(newQ);
+  persistQuestions();
   res.json(newQ);
 });
 
@@ -2172,6 +2203,7 @@ app.put('/admin/questions/:id', adminAuth, (req, res) => {
   const idx = questionBank.findIndex(q => String(q.id) === id);
   if (idx === -1) return res.status(404).json({ error: 'Question not found' });
   questionBank[idx] = { ...questionBank[idx], ...req.body, id };
+  persistQuestions();
   res.json(questionBank[idx]);
 });
 
@@ -2180,6 +2212,7 @@ app.delete('/admin/questions/:id', adminAuth, (req, res) => {
   const idx = questionBank.findIndex(q => String(q.id) === id);
   if (idx === -1) return res.status(404).json({ error: 'Question not found' });
   questionBank.splice(idx, 1);
+  persistQuestions();
   res.json({ ok: true });
 });
 

@@ -624,7 +624,8 @@ function QuestionsPanel() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Import failed');
-      setBulkMsg(`✓ Imported ${data.added} question${data.added !== 1 ? 's' : ''}`);
+      const skippedNote = data.skipped ? ` (${data.skipped} skipped — missing required fields)` : '';
+      setBulkMsg(`✓ Imported ${data.added} question${data.added !== 1 ? 's' : ''}${skippedNote}`);
       await loadQuestions();
     } catch (err) {
       setBulkMsg(`✗ ${err.message}`);
