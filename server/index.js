@@ -2124,30 +2124,38 @@ app.post('/admin/questions/bulk', adminAuth, (req, res) => {
   if (!Array.isArray(questions)) return res.status(400).json({ error: 'Expected { questions: [...] }' });
   const added = [];
   const skipped = [];
-  for (const q of questions) {
+  for (const raw of questions) {
+    // Normalise field name aliases
+    const subject = raw.subject || raw.category;
+    const rawOptions = raw.options || raw.choices;
+    // Strip leading "A. " / "B. " / "C. " / "D. " prefixes that some export tools add
+    const options = Array.isArray(rawOptions)
+      ? rawOptions.map(o => String(o).replace(/^[A-Da-d][.)]\s*/, '').trim())
+      : rawOptions;
+
     const missing = [];
-    if (!q.subject)                                              missing.push('subject');
-    if (!q.question)                                             missing.push('question');
-    if (!Array.isArray(q.options) || q.options.length !== 4)    missing.push('options (must be array of 4)');
-    if (!q.correct)                                              missing.push('correct');
-    if (!q.explanation)                                          missing.push('explanation');
-    if (missing.length) { skipped.push({ question: q.question || '?', missing }); continue; }
+    if (!subject)                                              missing.push('subject / category');
+    if (!raw.question)                                         missing.push('question');
+    if (!Array.isArray(options) || options.length !== 4)       missing.push('options / choices (must be array of 4)');
+    if (!raw.correct)                                          missing.push('correct');
+    if (!raw.explanation)                                      missing.push('explanation');
+    if (missing.length) { skipped.push({ question: raw.question || '?', missing }); continue; }
 
     const newQ = {
-      id: nextQuestionId(q.subject),
-      subject: q.subject,
-      difficulty: q.difficulty || 'easy',
-      question: q.question,
-      options: q.options,
-      correct: q.correct,
-      explanation: q.explanation,
+      id: nextQuestionId(subject),
+      subject,
+      difficulty: raw.difficulty || 'easy',
+      question: raw.question,
+      options,
+      correct: raw.correct,
+      explanation: raw.explanation,
     };
-    if (q.image_url) newQ.image_url = q.image_url;
-    newQ.game_modes = Array.isArray(q.game_modes) && q.game_modes.length > 0
-      ? q.game_modes
-      : (q.image_url ? ['scan_master'] : ['battle_royale', 'speed_race', 'trivia_pursuit']);
-    if (q.tower_floor != null && !isNaN(parseInt(q.tower_floor))) newQ.tower_floor = parseInt(q.tower_floor);
-    if (q.buzz_type && newQ.game_modes.includes('buzz_fun')) newQ.buzz_type = q.buzz_type;
+    if (raw.image_url) newQ.image_url = raw.image_url;
+    newQ.game_modes = Array.isArray(raw.game_modes) && raw.game_modes.length > 0
+      ? raw.game_modes
+      : (raw.image_url ? ['scan_master'] : ['battle_royale', 'speed_race', 'trivia_pursuit']);
+    if (raw.tower_floor != null && !isNaN(parseInt(raw.tower_floor))) newQ.tower_floor = parseInt(raw.tower_floor);
+    if (raw.buzz_type && newQ.game_modes.includes('buzz_fun')) newQ.buzz_type = raw.buzz_type;
     questionBank.push(newQ);
     added.push(newQ);
   }
