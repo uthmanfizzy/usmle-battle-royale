@@ -6,6 +6,7 @@ import AdminApp from './components/AdminApp';
 import AuthCallback from './components/AuthCallback';
 import DashboardPage from './components/DashboardPage';
 import StatsPage from './components/StatsPage';
+import UsernameSetupPage from './components/UsernameSetupPage';
 import { ThemeProvider } from './theme';
 import './App.css';
 import './themes.css';
@@ -19,6 +20,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         <Route path="/auth/callback" element={<AuthCallback />} />
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/stats" element={<StatsPage />} />
+        <Route path="/username-setup" element={<UsernameSetupPage />} />
         <Route path="/*" element={<App />} />
       </Routes>
     </BrowserRouter>

@@ -429,7 +429,7 @@ export default function App() {
   function handleCreateLobby(selectedSubject) {
     setSubject(selectedSubject);
     setError('');
-    socket.timeout(5000).emit('create_lobby', { username, subject: selectedSubject, gameMode, clanTag: user?.clan?.tag ?? null }, (err, res) => {
+    socket.timeout(5000).emit('create_lobby', { username, subject: selectedSubject, gameMode, clanTag: user?.clan?.tag ?? null, isGuest: !user }, (err, res) => {
       if (err)      { setError('No response from server. Please try again.'); return; }
       if (!res.ok)  { setError(res.error ?? 'Failed to create lobby.'); return; }
       setLobbyId(res.lobbyId);
@@ -446,7 +446,7 @@ export default function App() {
 
   function handleJoinLobby(code) {
     setError('');
-    socket.timeout(5000).emit('join_lobby', { username, lobbyId: code, clanTag: user?.clan?.tag ?? null }, (err, res) => {
+    socket.timeout(5000).emit('join_lobby', { username, lobbyId: code, clanTag: user?.clan?.tag ?? null, isGuest: !user }, (err, res) => {
       if (err)      { setError('No response from server. Please try again.'); return; }
       if (!res.ok)  { setError(res.error ?? 'Failed to join lobby.'); return; }
       setLobbyId(res.lobbyId);
@@ -463,7 +463,7 @@ export default function App() {
 
   function handleQuickJoin({ onCreating, onError } = {}) {
     setError('');
-    socket.timeout(8000).emit('quick_join', { username, gameMode, clanTag: user?.clan?.tag ?? null }, (err, res) => {
+    socket.timeout(8000).emit('quick_join', { username, gameMode, clanTag: user?.clan?.tag ?? null, isGuest: !user }, (err, res) => {
       if (err) {
         setError('Quick join timed out. Please try again.');
         if (onError) onError();
@@ -771,6 +771,8 @@ export default function App() {
           username={username}
           gameMode={gameMode}
           onPlayAgain={handlePlayAgain}
+          isGuest={!user}
+          onSignIn={handleGoogleLogin}
         />
       )}
 

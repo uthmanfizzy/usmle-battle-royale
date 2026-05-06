@@ -116,11 +116,12 @@ export default function Lobby({
             </p>
           )}
           {players.map((p, i) => (
-            <div key={p.id} className={`lobby-player-item ${p.isBot ? 'is-bot' : ''}`}>
+            <div key={p.id} className={`lobby-player-item ${p.isBot ? 'is-bot' : ''} ${p.isGuest ? 'is-guest' : ''}`}>
               <span className="lobby-player-rank">#{i + 1}</span>
               <span className="lobby-player-name">
                 {p.clanTag && <span className="lobby-clan-tag">[{p.clanTag}]</span>}
                 {p.username}
+                {p.isGuest && <span className="guest-badge">👤 Guest</span>}
               </span>
               {!p.isBot && i === 0 && <span className="host-badge">HOST</span>}
               {isHost && p.isBot && (

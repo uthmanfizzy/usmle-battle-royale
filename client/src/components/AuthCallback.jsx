@@ -15,7 +15,11 @@ export default function AuthCallback() {
     setToken(token);
     fetchMe().then(user => {
       if (user) {
-        window.location.replace('/dashboard');
+        if (!user.username) {
+          window.location.replace('/username-setup');
+        } else {
+          window.location.replace('/dashboard');
+        }
       } else {
         window.location.replace('/?auth_error=profile_failed');
       }

@@ -254,7 +254,7 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
         if (!user) {
           const { data: created, error: createErr } = await supabase
             .from('users')
-            .insert({ google_id: googleId, email, username: displayName, avatar_url: avatarUrl })
+            .insert({ google_id: googleId, email, username: null, avatar_url: avatarUrl })
             .select().single();
           if (createErr) return done(createErr);
           user = created;
@@ -1348,13 +1348,13 @@ io.use((socket, next) => {
 io.on('connection', (socket) => {
   console.log('[+] connected:', socket.id, socket.userId ? `(user ${socket.userId})` : '');
 
-  socket.on('create_lobby', ({ username, subject = 'all', gameMode = 'battle_royale', clanTag = null }, ack) => {
+  socket.on('create_lobby', ({ username, subject = 'all', gameMode = 'battle_royale', clanTag = null, isGuest = false }, ack) => {
     const name = (username ?? '').trim().slice(0, 20);
     if (!name) return ack({ ok: false, error: 'Username required.' });
 
     const lobby = makeLobby(socket.id, subject, gameMode);
     lobby.players.set(socket.id, {
-      id: socket.id, username: name, clanTag: clanTag || null, lives: gameSettings.startingLives, score: 0, alive: true,
+      id: socket.id, username: name, clanTag: clanTag || null, isGuest: Boolean(isGuest), lives: gameSettings.startingLives, score: 0, alive: true,
     });
     socket.lobbyId = lobby.id;
     socket.join(lobby.id);
@@ -1365,7 +1365,7 @@ io.on('connection', (socket) => {
     console.log(`Lobby ${lobby.id} created by ${name}`);
   });
 
-  socket.on('join_lobby', ({ username, lobbyId, clanTag = null }, ack) => {
+  socket.on('join_lobby', ({ username, lobbyId, clanTag = null, isGuest = false }, ack) => {
     const name = (username ?? '').trim().slice(0, 20);
     if (!name) return ack({ ok: false, error: 'Username required.' });
 
@@ -1379,7 +1379,7 @@ io.on('connection', (socket) => {
     if (taken) return ack({ ok: false, error: 'That username is already taken in this lobby.' });
 
     lobby.players.set(socket.id, {
-      id: socket.id, username: name, clanTag: clanTag || null, lives: gameSettings.startingLives, score: 0, alive: true,
+      id: socket.id, username: name, clanTag: clanTag || null, isGuest: Boolean(isGuest), lives: gameSettings.startingLives, score: 0, alive: true,
     });
     socket.lobbyId = lobby.id;
     socket.join(lobby.id);
@@ -1390,7 +1390,7 @@ io.on('connection', (socket) => {
     console.log(`${name} joined lobby ${lobby.id}`);
   });
 
-  socket.on('quick_join', ({ username, gameMode = 'battle_royale', clanTag = null }, ack) => {
+  socket.on('quick_join', ({ username, gameMode = 'battle_royale', clanTag = null, isGuest = false }, ack) => {
     const name = (username ?? '').trim().slice(0, 20);
     if (!name) return ack({ ok: false, error: 'Username required.' });
 
@@ -1408,7 +1408,7 @@ io.on('connection', (socket) => {
     if (candidates.length > 0) {
       const lobby = candidates[0];
       lobby.players.set(socket.id, {
-        id: socket.id, username: name, clanTag: clanTag || null,
+        id: socket.id, username: name, clanTag: clanTag || null, isGuest: Boolean(isGuest),
         lives: gameSettings.startingLives, score: 0, alive: true,
       });
       socket.lobbyId = lobby.id;
@@ -1423,7 +1423,7 @@ io.on('connection', (socket) => {
     // No open lobby — create a new one
     const lobby = makeLobby(socket.id, 'all', gameMode);
     lobby.players.set(socket.id, {
-      id: socket.id, username: name, clanTag: clanTag || null,
+      id: socket.id, username: name, clanTag: clanTag || null, isGuest: Boolean(isGuest),
       lives: gameSettings.startingLives, score: 0, alive: true,
     });
     socket.lobbyId = lobby.id;
@@ -2022,6 +2022,18 @@ app.post('/api/clans/leave', requireAuth, async (req, res) => {
 });
 
 // ── Leaderboard API ────────────────────────────────────────────────────────────
+
+app.get('/api/username/check', async (req, res) => {
+  if (!supabase) return res.json({ available: true });
+  const raw = String(req.query.username || '').trim();
+  if (!raw) return res.status(400).json({ error: 'username required' });
+  if (raw.length < 3 || raw.length > 20 || !/^[a-zA-Z0-9_]+$/.test(raw))
+    return res.json({ available: false, reason: 'invalid' });
+  try {
+    const { data } = await supabase.from('users').select('id').ilike('username', raw).maybeSingle();
+    res.json({ available: !data });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
 
 app.get('/api/leaderboard/players', async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Database not configured.' });
