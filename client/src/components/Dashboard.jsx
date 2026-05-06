@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { fetchMe, authFetch } from '../auth';
-import AppearanceSection from './AppearanceSection';
+import AppearanceSection, { DefaultPreview, PixelPreview } from './AppearanceSection';
+import { useTheme, PALETTE } from '../theme';
 import './Dashboard.css';
 
 const SERVER_URL = 'https://usmle-battle-royale-production.up.railway.app';
@@ -686,12 +687,81 @@ function AnnouncementsSection() {
   );
 }
 
+// ── Settings Panel ─────────────────────────────────────────────────────────────
+function SettingsPanel({ onClose }) {
+  const { theme, color, applyTheme } = useTheme();
+
+  useEffect(() => {
+    const handler = e => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [onClose]);
+
+  return (
+    <div className="settings-overlay" onClick={onClose}>
+      <div className="settings-panel" onClick={e => e.stopPropagation()}>
+
+        <div className="settings-panel-header">
+          <span className="settings-panel-title">⚙️ Settings</span>
+          <button className="settings-panel-close" onClick={onClose}>✕</button>
+        </div>
+
+        <div className="settings-panel-body">
+          <div className="stp-section-label">APPEARANCE</div>
+
+          {/* Theme picker */}
+          <div className="stp-subsect">
+            <div className="stp-subsect-title">Theme</div>
+            <div className="stp-theme-grid">
+              {[
+                { id: 'default', name: 'Default 🌙',   Preview: DefaultPreview },
+                { id: 'pixel',   name: 'Pixel Art 🕹️', Preview: PixelPreview  },
+              ].map(({ id, name, Preview }) => (
+                <button
+                  key={id}
+                  className={`stp-theme-card ${theme === id ? 'stp-theme-sel' : ''}`}
+                  onClick={() => applyTheme(id, color)}
+                  style={{ '--tc': PALETTE.find(p => p.id === color)?.hex || '#7C3AED' }}
+                >
+                  {theme === id && <div className="stp-theme-check">✓</div>}
+                  <Preview color={color} />
+                  <div className="stp-theme-name">{name}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Colour picker */}
+          <div className="stp-subsect">
+            <div className="stp-subsect-title">Accent Colour</div>
+            <div className="stp-color-grid">
+              {PALETTE.map(p => (
+                <button
+                  key={p.id}
+                  className={`stp-color-dot ${color === p.id ? 'stp-color-sel' : ''}`}
+                  style={{ '--c': p.hex }}
+                  onClick={() => applyTheme(theme, p.id)}
+                  title={p.label}
+                >
+                  <div className="stp-dot" />
+                </button>
+              ))}
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Main Dashboard ─────────────────────────────────────────────────────────────
 export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
   const [dashTab,      setDashTab]      = useState('home');
   const [unreadCount,  setUnreadCount]  = useState(0);
   const [showWelcome,  setShowWelcome]  = useState(false);
   const [welcomeAnn,   setWelcomeAnn]   = useState(null);
+  const [showSettings, setShowSettings] = useState(false);
 
   useEffect(() => {
     fetch(`${SERVER_URL}/api/announcements`)
@@ -728,7 +798,25 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
         {/* Header */}
         <div className="dash-header">
           <div className="dash-logo">⚕️ Med Royale</div>
-          <button className="btn-logout" onClick={onLogout}>Sign Out</button>
+          <div className="dash-header-right">
+            <button
+              className="dash-action-btn"
+              onClick={() => window.location.href = '/stats'}
+              title="Stats"
+            >
+              <span className="dab-icon">📊</span>
+              <span className="dab-label">Stats</span>
+            </button>
+            <button
+              className="dash-action-btn"
+              onClick={() => setShowSettings(true)}
+              title="Settings"
+            >
+              <span className="dab-icon">⚙️</span>
+              <span className="dab-label">Settings</span>
+            </button>
+            <button className="btn-logout" onClick={onLogout}>Sign Out</button>
+          </div>
         </div>
 
         {/* Tab content */}
@@ -791,6 +879,8 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
         </nav>
 
       </div>
+
+      {showSettings && <SettingsPanel onClose={() => setShowSettings(false)} />}
     </div>
   );
 }

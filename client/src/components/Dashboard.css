@@ -748,3 +748,236 @@
   .stats-grid         { grid-template-columns: 1fr 1fr; }
   .dashboard-container { padding: 0 14px; }
 }
+
+/* ── Header action buttons (Stats + Settings) ──────────────────────────── */
+.dash-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dash-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 8px 14px;
+  border-radius: var(--radius);
+  font-size: 13px;
+  font-weight: 700;
+  transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+  white-space: nowrap;
+}
+.dash-action-btn:hover {
+  border-color: var(--color-primary);
+  background: var(--card-hi);
+  box-shadow: 0 0 12px var(--color-glow);
+}
+.dab-icon { font-size: 16px; line-height: 1; }
+.dab-label { font-size: 13px; }
+
+/* ── Settings panel overlay ────────────────────────────────────────────── */
+.settings-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.settings-panel {
+  width: 380px;
+  max-width: 100vw;
+  height: 100%;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  animation: slideInRight 0.25s ease;
+}
+
+@keyframes slideInRight {
+  from { transform: translateX(100%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+
+.settings-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 22px 24px 18px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+  z-index: 1;
+}
+.settings-panel-title {
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--text);
+}
+.settings-panel-close {
+  background: var(--card);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.15s, color 0.15s;
+}
+.settings-panel-close:hover { border-color: var(--red); color: var(--red); }
+
+.settings-panel-body { padding: 24px; display: flex; flex-direction: column; gap: 24px; }
+
+/* ── Appearance section ────────────────────────────────────────────────── */
+.stp-section-label {
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--color-primary);
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  margin-bottom: -8px;
+}
+
+.stp-subsect { display: flex; flex-direction: column; gap: 12px; }
+
+.stp-subsect-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+
+/* Theme cards */
+.stp-theme-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.stp-theme-card {
+  position: relative;
+  background: var(--card);
+  border: 2px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  padding: 0;
+  transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;
+}
+.stp-theme-card:hover {
+  border-color: var(--color-primary);
+  transform: translateY(-2px);
+}
+.stp-theme-card.stp-theme-sel {
+  border-color: var(--tc, var(--color-primary));
+  box-shadow: 0 0 20px color-mix(in srgb, var(--tc, var(--color-primary)) 40%, transparent),
+              0 0 40px color-mix(in srgb, var(--tc, var(--color-primary)) 15%, transparent);
+}
+
+.stp-theme-check {
+  position: absolute;
+  top: 8px; right: 8px;
+  z-index: 10;
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  background: var(--tc, var(--color-primary));
+  color: #fff;
+  font-size: 10px;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 8px rgba(0,0,0,0.4);
+}
+
+.stp-theme-name {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--text);
+  padding: 10px 12px 10px;
+  line-height: 1.3;
+}
+
+/* Colour circles */
+.stp-color-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 6px;
+}
+
+.stp-color-dot {
+  background: none;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s;
+}
+.stp-color-dot:hover { transform: scale(1.15); }
+
+.stp-dot {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--c);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--c) 55%, transparent);
+  transition: box-shadow 0.15s;
+}
+
+.stp-color-dot.stp-color-sel .stp-dot {
+  box-shadow:
+    0 0 0 2px white,
+    0 0 0 4px var(--c),
+    0 2px 12px color-mix(in srgb, var(--c) 70%, transparent);
+}
+
+/* Pixel theme adjustments */
+html[data-theme="pixel"] .settings-panel {
+  border-left: 2px solid var(--color-primary);
+}
+html[data-theme="pixel"] .stp-theme-card {
+  border: 2px solid var(--color-primary) !important;
+  box-shadow: 4px 4px 0 rgba(0,0,0,0.7) !important;
+  border-radius: 0 !important;
+}
+html[data-theme="pixel"] .stp-theme-card.stp-theme-sel {
+  box-shadow: 4px 4px 0 var(--color-primary) !important;
+}
+html[data-theme="pixel"] .stp-theme-check { border-radius: 0 !important; }
+html[data-theme="pixel"] .stp-dot { border-radius: 0 !important; box-shadow: 2px 2px 0 rgba(0,0,0,0.5) !important; }
+html[data-theme="pixel"] .stp-color-dot.stp-color-sel .stp-dot {
+  box-shadow: 0 0 0 2px white, 2px 2px 0 var(--c) !important;
+}
+html[data-theme="pixel"] .settings-panel-close { border-radius: 0 !important; }
+
+/* ── Responsive ─────────────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .dab-label { display: none; }
+  .dash-action-btn { padding: 8px 10px; }
+  .settings-panel { width: 100vw; border-left: none; border-top: 1px solid var(--border); }
+  .settings-overlay { align-items: flex-end; }
+  .settings-panel { height: 90vh; animation: slideInUp 0.25s ease; }
+  @keyframes slideInUp {
+    from { transform: translateY(100%); opacity: 0; }
+    to   { transform: translateY(0);    opacity: 1; }
+  }
+}

@@ -4,7 +4,7 @@ import './AppearanceSection.css';
 
 // ── Mini preview mockups (CSS-only) ───────────────────────────────────────────
 
-function DefaultPreview({ color }) {
+export function DefaultPreview({ color }) {
   const c = PALETTE.find(p => p.id === color) || PALETTE[0];
   return (
     <div className="ap-prev ap-prev-default">
@@ -36,7 +36,7 @@ function DefaultPreview({ color }) {
   );
 }
 
-function PixelPreview({ color }) {
+export function PixelPreview({ color }) {
   const c = PALETTE.find(p => p.id === color) || PALETTE[0];
   const px = {
     border: `2px solid ${c.hex}`,
