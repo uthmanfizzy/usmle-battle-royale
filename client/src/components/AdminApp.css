@@ -2654,3 +2654,140 @@
   color: var(--text-dim);
   font-weight: 400;
 }
+
+/* ── Bulk Import Modal ──────────────────────────────────────────────────────── */
+
+.bim-modal {
+  width: 100%;
+  max-width: 520px;
+}
+
+/* Context notice */
+.bim-context {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 16px;
+  border: 1px solid transparent;
+}
+.bim-ctx-icon { font-size: 16px; flex-shrink: 0; }
+
+.bim-ctx-topic {
+  background: rgba(241,196,15,0.1);
+  border-color: rgba(241,196,15,0.3);
+  color: var(--gold);
+}
+.bim-ctx-cat {
+  background: rgba(52,152,219,0.08);
+  border-color: rgba(52,152,219,0.25);
+  color: #5dade2;
+}
+.bim-ctx-top {
+  background: rgba(255,255,255,0.04);
+  border-color: var(--border);
+  color: var(--text-dim);
+}
+
+/* Drop zone */
+.bim-dropzone {
+  border: 2px dashed var(--border);
+  border-radius: 14px;
+  padding: 40px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+  margin-bottom: 12px;
+  user-select: none;
+}
+.bim-dropzone:hover {
+  border-color: var(--gold);
+  background: rgba(241,196,15,0.04);
+}
+.bim-dropzone.dragging {
+  border-color: var(--gold);
+  background: rgba(241,196,15,0.08);
+  box-shadow: 0 0 0 3px rgba(241,196,15,0.2);
+}
+
+.bim-dz-icon     { font-size: 40px; line-height: 1; margin-bottom: 4px; }
+.bim-dz-primary  { font-size: 15px; font-weight: 600; color: var(--text); }
+.bim-dz-secondary{ font-size: 13px; color: var(--text-dim); }
+.bim-dz-hint     { font-size: 11px; color: var(--text-dim); opacity: 0.7; margin-top: 2px; }
+
+/* File selected state */
+.bim-file-selected {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(39,174,96,0.08);
+  border: 1px solid rgba(39,174,96,0.3);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+}
+.bim-fs-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+.bim-fs-check {
+  font-size: 18px;
+  color: #27ae60;
+  flex-shrink: 0;
+  font-weight: 700;
+}
+.bim-fs-details {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.bim-fs-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bim-fs-size {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.bim-fs-remove {
+  background: rgba(231,76,60,0.1);
+  border: 1px solid rgba(231,76,60,0.25);
+  border-radius: 6px;
+  color: #e74c3c;
+  font-size: 13px;
+  padding: 4px 8px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s;
+  line-height: 1;
+}
+.bim-fs-remove:hover { background: rgba(231,76,60,0.2); }
+
+/* Question count preview */
+.bim-preview {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(52,152,219,0.07);
+  border: 1px solid rgba(52,152,219,0.2);
+  border-radius: 8px;
+  padding: 9px 14px;
+  font-size: 13px;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+.bim-preview-icon { font-size: 15px; }

@@ -2132,7 +2132,7 @@ app.post('/admin/reset-tower-progress', adminAuth, async (req, res) => {
 app.get('/admin/questions', adminAuth, (req, res) => res.json({ questions: questionBank }));
 
 app.post('/admin/questions/bulk', adminAuth, (req, res) => {
-  const { questions } = req.body;
+  const { questions, topic_id } = req.body;
   if (!Array.isArray(questions)) return res.status(400).json({ error: 'Expected { questions: [...] }' });
   const added = [];
   const skipped = [];
@@ -2168,6 +2168,7 @@ app.post('/admin/questions/bulk', adminAuth, (req, res) => {
       : (raw.image_url ? ['scan_master'] : ['battle_royale', 'speed_race', 'trivia_pursuit']);
     if (raw.tower_floor != null && !isNaN(parseInt(raw.tower_floor))) newQ.tower_floor = parseInt(raw.tower_floor);
     if (raw.buzz_type && newQ.game_modes.includes('buzz_fun')) newQ.buzz_type = raw.buzz_type;
+    if (topic_id) newQ.topic_id = topic_id;
     questionBank.push(newQ);
     added.push(newQ);
   }

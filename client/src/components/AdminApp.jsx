@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import './AdminApp.css';
 
 const API = 'https://usmle-battle-royale-production.up.railway.app';
@@ -626,6 +626,174 @@ function TopicModal({ topic, onSave, onClose, error }) {
   );
 }
 
+// ── Bulk Import Modal ──────────────────────────────────────────────────────────
+
+function BulkImportModal({ activeFolder, selectedTopic, onImport, onClose }) {
+  const curFolder   = FOLDERS.find(f => f.id === activeFolder);
+  const isCatLevel  = curFolder && !curFolder.special && !curFolder.separator && activeFolder !== 'all';
+  const isInTopic   = selectedTopic && selectedTopic !== 'unassigned';
+
+  const [file,        setFile]        = useState(null);
+  const [fileErr,     setFileErr]     = useState('');
+  const [parsedCount, setParsedCount] = useState(null);
+  const [parsedData,  setParsedData]  = useState(null);
+  const [dragging,    setDragging]    = useState(false);
+  const [importing,   setImporting]   = useState(false);
+
+  const dropRef   = useRef(null);
+  const inputRef  = useRef(null);
+
+  async function processFile(f) {
+    setFileErr('');
+    setParsedCount(null);
+    setParsedData(null);
+    if (!f) { setFile(null); return; }
+    if (!f.name.toLowerCase().endsWith('.json') && f.type !== 'application/json') {
+      setFileErr('Please upload a JSON file only');
+      return;
+    }
+    setFile(f);
+    try {
+      const text   = await f.text();
+      const parsed = JSON.parse(text);
+      const arr    = Array.isArray(parsed) ? parsed : parsed.questions;
+      if (!Array.isArray(arr)) throw new Error('JSON must be an array or { questions: [...] }');
+      setParsedCount(arr.length);
+      setParsedData(arr);
+    } catch (err) {
+      setFileErr(err.message);
+      setFile(null);
+    }
+  }
+
+  function handleDragOver(e)  { e.preventDefault(); setDragging(true); }
+  function handleDragLeave(e) { if (!dropRef.current?.contains(e.relatedTarget)) setDragging(false); }
+  function handleDrop(e) {
+    e.preventDefault();
+    setDragging(false);
+    const f = e.dataTransfer.files[0];
+    if (f) processFile(f);
+  }
+  function handleFileInput(e) {
+    processFile(e.target.files[0] || null);
+    e.target.value = '';
+  }
+  function clearFile() {
+    setFile(null); setParsedCount(null); setParsedData(null); setFileErr('');
+  }
+
+  async function handleImport() {
+    if (!parsedData) return;
+    setImporting(true);
+    const topicId = isInTopic ? selectedTopic.id : null;
+    try {
+      const res  = await apiCall('/admin/questions/bulk', {
+        method: 'POST',
+        body:   JSON.stringify({ questions: parsedData, topic_id: topicId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Import failed');
+      onImport(data, isInTopic ? selectedTopic : null);
+    } catch (err) {
+      setFileErr(err.message);
+      setImporting(false);
+    }
+  }
+
+  function fmtSize(bytes) {
+    if (bytes < 1024)              return `${bytes} B`;
+    if (bytes < 1024 * 1024)       return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
+  let ctxText, ctxClass;
+  if (isInTopic) {
+    ctxText  = `Questions will be imported into: ${curFolder?.label} › ${selectedTopic.name}`;
+    ctxClass = 'bim-ctx-topic';
+  } else if (isCatLevel) {
+    ctxText  = `Questions will be imported as Unassigned in ${curFolder?.label}`;
+    ctxClass = 'bim-ctx-cat';
+  } else {
+    ctxText  = 'Questions will be imported as Unassigned';
+    ctxClass = 'bim-ctx-top';
+  }
+
+  return (
+    <div className="ap-backdrop" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="ap-modal bim-modal">
+        <div className="ap-modal-head">
+          <h2>📥 Bulk Import Questions</h2>
+          <button className="ap-modal-x" onClick={onClose}>✕</button>
+        </div>
+
+        <div className={`bim-context ${ctxClass}`}>
+          <span className="bim-ctx-icon">{isInTopic ? '📁' : isCatLevel ? '📂' : '📋'}</span>
+          <span>{ctxText}</span>
+        </div>
+
+        {!file ? (
+          <div
+            ref={dropRef}
+            className={`bim-dropzone ${dragging ? 'dragging' : ''}`}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            onClick={() => inputRef.current?.click()}
+          >
+            <input
+              ref={inputRef}
+              type="file"
+              accept=".json,application/json"
+              onChange={handleFileInput}
+              style={{ display: 'none' }}
+            />
+            <div className="bim-dz-icon">{dragging ? '📂' : '📄'}</div>
+            <div className="bim-dz-primary">Drag and drop your JSON file here</div>
+            <div className="bim-dz-secondary">or click to browse files</div>
+            <div className="bim-dz-hint">.json files only</div>
+          </div>
+        ) : (
+          <div className="bim-file-selected">
+            <div className="bim-fs-info">
+              <span className="bim-fs-check">✓</span>
+              <div className="bim-fs-details">
+                <span className="bim-fs-name">{file.name}</span>
+                <span className="bim-fs-size">{fmtSize(file.size)}</span>
+              </div>
+            </div>
+            <button className="bim-fs-remove" title="Remove file" onClick={clearFile}>✕</button>
+          </div>
+        )}
+
+        {parsedCount !== null && (
+          <div className="bim-preview">
+            <span className="bim-preview-icon">🔍</span>
+            <span><strong>{parsedCount}</strong> question{parsedCount !== 1 ? 's' : ''} detected in file</span>
+          </div>
+        )}
+
+        {fileErr && <div className="ap-error" style={{ marginTop: 8 }}>{fileErr}</div>}
+
+        <div className="ap-modal-foot">
+          <button type="button" className="ap-btn-sec" onClick={onClose}>Cancel</button>
+          <button
+            type="button"
+            className="ap-btn-pri"
+            disabled={!parsedData || importing}
+            onClick={handleImport}
+          >
+            {importing
+              ? 'Importing…'
+              : parsedCount !== null
+              ? `Import ${parsedCount} Question${parsedCount !== 1 ? 's' : ''}`
+              : 'Import Questions'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Questions Panel ────────────────────────────────────────────────────────────
 
 function QuestionsPanel() {
@@ -656,6 +824,9 @@ function QuestionsPanel() {
   const [selectedBulk,    setSelectedBulk]    = useState(new Set());
   const [bulkTargetTopic, setBulkTargetTopic] = useState('');
   const [bulkAssigning,   setBulkAssigning]   = useState(false);
+
+  // ─── Import Modal ─────────────────────────────────────────────────────────────
+  const [importModal, setImportModal] = useState(false);
 
   const isCatFolder = (id) => {
     const f = FOLDERS.find(x => x.id === id);
@@ -785,24 +956,14 @@ function QuestionsPanel() {
     setBulkAssigning(false);
   }
 
-  // ─── Bulk import ──────────────────────────────────────────────────────────────
-  async function handleBulkImport(e) {
-    setBulkMsg('');
-    const file = e.target.files[0];
-    if (!file) return;
-    try {
-      const text   = await file.text();
-      const parsed = JSON.parse(text);
-      const arr    = Array.isArray(parsed) ? parsed : parsed.questions;
-      if (!Array.isArray(arr)) throw new Error('JSON must be an array or { questions: [...] }');
-      const res  = await apiCall('/admin/questions/bulk', { method: 'POST', body: JSON.stringify({ questions: arr }) });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Import failed');
-      const skippedNote = data.skipped ? ` (${data.skipped} skipped — missing required fields)` : '';
-      setBulkMsg(`✓ Imported ${data.added} question${data.added !== 1 ? 's' : ''}${skippedNote}`);
-      await loadQuestions();
-    } catch (err) { setBulkMsg(`✗ ${err.message}`); }
-    e.target.value = '';
+  // ─── Import done callback ─────────────────────────────────────────────────────
+  async function handleImportDone(data, topic) {
+    const skippedNote = data.skipped ? ` (${data.skipped} skipped)` : '';
+    const topicNote   = topic ? ` into ${topic.name}` : '';
+    setBulkMsg(`✓ Imported ${data.added} question${data.added !== 1 ? 's' : ''}${topicNote}${skippedNote}`);
+    await loadQuestions();
+    if (isCatFolder(activeFolder)) loadTopics(activeFolder);
+    setImportModal(false);
   }
 
   // ─── Derived ─────────────────────────────────────────────────────────────────
@@ -1019,10 +1180,9 @@ function QuestionsPanel() {
                   {bulkMsg && (
                     <span className={`ap-bulk-msg ${bulkMsg.startsWith('✓') ? 'ok' : 'err'}`}>{bulkMsg}</span>
                   )}
-                  <label className="ap-btn-sec ap-file-label">
+                  <button className="ap-btn-sec" onClick={() => setImportModal(true)}>
                     📥 Bulk Import
-                    <input type="file" accept=".json" onChange={handleBulkImport} style={{ display: 'none' }} />
-                  </label>
+                  </button>
                   <button className="ap-btn-pri" onClick={() => setModal('add')}>+ Add Question</button>
                 </div>
               </div>
@@ -1214,6 +1374,15 @@ function QuestionsPanel() {
           questionId={deleteId}
           onConfirm={handleDelete}
           onCancel={() => setDeleteId(null)}
+        />
+      )}
+
+      {importModal && (
+        <BulkImportModal
+          activeFolder={activeFolder}
+          selectedTopic={selectedTopic}
+          onImport={handleImportDone}
+          onClose={() => setImportModal(false)}
         />
       )}
     </div>
