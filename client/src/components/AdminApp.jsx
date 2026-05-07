@@ -800,6 +800,7 @@ function QuestionsPanel() {
   // ─── Data ────────────────────────────────────────────────────────────────────
   const [questions,     setQuestions]     = useState([]);
   const [loading,       setLoading]       = useState(true);
+  const [loadError,     setLoadError]     = useState(null);
 
   // ─── Navigation ──────────────────────────────────────────────────────────────
   const [activeFolder,       setActiveFolder]       = useState('all');
@@ -856,11 +857,20 @@ function QuestionsPanel() {
 
   async function loadQuestions() {
     setLoading(true);
+    setLoadError(null);
     try {
       const res  = await apiCall('/admin/questions');
       const data = await res.json();
-      setQuestions(data.questions || []);
-    } finally { setLoading(false); }
+      if (!res.ok) throw new Error(data.error || `Server returned ${res.status}`);
+      const qs = Array.isArray(data.questions) ? data.questions : [];
+      console.log(`[QM] loadQuestions: ${qs.length} questions loaded`);
+      setQuestions(qs);
+    } catch (err) {
+      console.error('[QM] loadQuestions failed:', err);
+      setLoadError(err.message);
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function loadTopics(category, difficulty) {
@@ -1014,12 +1024,36 @@ function QuestionsPanel() {
     ? searched
     : searched.filter(q => (q.game_modes || []).includes(gameModeFilter));
 
+  // Diagnostic: log when questions exist but none are showing
+  if (questions.length > 0 && filtered.length === 0 && view === 'questions') {
+    console.log('[QM] 0 questions displaying — filter chain:', {
+      total: questions.length,
+      catQ: catQuestions.length,
+      diffF: diffFiltered.length,
+      topicF: topicFiltered.length,
+      searched: searched.length,
+      filtered: filtered.length,
+      folder: activeFolder,
+      view,
+      difficulty: selectedDifficulty,
+      topic: selectedTopic === 'unassigned' ? 'unassigned' : selectedTopic?.id,
+      gameModeFilter,
+      search,
+    });
+  }
+
   const unassignedCount = isCatFolder(activeFolder)
     ? diffFiltered.filter(q => !q.topic_id).length : 0;
 
   const curFolder = FOLDERS.find(f => f.id === activeFolder);
 
   if (loading) return <div className="ap-loading">Loading questions…</div>;
+  if (loadError) return (
+    <div className="ap-loading" style={{ flexDirection: 'column', gap: 12 }}>
+      <span style={{ color: '#e74c3c' }}>Failed to load questions: {loadError}</span>
+      <button className="ap-btn-pri" onClick={loadQuestions}>Retry</button>
+    </div>
+  );
 
   return (
     <div className="ap-questions">

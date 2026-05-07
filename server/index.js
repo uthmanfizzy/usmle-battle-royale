@@ -2129,7 +2129,10 @@ app.post('/admin/reset-tower-progress', adminAuth, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-app.get('/admin/questions', adminAuth, (req, res) => res.json({ questions: questionBank }));
+app.get('/admin/questions', adminAuth, (req, res) => {
+  console.log(`[admin/questions] returning ${questionBank.length} questions`);
+  res.json({ questions: questionBank });
+});
 
 app.post('/admin/questions/bulk', adminAuth, (req, res) => {
   const { questions, topic_id } = req.body;
