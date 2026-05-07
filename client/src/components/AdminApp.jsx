@@ -991,6 +991,7 @@ function QuestionsPanel() {
     return acc;
   }, {});
 
+  // Step 1 — category filter. 'all' always passes through every question.
   const catQuestions = activeFolder === 'all'        ? questions
     : activeFolder === '__images__'                  ? questions.filter(q => q.image_url)
     : activeFolder === 'buzz_fun'                    ? questions.filter(q => (q.game_modes || []).includes('buzz_fun'))
@@ -1002,48 +1003,56 @@ function QuestionsPanel() {
   const hardCount = isCatFolder(activeFolder)
     ? catQuestions.filter(q => q.difficulty === 'hard').length : 0;
 
-  // Apply difficulty filter once a difficulty level is selected
-  const diffFiltered = selectedDifficulty
+  // Step 2 — difficulty filter. Only applies inside a catFolder when a difficulty is chosen.
+  // Questions without a difficulty field are treated as 'easy' — never filtered out in easy mode.
+  const diffFiltered = (selectedDifficulty && isCatFolder(activeFolder))
     ? catQuestions.filter(q => (q.difficulty || 'easy') === selectedDifficulty)
     : catQuestions;
 
+  // Step 3 — topic filter.
+  // 'unassigned' → questions where topic_id is absent/null/empty string.
+  // topic object  → questions assigned to that topic.
+  // null          → no filter, show all diffFiltered.
+  const isUnassigned = (q) => q.topic_id == null || q.topic_id === '';
   const topicFiltered = selectedTopic === 'unassigned'
-    ? diffFiltered.filter(q => !q.topic_id)
-    : selectedTopic
+    ? diffFiltered.filter(isUnassigned)
+    : (selectedTopic && typeof selectedTopic === 'object')
     ? diffFiltered.filter(q => q.topic_id === selectedTopic.id)
     : diffFiltered;
 
+  // Step 4 — text search (defensive: guard against missing q.question)
   const searched = search.trim()
     ? topicFiltered.filter(q =>
-        q.question.toLowerCase().includes(search.toLowerCase()) ||
-        String(q.id).toLowerCase().includes(search.toLowerCase())
+        (q.question || '').toLowerCase().includes(search.toLowerCase()) ||
+        String(q.id || '').toLowerCase().includes(search.toLowerCase())
       )
     : topicFiltered;
 
+  // Step 5 — game-mode filter
   const filtered = gameModeFilter === 'all'
     ? searched
     : searched.filter(q => (q.game_modes || []).includes(gameModeFilter));
 
   // Diagnostic: log when questions exist but none are showing
   if (questions.length > 0 && filtered.length === 0 && view === 'questions') {
-    console.log('[QM] 0 questions displaying — filter chain:', {
+    console.log('[QM] 0 questions showing — chain:', {
       total: questions.length,
       catQ: catQuestions.length,
-      diffF: diffFiltered.length,
-      topicF: topicFiltered.length,
-      searched: searched.length,
-      filtered: filtered.length,
+      step2_diff: diffFiltered.length,
+      step3_topic: topicFiltered.length,
+      step4_search: searched.length,
+      step5_mode: filtered.length,
       folder: activeFolder,
       view,
-      difficulty: selectedDifficulty,
-      topic: selectedTopic === 'unassigned' ? 'unassigned' : selectedTopic?.id,
+      selectedDifficulty,
+      selectedTopic: selectedTopic === 'unassigned' ? 'unassigned' : (selectedTopic?.id ?? null),
       gameModeFilter,
       search,
     });
   }
 
   const unassignedCount = isCatFolder(activeFolder)
-    ? diffFiltered.filter(q => !q.topic_id).length : 0;
+    ? diffFiltered.filter(isUnassigned).length : 0;
 
   const curFolder = FOLDERS.find(f => f.id === activeFolder);
 
@@ -1120,6 +1129,8 @@ function QuestionsPanel() {
                   onClick={() => {
                     setSelectedDifficulty('easy');
                     setView('topics');
+                    setSearch('');
+                    setGameModeFilter('all');
                     loadTopics(activeFolder, 'easy');
                   }}
                 >
@@ -1134,6 +1145,8 @@ function QuestionsPanel() {
                   onClick={() => {
                     setSelectedDifficulty('hard');
                     setView('topics');
+                    setSearch('');
+                    setGameModeFilter('all');
                     loadTopics(activeFolder, 'hard');
                   }}
                 >
@@ -1155,7 +1168,7 @@ function QuestionsPanel() {
                 <span className="ap-bc-sep">›</span>
                 <span
                   className="ap-bc-item ap-bc-link"
-                  onClick={() => { setView('difficulty'); setSelectedDifficulty(null); setTopics([]); setTopicErr(''); }}
+                  onClick={() => { setView('difficulty'); setSelectedDifficulty(null); setSelectedTopic(null); setTopics([]); setTopicErr(''); setSearch(''); setGameModeFilter('all'); }}
                 >{curFolder?.icon} {curFolder?.label}</span>
                 <span className="ap-bc-sep">›</span>
                 <span className="ap-bc-item ap-bc-cur">
@@ -1165,7 +1178,7 @@ function QuestionsPanel() {
 
               <div className="ap-toolbar">
                 <div className="ap-toolbar-left">
-                  <button className="ap-btn-back" onClick={() => { setView('difficulty'); setSelectedDifficulty(null); setTopics([]); setTopicErr(''); }}>
+                  <button className="ap-btn-back" onClick={() => { setView('difficulty'); setSelectedDifficulty(null); setSelectedTopic(null); setTopics([]); setTopicErr(''); setSearch(''); setGameModeFilter('all'); }}>
                     ← Back
                   </button>
                   <div className="ap-folder-heading">
@@ -1200,7 +1213,7 @@ function QuestionsPanel() {
                     <div key={t.id} className={`ap-topic-card ap-tc-${activeFolder}`}>
                       <button
                         className="ap-topic-card-body"
-                        onClick={() => { setSelectedTopic(t); setView('questions'); }}
+                        onClick={() => { setSelectedTopic(t); setView('questions'); setSearch(''); setGameModeFilter('all'); }}
                       >
                         <span className="ap-topic-card-icon">📁</span>
                         <span className="ap-topic-card-name">{t.name}</span>
@@ -1227,7 +1240,7 @@ function QuestionsPanel() {
               <div className="ap-unassigned-row">
                 <button
                   className="ap-unassigned-btn"
-                  onClick={() => { setSelectedTopic('unassigned'); setView('questions'); }}
+                  onClick={() => { setSelectedTopic('unassigned'); setView('questions'); setSearch(''); setGameModeFilter('all'); }}
                 >
                   <span className="ap-unassigned-icon">📋</span>
                   <span className="ap-unassigned-label">Unassigned Questions</span>
@@ -1247,12 +1260,12 @@ function QuestionsPanel() {
                   <span className="ap-bc-sep">›</span>
                   <span
                     className="ap-bc-item ap-bc-link"
-                    onClick={() => { setView('difficulty'); setSelectedDifficulty(null); setSelectedTopic(null); setTopics([]); }}
+                    onClick={() => { setView('difficulty'); setSelectedDifficulty(null); setSelectedTopic(null); setTopics([]); setSearch(''); setGameModeFilter('all'); }}
                   >{curFolder?.icon} {curFolder?.label}</span>
                   <span className="ap-bc-sep">›</span>
                   <span
                     className="ap-bc-item ap-bc-link"
-                    onClick={() => { setView('topics'); setSelectedTopic(null); }}
+                    onClick={() => { setView('topics'); setSelectedTopic(null); setSearch(''); setGameModeFilter('all'); }}
                   >
                     {selectedDifficulty === 'easy' ? '😊 Easy Mode' : '💀 Hard Mode'}
                   </span>
@@ -1266,7 +1279,7 @@ function QuestionsPanel() {
               <div className="ap-toolbar">
                 <div className="ap-toolbar-left">
                   {isCatFolder(activeFolder) && (
-                    <button className="ap-btn-back" onClick={() => { setView('topics'); setSelectedTopic(null); setSearch(''); }}>
+                    <button className="ap-btn-back" onClick={() => { setView('topics'); setSelectedTopic(null); setSearch(''); setGameModeFilter('all'); }}>
                       ← Back
                     </button>
                   )}
