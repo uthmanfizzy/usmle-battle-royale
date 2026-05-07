@@ -207,7 +207,7 @@ function StatsPanel() {
 
 // ── Question Form Modal ────────────────────────────────────────────────────────
 
-function QuestionModal({ question, defaultSubject = 'cardiology', onSave, onClose }) {
+function QuestionModal({ question, defaultSubject = 'cardiology', onSave, onClose, topics = [], defaultTopicId = '' }) {
   const isEdit = !!question;
   const defaultSubjectResolved = (defaultSubject === 'all' || defaultSubject === '__images__') ? 'cardiology' : defaultSubject;
 
@@ -226,6 +226,7 @@ function QuestionModal({ question, defaultSubject = 'cardiology', onSave, onClos
     game_modes:   question.game_modes || (question.image_url ? ['scan_master'] : ['battle_royale', 'speed_race', 'trivia_pursuit']),
     tower_floor:  question.tower_floor || '',
     buzz_type:    question.buzz_type || 'BUZZWORD',
+    topic_id:     question.topic_id || '',
   } : {
     subject:      defaultSubjectResolved,
     difficulty:   'easy',
@@ -241,6 +242,7 @@ function QuestionModal({ question, defaultSubject = 'cardiology', onSave, onClos
     game_modes:   ['battle_royale', 'speed_race', 'trivia_pursuit'],
     tower_floor:  '',
     buzz_type:    'BUZZWORD',
+    topic_id:     defaultTopicId,
   });
 
   const [saving,       setSaving]       = useState(false);
@@ -300,6 +302,7 @@ function QuestionModal({ question, defaultSubject = 'cardiology', onSave, onClos
       game_modes:  form.game_modes,
       tower_floor: form.game_modes.includes('tower') && form.tower_floor !== '' ? parseInt(form.tower_floor) : null,
       buzz_type:   form.game_modes.includes('buzz_fun') ? form.buzz_type : undefined,
+      topic_id:    form.topic_id || null,
     };
     try {
       const res = isEdit
@@ -379,6 +382,16 @@ function QuestionModal({ question, defaultSubject = 'cardiology', onSave, onClos
               </select>
             </div>
           </div>
+
+          {topics.length > 0 && (
+            <div className="ap-field">
+              <label>Topic <span className="ap-field-opt">(optional)</span></label>
+              <select value={form.topic_id} onChange={e => set('topic_id', e.target.value)}>
+                <option value="">— Unassigned —</option>
+                {topics.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+              </select>
+            </div>
+          )}
 
           {/* Image upload section */}
           {form.questionType === 'image' && (
@@ -566,30 +579,159 @@ function DeleteConfirm({ questionId, onConfirm, onCancel }) {
   );
 }
 
+// ── Topic Modal ────────────────────────────────────────────────────────────────
+
+function TopicModal({ topic, onSave, onClose, error }) {
+  const isEdit = !!topic;
+  const [name,   setName]   = useState(topic?.name || '');
+  const [saving, setSaving] = useState(false);
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    if (!name.trim()) return;
+    setSaving(true);
+    await onSave(name.trim());
+    setSaving(false);
+  }
+
+  return (
+    <div className="ap-backdrop" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="ap-confirm ap-topic-modal">
+        <div className="ap-modal-head">
+          <h2>{isEdit ? '✏️ Rename Topic' : '📁 Create New Topic'}</h2>
+          <button className="ap-modal-x" onClick={onClose}>✕</button>
+        </div>
+        <form onSubmit={handleSubmit} className="ap-qform">
+          <div className="ap-field">
+            <label>Topic Name</label>
+            <input
+              type="text"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              placeholder="e.g. Heart Failure, Arrhythmias…"
+              maxLength={100}
+              autoFocus
+            />
+          </div>
+          {error && <div className="ap-error">{error}</div>}
+          <div className="ap-modal-foot">
+            <button type="button" className="ap-btn-sec" onClick={onClose}>Cancel</button>
+            <button type="submit" className="ap-btn-pri" disabled={saving || !name.trim()}>
+              {saving ? 'Saving…' : isEdit ? 'Rename' : 'Create Topic'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 // ── Questions Panel ────────────────────────────────────────────────────────────
 
 function QuestionsPanel() {
-  const [questions, setQuestions] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [activeFolder, setActiveFolder] = useState('all');
-  const [modal, setModal] = useState(null); // null | 'add' | question object
-  const [deleteId, setDeleteId] = useState(null);
-  const [bulkMsg, setBulkMsg] = useState('');
+  // ─── Data ────────────────────────────────────────────────────────────────────
+  const [questions,     setQuestions]     = useState([]);
+  const [loading,       setLoading]       = useState(true);
+
+  // ─── Navigation ──────────────────────────────────────────────────────────────
+  const [activeFolder,  setActiveFolder]  = useState('all');
+  const [view,          setView]          = useState('questions'); // 'topics' | 'questions'
+  const [selectedTopic, setSelectedTopic] = useState(null);       // topic obj | 'unassigned' | null
+
+  // ─── Topics ──────────────────────────────────────────────────────────────────
+  const [topics,        setTopics]        = useState([]);
+  const [topicsLoading, setTopicsLoading] = useState(false);
+  const [topicModal,    setTopicModal]    = useState(null);  // null | 'create' | topic obj
+  const [delTopic,      setDelTopic]      = useState(null);
+  const [topicErr,      setTopicErr]      = useState('');
+
+  // ─── Question UI ─────────────────────────────────────────────────────────────
+  const [modal,          setModal]          = useState(null);
+  const [deleteId,       setDeleteId]       = useState(null);
+  const [bulkMsg,        setBulkMsg]        = useState('');
   const [gameModeFilter, setGameModeFilter] = useState('all');
+  const [search,         setSearch]         = useState('');
+
+  // ─── Bulk Assign ─────────────────────────────────────────────────────────────
+  const [selectedBulk,    setSelectedBulk]    = useState(new Set());
+  const [bulkTargetTopic, setBulkTargetTopic] = useState('');
+  const [bulkAssigning,   setBulkAssigning]   = useState(false);
+
+  const isCatFolder = (id) => {
+    const f = FOLDERS.find(x => x.id === id);
+    return f && !f.special && !f.separator && id !== 'all';
+  };
 
   useEffect(() => { loadQuestions(); }, []);
+
+  useEffect(() => {
+    if (isCatFolder(activeFolder)) {
+      setView('topics');
+      setSelectedTopic(null);
+      loadTopics(activeFolder);
+    } else {
+      setView('questions');
+      setSelectedTopic(null);
+      setTopics([]);
+    }
+    setSearch('');
+    setGameModeFilter('all');
+    setSelectedBulk(new Set());
+    setTopicErr('');
+  }, [activeFolder]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function loadQuestions() {
     setLoading(true);
     try {
-      const res = await apiCall('/admin/questions');
+      const res  = await apiCall('/admin/questions');
       const data = await res.json();
       setQuestions(data.questions || []);
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   }
 
+  async function loadTopics(category) {
+    setTopicsLoading(true);
+    try {
+      const res  = await apiCall(`/admin/topics?category=${encodeURIComponent(category)}`);
+      const data = await res.json();
+      setTopics(data.topics || []);
+    } finally { setTopicsLoading(false); }
+  }
+
+  // ─── Topic CRUD ───────────────────────────────────────────────────────────────
+  async function handleSaveTopic(name) {
+    setTopicErr('');
+    const isEdit = topicModal && topicModal !== 'create';
+    try {
+      const res  = isEdit
+        ? await apiCall(`/admin/topics/${topicModal.id}`, { method: 'PUT', body: JSON.stringify({ name }) })
+        : await apiCall('/admin/topics', { method: 'POST', body: JSON.stringify({ name, category: activeFolder }) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to save topic');
+      if (isEdit) {
+        setTopics(ts => ts.map(t => t.id === topicModal.id ? { ...t, ...data } : t));
+        if (selectedTopic && selectedTopic !== 'unassigned' && selectedTopic.id === topicModal.id) {
+          setSelectedTopic(prev => ({ ...prev, name: data.name }));
+        }
+      } else {
+        setTopics(ts => [...ts, data].sort((a, b) => a.name.localeCompare(b.name)));
+      }
+      setTopicModal(null);
+    } catch (err) { setTopicErr(err.message); }
+  }
+
+  async function handleDeleteTopic() {
+    setTopicErr('');
+    try {
+      const res  = await apiCall(`/admin/topics/${delTopic.id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to delete topic');
+      setTopics(ts => ts.filter(t => t.id !== delTopic.id));
+      setDelTopic(null);
+    } catch (err) { setTopicErr(err.message); setDelTopic(null); }
+  }
+
+  // ─── Question CRUD ────────────────────────────────────────────────────────────
   async function handleDelete() {
     await apiCall(`/admin/questions/${encodeURIComponent(deleteId)}`, { method: 'DELETE' });
     setQuestions(qs => qs.filter(q => String(q.id) !== String(deleteId)));
@@ -599,40 +741,71 @@ function QuestionsPanel() {
   function handleSaved(savedQ) {
     setQuestions(qs => {
       const idx = qs.findIndex(q => String(q.id) === String(savedQ.id));
-      if (idx >= 0) {
-        const copy = [...qs];
-        copy[idx] = savedQ;
-        return copy;
-      }
+      if (idx >= 0) { const copy = [...qs]; copy[idx] = savedQ; return copy; }
       return [...qs, savedQ];
     });
     setModal(null);
+    if (isCatFolder(activeFolder)) loadTopics(activeFolder);
   }
 
+  // ─── Move question to topic ───────────────────────────────────────────────────
+  async function handleMoveQuestion(questionId, newTopicId) {
+    try {
+      const res  = await apiCall(`/admin/questions/${encodeURIComponent(questionId)}`, {
+        method: 'PUT', body: JSON.stringify({ topic_id: newTopicId || null }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Move failed');
+      setQuestions(qs => qs.map(q =>
+        String(q.id) === String(questionId)
+          ? { ...q, topic_id: newTopicId || undefined }
+          : q
+      ));
+      loadTopics(activeFolder);
+    } catch (err) { alert(err.message); }
+  }
+
+  // ─── Bulk assign ─────────────────────────────────────────────────────────────
+  async function handleBulkAssign() {
+    if (selectedBulk.size === 0 || !bulkTargetTopic) return;
+    setBulkAssigning(true);
+    try {
+      const res  = await apiCall('/admin/questions/bulk-assign-topic', {
+        method: 'POST',
+        body: JSON.stringify({ questionIds: [...selectedBulk], topicId: bulkTargetTopic }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Bulk assign failed');
+      setQuestions(qs => qs.map(q =>
+        selectedBulk.has(String(q.id)) ? { ...q, topic_id: bulkTargetTopic } : q
+      ));
+      setSelectedBulk(new Set()); setBulkTargetTopic('');
+      loadTopics(activeFolder);
+    } catch (err) { alert(err.message); }
+    setBulkAssigning(false);
+  }
+
+  // ─── Bulk import ──────────────────────────────────────────────────────────────
   async function handleBulkImport(e) {
     setBulkMsg('');
     const file = e.target.files[0];
     if (!file) return;
     try {
-      const text = await file.text();
+      const text   = await file.text();
       const parsed = JSON.parse(text);
-      const arr = Array.isArray(parsed) ? parsed : parsed.questions;
+      const arr    = Array.isArray(parsed) ? parsed : parsed.questions;
       if (!Array.isArray(arr)) throw new Error('JSON must be an array or { questions: [...] }');
-      const res = await apiCall('/admin/questions/bulk', {
-        method: 'POST',
-        body: JSON.stringify({ questions: arr }),
-      });
+      const res  = await apiCall('/admin/questions/bulk', { method: 'POST', body: JSON.stringify({ questions: arr }) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Import failed');
       const skippedNote = data.skipped ? ` (${data.skipped} skipped — missing required fields)` : '';
       setBulkMsg(`✓ Imported ${data.added} question${data.added !== 1 ? 's' : ''}${skippedNote}`);
       await loadQuestions();
-    } catch (err) {
-      setBulkMsg(`✗ ${err.message}`);
-    }
+    } catch (err) { setBulkMsg(`✗ ${err.message}`); }
     e.target.value = '';
   }
 
+  // ─── Derived ─────────────────────────────────────────────────────────────────
   const folderCounts = FOLDERS.reduce((acc, f) => {
     if (f.separator)                acc[f.id] = 0;
     else if (f.id === 'all')        acc[f.id] = questions.length;
@@ -642,13 +815,32 @@ function QuestionsPanel() {
     return acc;
   }, {});
 
-  const baseFiltered = activeFolder === 'all'       ? questions
-    : activeFolder === '__images__'             ? questions.filter(q => q.image_url)
-    : activeFolder === 'buzz_fun'              ? questions.filter(q => (q.game_modes || []).includes('buzz_fun'))
+  const catQuestions = activeFolder === 'all'        ? questions
+    : activeFolder === '__images__'                  ? questions.filter(q => q.image_url)
+    : activeFolder === 'buzz_fun'                    ? questions.filter(q => (q.game_modes || []).includes('buzz_fun'))
     : questions.filter(q => q.subject === activeFolder);
+
+  const topicFiltered = selectedTopic === 'unassigned'
+    ? catQuestions.filter(q => !q.topic_id)
+    : selectedTopic
+    ? catQuestions.filter(q => q.topic_id === selectedTopic.id)
+    : catQuestions;
+
+  const searched = search.trim()
+    ? topicFiltered.filter(q =>
+        q.question.toLowerCase().includes(search.toLowerCase()) ||
+        String(q.id).toLowerCase().includes(search.toLowerCase())
+      )
+    : topicFiltered;
+
   const filtered = gameModeFilter === 'all'
-    ? baseFiltered
-    : baseFiltered.filter(q => (q.game_modes || []).includes(gameModeFilter));
+    ? searched
+    : searched.filter(q => (q.game_modes || []).includes(gameModeFilter));
+
+  const unassignedCount = isCatFolder(activeFolder)
+    ? catQuestions.filter(q => !q.topic_id).length : 0;
+
+  const curFolder = FOLDERS.find(f => f.id === activeFolder);
 
   if (loading) return <div className="ap-loading">Loading questions…</div>;
 
@@ -660,9 +852,7 @@ function QuestionsPanel() {
         <aside className="ap-sidebar">
           <div className="ap-sidebar-title">Categories</div>
           {FOLDERS.map(f => {
-            if (f.separator) {
-              return <div key={f.id} className="ap-sidebar-separator">Coming Soon</div>;
-            }
+            if (f.separator) return <div key={f.id} className="ap-sidebar-separator">Coming Soon</div>;
             if (f.special && (f.id === '__images__' || f.id === 'buzz_fun')) {
               return (
                 <button
@@ -691,132 +881,329 @@ function QuestionsPanel() {
           })}
         </aside>
 
-        {/* ── Question Table ────────────────────────────────────────── */}
+        {/* ── Main Content ─────────────────────────────────────────── */}
         <div className="ap-qm-main">
-          <div className="ap-toolbar">
-            <div className="ap-toolbar-left">
-              <div className="ap-folder-heading">
-                {(() => {
-                  const f = FOLDERS.find(fl => fl.id === activeFolder);
-                  return (
-                    <>
-                      <span className="ap-fh-icon">{f?.icon}</span>
-                      <span className="ap-fh-name">{f?.label}</span>
-                      <span className="ap-fh-count">{filtered.length}</span>
-                    </>
-                  );
-                })()}
-              </div>
-              <select
-                className="ap-gm-filter"
-                value={gameModeFilter}
-                onChange={e => setGameModeFilter(e.target.value)}
-              >
-                <option value="all">All Modes</option>
-                {GAME_MODES.map(gm => (
-                  <option key={gm.id} value={gm.id}>{gm.icon} {gm.label}</option>
-                ))}
-              </select>
-            </div>
-            <div className="ap-toolbar-right">
-              {bulkMsg && (
-                <span className={`ap-bulk-msg ${bulkMsg.startsWith('✓') ? 'ok' : 'err'}`}>
-                  {bulkMsg}
-                </span>
-              )}
-              <label className="ap-btn-sec ap-file-label">
-                📥 Bulk Import
-                <input type="file" accept=".json" onChange={handleBulkImport} style={{ display: 'none' }} />
-              </label>
-              <button className="ap-btn-pri" onClick={() => setModal('add')}>+ Add Question</button>
-            </div>
-          </div>
 
-          <div className="ap-table-wrap">
-            <table className="ap-table">
-              <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>Subject</th>
-                  <th>Difficulty</th>
-                  <th>Image</th>
-                  <th>Game Modes</th>
-                  <th>Tower Floor</th>
-                  <th>Question Preview</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map(q => (
-                  <tr key={q.id}>
-                    <td className="ap-td-id">
-                      <span className="ap-id-pill">{q.id}</span>
-                    </td>
-                    <td>
-                      <span className={`ap-badge ap-subj-${q.subject}`}>
-                        {FOLDERS.find(f => f.id === q.subject)?.icon} {q.subject}
-                      </span>
-                    </td>
-                    <td>
-                      <span className={`ap-badge ap-diff-${q.difficulty || 'easy'}`}>
-                        {q.difficulty || 'easy'}
-                      </span>
-                    </td>
-                    <td className="ap-td-thumb">
-                      {q.image_url
-                        ? <img src={q.image_url} alt="" className="ap-thumb" title={q.image_url} />
-                        : <span className="ap-no-image">—</span>}
-                    </td>
-                    <td className="ap-td-modes">
-                      <div className="ap-gm-badges">
-                        {(q.game_modes || ['battle_royale', 'speed_race', 'trivia_pursuit']).map(mode => {
-                          const gm = GAME_MODES.find(g => g.id === mode);
-                          return gm ? (
-                            <span key={mode} className={`ap-gm-badge ap-gm-badge-${mode}`} title={gm.label}>
-                              {gm.icon}
+          {/* ════ TOPIC LEVEL ════════════════════════════════════════ */}
+          {view === 'topics' && (
+            <div className="ap-topic-level">
+              <div className="ap-breadcrumb">
+                <span className="ap-bc-item">Question Manager</span>
+                <span className="ap-bc-sep">›</span>
+                <span className="ap-bc-item ap-bc-cur">{curFolder?.icon} {curFolder?.label}</span>
+              </div>
+
+              <div className="ap-toolbar">
+                <div className="ap-toolbar-left">
+                  <div className="ap-folder-heading">
+                    <span className="ap-fh-icon">{curFolder?.icon}</span>
+                    <span className="ap-fh-name">{curFolder?.label}</span>
+                    <span className="ap-fh-count">{topics.length} topic{topics.length !== 1 ? 's' : ''}</span>
+                  </div>
+                </div>
+                <div className="ap-toolbar-right">
+                  {topicErr && <span className="ap-bulk-msg err">{topicErr}</span>}
+                  <button className="ap-btn-pri" onClick={() => { setTopicErr(''); setTopicModal('create'); }}>
+                    📁 New Topic
+                  </button>
+                </div>
+              </div>
+
+              {topicsLoading ? (
+                <div className="ap-loading">Loading topics…</div>
+              ) : topics.length === 0 ? (
+                <div className="ap-topic-empty">
+                  <div className="ap-topic-empty-icon">📁</div>
+                  <p>No topics yet. Create topics to organise your {curFolder?.label} questions.</p>
+                  <button className="ap-btn-pri" onClick={() => { setTopicErr(''); setTopicModal('create'); }}>
+                    📁 Create First Topic
+                  </button>
+                </div>
+              ) : (
+                <div className="ap-topic-grid">
+                  {topics.map(t => (
+                    <div key={t.id} className={`ap-topic-card ap-tc-${activeFolder}`}>
+                      <button
+                        className="ap-topic-card-body"
+                        onClick={() => { setSelectedTopic(t); setView('questions'); }}
+                      >
+                        <span className="ap-topic-card-icon">📁</span>
+                        <span className="ap-topic-card-name">{t.name}</span>
+                        <span className="ap-topic-card-count">{t.question_count} question{t.question_count !== 1 ? 's' : ''}</span>
+                      </button>
+                      <div className="ap-topic-card-actions">
+                        <button
+                          className="ap-topic-edit-btn"
+                          onClick={() => { setTopicErr(''); setTopicModal(t); }}
+                          title="Rename"
+                        >✏️</button>
+                        <button
+                          className="ap-topic-del-btn"
+                          onClick={() => t.question_count === 0 && setDelTopic(t)}
+                          title={t.question_count > 0 ? `${t.question_count} question(s) assigned — move them first` : 'Delete'}
+                          disabled={t.question_count > 0}
+                        >🗑️</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="ap-unassigned-row">
+                <button
+                  className="ap-unassigned-btn"
+                  onClick={() => { setSelectedTopic('unassigned'); setView('questions'); }}
+                >
+                  <span className="ap-unassigned-icon">📋</span>
+                  <span className="ap-unassigned-label">Unassigned Questions</span>
+                  <span className="ap-unassigned-count">{unassignedCount}</span>
+                  <span className="ap-unassigned-arrow">→</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ════ QUESTION LEVEL ═════════════════════════════════════ */}
+          {view === 'questions' && (
+            <>
+              {isCatFolder(activeFolder) && (
+                <div className="ap-breadcrumb">
+                  <span className="ap-bc-item">Question Manager</span>
+                  <span className="ap-bc-sep">›</span>
+                  <span
+                    className="ap-bc-item ap-bc-link"
+                    onClick={() => { setView('topics'); setSelectedTopic(null); }}
+                  >{curFolder?.icon} {curFolder?.label}</span>
+                  <span className="ap-bc-sep">›</span>
+                  <span className="ap-bc-item ap-bc-cur">
+                    {selectedTopic === 'unassigned' ? '📋 Unassigned' : `📁 ${selectedTopic?.name}`}
+                  </span>
+                </div>
+              )}
+
+              <div className="ap-toolbar">
+                <div className="ap-toolbar-left">
+                  {isCatFolder(activeFolder) && (
+                    <button className="ap-btn-back" onClick={() => { setView('topics'); setSelectedTopic(null); }}>
+                      ← Back
+                    </button>
+                  )}
+                  <div className="ap-folder-heading">
+                    <span className="ap-fh-icon">
+                      {selectedTopic === 'unassigned' ? '📋' : selectedTopic ? '📁' : curFolder?.icon}
+                    </span>
+                    <span className="ap-fh-name">
+                      {selectedTopic === 'unassigned' ? 'Unassigned' : selectedTopic ? selectedTopic.name : curFolder?.label}
+                    </span>
+                    <span className="ap-fh-count">{filtered.length}</span>
+                  </div>
+                  <select
+                    className="ap-gm-filter"
+                    value={gameModeFilter}
+                    onChange={e => setGameModeFilter(e.target.value)}
+                  >
+                    <option value="all">All Modes</option>
+                    {GAME_MODES.map(gm => (
+                      <option key={gm.id} value={gm.id}>{gm.icon} {gm.label}</option>
+                    ))}
+                  </select>
+                  <input
+                    className="ap-search-input"
+                    type="text"
+                    placeholder="Search questions…"
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                  />
+                </div>
+                <div className="ap-toolbar-right">
+                  {bulkMsg && (
+                    <span className={`ap-bulk-msg ${bulkMsg.startsWith('✓') ? 'ok' : 'err'}`}>{bulkMsg}</span>
+                  )}
+                  <label className="ap-btn-sec ap-file-label">
+                    📥 Bulk Import
+                    <input type="file" accept=".json" onChange={handleBulkImport} style={{ display: 'none' }} />
+                  </label>
+                  <button className="ap-btn-pri" onClick={() => setModal('add')}>+ Add Question</button>
+                </div>
+              </div>
+
+              {selectedTopic === 'unassigned' && topics.length > 0 && selectedBulk.size > 0 && (
+                <div className="ap-bulk-assign-bar">
+                  <span className="ap-ba-count">{selectedBulk.size} selected</span>
+                  <select
+                    className="ap-ba-select"
+                    value={bulkTargetTopic}
+                    onChange={e => setBulkTargetTopic(e.target.value)}
+                  >
+                    <option value="">Move to topic…</option>
+                    {topics.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                  </select>
+                  <button
+                    className="ap-btn-pri ap-ba-btn"
+                    onClick={handleBulkAssign}
+                    disabled={!bulkTargetTopic || bulkAssigning}
+                  >{bulkAssigning ? 'Assigning…' : '→ Assign'}</button>
+                  <button className="ap-btn-sec" onClick={() => setSelectedBulk(new Set())}>Clear</button>
+                </div>
+              )}
+
+              <div className="ap-table-wrap">
+                <table className="ap-table">
+                  <thead>
+                    <tr>
+                      {selectedTopic === 'unassigned' && topics.length > 0 && <th style={{ width: 32 }}></th>}
+                      <th>ID</th>
+                      <th>Subject</th>
+                      <th>Difficulty</th>
+                      <th>Image</th>
+                      <th>Game Modes</th>
+                      {isCatFolder(activeFolder) && <th>Topic</th>}
+                      <th>Tower Floor</th>
+                      <th>Question Preview</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filtered.map(q => {
+                      const topicForQ = topics.find(t => t.id === q.topic_id);
+                      return (
+                        <tr key={q.id}>
+                          {selectedTopic === 'unassigned' && topics.length > 0 && (
+                            <td>
+                              <input
+                                type="checkbox"
+                                checked={selectedBulk.has(String(q.id))}
+                                onChange={e => setSelectedBulk(prev => {
+                                  const next = new Set(prev);
+                                  e.target.checked ? next.add(String(q.id)) : next.delete(String(q.id));
+                                  return next;
+                                })}
+                              />
+                            </td>
+                          )}
+                          <td className="ap-td-id"><span className="ap-id-pill">{q.id}</span></td>
+                          <td>
+                            <span className={`ap-badge ap-subj-${q.subject}`}>
+                              {FOLDERS.find(f => f.id === q.subject)?.icon} {q.subject}
                             </span>
-                          ) : null;
-                        })}
-                      </div>
-                    </td>
-                    <td className="ap-td-floor">
-                      {(q.game_modes || []).includes('tower') && q.tower_floor
-                        ? (
-                          <div className="ap-floor-cell">
-                            <span className="ap-floor-pill">🏰 {q.tower_floor}</span>
-                            <span className="ap-floor-zone">{getTowerZone(q.tower_floor)}</span>
-                          </div>
-                        )
-                        : <span className="ap-no-image">—</span>}
-                    </td>
-                    <td className="ap-td-preview" title={q.question}>
-                      {q.question.length > 80 ? q.question.slice(0, 80) + '…' : q.question}
-                    </td>
-                    <td>
-                      <div className="ap-row-actions">
-                        <button className="ap-edit-btn" onClick={() => setModal(q)}>Edit</button>
-                        <button className="ap-del-btn" onClick={() => setDeleteId(q.id)}>Delete</button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-                {filtered.length === 0 && (
-                  <tr>
-                    <td colSpan={8} className="ap-empty">
-                      No questions in this category yet.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                          </td>
+                          <td>
+                            <span className={`ap-badge ap-diff-${q.difficulty || 'easy'}`}>
+                              {q.difficulty || 'easy'}
+                            </span>
+                          </td>
+                          <td className="ap-td-thumb">
+                            {q.image_url
+                              ? <img src={q.image_url} alt="" className="ap-thumb" title={q.image_url} />
+                              : <span className="ap-no-image">—</span>}
+                          </td>
+                          <td className="ap-td-modes">
+                            <div className="ap-gm-badges">
+                              {(q.game_modes || ['battle_royale', 'speed_race', 'trivia_pursuit']).map(mode => {
+                                const gm = GAME_MODES.find(g => g.id === mode);
+                                return gm ? (
+                                  <span key={mode} className={`ap-gm-badge ap-gm-badge-${mode}`} title={gm.label}>
+                                    {gm.icon}
+                                  </span>
+                                ) : null;
+                              })}
+                            </div>
+                          </td>
+                          {isCatFolder(activeFolder) && (
+                            <td className="ap-td-topic">
+                              {topicForQ
+                                ? <span className={`ap-topic-badge ap-tb-${activeFolder}`}>{topicForQ.name}</span>
+                                : <span className="ap-topic-badge ap-tb-none">Unassigned</span>}
+                            </td>
+                          )}
+                          <td className="ap-td-floor">
+                            {(q.game_modes || []).includes('tower') && q.tower_floor
+                              ? (
+                                <div className="ap-floor-cell">
+                                  <span className="ap-floor-pill">🏰 {q.tower_floor}</span>
+                                  <span className="ap-floor-zone">{getTowerZone(q.tower_floor)}</span>
+                                </div>
+                              )
+                              : <span className="ap-no-image">—</span>}
+                          </td>
+                          <td className="ap-td-preview" title={q.question}>
+                            {q.question.length > 80 ? q.question.slice(0, 80) + '…' : q.question}
+                          </td>
+                          <td>
+                            <div className="ap-row-actions">
+                              <button className="ap-edit-btn" onClick={() => setModal(q)}>Edit</button>
+                              {isCatFolder(activeFolder) && topics.length > 0 && (
+                                <select
+                                  className="ap-move-select"
+                                  value=""
+                                  title="Move to topic"
+                                  onChange={e => {
+                                    const val = e.target.value;
+                                    if (val === '__un__') handleMoveQuestion(q.id, null);
+                                    else if (val) handleMoveQuestion(q.id, val);
+                                  }}
+                                >
+                                  <option value="">Move…</option>
+                                  {topics.filter(t => t.id !== q.topic_id).map(t => (
+                                    <option key={t.id} value={t.id}>{t.name}</option>
+                                  ))}
+                                  {q.topic_id && <option value="__un__">↩ Unassign</option>}
+                                </select>
+                              )}
+                              <button className="ap-del-btn" onClick={() => setDeleteId(q.id)}>Delete</button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {filtered.length === 0 && (
+                      <tr>
+                        <td colSpan={12} className="ap-empty">
+                          {selectedTopic === 'unassigned'
+                            ? 'All questions in this category are assigned to a topic.'
+                            : selectedTopic
+                            ? `No questions in "${selectedTopic.name}" yet.`
+                            : 'No questions in this category yet.'}
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
         </div>
       </div>
+
+      {topicModal && (
+        <TopicModal
+          topic={topicModal === 'create' ? null : topicModal}
+          onSave={handleSaveTopic}
+          onClose={() => { setTopicModal(null); setTopicErr(''); }}
+          error={topicErr}
+        />
+      )}
+
+      {delTopic && (
+        <div className="ap-backdrop" onClick={() => setDelTopic(null)}>
+          <div className="ap-confirm" onClick={e => e.stopPropagation()}>
+            <div className="ap-confirm-icon">📁</div>
+            <h3>Delete "{delTopic.name}"?</h3>
+            <p>This topic folder will be removed. Questions won't be deleted.</p>
+            <div className="ap-modal-foot">
+              <button className="ap-btn-sec" onClick={() => setDelTopic(null)}>Cancel</button>
+              <button className="ap-btn-danger" onClick={handleDeleteTopic}>Delete Topic</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {modal && (
         <QuestionModal
           question={modal === 'add' ? null : modal}
           defaultSubject={activeFolder}
+          defaultTopicId={selectedTopic && selectedTopic !== 'unassigned' ? selectedTopic.id : ''}
+          topics={isCatFolder(activeFolder) ? topics : []}
           onSave={handleSaved}
           onClose={() => setModal(null)}
         />

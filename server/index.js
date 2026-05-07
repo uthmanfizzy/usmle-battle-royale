@@ -2205,7 +2205,7 @@ app.post('/admin/upload-image', adminAuth, async (req, res) => {
 });
 
 app.post('/admin/questions', adminAuth, (req, res) => {
-  const { subject, difficulty, question, options, correct, explanation, image_url, game_modes, tower_floor, buzz_type } = req.body;
+  const { subject, difficulty, question, options, correct, explanation, image_url, game_modes, tower_floor, buzz_type, topic_id } = req.body;
   if (!subject || !question || !Array.isArray(options) || options.length !== 4 || !correct || !explanation)
     return res.status(400).json({ error: 'Missing required fields' });
   const newQ = { id: nextQuestionId(subject), subject, difficulty: difficulty || 'easy', question, options, correct, explanation };
@@ -2213,6 +2213,7 @@ app.post('/admin/questions', adminAuth, (req, res) => {
   newQ.game_modes = Array.isArray(game_modes) && game_modes.length > 0 ? game_modes : ['battle_royale', 'speed_race', 'trivia_pursuit'];
   if (tower_floor != null && !isNaN(parseInt(tower_floor))) newQ.tower_floor = parseInt(tower_floor);
   if (buzz_type && newQ.game_modes.includes('buzz_fun')) newQ.buzz_type = buzz_type;
+  if (topic_id) newQ.topic_id = topic_id;
   questionBank.push(newQ);
   persistQuestions();
   res.json(newQ);
@@ -2234,6 +2235,89 @@ app.delete('/admin/questions/:id', adminAuth, (req, res) => {
   questionBank.splice(idx, 1);
   persistQuestions();
   res.json({ ok: true });
+});
+
+// ── Topics API ─────────────────────────────────────────────────────────────────
+
+app.get('/admin/topics', adminAuth, async (req, res) => {
+  if (!supabase) return res.json({ topics: [] });
+  const { category } = req.query;
+  try {
+    let query = supabase.from('topics').select('*').order('name');
+    if (category) query = query.eq('category', category);
+    const { data, error } = await query;
+    if (error) throw error;
+    const topics = (data || []).map(t => ({
+      ...t,
+      question_count: questionBank.filter(q => q.topic_id === t.id).length,
+    }));
+    res.json({ topics });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/admin/topics', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  const { name, category } = req.body;
+  if (!name?.trim() || !category) return res.status(400).json({ error: 'name and category required' });
+  try {
+    const { data, error } = await supabase
+      .from('topics')
+      .insert({ name: name.trim(), category })
+      .select()
+      .single();
+    if (error) throw error;
+    res.json({ ...data, question_count: 0 });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.put('/admin/topics/:id', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  const { name } = req.body;
+  if (!name?.trim()) return res.status(400).json({ error: 'name required' });
+  try {
+    const { data, error } = await supabase
+      .from('topics')
+      .update({ name: name.trim() })
+      .eq('id', req.params.id)
+      .select()
+      .single();
+    if (error) throw error;
+    const question_count = questionBank.filter(q => q.topic_id === req.params.id).length;
+    res.json({ ...data, question_count });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.delete('/admin/topics/:id', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  const id    = req.params.id;
+  const count = questionBank.filter(q => q.topic_id === id).length;
+  if (count > 0) return res.status(400).json({ error: `Cannot delete — ${count} question(s) still assigned. Move or unassign them first.` });
+  try {
+    const { error } = await supabase.from('topics').delete().eq('id', id);
+    if (error) throw error;
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/admin/questions/bulk-assign-topic', adminAuth, (req, res) => {
+  const { questionIds, topicId } = req.body;
+  if (!Array.isArray(questionIds)) return res.status(400).json({ error: 'questionIds array required' });
+  let updated = 0;
+  for (const id of questionIds) {
+    const idx = questionBank.findIndex(q => String(q.id) === String(id));
+    if (idx !== -1) {
+      if (topicId) {
+        questionBank[idx] = { ...questionBank[idx], topic_id: topicId };
+      } else {
+        const q = { ...questionBank[idx] };
+        delete q.topic_id;
+        questionBank[idx] = q;
+      }
+      updated++;
+    }
+  }
+  persistQuestions();
+  res.json({ ok: true, updated });
 });
 
 // ── Tower Progress API ─────────────────────────────────────────────────────────

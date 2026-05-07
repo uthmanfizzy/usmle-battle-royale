@@ -102,9 +102,24 @@ ALTER TABLE subjects ENABLE ROW LEVEL SECURITY;
 CREATE POLICY IF NOT EXISTS "server_full_access_subjects"
   ON subjects FOR ALL USING (true) WITH CHECK (true);
 
+-- ── topics ────────────────────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS topics (
+  id         UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  name       TEXT        NOT NULL,
+  category   TEXT        NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE topics ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY IF NOT EXISTS "server_full_access_topics"
+  ON topics FOR ALL USING (true) WITH CHECK (true);
+
 -- ── Indexes ────────────────────────────────────────────────────────────────────
 
 CREATE INDEX IF NOT EXISTS idx_users_google_id     ON users(google_id);
+CREATE INDEX IF NOT EXISTS idx_topics_category     ON topics(category);
 CREATE INDEX IF NOT EXISTS idx_subject_mastery_uid ON subject_mastery(user_id);
 CREATE INDEX IF NOT EXISTS idx_game_history_uid    ON game_history(user_id);
 CREATE INDEX IF NOT EXISTS idx_clan_members_clan   ON clan_members(clan_id);
