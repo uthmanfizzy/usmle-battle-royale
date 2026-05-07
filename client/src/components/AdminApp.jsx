@@ -1063,6 +1063,12 @@ function QuestionsPanel() {
       <button className="ap-btn-pri" onClick={loadQuestions}>Retry</button>
     </div>
   );
+  if (questions.length === 0) return (
+    <div className="ap-loading" style={{ flexDirection: 'column', gap: 12 }}>
+      <span>Server returned 0 questions.</span>
+      <button className="ap-btn-pri" onClick={loadQuestions}>Reload</button>
+    </div>
+  );
 
   return (
     <div className="ap-questions">
@@ -1360,30 +1366,35 @@ function QuestionsPanel() {
                   <tbody>
                     {filtered.map(q => {
                       const topicForQ = topics.find(t => t.id === q.topic_id);
+                      const qId      = q.id      ?? '?';
+                      const qSubj    = q.subject  ?? '';
+                      const qDiff    = q.difficulty || 'easy';
+                      const qModes   = Array.isArray(q.game_modes) ? q.game_modes : [];
+                      const preview  = q.question || '';  // guard against missing question field
                       return (
-                        <tr key={q.id}>
+                        <tr key={qId}>
                           {selectedTopic === 'unassigned' && topics.length > 0 && (
                             <td>
                               <input
                                 type="checkbox"
-                                checked={selectedBulk.has(String(q.id))}
+                                checked={selectedBulk.has(String(qId))}
                                 onChange={e => setSelectedBulk(prev => {
                                   const next = new Set(prev);
-                                  e.target.checked ? next.add(String(q.id)) : next.delete(String(q.id));
+                                  e.target.checked ? next.add(String(qId)) : next.delete(String(qId));
                                   return next;
                                 })}
                               />
                             </td>
                           )}
-                          <td className="ap-td-id"><span className="ap-id-pill">{q.id}</span></td>
+                          <td className="ap-td-id"><span className="ap-id-pill">{qId}</span></td>
                           <td>
-                            <span className={`ap-badge ap-subj-${q.subject}`}>
-                              {FOLDERS.find(f => f.id === q.subject)?.icon} {q.subject}
+                            <span className={`ap-badge ap-subj-${qSubj}`}>
+                              {FOLDERS.find(f => f.id === qSubj)?.icon} {qSubj}
                             </span>
                           </td>
                           <td>
-                            <span className={`ap-badge ap-diff-${q.difficulty || 'easy'}`}>
-                              {q.difficulty || 'easy'}
+                            <span className={`ap-badge ap-diff-${qDiff}`}>
+                              {qDiff}
                             </span>
                           </td>
                           <td className="ap-td-thumb">
@@ -1393,7 +1404,7 @@ function QuestionsPanel() {
                           </td>
                           <td className="ap-td-modes">
                             <div className="ap-gm-badges">
-                              {(q.game_modes || ['battle_royale', 'speed_race', 'trivia_pursuit']).map(mode => {
+                              {qModes.map(mode => {
                                 const gm = GAME_MODES.find(g => g.id === mode);
                                 return gm ? (
                                   <span key={mode} className={`ap-gm-badge ap-gm-badge-${mode}`} title={gm.label}>
@@ -1411,7 +1422,7 @@ function QuestionsPanel() {
                             </td>
                           )}
                           <td className="ap-td-floor">
-                            {(q.game_modes || []).includes('tower') && q.tower_floor
+                            {qModes.includes('tower') && q.tower_floor
                               ? (
                                 <div className="ap-floor-cell">
                                   <span className="ap-floor-pill">🏰 {q.tower_floor}</span>
@@ -1420,8 +1431,8 @@ function QuestionsPanel() {
                               )
                               : <span className="ap-no-image">—</span>}
                           </td>
-                          <td className="ap-td-preview" title={q.question}>
-                            {q.question.length > 80 ? q.question.slice(0, 80) + '…' : q.question}
+                          <td className="ap-td-preview" title={preview}>
+                            {preview.length > 80 ? preview.slice(0, 80) + '…' : preview}
                           </td>
                           <td>
                             <div className="ap-row-actions">
@@ -1456,7 +1467,7 @@ function QuestionsPanel() {
                           {selectedTopic === 'unassigned'
                             ? 'All questions in this category are assigned to a topic.'
                             : selectedTopic
-                            ? `No questions in "${selectedTopic.name}" yet.`
+                            ? `No questions in "${selectedTopic?.name}" yet.`
                             : 'No questions in this category yet.'}
                         </td>
                       </tr>
