@@ -2244,17 +2244,28 @@ app.get('/admin/topics', adminAuth, async (req, res) => {
   if (!supabase) return res.json({ topics: [] });
   const { category, difficulty } = req.query;
   try {
+    // Fetch all topics for the category — never filter by difficulty in DB
+    // because the column may not exist yet; we normalise + filter in JS instead.
     let query = supabase.from('topics').select('*').order('name');
-    if (category)   query = query.eq('category', category);
-    if (difficulty) query = query.eq('difficulty', difficulty);
+    if (category) query = query.eq('category', category);
     const { data, error } = await query;
     if (error) throw error;
-    const topics = (data || []).map(t => ({
+    console.log(`[topics] fetched ${(data || []).length} raw topic(s) from Supabase (category=${category || 'any'})`);
+    let topics = (data || []).map(t => ({
       ...t,
+      difficulty:     t.difficulty || 'easy', // default missing/null → easy
       question_count: questionBank.filter(q => q.topic_id === t.id).length,
     }));
+    // Apply difficulty filter in JS so NULL/missing values default to 'easy'
+    if (difficulty) {
+      topics = topics.filter(t => t.difficulty === difficulty);
+    }
+    console.log(`[topics] returning ${topics.length} topic(s) after difficulty filter (difficulty=${difficulty || 'none'})`);
     res.json({ topics });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) {
+    console.error('[topics] error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.post('/admin/topics', adminAuth, async (req, res) => {
