@@ -207,7 +207,7 @@ function StatsPanel() {
 
 // ── Question Form Modal ────────────────────────────────────────────────────────
 
-function QuestionModal({ question, defaultSubject = 'cardiology', onSave, onClose, topics = [], defaultTopicId = '' }) {
+function QuestionModal({ question, defaultSubject = 'cardiology', onSave, onClose, topics = [], defaultTopicId = '', defaultDifficulty = 'easy' }) {
   const isEdit = !!question;
   const defaultSubjectResolved = (defaultSubject === 'all' || defaultSubject === '__images__') ? 'cardiology' : defaultSubject;
 
@@ -229,7 +229,7 @@ function QuestionModal({ question, defaultSubject = 'cardiology', onSave, onClos
     topic_id:     question.topic_id || '',
   } : {
     subject:      defaultSubjectResolved,
-    difficulty:   'easy',
+    difficulty:   defaultDifficulty,
     question:     '',
     optionA:      '',
     optionB:      '',
@@ -802,9 +802,10 @@ function QuestionsPanel() {
   const [loading,       setLoading]       = useState(true);
 
   // ─── Navigation ──────────────────────────────────────────────────────────────
-  const [activeFolder,  setActiveFolder]  = useState('all');
-  const [view,          setView]          = useState('questions'); // 'topics' | 'questions'
-  const [selectedTopic, setSelectedTopic] = useState(null);       // topic obj | 'unassigned' | null
+  const [activeFolder,       setActiveFolder]       = useState('all');
+  const [view,               setView]               = useState('questions'); // 'difficulty' | 'topics' | 'questions'
+  const [selectedTopic,      setSelectedTopic]      = useState(null);        // topic obj | 'unassigned' | null
+  const [selectedDifficulty, setSelectedDifficulty] = useState(null);        // null | 'easy' | 'hard'
 
   // ─── Topics ──────────────────────────────────────────────────────────────────
   const [topics,        setTopics]        = useState([]);
@@ -837,11 +838,13 @@ function QuestionsPanel() {
 
   useEffect(() => {
     if (isCatFolder(activeFolder)) {
-      setView('topics');
+      setView('difficulty');
+      setSelectedDifficulty(null);
       setSelectedTopic(null);
-      loadTopics(activeFolder);
+      setTopics([]);
     } else {
       setView('questions');
+      setSelectedDifficulty(null);
       setSelectedTopic(null);
       setTopics([]);
     }
@@ -860,10 +863,12 @@ function QuestionsPanel() {
     } finally { setLoading(false); }
   }
 
-  async function loadTopics(category) {
+  async function loadTopics(category, difficulty) {
     setTopicsLoading(true);
     try {
-      const res  = await apiCall(`/admin/topics?category=${encodeURIComponent(category)}`);
+      let url = `/admin/topics?category=${encodeURIComponent(category)}`;
+      if (difficulty) url += `&difficulty=${encodeURIComponent(difficulty)}`;
+      const res  = await apiCall(url);
       const data = await res.json();
       setTopics(data.topics || []);
     } finally { setTopicsLoading(false); }
@@ -876,7 +881,7 @@ function QuestionsPanel() {
     try {
       const res  = isEdit
         ? await apiCall(`/admin/topics/${topicModal.id}`, { method: 'PUT', body: JSON.stringify({ name }) })
-        : await apiCall('/admin/topics', { method: 'POST', body: JSON.stringify({ name, category: activeFolder }) });
+        : await apiCall('/admin/topics', { method: 'POST', body: JSON.stringify({ name, category: activeFolder, difficulty: selectedDifficulty || 'easy' }) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to save topic');
       if (isEdit) {
@@ -916,7 +921,7 @@ function QuestionsPanel() {
       return [...qs, savedQ];
     });
     setModal(null);
-    if (isCatFolder(activeFolder)) loadTopics(activeFolder);
+    if (isCatFolder(activeFolder)) loadTopics(activeFolder, selectedDifficulty);
   }
 
   // ─── Move question to topic ───────────────────────────────────────────────────
@@ -932,7 +937,7 @@ function QuestionsPanel() {
           ? { ...q, topic_id: newTopicId || undefined }
           : q
       ));
-      loadTopics(activeFolder);
+      loadTopics(activeFolder, selectedDifficulty);
     } catch (err) { alert(err.message); }
   }
 
@@ -951,7 +956,7 @@ function QuestionsPanel() {
         selectedBulk.has(String(q.id)) ? { ...q, topic_id: bulkTargetTopic } : q
       ));
       setSelectedBulk(new Set()); setBulkTargetTopic('');
-      loadTopics(activeFolder);
+      loadTopics(activeFolder, selectedDifficulty);
     } catch (err) { alert(err.message); }
     setBulkAssigning(false);
   }
@@ -962,7 +967,7 @@ function QuestionsPanel() {
     const topicNote   = topic ? ` into ${topic.name}` : '';
     setBulkMsg(`✓ Imported ${data.added} question${data.added !== 1 ? 's' : ''}${topicNote}${skippedNote}`);
     await loadQuestions();
-    if (isCatFolder(activeFolder)) loadTopics(activeFolder);
+    if (isCatFolder(activeFolder)) loadTopics(activeFolder, selectedDifficulty);
     setImportModal(false);
   }
 
@@ -981,11 +986,22 @@ function QuestionsPanel() {
     : activeFolder === 'buzz_fun'                    ? questions.filter(q => (q.game_modes || []).includes('buzz_fun'))
     : questions.filter(q => q.subject === activeFolder);
 
-  const topicFiltered = selectedTopic === 'unassigned'
-    ? catQuestions.filter(q => !q.topic_id)
-    : selectedTopic
-    ? catQuestions.filter(q => q.topic_id === selectedTopic.id)
+  // Counts for the difficulty cards
+  const easyCount = isCatFolder(activeFolder)
+    ? catQuestions.filter(q => (q.difficulty || 'easy') === 'easy').length : 0;
+  const hardCount = isCatFolder(activeFolder)
+    ? catQuestions.filter(q => q.difficulty === 'hard').length : 0;
+
+  // Apply difficulty filter once a difficulty level is selected
+  const diffFiltered = selectedDifficulty
+    ? catQuestions.filter(q => (q.difficulty || 'easy') === selectedDifficulty)
     : catQuestions;
+
+  const topicFiltered = selectedTopic === 'unassigned'
+    ? diffFiltered.filter(q => !q.topic_id)
+    : selectedTopic
+    ? diffFiltered.filter(q => q.topic_id === selectedTopic.id)
+    : diffFiltered;
 
   const searched = search.trim()
     ? topicFiltered.filter(q =>
@@ -999,7 +1015,7 @@ function QuestionsPanel() {
     : searched.filter(q => (q.game_modes || []).includes(gameModeFilter));
 
   const unassignedCount = isCatFolder(activeFolder)
-    ? catQuestions.filter(q => !q.topic_id).length : 0;
+    ? diffFiltered.filter(q => !q.topic_id).length : 0;
 
   const curFolder = FOLDERS.find(f => f.id === activeFolder);
 
@@ -1045,9 +1061,9 @@ function QuestionsPanel() {
         {/* ── Main Content ─────────────────────────────────────────── */}
         <div className="ap-qm-main">
 
-          {/* ════ TOPIC LEVEL ════════════════════════════════════════ */}
-          {view === 'topics' && (
-            <div className="ap-topic-level">
+          {/* ════ DIFFICULTY LEVEL ═══════════════════════════════════ */}
+          {view === 'difficulty' && (
+            <div className="ap-difficulty-level">
               <div className="ap-breadcrumb">
                 <span className="ap-bc-item">Question Manager</span>
                 <span className="ap-bc-sep">›</span>
@@ -1059,6 +1075,70 @@ function QuestionsPanel() {
                   <div className="ap-folder-heading">
                     <span className="ap-fh-icon">{curFolder?.icon}</span>
                     <span className="ap-fh-name">{curFolder?.label}</span>
+                    <span className="ap-fh-count">{folderCounts[activeFolder] || 0} questions total</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="ap-diff-cards">
+                <button
+                  className="ap-diff-card ap-diff-card-easy"
+                  onClick={() => {
+                    setSelectedDifficulty('easy');
+                    setView('topics');
+                    loadTopics(activeFolder, 'easy');
+                  }}
+                >
+                  <div className="ap-dc-icon">😊</div>
+                  <div className="ap-dc-title">Easy Mode</div>
+                  <div className="ap-dc-count">{easyCount} question{easyCount !== 1 ? 's' : ''}</div>
+                  <div className="ap-dc-sub">Straightforward clinical presentations</div>
+                </button>
+
+                <button
+                  className="ap-diff-card ap-diff-card-hard"
+                  onClick={() => {
+                    setSelectedDifficulty('hard');
+                    setView('topics');
+                    loadTopics(activeFolder, 'hard');
+                  }}
+                >
+                  {hardCount === 0 && <div className="ap-dc-coming-soon">Coming Soon</div>}
+                  <div className="ap-dc-icon">💀</div>
+                  <div className="ap-dc-title">Hard Mode</div>
+                  <div className="ap-dc-count">{hardCount} question{hardCount !== 1 ? 's' : ''}</div>
+                  <div className="ap-dc-sub">Tricky and complex scenarios</div>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ════ TOPIC LEVEL ════════════════════════════════════════ */}
+          {view === 'topics' && (
+            <div className="ap-topic-level">
+              <div className="ap-breadcrumb">
+                <span className="ap-bc-item">Question Manager</span>
+                <span className="ap-bc-sep">›</span>
+                <span
+                  className="ap-bc-item ap-bc-link"
+                  onClick={() => { setView('difficulty'); setSelectedDifficulty(null); setTopics([]); setTopicErr(''); }}
+                >{curFolder?.icon} {curFolder?.label}</span>
+                <span className="ap-bc-sep">›</span>
+                <span className="ap-bc-item ap-bc-cur">
+                  {selectedDifficulty === 'easy' ? '😊 Easy Mode' : '💀 Hard Mode'}
+                </span>
+              </div>
+
+              <div className="ap-toolbar">
+                <div className="ap-toolbar-left">
+                  <button className="ap-btn-back" onClick={() => { setView('difficulty'); setSelectedDifficulty(null); setTopics([]); setTopicErr(''); }}>
+                    ← Back
+                  </button>
+                  <div className="ap-folder-heading">
+                    <span className="ap-fh-icon">{selectedDifficulty === 'easy' ? '😊' : '💀'}</span>
+                    <span className={`ap-fh-name ap-fh-diff-${selectedDifficulty}`}>
+                      {selectedDifficulty === 'easy' ? 'Easy Mode' : 'Hard Mode'}
+                    </span>
                     <span className="ap-fh-count">{topics.length} topic{topics.length !== 1 ? 's' : ''}</span>
                   </div>
                 </div>
@@ -1075,7 +1155,7 @@ function QuestionsPanel() {
               ) : topics.length === 0 ? (
                 <div className="ap-topic-empty">
                   <div className="ap-topic-empty-icon">📁</div>
-                  <p>No topics yet. Create topics to organise your {curFolder?.label} questions.</p>
+                  <p>No topics yet for {curFolder?.label} {selectedDifficulty === 'hard' ? 'Hard Mode' : 'Easy Mode'}. Create one to get started.</p>
                   <button className="ap-btn-pri" onClick={() => { setTopicErr(''); setTopicModal('create'); }}>
                     📁 Create First Topic
                   </button>
@@ -1133,8 +1213,15 @@ function QuestionsPanel() {
                   <span className="ap-bc-sep">›</span>
                   <span
                     className="ap-bc-item ap-bc-link"
-                    onClick={() => { setView('topics'); setSelectedTopic(null); }}
+                    onClick={() => { setView('difficulty'); setSelectedDifficulty(null); setSelectedTopic(null); setTopics([]); }}
                   >{curFolder?.icon} {curFolder?.label}</span>
+                  <span className="ap-bc-sep">›</span>
+                  <span
+                    className="ap-bc-item ap-bc-link"
+                    onClick={() => { setView('topics'); setSelectedTopic(null); }}
+                  >
+                    {selectedDifficulty === 'easy' ? '😊 Easy Mode' : '💀 Hard Mode'}
+                  </span>
                   <span className="ap-bc-sep">›</span>
                   <span className="ap-bc-item ap-bc-cur">
                     {selectedTopic === 'unassigned' ? '📋 Unassigned' : `📁 ${selectedTopic?.name}`}
@@ -1145,7 +1232,7 @@ function QuestionsPanel() {
               <div className="ap-toolbar">
                 <div className="ap-toolbar-left">
                   {isCatFolder(activeFolder) && (
-                    <button className="ap-btn-back" onClick={() => { setView('topics'); setSelectedTopic(null); }}>
+                    <button className="ap-btn-back" onClick={() => { setView('topics'); setSelectedTopic(null); setSearch(''); }}>
                       ← Back
                     </button>
                   )}
@@ -1363,6 +1450,7 @@ function QuestionsPanel() {
           question={modal === 'add' ? null : modal}
           defaultSubject={activeFolder}
           defaultTopicId={selectedTopic && selectedTopic !== 'unassigned' ? selectedTopic.id : ''}
+          defaultDifficulty={selectedDifficulty || 'easy'}
           topics={isCatFolder(activeFolder) ? topics : []}
           onSave={handleSaved}
           onClose={() => setModal(null)}

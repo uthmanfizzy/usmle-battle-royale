@@ -108,8 +108,13 @@ CREATE TABLE IF NOT EXISTS topics (
   id         UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
   name       TEXT        NOT NULL,
   category   TEXT        NOT NULL,
+  difficulty TEXT        NOT NULL DEFAULT 'easy',
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Add difficulty to existing topics tables (safe to run on existing databases)
+ALTER TABLE topics ADD COLUMN IF NOT EXISTS difficulty text NOT NULL DEFAULT 'easy';
+UPDATE topics SET difficulty = 'easy' WHERE difficulty IS NULL;
 
 ALTER TABLE topics ENABLE ROW LEVEL SECURITY;
 

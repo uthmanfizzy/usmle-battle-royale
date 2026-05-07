@@ -2791,3 +2791,80 @@
   margin-bottom: 4px;
 }
 .bim-preview-icon { font-size: 15px; }
+
+/* ── Difficulty Selection Level ─────────────────────────────────────────────── */
+
+.ap-difficulty-level { display: flex; flex-direction: column; }
+
+.ap-diff-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.ap-diff-card {
+  position: relative;
+  background: var(--card);
+  border: 2px solid var(--border);
+  border-radius: 16px;
+  padding: 36px 28px 32px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+  transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s, background 0.2s;
+}
+
+.ap-diff-card:hover {
+  transform: translateY(-2px);
+}
+
+.ap-diff-card-easy {
+  border-color: rgba(39,174,96,0.35);
+}
+.ap-diff-card-easy:hover {
+  border-color: #27ae60;
+  box-shadow: 0 0 0 3px rgba(39,174,96,0.15), 0 8px 24px rgba(39,174,96,0.12);
+  background: rgba(39,174,96,0.04);
+}
+
+.ap-diff-card-hard {
+  border-color: rgba(231,76,60,0.35);
+}
+.ap-diff-card-hard:hover {
+  border-color: #e74c3c;
+  box-shadow: 0 0 0 3px rgba(231,76,60,0.15), 0 8px 24px rgba(231,76,60,0.12);
+  background: rgba(231,76,60,0.04);
+}
+
+.ap-dc-icon   { font-size: 48px; line-height: 1; }
+.ap-dc-title  { font-size: 22px; font-weight: 800; color: var(--text); }
+.ap-dc-count  { font-size: 14px; font-weight: 600; color: var(--text-dim); }
+.ap-dc-sub    { font-size: 13px; color: var(--text-dim); max-width: 220px; line-height: 1.4; }
+
+.ap-diff-card-easy .ap-dc-title { color: #27ae60; }
+.ap-diff-card-hard .ap-dc-title { color: #e74c3c; }
+.ap-diff-card-easy .ap-dc-count { color: rgba(39,174,96,0.8); }
+.ap-diff-card-hard .ap-dc-count { color: rgba(231,76,60,0.8); }
+
+.ap-dc-coming-soon {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: rgba(231,76,60,0.15);
+  border: 1px solid rgba(231,76,60,0.3);
+  color: #e74c3c;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 99px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* Difficulty-tinted heading label in topics view */
+.ap-fh-diff-easy { color: #27ae60; }
+.ap-fh-diff-hard { color: #e74c3c; }

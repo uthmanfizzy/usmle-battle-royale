@@ -2242,10 +2242,11 @@ app.delete('/admin/questions/:id', adminAuth, (req, res) => {
 
 app.get('/admin/topics', adminAuth, async (req, res) => {
   if (!supabase) return res.json({ topics: [] });
-  const { category } = req.query;
+  const { category, difficulty } = req.query;
   try {
     let query = supabase.from('topics').select('*').order('name');
-    if (category) query = query.eq('category', category);
+    if (category)   query = query.eq('category', category);
+    if (difficulty) query = query.eq('difficulty', difficulty);
     const { data, error } = await query;
     if (error) throw error;
     const topics = (data || []).map(t => ({
@@ -2258,12 +2259,12 @@ app.get('/admin/topics', adminAuth, async (req, res) => {
 
 app.post('/admin/topics', adminAuth, async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
-  const { name, category } = req.body;
+  const { name, category, difficulty } = req.body;
   if (!name?.trim() || !category) return res.status(400).json({ error: 'name and category required' });
   try {
     const { data, error } = await supabase
       .from('topics')
-      .insert({ name: name.trim(), category })
+      .insert({ name: name.trim(), category, difficulty: difficulty || 'easy' })
       .select()
       .single();
     if (error) throw error;
