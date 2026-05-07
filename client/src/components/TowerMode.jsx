@@ -205,6 +205,8 @@ export default function TowerMode({ username, onBack }) {
   const unlockedFloorRef  = useRef(saved.floor || 1);
   const totalXpRef        = useRef(saved.xp || 0);
   const beginPlayingRef   = useRef(null);
+  const skipTimerRef      = useRef(null);
+  const skipActionRef     = useRef(null);
 
   // keep refs in sync with state at each render
   revealedRef.current      = revealed;
@@ -334,7 +336,16 @@ export default function TowerMode({ username, onBack }) {
       correctRef.current = newCorrect;
       setCorrectCount(newCorrect);
 
-      setTimeout(() => {
+      const scheduleAdvance = (fn) => {
+        skipActionRef.current = fn;
+        skipTimerRef.current  = setTimeout(() => {
+          skipTimerRef.current  = null;
+          skipActionRef.current = null;
+          fn();
+        }, 2200);
+      };
+
+      scheduleAdvance(() => {
         if (newCorrect >= target) {
           // ── Floor cleared: calculate XP ──
           const baseXp       = type === 'boss' ? 150 : type === 'challenge' ? 60 : 30;
@@ -373,14 +384,19 @@ export default function TowerMode({ username, onBack }) {
           setSelected(null);
           startTimer();
         }
-      }, 2200);
+      });
 
     } else {
       audio.playWrong();
 
       if (type === 'boss') {
         setBossKilled(true);
-        setTimeout(() => setView('failed'), 2200);
+        skipActionRef.current = () => setView('failed');
+        skipTimerRef.current  = setTimeout(() => {
+          skipTimerRef.current  = null;
+          skipActionRef.current = null;
+          setView('failed');
+        }, 2200);
       } else {
         livesLostRef.current += 1;
         const newLives = livesRef.current - 1;
@@ -389,9 +405,14 @@ export default function TowerMode({ username, onBack }) {
 
         if (newLives <= 0) {
           audio.playEliminated();
-          setTimeout(() => setView('failed'), 2200);
+          skipActionRef.current = () => setView('failed');
+          skipTimerRef.current  = setTimeout(() => {
+            skipTimerRef.current  = null;
+            skipActionRef.current = null;
+            setView('failed');
+          }, 2200);
         } else {
-          setTimeout(() => {
+          skipActionRef.current = () => {
             const nextIdx = qIdxRef.current + 1;
             qIdxRef.current = nextIdx;
             setQIdx(nextIdx);
@@ -399,6 +420,12 @@ export default function TowerMode({ username, onBack }) {
             setRevealed(false);
             setSelected(null);
             startTimer();
+          };
+          skipTimerRef.current = setTimeout(() => {
+            const fn = skipActionRef.current;
+            skipTimerRef.current  = null;
+            skipActionRef.current = null;
+            fn && fn();
           }, 2200);
         }
       }
@@ -406,6 +433,12 @@ export default function TowerMode({ username, onBack }) {
   }
 
   processRef.current = processAnswer;
+
+  function handleSkip() {
+    if (skipTimerRef.current) { clearTimeout(skipTimerRef.current); skipTimerRef.current = null; }
+    const fn = skipActionRef.current;
+    if (fn) { skipActionRef.current = null; fn(); }
+  }
 
   // ── Derived ────────────────────────────────────────────────────────────────
 
@@ -795,6 +828,9 @@ export default function TowerMode({ username, onBack }) {
                   <div className="tw-rv-expl">
                     <strong>Correct answer: {q.correct}</strong>
                     <p>{q.explanation}</p>
+                  </div>
+                  <div className="rr-skip-row">
+                    <button className="rr-skip-btn" onClick={handleSkip}>Skip →</button>
                   </div>
                 </div>
               )}

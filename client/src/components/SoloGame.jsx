@@ -29,15 +29,17 @@ export default function SoloGame({ subject, username, onBack, onTryAgain, onChan
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState('');
 
-  const timerRef = useRef(null);
-  const timeLeftRef = useRef(20);
-  const revealedRef = useRef(false);
-  const livesRef = useRef(3);
-  const scoreRef = useRef(0);
-  const streakRef = useRef(0);
+  const timerRef      = useRef(null);
+  const timeLeftRef   = useRef(20);
+  const revealedRef   = useRef(false);
+  const livesRef      = useRef(3);
+  const scoreRef      = useRef(0);
+  const streakRef     = useRef(0);
   const bestStreakRef = useRef(0);
-  const qIdxRef = useRef(0);
-  const questionsRef = useRef([]);
+  const qIdxRef       = useRef(0);
+  const questionsRef  = useRef([]);
+  const skipTimerRef  = useRef(null);
+  const skipActionRef = useRef(null);
 
   revealedRef.current = revealed;
   livesRef.current = lives;
@@ -107,13 +109,15 @@ export default function SoloGame({ subject, username, onBack, onTryAgain, onChan
     setStreak(newStreak);
     setBestStreak(newBest);
 
-    const nextIdx = qIdxRef.current + 1;
+    const nextIdx  = qIdxRef.current + 1;
     const exhausted = nextIdx >= questionsRef.current.length;
 
-    setTimeout(() => {
+    const doAdvance = () => {
+      skipTimerRef.current  = null;
+      skipActionRef.current = null;
       if (newLives === 0 || exhausted) {
         audio.stopGameMusic();
-        const hi = getHi(subject);
+        const hi    = getHi(subject);
         const newHi = newScore > hi;
         if (newHi) saveHi(subject, newScore);
         setFinalScore(newScore);
@@ -127,7 +131,10 @@ export default function SoloGame({ subject, username, onBack, onTryAgain, onChan
         setBonusPoints(0);
         setQIdx(nextIdx);
       }
-    }, 12500);
+    };
+
+    skipActionRef.current = doAdvance;
+    skipTimerRef.current  = setTimeout(doAdvance, 12500);
   }, [subject]);
 
   processAnswerRef.current = processAnswer;
@@ -151,6 +158,12 @@ export default function SoloGame({ subject, username, onBack, onTryAgain, onChan
 
     return () => { if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; } };
   }, [qIdx, loading, gameOver, questions.length]);
+
+  function handleSkip() {
+    if (skipTimerRef.current) { clearTimeout(skipTimerRef.current); skipTimerRef.current = null; }
+    const fn = skipActionRef.current;
+    if (fn) { skipActionRef.current = null; fn(); }
+  }
 
   if (loading) {
     return (
@@ -266,6 +279,9 @@ export default function SoloGame({ subject, username, onBack, onTryAgain, onChan
             <div className="rr-explanation">
               <strong>Correct answer: {q.correct}</strong>
               <p>{q.explanation}</p>
+            </div>
+            <div className="rr-skip-row">
+              <button className="rr-skip-btn" onClick={handleSkip}>Next Question →</button>
             </div>
           </div>
         )}
