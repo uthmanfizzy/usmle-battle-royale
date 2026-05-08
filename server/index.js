@@ -180,6 +180,34 @@ let gameSettings = {
   towerZone10Desc: 'The final ten floors. Boss encounters on every level. Only legends reach the top.',
 };
 
+// ── Persist / load game settings via Supabase ─────────────────────────────────
+
+async function loadSettingsFromDB() {
+  if (!supabase) return;
+  try {
+    const { data, error } = await supabase
+      .from('game_settings').select('settings').eq('id', 'default').maybeSingle();
+    if (error) { console.warn('[Settings] Load error:', error.message); return; }
+    if (data?.settings && typeof data.settings === 'object') {
+      gameSettings = { ...gameSettings, ...data.settings };
+      console.log('[Settings] Loaded from Supabase');
+    }
+  } catch (err) {
+    console.warn('[Settings] Load failed:', err.message);
+  }
+}
+
+async function persistSettingsToDB() {
+  if (!supabase) return null;
+  const { error } = await supabase
+    .from('game_settings')
+    .upsert(
+      { id: 'default', settings: gameSettings, updated_at: new Date().toISOString() },
+      { onConflict: 'id' }
+    );
+  return error || null;
+}
+
 // ── In-memory stats (server-lifetime counters) ────────────────────────────────
 
 let totalGamesPlayed = 0;
@@ -2075,7 +2103,7 @@ app.get('/admin/stats', adminAuth, (req, res) => {
 
 app.get('/admin/settings', adminAuth, (req, res) => res.json(gameSettings));
 
-app.post('/admin/settings', adminAuth, (req, res) => {
+app.post('/admin/settings', adminAuth, async (req, res) => {
   const b = req.body;
   // Legacy compat
   if (b.hardModeEnabled !== undefined) gameSettings.hardModeEnabled = Boolean(b.hardModeEnabled);
@@ -2110,6 +2138,12 @@ app.post('/admin/settings', adminAuth, (req, res) => {
     const nk = `towerZone${i}Name`, dk = `towerZone${i}Desc`;
     if (b[nk] !== undefined) gameSettings[nk] = String(b[nk]).slice(0, 100);
     if (b[dk] !== undefined) gameSettings[dk] = String(b[dk]).slice(0, 500);
+  }
+  // Persist to Supabase so settings survive server restarts
+  const persistErr = await persistSettingsToDB();
+  if (persistErr) {
+    console.warn('[Settings] Persist error:', persistErr.message);
+    return res.status(500).json({ error: 'Settings updated but failed to persist to database: ' + persistErr.message });
   }
   res.json(gameSettings);
 });
@@ -2606,4 +2640,5 @@ app.get('/health', (req, res) => res.json({
 
 server.listen(PORT, () => {
   console.log(`USMLE Battle Royale server running on port ${PORT}`);
+  loadSettingsFromDB();
 });

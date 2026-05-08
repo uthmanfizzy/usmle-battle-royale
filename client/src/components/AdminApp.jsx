@@ -2427,15 +2427,14 @@ function ToggleRow({ label, desc, checked, onChange }) {
   );
 }
 
-function SectionSaveBtn({ saving, saved, onSave }) {
+function SectionSaveBtn({ saving, saved, error, onSave }) {
+  const cls = saved ? 'saved' : error ? 'error' : '';
+  const label = saving ? 'Saving…' : saved ? '✓ Saved!' : error ? '✗ Failed — try again' : 'Save Settings';
   return (
     <div className="ap-section-footer">
-      <button
-        className={`ap-section-save-btn ${saved ? 'saved' : ''}`}
-        onClick={onSave}
-        disabled={saving}
-      >
-        {saving ? 'Saving…' : saved ? '✓ Saved!' : 'Save Settings'}
+      {error && <span className="ap-section-save-err">{error}</span>}
+      <button className={`ap-section-save-btn ${cls}`} onClick={onSave} disabled={saving}>
+        {label}
       </button>
     </div>
   );
@@ -2492,36 +2491,64 @@ function ZoneRow({ zoneNum, name, desc, onNameChange, onDescChange }) {
 // ── Settings Panel ─────────────────────────────────────────────────────────────
 
 function SettingsPanel() {
-  const [settings, setSettings] = useState(null);
-  const [loading,  setLoading]  = useState(true);
-  const [error,    setError]    = useState('');
-  const [saving,   setSaving]   = useState({ questions: false, lives: false, lobby: false, xp: false, modes: false, maintenance: false, ui: false, tower: false });
-  const [saved,    setSaved]    = useState({ questions: false, lives: false, lobby: false, xp: false, modes: false, maintenance: false, ui: false, tower: false });
-  const [resetMsg, setResetMsg] = useState('');
+  const SECTIONS = ['questions', 'lives', 'lobby', 'xp', 'modes', 'maintenance', 'ui', 'tower'];
+  const sectionInit = () => Object.fromEntries(SECTIONS.map(k => [k, false]));
+  const sectionErrInit = () => Object.fromEntries(SECTIONS.map(k => [k, '']));
+
+  const [settings,    setSettings]    = useState(null);
+  const [loading,     setLoading]     = useState(true);
+  const [saving,      setSaving]      = useState(sectionInit);
+  const [saved,       setSaved]       = useState(sectionInit);
+  const [saveErr,     setSaveErr]     = useState(sectionErrInit);
+  const [savingAll,   setSavingAll]   = useState(false);
+  const [savedAll,    setSavedAll]    = useState(false);
+  const [saveErrAll,  setSaveErrAll]  = useState('');
+  const [resetMsg,    setResetMsg]    = useState('');
+  const [loadErr,     setLoadErr]     = useState('');
 
   useEffect(() => {
     apiCall('/admin/settings')
       .then(r => r.json())
       .then(raw => setSettings(withDefaults(raw)))
-      .catch(() => setError('Failed to load settings.'))
+      .catch(() => setLoadErr('Failed to load settings.'))
       .finally(() => setLoading(false));
   }, []);
 
+  async function doSave() {
+    const res  = await apiCall('/admin/settings', { method: 'POST', body: JSON.stringify(settings) });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Save failed');
+    setSettings(withDefaults(data));
+  }
+
   async function saveSection(section) {
-    setSaving(s => ({ ...s, [section]: true }));
-    setSaved(s  => ({ ...s, [section]: false }));
-    setError('');
+    setSaving(s  => ({ ...s, [section]: true }));
+    setSaved(s   => ({ ...s, [section]: false }));
+    setSaveErr(s => ({ ...s, [section]: '' }));
     try {
-      const res  = await apiCall('/admin/settings', { method: 'POST', body: JSON.stringify(settings) });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Save failed');
-      setSettings(withDefaults(data));
+      await doSave();
       setSaved(s => ({ ...s, [section]: true }));
       setTimeout(() => setSaved(s => ({ ...s, [section]: false })), 3000);
     } catch (err) {
-      setError(err.message);
+      setSaveErr(s => ({ ...s, [section]: err.message }));
+      setTimeout(() => setSaveErr(s => ({ ...s, [section]: '' })), 5000);
     }
     setSaving(s => ({ ...s, [section]: false }));
+  }
+
+  async function saveAll() {
+    setSavingAll(true);
+    setSavedAll(false);
+    setSaveErrAll('');
+    try {
+      await doSave();
+      setSavedAll(true);
+      setTimeout(() => setSavedAll(false), 3000);
+    } catch (err) {
+      setSaveErrAll(err.message);
+      setTimeout(() => setSaveErrAll(''), 5000);
+    }
+    setSavingAll(false);
   }
 
   async function handleReset(endpoint, confirmMsg, successMsg) {
@@ -2541,10 +2568,29 @@ function SettingsPanel() {
   function upd(key, val) { setSettings(s => ({ ...s, [key]: val })); }
 
   if (loading)   return <div className="ap-loading">Loading settings…</div>;
-  if (!settings) return <div className="ap-error">{error || 'Failed to load settings.'}</div>;
+  if (!settings) return <div className="ap-error">{loadErr || 'Failed to load settings.'}</div>;
 
   return (
     <div className="ap-settings-v2">
+
+      {/* ── SAVE ALL BANNER ───────────────────────────────────────────── */}
+      <div className="ap-save-all-bar">
+        <div className="ap-save-all-info">
+          <span className="ap-save-all-title">Game Settings</span>
+          <span className="ap-save-all-sub">Changes are applied live — each section has its own save button, or save everything at once below.</span>
+        </div>
+        <div className="ap-save-all-actions">
+          {saveErrAll && <span className="ap-section-save-err">{saveErrAll}</span>}
+          {savedAll   && <span className="ap-save-all-ok">✓ All settings saved!</span>}
+          <button
+            className={`ap-section-save-btn ap-save-all-btn ${savedAll ? 'saved' : ''} ${saveErrAll ? 'error' : ''}`}
+            onClick={saveAll}
+            disabled={savingAll}
+          >
+            {savingAll ? 'Saving…' : savedAll ? '✓ Saved!' : saveErrAll ? '✗ Failed — try again' : '💾 Save All Settings'}
+          </button>
+        </div>
+      </div>
 
       {/* ── 1. QUESTION SETTINGS ──────────────────────────────────────── */}
       <div className="ap-settings-section">
@@ -2626,7 +2672,7 @@ function SettingsPanel() {
             onChange={v => upd('minQuestionsPerCategory', v)} />
         </div>
 
-        <SectionSaveBtn saving={saving.questions} saved={saved.questions} onSave={() => saveSection('questions')} />
+        <SectionSaveBtn saving={saving.questions} saved={saved.questions} error={saveErr.questions} onSave={() => saveSection('questions')} />
       </div>
 
       {/* ── 2. LIVES & DIFFICULTY ─────────────────────────────────────── */}
@@ -2702,7 +2748,7 @@ function SettingsPanel() {
           </div>
         </div>
 
-        <SectionSaveBtn saving={saving.lives} saved={saved.lives} onSave={() => saveSection('lives')} />
+        <SectionSaveBtn saving={saving.lives} saved={saved.lives} error={saveErr.lives} onSave={() => saveSection('lives')} />
       </div>
 
       {/* ── 3. LOBBY SETTINGS ─────────────────────────────────────────── */}
@@ -2771,7 +2817,7 @@ function SettingsPanel() {
             onChange={v => upd('allowQuickJoin', v)} />
         </div>
 
-        <SectionSaveBtn saving={saving.lobby} saved={saved.lobby} onSave={() => saveSection('lobby')} />
+        <SectionSaveBtn saving={saving.lobby} saved={saved.lobby} error={saveErr.lobby} onSave={() => saveSection('lobby')} />
       </div>
 
       {/* ── 4. XP & PROGRESSION ───────────────────────────────────────── */}
@@ -2848,7 +2894,7 @@ function SettingsPanel() {
           </div>
         </div>
 
-        <SectionSaveBtn saving={saving.xp} saved={saved.xp} onSave={() => saveSection('xp')} />
+        <SectionSaveBtn saving={saving.xp} saved={saved.xp} error={saveErr.xp} onSave={() => saveSection('xp')} />
       </div>
 
       {/* ── 5. GAME MODE SETTINGS ─────────────────────────────────────── */}
@@ -2907,7 +2953,7 @@ function SettingsPanel() {
             onChange={v => upd('powerUpsEnabled', v)} />
         </div>
 
-        <SectionSaveBtn saving={saving.modes} saved={saved.modes} onSave={() => saveSection('modes')} />
+        <SectionSaveBtn saving={saving.modes} saved={saved.modes} error={saveErr.modes} onSave={() => saveSection('modes')} />
       </div>
 
       {/* ── 6. MAINTENANCE ────────────────────────────────────────────── */}
@@ -2959,7 +3005,7 @@ function SettingsPanel() {
           </div>
         </div>
 
-        <SectionSaveBtn saving={saving.maintenance} saved={saved.maintenance} onSave={() => saveSection('maintenance')} />
+        <SectionSaveBtn saving={saving.maintenance} saved={saved.maintenance} error={saveErr.maintenance} onSave={() => saveSection('maintenance')} />
 
         <div className="ap-danger-zone">
           <div className="ap-danger-zone-title">⚠️ Danger Zone</div>
@@ -3031,7 +3077,7 @@ function SettingsPanel() {
             onChange={v => upd('backgroundMusicEnabled', v)} />
         </div>
 
-        <SectionSaveBtn saving={saving.ui} saved={saved.ui} onSave={() => saveSection('ui')} />
+        <SectionSaveBtn saving={saving.ui} saved={saved.ui} error={saveErr.ui} onSave={() => saveSection('ui')} />
       </div>
 
       {/* ── 8. TOWER / STORY MODE ─────────────────────────────────────── */}
@@ -3170,7 +3216,7 @@ function SettingsPanel() {
             onChange={v => upd('towerXpZoneBonus', v)} />
         </div>
 
-        <SectionSaveBtn saving={saving.tower} saved={saved.tower} onSave={() => saveSection('tower')} />
+        <SectionSaveBtn saving={saving.tower} saved={saved.tower} error={saveErr.tower} onSave={() => saveSection('tower')} />
 
         {/* Zone customisation */}
         <div className="ap-zone-editor">
@@ -3189,12 +3235,13 @@ function SettingsPanel() {
             ))}
           </div>
           <div className="ap-section-footer">
+            {saveErr.tower && <span className="ap-section-save-err">{saveErr.tower}</span>}
             <button
-              className={`ap-section-save-btn ${saved.tower ? 'saved' : ''}`}
+              className={`ap-section-save-btn ${saved.tower ? 'saved' : ''} ${saveErr.tower ? 'error' : ''}`}
               onClick={() => saveSection('tower')}
               disabled={saving.tower}
             >
-              {saving.tower ? 'Saving…' : saved.tower ? '✓ Saved!' : 'Save Zone Names'}
+              {saving.tower ? 'Saving…' : saved.tower ? '✓ Saved!' : saveErr.tower ? '✗ Failed — try again' : 'Save Zone Names'}
             </button>
           </div>
         </div>
@@ -3222,8 +3269,6 @@ function SettingsPanel() {
           )}
         </div>
       </div>
-
-      {error && <div className="ap-error" style={{ marginTop: 4 }}>{error}</div>}
 
     </div>
   );

@@ -1269,7 +1269,57 @@
 }
 .ap-section-save-btn:hover:not(:disabled) { opacity: 0.88; }
 .ap-section-save-btn:disabled { opacity: 0.45; cursor: not-allowed; }
-.ap-section-save-btn.saved { background: var(--green); }
+.ap-section-save-btn.saved { background: var(--green); color: #fff; }
+.ap-section-save-btn.error { background: var(--red);   color: #fff; }
+
+.ap-section-save-err {
+  font-size: 12px;
+  color: var(--red);
+  margin-right: 12px;
+  max-width: 280px;
+  word-break: break-word;
+}
+
+/* Save All banner */
+.ap-save-all-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background: var(--surface);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 14px;
+  padding: 18px 24px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+.ap-save-all-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.ap-save-all-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+}
+.ap-save-all-sub {
+  font-size: 12px;
+  color: var(--text-muted, #888);
+  max-width: 480px;
+}
+.ap-save-all-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.ap-save-all-btn { min-width: 180px; }
+.ap-save-all-ok {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--green);
+}
 
 /* Textarea row */
 .ap-srow-tall {

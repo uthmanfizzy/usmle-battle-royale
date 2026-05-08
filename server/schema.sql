@@ -164,3 +164,16 @@ CREATE POLICY IF NOT EXISTS "server_full_access_history"
 
 CREATE POLICY IF NOT EXISTS "server_full_access_announcements"
   ON announcements FOR ALL USING (true) WITH CHECK (true);
+
+-- ── game_settings (single-row JSONB — persists admin panel configuration) ──────
+
+CREATE TABLE IF NOT EXISTS game_settings (
+  id          TEXT        PRIMARY KEY DEFAULT 'default',
+  settings    JSONB       NOT NULL DEFAULT '{}',
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE game_settings ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY IF NOT EXISTS "server_full_access_game_settings"
+  ON game_settings FOR ALL USING (true) WITH CHECK (true);
