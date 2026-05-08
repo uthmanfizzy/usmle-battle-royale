@@ -242,30 +242,23 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
         });
       }
       try {
-        const googleId   = profile.id;
-        const email      = profile.emails?.[0]?.value ?? null;
-        const avatarUrl  = profile.photos?.[0]?.value ?? null;
-        const displayName = profile.displayName ?? email ?? 'Player';
+        const googleId  = profile.id;
+        const email     = profile.emails?.[0]?.value ?? null;
+        const avatarUrl = profile.photos?.[0]?.value ?? null;
 
-        // Upsert user (.maybeSingle returns null data — no error — when not found)
-        let { data: user } = await supabase
-          .from('users').select('*').eq('google_id', googleId).maybeSingle();
+        // Upsert: create user on first login, refresh email/avatar on subsequent logins.
+        // username is NOT included so existing usernames are never overwritten.
+        const { data: user, error: upsertErr } = await supabase
+          .from('users')
+          .upsert(
+            { google_id: googleId, email, avatar_url: avatarUrl },
+            { onConflict: 'google_id', ignoreDuplicates: false }
+          )
+          .select('*')
+          .single();
 
-        if (!user) {
-          const { data: created, error: createErr } = await supabase
-            .from('users')
-            .insert({ google_id: googleId, email, username: null, avatar_url: avatarUrl })
-            .select().single();
-          if (createErr) return done(createErr);
-          user = created;
-        } else {
-          // Refresh avatar/email silently
-          const { data: updated } = await supabase
-            .from('users')
-            .update({ email, avatar_url: avatarUrl })
-            .eq('id', user.id).select().single();
-          if (updated) user = updated;
-        }
+        if (upsertErr) return done(upsertErr);
+        if (!user) return done(new Error('Failed to create or retrieve user record'));
 
         done(null, user);
       } catch (err) { done(err); }
@@ -1875,14 +1868,17 @@ app.put('/auth/username', requireAuth, async (req, res) => {
     return res.status(400).json({ error: 'Username can only contain letters, numbers, and underscores.' });
 
   try {
+    // Use select('*') so the query never fails on a missing column (e.g. last_username_change
+    // may not yet exist on older DB deployments — adding it to schema.sql and running
+    // the ALTER TABLE migration will unlock the cooldown feature).
     const { data: user, error: userErr } = await supabase
-      .from('users').select('username, last_username_change').eq('id', req.userId).single();
+      .from('users').select('*').eq('id', req.userId).single();
     if (userErr || !user) return res.status(404).json({ error: 'User not found.' });
 
-    // 365-day cooldown
+    // 365-day cooldown (only enforced once the last_username_change column exists)
     if (user.last_username_change) {
-      const lastChange = new Date(user.last_username_change);
-      const msElapsed  = Date.now() - lastChange.getTime();
+      const lastChange  = new Date(user.last_username_change);
+      const msElapsed   = Date.now() - lastChange.getTime();
       const MS_PER_YEAR = 365 * 24 * 60 * 60 * 1000;
       if (msElapsed < MS_PER_YEAR) {
         const nextChange = new Date(lastChange.getTime() + MS_PER_YEAR);
@@ -1902,16 +1898,21 @@ app.put('/auth/username', requireAuth, async (req, res) => {
       .from('users').select('id').ilike('username', trimmed).neq('id', req.userId).maybeSingle();
     if (existing) return res.status(409).json({ error: 'That username is already taken.' });
 
-    const now = new Date().toISOString();
+    // Only stamp last_username_change if the column exists (present in the fetched row)
+    const updateData = { username: trimmed };
+    if ('last_username_change' in user) {
+      updateData.last_username_change = new Date().toISOString();
+    }
+
     const { data: updated, error: updateErr } = await supabase
       .from('users')
-      .update({ username: trimmed, last_username_change: now })
+      .update(updateData)
       .eq('id', req.userId)
-      .select('username, last_username_change')
+      .select('*')
       .single();
     if (updateErr) return res.status(500).json({ error: updateErr.message });
 
-    res.json({ ok: true, username: updated.username, last_username_change: updated.last_username_change });
+    res.json({ ok: true, username: updated.username, last_username_change: updated.last_username_change ?? null });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

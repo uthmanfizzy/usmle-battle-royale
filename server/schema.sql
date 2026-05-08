@@ -20,18 +20,22 @@ CREATE TABLE IF NOT EXISTS clans (
 -- ── users ──────────────────────────────────────────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS users (
-  id            UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-  google_id     TEXT        UNIQUE NOT NULL,
-  email         TEXT,
-  username      TEXT,
-  avatar_url    TEXT,
-  xp            INTEGER     NOT NULL DEFAULT 0,
-  level         INTEGER     NOT NULL DEFAULT 1,
-  games_played  INTEGER     NOT NULL DEFAULT 0,
-  games_won     INTEGER     NOT NULL DEFAULT 0,
-  clan_id       UUID        REFERENCES clans(id) ON DELETE SET NULL,
-  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  id                    UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  google_id             TEXT        UNIQUE NOT NULL,
+  email                 TEXT,
+  username              TEXT,
+  avatar_url            TEXT,
+  xp                    INTEGER     NOT NULL DEFAULT 0,
+  level                 INTEGER     NOT NULL DEFAULT 1,
+  games_played          INTEGER     NOT NULL DEFAULT 0,
+  games_won             INTEGER     NOT NULL DEFAULT 0,
+  clan_id               UUID        REFERENCES clans(id) ON DELETE SET NULL,
+  created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_username_change  TIMESTAMPTZ
 );
+
+-- Migration: add last_username_change if the table already exists without it
+ALTER TABLE users ADD COLUMN IF NOT EXISTS last_username_change TIMESTAMPTZ;
 
 -- Add FK from clans.created_by → users now that users exists
 ALTER TABLE clans
