@@ -2281,20 +2281,33 @@ app.get('/admin/questions', adminAuth, async (req, res) => {
 app.post('/admin/questions/bulk', adminAuth, async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Supabase not configured. Cannot save questions.' });
 
-  const { questions, topic_id } = req.body;
+  const { questions, topic_id, category: defaultCategory, difficulty: defaultDifficulty } = req.body;
   if (!Array.isArray(questions)) return res.status(400).json({ error: 'Expected { questions: [...] }' });
 
+  console.log(`[bulk-import] Starting import of ${questions.length} questions`);
+  console.log(`[bulk-import] Default topic_id: ${topic_id || 'none'}, category: ${defaultCategory || 'none'}, difficulty: ${defaultDifficulty || 'none'}`);
+
   const added = [];
+  const updated = [];
   const skipped = [];
 
-  for (const raw of questions) {
-    // Normalise field name aliases
-    const subject = raw.subject || raw.category;
+  for (let i = 0; i < questions.length; i++) {
+    const raw = questions[i];
+
+    // Normalise field name aliases - use default category if not provided
+    let subject = raw.subject || raw.category || defaultCategory;
+    // Normalize category to lowercase for consistency
+    if (subject) subject = subject.toLowerCase();
+
     const rawOptions = raw.options || raw.choices;
     // Strip leading "A. " / "B. " / "C. " / "D. " prefixes that some export tools add
     const options = Array.isArray(rawOptions)
       ? rawOptions.map(o => String(o).replace(/^[A-Da-d][.)]\s*/, '').trim())
       : rawOptions;
+
+    // Use default difficulty if not provided, normalize to lowercase
+    let difficulty = raw.difficulty || defaultDifficulty || 'easy';
+    difficulty = difficulty.toLowerCase();
 
     const missing = [];
     if (!subject)                                              missing.push('subject / category');
@@ -2302,14 +2315,20 @@ app.post('/admin/questions/bulk', adminAuth, async (req, res) => {
     if (!Array.isArray(options) || options.length !== 4)       missing.push('options / choices (must be array of 4)');
     if (!raw.correct)                                          missing.push('correct');
     if (!raw.explanation)                                      missing.push('explanation');
-    if (missing.length) { skipped.push({ question: raw.question || '?', missing }); continue; }
+
+    if (missing.length) {
+      const reason = `Missing fields: ${missing.join(', ')}`;
+      console.log(`[bulk-import] Q${i + 1} SKIPPED: ${reason}`);
+      skipped.push({ index: i + 1, question: (raw.question || '?').substring(0, 50) + '...', reason });
+      continue;
+    }
 
     const questionId = nextQuestionId(subject);
     const gameModes = Array.isArray(raw.game_modes) && raw.game_modes.length > 0
       ? raw.game_modes
       : (raw.image_url ? ['scan_master'] : ['battle_royale', 'speed_race', 'trivia_pursuit']);
 
-    // Insert into Supabase
+    // Build record for Supabase
     const record = {
       question_id: questionId,
       question: raw.question,
@@ -2317,17 +2336,61 @@ app.post('/admin/questions/bulk', adminAuth, async (req, res) => {
       correct: raw.correct,
       explanation: raw.explanation,
       category: subject,
-      difficulty: raw.difficulty || 'easy',
+      difficulty: difficulty,
       game_modes: gameModes,
       image_url: raw.image_url || null,
       tower_floor: (raw.tower_floor != null && !isNaN(parseInt(raw.tower_floor))) ? parseInt(raw.tower_floor) : null,
       buzz_type: (raw.buzz_type && gameModes.includes('buzz_fun')) ? raw.buzz_type : null,
-      topic_id: topic_id || null,
+      topic_id: topic_id || raw.topic_id || null,
     };
 
     try {
-      const { data, error } = await supabase.from('questions').insert(record).select().single();
-      if (error) throw error;
+      // Use upsert to handle duplicates - update if question text already exists
+      const { data, error } = await supabase
+        .from('questions')
+        .upsert(record, { onConflict: 'question_id' })
+        .select()
+        .single();
+
+      if (error) {
+        // If duplicate question_id error, try to find by question text and update
+        if (error.code === '23505') {
+          console.log(`[bulk-import] Q${i + 1} duplicate question_id, checking for existing...`);
+          // Check if same question text exists
+          const { data: existing } = await supabase
+            .from('questions')
+            .select('question_id')
+            .eq('question', raw.question)
+            .single();
+
+          if (existing) {
+            // Update existing question
+            const { data: updatedData, error: updateError } = await supabase
+              .from('questions')
+              .update({
+                choices: options,
+                correct: raw.correct,
+                explanation: raw.explanation,
+                category: subject,
+                difficulty: difficulty,
+                game_modes: gameModes,
+                topic_id: topic_id || raw.topic_id || null,
+                updated_at: new Date().toISOString(),
+              })
+              .eq('question_id', existing.question_id)
+              .select()
+              .single();
+
+            if (updateError) throw updateError;
+            console.log(`[bulk-import] Q${i + 1} UPDATED existing: ${existing.question_id}`);
+            updated.push({ id: existing.question_id, question: raw.question.substring(0, 50) });
+            continue;
+          }
+        }
+        throw error;
+      }
+
+      console.log(`[bulk-import] Q${i + 1} ADDED: ${questionId}`);
 
       // Also add to in-memory cache
       const newQ = {
@@ -2348,11 +2411,25 @@ app.post('/admin/questions/bulk', adminAuth, async (req, res) => {
       questionBank.push(newQ);
       added.push(newQ);
     } catch (err) {
-      skipped.push({ question: raw.question, error: err.message });
+      const reason = err.message || 'Unknown error';
+      console.log(`[bulk-import] Q${i + 1} ERROR: ${reason}`);
+      skipped.push({ index: i + 1, question: (raw.question || '?').substring(0, 50) + '...', reason });
     }
   }
 
-  res.json({ added: added.length, skipped: skipped.length, questions: added, ...(skipped.length ? { skippedDetails: skipped } : {}) });
+  // Verify by fetching count from Supabase
+  const { count } = await supabase.from('questions').select('*', { count: 'exact', head: true });
+  console.log(`[bulk-import] Complete. Added: ${added.length}, Updated: ${updated.length}, Skipped: ${skipped.length}. Total in DB: ${count}`);
+
+  res.json({
+    added: added.length,
+    updated: updated.length,
+    skipped: skipped.length,
+    totalInDatabase: count,
+    questions: added,
+    updatedQuestions: updated.length > 0 ? updated : undefined,
+    skippedDetails: skipped.length > 0 ? skipped : undefined,
+  });
 });
 
 app.post('/admin/upload-image', adminAuth, async (req, res) => {
