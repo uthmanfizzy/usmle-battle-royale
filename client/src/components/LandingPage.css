@@ -310,67 +310,173 @@
   margin-top: 8px;
 }
 
-/* Primary Button - Ornamental */
-.lp-btn-primary {
-  display: flex;
+/* ─────────────────────────────────────────────────────────────────────────────
+   PARCHMENT/BOTANICAL BUTTON - Ornate CTA Style
+   ───────────────────────────────────────────────────────────────────────────── */
+.lp-btn-parchment {
+  position: relative;
+  display: inline-flex;
   align-items: center;
-  gap: 10px;
-  background: linear-gradient(135deg, var(--cream) 0%, var(--parchment) 100%);
-  border: 2px solid var(--gold);
-  color: var(--text-dark);
+  justify-content: center;
+  gap: 12px;
+
+  /* Parchment background with aged texture */
+  background:
+    /* Subtle noise/grain texture */
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E"),
+    /* Gradient for aged look */
+    linear-gradient(145deg,
+      #F5E6C8 0%,
+      #EED9B6 25%,
+      #F2E2C4 50%,
+      #E8D4B0 75%,
+      #F0DEC0 100%
+    );
+  background-color: #F5E6C8;
+
+  /* Dark olive/brown aged border */
+  border: 2px solid #5C4A1E;
+  border-radius: 6px;
+
+  /* Typography */
   font-family: 'Playfair Display', Georgia, serif;
-  font-size: 15px;
-  font-weight: 700;
+  font-size: 16px;
+  font-weight: 600;
   letter-spacing: 2px;
-  padding: 16px 32px;
-  border-radius: 4px;
+  color: #3D2B0F;
+
+  /* Sizing */
+  padding: 14px 32px;
+
+  /* Effects */
   cursor: pointer;
-  transition: all 0.3s;
+  transition: all 0.3s ease;
   box-shadow:
-    0 4px 20px rgba(0, 0, 0, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+    0 3px 12px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    inset 0 -1px 2px rgba(92, 74, 30, 0.1);
 }
 
-.lp-btn-primary:hover {
-  background: linear-gradient(135deg, var(--cream-light) 0%, var(--cream) 100%);
-  border-color: var(--gold-light);
-  transform: translateY(-2px);
+/* Leaf decorations using ::before and ::after */
+.lp-btn-parchment::before,
+.lp-btn-parchment::after {
+  content: '❧';
+  font-size: 16px;
+  color: #5C4A1E;
+  opacity: 0.7;
+  transition: all 0.3s ease;
+}
+
+.lp-btn-parchment::before {
+  transform: scaleX(-1);
+}
+
+/* Decorative dots around text */
+.lp-btn-text {
+  position: relative;
+  display: inline-block;
+}
+
+.lp-btn-text::before,
+.lp-btn-text::after {
+  content: '•';
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 8px;
+  color: #5C4A1E;
+  opacity: 0.5;
+}
+
+.lp-btn-text::before {
+  left: -10px;
+}
+
+.lp-btn-text::after {
+  right: -10px;
+}
+
+/* Hover state */
+.lp-btn-parchment:hover {
+  background:
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E"),
+    linear-gradient(145deg,
+      #E8C87A 0%,
+      #DDBB6A 25%,
+      #E5C576 50%,
+      #D9B562 75%,
+      #E2C270 100%
+    );
+  background-color: #E8C87A;
+  transform: scale(1.02);
+  border-color: #4A3A15;
   box-shadow:
-    0 8px 32px rgba(0, 0, 0, 0.4),
-    0 0 24px rgba(201, 168, 76, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+    0 6px 20px rgba(0, 0, 0, 0.25),
+    0 0 20px rgba(201, 168, 76, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    inset 0 -1px 2px rgba(92, 74, 30, 0.15);
 }
 
-.lp-btn-leaf {
-  font-size: 14px;
+.lp-btn-parchment:hover::before,
+.lp-btn-parchment:hover::after {
+  opacity: 1;
+  color: #3D2B0F;
 }
 
-/* Ghost Button */
+/* Active/click state */
+.lp-btn-parchment:active {
+  transform: translateY(2px) scale(1);
+  border-color: #3D2B0F;
+  box-shadow:
+    0 1px 6px rgba(0, 0, 0, 0.2),
+    inset 0 2px 4px rgba(92, 74, 30, 0.15);
+}
+
+/* Ghost Button - Secondary CTA with parchment-inspired style */
 .lp-btn-ghost {
-  display: flex;
+  position: relative;
+  display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 10px;
+
+  /* Transparent with subtle parchment tint on hover */
   background: transparent;
-  border: 2px solid var(--border-gold);
-  color: var(--cream);
+  border: 2px solid rgba(245, 230, 200, 0.3);
+  border-radius: 6px;
+
+  /* Typography */
   font-family: 'Playfair Display', Georgia, serif;
   font-size: 15px;
   font-weight: 600;
   letter-spacing: 2px;
+  color: var(--cream);
+
+  /* Sizing */
   padding: 14px 28px;
-  border-radius: 4px;
+
   cursor: pointer;
-  transition: all 0.3s;
+  transition: all 0.3s ease;
 }
 
 .lp-btn-ghost:hover {
-  border-color: var(--gold);
-  background: rgba(201, 168, 76, 0.1);
-  color: var(--gold);
+  background:
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.02'/%3E%3C/svg%3E"),
+    rgba(245, 230, 200, 0.1);
+  border-color: rgba(201, 168, 76, 0.5);
+  color: #F5E6C8;
+  transform: scale(1.02);
+  box-shadow: 0 0 16px rgba(201, 168, 76, 0.15);
+}
+
+.lp-btn-ghost:active {
+  transform: translateY(2px) scale(1);
+  border-color: rgba(201, 168, 76, 0.4);
 }
 
 .lp-play-icon {
   font-size: 10px;
+  opacity: 0.8;
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -792,10 +898,14 @@
     max-width: 280px;
   }
 
-  .lp-btn-primary,
+  .lp-btn-parchment,
   .lp-btn-ghost {
     width: 100%;
     justify-content: center;
+  }
+
+  .lp-btn-parchment {
+    padding: 14px 24px;
   }
 
   .lp-footer-right {
@@ -812,7 +922,7 @@
     animation: none;
   }
 
-  .lp-btn-primary,
+  .lp-btn-parchment,
   .lp-btn-ghost,
   .lp-social,
   .lp-image-placeholder {

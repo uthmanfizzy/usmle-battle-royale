@@ -96,13 +96,11 @@ export default function LandingPage({ onSignIn }) {
             </p>
 
             <div className="lp-hero-buttons">
-              <button className="lp-btn-primary" onClick={onSignIn}>
-                <span className="lp-btn-leaf">🌿</span>
-                PLAY NOW
-                <span className="lp-btn-leaf">🌿</span>
+              <button className="lp-btn-parchment" onClick={onSignIn}>
+                <span className="lp-btn-text">PLAY NOW</span>
               </button>
-              <button className="lp-btn-ghost">
-                WATCH TRAILER
+              <button className="lp-btn-ghost" onClick={onSignIn}>
+                <span>WATCH TRAILER</span>
                 <span className="lp-play-icon">▶</span>
               </button>
             </div>
