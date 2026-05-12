@@ -2228,15 +2228,23 @@ app.post('/admin/reset-tower-progress', adminAuth, async (req, res) => {
 });
 
 app.get('/admin/questions', adminAuth, async (req, res) => {
+  console.log('[admin/questions] Request received, supabase available:', !!supabase);
+
   // Always fetch fresh from Supabase for admin panel
   if (supabase) {
     try {
-      const { data, error } = await supabase
+      console.log('[admin/questions] Fetching from Supabase...');
+      const { data, error, count } = await supabase
         .from('questions')
-        .select('*')
+        .select('*', { count: 'exact' })
         .order('question_id');
 
-      if (error) throw error;
+      console.log(`[admin/questions] Supabase response: error=${error?.message || 'none'}, data length=${data?.length || 0}, count=${count}`);
+
+      if (error) {
+        console.error('[admin/questions] Supabase error:', error);
+        throw error;
+      }
 
       if (data && data.length > 0) {
         // Transform Supabase format to internal format
@@ -2259,23 +2267,49 @@ app.get('/admin/questions', adminAuth, async (req, res) => {
         questionsLastLoaded = Date.now();
         console.log(`[admin/questions] Fetched ${questionBank.length} questions from Supabase`);
       } else {
-        console.log('[admin/questions] No questions found in Supabase');
-        questionBank = [];
+        console.log('[admin/questions] No questions found in Supabase - table may be empty');
+        // Try to load from local file as fallback
+        try {
+          const localQuestions = require('./questions');
+          if (Array.isArray(localQuestions) && localQuestions.length > 0) {
+            console.log(`[admin/questions] Falling back to local file: ${localQuestions.length} questions`);
+            questionBank = [...localQuestions];
+          } else {
+            questionBank = [];
+          }
+        } catch (e) {
+          console.log('[admin/questions] No local questions file available');
+          questionBank = [];
+        }
       }
     } catch (err) {
-      console.error('[admin/questions] Error fetching from Supabase:', err.message);
+      console.error('[admin/questions] Error fetching from Supabase:', err.message, err.code, err.details);
       // Fall back to current cache or local file
       if (questionBank.length === 0) {
-        questionBank = [...require('./questions')];
+        try {
+          const localQuestions = require('./questions');
+          if (Array.isArray(localQuestions) && localQuestions.length > 0) {
+            questionBank = [...localQuestions];
+            console.log(`[admin/questions] Using local fallback: ${questionBank.length} questions`);
+          }
+        } catch (e) {
+          console.log('[admin/questions] No local fallback available');
+        }
       }
     }
   } else {
     console.log('[admin/questions] Supabase not available, using local file');
-    questionBank = [...require('./questions')];
+    try {
+      const localQuestions = require('./questions');
+      questionBank = Array.isArray(localQuestions) ? [...localQuestions] : [];
+    } catch (e) {
+      console.log('[admin/questions] No local questions file');
+      questionBank = [];
+    }
   }
 
   console.log(`[admin/questions] returning ${questionBank.length} questions`);
-  res.json({ questions: questionBank });
+  res.json({ questions: questionBank, _debug: { supabaseAvailable: !!supabase, count: questionBank.length } });
 });
 
 app.post('/admin/questions/bulk', adminAuth, async (req, res) => {
@@ -2300,9 +2334,9 @@ app.post('/admin/questions/bulk', adminAuth, async (req, res) => {
     if (subject) subject = subject.toLowerCase();
 
     const rawOptions = raw.options || raw.choices;
-    // Strip leading "A. " / "B. " / "C. " / "D. " prefixes that some export tools add
+    // Strip leading "A. " / "B. " etc. prefixes (A-J for up to 10 choices)
     const options = Array.isArray(rawOptions)
-      ? rawOptions.map(o => String(o).replace(/^[A-Da-d][.)]\s*/, '').trim())
+      ? rawOptions.map(o => String(o).replace(/^[A-Ja-j][.)]\s*/, '').trim())
       : rawOptions;
 
     // Use default difficulty if not provided, normalize to lowercase
@@ -2312,7 +2346,7 @@ app.post('/admin/questions/bulk', adminAuth, async (req, res) => {
     const missing = [];
     if (!subject)                                              missing.push('subject / category');
     if (!raw.question)                                         missing.push('question');
-    if (!Array.isArray(options) || options.length !== 4)       missing.push('options / choices (must be array of 4)');
+    if (!Array.isArray(options) || options.length < 2 || options.length > 10) missing.push('options / choices (must be array of 2-10)');
     if (!raw.correct)                                          missing.push('correct');
     if (!raw.explanation)                                      missing.push('explanation');
 
@@ -2593,8 +2627,8 @@ app.post('/admin/questions', adminAuth, async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Supabase not configured. Cannot save questions.' });
 
   const { subject, difficulty, question, options, correct, explanation, image_url, game_modes, tower_floor, buzz_type, topic_id } = req.body;
-  if (!subject || !question || !Array.isArray(options) || options.length !== 4 || !correct || !explanation)
-    return res.status(400).json({ error: 'Missing required fields' });
+  if (!subject || !question || !Array.isArray(options) || options.length < 2 || options.length > 10 || !correct || !explanation)
+    return res.status(400).json({ error: 'Missing required fields (options must be array of 2-10)' });
 
   const questionId = nextQuestionId(subject);
   const gameModes = Array.isArray(game_modes) && game_modes.length > 0 ? game_modes : ['battle_royale', 'speed_race', 'trivia_pursuit'];

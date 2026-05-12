@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import TriviaBoard from './TriviaBoard';
 
-const LABELS = ['A', 'B', 'C', 'D'];
+const LABELS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
 
 const DICE_FACES = { 1: '⚀', 2: '⚁', 3: '⚂', 4: '⚃', 5: '⚄', 6: '⚅' };
 

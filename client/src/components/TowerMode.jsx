@@ -4,7 +4,7 @@ import { getToken } from '../auth';
 import './TowerMode.css';
 
 const SERVER = 'https://usmle-battle-royale-production.up.railway.app';
-const LABELS  = ['A', 'B', 'C', 'D'];
+const LABELS  = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
 
 // ── Zone & floor data ──────────────────────────────────────────────────────────
 

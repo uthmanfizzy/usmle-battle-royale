@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import PowerupBar from './PowerupBar';
 
-const LABELS = ['A', 'B', 'C', 'D'];
+const LABELS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
 
 function Timer({ timeLimit, active, questionId, onTick, bonusSeconds = 0 }) {
   const [left, setLeft] = useState(timeLimit);
