@@ -2228,7 +2228,52 @@ app.post('/admin/reset-tower-progress', adminAuth, async (req, res) => {
 });
 
 app.get('/admin/questions', adminAuth, async (req, res) => {
-  await refreshQuestionsIfNeeded();
+  // Always fetch fresh from Supabase for admin panel
+  if (supabase) {
+    try {
+      const { data, error } = await supabase
+        .from('questions')
+        .select('*')
+        .order('question_id');
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        // Transform Supabase format to internal format
+        questionBank = data.map(q => ({
+          id: q.question_id,
+          subject: q.category,
+          difficulty: q.difficulty || 'easy',
+          question: q.question,
+          options: q.choices,
+          correct: q.correct,
+          explanation: q.explanation || '',
+          game_modes: q.game_modes || ['battle_royale', 'speed_race', 'trivia_pursuit'],
+          image_url: q.image_url || undefined,
+          tower_floor: q.tower_floor || undefined,
+          topic_id: q.topic_id || undefined,
+          buzz_type: q.buzz_type || undefined,
+          question_type: q.question_type || 'mcq',
+          _supabase_id: q.id,
+        }));
+        questionsLastLoaded = Date.now();
+        console.log(`[admin/questions] Fetched ${questionBank.length} questions from Supabase`);
+      } else {
+        console.log('[admin/questions] No questions found in Supabase');
+        questionBank = [];
+      }
+    } catch (err) {
+      console.error('[admin/questions] Error fetching from Supabase:', err.message);
+      // Fall back to current cache or local file
+      if (questionBank.length === 0) {
+        questionBank = [...require('./questions')];
+      }
+    }
+  } else {
+    console.log('[admin/questions] Supabase not available, using local file');
+    questionBank = [...require('./questions')];
+  }
+
   console.log(`[admin/questions] returning ${questionBank.length} questions`);
   res.json({ questions: questionBank });
 });
@@ -2653,25 +2698,43 @@ app.delete('/admin/topics/:id', adminAuth, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-app.post('/admin/questions/bulk-assign-topic', adminAuth, (req, res) => {
+app.post('/admin/questions/bulk-assign-topic', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+
   const { questionIds, topicId } = req.body;
   if (!Array.isArray(questionIds)) return res.status(400).json({ error: 'questionIds array required' });
+
   let updated = 0;
+  let errors = [];
+
   for (const id of questionIds) {
-    const idx = questionBank.findIndex(q => String(q.id) === String(id));
-    if (idx !== -1) {
-      if (topicId) {
-        questionBank[idx] = { ...questionBank[idx], topic_id: topicId };
-      } else {
-        const q = { ...questionBank[idx] };
-        delete q.topic_id;
-        questionBank[idx] = q;
+    try {
+      // Update in Supabase
+      const { error } = await supabase
+        .from('questions')
+        .update({ topic_id: topicId || null, updated_at: new Date().toISOString() })
+        .eq('question_id', String(id));
+
+      if (error) throw error;
+
+      // Update in-memory cache
+      const idx = questionBank.findIndex(q => String(q.id) === String(id));
+      if (idx !== -1) {
+        if (topicId) {
+          questionBank[idx] = { ...questionBank[idx], topic_id: topicId };
+        } else {
+          const q = { ...questionBank[idx] };
+          delete q.topic_id;
+          questionBank[idx] = q;
+        }
       }
       updated++;
+    } catch (err) {
+      errors.push({ id, error: err.message });
     }
   }
-  persistQuestions();
-  res.json({ ok: true, updated });
+
+  res.json({ ok: true, updated, errors: errors.length > 0 ? errors : undefined });
 });
 
 // ── Tower Progress API ─────────────────────────────────────────────────────────
