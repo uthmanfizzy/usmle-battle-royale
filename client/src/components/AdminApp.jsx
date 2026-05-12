@@ -2491,7 +2491,7 @@ function ZoneRow({ zoneNum, name, desc, onNameChange, onDescChange }) {
 // ── Landing Images Panel ─────────────────────────────────────────────────────────
 
 const LANDING_IMAGE_SLOTS = [
-  { id: 'hero',          label: 'Hero Background Image',      desc: 'Main hero section background on the landing page' },
+  { id: 'hero_bg',       label: 'Hero Background Image',      desc: 'Full-bleed background image for the hero section' },
   { id: 'battle_royale', label: 'Battle Royale Card Image',   desc: 'Image for the Battle Royale game mode card' },
   { id: 'speed_race',    label: 'Speed Race Card Image',      desc: 'Image for the Speed Race game mode card' },
   { id: 'tower',         label: 'The Tower Card Image',       desc: 'Image for The Tower game mode card' },

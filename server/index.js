@@ -2245,7 +2245,7 @@ app.post('/admin/upload-image', adminAuth, async (req, res) => {
 
 // ── Landing Page Images ─────────────────────────────────────────────────────
 
-const LANDING_IMAGE_SLOTS = ['hero', 'battle_royale', 'speed_race', 'tower', 'more_to_come'];
+const LANDING_IMAGE_SLOTS = ['hero_bg', 'battle_royale', 'speed_race', 'tower', 'more_to_come'];
 
 // Public endpoint to fetch all landing images
 app.get('/api/landing-images', async (req, res) => {

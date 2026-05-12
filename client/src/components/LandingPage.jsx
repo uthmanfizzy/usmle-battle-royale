@@ -88,14 +88,21 @@ export default function LandingPage({ onSignIn }) {
     document.getElementById('game-modes')?.scrollIntoView({ behavior: 'smooth' });
   }, []);
 
+  // Dynamic background style for hero
+  const heroStyle = images.hero_bg ? {
+    backgroundImage: `linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)), url(${images.hero_bg})`,
+  } : {};
+
   return (
     <div className="lp">
       {/* Navigation */}
       <nav className={`lp-nav ${scrolled ? 'scrolled' : ''}`}>
         <div className="lp-nav-inner">
           <button className="lp-logo" onClick={scrollToTop}>
+            <span className="lp-logo-leaf">🌿</span>
             <span className="lp-logo-icon">⚕</span>
-            <span className="lp-logo-text">MedRoyale</span>
+            <span className="lp-logo-text">MedVale</span>
+            <span className="lp-logo-leaf">🌿</span>
           </button>
 
           <div className={`lp-nav-links ${menuOpen ? 'open' : ''}`}>
@@ -135,20 +142,26 @@ export default function LandingPage({ onSignIn }) {
 
       {menuOpen && <div className="lp-overlay" onClick={() => setMenuOpen(false)} />}
 
-      {/* Hero Section */}
-      <section className="lp-hero">
-        <div className="lp-hero-inner">
-          {/* Left Column - Text */}
+      {/* Hero Section - Full bleed background with overlay content */}
+      <section className={`lp-hero ${images.hero_bg ? 'has-bg' : ''}`} style={heroStyle}>
+        <div className="lp-hero-content">
+          {/* Left Side - Main Content */}
           <div className="lp-hero-left">
             <div className="lp-hero-welcome">
+              <span className="lp-welcome-leaf">🌿</span>
               <span className="lp-ornament">✦</span>
               <span>WELCOME TO</span>
               <span className="lp-ornament">✦</span>
+              <span className="lp-welcome-leaf">🌿</span>
             </div>
 
-            <h1 className="lp-hero-title">MedRoyale</h1>
+            <h1 className="lp-hero-title">MedVale</h1>
 
-            <p className="lp-hero-tagline">LIVE. FIGHT. SURVIVE. BECOME LEGEND.</p>
+            <p className="lp-hero-tagline">
+              <span className="lp-tagline-leaf">🌿</span>
+              LIVE. FIGHT. SURVIVE. BECOME LEGEND.
+              <span className="lp-tagline-leaf">🌿</span>
+            </p>
 
             <p className="lp-hero-desc">
               Ace your exams. Master your future. Challenge yourself with fun competitive
@@ -166,22 +179,7 @@ export default function LandingPage({ onSignIn }) {
             </div>
           </div>
 
-          {/* Center Column - Image Placeholder */}
-          <div className="lp-hero-center">
-            {images.hero ? (
-              <img src={images.hero} alt="MedRoyale Hero" className="lp-hero-image" />
-            ) : (
-              <div className="lp-image-placeholder">
-                <div className="lp-placeholder-content">
-                  <span className="lp-placeholder-icon">🖼️</span>
-                  <span className="lp-placeholder-text">HERO IMAGE</span>
-                  <span className="lp-placeholder-subtext">Upload in Admin Panel</span>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Right Column - Stats Panel */}
+          {/* Right Side - Stats Panel */}
           <div className="lp-hero-right">
             <div className="lp-stats-panel">
               {STATS.map((stat, i) => (
@@ -212,9 +210,11 @@ export default function LandingPage({ onSignIn }) {
         <div className="lp-modes-header">
           <div className="lp-modes-divider-line"></div>
           <h2 className="lp-modes-title">
+            <span className="lp-modes-leaf">🌿</span>
             <span className="lp-modes-ornament">❧</span>
             <span>GAME MODES</span>
             <span className="lp-modes-ornament">❧</span>
+            <span className="lp-modes-leaf">🌿</span>
           </h2>
           <div className="lp-modes-divider-line"></div>
         </div>
@@ -223,11 +223,9 @@ export default function LandingPage({ onSignIn }) {
         <div className="lp-modes-grid">
           {GAME_MODES.map((mode) => (
             <div key={mode.id} className="lp-mode-card" onClick={mode.hasArrow ? onSignIn : undefined}>
-              {/* Number Badge */}
-              <div className="lp-mode-badge">{mode.number}</div>
-
-              {/* Image Area */}
+              {/* Image Area with Number Badge */}
               <div className="lp-mode-image">
+                <div className="lp-mode-badge">{mode.number}</div>
                 {images[mode.id] ? (
                   <img src={images[mode.id]} alt={mode.title} />
                 ) : (
@@ -253,9 +251,9 @@ export default function LandingPage({ onSignIn }) {
       <footer className="lp-footer">
         <div className="lp-footer-inner">
           <div className="lp-footer-left">
-            <span className="lp-footer-brand">MEDROYALE</span>
+            <span className="lp-footer-brand">MEDVALE</span>
             <span className="lp-footer-caduceus">⚕</span>
-            <span className="lp-footer-copy">© 2026 MedRoyale. All rights reserved.</span>
+            <span className="lp-footer-copy">© 2026 MedVale. All rights reserved.</span>
           </div>
 
           <div className="lp-footer-center">
