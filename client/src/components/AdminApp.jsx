@@ -2503,10 +2503,41 @@ function LandingImagesPanel() {
   const [loading, setLoading]   = useState(true);
   const [uploading, setUploading] = useState({});
   const [error, setError]       = useState('');
+  const [navbarBlur, setNavbarBlur] = useState(true);
+  const [savingSettings, setSavingSettings] = useState(false);
 
   useEffect(() => {
     loadImages();
+    loadSettings();
   }, []);
+
+  async function loadSettings() {
+    try {
+      const res = await apiCall('/admin/settings');
+      if (res.ok) {
+        const data = await res.json();
+        setNavbarBlur(data.navbarBlurEnabled !== false);
+      }
+    } catch (err) {
+      console.error('Failed to load settings:', err);
+    }
+  }
+
+  async function toggleNavbarBlur() {
+    const newValue = !navbarBlur;
+    setNavbarBlur(newValue);
+    setSavingSettings(true);
+    try {
+      await apiCall('/admin/settings', {
+        method: 'POST',
+        body: JSON.stringify({ navbarBlurEnabled: newValue }),
+      });
+    } catch (err) {
+      setError('Failed to save navbar blur setting');
+      setNavbarBlur(!newValue);
+    }
+    setSavingSettings(false);
+  }
 
   async function loadImages() {
     setLoading(true);
@@ -2593,12 +2624,34 @@ function LandingImagesPanel() {
       <div className="li-header">
         <div className="li-header-icon">🖼️</div>
         <div>
-          <h2 className="li-header-title">Landing Page Images</h2>
-          <p className="li-header-desc">Upload and manage images displayed on the public landing page. Images are stored in Supabase and update immediately for all visitors.</p>
+          <h2 className="li-header-title">Landing Page</h2>
+          <p className="li-header-desc">Manage images and settings for the public landing page.</p>
         </div>
       </div>
 
       {error && <div className="li-error">{error}</div>}
+
+      {/* Settings Section */}
+      <div className="li-settings-section">
+        <h3 className="li-settings-title">⚙️ Display Settings</h3>
+        <div className="li-setting-row">
+          <div className="li-setting-info">
+            <span className="li-setting-label">Navigation Bar Overlay</span>
+            <span className="li-setting-desc">When enabled, the navbar has a dark semi-transparent background with blur effect. When disabled, links float directly over the background image.</span>
+          </div>
+          <button
+            className={`li-toggle ${navbarBlur ? 'on' : 'off'}`}
+            onClick={toggleNavbarBlur}
+            disabled={savingSettings}
+          >
+            <span className="li-toggle-slider"></span>
+            <span className="li-toggle-label">{navbarBlur ? 'ON' : 'OFF'}</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Images Section */}
+      <h3 className="li-images-title">🖼️ Landing Page Images</h3>
 
       <div className="li-grid">
         {LANDING_IMAGE_SLOTS.map(slot => (

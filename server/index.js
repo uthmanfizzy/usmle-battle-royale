@@ -144,6 +144,8 @@ let gameSettings = {
   showGameLeaderboard: true,
   soundEffectsEnabled: true,
   backgroundMusicEnabled: true,
+  // Section 9: Landing Page
+  navbarBlurEnabled: true,
   // Section 8: Tower / Story Mode
   towerQuestionsNormal: 3,
   towerQuestionsChallenge: 5,
@@ -2129,6 +2131,7 @@ app.post('/admin/settings', adminAuth, async (req, res) => {
     'dailyChallengeEnabled','weeklyTournamentEnabled','powerUpsEnabled',
     'maintenanceMode','showStreakCounter','showPlayerCount','showCorrectAnswer',
     'showGameLeaderboard','soundEffectsEnabled','backgroundMusicEnabled',
+    'navbarBlurEnabled',
   ];
   for (const k of numFields)  { if (b[k] !== undefined) gameSettings[k] = Number(b[k]); }
   for (const k of boolFields) { if (b[k] !== undefined) gameSettings[k] = Boolean(b[k]); }
@@ -2262,6 +2265,13 @@ app.get('/api/landing-images', async (req, res) => {
     console.error('Error fetching landing images:', err.message);
     res.json({ images: {} });
   }
+});
+
+// Public endpoint to fetch landing page settings
+app.get('/api/landing-settings', (req, res) => {
+  res.json({
+    navbarBlurEnabled: gameSettings.navbarBlurEnabled,
+  });
 });
 
 // Admin endpoint to get all landing images with metadata

@@ -61,17 +61,36 @@
   padding: 0 24px;
   display: flex;
   align-items: center;
+  transition: background 0.3s ease, backdrop-filter 0.3s ease, border-color 0.3s ease;
+}
+
+/* With blur/overlay (default) */
+.lp-nav.blur {
   background: rgba(0, 0, 0, 0.3);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  transition: background 0.3s;
 }
 
-.lp-nav.scrolled {
+.lp-nav.blur.scrolled {
   background: rgba(0, 0, 0, 0.6);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
+}
+
+/* Without blur - completely transparent */
+.lp-nav.no-blur {
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border-bottom: 1px solid transparent;
+}
+
+.lp-nav.no-blur.scrolled {
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .lp-nav-inner {

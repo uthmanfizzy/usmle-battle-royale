@@ -56,12 +56,18 @@ export default function LandingPage({ onSignIn }) {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [images, setImages] = useState({});
+  const [navbarBlur, setNavbarBlur] = useState(true);
 
   useEffect(() => {
     fetch(`${API}/api/landing-images`)
       .then(res => res.ok ? res.json() : { images: {} })
       .then(data => setImages(data.images || {}))
       .catch(() => setImages({}));
+
+    fetch(`${API}/api/landing-settings`)
+      .then(res => res.ok ? res.json() : { navbarBlurEnabled: true })
+      .then(data => setNavbarBlur(data.navbarBlurEnabled !== false))
+      .catch(() => setNavbarBlur(true));
   }, []);
 
   useEffect(() => {
@@ -92,8 +98,8 @@ export default function LandingPage({ onSignIn }) {
 
   return (
     <div className={`lp ${images.hero_bg ? 'has-bg' : ''}`} style={pageStyle}>
-      {/* Navigation - Transparent */}
-      <nav className={`lp-nav ${scrolled ? 'scrolled' : ''}`}>
+      {/* Navigation */}
+      <nav className={`lp-nav ${scrolled ? 'scrolled' : ''} ${navbarBlur ? 'blur' : 'no-blur'}`}>
         <div className="lp-nav-inner">
           <button className="lp-logo" onClick={scrollToTop}>
             <span className="lp-logo-leaf">🌿</span>
