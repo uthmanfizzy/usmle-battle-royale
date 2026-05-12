@@ -21,7 +21,10 @@
       "Bash(gh auth *)",
       "Bash(npx --no-install vite build --mode production)",
       "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\faiza\\\\usmle-battle-royale\" -Recurse -Directory)",
-      "Bash(Select-Object -ExpandProperty FullName)"
+      "Bash(Select-Object -ExpandProperty FullName)",
+      "Bash(grep -c \"^\\\\s*{$\\\\|id:\" /c/Users/faiza/usmle-battle-royale/server/questions.js)",
+      "Bash(Get-ChildItem -Recurse -Path \"C:\\\\Users\\\\faiza\\\\usmle-battle-royale\\\\client\\\\src\\\\components\" -Filter \"*.jsx\" -o \"*.js\")",
+      "Bash(Select-Object -ExpandProperty Name)"
     ]
   }
 }
