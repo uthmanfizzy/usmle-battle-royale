@@ -628,7 +628,7 @@ function TopicModal({ topic, onSave, onClose, error }) {
 
 // ── Bulk Import Modal ──────────────────────────────────────────────────────────
 
-function BulkImportModal({ activeFolder, selectedTopic, onImport, onClose }) {
+function BulkImportModal({ activeFolder, selectedTopic, selectedDifficulty, onImport, onClose }) {
   const curFolder   = FOLDERS.find(f => f.id === activeFolder);
   const isCatLevel  = curFolder && !curFolder.special && !curFolder.separator && activeFolder !== 'all';
   const isInTopic   = selectedTopic && selectedTopic !== 'unassigned';
@@ -686,13 +686,25 @@ function BulkImportModal({ activeFolder, selectedTopic, onImport, onClose }) {
     if (!parsedData) return;
     setImporting(true);
     const topicId = isInTopic ? selectedTopic.id : null;
+    // Pass category from activeFolder and difficulty from selectedDifficulty
+    const importCategory = isCatLevel ? activeFolder : null;
+    const importDifficulty = selectedDifficulty || 'easy';
     try {
       const res  = await apiCall('/admin/questions/bulk', {
         method: 'POST',
-        body:   JSON.stringify({ questions: parsedData, topic_id: topicId }),
+        body:   JSON.stringify({
+          questions: parsedData,
+          topic_id: topicId,
+          category: importCategory,
+          difficulty: importDifficulty,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Import failed');
+      // Show skip details if any
+      if (data.skippedDetails && data.skippedDetails.length > 0) {
+        console.log('[BulkImport] Skipped questions:', data.skippedDetails);
+      }
       onImport(data, isInTopic ? selectedTopic : null);
     } catch (err) {
       setFileErr(err.message);
@@ -973,9 +985,21 @@ function QuestionsPanel() {
 
   // ─── Import done callback ─────────────────────────────────────────────────────
   async function handleImportDone(data, topic) {
-    const skippedNote = data.skipped ? ` (${data.skipped} skipped)` : '';
+    const updatedNote = data.updated ? `, ${data.updated} updated` : '';
+    const skippedNote = data.skipped ? `, ${data.skipped} skipped` : '';
     const topicNote   = topic ? ` into ${topic.name}` : '';
-    setBulkMsg(`✓ Imported ${data.added} question${data.added !== 1 ? 's' : ''}${topicNote}${skippedNote}`);
+
+    // Log skip details to console for debugging
+    if (data.skippedDetails && data.skippedDetails.length > 0) {
+      console.log('[Import] Skipped questions:');
+      data.skippedDetails.forEach(s => console.log(`  Q${s.index}: ${s.reason} - "${s.question}"`));
+    }
+
+    let msg = `✓ Added ${data.added}${updatedNote}${skippedNote}${topicNote}`;
+    if (data.skippedDetails && data.skippedDetails.length > 0 && data.skippedDetails.length <= 3) {
+      msg += ` | Skip reasons: ${data.skippedDetails.map(s => s.reason).join('; ')}`;
+    }
+    setBulkMsg(msg);
     await loadQuestions();
     if (isCatFolder(activeFolder)) loadTopics(activeFolder, selectedDifficulty);
     setImportModal(false);
@@ -1527,6 +1551,7 @@ function QuestionsPanel() {
         <BulkImportModal
           activeFolder={activeFolder}
           selectedTopic={selectedTopic}
+          selectedDifficulty={selectedDifficulty}
           onImport={handleImportDone}
           onClose={() => setImportModal(false)}
         />

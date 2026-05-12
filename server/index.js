@@ -2318,8 +2318,9 @@ app.post('/admin/questions/bulk', adminAuth, async (req, res) => {
   const { questions, topic_id, category: defaultCategory, difficulty: defaultDifficulty } = req.body;
   if (!Array.isArray(questions)) return res.status(400).json({ error: 'Expected { questions: [...] }' });
 
+  console.log(`[bulk-import] ═══════════════════════════════════════════════════════════`);
   console.log(`[bulk-import] Starting import of ${questions.length} questions`);
-  console.log(`[bulk-import] Default topic_id: ${topic_id || 'none'}, category: ${defaultCategory || 'none'}, difficulty: ${defaultDifficulty || 'none'}`);
+  console.log(`[bulk-import] Defaults: topic_id=${topic_id || 'none'}, category=${defaultCategory || 'none'}, difficulty=${defaultDifficulty || 'none'}`);
 
   const added = [];
   const updated = [];
@@ -2327,48 +2328,66 @@ app.post('/admin/questions/bulk', adminAuth, async (req, res) => {
 
   for (let i = 0; i < questions.length; i++) {
     const raw = questions[i];
+    console.log(`[bulk-import] ───────────────────────────────────────────────────────────`);
+    console.log(`[bulk-import] Q${i + 1} Raw data:`, JSON.stringify({
+      hasQuestion: !!raw.question,
+      questionPreview: raw.question ? raw.question.substring(0, 50) : null,
+      hasOptions: !!raw.options,
+      hasChoices: !!raw.choices,
+      optionsCount: (raw.options || raw.choices || []).length,
+      hasCorrect: !!raw.correct,
+      correct: raw.correct,
+      hasExplanation: !!raw.explanation,
+      category: raw.category || raw.subject,
+      difficulty: raw.difficulty,
+      hasQuestionId: !!raw.question_id,
+    }));
 
-    // Normalise field name aliases - use default category if not provided
-    let subject = raw.subject || raw.category || defaultCategory;
-    // Normalize category to lowercase for consistency
-    if (subject) subject = subject.toLowerCase();
-
-    const rawOptions = raw.options || raw.choices;
-    // Strip leading "A. " / "B. " etc. prefixes (A-J for up to 10 choices)
-    const options = Array.isArray(rawOptions)
-      ? rawOptions.map(o => String(o).replace(/^[A-Ja-j][.)]\s*/, '').trim())
-      : rawOptions;
-
-    // Use default difficulty if not provided, normalize to lowercase
-    let difficulty = raw.difficulty || defaultDifficulty || 'easy';
-    difficulty = difficulty.toLowerCase();
-
-    const missing = [];
-    if (!subject)                                              missing.push('subject / category');
-    if (!raw.question)                                         missing.push('question');
-    if (!Array.isArray(options) || options.length < 2 || options.length > 10) missing.push('options / choices (must be array of 2-10)');
-    if (!raw.correct)                                          missing.push('correct');
-    if (!raw.explanation)                                      missing.push('explanation');
-
-    if (missing.length) {
-      const reason = `Missing fields: ${missing.join(', ')}`;
+    // ONLY skip if question text is completely missing
+    if (!raw.question || typeof raw.question !== 'string' || raw.question.trim() === '') {
+      const reason = 'Missing question text (required)';
       console.log(`[bulk-import] Q${i + 1} SKIPPED: ${reason}`);
-      skipped.push({ index: i + 1, question: (raw.question || '?').substring(0, 50) + '...', reason });
+      skipped.push({ index: i + 1, question: '(no question text)', reason });
       continue;
     }
 
-    const questionId = nextQuestionId(subject);
+    // Normalize category - use provided or fall back to default or 'general'
+    let subject = raw.subject || raw.category || defaultCategory || 'general';
+    subject = subject.toLowerCase().trim();
+
+    // Get options from either field name, accept any array length
+    const rawOptions = raw.options || raw.choices || [];
+    const options = Array.isArray(rawOptions) && rawOptions.length > 0
+      ? rawOptions.map(o => String(o).replace(/^[A-Za-z][.)]\s*/, '').trim())
+      : ['Option A', 'Option B', 'Option C', 'Option D']; // Default if no options
+
+    // Use provided difficulty or default
+    let difficulty = raw.difficulty || defaultDifficulty || 'medium';
+    difficulty = difficulty.toLowerCase().trim();
+
+    // Use provided correct answer or default to 'A'
+    const correct = raw.correct || raw.answer || 'A';
+
+    // Use provided explanation or empty string
+    const explanation = raw.explanation || raw.rationale || '';
+
+    // Generate question_id if not provided
+    const questionId = raw.question_id || raw.id || nextQuestionId(subject);
+
+    // Game modes - use provided or defaults
     const gameModes = Array.isArray(raw.game_modes) && raw.game_modes.length > 0
       ? raw.game_modes
       : (raw.image_url ? ['scan_master'] : ['battle_royale', 'speed_race', 'trivia_pursuit']);
 
+    console.log(`[bulk-import] Q${i + 1} Normalized: category=${subject}, difficulty=${difficulty}, options=${options.length}, correct=${correct}, questionId=${questionId}`);
+
     // Build record for Supabase
     const record = {
       question_id: questionId,
-      question: raw.question,
+      question: raw.question.trim(),
       choices: options,
-      correct: raw.correct,
-      explanation: raw.explanation,
+      correct: correct,
+      explanation: explanation,
       category: subject,
       difficulty: difficulty,
       game_modes: gameModes,
@@ -2379,47 +2398,71 @@ app.post('/admin/questions/bulk', adminAuth, async (req, res) => {
     };
 
     try {
-      // Use upsert to handle duplicates - update if question text already exists
+      // First check if this exact question text already exists
+      const { data: existingByText } = await supabase
+        .from('questions')
+        .select('question_id, id')
+        .eq('question', raw.question.trim())
+        .maybeSingle();
+
+      if (existingByText) {
+        // Update existing question
+        console.log(`[bulk-import] Q${i + 1} Found existing by text: ${existingByText.question_id}`);
+        const { data: updatedData, error: updateError } = await supabase
+          .from('questions')
+          .update({
+            choices: options,
+            correct: correct,
+            explanation: explanation,
+            category: subject,
+            difficulty: difficulty,
+            game_modes: gameModes,
+            topic_id: topic_id || raw.topic_id || null,
+            image_url: raw.image_url || null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', existingByText.id)
+          .select()
+          .single();
+
+        if (updateError) {
+          console.log(`[bulk-import] Q${i + 1} Update error: ${updateError.message}`);
+          throw updateError;
+        }
+        console.log(`[bulk-import] Q${i + 1} UPDATED: ${existingByText.question_id}`);
+        updated.push({ id: existingByText.question_id, question: raw.question.substring(0, 50) });
+        continue;
+      }
+
+      // Insert new question
       const { data, error } = await supabase
         .from('questions')
-        .upsert(record, { onConflict: 'question_id' })
+        .insert(record)
         .select()
         .single();
 
       if (error) {
-        // If duplicate question_id error, try to find by question text and update
-        if (error.code === '23505') {
-          console.log(`[bulk-import] Q${i + 1} duplicate question_id, checking for existing...`);
-          // Check if same question text exists
-          const { data: existing } = await supabase
+        console.log(`[bulk-import] Q${i + 1} Insert error: code=${error.code}, message=${error.message}, details=${error.details}`);
+
+        // If duplicate question_id, generate a new one and retry
+        if (error.code === '23505' && error.message.includes('question_id')) {
+          console.log(`[bulk-import] Q${i + 1} Duplicate question_id, generating new one...`);
+          const newId = nextQuestionId(subject) + '_' + Date.now();
+          record.question_id = newId;
+
+          const { data: retryData, error: retryError } = await supabase
             .from('questions')
-            .select('question_id')
-            .eq('question', raw.question)
+            .insert(record)
+            .select()
             .single();
 
-          if (existing) {
-            // Update existing question
-            const { data: updatedData, error: updateError } = await supabase
-              .from('questions')
-              .update({
-                choices: options,
-                correct: raw.correct,
-                explanation: raw.explanation,
-                category: subject,
-                difficulty: difficulty,
-                game_modes: gameModes,
-                topic_id: topic_id || raw.topic_id || null,
-                updated_at: new Date().toISOString(),
-              })
-              .eq('question_id', existing.question_id)
-              .select()
-              .single();
+          if (retryError) throw retryError;
 
-            if (updateError) throw updateError;
-            console.log(`[bulk-import] Q${i + 1} UPDATED existing: ${existing.question_id}`);
-            updated.push({ id: existing.question_id, question: raw.question.substring(0, 50) });
-            continue;
-          }
+          console.log(`[bulk-import] Q${i + 1} ADDED (retry): ${newId}`);
+          const newQ = { ...record, id: newId, options, _supabase_id: retryData.id };
+          questionBank.push(newQ);
+          added.push(newQ);
+          continue;
         }
         throw error;
       }
@@ -2445,21 +2488,29 @@ app.post('/admin/questions/bulk', adminAuth, async (req, res) => {
       questionBank.push(newQ);
       added.push(newQ);
     } catch (err) {
-      const reason = err.message || 'Unknown error';
+      const reason = `Database error: ${err.message || 'Unknown error'}`;
       console.log(`[bulk-import] Q${i + 1} ERROR: ${reason}`);
-      skipped.push({ index: i + 1, question: (raw.question || '?').substring(0, 50) + '...', reason });
+      skipped.push({ index: i + 1, question: raw.question.substring(0, 50) + '...', reason });
     }
   }
 
   // Verify by fetching count from Supabase
-  const { count } = await supabase.from('questions').select('*', { count: 'exact', head: true });
-  console.log(`[bulk-import] Complete. Added: ${added.length}, Updated: ${updated.length}, Skipped: ${skipped.length}. Total in DB: ${count}`);
+  let totalCount = 0;
+  try {
+    const { count } = await supabase.from('questions').select('*', { count: 'exact', head: true });
+    totalCount = count || 0;
+  } catch (e) {
+    console.log(`[bulk-import] Count error: ${e.message}`);
+  }
+
+  console.log(`[bulk-import] ═══════════════════════════════════════════════════════════`);
+  console.log(`[bulk-import] COMPLETE: Added=${added.length}, Updated=${updated.length}, Skipped=${skipped.length}, Total in DB=${totalCount}`);
 
   res.json({
     added: added.length,
     updated: updated.length,
     skipped: skipped.length,
-    totalInDatabase: count,
+    totalInDatabase: totalCount,
     questions: added,
     updatedQuestions: updated.length > 0 ? updated : undefined,
     skippedDetails: skipped.length > 0 ? skipped : undefined,
