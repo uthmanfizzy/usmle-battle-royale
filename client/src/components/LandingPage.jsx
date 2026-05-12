@@ -1,15 +1,70 @@
 import { useState, useEffect, useCallback } from 'react';
 import './LandingPage.css';
 
+const API = 'https://usmle-battle-royale-production.up.railway.app';
+
 const STATS = [
   { icon: '👥', label: 'STUDENTS PREPARING', value: '12,458' },
   { icon: '✗', label: 'PRACTICE QUESTIONS', value: '3.24M' },
   { icon: '⭕', label: 'TOP SCORE AVG.', value: '87.6%' },
 ];
 
+const GAME_MODES = [
+  {
+    id: 'battle_royale',
+    number: '01',
+    icon: '♛',
+    title: 'BATTLE ROYALE',
+    description: '100 players. One winner. Outlast the competition.',
+    hasArrow: true,
+  },
+  {
+    id: 'speed_race',
+    number: '02',
+    icon: '⏱',
+    title: 'SPEED RACE',
+    description: 'Beat the clock. Answer fast. Score higher.',
+    hasArrow: true,
+  },
+  {
+    id: 'tower',
+    number: '03',
+    icon: '🏰',
+    title: 'THE TOWER',
+    description: 'Climb the endless tower. How far can you go?',
+    hasArrow: true,
+  },
+  {
+    id: 'more_to_come',
+    number: '04',
+    icon: '🌿',
+    title: 'MORE TO COME',
+    description: 'New modes. New challenges. Stay tuned!',
+    hasArrow: false,
+  },
+];
+
+function ImagePlaceholder({ text = 'Upload image in Admin Panel' }) {
+  return (
+    <div className="lp-card-placeholder">
+      <span className="lp-card-placeholder-icon">🖼️</span>
+      <span className="lp-card-placeholder-text">{text}</span>
+    </div>
+  );
+}
+
 export default function LandingPage({ onSignIn }) {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [images, setImages] = useState({});
+
+  // Fetch landing page images from server
+  useEffect(() => {
+    fetch(`${API}/api/landing-images`)
+      .then(res => res.ok ? res.json() : { images: {} })
+      .then(data => setImages(data.images || {}))
+      .catch(() => setImages({}));
+  }, []);
 
   useEffect(() => {
     const fn = () => setScrolled(window.scrollY > 50);
@@ -28,6 +83,11 @@ export default function LandingPage({ onSignIn }) {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
+  const scrollToModes = useCallback(() => {
+    setMenuOpen(false);
+    document.getElementById('game-modes')?.scrollIntoView({ behavior: 'smooth' });
+  }, []);
+
   return (
     <div className="lp">
       {/* Navigation */}
@@ -40,7 +100,7 @@ export default function LandingPage({ onSignIn }) {
 
           <div className={`lp-nav-links ${menuOpen ? 'open' : ''}`}>
             <button className="lp-nav-link active" onClick={scrollToTop}>HOME</button>
-            <button className="lp-nav-link">GAME MODES</button>
+            <button className="lp-nav-link" onClick={scrollToModes}>GAME MODES</button>
             <button className="lp-nav-link">LEADERBOARD</button>
             <button className="lp-nav-link">NEWS</button>
             <button className="lp-nav-link">ABOUT</button>
@@ -108,13 +168,17 @@ export default function LandingPage({ onSignIn }) {
 
           {/* Center Column - Image Placeholder */}
           <div className="lp-hero-center">
-            <div className="lp-image-placeholder">
-              <div className="lp-placeholder-content">
-                <span className="lp-placeholder-icon">🖼️</span>
-                <span className="lp-placeholder-text">HERO IMAGE</span>
-                <span className="lp-placeholder-subtext">Upload in Admin Panel</span>
+            {images.hero ? (
+              <img src={images.hero} alt="MedRoyale Hero" className="lp-hero-image" />
+            ) : (
+              <div className="lp-image-placeholder">
+                <div className="lp-placeholder-content">
+                  <span className="lp-placeholder-icon">🖼️</span>
+                  <span className="lp-placeholder-text">HERO IMAGE</span>
+                  <span className="lp-placeholder-subtext">Upload in Admin Panel</span>
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Right Column - Stats Panel */}
@@ -139,6 +203,49 @@ export default function LandingPage({ onSignIn }) {
           <span>⚕</span>
           <span>✦</span>
           <span>❦</span>
+        </div>
+      </section>
+
+      {/* Game Modes Section */}
+      <section id="game-modes" className="lp-modes">
+        {/* Section Header with ornamental dividers */}
+        <div className="lp-modes-header">
+          <div className="lp-modes-divider-line"></div>
+          <h2 className="lp-modes-title">
+            <span className="lp-modes-ornament">❧</span>
+            <span>GAME MODES</span>
+            <span className="lp-modes-ornament">❧</span>
+          </h2>
+          <div className="lp-modes-divider-line"></div>
+        </div>
+
+        {/* Game Mode Cards */}
+        <div className="lp-modes-grid">
+          {GAME_MODES.map((mode) => (
+            <div key={mode.id} className="lp-mode-card" onClick={mode.hasArrow ? onSignIn : undefined}>
+              {/* Number Badge */}
+              <div className="lp-mode-badge">{mode.number}</div>
+
+              {/* Image Area */}
+              <div className="lp-mode-image">
+                {images[mode.id] ? (
+                  <img src={images[mode.id]} alt={mode.title} />
+                ) : (
+                  <ImagePlaceholder />
+                )}
+              </div>
+
+              {/* Content */}
+              <div className="lp-mode-content">
+                <div className="lp-mode-icon">{mode.icon}</div>
+                <h3 className="lp-mode-title">{mode.title}</h3>
+                <p className="lp-mode-desc">{mode.description}</p>
+                {mode.hasArrow && (
+                  <span className="lp-mode-arrow">→</span>
+                )}
+              </div>
+            </div>
+          ))}
         </div>
       </section>
 

@@ -2243,6 +2243,127 @@ app.post('/admin/upload-image', adminAuth, async (req, res) => {
   }
 });
 
+// ── Landing Page Images ─────────────────────────────────────────────────────
+
+const LANDING_IMAGE_SLOTS = ['hero', 'battle_royale', 'speed_race', 'tower', 'more_to_come'];
+
+// Public endpoint to fetch all landing images
+app.get('/api/landing-images', async (req, res) => {
+  if (!supabase) return res.json({ images: {} });
+  try {
+    const { data, error } = await supabase
+      .from('landing_images')
+      .select('slot_name, image_url');
+    if (error) throw error;
+    const images = {};
+    (data || []).forEach(row => { images[row.slot_name] = row.image_url; });
+    res.json({ images });
+  } catch (err) {
+    console.error('Error fetching landing images:', err.message);
+    res.json({ images: {} });
+  }
+});
+
+// Admin endpoint to get all landing images with metadata
+app.get('/admin/landing-images', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  try {
+    const { data, error } = await supabase
+      .from('landing_images')
+      .select('*')
+      .order('slot_name');
+    if (error) throw error;
+    res.json({ images: data || [] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Admin endpoint to upload a landing image
+app.post('/admin/landing-images', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured. Cannot upload images.' });
+  const { slot_name, base64, filename, mimeType } = req.body;
+
+  if (!slot_name || !LANDING_IMAGE_SLOTS.includes(slot_name)) {
+    return res.status(400).json({ error: `Invalid slot_name. Must be one of: ${LANDING_IMAGE_SLOTS.join(', ')}` });
+  }
+  if (!base64 || !filename || !mimeType) {
+    return res.status(400).json({ error: 'base64, filename, and mimeType required.' });
+  }
+
+  const allowed = ['image/jpeg', 'image/png', 'image/webp'];
+  if (!allowed.includes(mimeType)) {
+    return res.status(400).json({ error: 'Only JPG, PNG, and WEBP are allowed.' });
+  }
+
+  try {
+    const b64Data = base64.includes(',') ? base64.split(',')[1] : base64;
+    const buffer  = Buffer.from(b64Data, 'base64');
+    if (buffer.length > 5 * 1024 * 1024) {
+      return res.status(400).json({ error: 'Image must be under 5MB.' });
+    }
+
+    const ext        = mimeType === 'image/jpeg' ? 'jpg' : mimeType.split('/')[1];
+    const uniqueName = `landing/${slot_name}-${Date.now()}.${ext}`;
+
+    // Upload to landing-images bucket
+    const { error: uploadError } = await supabase.storage
+      .from('landing-images')
+      .upload(uniqueName, buffer, { contentType: mimeType, upsert: false });
+    if (uploadError) throw uploadError;
+
+    const { data: urlData } = supabase.storage.from('landing-images').getPublicUrl(uniqueName);
+    const image_url = urlData.publicUrl;
+
+    // Upsert into landing_images table
+    const { error: dbError } = await supabase
+      .from('landing_images')
+      .upsert({ slot_name, image_url, updated_at: new Date().toISOString() }, { onConflict: 'slot_name' });
+    if (dbError) throw dbError;
+
+    res.json({ ok: true, slot_name, image_url });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Admin endpoint to delete a landing image
+app.delete('/admin/landing-images/:slot_name', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  const { slot_name } = req.params;
+
+  if (!LANDING_IMAGE_SLOTS.includes(slot_name)) {
+    return res.status(400).json({ error: `Invalid slot_name. Must be one of: ${LANDING_IMAGE_SLOTS.join(', ')}` });
+  }
+
+  try {
+    // Get current image URL to delete from storage
+    const { data: existing } = await supabase
+      .from('landing_images')
+      .select('image_url')
+      .eq('slot_name', slot_name)
+      .single();
+
+    if (existing?.image_url) {
+      // Extract filename from URL and delete from storage
+      const urlParts = existing.image_url.split('/');
+      const fileName = urlParts.slice(-2).join('/'); // landing/filename.ext
+      await supabase.storage.from('landing-images').remove([fileName]);
+    }
+
+    // Delete from database
+    const { error: dbError } = await supabase
+      .from('landing_images')
+      .delete()
+      .eq('slot_name', slot_name);
+    if (dbError) throw dbError;
+
+    res.json({ ok: true, slot_name });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post('/admin/questions', adminAuth, (req, res) => {
   const { subject, difficulty, question, options, correct, explanation, image_url, game_modes, tower_floor, buzz_type, topic_id } = req.body;
   if (!subject || !question || !Array.isArray(options) || options.length !== 4 || !correct || !explanation)

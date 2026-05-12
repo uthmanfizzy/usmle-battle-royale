@@ -657,6 +657,218 @@
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
+   GAME MODES SECTION
+   ═══════════════════════════════════════════════════════════════════════════ */
+.lp-modes {
+  padding: 80px 32px 100px;
+  background:
+    radial-gradient(ellipse 80% 50% at 50% 100%, rgba(201, 168, 76, 0.04) 0%, transparent 50%),
+    var(--forest-dark);
+}
+
+/* Section Header */
+.lp-modes-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  margin-bottom: 60px;
+}
+
+.lp-modes-divider-line {
+  flex: 1;
+  max-width: 200px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+}
+
+.lp-modes-title {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: clamp(24px, 4vw, 36px);
+  font-weight: 700;
+  color: var(--gold);
+  letter-spacing: 4px;
+  text-align: center;
+  margin: 0;
+}
+
+.lp-modes-ornament {
+  font-size: 24px;
+  opacity: 0.8;
+}
+
+/* Game Modes Grid */
+.lp-modes-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* Individual Game Mode Card */
+.lp-mode-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+  transition: all 0.3s ease;
+
+  /* Parchment/manuscript background */
+  background:
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E"),
+    linear-gradient(165deg,
+      #F5E6C8 0%,
+      #EED9B6 20%,
+      #F0DEC0 40%,
+      #E8D4B0 60%,
+      #F2E2C4 80%,
+      #EAD6B2 100%
+    );
+  background-color: #F5E6C8;
+
+  border: 2px solid #5C4A1E;
+  border-radius: 8px;
+  overflow: hidden;
+
+  box-shadow:
+    0 4px 16px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+.lp-mode-card:hover {
+  transform: translateY(-6px);
+  border-color: var(--gold);
+  box-shadow:
+    0 12px 32px rgba(0, 0, 0, 0.3),
+    0 0 24px rgba(201, 168, 76, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+/* Number Badge */
+.lp-mode-badge {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(61, 43, 15, 0.9);
+  border: 1px solid var(--gold);
+  border-radius: 50%;
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--gold);
+  z-index: 2;
+}
+
+/* Image Area (top 50% of card) */
+.lp-mode-image {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16/10;
+  background: rgba(26, 46, 26, 0.3);
+  overflow: hidden;
+}
+
+.lp-mode-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Card Placeholder */
+.lp-card-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: rgba(26, 46, 26, 0.6);
+  border: 2px dashed var(--gold);
+  border-radius: 0;
+}
+
+.lp-card-placeholder-icon {
+  font-size: 28px;
+  opacity: 0.6;
+}
+
+.lp-card-placeholder-text {
+  font-family: 'Crimson Text', Georgia, serif;
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 0 8px;
+}
+
+/* Card Content */
+.lp-mode-content {
+  position: relative;
+  padding: 20px;
+  text-align: center;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.lp-mode-icon {
+  font-size: 28px;
+  margin-bottom: 8px;
+}
+
+.lp-mode-title {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: #3D2B0F;
+  letter-spacing: 1px;
+  margin: 0 0 8px;
+}
+
+.lp-mode-desc {
+  font-family: 'Crimson Text', Georgia, serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #5C4530;
+  margin: 0;
+  flex: 1;
+}
+
+.lp-mode-arrow {
+  display: inline-block;
+  margin-top: 12px;
+  font-size: 20px;
+  color: #5C4A1E;
+  transition: transform 0.3s ease;
+}
+
+.lp-mode-card:hover .lp-mode-arrow {
+  transform: translateX(4px);
+  color: var(--gold-dark);
+}
+
+/* Hero Image when loaded */
+.lp-hero-image {
+  width: 100%;
+  max-width: 480px;
+  aspect-ratio: 4/3;
+  object-fit: cover;
+  border: 3px solid var(--gold);
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
    FOOTER
    ═══════════════════════════════════════════════════════════════════════════ */
 .lp-footer {
@@ -785,6 +997,11 @@
     flex: 1;
     max-width: 180px;
   }
+
+  /* Game Modes responsive */
+  .lp-modes-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 @media (max-width: 900px) {
@@ -880,6 +1097,26 @@
   .lp-footer-left {
     justify-content: center;
   }
+
+  /* Game Modes responsive */
+  .lp-modes {
+    padding: 60px 20px 80px;
+  }
+
+  .lp-modes-header {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .lp-modes-divider-line {
+    width: 100px;
+    max-width: none;
+  }
+
+  .lp-modes-title {
+    font-size: 20px;
+    letter-spacing: 3px;
+  }
 }
 
 @media (max-width: 600px) {
@@ -912,6 +1149,24 @@
     flex-wrap: wrap;
     justify-content: center;
   }
+
+  /* Game Modes responsive */
+  .lp-modes-grid {
+    grid-template-columns: 1fr;
+    max-width: 320px;
+  }
+
+  .lp-mode-card {
+    max-width: none;
+  }
+
+  .lp-mode-title {
+    font-size: 15px;
+  }
+
+  .lp-mode-desc {
+    font-size: 13px;
+  }
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -925,7 +1180,9 @@
   .lp-btn-parchment,
   .lp-btn-ghost,
   .lp-social,
-  .lp-image-placeholder {
+  .lp-image-placeholder,
+  .lp-mode-card,
+  .lp-mode-arrow {
     transition: none;
   }
 }

@@ -2488,6 +2488,166 @@ function ZoneRow({ zoneNum, name, desc, onNameChange, onDescChange }) {
   );
 }
 
+// ── Landing Images Panel ─────────────────────────────────────────────────────────
+
+const LANDING_IMAGE_SLOTS = [
+  { id: 'hero',          label: 'Hero Background Image',      desc: 'Main hero section background on the landing page' },
+  { id: 'battle_royale', label: 'Battle Royale Card Image',   desc: 'Image for the Battle Royale game mode card' },
+  { id: 'speed_race',    label: 'Speed Race Card Image',      desc: 'Image for the Speed Race game mode card' },
+  { id: 'tower',         label: 'The Tower Card Image',       desc: 'Image for The Tower game mode card' },
+  { id: 'more_to_come',  label: 'More to Come Card Image',    desc: 'Image for the More to Come placeholder card' },
+];
+
+function LandingImagesPanel() {
+  const [images, setImages]     = useState({});
+  const [loading, setLoading]   = useState(true);
+  const [uploading, setUploading] = useState({});
+  const [error, setError]       = useState('');
+
+  useEffect(() => {
+    loadImages();
+  }, []);
+
+  async function loadImages() {
+    setLoading(true);
+    try {
+      const res = await apiCall('/admin/landing-images');
+      if (!res.ok) throw new Error('Failed to load images');
+      const data = await res.json();
+      const map = {};
+      (data.images || []).forEach(img => { map[img.slot_name] = img.image_url; });
+      setImages(map);
+    } catch (err) {
+      setError(err.message);
+    }
+    setLoading(false);
+  }
+
+  async function handleUpload(slot, file) {
+    if (!file) return;
+    const maxSize = 5 * 1024 * 1024;
+    if (file.size > maxSize) {
+      alert('Image must be under 5MB');
+      return;
+    }
+
+    setUploading(u => ({ ...u, [slot]: true }));
+    setError('');
+
+    try {
+      const base64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      const res = await apiCall('/admin/landing-images', {
+        method: 'POST',
+        body: JSON.stringify({
+          slot_name: slot,
+          base64,
+          filename: file.name,
+          mimeType: file.type,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Upload failed');
+
+      setImages(prev => ({ ...prev, [slot]: data.image_url }));
+    } catch (err) {
+      setError(err.message);
+    }
+
+    setUploading(u => ({ ...u, [slot]: false }));
+  }
+
+  async function handleRemove(slot) {
+    if (!window.confirm('Remove this image? It will be deleted from storage.')) return;
+
+    setUploading(u => ({ ...u, [slot]: true }));
+    setError('');
+
+    try {
+      const res = await apiCall(`/admin/landing-images/${slot}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Delete failed');
+
+      setImages(prev => {
+        const copy = { ...prev };
+        delete copy[slot];
+        return copy;
+      });
+    } catch (err) {
+      setError(err.message);
+    }
+
+    setUploading(u => ({ ...u, [slot]: false }));
+  }
+
+  if (loading) return <div className="ap-loading">Loading Landing Images…</div>;
+
+  return (
+    <div className="li-panel">
+      <div className="li-header">
+        <div className="li-header-icon">🖼️</div>
+        <div>
+          <h2 className="li-header-title">Landing Page Images</h2>
+          <p className="li-header-desc">Upload and manage images displayed on the public landing page. Images are stored in Supabase and update immediately for all visitors.</p>
+        </div>
+      </div>
+
+      {error && <div className="li-error">{error}</div>}
+
+      <div className="li-grid">
+        {LANDING_IMAGE_SLOTS.map(slot => (
+          <div key={slot.id} className="li-slot">
+            <div className="li-slot-header">
+              <span className="li-slot-label">{slot.label}</span>
+              <span className="li-slot-desc">{slot.desc}</span>
+            </div>
+
+            <div className="li-slot-preview">
+              {images[slot.id] ? (
+                <img src={images[slot.id]} alt={slot.label} className="li-slot-img" />
+              ) : (
+                <div className="li-slot-empty">
+                  <span className="li-slot-empty-icon">🖼️</span>
+                  <span>No image uploaded</span>
+                </div>
+              )}
+            </div>
+
+            <div className="li-slot-actions">
+              <label className={`li-upload-btn ${uploading[slot.id] ? 'uploading' : ''}`}>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={e => handleUpload(slot.id, e.target.files?.[0])}
+                  disabled={uploading[slot.id]}
+                  style={{ display: 'none' }}
+                />
+                {uploading[slot.id] ? 'Uploading…' : '📤 Upload Image'}
+              </label>
+
+              {images[slot.id] && (
+                <button
+                  className="li-remove-btn"
+                  onClick={() => handleRemove(slot.id)}
+                  disabled={uploading[slot.id]}
+                >
+                  🗑️ Remove
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── Settings Panel ─────────────────────────────────────────────────────────────
 
 function SettingsPanel() {
@@ -3316,6 +3476,9 @@ export default function AdminApp() {
         <button className={`ap-nav-btn ${tab === 'announcements' ? 'active' : ''}`} onClick={() => setTab('announcements')}>
           📣 Announcements
         </button>
+        <button className={`ap-nav-btn ${tab === 'landing'       ? 'active' : ''}`} onClick={() => setTab('landing')}>
+          🖼️ Landing Page
+        </button>
         <button className={`ap-nav-btn ${tab === 'settings'      ? 'active' : ''}`} onClick={() => setTab('settings')}>
           ⚙️ Game Settings
         </button>
@@ -3327,6 +3490,7 @@ export default function AdminApp() {
         {tab === 'subjects'      && <SubjectsPanel />}
         {tab === 'tower'         && <TowerEditorPanel />}
         {tab === 'announcements' && <AnnouncementsPanel />}
+        {tab === 'landing'       && <LandingImagesPanel />}
         {tab === 'settings'      && <SettingsPanel />}
       </main>
     </div>
