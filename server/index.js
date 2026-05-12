@@ -51,15 +51,75 @@ const io = new Server(server, {
   cors: { origin: '*', methods: ['GET', 'POST'] },
 });
 
-// ── Mutable question bank ──────────────────────────────────────────────────────
+// ── Question bank from Supabase (with fallback to local file) ──────────────────
 
-let questionBank = [...require('./questions')];
+let questionBank = [];
+let questionsLastLoaded = 0;
+const QUESTIONS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
-const QUESTIONS_FILE = path.join(__dirname, 'questions.js');
+// Load questions from Supabase, fall back to local file
+async function loadQuestionsFromDB() {
+  if (!supabase) {
+    console.log('[Questions] Supabase not available, using local questions.js');
+    questionBank = [...require('./questions')];
+    return;
+  }
 
+  try {
+    const { data, error } = await supabase
+      .from('questions')
+      .select('*')
+      .order('question_id');
+
+    if (error) throw error;
+
+    if (data && data.length > 0) {
+      // Transform Supabase format to internal format
+      questionBank = data.map(q => ({
+        id: q.question_id,
+        subject: q.category,
+        difficulty: q.difficulty || 'easy',
+        question: q.question,
+        options: q.choices,
+        correct: q.correct,
+        explanation: q.explanation || '',
+        game_modes: q.game_modes || ['battle_royale', 'speed_race', 'trivia_pursuit'],
+        image_url: q.image_url || undefined,
+        tower_floor: q.tower_floor || undefined,
+        topic_id: q.topic_id || undefined,
+        buzz_type: q.buzz_type || undefined,
+        question_type: q.question_type || 'mcq',
+        _supabase_id: q.id, // Keep Supabase UUID for updates
+      }));
+      questionsLastLoaded = Date.now();
+      console.log(`[Questions] Loaded ${questionBank.length} questions from Supabase`);
+    } else {
+      // No questions in Supabase yet, fall back to local file
+      console.log('[Questions] No questions in Supabase, using local questions.js');
+      questionBank = [...require('./questions')];
+    }
+  } catch (err) {
+    console.error('[Questions] Error loading from Supabase:', err.message);
+    console.log('[Questions] Falling back to local questions.js');
+    questionBank = [...require('./questions')];
+  }
+}
+
+// Refresh questions cache if stale
+async function refreshQuestionsIfNeeded() {
+  if (Date.now() - questionsLastLoaded > QUESTIONS_CACHE_TTL) {
+    await loadQuestionsFromDB();
+  }
+}
+
+// Force refresh questions cache
+async function forceRefreshQuestions() {
+  await loadQuestionsFromDB();
+}
+
+// DEPRECATED: No longer writes to file - now uses Supabase
 function persistQuestions() {
-  const content = `const questions = ${JSON.stringify(questionBank, null, 2)};\n\nmodule.exports = questions;\n`;
-  fs.writeFileSync(QUESTIONS_FILE, content, 'utf8');
+  console.warn('[Questions] persistQuestions() is deprecated - questions now stored in Supabase');
 }
 
 // ── Category ID helpers ────────────────────────────────────────────────────────
@@ -2167,16 +2227,21 @@ app.post('/admin/reset-tower-progress', adminAuth, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-app.get('/admin/questions', adminAuth, (req, res) => {
+app.get('/admin/questions', adminAuth, async (req, res) => {
+  await refreshQuestionsIfNeeded();
   console.log(`[admin/questions] returning ${questionBank.length} questions`);
   res.json({ questions: questionBank });
 });
 
-app.post('/admin/questions/bulk', adminAuth, (req, res) => {
+app.post('/admin/questions/bulk', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured. Cannot save questions.' });
+
   const { questions, topic_id } = req.body;
   if (!Array.isArray(questions)) return res.status(400).json({ error: 'Expected { questions: [...] }' });
+
   const added = [];
   const skipped = [];
+
   for (const raw of questions) {
     // Normalise field name aliases
     const subject = raw.subject || raw.category;
@@ -2194,26 +2259,54 @@ app.post('/admin/questions/bulk', adminAuth, (req, res) => {
     if (!raw.explanation)                                      missing.push('explanation');
     if (missing.length) { skipped.push({ question: raw.question || '?', missing }); continue; }
 
-    const newQ = {
-      id: nextQuestionId(subject),
-      subject,
-      difficulty: raw.difficulty || 'easy',
-      question: raw.question,
-      options,
-      correct: raw.correct,
-      explanation: raw.explanation,
-    };
-    if (raw.image_url) newQ.image_url = raw.image_url;
-    newQ.game_modes = Array.isArray(raw.game_modes) && raw.game_modes.length > 0
+    const questionId = nextQuestionId(subject);
+    const gameModes = Array.isArray(raw.game_modes) && raw.game_modes.length > 0
       ? raw.game_modes
       : (raw.image_url ? ['scan_master'] : ['battle_royale', 'speed_race', 'trivia_pursuit']);
-    if (raw.tower_floor != null && !isNaN(parseInt(raw.tower_floor))) newQ.tower_floor = parseInt(raw.tower_floor);
-    if (raw.buzz_type && newQ.game_modes.includes('buzz_fun')) newQ.buzz_type = raw.buzz_type;
-    if (topic_id) newQ.topic_id = topic_id;
-    questionBank.push(newQ);
-    added.push(newQ);
+
+    // Insert into Supabase
+    const record = {
+      question_id: questionId,
+      question: raw.question,
+      choices: options,
+      correct: raw.correct,
+      explanation: raw.explanation,
+      category: subject,
+      difficulty: raw.difficulty || 'easy',
+      game_modes: gameModes,
+      image_url: raw.image_url || null,
+      tower_floor: (raw.tower_floor != null && !isNaN(parseInt(raw.tower_floor))) ? parseInt(raw.tower_floor) : null,
+      buzz_type: (raw.buzz_type && gameModes.includes('buzz_fun')) ? raw.buzz_type : null,
+      topic_id: topic_id || null,
+    };
+
+    try {
+      const { data, error } = await supabase.from('questions').insert(record).select().single();
+      if (error) throw error;
+
+      // Also add to in-memory cache
+      const newQ = {
+        id: questionId,
+        subject,
+        difficulty: record.difficulty,
+        question: record.question,
+        options,
+        correct: record.correct,
+        explanation: record.explanation,
+        game_modes: gameModes,
+        image_url: record.image_url || undefined,
+        tower_floor: record.tower_floor || undefined,
+        topic_id: record.topic_id || undefined,
+        buzz_type: record.buzz_type || undefined,
+        _supabase_id: data.id,
+      };
+      questionBank.push(newQ);
+      added.push(newQ);
+    } catch (err) {
+      skipped.push({ question: raw.question, error: err.message });
+    }
   }
-  persistQuestions();
+
   res.json({ added: added.length, skipped: skipped.length, questions: added, ...(skipped.length ? { skippedDetails: skipped } : {}) });
 });
 
@@ -2374,37 +2467,116 @@ app.delete('/admin/landing-images/:slot_name', adminAuth, async (req, res) => {
   }
 });
 
-app.post('/admin/questions', adminAuth, (req, res) => {
+app.post('/admin/questions', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured. Cannot save questions.' });
+
   const { subject, difficulty, question, options, correct, explanation, image_url, game_modes, tower_floor, buzz_type, topic_id } = req.body;
   if (!subject || !question || !Array.isArray(options) || options.length !== 4 || !correct || !explanation)
     return res.status(400).json({ error: 'Missing required fields' });
-  const newQ = { id: nextQuestionId(subject), subject, difficulty: difficulty || 'easy', question, options, correct, explanation };
-  if (image_url) newQ.image_url = image_url;
-  newQ.game_modes = Array.isArray(game_modes) && game_modes.length > 0 ? game_modes : ['battle_royale', 'speed_race', 'trivia_pursuit'];
-  if (tower_floor != null && !isNaN(parseInt(tower_floor))) newQ.tower_floor = parseInt(tower_floor);
-  if (buzz_type && newQ.game_modes.includes('buzz_fun')) newQ.buzz_type = buzz_type;
-  if (topic_id) newQ.topic_id = topic_id;
-  questionBank.push(newQ);
-  persistQuestions();
-  res.json(newQ);
+
+  const questionId = nextQuestionId(subject);
+  const gameModes = Array.isArray(game_modes) && game_modes.length > 0 ? game_modes : ['battle_royale', 'speed_race', 'trivia_pursuit'];
+
+  const record = {
+    question_id: questionId,
+    question,
+    choices: options,
+    correct,
+    explanation,
+    category: subject,
+    difficulty: difficulty || 'easy',
+    game_modes: gameModes,
+    image_url: image_url || null,
+    tower_floor: (tower_floor != null && !isNaN(parseInt(tower_floor))) ? parseInt(tower_floor) : null,
+    buzz_type: (buzz_type && gameModes.includes('buzz_fun')) ? buzz_type : null,
+    topic_id: topic_id || null,
+  };
+
+  try {
+    const { data, error } = await supabase.from('questions').insert(record).select().single();
+    if (error) throw error;
+
+    // Also add to in-memory cache
+    const newQ = {
+      id: questionId,
+      subject,
+      difficulty: record.difficulty,
+      question,
+      options,
+      correct,
+      explanation,
+      game_modes: gameModes,
+      image_url: record.image_url || undefined,
+      tower_floor: record.tower_floor || undefined,
+      topic_id: record.topic_id || undefined,
+      buzz_type: record.buzz_type || undefined,
+      _supabase_id: data.id,
+    };
+    questionBank.push(newQ);
+    res.json(newQ);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-app.put('/admin/questions/:id', adminAuth, (req, res) => {
+app.put('/admin/questions/:id', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+
   const id  = req.params.id;
   const idx = questionBank.findIndex(q => String(q.id) === id);
   if (idx === -1) return res.status(404).json({ error: 'Question not found' });
-  questionBank[idx] = { ...questionBank[idx], ...req.body, id };
-  persistQuestions();
-  res.json(questionBank[idx]);
+
+  const existing = questionBank[idx];
+  const updated = { ...existing, ...req.body, id };
+
+  // Build Supabase update record
+  const record = {
+    question: updated.question,
+    choices: updated.options,
+    correct: updated.correct,
+    explanation: updated.explanation,
+    category: updated.subject,
+    difficulty: updated.difficulty || 'easy',
+    game_modes: updated.game_modes || ['battle_royale', 'speed_race', 'trivia_pursuit'],
+    image_url: updated.image_url || null,
+    tower_floor: updated.tower_floor || null,
+    topic_id: updated.topic_id || null,
+    buzz_type: updated.buzz_type || null,
+    updated_at: new Date().toISOString(),
+  };
+
+  try {
+    const { error } = await supabase
+      .from('questions')
+      .update(record)
+      .eq('question_id', id);
+    if (error) throw error;
+
+    // Update in-memory cache
+    questionBank[idx] = updated;
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-app.delete('/admin/questions/:id', adminAuth, (req, res) => {
+app.delete('/admin/questions/:id', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+
   const id  = req.params.id;
   const idx = questionBank.findIndex(q => String(q.id) === id);
   if (idx === -1) return res.status(404).json({ error: 'Question not found' });
-  questionBank.splice(idx, 1);
-  persistQuestions();
-  res.json({ ok: true });
+
+  try {
+    const { error } = await supabase.from('questions').delete().eq('question_id', id);
+    if (error) throw error;
+
+    // Remove from in-memory cache
+    questionBank.splice(idx, 1);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // ── Topics API ─────────────────────────────────────────────────────────────────
@@ -2769,7 +2941,13 @@ app.get('/health', (req, res) => res.json({
 
 // ── Start ──────────────────────────────────────────────────────────────────────
 
-server.listen(PORT, () => {
+server.listen(PORT, async () => {
   console.log(`USMLE Battle Royale server running on port ${PORT}`);
-  loadSettingsFromDB();
+  await loadSettingsFromDB();
+  await loadQuestionsFromDB();
+
+  // Refresh questions cache every 5 minutes
+  setInterval(() => {
+    loadQuestionsFromDB().catch(err => console.error('[Questions] Auto-refresh failed:', err.message));
+  }, QUESTIONS_CACHE_TTL);
 });
