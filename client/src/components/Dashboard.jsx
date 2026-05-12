@@ -26,10 +26,50 @@ const SUBJECTS = [
   { id: 'biostatistics', label: 'Biostatistics', icon: '📊' },
 ];
 const PLACE_ICONS = { 1: '🥇', 2: '🥈', 3: '🥉' };
+const GAME_MODE_ICONS = {
+  battle_royale: '⚔️',
+  speed_race: '⚡',
+  tower: '🏰',
+  trivia_pursuit: '🎯',
+  buzz_fun: '🐝',
+  scan_master: '🔬',
+};
+const GAME_MODE_LABELS = {
+  battle_royale: 'Battle Royale',
+  speed_race: 'Speed Race',
+  tower: 'Tower',
+  trivia_pursuit: 'Trivia Pursuit',
+  buzz_fun: 'Buzz Fun',
+  scan_master: 'Scan Master',
+};
 
 function cap(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : ''; }
 function fmtDate(str) {
   return new Date(str).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+function timeAgo(str) {
+  const diff = Date.now() - new Date(str).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  return `${days}d ago`;
+}
+
+// Rank tiers based on XP
+function getRank(xp) {
+  if (xp < 500)   return { tier: 'I', name: 'Medical Student I', next: 500, progress: xp / 500 };
+  if (xp < 1500)  return { tier: 'II', name: 'Medical Student II', next: 1500, progress: (xp - 500) / 1000 };
+  if (xp < 3000)  return { tier: 'III', name: 'Medical Student III', next: 3000, progress: (xp - 1500) / 1500 };
+  if (xp < 5000)  return { tier: 'I', name: 'Medical Intern I', next: 5000, progress: (xp - 3000) / 2000 };
+  if (xp < 8000)  return { tier: 'II', name: 'Medical Intern II', next: 8000, progress: (xp - 5000) / 3000 };
+  if (xp < 12000) return { tier: 'III', name: 'Medical Intern III', next: 12000, progress: (xp - 8000) / 4000 };
+  if (xp < 18000) return { tier: 'I', name: 'Resident I', next: 18000, progress: (xp - 12000) / 6000 };
+  if (xp < 25000) return { tier: 'II', name: 'Resident II', next: 25000, progress: (xp - 18000) / 7000 };
+  if (xp < 35000) return { tier: 'III', name: 'Resident III', next: 35000, progress: (xp - 25000) / 10000 };
+  if (xp < 50000) return { tier: 'I', name: 'Attending I', next: 50000, progress: (xp - 35000) / 15000 };
+  return { tier: '∞', name: 'Chief Physician', next: null, progress: 1 };
 }
 
 // ── Username Change Modal ──────────────────────────────────────────────────────
@@ -121,7 +161,7 @@ function UsernameChangeModal({ user, onClose, onSuccess }) {
             {error && <p className="modal-error">{error}</p>}
 
             <p className="username-warning">
-              ⚠️ You can only change your username once per year.
+              You can only change your username once per year.
             </p>
 
             <button className="btn-primary" type="submit" disabled={loading || !canSubmit}>
@@ -134,133 +174,198 @@ function UsernameChangeModal({ user, onClose, onSuccess }) {
   );
 }
 
-// ── Home Section ───────────────────────────────────────────────────────────────
-function HomeSection({ user, onUserUpdate }) {
+// ── Home Section (RPG Style) ───────────────────────────────────────────────────
+function HomeSection({ user, bgUrl, onUserUpdate }) {
   const [showUsernameModal, setShowUsernameModal] = useState(false);
   const xp          = user.xp    || 0;
   const level       = user.level || 1;
   const xpIntoLevel = xp % 500;
   const xpProgress  = Math.round((xpIntoLevel / 500) * 100);
-  const xpToNext    = 500 - xpIntoLevel;
   const gamesPlayed = user.games_played || 0;
   const gamesWon    = user.games_won    || 0;
-  const winRate     = gamesPlayed > 0 ? Math.round((gamesWon / gamesPlayed) * 100) : 0;
-  const mastery      = user.subject_mastery || [];
-  const gameHistory  = user.game_history    || [];
-  const totalCorrect = mastery.reduce((s, m) => s + (m.questions_correct || 0), 0);
+  const winRate     = gamesPlayed > 0 ? ((gamesWon / gamesPlayed) * 100).toFixed(1) : 0;
+  const gameHistory = user.game_history || [];
+  const rank        = getRank(xp);
 
-  function getMastery(subject) {
-    const m = mastery.find(m => m.subject === subject);
-    return m ? m.mastery_percent : 0;
-  }
-  function masteryColor(pct) {
-    if (pct >= 80) return 'var(--green)';
-    if (pct >= 50) return '#ffaa00';
-    return 'var(--blue)';
-  }
+  // Mock daily quests (would come from server in real implementation)
+  const quests = [
+    { id: 1, icon: '🎮', desc: 'Play 3 games today', current: 1, total: 3, reward: 150 },
+    { id: 2, icon: '❓', desc: 'Answer 10 questions correctly', current: 7, total: 10, reward: 200 },
+    { id: 3, icon: '⚔️', desc: 'Win a Battle Royale match', current: 0, total: 1, reward: 300 },
+  ];
+
+  // Time until daily reset (midnight UTC)
+  const [timeLeft, setTimeLeft] = useState('');
+  useEffect(() => {
+    function updateTimer() {
+      const now = new Date();
+      const midnight = new Date(now);
+      midnight.setUTCHours(24, 0, 0, 0);
+      const diff = midnight - now;
+      const hrs = Math.floor(diff / 3600000);
+      const mins = Math.floor((diff % 3600000) / 60000);
+      setTimeLeft(`${hrs}h ${mins}m left`);
+    }
+    updateTimer();
+    const interval = setInterval(updateTimer, 60000);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
-    <div className="dash-content">
-      {/* Profile + Stats */}
-      <div className="dash-top-row">
-        <div className="dash-card profile-card">
-          <div className="profile-top">
+    <div className="dash-main">
+      {/* Left Column */}
+      <div className="dash-left-col">
+        {/* Player Profile */}
+        <div className="parchment-panel profile-panel">
+          <div className="profile-avatar-wrap">
             {user.avatar_url
               ? <img src={user.avatar_url} alt="" className="profile-avatar" referrerPolicy="no-referrer" />
               : <div className="profile-avatar-placeholder">{user.username?.[0]?.toUpperCase()}</div>
             }
-            <div className="profile-details">
-              <h2 className="profile-username">{user.username}</h2>
-              <span className="level-badge">Level {level}</span>
-              {user.last_username_change && (
-                <span className="username-last-changed">
-                  Name changed {fmtDate(user.last_username_change)}
-                </span>
-              )}
-              <button
-                className="btn-change-username"
-                onClick={() => setShowUsernameModal(true)}
-              >
-                ✏️ Change Username
-              </button>
-              <button
-                className="btn-view-stats"
-                onClick={() => window.location.href = '/stats'}
-              >
-                📊 View Full Stats
-              </button>
-            </div>
+            <div className="profile-avatar-frame" />
+            <div className="profile-level-badge">{level}</div>
           </div>
-          <div className="xp-section">
-            <div className="xp-label-row">
-              <span className="xp-total">{xp.toLocaleString()} XP</span>
-              <span className="xp-next">{xpToNext} XP to Lv {level + 1}</span>
+          <div className="profile-username">
+            {user.username}
+            <button className="profile-edit-btn" onClick={() => setShowUsernameModal(true)} title="Edit username">
+              ✏️
+            </button>
+          </div>
+          <div className="profile-title">
+            <span>🌿</span> Future Doctor
+          </div>
+          <div className="profile-xp-section">
+            <div className="profile-xp-text">
+              <span className="profile-xp-current">{xp.toLocaleString()} / {(Math.floor(xp / 500) + 1) * 500} XP</span>
             </div>
-            <div className="xp-track">
-              <div className="xp-fill" style={{ width: `${xpProgress}%` }} />
+            <div className="profile-xp-bar">
+              <div className="profile-xp-fill" style={{ width: `${xpProgress}%` }} />
             </div>
           </div>
         </div>
 
-        <div className="dash-card stats-card">
-          <div className="card-title">Overall Stats</div>
+        {/* Stats Overview */}
+        <div className="parchment-panel">
+          <div className="panel-title">Stats Overview</div>
           <div className="stats-grid">
-            <div className="stat-item"><div className="stat-val">{gamesPlayed}</div><div className="stat-label">Played</div></div>
-            <div className="stat-item"><div className="stat-val">{gamesWon}</div><div className="stat-label">Wins</div></div>
-            <div className="stat-item"><div className="stat-val">{winRate}%</div><div className="stat-label">Win Rate</div></div>
-            <div className="stat-item"><div className="stat-val">{totalCorrect}</div><div className="stat-label">Correct</div></div>
+            <div className="stat-box">
+              <div className="stat-icon">✨</div>
+              <div className="stat-label">Total XP</div>
+              <div className="stat-value">{xp.toLocaleString()}</div>
+            </div>
+            <div className="stat-box">
+              <div className="stat-icon">🎮</div>
+              <div className="stat-label">Games Played</div>
+              <div className="stat-value">{gamesPlayed}</div>
+            </div>
+            <div className="stat-box">
+              <div className="stat-icon">🏆</div>
+              <div className="stat-label">Win Rate</div>
+              <div className="stat-value">{winRate}%</div>
+            </div>
+            <div className="stat-box">
+              <div className="stat-icon">🔥</div>
+              <div className="stat-label">Best Streak</div>
+              <div className="stat-value">{user.best_streak || 0}</div>
+            </div>
           </div>
+        </div>
+
+        {/* Current Rank */}
+        <div className="parchment-panel rank-panel">
+          <div className="panel-title">Current Rank</div>
+          <div className="rank-crest">
+            <div className="rank-numeral">{rank.tier}</div>
+          </div>
+          <div className="rank-name">{rank.name}</div>
+          <div className="rank-progress-text">
+            <span>🏆</span> {xp.toLocaleString()} / {rank.next?.toLocaleString() || '∞'}
+          </div>
+          <div className="rank-progress-bar">
+            <div className="rank-progress-fill" style={{ width: `${Math.round(rank.progress * 100)}%` }} />
+          </div>
+          {rank.next && (
+            <div className="rank-next">Next: {getRank(rank.next).name}</div>
+          )}
         </div>
       </div>
 
-      {/* Mastery */}
-      <div className="dash-card mastery-card">
-        <div className="card-title">Subject Mastery</div>
-        <div className="mastery-grid">
-          {SUBJECTS.map(({ id, label, icon }) => {
-            const pct = getMastery(id);
-            return (
-              <div key={id} className="mastery-item">
-                <div className="mastery-header">
-                  <span className="mastery-icon">{icon}</span>
-                  <span className="mastery-name">{label}</span>
-                  <span className="mastery-pct">{pct}%</span>
+      {/* Center Column - Transparent */}
+      <div className="dash-center-col">
+        <div className="center-welcome">
+          <div className="center-welcome-title">Welcome Back, {user.username}!</div>
+          <div className="center-welcome-sub">Ready for your next challenge?</div>
+        </div>
+      </div>
+
+      {/* Right Column */}
+      <div className="dash-right-col">
+        {/* Daily Quests */}
+        <div className="parchment-panel">
+          <div className="panel-title">
+            Daily Quests
+            <span className="quests-timer">⏰ {timeLeft}</span>
+          </div>
+          <div className="quest-list">
+            {quests.map(q => (
+              <div key={q.id} className="quest-item">
+                <div className="quest-icon">{q.icon}</div>
+                <div className="quest-info">
+                  <div className="quest-desc">{q.desc}</div>
+                  <div className="quest-progress-bar">
+                    <div
+                      className="quest-progress-fill"
+                      style={{ width: `${Math.min(100, (q.current / q.total) * 100)}%` }}
+                    />
+                  </div>
+                  <div className="quest-progress-text">{q.current} / {q.total}</div>
                 </div>
-                <div className="mastery-track">
-                  <div className="mastery-fill" style={{ width: `${pct}%`, background: masteryColor(pct) }} />
+                <div className="quest-reward">
+                  <span>🪙</span> {q.reward}
                 </div>
               </div>
-            );
-          })}
+            ))}
+          </div>
+          <div className="view-all-link" onClick={() => window.location.href = '/stats'}>
+            VIEW ALL QUESTS →
+          </div>
         </div>
-      </div>
 
-      {/* Game history */}
-      <div className="dash-card history-card">
-        <div className="card-title">Recent Games</div>
-        {gameHistory.length === 0 ? (
-          <p className="no-history">No games yet — start your first battle!</p>
-        ) : (
-          <table className="history-table">
-            <thead>
-              <tr><th>Subject</th><th>Place</th><th>Correct</th><th>XP</th><th>Date</th></tr>
-            </thead>
-            <tbody>
-              {gameHistory.map(g => {
+        {/* Recent Games */}
+        <div className="parchment-panel">
+          <div className="panel-title">
+            Recent Games
+            <span className="panel-title-link" onClick={() => window.location.href = '/stats'}>VIEW ALL →</span>
+          </div>
+          {gameHistory.length === 0 ? (
+            <p className="no-games-msg">No games yet — start your first battle!</p>
+          ) : (
+            <div className="recent-games-list">
+              {gameHistory.slice(0, 4).map(g => {
+                const modeIcon = GAME_MODE_ICONS[g.game_mode] || '🎮';
+                const modeLabel = GAME_MODE_LABELS[g.game_mode] || cap(g.game_mode || 'Game');
                 const subj = SUBJECTS.find(s => s.id === g.subject);
+                const placeClass = g.placement === 1 ? 'gold' : g.placement === 2 ? 'silver' : 'normal';
                 return (
-                  <tr key={g.id}>
-                    <td className="history-subject">{subj?.icon || '🎮'} {cap(g.subject)}</td>
-                    <td>{PLACE_ICONS[g.placement] || `#${g.placement}`}</td>
-                    <td className="history-correct">{g.correct_answers}/{g.total_questions}</td>
-                    <td className="history-xp">+{g.xp_earned}</td>
-                    <td className="history-date">{fmtDate(g.played_at)}</td>
-                  </tr>
+                  <div key={g.id} className="recent-game-row">
+                    <div className="recent-game-thumb">{modeIcon}</div>
+                    <div className="recent-game-info">
+                      <div className="recent-game-mode">{modeLabel}</div>
+                      <div className="recent-game-subject">{subj?.icon || '📚'} {cap(g.subject)}</div>
+                    </div>
+                    <div className="recent-game-result">
+                      <div className={`recent-game-place ${placeClass}`}>
+                        {g.placement === 1 ? '1st 🏆' : g.placement === 2 ? '2nd' : `#${g.placement}`}
+                      </div>
+                      <div className="recent-game-xp">+{g.xp_earned} XP</div>
+                      <div className="recent-game-time">{timeAgo(g.played_at)}</div>
+                    </div>
+                  </div>
                 );
               })}
-            </tbody>
-          </table>
-        )}
+            </div>
+          )}
+        </div>
       </div>
 
       {showUsernameModal && (
@@ -383,7 +488,7 @@ function LeaderboardSection({ userId }) {
 
 // ── Clan Section ───────────────────────────────────────────────────────────────
 function ClanSection({ user, onUserUpdate }) {
-  const [view,      setView]      = useState('home'); // 'home' | 'create' | 'search'
+  const [view,      setView]      = useState('home');
   const [clanName,  setClanName]  = useState('');
   const [clanTag,   setClanTag]   = useState('');
   const [searchQ,   setSearchQ]   = useState('');
@@ -393,14 +498,12 @@ function ClanSection({ user, onUserUpdate }) {
   const [clanLb,    setClanLb]    = useState([]);
   const [lbLoaded,  setLbLoaded]  = useState(false);
 
-  // Fetch clan leaderboard once
   useEffect(() => {
     authFetch('/api/clans/leaderboard')
       .then(r => r.ok ? r.json() : { clans: [] })
       .then(d => { setClanLb(d.clans || []); setLbLoaded(true); });
   }, []);
 
-  // Debounced clan search
   useEffect(() => {
     if (view !== 'search' || searchQ.length < 2) { setResults([]); return; }
     const t = setTimeout(() => {
@@ -459,8 +562,6 @@ function ClanSection({ user, onUserUpdate }) {
 
   return (
     <div className="dash-content">
-
-      {/* In-clan view */}
       {clan ? (
         <div className="dash-card clan-info-card">
           <div className="clan-header">
@@ -491,7 +592,6 @@ function ClanSection({ user, onUserUpdate }) {
           </button>
         </div>
       ) : (
-        /* No-clan view */
         <div>
           {view === 'home' && (
             <div className="clan-actions">
@@ -573,7 +673,6 @@ function ClanSection({ user, onUserUpdate }) {
         </div>
       )}
 
-      {/* Clan leaderboard */}
       {lbLoaded && clanLb.length > 0 && (
         <div className="dash-card" style={{ marginTop: 20 }}>
           <div className="card-title">Top Clans</div>
@@ -606,21 +705,11 @@ function ClanSection({ user, onUserUpdate }) {
 // ── Welcome Popup ──────────────────────────────────────────────────────────────
 function WelcomePopup({ announcement, onClose }) {
   return (
-    <div className="welcome-overlay" onClick={onClose}>
+    <div className="welcome-popup-overlay" onClick={onClose}>
       <div className="welcome-popup" onClick={e => e.stopPropagation()}>
-        <div className="welcome-icon">🏥</div>
-        <h2 className="welcome-title">{announcement?.title || 'Welcome to Med Royale!'}</h2>
-        <p className="welcome-body">
-          {announcement?.message || 'The most fun way to prepare for your medical exams. Study hard, play hard!'}
-        </p>
-        <div className="welcome-founder">
-          <div className="ann-founder-avatar">F</div>
-          <div>
-            <div className="ann-founder-name">Dr-Fiz</div>
-            <div className="ann-founder-role">Founder</div>
-          </div>
-        </div>
-        <button className="btn-primary welcome-btn" onClick={onClose}>Let's Go! 🚀</button>
+        <h2>{announcement?.title || 'Welcome to MedVale!'}</h2>
+        <p>{announcement?.message || 'The most epic way to prepare for your medical exams. Study hard, play hard!'}</p>
+        <button onClick={onClose}>Let's Go!</button>
       </div>
     </div>
   );
@@ -649,46 +738,28 @@ function AnnouncementsSection() {
 
   return (
     <div className="dash-content">
-      <div className="ann-feed">
-        {announcements.length === 0 && (
-          <div className="dash-card" style={{ textAlign: 'center', padding: 32 }}>
-            <p className="no-history">No announcements yet. Check back soon!</p>
-          </div>
-        )}
-        {announcements.map(a => (
-          <div key={a.id} className={`ann-card${a.urgent ? ' ann-urgent' : ''}`}>
-            {a.pinned && <div className="ann-pin-bar">📌 Pinned</div>}
-            <div className="ann-card-head">
-              <div className="ann-founder-row">
-                <div className="ann-founder-avatar">F</div>
-                <div>
-                  <div className="ann-founder-name">Dr-Fiz</div>
-                  <div className="ann-founder-role">Founder</div>
-                </div>
-              </div>
-              <div className="ann-badges">
-                {a.urgent && <span className="ann-badge ann-badge-urgent">URGENT</span>}
-                <span className="ann-badge ann-badge-cat" style={{ background: ANN_CAT_COLORS[a.category] || '#555' }}>
-                  {a.category}
-                </span>
-              </div>
-            </div>
-            <h3 className="ann-title">{a.title}</h3>
-            <p className="ann-body">{a.message}</p>
-            <div className="ann-foot">
-              <span className="ann-date">
-                {new Date(a.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
-              </span>
+      {announcements.length === 0 ? (
+        <div className="dash-card" style={{ textAlign: 'center', padding: 32 }}>
+          <p className="no-history">No announcements yet. Check back soon!</p>
+        </div>
+      ) : (
+        announcements.map(a => (
+          <div key={a.id} className="dash-card">
+            <div className="card-title">{a.category}</div>
+            <h3 style={{ marginBottom: 8, color: 'var(--text-dark)' }}>{a.title}</h3>
+            <p style={{ color: 'var(--text-muted)', marginBottom: 12, lineHeight: 1.6 }}>{a.message}</p>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+              {new Date(a.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
             </div>
           </div>
-        ))}
-      </div>
+        ))
+      )}
     </div>
   );
 }
 
 // ── Settings Panel ─────────────────────────────────────────────────────────────
-function SettingsPanel({ onClose }) {
+function SettingsPanel({ onClose, onLogout }) {
   const { theme, color, applyTheme } = useTheme();
 
   useEffect(() => {
@@ -709,13 +780,12 @@ function SettingsPanel({ onClose }) {
         <div className="settings-panel-body">
           <div className="stp-section-label">APPEARANCE</div>
 
-          {/* Theme picker */}
           <div className="stp-subsect">
             <div className="stp-subsect-title">Theme</div>
             <div className="stp-theme-grid">
               {[
-                { id: 'default', name: 'Default 🌙',   Preview: DefaultPreview },
-                { id: 'pixel',   name: 'Pixel Art 🕹️', Preview: PixelPreview  },
+                { id: 'default', name: 'Default', Preview: DefaultPreview },
+                { id: 'pixel',   name: 'Pixel Art', Preview: PixelPreview  },
               ].map(({ id, name, Preview }) => (
                 <button
                   key={id}
@@ -731,7 +801,6 @@ function SettingsPanel({ onClose }) {
             </div>
           </div>
 
-          {/* Colour picker */}
           <div className="stp-subsect">
             <div className="stp-subsect-title">Accent Colour</div>
             <div className="stp-color-grid">
@@ -749,6 +818,11 @@ function SettingsPanel({ onClose }) {
             </div>
           </div>
 
+          <div className="stp-subsect" style={{ marginTop: 32 }}>
+            <button className="btn-logout" onClick={onLogout} style={{ width: '100%' }}>
+              Sign Out
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -762,6 +836,17 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
   const [showWelcome,  setShowWelcome]  = useState(false);
   const [welcomeAnn,   setWelcomeAnn]   = useState(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [bgUrl,        setBgUrl]        = useState(null);
+
+  // Fetch background image
+  useEffect(() => {
+    fetch(`${SERVER_URL}/api/landing-images`)
+      .then(r => r.json())
+      .then(d => {
+        if (d.images?.hero_bg) setBgUrl(d.images.hero_bg);
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     fetch(`${SERVER_URL}/api/announcements`)
@@ -789,43 +874,57 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
     localStorage.setItem(ANN_WELCOME_KEY, '1');
   }
 
+  // Mock currency values
+  const coins = 24850;
+  const gems = 1250;
+
   return (
     <div className="dashboard-screen">
-      <div className="dashboard-container">
+      {/* Background */}
+      <div className="dashboard-bg">
+        {bgUrl && <img src={bgUrl} alt="" className="dashboard-bg-image" />}
+        <div className="dashboard-bg-overlay" />
+      </div>
 
+      <div className="dashboard-container">
         {showWelcome && <WelcomePopup announcement={welcomeAnn} onClose={handleWelcomeClose} />}
 
-        {/* Header */}
-        <div className="dash-header">
-          <div className="dash-logo">⚕️ Med Royale</div>
-          <div className="dash-header-right">
-            <button
-              className="dash-action-btn"
-              onClick={() => window.location.href = '/stats'}
-              title="Stats"
-            >
-              <span className="dab-icon">📊</span>
-              <span className="dab-label">Stats</span>
+        {/* Top Bar */}
+        <div className="dash-topbar">
+          <div className="dash-logo-section">
+            <div className="dash-logo">
+              <span className="dash-logo-icon">🏆</span>
+              MedVale
+            </div>
+            <div className="dash-tagline">LIVE. FIGHT. SURVIVE. BECOME LEGEND.</div>
+          </div>
+
+          <div className="dash-topbar-right">
+            <div className="currency-box">
+              <span className="currency-icon">🪙</span>
+              <span className="currency-value">{coins.toLocaleString()}</span>
+            </div>
+            <div className="currency-box">
+              <span className="currency-icon">💎</span>
+              <span className="currency-value">{gems.toLocaleString()}</span>
+            </div>
+            <button className="topbar-icon-btn" title="Notifications">
+              🔔
+              {unreadCount > 0 && <span className="notification-dot" />}
             </button>
-            <button
-              className="dash-action-btn"
-              onClick={() => setShowSettings(true)}
-              title="Settings"
-            >
-              <span className="dab-icon">⚙️</span>
-              <span className="dab-label">Settings</span>
+            <button className="topbar-icon-btn" onClick={() => setShowSettings(true)} title="Settings">
+              ⚙️
             </button>
-            <button className="btn-logout" onClick={onLogout}>Sign Out</button>
           </div>
         </div>
 
         {/* Tab content */}
-        {dashTab === 'home'          && <HomeSection user={user} onUserUpdate={onUserUpdate} />}
+        {dashTab === 'home'          && <HomeSection user={user} bgUrl={bgUrl} onUserUpdate={onUserUpdate} />}
         {dashTab === 'leaderboard'   && <LeaderboardSection userId={user.id} />}
         {dashTab === 'clans'         && <ClanSection user={user} onUserUpdate={onUserUpdate} />}
         {dashTab === 'announcements' && <AnnouncementsSection />}
 
-        {/* Bottom navigation */}
+        {/* Bottom Navigation */}
         <nav className="dash-nav">
           <button
             className={`dash-nav-btn ${dashTab === 'home' ? 'active' : ''}`}
@@ -839,13 +938,13 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
             onClick={() => setDashTab('leaderboard')}
           >
             <span className="nav-icon">🏆</span>
-            <span className="nav-label">Leaderboard</span>
+            <span className="nav-label">Leaderboards</span>
           </button>
           <button
             className={`dash-nav-btn ${dashTab === 'clans' ? 'active' : ''}`}
             onClick={() => setDashTab('clans')}
           >
-            <span className="nav-icon">🛡️</span>
+            <span className="nav-icon">👥</span>
             <span className="nav-label">Clans</span>
           </button>
           <button
@@ -854,7 +953,7 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
             style={{ position: 'relative' }}
           >
             {unreadCount > 0 && <span className="ann-unread-dot" />}
-            <span className="nav-icon">📣</span>
+            <span className="nav-icon">📰</span>
             <span className="nav-label">News</span>
           </button>
           <button className="dash-nav-btn dash-nav-play" onClick={onPlayNow}>
@@ -862,10 +961,9 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
             <span className="nav-label">Play</span>
           </button>
         </nav>
-
       </div>
 
-      {showSettings && <SettingsPanel onClose={() => setShowSettings(false)} />}
+      {showSettings && <SettingsPanel onClose={() => setShowSettings(false)} onLogout={onLogout} />}
     </div>
   );
 }
