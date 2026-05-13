@@ -435,7 +435,7 @@ function generateLobbyId() {
   return id;
 }
 
-function makeLobby(hostSocketId, subject = 'all', gameMode = 'battle_royale') {
+function makeLobby(hostSocketId, subject = 'all', gameMode = 'battle_royale', difficulty = 'easy') {
   const id = generateLobbyId();
   const lobby = {
     id,
@@ -443,6 +443,7 @@ function makeLobby(hostSocketId, subject = 'all', gameMode = 'battle_royale') {
     status: 'waiting',
     subject,
     gameMode,
+    difficulty,  // 'easy' or 'hard'
     openToQuickJoin: true,
     players:       new Map(),
     questionQueue: [],
@@ -629,7 +630,7 @@ function processBuzzFunAnswers(lobby) {
     const sock = io.sockets.sockets.get(player.id);
     if (sock) sock.emit('answer_result', {
       correct, correctAnswer: q.correct, lives: 3, alive: true,
-      score: player.score, explanation: q.explanation,
+      score: player.score, explanation: lobby.difficulty === 'hard' ? '' : (q.explanation || ''),
       streak: sr.streak, onFire: sr.onFire, pointsEarned,
     });
   }
@@ -640,7 +641,7 @@ function processBuzzFunAnswers(lobby) {
   }));
 
   io.to(lobby.id).emit('round_results', {
-    results, correctAnswer: q.correct, explanation: q.explanation, eliminated: [], players: snapshot,
+    results, correctAnswer: q.correct, explanation: lobby.difficulty === 'hard' ? '' : (q.explanation || ''), eliminated: [], players: snapshot,
   });
 
   if (lobby.questionIdx >= lobby.questionQueue.length - 1) {
@@ -719,6 +720,7 @@ function nextQuestion(lobby) {
   const q         = lobby.questionQueue[lobby.questionIdx];
   const timeLimit = lobby.suddenDeath ? 5
     : lobby.gameMode === 'scan_master' ? 25
+    : lobby.difficulty === 'hard' ? 10
     : gameSettings.timerDuration;
 
   io.to(lobby.id).emit('new_question', {
@@ -793,7 +795,7 @@ function processAnswers(lobby) {
       sock.emit('answer_result', {
         correct, correctAnswer: q.correct,
         lives: player.lives, alive: player.alive,
-        score: player.score, explanation: q.explanation,
+        score: player.score, explanation: lobby.difficulty === 'hard' ? '' : (q.explanation || ''),
         streak, onFire,
       });
     }
@@ -805,7 +807,7 @@ function processAnswers(lobby) {
   }));
 
   io.to(lobby.id).emit('round_results', {
-    results, correctAnswer: q.correct, explanation: q.explanation, eliminated, players: snapshot,
+    results, correctAnswer: q.correct, explanation: lobby.difficulty === 'hard' ? '' : (q.explanation || ''), eliminated, players: snapshot,
   });
 
   const alive = alivePlayers(lobby);
@@ -1508,11 +1510,11 @@ io.use((socket, next) => {
 io.on('connection', (socket) => {
   console.log('[+] connected:', socket.id, socket.userId ? `(user ${socket.userId})` : '');
 
-  socket.on('create_lobby', ({ username, subject = 'all', gameMode = 'battle_royale', clanTag = null, isGuest = false }, ack) => {
+  socket.on('create_lobby', ({ username, subject = 'all', gameMode = 'battle_royale', difficulty = 'easy', clanTag = null, isGuest = false }, ack) => {
     const name = (username ?? '').trim().slice(0, 20);
     if (!name) return ack({ ok: false, error: 'Username required.' });
 
-    const lobby = makeLobby(socket.id, subject, gameMode);
+    const lobby = makeLobby(socket.id, subject, gameMode, difficulty);
     lobby.players.set(socket.id, {
       id: socket.id, username: name, clanTag: clanTag || null, isGuest: Boolean(isGuest), lives: gameSettings.startingLives, score: 0, alive: true,
     });
@@ -3162,6 +3164,15 @@ const WELCOME_ANNOUNCEMENT = {
   urgent: false,
   created_at: new Date().toISOString(),
 };
+
+// Public endpoint to get game settings (for checking hard mode availability, etc.)
+app.get('/api/game-settings', (req, res) => {
+  res.json({
+    hardModeEnabled: gameSettings.hardModeEnabled,
+    maintenanceMode: gameSettings.maintenanceMode,
+    maintenanceMessage: gameSettings.maintenanceMessage,
+  });
+});
 
 app.get('/api/announcements', async (req, res) => {
   if (!supabase) return res.json({ announcements: [WELCOME_ANNOUNCEMENT] });

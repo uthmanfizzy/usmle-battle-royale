@@ -421,7 +421,7 @@ export default function App() {
   function handleCreateLobby(selectedSubject) {
     setSubject(selectedSubject);
     setError('');
-    socket.timeout(5000).emit('create_lobby', { username, subject: selectedSubject, gameMode, clanTag: user?.clan?.tag ?? null, isGuest: !user }, (err, res) => {
+    socket.timeout(5000).emit('create_lobby', { username, subject: selectedSubject, gameMode, difficulty, clanTag: user?.clan?.tag ?? null, isGuest: !user }, (err, res) => {
       if (err)      { setError('No response from server. Please try again.'); return; }
       if (!res.ok)  { setError(res.error ?? 'Failed to create lobby.'); return; }
       setLobbyId(res.lobbyId);

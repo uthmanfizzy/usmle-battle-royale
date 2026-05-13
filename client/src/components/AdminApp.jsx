@@ -3615,7 +3615,7 @@ function SettingsPanel() {
 
           <div className="ap-srow-divider">Features</div>
           <ToggleRow label="Hard Mode"
-            desc="Restrict question pool to hard-difficulty questions only"
+            desc="Enable Hard Mode for players (shorter timer, no explanations, harder presentation - uses all questions)"
             checked={settings.hardModeEnabled}
             onChange={v => upd('hardModeEnabled', v)} />
           <ToggleRow label="Step 2 Questions"
