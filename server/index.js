@@ -235,6 +235,11 @@ let gameSettings = {
   backgroundMusicEnabled: true,
   // Section 9: Landing Page
   navbarBlurEnabled: true,
+  stats_board_width: 280,
+  stats_board_top: 0,
+  stats_board_position: 'right',
+  stats_board_opacity: 100,
+  stats_board_visible: true,
   // Section 8: Tower / Story Mode
   towerQuestionsNormal: 3,
   towerQuestionsChallenge: 5,
@@ -2302,6 +2307,7 @@ app.get('/admin/stats', adminAuth, async (req, res) => {
 app.get('/admin/settings', adminAuth, (req, res) => res.json(gameSettings));
 
 app.post('/admin/settings', adminAuth, async (req, res) => {
+  console.log('[admin/settings] Received settings update:', req.body);
   const b = req.body;
   // Legacy compat
   if (b.hardModeEnabled !== undefined) gameSettings.hardModeEnabled = Boolean(b.hardModeEnabled);
@@ -2327,10 +2333,18 @@ app.post('/admin/settings', adminAuth, async (req, res) => {
     'dailyChallengeEnabled','weeklyTournamentEnabled','powerUpsEnabled',
     'maintenanceMode','showStreakCounter','showPlayerCount','showCorrectAnswer',
     'showGameLeaderboard','soundEffectsEnabled','backgroundMusicEnabled',
-    'navbarBlurEnabled',
+    'navbarBlurEnabled','stats_board_visible',
   ];
   for (const k of numFields)  { if (b[k] !== undefined) gameSettings[k] = Number(b[k]); }
   for (const k of boolFields) { if (b[k] !== undefined) gameSettings[k] = Boolean(b[k]); }
+
+  // Stats board numeric settings
+  if (b.stats_board_width !== undefined) gameSettings.stats_board_width = Number(b.stats_board_width);
+  if (b.stats_board_top !== undefined) gameSettings.stats_board_top = Number(b.stats_board_top);
+  if (b.stats_board_opacity !== undefined) gameSettings.stats_board_opacity = Number(b.stats_board_opacity);
+
+  // Stats board position (string: 'left' or 'right')
+  if (b.stats_board_position !== undefined) gameSettings.stats_board_position = String(b.stats_board_position);
   if (b.maintenanceMessage !== undefined) gameSettings.maintenanceMessage = String(b.maintenanceMessage).slice(0, 500);
   // Zone names and descriptions
   for (let i = 1; i <= 10; i++) {
@@ -2339,11 +2353,20 @@ app.post('/admin/settings', adminAuth, async (req, res) => {
     if (b[dk] !== undefined) gameSettings[dk] = String(b[dk]).slice(0, 500);
   }
   // Persist to Supabase so settings survive server restarts
+  console.log('[admin/settings] Updated gameSettings, now persisting to DB...');
+  console.log('[admin/settings] Stats board settings:', {
+    stats_board_width: gameSettings.stats_board_width,
+    stats_board_top: gameSettings.stats_board_top,
+    stats_board_position: gameSettings.stats_board_position,
+    stats_board_opacity: gameSettings.stats_board_opacity,
+    stats_board_visible: gameSettings.stats_board_visible,
+  });
   const persistErr = await persistSettingsToDB();
   if (persistErr) {
     console.warn('[Settings] Persist error:', persistErr.message);
     return res.status(500).json({ error: 'Settings updated but failed to persist to database: ' + persistErr.message });
   }
+  console.log('[admin/settings] Settings persisted successfully');
   res.json(gameSettings);
 });
 

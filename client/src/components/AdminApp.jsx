@@ -3026,10 +3026,20 @@ function LandingImagesPanel() {
   }
 
   async function saveStatsBoardSettings() {
+    console.log('[SAVE] Starting stats board save...');
+    console.log('[SAVE] Settings to save:', {
+      stats_board_width: statsBoardWidth,
+      stats_board_top: statsBoardTop,
+      stats_board_position: statsBoardPosition,
+      stats_board_opacity: statsBoardOpacity,
+      stats_board_visible: statsBoardVisible,
+    });
+
     setSavingStats(true);
     setStatsSaveMsg('');
     try {
-      await apiCall('/admin/settings', {
+      console.log('[SAVE] Calling /admin/settings endpoint...');
+      const res = await apiCall('/admin/settings', {
         method: 'POST',
         body: JSON.stringify({
           stats_board_width: statsBoardWidth,
@@ -3039,9 +3049,19 @@ function LandingImagesPanel() {
           stats_board_visible: statsBoardVisible,
         }),
       });
+      console.log('[SAVE] Response status:', res.status);
+      const data = await res.json();
+      console.log('[SAVE] Response data:', data);
+
+      if (!res.ok) {
+        throw new Error(data.error || `Server returned ${res.status}`);
+      }
+
+      console.log('[SAVE] Save successful!');
       setStatsSaveMsg('success');
       setTimeout(() => setStatsSaveMsg(''), 3000);
     } catch (err) {
+      console.error('[SAVE] Save failed:', err);
       setStatsSaveMsg('error');
       setTimeout(() => setStatsSaveMsg(''), 3000);
     }
