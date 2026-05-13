@@ -182,6 +182,12 @@ let gameSettings = {
   step2Enabled: false,
   timerDuration: 20,
   startingLives: 3,
+  // Hard Mode settings
+  hardModeTimer: 10,
+  hardModeExplanationTime: 5,
+  hardModeHideExplanations: false,
+  hardModeDescription: 'For advanced students. Questions present concepts in tricky and complex clinical scenarios that challenge your deeper understanding.',
+  hardModeLabel: 'Hard Mode',
   // Section 1: Question settings
   timerDefault: 20,
   timerSpeedRace: 10,
@@ -2325,6 +2331,7 @@ app.post('/admin/settings', adminAuth, async (req, res) => {
     'towerQuestionsNormal','towerQuestionsChallenge','towerQuestionsBoss','towerQuestionTimer',
     'towerXpNormal','towerXpChallenge','towerXpBoss','towerXpPerfectBonus','towerXpZoneBonus',
     'towerTotalFloors','towerChallengeInterval','towerBossInterval',
+    'hardModeTimer','hardModeExplanationTime',
   ];
   // Boolean fields
   const boolFields = [
@@ -2334,6 +2341,7 @@ app.post('/admin/settings', adminAuth, async (req, res) => {
     'maintenanceMode','showStreakCounter','showPlayerCount','showCorrectAnswer',
     'showGameLeaderboard','soundEffectsEnabled','backgroundMusicEnabled',
     'navbarBlurEnabled','stats_board_visible',
+    'hardModeHideExplanations',
   ];
   for (const k of numFields)  { if (b[k] !== undefined) gameSettings[k] = Number(b[k]); }
   for (const k of boolFields) { if (b[k] !== undefined) gameSettings[k] = Boolean(b[k]); }
@@ -2346,6 +2354,9 @@ app.post('/admin/settings', adminAuth, async (req, res) => {
   // Stats board position (string: 'left' or 'right')
   if (b.stats_board_position !== undefined) gameSettings.stats_board_position = String(b.stats_board_position);
   if (b.maintenanceMessage !== undefined) gameSettings.maintenanceMessage = String(b.maintenanceMessage).slice(0, 500);
+  // Hard Mode strings
+  if (b.hardModeDescription !== undefined) gameSettings.hardModeDescription = String(b.hardModeDescription).slice(0, 200);
+  if (b.hardModeLabel !== undefined) gameSettings.hardModeLabel = String(b.hardModeLabel).slice(0, 30);
   // Zone names and descriptions
   for (let i = 1; i <= 10; i++) {
     const nk = `towerZone${i}Name`, dk = `towerZone${i}Desc`;

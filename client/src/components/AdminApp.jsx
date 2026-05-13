@@ -2774,6 +2774,12 @@ function withDefaults(raw) {
     step2Enabled:             raw.step2Enabled            ?? false,
     timerDuration:            raw.timerDefault            ?? raw.timerDuration            ?? 20,
     startingLives:            raw.battleRoyaleLives       ?? raw.startingLives            ?? 3,
+    // Hard Mode settings
+    hardModeTimer:            raw.hardModeTimer           ?? 10,
+    hardModeExplanationTime:  raw.hardModeExplanationTime ?? 5,
+    hardModeHideExplanations: raw.hardModeHideExplanations ?? false,
+    hardModeDescription:      raw.hardModeDescription     ?? 'For advanced students. Questions present concepts in tricky and complex clinical scenarios that challenge your deeper understanding.',
+    hardModeLabel:            raw.hardModeLabel           ?? 'Hard Mode',
     // Section 1: Question settings
     timerDefault:             raw.timerDefault            ?? raw.timerDuration            ?? 20,
     timerSpeedRace:           raw.timerSpeedRace          ?? 10,
@@ -3380,7 +3386,7 @@ function LandingImagesPanel() {
 // ── Settings Panel ─────────────────────────────────────────────────────────────
 
 function SettingsPanel() {
-  const SECTIONS = ['questions', 'lives', 'lobby', 'xp', 'modes', 'maintenance', 'ui', 'tower'];
+  const SECTIONS = ['questions', 'lives', 'lobby', 'xp', 'modes', 'hardMode', 'maintenance', 'ui', 'tower'];
   const sectionInit = () => Object.fromEntries(SECTIONS.map(k => [k, false]));
   const sectionErrInit = () => Object.fromEntries(SECTIONS.map(k => [k, '']));
 
@@ -3843,6 +3849,97 @@ function SettingsPanel() {
         </div>
 
         <SectionSaveBtn saving={saving.modes} saved={saved.modes} error={saveErr.modes} onSave={() => saveSection('modes')} />
+      </div>
+
+      {/* ── 5.5 HARD MODE SETTINGS ────────────────────────────────────── */}
+      <div className="ap-settings-section">
+        <div className="ap-section-hd">
+          <div className="ap-section-icon">💀</div>
+          <div>
+            <h2 className="ap-section-title-lg">Hard Mode Settings</h2>
+            <p className="ap-section-subtitle">Configure Hard Mode timer, explanations, and presentation</p>
+          </div>
+        </div>
+
+        <div className="ap-settings-rows">
+          <ToggleRow label="Hard Mode Active"
+            desc="Enable Hard Mode for players — when OFF, shows 'Coming Soon' to players"
+            checked={settings.hardModeEnabled}
+            onChange={v => upd('hardModeEnabled', v)} />
+
+          <SliderRow label="Question Timer (Hard Mode)"
+            desc="Seconds per question when Hard Mode is selected"
+            min={5} max={30} step={1} unit="sec"
+            value={settings.hardModeTimer}
+            onChange={v => upd('hardModeTimer', v)} />
+
+          <ToggleRow label="Hide Explanations Completely"
+            desc="When ON, no explanations are shown in Hard Mode (overrides timer below)"
+            checked={settings.hardModeHideExplanations}
+            onChange={v => upd('hardModeHideExplanations', v)} />
+
+          {!settings.hardModeHideExplanations && (
+            <SliderRow label="Explanation Display Time (Hard Mode)"
+              desc="How long to show the answer explanation in Hard Mode (set to 0 to skip)"
+              min={0} max={30} step={1} unit="sec"
+              value={settings.hardModeExplanationTime}
+              onChange={v => upd('hardModeExplanationTime', v)} />
+          )}
+
+          <div className="ap-srow">
+            <div className="ap-srow-info">
+              <div className="ap-srow-label">Hard Mode Label</div>
+              <div className="ap-srow-desc">The name displayed to players (e.g., "Hard Mode", "Expert Mode", "Challenge Mode")</div>
+            </div>
+            <div className="ap-srow-ctrl">
+              <input
+                type="text"
+                className="ap-text-input"
+                value={settings.hardModeLabel}
+                onChange={e => upd('hardModeLabel', e.target.value)}
+                placeholder="Hard Mode"
+                maxLength={30}
+              />
+            </div>
+          </div>
+
+          <div className="ap-srow">
+            <div className="ap-srow-info">
+              <div className="ap-srow-label">Hard Mode Description</div>
+              <div className="ap-srow-desc">Description shown on difficulty selection screen (200 char limit)</div>
+            </div>
+            <div className="ap-srow-ctrl">
+              <textarea
+                className="ap-textarea"
+                value={settings.hardModeDescription}
+                onChange={e => upd('hardModeDescription', e.target.value.substring(0, 200))}
+                placeholder="For advanced students. Questions present concepts in tricky and complex clinical scenarios that challenge your deeper understanding."
+                rows={3}
+                maxLength={200}
+                style={{ width: '100%', resize: 'vertical' }}
+              />
+              <div style={{ fontSize: '11px', color: '#888', marginTop: '4px' }}>
+                {settings.hardModeDescription?.length || 0}/200 characters
+              </div>
+            </div>
+          </div>
+
+          <div className="ap-srow" style={{ background: '#f8f9fa', padding: '12px', borderRadius: '6px', border: '1px solid #e0e0e0' }}>
+            <div style={{ fontSize: '12px', color: '#666', marginBottom: '8px', fontWeight: '600' }}>
+              Preview (as shown to players):
+            </div>
+            <div style={{ padding: '12px', background: 'white', borderRadius: '4px', border: '2px solid #d32f2f' }}>
+              <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#d32f2f', marginBottom: '4px' }}>
+                💀 {settings.hardModeLabel || 'Hard Mode'}
+              </div>
+              <div style={{ fontSize: '13px', color: '#555', lineHeight: '1.4' }}>
+                {settings.hardModeDescription || 'For advanced students. Questions present concepts in tricky and complex clinical scenarios that challenge your deeper understanding.'}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <SectionSaveBtn saving={saving.hardMode} saved={saved.hardMode} error={saveErr.hardMode} onSave={() => saveSection('hardMode')} />
       </div>
 
       {/* ── 6. MAINTENANCE ────────────────────────────────────────────── */}
