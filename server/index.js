@@ -3699,11 +3699,11 @@ app.post('/admin/daily-quests/regenerate', adminAuth, async (req, res) => {
 });
 
 // Get player's quest progress for today
-app.get('/api/quest-progress', jwtAuth, async (req, res) => {
+app.get('/api/quest-progress', requireAuth, async (req, res) => {
   if (!supabase) return res.json({ progress: [] });
 
   const today = new Date().toISOString().split('T')[0];
-  const userId = req.user.id;
+  const userId = req.userId;
 
   try {
     const { data } = await supabase
@@ -3719,11 +3719,11 @@ app.get('/api/quest-progress', jwtAuth, async (req, res) => {
 });
 
 // Update player quest progress (called after game actions)
-app.post('/api/quest-progress/update', jwtAuth, async (req, res) => {
+app.post('/api/quest-progress/update', requireAuth, async (req, res) => {
   if (!supabase) return res.json({ updated: [] });
 
   const today = new Date().toISOString().split('T')[0];
-  const userId = req.user.id;
+  const userId = req.userId;
   const { action, value } = req.body;
 
   // action types: 'play_game', 'correct_answer', 'win_battle_royale', 'win_speed_race', 'tower_floor', 'streak', 'game_mode'
