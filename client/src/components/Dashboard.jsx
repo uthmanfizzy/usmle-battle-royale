@@ -354,6 +354,51 @@ function HomeSection({ user, bgUrl, onUserUpdate }) {
           <div className="center-welcome-title">Welcome Back, {user.username}!</div>
           <div className="center-welcome-sub">Ready for your next challenge?</div>
         </div>
+
+        {/* Recent Games - moved to center bottom */}
+        <div className="center-recent-games">
+          <div
+            className="parchment-panel recent-games-panel"
+            style={panelBackgrounds.recent_games_panel_bg ? {
+              backgroundImage: `url(${panelBackgrounds.recent_games_panel_bg})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+            } : {}}
+          >
+            <div className="panel-title">
+              Recent Games
+              <span className="panel-title-link" onClick={() => window.location.href = '/stats'}>VIEW ALL →</span>
+            </div>
+            {gameHistory.length === 0 ? (
+              <p className="no-games-msg">No games yet — start your first battle!</p>
+            ) : (
+              <div className="recent-games-list">
+                {gameHistory.slice(0, 4).map(g => {
+                  const modeIcon = GAME_MODE_ICONS[g.game_mode] || '🎮';
+                  const modeLabel = GAME_MODE_LABELS[g.game_mode] || cap(g.game_mode || 'Game');
+                  const subj = SUBJECTS.find(s => s.id === g.subject);
+                  const placeClass = g.placement === 1 ? 'gold' : g.placement === 2 ? 'silver' : 'normal';
+                  return (
+                    <div key={g.id} className="recent-game-row">
+                      <div className="recent-game-thumb">{modeIcon}</div>
+                      <div className="recent-game-info">
+                        <div className="recent-game-mode">{modeLabel}</div>
+                        <div className="recent-game-subject">{subj?.icon || '📚'} {cap(g.subject)}</div>
+                      </div>
+                      <div className="recent-game-result">
+                        <div className={`recent-game-place ${placeClass}`}>
+                          {g.placement === 1 ? '1st 🏆' : g.placement === 2 ? '2nd' : `#${g.placement}`}
+                        </div>
+                        <div className="recent-game-xp">+{g.xp_earned} XP</div>
+                        <div className="recent-game-time">{timeAgo(g.played_at)}</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Right Column */}
@@ -403,49 +448,6 @@ function HomeSection({ user, bgUrl, onUserUpdate }) {
           <div className="view-all-link" onClick={() => window.location.href = '/stats'}>
             VIEW ALL QUESTS →
           </div>
-        </div>
-
-        {/* Recent Games */}
-        <div
-          className="parchment-panel recent-games-panel"
-          style={panelBackgrounds.recent_games_panel_bg ? {
-            backgroundImage: `url(${panelBackgrounds.recent_games_panel_bg})`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-          } : {}}
-        >
-          <div className="panel-title">
-            Recent Games
-            <span className="panel-title-link" onClick={() => window.location.href = '/stats'}>VIEW ALL →</span>
-          </div>
-          {gameHistory.length === 0 ? (
-            <p className="no-games-msg">No games yet — start your first battle!</p>
-          ) : (
-            <div className="recent-games-list">
-              {gameHistory.slice(0, 4).map(g => {
-                const modeIcon = GAME_MODE_ICONS[g.game_mode] || '🎮';
-                const modeLabel = GAME_MODE_LABELS[g.game_mode] || cap(g.game_mode || 'Game');
-                const subj = SUBJECTS.find(s => s.id === g.subject);
-                const placeClass = g.placement === 1 ? 'gold' : g.placement === 2 ? 'silver' : 'normal';
-                return (
-                  <div key={g.id} className="recent-game-row">
-                    <div className="recent-game-thumb">{modeIcon}</div>
-                    <div className="recent-game-info">
-                      <div className="recent-game-mode">{modeLabel}</div>
-                      <div className="recent-game-subject">{subj?.icon || '📚'} {cap(g.subject)}</div>
-                    </div>
-                    <div className="recent-game-result">
-                      <div className={`recent-game-place ${placeClass}`}>
-                        {g.placement === 1 ? '1st 🏆' : g.placement === 2 ? '2nd' : `#${g.placement}`}
-                      </div>
-                      <div className="recent-game-xp">+{g.xp_earned} XP</div>
-                      <div className="recent-game-time">{timeAgo(g.played_at)}</div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
         </div>
       </div>
 
@@ -1001,14 +1003,14 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
           <div className="dash-topbar-right">
             <div className="currency-box">
               {homeImages.icon_coins && (
-                <img src={homeImages.icon_coins} alt="" className="currency-icon" style={{ width: '20px', height: '20px', objectFit: 'contain' }} />
+                <img src={homeImages.icon_coins} alt="" className="currency-icon" />
               )}
               <span className="currency-value">{coins.toLocaleString()}</span>
               <span className="currency-label">Coins</span>
             </div>
             <div className="currency-box">
               {homeImages.icon_gems && (
-                <img src={homeImages.icon_gems} alt="" className="currency-icon" style={{ width: '20px', height: '20px', objectFit: 'contain' }} />
+                <img src={homeImages.icon_gems} alt="" className="currency-icon" />
               )}
               <span className="currency-value">{gems.toLocaleString()}</span>
               <span className="currency-label">Gems</span>
