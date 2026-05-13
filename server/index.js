@@ -310,6 +310,13 @@ async function loadSettingsFromDB() {
       }
       gameSettings = { ...gameSettings, ...loadedSettings };
       console.log(`[Settings] Loaded ${data.length} settings from Supabase`);
+      console.log('[Settings] Sample values:', {
+        hardModeEnabled: gameSettings.hardModeEnabled,
+        hardModeTimer: gameSettings.hardModeTimer,
+        timerDefault: gameSettings.timerDefault,
+      });
+    } else {
+      console.log('[Settings] No settings found in Supabase, using defaults');
     }
   } catch (err) {
     console.warn('[Settings] Load failed:', err.message);
@@ -3381,9 +3388,37 @@ const WELCOME_ANNOUNCEMENT = {
 };
 
 // Public endpoint to get game settings (for checking hard mode availability, etc.)
-app.get('/api/game-settings', (req, res) => {
-  // Return all game settings for frontend use
-  res.json(gameSettings);
+app.get('/api/game-settings', async (req, res) => {
+  console.log('[/api/game-settings] Request received');
+  try {
+    // Try to fetch fresh from Supabase first
+    if (supabase) {
+      const { data, error } = await supabase.from('game_settings').select('*');
+      if (error) {
+        console.error('[/api/game-settings] Supabase error:', error.message);
+      } else if (data && data.length > 0) {
+        const settings = {};
+        data.forEach(row => {
+          if (row.key && row.value !== undefined) {
+            try {
+              settings[row.key] = JSON.parse(row.value);
+            } catch {
+              settings[row.key] = row.value;
+            }
+          }
+        });
+        console.log('[/api/game-settings] Returning', Object.keys(settings).length, 'settings from Supabase');
+        return res.json(settings);
+      }
+    }
+
+    // Fallback to in-memory gameSettings
+    console.log('[/api/game-settings] Returning', Object.keys(gameSettings).length, 'settings from memory');
+    res.json(gameSettings);
+  } catch (err) {
+    console.error('[/api/game-settings] Error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.get('/api/announcements', async (req, res) => {
