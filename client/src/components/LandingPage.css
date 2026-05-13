@@ -494,14 +494,14 @@
 .lp-modes-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 10px;
-  max-width: 1100px;
+  gap: 14px;
+  max-width: 1240px;
   margin: 0 auto;
   flex: 1;
   min-height: 0;
 }
 
-/* Game Mode Card - Compact */
+/* Game Mode Card - Larger */
 .lp-mode-card {
   position: relative;
   display: flex;
@@ -516,7 +516,7 @@
   border-radius: 6px;
   overflow: hidden;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-  height: 190px;
+  height: 250px;
 }
 
 .lp-mode-card:hover {
@@ -545,12 +545,12 @@
   z-index: 2;
 }
 
-/* Image Area - 60% of card */
+/* Image Area - 72% of card */
 .lp-mode-image {
   position: relative;
   width: 100%;
-  height: 60%;
-  flex: 0 0 60%;
+  height: 72%;
+  flex: 0 0 72%;
   background: rgba(26, 46, 26, 0.3);
   overflow: hidden;
 }
@@ -577,29 +577,29 @@
   opacity: 0.5;
 }
 
-/* Card Content - 40% of card */
+/* Card Content - 28% of card (30% smaller) */
 .lp-mode-content {
-  flex: 0 0 40%;
-  height: 40%;
-  padding: 10px 8px 12px;
+  flex: 0 0 28%;
+  height: 28%;
+  padding: 6px 6px 8px;
   text-align: center;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 3px;
+  gap: 2px;
   position: relative;
 }
 
 .lp-mode-icon {
-  font-size: 16px;
+  font-size: 14px;
   margin-bottom: 0;
   line-height: 1;
 }
 
 .lp-mode-title {
   font-family: 'Playfair Display', Georgia, serif;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
   color: #3D2B0F;
   letter-spacing: 0.5px;
@@ -609,7 +609,7 @@
 
 .lp-mode-desc {
   font-family: 'Crimson Text', Georgia, serif;
-  font-size: 11px;
+  font-size: 10px;
   line-height: 1.2;
   color: #5C4530;
   margin: 0;
@@ -617,9 +617,9 @@
 
 .lp-mode-arrow {
   position: absolute;
-  bottom: 8px;
-  right: 10px;
-  font-size: 14px;
+  bottom: 6px;
+  right: 8px;
+  font-size: 12px;
   color: #5C4A1E;
   transition: transform 0.3s ease;
   font-weight: 700;
