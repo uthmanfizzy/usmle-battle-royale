@@ -248,11 +248,28 @@ async function loadSettingsFromDB() {
   if (!supabase) return;
   try {
     const { data, error } = await supabase
-      .from('game_settings').select('settings').eq('id', 'default').maybeSingle();
-    if (error) { console.warn('[Settings] Load error:', error.message); return; }
-    if (data?.settings && typeof data.settings === 'object') {
-      gameSettings = { ...gameSettings, ...data.settings };
-      console.log('[Settings] Loaded from Supabase');
+      .from('game_settings')
+      .select('key, value');
+
+    if (error) {
+      console.warn('[Settings] Load error:', error.message);
+      return;
+    }
+
+    if (data && data.length > 0) {
+      // Reconstruct gameSettings from key-value pairs
+      const loadedSettings = {};
+      for (const row of data) {
+        try {
+          // Try to parse as JSON first (for objects/arrays/booleans/numbers)
+          loadedSettings[row.key] = JSON.parse(row.value);
+        } catch {
+          // If parse fails, use as string
+          loadedSettings[row.key] = row.value;
+        }
+      }
+      gameSettings = { ...gameSettings, ...loadedSettings };
+      console.log(`[Settings] Loaded ${data.length} settings from Supabase`);
     }
   } catch (err) {
     console.warn('[Settings] Load failed:', err.message);
@@ -261,13 +278,31 @@ async function loadSettingsFromDB() {
 
 async function persistSettingsToDB() {
   if (!supabase) return null;
-  const { error } = await supabase
-    .from('game_settings')
-    .upsert(
-      { id: 'default', settings: gameSettings, updated_at: new Date().toISOString() },
-      { onConflict: 'id' }
-    );
-  return error || null;
+
+  try {
+    // Convert gameSettings object to array of key-value pairs
+    const rows = Object.entries(gameSettings).map(([key, value]) => ({
+      key,
+      value: typeof value === 'string' ? value : JSON.stringify(value),
+      updated_at: new Date().toISOString()
+    }));
+
+    // Upsert all settings (key is the unique identifier)
+    const { error } = await supabase
+      .from('game_settings')
+      .upsert(rows, { onConflict: 'key' });
+
+    if (error) {
+      console.error('[Settings] Persist error:', error.message);
+      return error;
+    }
+
+    console.log(`[Settings] Persisted ${rows.length} settings to Supabase`);
+    return null;
+  } catch (err) {
+    console.error('[Settings] Persist failed:', err.message);
+    return err;
+  }
 }
 
 // ── In-memory stats (server-lifetime counters) ────────────────────────────────
