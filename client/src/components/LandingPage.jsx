@@ -178,16 +178,24 @@ export default function LandingPage({ onSignIn }) {
               </div>
             </div>
 
-            {/* Right Side - Stats Panel */}
+            {/* Right Side - Stats Board */}
             <div className="lp-hero-right">
-              <div className="lp-stats-panel">
-                {STATS.map((stat, i) => (
-                  <div key={i} className="lp-stat-box">
-                    <div className="lp-stat-icon">{stat.icon}</div>
-                    <div className="lp-stat-label">{stat.label}</div>
-                    <div className="lp-stat-value">{stat.value}</div>
+              <div className="lp-stats-board">
+                <img src="/assets/Board.png" alt="Stats Board" className="lp-board-image" />
+                <div className="lp-board-stats">
+                  <div className="lp-board-stat lp-board-stat-top">
+                    <div className="lp-board-stat-label">STUDENTS</div>
+                    <div className="lp-board-stat-value">12,458</div>
                   </div>
-                ))}
+                  <div className="lp-board-stat lp-board-stat-middle">
+                    <div className="lp-board-stat-label">QUESTIONS</div>
+                    <div className="lp-board-stat-value">3.24M</div>
+                  </div>
+                  <div className="lp-board-stat lp-board-stat-bottom">
+                    <div className="lp-board-stat-label">AVG. SCORE</div>
+                    <div className="lp-board-stat-value">87.6%</div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
