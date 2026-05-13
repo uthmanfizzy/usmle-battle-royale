@@ -945,12 +945,12 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
 
           <div className="dash-topbar-right">
             <div className="currency-box">
-              <span className="currency-icon">🪙</span>
               <span className="currency-value">{coins.toLocaleString()}</span>
+              <span className="currency-label">Coins</span>
             </div>
             <div className="currency-box">
-              <span className="currency-icon">💎</span>
               <span className="currency-value">{gems.toLocaleString()}</span>
+              <span className="currency-label">Gems</span>
             </div>
             <button className="topbar-icon-btn" title="Notifications">
               🔔
@@ -974,21 +974,18 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
             className={`dash-nav-btn ${dashTab === 'home' ? 'active' : ''}`}
             onClick={() => setDashTab('home')}
           >
-            <span className="nav-icon">🏠</span>
             <span className="nav-label">Home</span>
           </button>
           <button
             className={`dash-nav-btn ${dashTab === 'leaderboard' ? 'active' : ''}`}
             onClick={() => setDashTab('leaderboard')}
           >
-            <span className="nav-icon">🏆</span>
             <span className="nav-label">Leaderboards</span>
           </button>
           <button
             className={`dash-nav-btn ${dashTab === 'clans' ? 'active' : ''}`}
             onClick={() => setDashTab('clans')}
           >
-            <span className="nav-icon">👥</span>
             <span className="nav-label">Clans</span>
           </button>
           <button
@@ -997,11 +994,9 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
             style={{ position: 'relative' }}
           >
             {unreadCount > 0 && <span className="ann-unread-dot" />}
-            <span className="nav-icon">📰</span>
             <span className="nav-label">News</span>
           </button>
           <button className="dash-nav-btn dash-nav-play" onClick={onPlayNow}>
-            <span className="nav-icon">⚔️</span>
             <span className="nav-label">Play</span>
           </button>
         </nav>
