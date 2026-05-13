@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import App from './App';
 import { ThemeProvider } from './theme';
+import { GameSettingsProvider } from './contexts/GameSettingsContext';
 import './App.css';
 import './themes.css';
 
@@ -22,19 +23,21 @@ function PageSpinner() {
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <ThemeProvider>
-      <BrowserRouter>
-        <Suspense fallback={<PageSpinner />}>
-          <Routes>
-            <Route path="/admin/*"        element={<AdminApp />} />
-            <Route path="/auth/callback"  element={<AuthCallback />} />
-            <Route path="/dashboard"      element={<DashboardPage />} />
-            <Route path="/stats"          element={<StatsPage />} />
-            <Route path="/username-setup" element={<UsernameSetupPage />} />
-            <Route path="/*"              element={<App />} />
-          </Routes>
-        </Suspense>
-      </BrowserRouter>
-    </ThemeProvider>
+    <GameSettingsProvider>
+      <ThemeProvider>
+        <BrowserRouter>
+          <Suspense fallback={<PageSpinner />}>
+            <Routes>
+              <Route path="/admin/*"        element={<AdminApp />} />
+              <Route path="/auth/callback"  element={<AuthCallback />} />
+              <Route path="/dashboard"      element={<DashboardPage />} />
+              <Route path="/stats"          element={<StatsPage />} />
+              <Route path="/username-setup" element={<UsernameSetupPage />} />
+              <Route path="/*"              element={<App />} />
+            </Routes>
+          </Suspense>
+        </BrowserRouter>
+      </ThemeProvider>
+    </GameSettingsProvider>
   </React.StrictMode>
 );

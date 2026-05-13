@@ -25,7 +25,10 @@
       "Bash(grep -c \"^\\\\s*{$\\\\|id:\" /c/Users/faiza/usmle-battle-royale/server/questions.js)",
       "Bash(Get-ChildItem -Recurse -Path \"C:\\\\Users\\\\faiza\\\\usmle-battle-royale\\\\client\\\\src\\\\components\" -Filter \"*.jsx\" -o \"*.js\")",
       "Bash(Select-Object -ExpandProperty Name)",
-      "PowerShell(New-Item *)"
+      "PowerShell(New-Item *)",
+      "Bash(curl -s https://usmle-battle-royale-production.up.railway.app/api/home-images)",
+      "Bash(ls -la *.jsx)",
+      "Bash(ls -la main.* index.*)"
     ]
   }
 }

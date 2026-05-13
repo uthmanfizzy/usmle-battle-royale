@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useGameSettings } from '../contexts/GameSettingsContext';
 import * as audio from '../audio';
 
 const LABELS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
@@ -12,13 +13,18 @@ function saveHi(subject, score) {
 }
 
 export default function SoloGame({ subject, username, onBack, onTryAgain, onChangeSubject }) {
+  const { settings } = useGameSettings();
+  const defaultTimer = settings.timerDefault || 20;
+  const defaultLives = settings.battleRoyaleLives || 3;
+  const explanationTime = settings.explanationTime || 5;
+
   const [questions, setQuestions] = useState([]);
   const [qIdx, setQIdx] = useState(0);
-  const [lives, setLives] = useState(3);
+  const [lives, setLives] = useState(defaultLives);
   const [score, setScore] = useState(0);
   const [streak, setStreak] = useState(0);
   const [bestStreak, setBestStreak] = useState(0);
-  const [timeLeft, setTimeLeft] = useState(20);
+  const [timeLeft, setTimeLeft] = useState(defaultTimer);
   const [selected, setSelected] = useState(null);
   const [revealed, setRevealed] = useState(false);
   const [bonusPoints, setBonusPoints] = useState(0);
@@ -30,9 +36,9 @@ export default function SoloGame({ subject, username, onBack, onTryAgain, onChan
   const [fetchError, setFetchError] = useState('');
 
   const timerRef      = useRef(null);
-  const timeLeftRef   = useRef(20);
+  const timeLeftRef   = useRef(defaultTimer);
   const revealedRef   = useRef(false);
-  const livesRef      = useRef(3);
+  const livesRef      = useRef(defaultLives);
   const scoreRef      = useRef(0);
   const streakRef     = useRef(0);
   const bestStreakRef = useRef(0);
@@ -142,8 +148,8 @@ export default function SoloGame({ subject, username, onBack, onTryAgain, onChan
   useEffect(() => {
     if (loading || gameOver || questions.length === 0) return;
 
-    timeLeftRef.current = 20;
-    setTimeLeft(20);
+    timeLeftRef.current = defaultTimer;
+    setTimeLeft(defaultTimer);
 
     timerRef.current = setInterval(() => {
       timeLeftRef.current -= 1;
@@ -157,7 +163,7 @@ export default function SoloGame({ subject, username, onBack, onTryAgain, onChan
     }, 1000);
 
     return () => { if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; } };
-  }, [qIdx, loading, gameOver, questions.length]);
+  }, [qIdx, loading, gameOver, questions.length, defaultTimer]);
 
   function handleSkip() {
     if (skipTimerRef.current) { clearTimeout(skipTimerRef.current); skipTimerRef.current = null; }
@@ -212,7 +218,7 @@ export default function SoloGame({ subject, username, onBack, onTryAgain, onChan
   const q = questions[qIdx];
   if (!q) return null;
 
-  const pct = (timeLeft / 20) * 100;
+  const pct = (timeLeft / defaultTimer) * 100;
   const tier = timeLeft > 10 ? 'green' : timeLeft > 5 ? 'yellow' : 'red';
 
   return (

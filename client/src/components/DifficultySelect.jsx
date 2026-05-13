@@ -1,25 +1,11 @@
-import { useState, useEffect } from 'react';
-import { getAllSettings } from '../services/gameSettings';
+import { useGameSettings } from '../contexts/GameSettingsContext';
 
 export default function DifficultySelect({ username, onSelectDifficulty, onBack }) {
-  const [hardModeEnabled, setHardModeEnabled] = useState(false);
-  const [hardModeLabel, setHardModeLabel] = useState('Hard Mode');
-  const [hardModeDescription, setHardModeDescription] = useState('For advanced students. Questions present concepts in tricky and complex clinical scenarios that challenge your deeper understanding.');
-  const [loading, setLoading] = useState(true);
+  const { settings, loading } = useGameSettings();
 
-  useEffect(() => {
-    // Fetch game settings
-    getAllSettings()
-      .then(settings => {
-        setHardModeEnabled(settings.hardModeEnabled || false);
-        setHardModeLabel(settings.hardModeLabel || 'Hard Mode');
-        setHardModeDescription(settings.hardModeDescription || 'For advanced students. Questions present concepts in tricky and complex clinical scenarios that challenge your deeper understanding.');
-        setLoading(false);
-      })
-      .catch(() => {
-        setLoading(false);
-      });
-  }, []);
+  const hardModeEnabled = settings.hardModeEnabled || false;
+  const hardModeLabel = settings.hardModeLabel || 'Hard Mode';
+  const hardModeDescription = settings.hardModeDescription || 'For advanced students. Questions present concepts in tricky and complex clinical scenarios that challenge your deeper understanding.';
 
   return (
     <div className="screen difficulty-screen">
