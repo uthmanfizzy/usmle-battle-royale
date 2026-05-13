@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import TriviaBoard from './TriviaBoard';
+import ExplanationText from './ExplanationText';
 
 const LABELS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
 
@@ -224,7 +225,9 @@ export default function TriviaGame({
                       : `✗ Wrong — Answer was ${triviaResult.correctAnswer}`}
                   </div>
                   {triviaResult.explanation && (
-                    <p className="trf-explanation">{triviaResult.explanation}</p>
+                    <div className="trf-explanation">
+                      <ExplanationText text={triviaResult.explanation} />
+                    </div>
                   )}
                   <p className="trf-next">Next player's turn…</p>
                 </div>

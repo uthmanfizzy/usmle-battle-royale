@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import * as audio from '../audio';
 import { getToken } from '../auth';
 import './TowerMode.css';
+import ExplanationText from './ExplanationText';
 
 const SERVER = 'https://usmle-battle-royale-production.up.railway.app';
 const LABELS  = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
@@ -827,7 +828,7 @@ export default function TowerMode({ username, onBack }) {
                   </div>
                   <div className="tw-rv-expl">
                     <strong>Correct answer: {q.correct}</strong>
-                    <p>{q.explanation}</p>
+                    <ExplanationText text={q.explanation} />
                   </div>
                   <div className="rr-skip-row">
                     <button className="rr-skip-btn" onClick={handleSkip}>Skip →</button>

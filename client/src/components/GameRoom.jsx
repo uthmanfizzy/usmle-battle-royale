@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import PowerupBar from './PowerupBar';
+import ExplanationText from './ExplanationText';
 
 const LABELS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
 
@@ -303,7 +304,7 @@ function RoundResult({ answerResult, roundResults, isAlive }) {
 
       <div className="rr-explanation">
         <strong>Correct answer: {roundResults.correctAnswer}</strong>
-        <p>{roundResults.explanation}</p>
+        <ExplanationText text={roundResults.explanation} />
       </div>
 
       {roundResults.eliminated?.length > 0 && (

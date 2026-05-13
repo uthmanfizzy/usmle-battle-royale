@@ -28,7 +28,8 @@
       "PowerShell(New-Item *)",
       "Bash(curl -s https://usmle-battle-royale-production.up.railway.app/api/home-images)",
       "Bash(ls -la *.jsx)",
-      "Bash(ls -la main.* index.*)"
+      "Bash(ls -la main.* index.*)",
+      "PowerShell(git add *)"
     ]
   }
 }

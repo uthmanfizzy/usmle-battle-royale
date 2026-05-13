@@ -539,6 +539,19 @@ button:active:not(:disabled) { transform: scale(0.97); }
 .rr-explanation strong { color: var(--gold); display: block; margin-bottom: 6px; font-size: 15px; }
 .rr-explanation p { color: var(--text-dim); }
 
+/* Explanation text component with sentence spacing */
+.explanation-text {
+  line-height: 1.8;
+  letter-spacing: 0.01em;
+}
+.explanation-sentence {
+  margin-bottom: 8px;
+  color: var(--text-dim);
+}
+.explanation-sentence:last-child {
+  margin-bottom: 0;
+}
+
 .rr-eliminated { font-size: 13px; color: var(--red); margin-top: 6px; }
 
 .rr-skip-row {
@@ -2382,7 +2395,8 @@ table.lb-table tr:last-child td { border-bottom: none; }
 .trf-explanation {
   font-size: 13px;
   color: var(--text-dim);
-  line-height: 1.6;
+  line-height: 1.8;
+  letter-spacing: 0.01em;
   margin-bottom: 8px;
 }
 

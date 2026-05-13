@@ -288,7 +288,8 @@
 .bf-rr-explanation {
   font-size: 13px;
   color: rgba(255,255,255,0.65);
-  line-height: 1.5;
+  line-height: 1.8;
+  letter-spacing: 0.01em;
   margin: 0;
 }
 .bf-rr-scores {

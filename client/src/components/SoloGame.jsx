@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useGameSettings } from '../contexts/GameSettingsContext';
 import * as audio from '../audio';
+import ExplanationText from './ExplanationText';
 
 const LABELS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
 const SERVER_URL = 'https://usmle-battle-royale-production.up.railway.app';
@@ -284,7 +285,7 @@ export default function SoloGame({ subject, username, onBack, onTryAgain, onChan
             </div>
             <div className="rr-explanation">
               <strong>Correct answer: {q.correct}</strong>
-              <p>{q.explanation}</p>
+              <ExplanationText text={q.explanation} />
             </div>
             <div className="rr-skip-row">
               <button className="rr-skip-btn" onClick={handleSkip}>Next Question →</button>

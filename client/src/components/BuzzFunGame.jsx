@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import './BuzzFunGame.css';
+import ExplanationText from './ExplanationText';
 
 const BUZZ_TYPE_LABELS = {
   BUZZWORD:    { label: 'BUZZWORD',    color: '#e67e22' },
@@ -87,7 +88,9 @@ export default function BuzzFunGame({
               <span className="bf-rr-correct">{roundResults.correctAnswer}</span>
             </div>
             {roundResults.explanation && (
-              <p className="bf-rr-explanation">{roundResults.explanation}</p>
+              <div className="bf-rr-explanation">
+                <ExplanationText text={roundResults.explanation} />
+              </div>
             )}
           </div>
           <div className="bf-rr-scores">
