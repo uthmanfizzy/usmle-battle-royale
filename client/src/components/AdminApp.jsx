@@ -2974,7 +2974,8 @@ function LandingImagesPanel() {
   const [uploading, setUploading] = useState({});
   const [error, setError]       = useState('');
   const [navbarBlur, setNavbarBlur] = useState(true);
-  const [savingSettings, setSavingSettings] = useState(false);
+  const [savingNav, setSavingNav] = useState(false);
+  const [navSaveMsg, setNavSaveMsg] = useState('');
 
   // Stats board settings
   const [statsBoardWidth, setStatsBoardWidth] = useState(280);
@@ -2982,6 +2983,8 @@ function LandingImagesPanel() {
   const [statsBoardPosition, setStatsBoardPosition] = useState('right');
   const [statsBoardOpacity, setStatsBoardOpacity] = useState(100);
   const [statsBoardVisible, setStatsBoardVisible] = useState(true);
+  const [savingStats, setSavingStats] = useState(false);
+  const [statsSaveMsg, setStatsSaveMsg] = useState('');
 
   useEffect(() => {
     loadImages();
@@ -3005,58 +3008,44 @@ function LandingImagesPanel() {
     }
   }
 
-  async function toggleNavbarBlur() {
-    const newValue = !navbarBlur;
-    setNavbarBlur(newValue);
-    setSavingSettings(true);
+  async function saveNavbarSettings() {
+    setSavingNav(true);
+    setNavSaveMsg('');
     try {
       await apiCall('/admin/settings', {
         method: 'POST',
-        body: JSON.stringify({ navbarBlurEnabled: newValue }),
+        body: JSON.stringify({ navbarBlurEnabled: navbarBlur }),
       });
+      setNavSaveMsg('success');
+      setTimeout(() => setNavSaveMsg(''), 3000);
     } catch (err) {
-      setError('Failed to save navbar blur setting');
-      setNavbarBlur(!newValue);
+      setNavSaveMsg('error');
+      setTimeout(() => setNavSaveMsg(''), 3000);
     }
-    setSavingSettings(false);
+    setSavingNav(false);
   }
 
-  async function saveStatsBoardSetting(key, value) {
-    setSavingSettings(true);
+  async function saveStatsBoardSettings() {
+    setSavingStats(true);
+    setStatsSaveMsg('');
     try {
       await apiCall('/admin/settings', {
         method: 'POST',
-        body: JSON.stringify({ [key]: value }),
+        body: JSON.stringify({
+          stats_board_width: statsBoardWidth,
+          stats_board_top: statsBoardTop,
+          stats_board_position: statsBoardPosition,
+          stats_board_opacity: statsBoardOpacity,
+          stats_board_visible: statsBoardVisible,
+        }),
       });
+      setStatsSaveMsg('success');
+      setTimeout(() => setStatsSaveMsg(''), 3000);
     } catch (err) {
-      setError(`Failed to save ${key} setting`);
+      setStatsSaveMsg('error');
+      setTimeout(() => setStatsSaveMsg(''), 3000);
     }
-    setSavingSettings(false);
-  }
-
-  function handleStatsBoardWidth(value) {
-    setStatsBoardWidth(value);
-    saveStatsBoardSetting('stats_board_width', value);
-  }
-
-  function handleStatsBoardTop(value) {
-    setStatsBoardTop(value);
-    saveStatsBoardSetting('stats_board_top', value);
-  }
-
-  function handleStatsBoardPosition(value) {
-    setStatsBoardPosition(value);
-    saveStatsBoardSetting('stats_board_position', value);
-  }
-
-  function handleStatsBoardOpacity(value) {
-    setStatsBoardOpacity(value);
-    saveStatsBoardSetting('stats_board_opacity', value);
-  }
-
-  function handleStatsBoardVisible(value) {
-    setStatsBoardVisible(value);
-    saveStatsBoardSetting('stats_board_visible', value);
+    setSavingStats(false);
   }
 
   function resetStatsBoardDefaults() {
@@ -3065,11 +3054,6 @@ function LandingImagesPanel() {
     setStatsBoardPosition('right');
     setStatsBoardOpacity(100);
     setStatsBoardVisible(true);
-    saveStatsBoardSetting('stats_board_width', 280);
-    saveStatsBoardSetting('stats_board_top', 0);
-    saveStatsBoardSetting('stats_board_position', 'right');
-    saveStatsBoardSetting('stats_board_opacity', 100);
-    saveStatsBoardSetting('stats_board_visible', true);
   }
 
   async function loadImages() {
@@ -3164,9 +3148,9 @@ function LandingImagesPanel() {
 
       {error && <div className="li-error">{error}</div>}
 
-      {/* Settings Section */}
+      {/* Navigation Bar Settings Section */}
       <div className="li-settings-section">
-        <h3 className="li-settings-title">⚙️ Display Settings</h3>
+        <h3 className="li-settings-title">🔲 Navigation Bar Settings</h3>
         <div className="li-setting-row">
           <div className="li-setting-info">
             <span className="li-setting-label">Navigation Bar Overlay</span>
@@ -3174,15 +3158,31 @@ function LandingImagesPanel() {
           </div>
           <button
             className={`li-toggle ${navbarBlur ? 'on' : 'off'}`}
-            onClick={toggleNavbarBlur}
-            disabled={savingSettings}
+            onClick={() => setNavbarBlur(!navbarBlur)}
+            disabled={savingNav}
           >
             <span className="li-toggle-slider"></span>
             <span className="li-toggle-label">{navbarBlur ? 'ON' : 'OFF'}</span>
           </button>
         </div>
 
-        {/* Stats Board Controls */}
+        <div className="li-save-row">
+          <button
+            className="li-save-btn"
+            onClick={saveNavbarSettings}
+            disabled={savingNav}
+          >
+            {savingNav ? '⏳ Saving...' : '💾 Save Navigation Settings'}
+          </button>
+          {navSaveMsg === 'success' && <span className="li-save-success">✓ Saved successfully</span>}
+          {navSaveMsg === 'error' && <span className="li-save-error">✗ Failed to save</span>}
+        </div>
+      </div>
+
+      {/* Stats Board Settings Section */}
+      <div className="li-settings-section">
+        <h3 className="li-settings-title">📊 Stats Board Settings</h3>
+
         <div className="li-setting-row">
           <div className="li-setting-info">
             <span className="li-setting-label">Show Stats Board</span>
@@ -3190,8 +3190,8 @@ function LandingImagesPanel() {
           </div>
           <button
             className={`li-toggle ${statsBoardVisible ? 'on' : 'off'}`}
-            onClick={() => handleStatsBoardVisible(!statsBoardVisible)}
-            disabled={savingSettings}
+            onClick={() => setStatsBoardVisible(!statsBoardVisible)}
+            disabled={savingStats}
           >
             <span className="li-toggle-slider"></span>
             <span className="li-toggle-label">{statsBoardVisible ? 'ON' : 'OFF'}</span>
@@ -3211,7 +3211,7 @@ function LandingImagesPanel() {
                   min="150"
                   max="500"
                   value={statsBoardWidth}
-                  onChange={(e) => handleStatsBoardWidth(parseInt(e.target.value))}
+                  onChange={(e) => setStatsBoardWidth(parseInt(e.target.value))}
                   className="li-slider"
                 />
                 <span className="li-slider-value">{statsBoardWidth}px</span>
@@ -3229,7 +3229,7 @@ function LandingImagesPanel() {
                   min="0"
                   max="50"
                   value={statsBoardTop}
-                  onChange={(e) => handleStatsBoardTop(parseInt(e.target.value))}
+                  onChange={(e) => setStatsBoardTop(parseInt(e.target.value))}
                   className="li-slider"
                 />
                 <span className="li-slider-value">{statsBoardTop}%</span>
@@ -3247,7 +3247,7 @@ function LandingImagesPanel() {
                   min="50"
                   max="100"
                   value={statsBoardOpacity}
-                  onChange={(e) => handleStatsBoardOpacity(parseInt(e.target.value))}
+                  onChange={(e) => setStatsBoardOpacity(parseInt(e.target.value))}
                   className="li-slider"
                 />
                 <span className="li-slider-value">{statsBoardOpacity}%</span>
@@ -3262,15 +3262,15 @@ function LandingImagesPanel() {
               <div className="li-position-buttons">
                 <button
                   className={`li-pos-btn ${statsBoardPosition === 'left' ? 'active' : ''}`}
-                  onClick={() => handleStatsBoardPosition('left')}
-                  disabled={savingSettings}
+                  onClick={() => setStatsBoardPosition('left')}
+                  disabled={savingStats}
                 >
                   Left
                 </button>
                 <button
                   className={`li-pos-btn ${statsBoardPosition === 'right' ? 'active' : ''}`}
-                  onClick={() => handleStatsBoardPosition('right')}
-                  disabled={savingSettings}
+                  onClick={() => setStatsBoardPosition('right')}
+                  disabled={savingStats}
                 >
                   Right
                 </button>
@@ -3280,18 +3280,30 @@ function LandingImagesPanel() {
             <div className="li-setting-row">
               <div className="li-setting-info">
                 <span className="li-setting-label">Reset to Defaults</span>
-                <span className="li-setting-desc">Restore original stats board settings</span>
+                <span className="li-setting-desc">Restore original stats board settings (280px width, right position, 100% opacity, 0% offset)</span>
               </div>
               <button
                 className="li-reset-btn"
                 onClick={resetStatsBoardDefaults}
-                disabled={savingSettings}
+                disabled={savingStats}
               >
                 Reset All
               </button>
             </div>
           </>
         )}
+
+        <div className="li-save-row">
+          <button
+            className="li-save-btn"
+            onClick={saveStatsBoardSettings}
+            disabled={savingStats}
+          >
+            {savingStats ? '⏳ Saving...' : '💾 Save Stats Board Settings'}
+          </button>
+          {statsSaveMsg === 'success' && <span className="li-save-success">✓ Saved successfully</span>}
+          {statsSaveMsg === 'error' && <span className="li-save-error">✗ Failed to save</span>}
+        </div>
       </div>
 
       {/* Images Section */}
