@@ -2198,17 +2198,74 @@ app.get('/api/leaderboard/players', async (req, res) => {
 
 // ── Admin API ──────────────────────────────────────────────────────────────────
 
-app.get('/admin/stats', adminAuth, (req, res) => {
-  const questionsByCategory = {};
-  for (const q of questionBank) {
-    questionsByCategory[q.subject] = (questionsByCategory[q.subject] || 0) + 1;
+app.get('/admin/stats', adminAuth, async (req, res) => {
+  const stats = {
+    questionsByCategory: {},
+    totalQuestions: 0,
+    totalGamesPlayed: 0,
+    totalPlayersRegistered: 0,
+    activeLobbies: lobbies.size,
+  };
+
+  // Count questions by category from in-memory bank
+  try {
+    for (const q of questionBank) {
+      stats.questionsByCategory[q.subject] = (stats.questionsByCategory[q.subject] || 0) + 1;
+    }
+    stats.totalQuestions = questionBank.length;
+  } catch (err) {
+    console.error('[Admin Stats] Questions count error:', err.message);
   }
-  res.json({
-    questionsByCategory,
-    totalQuestions: questionBank.length,
-    totalGamesPlayed,
-    totalPlayersRegistered: registeredPlayers.size,
-  });
+
+  // Query Supabase for accurate database stats
+  if (supabase) {
+    // Get total users count
+    try {
+      const { count, error } = await supabase
+        .from('users')
+        .select('id', { count: 'exact', head: true });
+
+      if (!error && count !== null) {
+        stats.totalPlayersRegistered = count;
+      }
+    } catch (err) {
+      console.error('[Admin Stats] Users count error:', err.message);
+    }
+
+    // Get total games played
+    try {
+      const { count, error } = await supabase
+        .from('game_history')
+        .select('id', { count: 'exact', head: true });
+
+      if (!error && count !== null) {
+        stats.totalGamesPlayed = count;
+      }
+    } catch (err) {
+      console.error('[Admin Stats] Games count error:', err.message);
+    }
+
+    // If questions not loaded in memory, try loading from Supabase
+    if (stats.totalQuestions === 0) {
+      try {
+        const { count, error } = await supabase
+          .from('questions')
+          .select('question_id', { count: 'exact', head: true });
+
+        if (!error && count !== null) {
+          stats.totalQuestions = count;
+        }
+      } catch (err) {
+        console.error('[Admin Stats] Questions DB count error:', err.message);
+      }
+    }
+  } else {
+    // Fallback to in-memory stats if Supabase not available
+    stats.totalGamesPlayed = totalGamesPlayed;
+    stats.totalPlayersRegistered = registeredPlayers.size;
+  }
+
+  res.json(stats);
 });
 
 app.get('/admin/settings', adminAuth, (req, res) => res.json(gameSettings));
