@@ -2707,6 +2707,11 @@ app.get('/api/landing-images', async (req, res) => {
 app.get('/api/landing-settings', (req, res) => {
   res.json({
     navbarBlurEnabled: gameSettings.navbarBlurEnabled,
+    stats_board_width: gameSettings.stats_board_width,
+    stats_board_top: gameSettings.stats_board_top,
+    stats_board_position: gameSettings.stats_board_position,
+    stats_board_opacity: gameSettings.stats_board_opacity,
+    stats_board_visible: gameSettings.stats_board_visible,
   });
 });
 

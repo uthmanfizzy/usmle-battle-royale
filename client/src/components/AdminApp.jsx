@@ -2976,6 +2976,13 @@ function LandingImagesPanel() {
   const [navbarBlur, setNavbarBlur] = useState(true);
   const [savingSettings, setSavingSettings] = useState(false);
 
+  // Stats board settings
+  const [statsBoardWidth, setStatsBoardWidth] = useState(280);
+  const [statsBoardTop, setStatsBoardTop] = useState(0);
+  const [statsBoardPosition, setStatsBoardPosition] = useState('right');
+  const [statsBoardOpacity, setStatsBoardOpacity] = useState(100);
+  const [statsBoardVisible, setStatsBoardVisible] = useState(true);
+
   useEffect(() => {
     loadImages();
     loadSettings();
@@ -2987,6 +2994,11 @@ function LandingImagesPanel() {
       if (res.ok) {
         const data = await res.json();
         setNavbarBlur(data.navbarBlurEnabled !== false);
+        setStatsBoardWidth(data.stats_board_width || 280);
+        setStatsBoardTop(data.stats_board_top || 0);
+        setStatsBoardPosition(data.stats_board_position || 'right');
+        setStatsBoardOpacity(data.stats_board_opacity || 100);
+        setStatsBoardVisible(data.stats_board_visible !== false);
       }
     } catch (err) {
       console.error('Failed to load settings:', err);
@@ -3007,6 +3019,57 @@ function LandingImagesPanel() {
       setNavbarBlur(!newValue);
     }
     setSavingSettings(false);
+  }
+
+  async function saveStatsBoardSetting(key, value) {
+    setSavingSettings(true);
+    try {
+      await apiCall('/admin/settings', {
+        method: 'POST',
+        body: JSON.stringify({ [key]: value }),
+      });
+    } catch (err) {
+      setError(`Failed to save ${key} setting`);
+    }
+    setSavingSettings(false);
+  }
+
+  function handleStatsBoardWidth(value) {
+    setStatsBoardWidth(value);
+    saveStatsBoardSetting('stats_board_width', value);
+  }
+
+  function handleStatsBoardTop(value) {
+    setStatsBoardTop(value);
+    saveStatsBoardSetting('stats_board_top', value);
+  }
+
+  function handleStatsBoardPosition(value) {
+    setStatsBoardPosition(value);
+    saveStatsBoardSetting('stats_board_position', value);
+  }
+
+  function handleStatsBoardOpacity(value) {
+    setStatsBoardOpacity(value);
+    saveStatsBoardSetting('stats_board_opacity', value);
+  }
+
+  function handleStatsBoardVisible(value) {
+    setStatsBoardVisible(value);
+    saveStatsBoardSetting('stats_board_visible', value);
+  }
+
+  function resetStatsBoardDefaults() {
+    setStatsBoardWidth(280);
+    setStatsBoardTop(0);
+    setStatsBoardPosition('right');
+    setStatsBoardOpacity(100);
+    setStatsBoardVisible(true);
+    saveStatsBoardSetting('stats_board_width', 280);
+    saveStatsBoardSetting('stats_board_top', 0);
+    saveStatsBoardSetting('stats_board_position', 'right');
+    saveStatsBoardSetting('stats_board_opacity', 100);
+    saveStatsBoardSetting('stats_board_visible', true);
   }
 
   async function loadImages() {
@@ -3118,6 +3181,117 @@ function LandingImagesPanel() {
             <span className="li-toggle-label">{navbarBlur ? 'ON' : 'OFF'}</span>
           </button>
         </div>
+
+        {/* Stats Board Controls */}
+        <div className="li-setting-row">
+          <div className="li-setting-info">
+            <span className="li-setting-label">Show Stats Board</span>
+            <span className="li-setting-desc">Display the stats board on the hero section</span>
+          </div>
+          <button
+            className={`li-toggle ${statsBoardVisible ? 'on' : 'off'}`}
+            onClick={() => handleStatsBoardVisible(!statsBoardVisible)}
+            disabled={savingSettings}
+          >
+            <span className="li-toggle-slider"></span>
+            <span className="li-toggle-label">{statsBoardVisible ? 'ON' : 'OFF'}</span>
+          </button>
+        </div>
+
+        {statsBoardVisible && (
+          <>
+            <div className="li-setting-row li-setting-slider-row">
+              <div className="li-setting-info">
+                <span className="li-setting-label">Stats Board Width</span>
+                <span className="li-setting-desc">Adjust the size of the stats board (150px - 500px)</span>
+              </div>
+              <div className="li-slider-control">
+                <input
+                  type="range"
+                  min="150"
+                  max="500"
+                  value={statsBoardWidth}
+                  onChange={(e) => handleStatsBoardWidth(parseInt(e.target.value))}
+                  className="li-slider"
+                />
+                <span className="li-slider-value">{statsBoardWidth}px</span>
+              </div>
+            </div>
+
+            <div className="li-setting-row li-setting-slider-row">
+              <div className="li-setting-info">
+                <span className="li-setting-label">Vertical Position</span>
+                <span className="li-setting-desc">Move the board up or down (0% - 50% from top)</span>
+              </div>
+              <div className="li-slider-control">
+                <input
+                  type="range"
+                  min="0"
+                  max="50"
+                  value={statsBoardTop}
+                  onChange={(e) => handleStatsBoardTop(parseInt(e.target.value))}
+                  className="li-slider"
+                />
+                <span className="li-slider-value">{statsBoardTop}%</span>
+              </div>
+            </div>
+
+            <div className="li-setting-row li-setting-slider-row">
+              <div className="li-setting-info">
+                <span className="li-setting-label">Opacity</span>
+                <span className="li-setting-desc">Adjust transparency (50% - 100%)</span>
+              </div>
+              <div className="li-slider-control">
+                <input
+                  type="range"
+                  min="50"
+                  max="100"
+                  value={statsBoardOpacity}
+                  onChange={(e) => handleStatsBoardOpacity(parseInt(e.target.value))}
+                  className="li-slider"
+                />
+                <span className="li-slider-value">{statsBoardOpacity}%</span>
+              </div>
+            </div>
+
+            <div className="li-setting-row">
+              <div className="li-setting-info">
+                <span className="li-setting-label">Horizontal Position</span>
+                <span className="li-setting-desc">Place the board on left or right side</span>
+              </div>
+              <div className="li-position-buttons">
+                <button
+                  className={`li-pos-btn ${statsBoardPosition === 'left' ? 'active' : ''}`}
+                  onClick={() => handleStatsBoardPosition('left')}
+                  disabled={savingSettings}
+                >
+                  Left
+                </button>
+                <button
+                  className={`li-pos-btn ${statsBoardPosition === 'right' ? 'active' : ''}`}
+                  onClick={() => handleStatsBoardPosition('right')}
+                  disabled={savingSettings}
+                >
+                  Right
+                </button>
+              </div>
+            </div>
+
+            <div className="li-setting-row">
+              <div className="li-setting-info">
+                <span className="li-setting-label">Reset to Defaults</span>
+                <span className="li-setting-desc">Restore original stats board settings</span>
+              </div>
+              <button
+                className="li-reset-btn"
+                onClick={resetStatsBoardDefaults}
+                disabled={savingSettings}
+              >
+                Reset All
+              </button>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Images Section */}
