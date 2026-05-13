@@ -1,17 +1,19 @@
 import { useState, useEffect } from 'react';
-
-const SERVER_URL = 'https://usmle-battle-royale-production.up.railway.app';
+import { getAllSettings } from '../services/gameSettings';
 
 export default function DifficultySelect({ username, onSelectDifficulty, onBack }) {
   const [hardModeEnabled, setHardModeEnabled] = useState(false);
+  const [hardModeLabel, setHardModeLabel] = useState('Hard Mode');
+  const [hardModeDescription, setHardModeDescription] = useState('For advanced students. Questions present concepts in tricky and complex clinical scenarios that challenge your deeper understanding.');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Fetch game settings to check if hard mode is enabled
-    fetch(`${SERVER_URL}/api/game-settings`)
-      .then(r => r.json())
+    // Fetch game settings
+    getAllSettings()
       .then(settings => {
         setHardModeEnabled(settings.hardModeEnabled || false);
+        setHardModeLabel(settings.hardModeLabel || 'Hard Mode');
+        setHardModeDescription(settings.hardModeDescription || 'For advanced students. Questions present concepts in tricky and complex clinical scenarios that challenge your deeper understanding.');
         setLoading(false);
       })
       .catch(() => {
@@ -41,20 +43,20 @@ export default function DifficultySelect({ username, onSelectDifficulty, onBack 
           {hardModeEnabled ? (
             <button className="diff-option hard-diff" onClick={() => onSelectDifficulty('hard')}>
               <div className="diff-icon-wrap hard-icon-wrap">
-                <span className="diff-icon">🔥</span>
+                <span className="diff-icon">💀</span>
               </div>
-              <h3>Hard Mode</h3>
-              <p>Shorter timer (10s), no explanations, trickier presentation. Same questions, harder challenge!</p>
+              <h3>{hardModeLabel}</h3>
+              <p>{hardModeDescription}</p>
               <div className="diff-tag hard-tag">Available Now</div>
             </button>
           ) : (
             <div className="diff-option hard-diff diff-coming-soon">
               <div className="coming-soon-badge">Coming Soon</div>
               <div className="diff-icon-wrap hard-icon-wrap">
-                <span className="diff-icon">🔥</span>
+                <span className="diff-icon">💀</span>
               </div>
-              <h3>Hard Mode</h3>
-              <p>Hard mode is currently disabled by the administrator.</p>
+              <h3>{hardModeLabel}</h3>
+              <p>This mode is currently disabled by the administrator.</p>
               <div className="diff-tag hard-tag">Unavailable</div>
             </div>
           )}

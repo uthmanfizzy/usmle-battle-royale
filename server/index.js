@@ -638,10 +638,13 @@ function processBuzzFunAnswers(lobby) {
     const sr = updateStreak(lobby, player.id, correct);
     results.push({ id: player.id, username: player.username, answered: answer !== undefined, correct, lives: 3, alive: true, streak: sr.streak });
 
+    const explanation = lobby.difficulty === 'hard' && gameSettings.hardModeHideExplanations
+      ? ''
+      : (q.explanation || '');
     const sock = io.sockets.sockets.get(player.id);
     if (sock) sock.emit('answer_result', {
       correct, correctAnswer: q.correct, lives: 3, alive: true,
-      score: player.score, explanation: lobby.difficulty === 'hard' ? '' : (q.explanation || ''),
+      score: player.score, explanation,
       streak: sr.streak, onFire: sr.onFire, pointsEarned,
     });
   }
@@ -651,15 +654,21 @@ function processBuzzFunAnswers(lobby) {
     streak: lobby.streaks?.get(p.id) || 0,
   }));
 
+  const explanation = lobby.difficulty === 'hard' && gameSettings.hardModeHideExplanations
+    ? ''
+    : (q.explanation || '');
   io.to(lobby.id).emit('round_results', {
-    results, correctAnswer: q.correct, explanation: lobby.difficulty === 'hard' ? '' : (q.explanation || ''), eliminated: [], players: snapshot,
+    results, correctAnswer: q.correct, explanation, eliminated: [], players: snapshot,
   });
 
+  const explanationDelay = lobby.difficulty === 'hard'
+    ? (gameSettings.hardModeHideExplanations ? 2500 : (gameSettings.hardModeExplanationTime * 1000 + 2000))
+    : (gameSettings.explanationTime * 1000 + 2000);
   if (lobby.questionIdx >= lobby.questionQueue.length - 1) {
-    setTimeout(() => endGame(lobby, 'questions_exhausted'), 4500);
+    setTimeout(() => endGame(lobby, 'questions_exhausted'), explanationDelay);
     return;
   }
-  setTimeout(() => nextBuzzFunQuestion(lobby), 4500);
+  setTimeout(() => nextBuzzFunQuestion(lobby), explanationDelay);
 }
 
 function startGame(lobby) {
@@ -729,10 +738,10 @@ function nextQuestion(lobby) {
   if (lobby.frozenPlayers)   lobby.frozenPlayers.clear();
 
   const q         = lobby.questionQueue[lobby.questionIdx];
-  const timeLimit = lobby.suddenDeath ? 5
-    : lobby.gameMode === 'scan_master' ? 25
-    : lobby.difficulty === 'hard' ? 10
-    : gameSettings.timerDuration;
+  const timeLimit = lobby.suddenDeath ? gameSettings.suddenDeathTimer
+    : lobby.gameMode === 'scan_master' ? gameSettings.timerScanMaster
+    : lobby.difficulty === 'hard' ? gameSettings.hardModeTimer
+    : gameSettings.timerDefault;
 
   io.to(lobby.id).emit('new_question', {
     id: q.id, question: q.question, options: q.options,
@@ -803,10 +812,13 @@ function processAnswers(lobby) {
 
     const sock = io.sockets.sockets.get(player.id);
     if (sock) {
+      const explanation = lobby.difficulty === 'hard' && gameSettings.hardModeHideExplanations
+        ? ''
+        : (q.explanation || '');
       sock.emit('answer_result', {
         correct, correctAnswer: q.correct,
         lives: player.lives, alive: player.alive,
-        score: player.score, explanation: lobby.difficulty === 'hard' ? '' : (q.explanation || ''),
+        score: player.score, explanation,
         streak, onFire,
       });
     }
@@ -817,27 +829,39 @@ function processAnswers(lobby) {
     streak: lobby.streaks?.get(p.id) || 0,
   }));
 
+  const explanation = lobby.difficulty === 'hard' && gameSettings.hardModeHideExplanations
+    ? ''
+    : (q.explanation || '');
   io.to(lobby.id).emit('round_results', {
-    results, correctAnswer: q.correct, explanation: lobby.difficulty === 'hard' ? '' : (q.explanation || ''), eliminated, players: snapshot,
+    results, correctAnswer: q.correct, explanation, eliminated, players: snapshot,
   });
 
   const alive = alivePlayers(lobby);
 
   if (alive.length <= 1) {
-    setTimeout(() => endGame(lobby, 'last_standing'), lobby.suddenDeath ? 4000 : 14000);
+    const explanationDelay = lobby.difficulty === 'hard'
+      ? (gameSettings.hardModeHideExplanations ? 3000 : (gameSettings.hardModeExplanationTime * 1000 + 2000))
+      : (gameSettings.explanationTime * 1000 + 2000);
+    setTimeout(() => endGame(lobby, 'last_standing'), explanationDelay);
     return;
   }
 
   // Trigger sudden death when exactly 2 players remain for the first time
   if (alive.length === 2 && !lobby.suddenDeath) {
     lobby.suddenDeath = true;
+    const explanationDelay = lobby.difficulty === 'hard'
+      ? (gameSettings.hardModeHideExplanations ? 3000 : (gameSettings.hardModeExplanationTime * 1000 + 2000))
+      : (gameSettings.explanationTime * 1000 + 2000);
     // Emit announcement after round results have been shown, then give 3s for the screen
-    setTimeout(() => io.to(lobby.id).emit('sudden_death'), 14000);
-    setTimeout(() => nextQuestion(lobby), 17000);
+    setTimeout(() => io.to(lobby.id).emit('sudden_death'), explanationDelay);
+    setTimeout(() => nextQuestion(lobby), explanationDelay + 3000);
     return;
   }
 
-  setTimeout(() => nextQuestion(lobby), lobby.suddenDeath ? 4500 : 14500);
+  const explanationDelay = lobby.difficulty === 'hard'
+    ? (gameSettings.hardModeHideExplanations ? 2500 : (gameSettings.hardModeExplanationTime * 1000 + 2000))
+    : (gameSettings.explanationTime * 1000 + 2000);
+  setTimeout(() => nextQuestion(lobby), explanationDelay);
 }
 
 function endGame(lobby, reason) {
@@ -1003,9 +1027,7 @@ async function upsertMastery(userId, subject, attempted, correct) {
 
 // ── Speed Race ─────────────────────────────────────────────────────────────────
 
-const SPEED_RACE_GOAL    = 20;
 const SPEED_RACE_TIMEOUT = 10 * 60 * 1000; // 10 min
-const SPEED_RACE_Q_TIME  = 10;             // seconds per question
 
 function emitRaceProgress(lobby) {
   const progress = [...lobby.players.values()].map(p => ({
@@ -1017,7 +1039,7 @@ function emitRaceProgress(lobby) {
     position: lobby.raceFinishedOrder.includes(p.id)
                 ? lobby.raceFinishedOrder.indexOf(p.id) + 1 : null,
   }));
-  io.to(lobby.id).emit('race_progress', { progress, goal: SPEED_RACE_GOAL });
+  io.to(lobby.id).emit('race_progress', { progress, goal: gameSettings.speedRaceQuestions });
 }
 
 function startSpeedRace(lobby) {
@@ -1064,7 +1086,7 @@ function sendSpeedQuestion(lobby, playerId) {
   if (!player || !state || state.finished) return;
 
   const q         = lobby.questionQueue[state.idx % lobby.questionQueue.length];
-  const timeLimit = SPEED_RACE_Q_TIME;
+  const timeLimit = gameSettings.timerSpeedRace;
 
   if (!player.isBot) {
     const sock = io.sockets.sockets.get(playerId);
@@ -1118,7 +1140,7 @@ function advanceSpeedPlayer(lobby, playerId, answer) {
     lobby.raceCorrects.set(playerId, n);
     player.score = n;
 
-    if (n >= SPEED_RACE_GOAL && !lobby.raceFinishedOrder.includes(playerId)) {
+    if (n >= gameSettings.speedRaceQuestions && !lobby.raceFinishedOrder.includes(playerId)) {
       lobby.raceFinishedOrder.push(playerId);
       state.finished = true;
       emitRaceProgress(lobby);
@@ -1182,7 +1204,6 @@ function endSpeedRace(lobby, reason) {
 // ── Trivia Pursuit (Board Game) ──────────────────────────────────────────────
 
 const TRIVIA_CATS      = ['cardiology','neurology','pharmacology','microbiology','biochemistry','biostatistics'];
-const TRIVIA_Q_TIME    = 20;
 const TRIVIA_BOARD_SIZE = 36;
 
 // 6 sectors × 6 spaces; sector i starts with HQ for TRIVIA_CATS[i]
@@ -1345,7 +1366,7 @@ function nextTriviaTurn(lobby) {
       io.to(lobby.id).emit('trivia_question', {
         question: { id: q.id, question: q.question, options: q.options },
         category: q.subject, isHQ: false, canEarnWedge: false,
-        isFinalQuestion: true, round: lobby.round, timeLimit: TRIVIA_Q_TIME,
+        isFinalQuestion: true, round: lobby.round, timeLimit: gameSettings.timerTriviaPursuit,
         wedgeState: triviaWedgeSnapshot(lobby),
       });
       if (player?.isBot) {
@@ -1353,9 +1374,9 @@ function nextTriviaTurn(lobby) {
           if (lobby.status !== 'trivia_question') return;
           const correct = Math.random() < BOT_ACCURACY[player.difficulty];
           processTriviaAnswer(lobby, correct ? q.correct : randomWrongAnswer(q.correct));
-        }, botReactionDelay(player.difficulty, TRIVIA_Q_TIME));
+        }, botReactionDelay(player.difficulty, gameSettings.timerTriviaPursuit));
       } else {
-        lobby.timer = setTimeout(() => processTriviaAnswer(lobby, null), TRIVIA_Q_TIME * 1000);
+        lobby.timer = setTimeout(() => processTriviaAnswer(lobby, null), gameSettings.timerTriviaPursuit * 1000);
       }
     }, 1500);
     return;
@@ -1420,7 +1441,7 @@ function handleTriviaRoll(lobby) {
     io.to(lobby.id).emit('trivia_question', {
       question: { id: q.id, question: q.question, options: q.options },
       category: space.category, isHQ: space.isHQ, canEarnWedge,
-      isFinalQuestion: false, round: lobby.round, timeLimit: TRIVIA_Q_TIME,
+      isFinalQuestion: false, round: lobby.round, timeLimit: gameSettings.timerTriviaPursuit,
       wedgeState: triviaWedgeSnapshot(lobby),
     });
     const botP = lobby.players.get(sid);
@@ -1429,9 +1450,9 @@ function handleTriviaRoll(lobby) {
         if (lobby.status !== 'trivia_question') return;
         const correct = Math.random() < BOT_ACCURACY[botP.difficulty];
         processTriviaAnswer(lobby, correct ? q.correct : randomWrongAnswer(q.correct));
-      }, botReactionDelay(botP.difficulty, TRIVIA_Q_TIME));
+      }, botReactionDelay(botP.difficulty, gameSettings.timerTriviaPursuit));
     } else {
-      lobby.timer = setTimeout(() => processTriviaAnswer(lobby, null), TRIVIA_Q_TIME * 1000);
+      lobby.timer = setTimeout(() => processTriviaAnswer(lobby, null), gameSettings.timerTriviaPursuit * 1000);
     }
   }, 1800);
 }
@@ -3361,11 +3382,8 @@ const WELCOME_ANNOUNCEMENT = {
 
 // Public endpoint to get game settings (for checking hard mode availability, etc.)
 app.get('/api/game-settings', (req, res) => {
-  res.json({
-    hardModeEnabled: gameSettings.hardModeEnabled,
-    maintenanceMode: gameSettings.maintenanceMode,
-    maintenanceMessage: gameSettings.maintenanceMessage,
-  });
+  // Return all game settings for frontend use
+  res.json(gameSettings);
 });
 
 app.get('/api/announcements', async (req, res) => {
