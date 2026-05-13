@@ -71,13 +71,13 @@
   left: 0;
   right: 0;
   z-index: 100;
-  background: linear-gradient(to bottom, rgba(10, 20, 12, 0.98), rgba(13, 31, 18, 0.95));
-  border-bottom: 2px solid var(--gold-dark);
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.4) 0%, rgba(0, 0, 0, 0.2) 70%, transparent 100%);
+  border-bottom: 1px solid rgba(201, 162, 39, 0.2);
   padding: 12px 24px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  box-shadow: none;
 }
 
 .dash-logo-section {
@@ -766,8 +766,8 @@
   left: 0;
   right: 0;
   z-index: 100;
-  background: linear-gradient(to top, rgba(10, 20, 12, 0.98), rgba(13, 31, 18, 0.95));
-  border-top: 2px solid var(--gold-dark);
+  background: rgba(13, 21, 15, 0.95);
+  border-top: 2px solid var(--gold-rpg);
   display: flex;
   height: 70px;
   box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.5);
