@@ -2838,6 +2838,132 @@ app.delete('/admin/landing-images/:slot_name', adminAuth, async (req, res) => {
   }
 });
 
+// ── Home Page Images ───────────────────────────────────────────────────────────
+
+// Get all home page images
+app.get('/admin/home-images', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  try {
+    const { data, error } = await supabase
+      .from('home_images')
+      .select('*');
+    if (error) throw error;
+
+    const images = {};
+    (data || []).forEach(img => {
+      images[img.slot_name] = img.image_url;
+    });
+
+    res.json({ images });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Upload a home page image
+app.post('/admin/home-images', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  const { slot_name, base64, filename, mimeType } = req.body;
+
+  if (!slot_name || !base64 || !filename) {
+    return res.status(400).json({ error: 'Missing required fields: slot_name, base64, filename' });
+  }
+
+  try {
+    // Remove data URL prefix
+    const base64Data = base64.replace(/^data:image\/\w+;base64,/, '');
+    const buffer = Buffer.from(base64Data, 'base64');
+
+    // Generate unique filename
+    const ext = filename.split('.').pop();
+    const uniqueName = `${slot_name}_${Date.now()}.${ext}`;
+    const filePath = `home/${uniqueName}`;
+
+    // Delete old image if exists
+    const { data: existing } = await supabase
+      .from('home_images')
+      .select('image_url')
+      .eq('slot_name', slot_name)
+      .single();
+
+    if (existing?.image_url) {
+      const urlParts = existing.image_url.split('/');
+      const oldFileName = urlParts.slice(-2).join('/');
+      await supabase.storage.from('home-images').remove([oldFileName]);
+    }
+
+    // Upload new image
+    const { error: uploadError } = await supabase.storage
+      .from('home-images')
+      .upload(filePath, buffer, {
+        contentType: mimeType,
+        upsert: true
+      });
+
+    if (uploadError) throw uploadError;
+
+    // Get public URL
+    const { data: urlData } = supabase.storage
+      .from('home-images')
+      .getPublicUrl(filePath);
+
+    const image_url = urlData.publicUrl;
+
+    // Save to database
+    const { error: dbError } = await supabase
+      .from('home_images')
+      .upsert({
+        slot_name,
+        image_url,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'slot_name' });
+
+    if (dbError) throw dbError;
+
+    res.json({ ok: true, slot_name, image_url });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Delete a home page image
+app.delete('/admin/home-images/:slot_name', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  const { slot_name } = req.params;
+
+  try {
+    // Get current image URL to delete from storage
+    const { data: existing } = await supabase
+      .from('home_images')
+      .select('image_url')
+      .eq('slot_name', slot_name)
+      .single();
+
+    if (existing?.image_url) {
+      const urlParts = existing.image_url.split('/');
+      const fileName = urlParts.slice(-2).join('/');
+      await supabase.storage.from('home-images').remove([fileName]);
+    }
+
+    // Delete from database
+    const { error: dbError } = await supabase
+      .from('home_images')
+      .delete()
+      .eq('slot_name', slot_name);
+    if (dbError) throw dbError;
+
+    res.json({ ok: true, slot_name });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Save all home images (for batch save)
+app.post('/admin/home-images/save', adminAuth, async (req, res) => {
+  // This is just a confirmation endpoint since images are already saved on upload
+  res.json({ ok: true });
+});
+
 app.post('/admin/questions', adminAuth, async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Supabase not configured. Cannot save questions.' });
 

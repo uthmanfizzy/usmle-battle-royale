@@ -4163,6 +4163,251 @@ function SettingsPanel() {
   );
 }
 
+// ── Home Page Panel ────────────────────────────────────────────────────────────
+
+function HomePagePanel() {
+  const [homeImages, setHomeImages] = useState({
+    dashboard_bg: '',
+    footer_bg: '',
+    icon_home: '',
+    icon_leaderboards: '',
+    icon_clans: '',
+    icon_news: '',
+    icon_play: '',
+    icon_coins: '',
+    icon_gems: '',
+  });
+  const [uploading, setUploading] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saveMsg, setSaveMsg] = useState('');
+
+  useEffect(() => {
+    loadHomeImages();
+  }, []);
+
+  async function loadHomeImages() {
+    try {
+      const res = await apiCall('/admin/home-images');
+      if (res.ok) {
+        const data = await res.json();
+        setHomeImages(data.images || homeImages);
+      }
+    } catch (err) {
+      console.error('Failed to load home images:', err);
+    }
+    setLoading(false);
+  }
+
+  async function handleUpload(slot, file) {
+    if (!file) return;
+    const maxSize = 5 * 1024 * 1024;
+    if (file.size > maxSize) {
+      alert('Image must be under 5MB');
+      return;
+    }
+
+    setUploading(u => ({ ...u, [slot]: true }));
+
+    try {
+      const base64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      const res = await apiCall('/admin/home-images', {
+        method: 'POST',
+        body: JSON.stringify({
+          slot_name: slot,
+          base64,
+          filename: file.name,
+          mimeType: file.type,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Upload failed');
+
+      setHomeImages(prev => ({ ...prev, [slot]: data.image_url }));
+    } catch (err) {
+      alert(`Upload failed: ${err.message}`);
+    }
+
+    setUploading(u => ({ ...u, [slot]: false }));
+  }
+
+  async function handleRemove(slot) {
+    if (!window.confirm('Remove this image?')) return;
+
+    setUploading(u => ({ ...u, [slot]: true }));
+
+    try {
+      const res = await apiCall(`/admin/home-images/${slot}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Delete failed');
+
+      setHomeImages(prev => ({ ...prev, [slot]: '' }));
+    } catch (err) {
+      alert(`Delete failed: ${err.message}`);
+    }
+
+    setUploading(u => ({ ...u, [slot]: false }));
+  }
+
+  async function handleSave() {
+    setSaving(true);
+    setSaveMsg('');
+    try {
+      const res = await apiCall('/admin/home-images/save', {
+        method: 'POST',
+        body: JSON.stringify({ images: homeImages }),
+      });
+      if (!res.ok) throw new Error('Save failed');
+      setSaveMsg('success');
+      setTimeout(() => setSaveMsg(''), 3000);
+    } catch (err) {
+      setSaveMsg('error');
+      setTimeout(() => setSaveMsg(''), 3000);
+    }
+    setSaving(false);
+  }
+
+  if (loading) return <div className="ap-loading">Loading...</div>;
+
+  const imageSlots = [
+    { id: 'dashboard_bg', label: 'Dashboard Background', desc: 'Background image for home page dashboard' },
+    { id: 'footer_bg', label: 'Footer Background', desc: 'Background image for bottom navigation bar' },
+  ];
+
+  const iconSlots = [
+    { id: 'icon_home', label: 'HOME Icon', desc: 'Navigation icon for Home tab' },
+    { id: 'icon_leaderboards', label: 'LEADERBOARDS Icon', desc: 'Navigation icon for Leaderboards' },
+    { id: 'icon_clans', label: 'CLANS Icon', desc: 'Navigation icon for Clans' },
+    { id: 'icon_news', label: 'NEWS Icon', desc: 'Navigation icon for News' },
+    { id: 'icon_play', label: 'PLAY Icon', desc: 'Navigation icon for Play button' },
+    { id: 'icon_coins', label: 'Coins Icon', desc: 'Icon for coin currency display' },
+    { id: 'icon_gems', label: 'Gems Icon', desc: 'Icon for gem currency display' },
+  ];
+
+  return (
+    <div className="li-panel">
+      <div className="li-header">
+        <div className="li-header-icon">🏠</div>
+        <div>
+          <h2 className="li-header-title">Home Page</h2>
+          <p className="li-header-desc">Customize dashboard background and navigation icons.</p>
+        </div>
+      </div>
+
+      {/* Background Images */}
+      <h3 className="li-images-title">🖼️ Background Images</h3>
+      <div className="li-grid">
+        {imageSlots.map(slot => (
+          <div key={slot.id} className="li-slot">
+            <div className="li-slot-header">
+              <span className="li-slot-label">{slot.label}</span>
+              <span className="li-slot-desc">{slot.desc}</span>
+            </div>
+
+            <div className="li-slot-preview">
+              {homeImages[slot.id] ? (
+                <img src={homeImages[slot.id]} alt={slot.label} className="li-slot-img" />
+              ) : (
+                <div className="li-slot-empty">
+                  <span className="li-slot-empty-icon">🖼️</span>
+                  <span>No image uploaded</span>
+                </div>
+              )}
+            </div>
+
+            <div className="li-slot-actions">
+              <label className={`li-upload-btn ${uploading[slot.id] ? 'uploading' : ''}`}>
+                {uploading[slot.id] ? 'Uploading...' : homeImages[slot.id] ? 'Replace' : 'Upload'}
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => handleUpload(slot.id, e.target.files[0])}
+                  disabled={uploading[slot.id]}
+                  style={{ display: 'none' }}
+                />
+              </label>
+              {homeImages[slot.id] && (
+                <button
+                  className="li-remove-btn"
+                  onClick={() => handleRemove(slot.id)}
+                  disabled={uploading[slot.id]}
+                >
+                  Remove
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Navigation Icons */}
+      <h3 className="li-images-title">🎨 Navigation Icons</h3>
+      <div className="li-grid">
+        {iconSlots.map(slot => (
+          <div key={slot.id} className="li-slot">
+            <div className="li-slot-header">
+              <span className="li-slot-label">{slot.label}</span>
+              <span className="li-slot-desc">{slot.desc}</span>
+            </div>
+
+            <div className="li-slot-preview" style={{ height: '80px' }}>
+              {homeImages[slot.id] ? (
+                <img src={homeImages[slot.id]} alt={slot.label} className="li-slot-img" style={{ objectFit: 'contain' }} />
+              ) : (
+                <div className="li-slot-empty">
+                  <span className="li-slot-empty-icon">🎨</span>
+                  <span>No icon uploaded</span>
+                </div>
+              )}
+            </div>
+
+            <div className="li-slot-actions">
+              <label className={`li-upload-btn ${uploading[slot.id] ? 'uploading' : ''}`}>
+                {uploading[slot.id] ? 'Uploading...' : homeImages[slot.id] ? 'Replace' : 'Upload'}
+                <input
+                  type="file"
+                  accept="image/png,image/svg+xml"
+                  onChange={(e) => handleUpload(slot.id, e.target.files[0])}
+                  disabled={uploading[slot.id]}
+                  style={{ display: 'none' }}
+                />
+              </label>
+              {homeImages[slot.id] && (
+                <button
+                  className="li-remove-btn"
+                  onClick={() => handleRemove(slot.id)}
+                  disabled={uploading[slot.id]}
+                >
+                  Remove
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Save Button */}
+      <div className="li-save-row" style={{ marginTop: '32px' }}>
+        <button
+          className="li-save-btn"
+          onClick={handleSave}
+          disabled={saving}
+        >
+          {saving ? '⏳ Saving...' : '💾 Save All Changes'}
+        </button>
+        {saveMsg === 'success' && <span className="li-save-success">✓ Saved successfully</span>}
+        {saveMsg === 'error' && <span className="li-save-error">✗ Failed to save</span>}
+      </div>
+    </div>
+  );
+}
+
 // ── Root Admin App ─────────────────────────────────────────────────────────────
 
 export default function AdminApp() {
@@ -4211,6 +4456,9 @@ export default function AdminApp() {
         <button className={`ap-nav-btn ${tab === 'landing'       ? 'active' : ''}`} onClick={() => setTab('landing')}>
           🖼️ Landing Page
         </button>
+        <button className={`ap-nav-btn ${tab === 'homepage'      ? 'active' : ''}`} onClick={() => setTab('homepage')}>
+          🏠 Home Page
+        </button>
         <button className={`ap-nav-btn ${tab === 'settings'      ? 'active' : ''}`} onClick={() => setTab('settings')}>
           ⚙️ Game Settings
         </button>
@@ -4224,6 +4472,7 @@ export default function AdminApp() {
         {tab === 'quests'        && <QuestsPanel />}
         {tab === 'announcements' && <AnnouncementsPanel />}
         {tab === 'landing'       && <LandingImagesPanel />}
+        {tab === 'homepage'      && <HomePagePanel />}
         {tab === 'settings'      && <SettingsPanel />}
       </main>
     </div>
