@@ -20,7 +20,11 @@ VALUES
   ('icon_news', '', NOW()),
   ('icon_play', '', NOW()),
   ('icon_coins', '', NOW()),
-  ('icon_gems', '', NOW())
+  ('icon_gems', '', NOW()),
+  ('profile_panel_bg', '', NOW()),
+  ('stats_panel_bg', '', NOW()),
+  ('quests_panel_bg', '', NOW()),
+  ('recent_games_panel_bg', '', NOW())
 ON CONFLICT (slot_name) DO NOTHING;
 
 -- Create storage bucket for home-images (run this in Supabase dashboard)

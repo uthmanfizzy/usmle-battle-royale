@@ -181,6 +181,12 @@ function HomeSection({ user, bgUrl, onUserUpdate }) {
   const [questProgress, setQuestProgress] = useState({});
   const [questsLoading, setQuestsLoading] = useState(true);
   const [completedQuest, setCompletedQuest] = useState(null);
+  const [panelBackgrounds, setPanelBackgrounds] = useState({
+    profile_panel_bg: '',
+    stats_panel_bg: '',
+    quests_panel_bg: '',
+    recent_games_panel_bg: '',
+  });
 
   const xp          = user.xp    || 0;
   const level       = user.level || 1;
@@ -229,6 +235,27 @@ function HomeSection({ user, bgUrl, onUserUpdate }) {
     loadQuests();
   }, [user]);
 
+  // Fetch panel background images
+  useEffect(() => {
+    async function loadPanelBackgrounds() {
+      try {
+        const res = await fetch(`${SERVER_URL}/api/home-images`);
+        if (res.ok) {
+          const data = await res.json();
+          setPanelBackgrounds({
+            profile_panel_bg: data.images?.profile_panel_bg || '',
+            stats_panel_bg: data.images?.stats_panel_bg || '',
+            quests_panel_bg: data.images?.quests_panel_bg || '',
+            recent_games_panel_bg: data.images?.recent_games_panel_bg || '',
+          });
+        }
+      } catch (err) {
+        console.error('Failed to load panel backgrounds:', err);
+      }
+    }
+    loadPanelBackgrounds();
+  }, []);
+
   // Time until daily reset (midnight UTC)
   const [timeLeft, setTimeLeft] = useState('');
   useEffect(() => {
@@ -251,7 +278,14 @@ function HomeSection({ user, bgUrl, onUserUpdate }) {
       {/* Left Column */}
       <div className="dash-left-col">
         {/* Player Profile */}
-        <div className="parchment-panel profile-panel">
+        <div
+          className="parchment-panel profile-panel"
+          style={panelBackgrounds.profile_panel_bg ? {
+            backgroundImage: `url(${panelBackgrounds.profile_panel_bg})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+          } : {}}
+        >
           <div className="profile-avatar-wrap">
             {user.avatar_url
               ? <img src={user.avatar_url} alt="" className="profile-avatar" referrerPolicy="no-referrer" />
@@ -280,7 +314,14 @@ function HomeSection({ user, bgUrl, onUserUpdate }) {
         </div>
 
         {/* Stats Overview */}
-        <div className="parchment-panel">
+        <div
+          className="parchment-panel stats-overview-panel"
+          style={panelBackgrounds.stats_panel_bg ? {
+            backgroundImage: `url(${panelBackgrounds.stats_panel_bg})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+          } : {}}
+        >
           <div className="panel-title">Stats Overview</div>
           <div className="stats-grid">
             <div className="stat-box">
@@ -305,24 +346,6 @@ function HomeSection({ user, bgUrl, onUserUpdate }) {
             </div>
           </div>
         </div>
-
-        {/* Current Rank */}
-        <div className="parchment-panel rank-panel">
-          <div className="panel-title">Current Rank</div>
-          <div className="rank-crest">
-            <div className="rank-numeral">{rank.tier}</div>
-          </div>
-          <div className="rank-name">{rank.name}</div>
-          <div className="rank-progress-text">
-            <span>🏆</span> {xp.toLocaleString()} / {rank.next?.toLocaleString() || '∞'}
-          </div>
-          <div className="rank-progress-bar">
-            <div className="rank-progress-fill" style={{ width: `${Math.round(rank.progress * 100)}%` }} />
-          </div>
-          {rank.next && (
-            <div className="rank-next">Next: {getRank(rank.next).name}</div>
-          )}
-        </div>
       </div>
 
       {/* Center Column - Transparent */}
@@ -336,7 +359,14 @@ function HomeSection({ user, bgUrl, onUserUpdate }) {
       {/* Right Column */}
       <div className="dash-right-col">
         {/* Daily Quests */}
-        <div className="parchment-panel">
+        <div
+          className="parchment-panel quests-panel"
+          style={panelBackgrounds.quests_panel_bg ? {
+            backgroundImage: `url(${panelBackgrounds.quests_panel_bg})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+          } : {}}
+        >
           <div className="panel-title">
             Daily Quests
             <span className="quests-timer">⏰ {timeLeft}</span>
@@ -376,7 +406,14 @@ function HomeSection({ user, bgUrl, onUserUpdate }) {
         </div>
 
         {/* Recent Games */}
-        <div className="parchment-panel">
+        <div
+          className="parchment-panel recent-games-panel"
+          style={panelBackgrounds.recent_games_panel_bg ? {
+            backgroundImage: `url(${panelBackgrounds.recent_games_panel_bg})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+          } : {}}
+        >
           <div className="panel-title">
             Recent Games
             <span className="panel-title-link" onClick={() => window.location.href = '/stats'}>VIEW ALL →</span>
@@ -881,15 +918,33 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
   const [welcomeAnn,   setWelcomeAnn]   = useState(null);
   const [showSettings, setShowSettings] = useState(false);
   const [bgUrl,        setBgUrl]        = useState(null);
+  const [homeImages,   setHomeImages]   = useState({
+    dashboard_bg: '',
+    footer_bg: '',
+    icon_home: '',
+    icon_leaderboards: '',
+    icon_clans: '',
+    icon_news: '',
+    icon_play: '',
+    icon_coins: '',
+    icon_gems: '',
+  });
 
-  // Fetch background image
+  // Fetch home page images (backgrounds and icons)
   useEffect(() => {
-    fetch(`${SERVER_URL}/api/landing-images`)
+    fetch(`${SERVER_URL}/api/home-images`)
       .then(r => r.json())
       .then(d => {
-        if (d.images?.hero_bg) setBgUrl(d.images.hero_bg);
+        console.log('Home images loaded:', d.images);
+        if (d.images) {
+          setHomeImages(d.images);
+          // Set dashboard background
+          if (d.images.dashboard_bg) setBgUrl(d.images.dashboard_bg);
+        }
       })
-      .catch(() => {});
+      .catch(err => {
+        console.error('Failed to load home images:', err);
+      });
   }, []);
 
   useEffect(() => {
@@ -945,10 +1000,16 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
 
           <div className="dash-topbar-right">
             <div className="currency-box">
+              {homeImages.icon_coins && (
+                <img src={homeImages.icon_coins} alt="" className="currency-icon" style={{ width: '20px', height: '20px', objectFit: 'contain' }} />
+              )}
               <span className="currency-value">{coins.toLocaleString()}</span>
               <span className="currency-label">Coins</span>
             </div>
             <div className="currency-box">
+              {homeImages.icon_gems && (
+                <img src={homeImages.icon_gems} alt="" className="currency-icon" style={{ width: '20px', height: '20px', objectFit: 'contain' }} />
+              )}
               <span className="currency-value">{gems.toLocaleString()}</span>
               <span className="currency-label">Gems</span>
             </div>
@@ -969,23 +1030,39 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
         {dashTab === 'announcements' && <AnnouncementsSection />}
 
         {/* Bottom Navigation */}
-        <nav className="dash-nav">
+        <nav
+          className="dash-nav"
+          style={homeImages.footer_bg ? {
+            backgroundImage: `url(${homeImages.footer_bg})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+          } : {}}
+        >
           <button
             className={`dash-nav-btn ${dashTab === 'home' ? 'active' : ''}`}
             onClick={() => setDashTab('home')}
           >
+            {homeImages.icon_home && (
+              <img src={homeImages.icon_home} alt="" className="nav-icon" style={{ width: '24px', height: '24px', objectFit: 'contain' }} />
+            )}
             <span className="nav-label">Home</span>
           </button>
           <button
             className={`dash-nav-btn ${dashTab === 'leaderboard' ? 'active' : ''}`}
             onClick={() => setDashTab('leaderboard')}
           >
+            {homeImages.icon_leaderboards && (
+              <img src={homeImages.icon_leaderboards} alt="" className="nav-icon" style={{ width: '24px', height: '24px', objectFit: 'contain' }} />
+            )}
             <span className="nav-label">Leaderboards</span>
           </button>
           <button
             className={`dash-nav-btn ${dashTab === 'clans' ? 'active' : ''}`}
             onClick={() => setDashTab('clans')}
           >
+            {homeImages.icon_clans && (
+              <img src={homeImages.icon_clans} alt="" className="nav-icon" style={{ width: '24px', height: '24px', objectFit: 'contain' }} />
+            )}
             <span className="nav-label">Clans</span>
           </button>
           <button
@@ -994,9 +1071,15 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
             style={{ position: 'relative' }}
           >
             {unreadCount > 0 && <span className="ann-unread-dot" />}
+            {homeImages.icon_news && (
+              <img src={homeImages.icon_news} alt="" className="nav-icon" style={{ width: '24px', height: '24px', objectFit: 'contain' }} />
+            )}
             <span className="nav-label">News</span>
           </button>
           <button className="dash-nav-btn dash-nav-play" onClick={onPlayNow}>
+            {homeImages.icon_play && (
+              <img src={homeImages.icon_play} alt="" className="nav-icon" style={{ width: '24px', height: '24px', objectFit: 'contain' }} />
+            )}
             <span className="nav-label">Play</span>
           </button>
         </nav>

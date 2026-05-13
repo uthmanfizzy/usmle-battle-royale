@@ -4176,6 +4176,10 @@ function HomePagePanel() {
     icon_play: '',
     icon_coins: '',
     icon_gems: '',
+    profile_panel_bg: '',
+    stats_panel_bg: '',
+    quests_panel_bg: '',
+    recent_games_panel_bg: '',
   });
   const [uploading, setUploading] = useState({});
   const [loading, setLoading] = useState(true);
@@ -4373,6 +4377,57 @@ function HomePagePanel() {
                 <input
                   type="file"
                   accept="image/png,image/svg+xml"
+                  onChange={(e) => handleUpload(slot.id, e.target.files[0])}
+                  disabled={uploading[slot.id]}
+                  style={{ display: 'none' }}
+                />
+              </label>
+              {homeImages[slot.id] && (
+                <button
+                  className="li-remove-btn"
+                  onClick={() => handleRemove(slot.id)}
+                  disabled={uploading[slot.id]}
+                >
+                  Remove
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Panel Backgrounds */}
+      <h3 className="li-images-title">📋 Panel Backgrounds</h3>
+      <div className="li-grid">
+        {[
+          { id: 'profile_panel_bg', label: 'Player Profile Panel', desc: 'Background for player profile panel' },
+          { id: 'stats_panel_bg', label: 'Stats Overview Panel', desc: 'Background for stats overview panel' },
+          { id: 'quests_panel_bg', label: 'Daily Quests Panel', desc: 'Background for daily quests panel' },
+          { id: 'recent_games_panel_bg', label: 'Recent Games Panel', desc: 'Background for recent games panel' },
+        ].map(slot => (
+          <div key={slot.id} className="li-slot">
+            <div className="li-slot-header">
+              <span className="li-slot-label">{slot.label}</span>
+              <span className="li-slot-desc">{slot.desc}</span>
+            </div>
+
+            <div className="li-slot-preview">
+              {homeImages[slot.id] ? (
+                <img src={homeImages[slot.id]} alt={slot.label} className="li-slot-img" />
+              ) : (
+                <div className="li-slot-empty">
+                  <span className="li-slot-empty-icon">🖼️</span>
+                  <span>No image uploaded</span>
+                </div>
+              )}
+            </div>
+
+            <div className="li-slot-actions">
+              <label className={`li-upload-btn ${uploading[slot.id] ? 'uploading' : ''}`}>
+                {uploading[slot.id] ? 'Uploading...' : homeImages[slot.id] ? 'Replace' : 'Upload'}
+                <input
+                  type="file"
+                  accept="image/*"
                   onChange={(e) => handleUpload(slot.id, e.target.files[0])}
                   disabled={uploading[slot.id]}
                   style={{ display: 'none' }}

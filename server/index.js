@@ -2849,6 +2849,7 @@ app.get('/admin/home-images', adminAuth, async (req, res) => {
       .select('*');
     if (error) throw error;
 
+    console.log('[/admin/home-images GET] Fetched rows:', data?.length || 0);
     const images = {};
     (data || []).forEach(img => {
       images[img.slot_name] = img.image_url;
@@ -2856,6 +2857,7 @@ app.get('/admin/home-images', adminAuth, async (req, res) => {
 
     res.json({ images });
   } catch (err) {
+    console.error('[/admin/home-images GET] Error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
@@ -2864,6 +2866,8 @@ app.get('/admin/home-images', adminAuth, async (req, res) => {
 app.post('/admin/home-images', adminAuth, async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
   const { slot_name, base64, filename, mimeType } = req.body;
+
+  console.log('[/admin/home-images POST] Uploading:', slot_name);
 
   if (!slot_name || !base64 || !filename) {
     return res.status(400).json({ error: 'Missing required fields: slot_name, base64, filename' });
@@ -2920,8 +2924,10 @@ app.post('/admin/home-images', adminAuth, async (req, res) => {
 
     if (dbError) throw dbError;
 
+    console.log(`[/admin/home-images POST] Successfully saved ${slot_name}:`, image_url.substring(0, 60) + '...');
     res.json({ ok: true, slot_name, image_url });
   } catch (err) {
+    console.error('[/admin/home-images POST] Error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
@@ -2962,6 +2968,29 @@ app.delete('/admin/home-images/:slot_name', adminAuth, async (req, res) => {
 app.post('/admin/home-images/save', adminAuth, async (req, res) => {
   // This is just a confirmation endpoint since images are already saved on upload
   res.json({ ok: true });
+});
+
+// Public endpoint to get home images (no auth required)
+app.get('/api/home-images', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  try {
+    const { data, error } = await supabase
+      .from('home_images')
+      .select('*');
+    if (error) throw error;
+
+    console.log('[/api/home-images] Fetched rows:', data?.length || 0);
+    const images = {};
+    (data || []).forEach(img => {
+      images[img.slot_name] = img.image_url;
+      console.log(`  - ${img.slot_name}: ${img.image_url ? img.image_url.substring(0, 60) + '...' : '(empty)'}`);
+    });
+
+    res.json({ images });
+  } catch (err) {
+    console.error('[/api/home-images] Error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.post('/admin/questions', adminAuth, async (req, res) => {
