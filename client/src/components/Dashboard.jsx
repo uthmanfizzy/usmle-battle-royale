@@ -373,7 +373,7 @@ function HomeSection({ user, bgUrl, onUserUpdate }) {
               <p className="no-games-msg">No games yet — start your first battle!</p>
             ) : (
               <div className="recent-games-list">
-                {gameHistory.slice(0, 4).map(g => {
+                {gameHistory.slice(0, 3).map(g => {
                   const modeIcon = GAME_MODE_ICONS[g.game_mode] || '🎮';
                   const modeLabel = GAME_MODE_LABELS[g.game_mode] || cap(g.game_mode || 'Game');
                   const subj = SUBJECTS.find(s => s.id === g.subject);

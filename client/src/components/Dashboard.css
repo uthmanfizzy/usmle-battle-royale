@@ -181,7 +181,7 @@
    ══════════════════════════════════════════════════════════════════════════════ */
 .dash-main {
   flex: 1;
-  padding: 76px 16px 76px;
+  padding: 76px 8px 76px 8px;
   display: grid;
   grid-template-columns: 28% 40% 28%;
   gap: 8px;
@@ -191,6 +191,7 @@
   box-sizing: border-box;
   overflow: hidden;
   max-height: calc(100vh - 152px);
+  height: calc(100vh - 152px);
 }
 
 /* ══════════════════════════════════════════════════════════════════════════════
@@ -200,7 +201,7 @@
   background: #F5E6C8;
   border: 2px solid #8B6914;
   border-radius: 8px;
-  padding: 12px;
+  padding: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
   position: relative;
 }
@@ -221,8 +222,8 @@
   color: #8B6914;
   text-transform: uppercase;
   letter-spacing: 1.5px;
-  margin-bottom: 10px;
-  padding-bottom: 6px;
+  margin-bottom: 6px;
+  padding-bottom: 4px;
   border-bottom: 1px solid #8B6914;
   display: flex;
   align-items: center;
@@ -252,9 +253,9 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  overflow-y: auto;
+  overflow: hidden;
   max-height: 100%;
-  padding-top: 80px;
+  padding-top: 60px;
 }
 
 /* ── Player Profile Panel ─────────────────────────────────────────────────── */
@@ -264,9 +265,9 @@
 
 .profile-avatar-wrap {
   position: relative;
-  width: 70px;
-  height: 70px;
-  margin: 0 auto 10px;
+  width: 60px;
+  height: 60px;
+  margin: 0 auto 8px;
 }
 
 .profile-avatar {
@@ -323,10 +324,10 @@
 
 .profile-username {
   font-family: 'Playfair Display', Georgia, serif;
-  font-size: 22px;
+  font-size: 18px;
   font-weight: 700;
   color: var(--text-dark);
-  margin-bottom: 4px;
+  margin-bottom: 2px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -351,14 +352,14 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 14px;
+  font-size: 12px;
   color: var(--green-progress);
   font-weight: 600;
-  margin-bottom: 16px;
+  margin-bottom: 8px;
 }
 
 .profile-xp-section {
-  margin-top: 12px;
+  margin-top: 8px;
 }
 
 .profile-xp-text {
@@ -390,36 +391,41 @@
 }
 
 /* ── Stats Overview Panel ─────────────────────────────────────────────────── */
+.stats-overview-panel {
+  max-height: 200px;
+  overflow: hidden;
+}
+
 .stats-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 6px;
+  gap: 4px;
 }
 
 .stat-box {
   background: rgba(228, 216, 184, 0.5);
   border: 1px solid #8B6914;
   border-radius: 6px;
-  padding: 8px;
+  padding: 6px 4px;
   text-align: center;
 }
 
 .stat-icon {
-  font-size: 16px;
-  margin-bottom: 3px;
+  font-size: 14px;
+  margin-bottom: 2px;
 }
 
 .stat-label {
-  font-size: 8px;
+  font-size: 7px;
   color: #5C4530;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  margin-bottom: 3px;
+  margin-bottom: 2px;
 }
 
 .stat-value {
   font-family: 'Playfair Display', Georgia, serif;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 700;
   color: var(--text-dark);
 }
@@ -544,12 +550,18 @@
 .dash-right-col {
   display: flex;
   flex-direction: column;
+  justify-content: center;
   gap: 8px;
-  overflow-y: auto;
+  overflow: hidden;
   max-height: 100%;
 }
 
 /* ── Daily Quests Panel ───────────────────────────────────────────────────── */
+.quests-panel {
+  max-height: 450px;
+  overflow: hidden;
+}
+
 .quests-timer {
   font-size: 12px;
   color: var(--text-muted);
@@ -561,13 +573,13 @@
 .quest-list {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 10px;
 }
 
 .quest-item {
   display: flex;
-  gap: 8px;
-  padding-bottom: 8px;
+  gap: 6px;
+  padding-bottom: 6px;
   border-bottom: 1px solid rgba(139, 105, 20, 0.2);
 }
 
@@ -690,17 +702,22 @@
 }
 
 /* ── Recent Games Panel ───────────────────────────────────────────────────── */
+.recent-games-panel {
+  max-height: 200px;
+  overflow: hidden;
+}
+
 .recent-games-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
 }
 
 .recent-game-row {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding-bottom: 12px;
+  gap: 8px;
+  padding-bottom: 8px;
   border-bottom: 1px solid rgba(139, 105, 20, 0.2);
 }
 
@@ -710,15 +727,15 @@
 }
 
 .recent-game-thumb {
-  width: 44px;
-  height: 44px;
+  width: 36px;
+  height: 36px;
   background: var(--parchment-dark);
   border: 1px solid var(--brown-border);
   border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 20px;
+  font-size: 18px;
   flex-shrink: 0;
 }
 
@@ -729,7 +746,7 @@
 
 .recent-game-mode {
   font-family: 'Playfair Display', Georgia, serif;
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 700;
   color: var(--text-dark);
   white-space: nowrap;
@@ -738,7 +755,7 @@
 }
 
 .recent-game-subject {
-  font-size: 12px;
+  font-size: 10px;
   color: var(--text-muted);
 }
 
@@ -749,7 +766,7 @@
 
 .recent-game-place {
   font-family: 'Playfair Display', Georgia, serif;
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 700;
 }
 
@@ -758,13 +775,13 @@
 .recent-game-place.normal { color: var(--text-muted); }
 
 .recent-game-xp {
-  font-size: 12px;
+  font-size: 10px;
   color: var(--green-progress);
   font-weight: 600;
 }
 
 .recent-game-time {
-  font-size: 11px;
+  font-size: 9px;
   color: var(--text-muted);
 }
 
