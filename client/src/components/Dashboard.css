@@ -596,13 +596,64 @@
 
 .quest-reward {
   display: flex;
-  align-items: center;
-  gap: 4px;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
   font-family: 'Playfair Display', Georgia, serif;
   font-size: 14px;
   font-weight: 700;
   color: var(--gold-dark);
   flex-shrink: 0;
+}
+
+.quest-xp-reward {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+/* Quest Completed State */
+.quest-completed {
+  background: linear-gradient(90deg, rgba(201, 162, 39, 0.15), rgba(201, 162, 39, 0.05));
+  border-radius: 8px;
+  padding: 10px;
+  margin: -4px -6px;
+  animation: questCompleteGlow 2s ease-in-out infinite;
+}
+
+@keyframes questCompleteGlow {
+  0%, 100% { box-shadow: 0 0 5px rgba(201, 162, 39, 0.3); }
+  50% { box-shadow: 0 0 15px rgba(201, 162, 39, 0.5); }
+}
+
+.quest-completed .quest-desc {
+  color: var(--gold-dark);
+}
+
+.quest-completed .quest-progress-text {
+  color: var(--gold-dark);
+  font-weight: 700;
+}
+
+.quest-fill-complete {
+  background: linear-gradient(90deg, var(--gold-rpg), var(--gold-light)) !important;
+}
+
+.quest-reward-claimed {
+  color: var(--gold-rpg);
+}
+
+.quest-reward-claimed::after {
+  content: ' ✓';
+  color: var(--green-progress);
+  font-size: 12px;
+}
+
+.quest-loading, .quest-empty {
+  text-align: center;
+  padding: 20px;
+  color: var(--text-muted);
+  font-style: italic;
 }
 
 .view-all-link {

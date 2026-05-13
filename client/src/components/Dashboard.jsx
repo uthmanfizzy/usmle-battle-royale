@@ -177,6 +177,11 @@ function UsernameChangeModal({ user, onClose, onSuccess }) {
 // ── Home Section (RPG Style) ───────────────────────────────────────────────────
 function HomeSection({ user, bgUrl, onUserUpdate }) {
   const [showUsernameModal, setShowUsernameModal] = useState(false);
+  const [quests, setQuests] = useState([]);
+  const [questProgress, setQuestProgress] = useState({});
+  const [questsLoading, setQuestsLoading] = useState(true);
+  const [completedQuest, setCompletedQuest] = useState(null);
+
   const xp          = user.xp    || 0;
   const level       = user.level || 1;
   const xpIntoLevel = xp % 500;
@@ -187,12 +192,42 @@ function HomeSection({ user, bgUrl, onUserUpdate }) {
   const gameHistory = user.game_history || [];
   const rank        = getRank(xp);
 
-  // Mock daily quests (would come from server in real implementation)
-  const quests = [
-    { id: 1, icon: '🎮', desc: 'Play 3 games today', current: 1, total: 3, reward: 150 },
-    { id: 2, icon: '❓', desc: 'Answer 10 questions correctly', current: 7, total: 10, reward: 200 },
-    { id: 3, icon: '⚔️', desc: 'Win a Battle Royale match', current: 0, total: 1, reward: 300 },
-  ];
+  // Fetch daily quests and progress from server
+  useEffect(() => {
+    async function loadQuests() {
+      try {
+        const [questsRes, progressRes] = await Promise.all([
+          fetch(`${SERVER_URL}/api/daily-quests`),
+          authFetch('/api/quest-progress'),
+        ]);
+        const questsData = await questsRes.json();
+        const progressData = await progressRes.json();
+
+        // Map progress by quest_id
+        const progressMap = {};
+        (progressData.progress || []).forEach(p => {
+          progressMap[p.quest_id] = p;
+        });
+        setQuestProgress(progressMap);
+
+        // Merge quests with progress data
+        const mergedQuests = (questsData.quests || []).map(q => {
+          const prog = progressMap[q.id];
+          return {
+            ...q,
+            current: prog?.current_progress || 0,
+            completed: prog?.completed || false,
+            rewards_claimed: prog?.rewards_claimed || false,
+          };
+        });
+        setQuests(mergedQuests);
+      } catch (err) {
+        console.error('Failed to load quests:', err);
+      }
+      setQuestsLoading(false);
+    }
+    loadQuests();
+  }, [user]);
 
   // Time until daily reset (midnight UTC)
   const [timeLeft, setTimeLeft] = useState('');
@@ -307,24 +342,33 @@ function HomeSection({ user, bgUrl, onUserUpdate }) {
             <span className="quests-timer">⏰ {timeLeft}</span>
           </div>
           <div className="quest-list">
-            {quests.map(q => (
-              <div key={q.id} className="quest-item">
-                <div className="quest-icon">{q.icon}</div>
-                <div className="quest-info">
-                  <div className="quest-desc">{q.desc}</div>
-                  <div className="quest-progress-bar">
-                    <div
-                      className="quest-progress-fill"
-                      style={{ width: `${Math.min(100, (q.current / q.total) * 100)}%` }}
-                    />
+            {questsLoading ? (
+              <div className="quest-loading">Loading quests...</div>
+            ) : quests.length === 0 ? (
+              <div className="quest-empty">No quests available today</div>
+            ) : (
+              quests.map(q => (
+                <div key={q.id} className={`quest-item ${q.completed ? 'quest-completed' : ''}`}>
+                  <div className="quest-icon">{q.icon}</div>
+                  <div className="quest-info">
+                    <div className="quest-desc">{q.name || q.description}</div>
+                    <div className="quest-progress-bar">
+                      <div
+                        className={`quest-progress-fill ${q.completed ? 'quest-fill-complete' : ''}`}
+                        style={{ width: `${Math.min(100, (q.current / q.target) * 100)}%` }}
+                      />
+                    </div>
+                    <div className="quest-progress-text">
+                      {q.completed ? '✓ Complete!' : `${q.current} / ${q.target}`}
+                    </div>
                   </div>
-                  <div className="quest-progress-text">{q.current} / {q.total}</div>
+                  <div className={`quest-reward ${q.completed ? 'quest-reward-claimed' : ''}`}>
+                    <span>🪙</span> {q.coin_reward}
+                    {q.xp_reward > 0 && <span className="quest-xp-reward">+{q.xp_reward} XP</span>}
+                  </div>
                 </div>
-                <div className="quest-reward">
-                  <span>🪙</span> {q.reward}
-                </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
           <div className="view-all-link" onClick={() => window.location.href = '/stats'}>
             VIEW ALL QUESTS →
@@ -874,9 +918,9 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
     localStorage.setItem(ANN_WELCOME_KEY, '1');
   }
 
-  // Mock currency values
-  const coins = 24850;
-  const gems = 1250;
+  // User currency
+  const coins = user.coins || 0;
+  const gems = user.gems || 0;
 
   return (
     <div className="dashboard-screen">

@@ -1560,6 +1560,451 @@ function QuestionsPanel() {
   );
 }
 
+// ══════════════════════════════════════════════════════════════════════════════
+// DAILY QUESTS PANEL
+// ══════════════════════════════════════════════════════════════════════════════
+
+const QUEST_ICONS = ['🎮', '❓', '⚔️', '🏆', '🔬', '💊', '🧠', '❤️', '🦠', '🔥', '📚', '⚡', '🏰'];
+const QUEST_TYPES = [
+  { id: 'play_games', label: 'Play X games' },
+  { id: 'correct_answers', label: 'Answer X questions correctly' },
+  { id: 'win_battle_royale', label: 'Win X Battle Royales' },
+  { id: 'win_speed_race', label: 'Win X Speed Races' },
+  { id: 'tower_floors', label: 'Complete X Tower floors' },
+  { id: 'streak', label: 'Get X correct answers in a row' },
+  { id: 'different_modes', label: 'Play X different game modes' },
+];
+const QUEST_DIFFICULTIES = ['easy', 'medium', 'hard'];
+const DAYS_OF_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+function QuestModal({ quest, onSave, onClose }) {
+  const isEdit = !!quest;
+  const [form, setForm] = useState({
+    name: quest?.name || '',
+    description: quest?.description || '',
+    icon: quest?.icon || '🎮',
+    quest_type: quest?.quest_type || 'play_games',
+    target: quest?.target || 1,
+    coin_reward: quest?.coin_reward || 100,
+    gem_reward: quest?.gem_reward || 0,
+    xp_reward: quest?.xp_reward || 50,
+    difficulty: quest?.difficulty || 'easy',
+    active: quest?.active !== false,
+    pinned_day: quest?.pinned_day ?? null,
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  function set(key, val) { setForm(f => ({ ...f, [key]: val })); }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    if (!form.name.trim()) { setError('Quest name is required.'); return; }
+    setSaving(true); setError('');
+    try {
+      const res = isEdit
+        ? await apiCall(`/admin/quests/${quest.id}`, { method: 'PUT', body: JSON.stringify(form) })
+        : await apiCall('/admin/quests', { method: 'POST', body: JSON.stringify(form) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Save failed');
+      onSave(data);
+    } catch (err) {
+      setError(err.message);
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="ap-backdrop" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="ap-modal" style={{ maxWidth: 600 }}>
+        <div className="ap-modal-head">
+          <h2>{isEdit ? 'Edit Quest' : 'Create New Quest'}</h2>
+          <button className="ap-modal-x" onClick={onClose}>✕</button>
+        </div>
+        <form onSubmit={handleSubmit} className="ap-qform">
+          <div className="ap-row-2">
+            <div className="ap-field">
+              <label>Quest Name</label>
+              <input
+                type="text"
+                value={form.name}
+                onChange={e => set('name', e.target.value)}
+                placeholder="e.g. Play 3 games"
+                maxLength={100}
+                required
+                autoFocus
+              />
+            </div>
+            <div className="ap-field">
+              <label>Icon</label>
+              <select value={form.icon} onChange={e => set('icon', e.target.value)}>
+                {QUEST_ICONS.map(icon => (
+                  <option key={icon} value={icon}>{icon}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="ap-field">
+            <label>Description (optional)</label>
+            <input
+              type="text"
+              value={form.description}
+              onChange={e => set('description', e.target.value)}
+              placeholder="Optional longer description"
+              maxLength={200}
+            />
+          </div>
+
+          <div className="ap-row-2">
+            <div className="ap-field">
+              <label>Quest Type</label>
+              <select value={form.quest_type} onChange={e => set('quest_type', e.target.value)}>
+                {QUEST_TYPES.map(t => (
+                  <option key={t.id} value={t.id}>{t.label}</option>
+                ))}
+              </select>
+            </div>
+            <div className="ap-field">
+              <label>Target Number</label>
+              <input
+                type="number"
+                value={form.target}
+                onChange={e => set('target', parseInt(e.target.value) || 1)}
+                min={1}
+                max={100}
+              />
+            </div>
+          </div>
+
+          <div className="ap-row-3">
+            <div className="ap-field">
+              <label>🪙 Coin Reward</label>
+              <input
+                type="number"
+                value={form.coin_reward}
+                onChange={e => set('coin_reward', parseInt(e.target.value) || 0)}
+                min={0}
+              />
+            </div>
+            <div className="ap-field">
+              <label>💎 Gem Reward</label>
+              <input
+                type="number"
+                value={form.gem_reward}
+                onChange={e => set('gem_reward', parseInt(e.target.value) || 0)}
+                min={0}
+              />
+            </div>
+            <div className="ap-field">
+              <label>✨ XP Reward</label>
+              <input
+                type="number"
+                value={form.xp_reward}
+                onChange={e => set('xp_reward', parseInt(e.target.value) || 0)}
+                min={0}
+              />
+            </div>
+          </div>
+
+          <div className="ap-row-3">
+            <div className="ap-field">
+              <label>Difficulty</label>
+              <select value={form.difficulty} onChange={e => set('difficulty', e.target.value)}>
+                {QUEST_DIFFICULTIES.map(d => (
+                  <option key={d} value={d}>{d.charAt(0).toUpperCase() + d.slice(1)}</option>
+                ))}
+              </select>
+            </div>
+            <div className="ap-field">
+              <label>Pin to Day</label>
+              <select
+                value={form.pinned_day ?? ''}
+                onChange={e => set('pinned_day', e.target.value === '' ? null : parseInt(e.target.value))}
+              >
+                <option value="">Not pinned</option>
+                {DAYS_OF_WEEK.map((day, i) => (
+                  <option key={i} value={i}>{day}</option>
+                ))}
+              </select>
+            </div>
+            <div className="ap-field ap-field-toggle">
+              <label>Active</label>
+              <label className="ap-toggle">
+                <input
+                  type="checkbox"
+                  checked={form.active}
+                  onChange={e => set('active', e.target.checked)}
+                />
+                <span className="ap-slider" />
+              </label>
+            </div>
+          </div>
+
+          {error && <div className="ap-err">{error}</div>}
+
+          <div className="ap-modal-foot">
+            <button type="button" className="ap-btn-sec" onClick={onClose}>Cancel</button>
+            <button type="submit" className="ap-btn-pri" disabled={saving}>
+              {saving ? 'Saving…' : isEdit ? 'Update Quest' : 'Create Quest'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function QuestsPanel() {
+  const [quests, setQuests] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [modal, setModal] = useState(null); // null | 'create' | quest object
+  const [deleteId, setDeleteId] = useState(null);
+  const [todayQuests, setTodayQuests] = useState([]);
+  const [previewLoading, setPreviewLoading] = useState(false);
+
+  useEffect(() => { loadQuests(); }, []);
+
+  async function loadQuests() {
+    setLoading(true);
+    try {
+      const res = await apiCall('/admin/quests');
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to load quests');
+      setQuests(data.quests || []);
+    } catch (err) {
+      setError(err.message);
+    }
+    setLoading(false);
+  }
+
+  async function handleSave(savedQuest) {
+    if (modal === 'create') {
+      setQuests(qs => [savedQuest, ...qs]);
+    } else {
+      setQuests(qs => qs.map(q => q.id === savedQuest.id ? savedQuest : q));
+    }
+    setModal(null);
+  }
+
+  async function handleDelete() {
+    try {
+      const res = await apiCall(`/admin/quests/${deleteId}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Delete failed');
+      setQuests(qs => qs.filter(q => q.id !== deleteId));
+      setDeleteId(null);
+    } catch (err) {
+      alert(err.message);
+    }
+  }
+
+  async function handleToggleActive(quest) {
+    try {
+      const res = await apiCall(`/admin/quests/${quest.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ active: !quest.active }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Update failed');
+      setQuests(qs => qs.map(q => q.id === quest.id ? data : q));
+    } catch (err) {
+      alert(err.message);
+    }
+  }
+
+  async function loadTodayPreview() {
+    setPreviewLoading(true);
+    try {
+      const res = await apiCall('/admin/daily-quests/preview');
+      const data = await res.json();
+      setTodayQuests(data.quests || []);
+    } catch (err) {
+      alert(err.message);
+    }
+    setPreviewLoading(false);
+  }
+
+  async function regenerateToday() {
+    if (!confirm('Regenerate today\'s quests? This will randomly select 3 new quests for today.')) return;
+    setPreviewLoading(true);
+    try {
+      const res = await apiCall('/admin/daily-quests/regenerate', { method: 'POST' });
+      const data = await res.json();
+      setTodayQuests(data.quests || []);
+      alert(`Regenerated! ${data.quests?.length || 0} quests selected for today.`);
+    } catch (err) {
+      alert(err.message);
+    }
+    setPreviewLoading(false);
+  }
+
+  const activeCount = quests.filter(q => q.active).length;
+  const getTypeLabel = (type) => QUEST_TYPES.find(t => t.id === type)?.label || type;
+
+  if (loading) return <div className="ap-loading"><div className="ap-spinner" /></div>;
+
+  return (
+    <div className="ap-panel">
+      <div className="ap-panel-head">
+        <h2>📅 Daily Quests</h2>
+        <div style={{ display: 'flex', gap: 12 }}>
+          <button className="ap-btn-sec" onClick={loadTodayPreview} disabled={previewLoading}>
+            {previewLoading ? 'Loading…' : '👁️ Preview Today'}
+          </button>
+          <button className="ap-btn-pri" onClick={() => setModal('create')}>
+            + Create Quest
+          </button>
+        </div>
+      </div>
+
+      {error && <div className="ap-err">{error}</div>}
+
+      {/* Today's Quests Preview */}
+      {todayQuests.length > 0 && (
+        <div className="ap-card" style={{ marginBottom: 24, background: '#f0fdf4', border: '2px solid #22c55e' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <h3 style={{ margin: 0, color: '#166534' }}>🎯 Today's Active Quests ({new Date().toLocaleDateString()})</h3>
+            <button className="ap-btn-sec" onClick={regenerateToday} disabled={previewLoading} style={{ fontSize: 12 }}>
+              🔄 Regenerate
+            </button>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+            {todayQuests.map(q => (
+              <div key={q.id} style={{
+                background: '#fff',
+                border: '1px solid #86efac',
+                borderRadius: 8,
+                padding: 12,
+              }}>
+                <div style={{ fontSize: 24, marginBottom: 8 }}>{q.icon}</div>
+                <div style={{ fontWeight: 600, marginBottom: 4 }}>{q.name}</div>
+                <div style={{ fontSize: 12, color: '#666' }}>{getTypeLabel(q.quest_type)} ({q.target})</div>
+                <div style={{ fontSize: 12, color: '#ca8a04', marginTop: 4 }}>
+                  🪙 {q.coin_reward} {q.gem_reward > 0 && `💎 ${q.gem_reward}`} ✨ {q.xp_reward} XP
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Stats */}
+      <div className="ap-stats-row" style={{ marginBottom: 24 }}>
+        <div className="ap-stat-card">
+          <div className="ap-stat-val">{quests.length}</div>
+          <div className="ap-stat-label">Total Quests</div>
+        </div>
+        <div className="ap-stat-card">
+          <div className="ap-stat-val">{activeCount}</div>
+          <div className="ap-stat-label">Active Quests</div>
+        </div>
+        <div className="ap-stat-card">
+          <div className="ap-stat-val">{quests.filter(q => q.difficulty === 'easy').length}</div>
+          <div className="ap-stat-label">Easy</div>
+        </div>
+        <div className="ap-stat-card">
+          <div className="ap-stat-val">{quests.filter(q => q.difficulty === 'medium').length}</div>
+          <div className="ap-stat-label">Medium</div>
+        </div>
+        <div className="ap-stat-card">
+          <div className="ap-stat-val">{quests.filter(q => q.difficulty === 'hard').length}</div>
+          <div className="ap-stat-label">Hard</div>
+        </div>
+      </div>
+
+      {/* Quest Table */}
+      {quests.length === 0 ? (
+        <div className="ap-empty">
+          <p>No quests created yet.</p>
+          <button className="ap-btn-pri" onClick={() => setModal('create')}>Create First Quest</button>
+        </div>
+      ) : (
+        <div className="ap-table-wrap">
+          <table className="ap-table">
+            <thead>
+              <tr>
+                <th style={{ width: 50 }}>Icon</th>
+                <th>Quest Name</th>
+                <th>Type</th>
+                <th>Target</th>
+                <th>Rewards</th>
+                <th>Difficulty</th>
+                <th>Pinned</th>
+                <th>Active</th>
+                <th style={{ width: 100 }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {quests.map(q => (
+                <tr key={q.id} style={{ opacity: q.active ? 1 : 0.5 }}>
+                  <td style={{ fontSize: 24, textAlign: 'center' }}>{q.icon}</td>
+                  <td>
+                    <strong>{q.name}</strong>
+                    {q.description && <div style={{ fontSize: 12, color: '#666' }}>{q.description}</div>}
+                  </td>
+                  <td style={{ fontSize: 13 }}>{getTypeLabel(q.quest_type)}</td>
+                  <td style={{ textAlign: 'center', fontWeight: 600 }}>{q.target}</td>
+                  <td style={{ fontSize: 12 }}>
+                    🪙 {q.coin_reward}
+                    {q.gem_reward > 0 && <span> 💎 {q.gem_reward}</span>}
+                    <span> ✨ {q.xp_reward}</span>
+                  </td>
+                  <td>
+                    <span className={`ap-diff-badge ap-diff-${q.difficulty}`}>
+                      {q.difficulty}
+                    </span>
+                  </td>
+                  <td style={{ fontSize: 12 }}>
+                    {q.pinned_day != null ? DAYS_OF_WEEK[q.pinned_day] : '—'}
+                  </td>
+                  <td>
+                    <label className="ap-toggle">
+                      <input
+                        type="checkbox"
+                        checked={q.active}
+                        onChange={() => handleToggleActive(q)}
+                      />
+                      <span className="ap-slider" />
+                    </label>
+                  </td>
+                  <td>
+                    <button className="ap-btn-icon" onClick={() => setModal(q)} title="Edit">✏️</button>
+                    <button className="ap-btn-icon ap-btn-danger" onClick={() => setDeleteId(q.id)} title="Delete">🗑️</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Quest Modal */}
+      {modal && (
+        <QuestModal
+          quest={modal === 'create' ? null : modal}
+          onSave={handleSave}
+          onClose={() => setModal(null)}
+        />
+      )}
+
+      {/* Delete Confirmation */}
+      {deleteId && (
+        <div className="ap-backdrop" onClick={() => setDeleteId(null)}>
+          <div className="ap-modal ap-modal-sm" onClick={e => e.stopPropagation()}>
+            <h3>Delete Quest?</h3>
+            <p>This cannot be undone.</p>
+            <div className="ap-modal-foot">
+              <button className="ap-btn-sec" onClick={() => setDeleteId(null)}>Cancel</button>
+              <button className="ap-btn-danger" onClick={handleDelete}>Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Announcements Panel ────────────────────────────────────────────────────────
 
 const ANN_CATEGORIES = ['Update', 'News', 'Maintenance', 'Event'];
@@ -3551,6 +3996,9 @@ export default function AdminApp() {
         <button className={`ap-nav-btn ${tab === 'tower'          ? 'active' : ''}`} onClick={() => setTab('tower')}>
           🏰 Tower Editor
         </button>
+        <button className={`ap-nav-btn ${tab === 'quests'        ? 'active' : ''}`} onClick={() => setTab('quests')}>
+          📅 Daily Quests
+        </button>
         <button className={`ap-nav-btn ${tab === 'announcements' ? 'active' : ''}`} onClick={() => setTab('announcements')}>
           📣 Announcements
         </button>
@@ -3567,6 +4015,7 @@ export default function AdminApp() {
         {tab === 'questions'     && <QuestionsPanel />}
         {tab === 'subjects'      && <SubjectsPanel />}
         {tab === 'tower'         && <TowerEditorPanel />}
+        {tab === 'quests'        && <QuestsPanel />}
         {tab === 'announcements' && <AnnouncementsPanel />}
         {tab === 'landing'       && <LandingImagesPanel />}
         {tab === 'settings'      && <SettingsPanel />}

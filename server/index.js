@@ -881,6 +881,19 @@ async function awardXP(lobby, sorted) {
         await upsertMastery(sock.userId, lobby.subject, lobby.questionIdx + 1, correctCount);
       }
 
+      // Update quest progress
+      await updateQuestProgress(sock.userId, 'play_game', 1);
+      if (correctCount > 0) {
+        await updateQuestProgress(sock.userId, 'correct_answer', correctCount);
+      }
+      if (isWinner && lobby.gameMode === 'battle_royale') {
+        await updateQuestProgress(sock.userId, 'win_battle_royale', 1);
+      }
+      if (isWinner && lobby.gameMode === 'speed_race') {
+        await updateQuestProgress(sock.userId, 'win_speed_race', 1);
+      }
+      await updateQuestProgress(sock.userId, 'game_mode', 1);
+
       console.log(`[XP] ${player.username} +${totalXp} XP (placement ${placement}, level ${newLevel})`);
     } catch (err) {
       console.error(`[XP] Error for ${player.username}:`, err.message);
@@ -3153,6 +3166,562 @@ app.get('/api/stats/global', async (req, res) => {
 });
 
 app.get('/', (req, res) => res.status(200).send('ok'));
+
+// ══════════════════════════════════════════════════════════════════════════════
+// QUEST PROGRESS HELPER
+// ══════════════════════════════════════════════════════════════════════════════
+
+async function updateQuestProgress(userId, action, value = 1) {
+  if (!supabase) return [];
+  const today = new Date().toISOString().split('T')[0];
+
+  try {
+    // Get today's quests
+    const { data: dailyData } = await supabase
+      .from('daily_quests')
+      .select('quest_ids')
+      .eq('date', today)
+      .single();
+
+    if (!dailyData?.quest_ids?.length) return [];
+
+    // Get quest details
+    const { data: quests } = await supabase
+      .from('quests')
+      .select('*')
+      .in('id', dailyData.quest_ids);
+
+    const actionToQuestType = {
+      'play_game': 'play_games',
+      'correct_answer': 'correct_answers',
+      'win_battle_royale': 'win_battle_royale',
+      'win_speed_race': 'win_speed_race',
+      'tower_floor': 'tower_floors',
+      'streak': 'streak',
+      'game_mode': 'different_modes',
+    };
+
+    const questType = actionToQuestType[action];
+    if (!questType) return [];
+
+    const matchingQuests = (quests || []).filter(q => q.quest_type === questType);
+    const newlyCompleted = [];
+
+    for (const quest of matchingQuests) {
+      // Get or create progress record
+      let { data: progress } = await supabase
+        .from('player_quest_progress')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('quest_id', quest.id)
+        .eq('date', today)
+        .single();
+
+      if (!progress) {
+        const { data: newProgress } = await supabase
+          .from('player_quest_progress')
+          .insert({ user_id: userId, quest_id: quest.id, date: today, current_progress: 0 })
+          .select()
+          .single();
+        progress = newProgress;
+      }
+
+      if (progress && !progress.completed) {
+        const increment = value || 1;
+        const newProgress = Math.min(progress.current_progress + increment, quest.target);
+        const isComplete = newProgress >= quest.target;
+
+        const updateData = {
+          current_progress: newProgress,
+          completed: isComplete,
+        };
+        if (isComplete) {
+          updateData.completed_at = new Date().toISOString();
+        }
+
+        await supabase
+          .from('player_quest_progress')
+          .update(updateData)
+          .eq('id', progress.id);
+
+        if (isComplete && !progress.completed) {
+          newlyCompleted.push(quest);
+
+          // Award rewards
+          const { data: user } = await supabase
+            .from('users')
+            .select('coins, gems, xp')
+            .eq('id', userId)
+            .single();
+
+          if (user) {
+            await supabase
+              .from('users')
+              .update({
+                coins: (user.coins || 0) + (quest.coin_reward || 0),
+                gems: (user.gems || 0) + (quest.gem_reward || 0),
+                xp: (user.xp || 0) + (quest.xp_reward || 0),
+              })
+              .eq('id', userId);
+
+            // Mark rewards as claimed
+            await supabase
+              .from('player_quest_progress')
+              .update({ rewards_claimed: true })
+              .eq('user_id', userId)
+              .eq('quest_id', quest.id)
+              .eq('date', today);
+
+            console.log(`[Quest] User ${userId} completed "${quest.name}" - awarded ${quest.coin_reward} coins, ${quest.gem_reward} gems, ${quest.xp_reward} XP`);
+          }
+        }
+      }
+    }
+
+    return newlyCompleted;
+  } catch (err) {
+    console.error('[Quest] Progress update error:', err.message);
+    return [];
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// DAILY QUESTS SYSTEM
+// ══════════════════════════════════════════════════════════════════════════════
+
+// Get all quests (admin)
+app.get('/admin/quests', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  try {
+    const { data, error } = await supabase
+      .from('quests')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    res.json({ quests: data || [] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Create quest (admin)
+app.post('/admin/quests', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  const { name, description, icon, quest_type, target, coin_reward, gem_reward, xp_reward, difficulty, active, pinned_day } = req.body;
+  if (!name || !quest_type || !target) {
+    return res.status(400).json({ error: 'name, quest_type, and target are required' });
+  }
+  try {
+    const { data, error } = await supabase
+      .from('quests')
+      .insert({
+        name,
+        description: description || '',
+        icon: icon || '🎮',
+        quest_type,
+        target: parseInt(target) || 1,
+        coin_reward: parseInt(coin_reward) || 0,
+        gem_reward: parseInt(gem_reward) || 0,
+        xp_reward: parseInt(xp_reward) || 0,
+        difficulty: difficulty || 'easy',
+        active: active !== false,
+        pinned_day: pinned_day != null ? parseInt(pinned_day) : null,
+      })
+      .select()
+      .single();
+    if (error) throw error;
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Update quest (admin)
+app.put('/admin/quests/:id', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  const { id } = req.params;
+  const updates = {};
+  const allowed = ['name', 'description', 'icon', 'quest_type', 'target', 'coin_reward', 'gem_reward', 'xp_reward', 'difficulty', 'active', 'pinned_day'];
+  for (const key of allowed) {
+    if (req.body[key] !== undefined) {
+      if (['target', 'coin_reward', 'gem_reward', 'xp_reward', 'pinned_day'].includes(key)) {
+        updates[key] = req.body[key] != null ? parseInt(req.body[key]) : null;
+      } else {
+        updates[key] = req.body[key];
+      }
+    }
+  }
+  try {
+    const { data, error } = await supabase
+      .from('quests')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw error;
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Delete quest (admin)
+app.delete('/admin/quests/:id', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  try {
+    const { error } = await supabase.from('quests').delete().eq('id', req.params.id);
+    if (error) throw error;
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get today's daily quests (public)
+app.get('/api/daily-quests', async (req, res) => {
+  if (!supabase) return res.json({ quests: [], date: new Date().toISOString().split('T')[0] });
+
+  const today = new Date().toISOString().split('T')[0];
+
+  try {
+    // Check if we already have quests selected for today
+    let { data: dailyData } = await supabase
+      .from('daily_quests')
+      .select('quest_ids')
+      .eq('date', today)
+      .single();
+
+    let questIds = dailyData?.quest_ids;
+
+    // If no quests for today, select 3 random active quests
+    if (!questIds || questIds.length === 0) {
+      // Get pinned quests for today's day of week (0=Sunday)
+      const dayOfWeek = new Date().getDay();
+      const { data: pinnedQuests } = await supabase
+        .from('quests')
+        .select('id')
+        .eq('active', true)
+        .eq('pinned_day', dayOfWeek);
+
+      const pinnedIds = (pinnedQuests || []).map(q => q.id);
+
+      // Get random quests to fill remaining slots
+      const { data: activeQuests } = await supabase
+        .from('quests')
+        .select('id, difficulty')
+        .eq('active', true)
+        .is('pinned_day', null);
+
+      // Try to get a mix of difficulties
+      const easyQuests = (activeQuests || []).filter(q => q.difficulty === 'easy');
+      const mediumQuests = (activeQuests || []).filter(q => q.difficulty === 'medium');
+      const hardQuests = (activeQuests || []).filter(q => q.difficulty === 'hard');
+
+      // Shuffle arrays
+      const shuffle = arr => arr.sort(() => Math.random() - 0.5);
+      shuffle(easyQuests);
+      shuffle(mediumQuests);
+      shuffle(hardQuests);
+
+      // Select quests: prefer 1 easy, 1 medium, 1 hard (or fill as available)
+      const selectedIds = [...pinnedIds];
+      const remaining = 3 - selectedIds.length;
+
+      if (remaining > 0) {
+        const pool = [];
+        if (easyQuests.length > 0) pool.push(easyQuests[0]);
+        if (mediumQuests.length > 0) pool.push(mediumQuests[0]);
+        if (hardQuests.length > 0) pool.push(hardQuests[0]);
+
+        // Fill with shuffled pool
+        shuffle(pool);
+        for (let i = 0; i < remaining && pool.length > 0; i++) {
+          const q = pool.shift();
+          if (!selectedIds.includes(q.id)) selectedIds.push(q.id);
+        }
+
+        // If still not enough, grab any active quest
+        if (selectedIds.length < 3) {
+          const allShuffled = shuffle([...easyQuests, ...mediumQuests, ...hardQuests]);
+          for (const q of allShuffled) {
+            if (selectedIds.length >= 3) break;
+            if (!selectedIds.includes(q.id)) selectedIds.push(q.id);
+          }
+        }
+      }
+
+      questIds = selectedIds.slice(0, 3);
+
+      // Save today's selection
+      if (questIds.length > 0) {
+        await supabase.from('daily_quests').upsert({ date: today, quest_ids: questIds }, { onConflict: 'date' });
+      }
+    }
+
+    // Fetch full quest details
+    if (questIds && questIds.length > 0) {
+      const { data: quests } = await supabase
+        .from('quests')
+        .select('*')
+        .in('id', questIds);
+
+      res.json({ quests: quests || [], date: today });
+    } else {
+      res.json({ quests: [], date: today });
+    }
+  } catch (err) {
+    console.error('[daily-quests] Error:', err.message);
+    res.json({ quests: [], date: today, error: err.message });
+  }
+});
+
+// Preview today's quests (admin)
+app.get('/admin/daily-quests/preview', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+
+  const today = new Date().toISOString().split('T')[0];
+
+  try {
+    const { data: dailyData } = await supabase
+      .from('daily_quests')
+      .select('quest_ids')
+      .eq('date', today)
+      .single();
+
+    if (dailyData?.quest_ids?.length > 0) {
+      const { data: quests } = await supabase
+        .from('quests')
+        .select('*')
+        .in('id', dailyData.quest_ids);
+      res.json({ quests: quests || [], date: today, generated: false });
+    } else {
+      res.json({ quests: [], date: today, generated: false, message: 'No quests selected yet. Quests will be selected when first player loads dashboard.' });
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Force regenerate today's quests (admin)
+app.post('/admin/daily-quests/regenerate', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+
+  const today = new Date().toISOString().split('T')[0];
+
+  try {
+    // Delete today's selection
+    await supabase.from('daily_quests').delete().eq('date', today);
+
+    // Trigger new selection by calling the public endpoint logic
+    // Get pinned quests
+    const dayOfWeek = new Date().getDay();
+    const { data: pinnedQuests } = await supabase
+      .from('quests')
+      .select('id')
+      .eq('active', true)
+      .eq('pinned_day', dayOfWeek);
+
+    const pinnedIds = (pinnedQuests || []).map(q => q.id);
+
+    const { data: activeQuests } = await supabase
+      .from('quests')
+      .select('id, difficulty')
+      .eq('active', true)
+      .is('pinned_day', null);
+
+    const shuffle = arr => arr.sort(() => Math.random() - 0.5);
+    const easyQuests = shuffle((activeQuests || []).filter(q => q.difficulty === 'easy'));
+    const mediumQuests = shuffle((activeQuests || []).filter(q => q.difficulty === 'medium'));
+    const hardQuests = shuffle((activeQuests || []).filter(q => q.difficulty === 'hard'));
+
+    const selectedIds = [...pinnedIds];
+    const remaining = 3 - selectedIds.length;
+
+    if (remaining > 0) {
+      const pool = [];
+      if (easyQuests.length > 0) pool.push(easyQuests[0]);
+      if (mediumQuests.length > 0) pool.push(mediumQuests[0]);
+      if (hardQuests.length > 0) pool.push(hardQuests[0]);
+      shuffle(pool);
+
+      for (const q of pool) {
+        if (selectedIds.length >= 3) break;
+        if (!selectedIds.includes(q.id)) selectedIds.push(q.id);
+      }
+
+      if (selectedIds.length < 3) {
+        const allShuffled = shuffle([...easyQuests, ...mediumQuests, ...hardQuests]);
+        for (const q of allShuffled) {
+          if (selectedIds.length >= 3) break;
+          if (!selectedIds.includes(q.id)) selectedIds.push(q.id);
+        }
+      }
+    }
+
+    const questIds = selectedIds.slice(0, 3);
+
+    if (questIds.length > 0) {
+      await supabase.from('daily_quests').insert({ date: today, quest_ids: questIds });
+
+      const { data: quests } = await supabase
+        .from('quests')
+        .select('*')
+        .in('id', questIds);
+
+      res.json({ quests: quests || [], date: today, regenerated: true });
+    } else {
+      res.json({ quests: [], date: today, regenerated: true, message: 'No active quests available' });
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get player's quest progress for today
+app.get('/api/quest-progress', jwtAuth, async (req, res) => {
+  if (!supabase) return res.json({ progress: [] });
+
+  const today = new Date().toISOString().split('T')[0];
+  const userId = req.user.id;
+
+  try {
+    const { data } = await supabase
+      .from('player_quest_progress')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('date', today);
+
+    res.json({ progress: data || [], date: today });
+  } catch (err) {
+    res.json({ progress: [], error: err.message });
+  }
+});
+
+// Update player quest progress (called after game actions)
+app.post('/api/quest-progress/update', jwtAuth, async (req, res) => {
+  if (!supabase) return res.json({ updated: [] });
+
+  const today = new Date().toISOString().split('T')[0];
+  const userId = req.user.id;
+  const { action, value } = req.body;
+
+  // action types: 'play_game', 'correct_answer', 'win_battle_royale', 'win_speed_race', 'tower_floor', 'streak', 'game_mode'
+
+  try {
+    // Get today's quests
+    const { data: dailyData } = await supabase
+      .from('daily_quests')
+      .select('quest_ids')
+      .eq('date', today)
+      .single();
+
+    if (!dailyData?.quest_ids?.length) return res.json({ updated: [] });
+
+    // Get quest details
+    const { data: quests } = await supabase
+      .from('quests')
+      .select('*')
+      .in('id', dailyData.quest_ids);
+
+    const actionToQuestType = {
+      'play_game': 'play_games',
+      'correct_answer': 'correct_answers',
+      'win_battle_royale': 'win_battle_royale',
+      'win_speed_race': 'win_speed_race',
+      'tower_floor': 'tower_floors',
+      'streak': 'streak',
+      'game_mode': 'different_modes',
+    };
+
+    const questType = actionToQuestType[action];
+    if (!questType) return res.json({ updated: [] });
+
+    const matchingQuests = (quests || []).filter(q => q.quest_type === questType);
+    const updated = [];
+    const newlyCompleted = [];
+
+    for (const quest of matchingQuests) {
+      // Get or create progress record
+      let { data: progress } = await supabase
+        .from('player_quest_progress')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('quest_id', quest.id)
+        .eq('date', today)
+        .single();
+
+      if (!progress) {
+        const { data: newProgress } = await supabase
+          .from('player_quest_progress')
+          .insert({ user_id: userId, quest_id: quest.id, date: today, current_progress: 0 })
+          .select()
+          .single();
+        progress = newProgress;
+      }
+
+      if (progress && !progress.completed) {
+        const increment = value || 1;
+        const newProgress = Math.min(progress.current_progress + increment, quest.target);
+        const isComplete = newProgress >= quest.target;
+
+        const updateData = {
+          current_progress: newProgress,
+          completed: isComplete,
+        };
+        if (isComplete) {
+          updateData.completed_at = new Date().toISOString();
+        }
+
+        const { data: updatedProgress } = await supabase
+          .from('player_quest_progress')
+          .update(updateData)
+          .eq('id', progress.id)
+          .select()
+          .single();
+
+        updated.push(updatedProgress);
+
+        if (isComplete && !progress.completed) {
+          newlyCompleted.push({ quest, progress: updatedProgress });
+        }
+      }
+    }
+
+    // Award rewards for newly completed quests
+    for (const { quest, progress } of newlyCompleted) {
+      if (!progress.rewards_claimed) {
+        // Update user's coins, gems, XP
+        const { data: user } = await supabase
+          .from('users')
+          .select('coins, gems, xp')
+          .eq('id', userId)
+          .single();
+
+        if (user) {
+          await supabase
+            .from('users')
+            .update({
+              coins: (user.coins || 0) + (quest.coin_reward || 0),
+              gems: (user.gems || 0) + (quest.gem_reward || 0),
+              xp: (user.xp || 0) + (quest.xp_reward || 0),
+            })
+            .eq('id', userId);
+
+          // Mark rewards as claimed
+          await supabase
+            .from('player_quest_progress')
+            .update({ rewards_claimed: true })
+            .eq('id', progress.id);
+        }
+      }
+    }
+
+    res.json({ updated, newlyCompleted: newlyCompleted.map(c => c.quest) });
+  } catch (err) {
+    console.error('[quest-progress] Error:', err.message);
+    res.json({ updated: [], error: err.message });
+  }
+});
 
 app.get('/health', (req, res) => res.json({
   status: 'ok',

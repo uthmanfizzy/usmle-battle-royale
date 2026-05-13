@@ -29,6 +29,9 @@ CREATE TABLE IF NOT EXISTS users (
   level                 INTEGER     NOT NULL DEFAULT 1,
   games_played          INTEGER     NOT NULL DEFAULT 0,
   games_won             INTEGER     NOT NULL DEFAULT 0,
+  coins                 INTEGER     NOT NULL DEFAULT 0,
+  gems                  INTEGER     NOT NULL DEFAULT 0,
+  best_streak           INTEGER     NOT NULL DEFAULT 0,
   clan_id               UUID        REFERENCES clans(id) ON DELETE SET NULL,
   created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   last_username_change  TIMESTAMPTZ
