@@ -408,8 +408,9 @@
 
 .lp-stats-board {
   position: relative;
-  width: 280px;
+  width: 240px;
   margin-left: auto;
+  margin-right: 20px;
 }
 
 .lp-board-image {
@@ -462,7 +463,7 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding: 4px 24px 12px;
+  padding: 2px 24px 8px;
   min-height: 0;
 }
 
@@ -471,7 +472,7 @@
   align-items: center;
   justify-content: center;
   gap: 16px;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 }
 
 .lp-modes-ornament {
@@ -493,8 +494,8 @@
 .lp-modes-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
-  max-width: 1200px;
+  gap: 10px;
+  max-width: 1100px;
   margin: 0 auto;
   flex: 1;
   min-height: 0;
@@ -515,6 +516,7 @@
   border-radius: 6px;
   overflow: hidden;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  height: 190px;
 }
 
 .lp-mode-card:hover {
@@ -543,12 +545,12 @@
   z-index: 2;
 }
 
-/* Image Area - Fixed height */
+/* Image Area - 60% of card */
 .lp-mode-image {
   position: relative;
   width: 100%;
-  min-height: 140px;
-  flex: 0 0 auto;
+  height: 60%;
+  flex: 0 0 60%;
   background: rgba(26, 46, 26, 0.3);
   overflow: hidden;
 }
@@ -575,48 +577,52 @@
   opacity: 0.5;
 }
 
-/* Card Content - Flexible height */
+/* Card Content - 40% of card */
 .lp-mode-content {
-  flex: 1;
-  padding: 12px 12px 14px;
+  flex: 0 0 40%;
+  height: 40%;
+  padding: 10px 8px 12px;
   text-align: center;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 70px;
-  gap: 4px;
+  gap: 3px;
+  position: relative;
 }
 
 .lp-mode-icon {
-  font-size: 18px;
+  font-size: 16px;
   margin-bottom: 0;
+  line-height: 1;
 }
 
 .lp-mode-title {
   font-family: 'Playfair Display', Georgia, serif;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
   color: #3D2B0F;
-  letter-spacing: 1px;
+  letter-spacing: 0.5px;
   margin: 0;
-  line-height: 1.2;
+  line-height: 1.1;
 }
 
 .lp-mode-desc {
   font-family: 'Crimson Text', Georgia, serif;
-  font-size: 13px;
-  line-height: 1.3;
+  font-size: 11px;
+  line-height: 1.2;
   color: #5C4530;
   margin: 0;
 }
 
 .lp-mode-arrow {
-  display: inline-block;
-  margin-top: 2px;
-  font-size: 12px;
+  position: absolute;
+  bottom: 8px;
+  right: 10px;
+  font-size: 14px;
   color: #5C4A1E;
   transition: transform 0.3s ease;
+  font-weight: 700;
 }
 
 .lp-mode-card:hover .lp-mode-arrow {
