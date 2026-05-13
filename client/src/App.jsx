@@ -122,6 +122,30 @@ export default function App() {
     }
 
     setPhase('landing');
+
+    // DEBUG: Fetch and log game settings
+    fetch('https://usmle-battle-royale-production.up.railway.app/api/game-settings')
+      .then(r => r.json())
+      .then(data => {
+        console.log('========================================');
+        console.log('GAME SETTINGS FROM SERVER:');
+        console.log('========================================');
+        console.log(data);
+        console.log('========================================');
+        console.log('Hard Mode Settings:');
+        console.log('  hardModeEnabled:', data.hardModeEnabled);
+        console.log('  hardModeTimer:', data.hardModeTimer);
+        console.log('  hardModeExplanationTime:', data.hardModeExplanationTime);
+        console.log('  hardModeHideExplanations:', data.hardModeHideExplanations);
+        console.log('  hardModeLabel:', data.hardModeLabel);
+        console.log('  hardModeDescription:', data.hardModeDescription);
+        console.log('========================================');
+        console.log('Easy Mode Settings:');
+        console.log('  timerDefault:', data.timerDefault);
+        console.log('  explanationTime:', data.explanationTime);
+        console.log('========================================');
+      })
+      .catch(e => console.error('FAILED TO FETCH SETTINGS:', e));
   }, []);
 
   // ── Socket events (register once; connect later when entering game) ───────
