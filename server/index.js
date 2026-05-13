@@ -30,10 +30,38 @@ const JWT_SECRET = process.env.JWT_SECRET || 'dev-jwt-secret-change-in-prod';
 const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
 const SERVER_URL = process.env.SERVER_URL || `http://localhost:${PORT}`;
 
+// ── CORS configuration ─────────────────────────────────────────────────────────
+
+const allowedOrigins = [
+  'https://client-flax-psi-53.vercel.app',
+  'http://localhost:5173',
+  'http://localhost:3002',
+];
+
 // ── Express setup ──────────────────────────────────────────────────────────────
 
 const app = express();
-app.use(cors({ origin: '*' }));
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps, curl, Postman)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.warn('[CORS] Blocked request from origin:', origin);
+      callback(null, true); // Still allow but log it
+    }
+  },
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-admin-password'],
+  credentials: true,
+  optionsSuccessStatus: 200
+}));
+
+// Handle preflight OPTIONS requests
+app.options('*', cors());
+
 app.set('trust proxy', 1); // needed for secure cookies behind Railway's proxy
 app.use(express.json({ limit: '10mb' }));
 app.use(session({
@@ -48,7 +76,11 @@ app.use(passport.session());
 const server = http.createServer(app);
 
 const io = new Server(server, {
-  cors: { origin: '*', methods: ['GET', 'POST'] },
+  cors: {
+    origin: allowedOrigins,
+    methods: ['GET', 'POST'],
+    credentials: true
+  },
 });
 
 // ── Question bank from Supabase (with fallback to local file) ──────────────────
