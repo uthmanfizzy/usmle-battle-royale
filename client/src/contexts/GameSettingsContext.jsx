@@ -36,7 +36,22 @@ export function GameSettingsProvider({ children }) {
       .then(r => r.json())
       .then(data => {
         console.log('[GameSettings] Settings loaded:', data);
-        setSettings(prevSettings => ({ ...prevSettings, ...data }));
+
+        // Normalize keys for backwards compatibility
+        const normalized = { ...data };
+        if (data.hard_mode_timer !== undefined && data.hardModeTimer === undefined) {
+          normalized.hardModeTimer = data.hard_mode_timer;
+        }
+        if (data.hard_mode_explanation_time !== undefined && data.hardModeExplanationTime === undefined) {
+          normalized.hardModeExplanationTime = data.hard_mode_explanation_time;
+        }
+
+        console.log('[GameSettings] Normalized hard mode settings:', {
+          hardModeTimer: normalized.hardModeTimer,
+          hardModeExplanationTime: normalized.hardModeExplanationTime
+        });
+
+        setSettings(prevSettings => ({ ...prevSettings, ...normalized }));
         setLoading(false);
       })
       .catch(e => {

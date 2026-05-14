@@ -21,6 +21,15 @@ export async function fetchGameSettings() {
     if (!response.ok) throw new Error('Failed to fetch settings');
 
     const settings = await response.json();
+
+    // Normalize keys for backwards compatibility
+    if (settings.hard_mode_timer !== undefined && settings.hardModeTimer === undefined) {
+      settings.hardModeTimer = settings.hard_mode_timer;
+    }
+    if (settings.hard_mode_explanation_time !== undefined && settings.hardModeExplanationTime === undefined) {
+      settings.hardModeExplanationTime = settings.hard_mode_explanation_time;
+    }
+
     cachedSettings = settings;
     lastFetchTime = Date.now();
 

@@ -308,11 +308,21 @@ async function loadSettingsFromDB() {
           loadedSettings[row.key] = row.value;
         }
       }
+
+      // Normalize keys: handle snake_case -> camelCase migration
+      if (loadedSettings.hard_mode_timer !== undefined && loadedSettings.hardModeTimer === undefined) {
+        loadedSettings.hardModeTimer = loadedSettings.hard_mode_timer;
+      }
+      if (loadedSettings.hard_mode_explanation_time !== undefined && loadedSettings.hardModeExplanationTime === undefined) {
+        loadedSettings.hardModeExplanationTime = loadedSettings.hard_mode_explanation_time;
+      }
+
       gameSettings = { ...gameSettings, ...loadedSettings };
       console.log(`[Settings] Loaded ${data.length} settings from Supabase`);
       console.log('[Settings] Sample values:', {
         hardModeEnabled: gameSettings.hardModeEnabled,
         hardModeTimer: gameSettings.hardModeTimer,
+        hardModeExplanationTime: gameSettings.hardModeExplanationTime,
         timerDefault: gameSettings.timerDefault,
       });
     } else {
@@ -3407,7 +3417,21 @@ app.get('/api/game-settings', async (req, res) => {
             }
           }
         });
+
+        // Normalize keys: handle snake_case -> camelCase migration
+        // Prefer camelCase; if both exist, camelCase wins
+        if (settings.hard_mode_timer !== undefined && settings.hardModeTimer === undefined) {
+          settings.hardModeTimer = settings.hard_mode_timer;
+        }
+        if (settings.hard_mode_explanation_time !== undefined && settings.hardModeExplanationTime === undefined) {
+          settings.hardModeExplanationTime = settings.hard_mode_explanation_time;
+        }
+
         console.log('[/api/game-settings] Returning', Object.keys(settings).length, 'settings from Supabase');
+        console.log('[/api/game-settings] Hard mode settings:', {
+          hardModeTimer: settings.hardModeTimer,
+          hardModeExplanationTime: settings.hardModeExplanationTime
+        });
         return res.json(settings);
       }
     }
