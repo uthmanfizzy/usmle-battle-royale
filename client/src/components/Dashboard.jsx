@@ -277,42 +277,6 @@ function HomeSection({ user, bgUrl, onUserUpdate }) {
     <div className="dash-main">
       {/* Left Column */}
       <div className="dash-left-col">
-        {/* Player Profile */}
-        <div
-          className="parchment-panel profile-panel"
-          style={panelBackgrounds.profile_panel_bg ? {
-            backgroundImage: `url(${panelBackgrounds.profile_panel_bg})`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-          } : {}}
-        >
-          <div className="profile-avatar-wrap">
-            {user.avatar_url
-              ? <img src={user.avatar_url} alt="" className="profile-avatar" referrerPolicy="no-referrer" />
-              : <div className="profile-avatar-placeholder">{user.username?.[0]?.toUpperCase()}</div>
-            }
-            <div className="profile-avatar-frame" />
-            <div className="profile-level-badge">{level}</div>
-          </div>
-          <div className="profile-username">
-            {user.username}
-            <button className="profile-edit-btn" onClick={() => setShowUsernameModal(true)} title="Edit username">
-              ✏️
-            </button>
-          </div>
-          <div className="profile-title">
-            <span>🌿</span> Future Doctor
-          </div>
-          <div className="profile-xp-section">
-            <div className="profile-xp-text">
-              <span className="profile-xp-current">{xp.toLocaleString()} / {(Math.floor(xp / 500) + 1) * 500} XP</span>
-            </div>
-            <div className="profile-xp-bar">
-              <div className="profile-xp-fill" style={{ width: `${xpProgress}%` }} />
-            </div>
-          </div>
-        </div>
-
         {/* Stats Overview */}
         <div
           className="parchment-panel stats-overview-panel"
@@ -992,6 +956,36 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
 
         {/* Top Bar */}
         <div className="dash-topbar">
+          <div className="player-profile-card">
+            <div className="player-avatar">
+              {user.avatar_url ? (
+                <img src={user.avatar_url} alt={user.username} referrerPolicy="no-referrer" />
+              ) : (
+                <div className="player-avatar-placeholder">
+                  {user.username?.[0]?.toUpperCase() || 'U'}
+                </div>
+              )}
+            </div>
+            <div className="player-info-panel">
+              <div className="player-name-row">
+                <span className="player-username">{user.username || 'Player'}</span>
+                <span className="player-crown">👑</span>
+              </div>
+              <div className="player-level">Level {user.level || 1}</div>
+              <div className="player-xp-section">
+                <div className="player-xp-bar-container">
+                  <div
+                    className="player-xp-bar-fill"
+                    style={{ width: `${Math.round(((user.xp || 0) % 500) / 500 * 100)}%` }}
+                  />
+                </div>
+                <div className="player-xp-text">
+                  {((user.xp || 0) % 500).toLocaleString()} / 500 XP
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div className="dash-topbar-right">
             <div className="currency-pill">
               <div className="currency-item">
