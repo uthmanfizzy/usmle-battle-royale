@@ -907,69 +907,56 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
         {dashTab === 'announcements' && <AnnouncementsSection />}
 
         {/* Bottom Navigation */}
-        <nav
-          className="dash-nav"
-          style={homeImages.footer_bg ? {
-            backgroundImage: `url(${homeImages.footer_bg})`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-          } : {}}
-        >
-          <button
-            className={`dash-nav-btn ${dashTab === 'home' ? 'active' : ''}`}
+        <div className="bottom-nav">
+          <div
+            className={`nav-item ${dashTab === 'home' ? 'nav-item--active' : ''}`}
             onClick={() => setDashTab('home')}
           >
             {homeImages.icon_home && (
-              <div style={{ position: 'relative', width: '48px', height: '48px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'visible' }}>
-                <img src={homeImages.icon_home} alt="" className="nav-icon" style={{ width: '96px', height: '96px', objectFit: 'contain', position: 'absolute', transform: 'translate(-50%, -50%)', pointerEvents: 'none', zIndex: 10 }} />
-              </div>
+              <img src={homeImages.icon_home} className="nav-icon" alt="Home" />
             )}
-            <span className="nav-label">Home</span>
-          </button>
-          <button
-            className={`dash-nav-btn ${dashTab === 'leaderboard' ? 'active' : ''}`}
+            <span className="nav-label">HOME</span>
+          </div>
+          <div className="nav-divider" />
+          <div
+            className={`nav-item ${dashTab === 'leaderboard' ? 'nav-item--active' : ''}`}
             onClick={() => setDashTab('leaderboard')}
           >
             {homeImages.icon_leaderboards && (
-              <div style={{ position: 'relative', width: '48px', height: '48px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'visible' }}>
-                <img src={homeImages.icon_leaderboards} alt="" className="nav-icon" style={{ width: '96px', height: '96px', objectFit: 'contain', position: 'absolute', transform: 'translate(-50%, -50%)', pointerEvents: 'none', zIndex: 10 }} />
-              </div>
+              <img src={homeImages.icon_leaderboards} className="nav-icon" alt="Leaderboards" />
             )}
-            <span className="nav-label">Leaderboards</span>
-          </button>
-          <button
-            className={`dash-nav-btn ${dashTab === 'clans' ? 'active' : ''}`}
+            <span className="nav-label">LEADERBOARDS</span>
+          </div>
+          <div className="nav-divider" />
+          <div
+            className={`nav-item ${dashTab === 'clans' ? 'nav-item--active' : ''}`}
             onClick={() => setDashTab('clans')}
           >
             {homeImages.icon_clans && (
-              <div style={{ position: 'relative', width: '48px', height: '48px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'visible' }}>
-                <img src={homeImages.icon_clans} alt="" className="nav-icon" style={{ width: '96px', height: '96px', objectFit: 'contain', position: 'absolute', transform: 'translate(-50%, -50%)', pointerEvents: 'none', zIndex: 10 }} />
-              </div>
+              <img src={homeImages.icon_clans} className="nav-icon" alt="Clans" />
             )}
-            <span className="nav-label">Clans</span>
-          </button>
-          <button
-            className={`dash-nav-btn ${dashTab === 'announcements' ? 'active' : ''}`}
+            <span className="nav-label">CLANS</span>
+          </div>
+          <div className="nav-divider" />
+          <div
+            className={`nav-item ${dashTab === 'announcements' ? 'nav-item--active' : ''}`}
             onClick={handleAnnouncementsTab}
             style={{ position: 'relative' }}
           >
             {unreadCount > 0 && <span className="ann-unread-dot" />}
             {homeImages.icon_news && (
-              <div style={{ position: 'relative', width: '48px', height: '48px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'visible' }}>
-                <img src={homeImages.icon_news} alt="" className="nav-icon" style={{ width: '96px', height: '96px', objectFit: 'contain', position: 'absolute', transform: 'translate(-50%, -50%)', pointerEvents: 'none', zIndex: 10 }} />
-              </div>
+              <img src={homeImages.icon_news} className="nav-icon" alt="News" />
             )}
-            <span className="nav-label">News</span>
-          </button>
-          <button className="dash-nav-btn dash-nav-play" onClick={onPlayNow}>
+            <span className="nav-label">NEWS</span>
+          </div>
+          <div className="nav-divider" />
+          <div className="nav-item nav-item--play" onClick={onPlayNow}>
             {homeImages.icon_play && (
-              <div style={{ position: 'relative', width: '48px', height: '48px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'visible' }}>
-                <img src={homeImages.icon_play} alt="" className="nav-icon" style={{ width: '96px', height: '96px', objectFit: 'contain', position: 'absolute', transform: 'translate(-50%, -50%)', pointerEvents: 'none', zIndex: 10 }} />
-              </div>
+              <img src={homeImages.icon_play} className="nav-icon" alt="Play" />
             )}
-            <span className="nav-label">Play</span>
-          </button>
-        </nav>
+            <span className="nav-label">PLAY</span>
+          </div>
+        </div>
       </div>
 
       {showSettings && <SettingsPanel onClose={() => setShowSettings(false)} onLogout={onLogout} />}
