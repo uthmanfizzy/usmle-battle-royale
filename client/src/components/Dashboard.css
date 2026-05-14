@@ -211,30 +211,35 @@
   display: flex;
   align-items: center;
   gap: 16px;
-  background: rgba(20, 30, 40, 0.6);
+  background: rgba(20, 30, 40, 0.25);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 999px;
   padding: 4px 16px;
   height: auto;
+  white-space: nowrap;
+  overflow: visible;
 }
 
 .currency-item {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
   color: white;
   font-weight: 700;
   font-size: 15px;
+  flex-shrink: 0;
 }
 
 .currency-icon {
-  width: 28px;
-  height: 28px;
+  width: 38px;
+  height: 38px;
   object-fit: contain;
   padding: 0 !important;
   margin: 0 !important;
+  flex-shrink: 0;
 }
 
 .currency-value {
@@ -246,6 +251,7 @@
   width: 1px;
   height: 18px;
   background: rgba(255, 255, 255, 0.2);
+  flex-shrink: 0;
 }
 
 /* ══════════════════════════════════════════════════════════════════════════════
@@ -255,13 +261,14 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  background: rgba(20, 30, 40, 0.6);
+  background: rgba(20, 30, 40, 0.25);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 999px;
   padding: 4px 14px;
   height: auto;
+  overflow: visible;
 }
 
 .icons-pill button,
@@ -270,13 +277,15 @@
   border: none;
   cursor: pointer;
   color: rgba(255, 255, 255, 0.85);
-  font-size: 20px;
+  font-size: 28px;
   display: flex;
   align-items: center;
+  justify-content: center;
   padding: 0;
   margin: 0;
   position: relative;
   transition: color 0.2s, transform 0.2s;
+  flex-shrink: 0;
 }
 
 .icons-pill button:hover,
