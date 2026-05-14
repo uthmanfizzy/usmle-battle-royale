@@ -951,6 +951,7 @@
   cursor: pointer;
   transition: all 0.2s;
   position: relative;
+  flex-shrink: 0;
 }
 
 .dash-nav-btn .nav-icon {

@@ -277,39 +277,6 @@ function HomeSection({ user, bgUrl, onUserUpdate }) {
     <div className="dash-main">
       {/* Left Column */}
       <div className="dash-left-col">
-        {/* Stats Overview */}
-        <div
-          className="parchment-panel stats-overview-panel"
-          style={panelBackgrounds.stats_panel_bg ? {
-            backgroundImage: `url(${panelBackgrounds.stats_panel_bg})`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-          } : {}}
-        >
-          <div className="panel-title">Stats Overview</div>
-          <div className="stats-grid">
-            <div className="stat-box">
-              <div className="stat-icon">✨</div>
-              <div className="stat-label">Total XP</div>
-              <div className="stat-value">{xp.toLocaleString()}</div>
-            </div>
-            <div className="stat-box">
-              <div className="stat-icon">🎮</div>
-              <div className="stat-label">Games Played</div>
-              <div className="stat-value">{gamesPlayed}</div>
-            </div>
-            <div className="stat-box">
-              <div className="stat-icon">🏆</div>
-              <div className="stat-label">Win Rate</div>
-              <div className="stat-value">{winRate}%</div>
-            </div>
-            <div className="stat-box">
-              <div className="stat-icon">🔥</div>
-              <div className="stat-label">Best Streak</div>
-              <div className="stat-value">{user.best_streak || 0}</div>
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* Center Column - Transparent */}
@@ -318,101 +285,10 @@ function HomeSection({ user, bgUrl, onUserUpdate }) {
           <div className="center-welcome-title">Welcome Back, {user.username}!</div>
           <div className="center-welcome-sub">Ready for your next challenge?</div>
         </div>
-
-        {/* Recent Games - moved to center bottom */}
-        <div className="center-recent-games">
-          <div
-            className="parchment-panel recent-games-panel"
-            style={panelBackgrounds.recent_games_panel_bg ? {
-              backgroundImage: `url(${panelBackgrounds.recent_games_panel_bg})`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-            } : {}}
-          >
-            <div className="panel-title">
-              Recent Games
-              <span className="panel-title-link" onClick={() => window.location.href = '/stats'}>VIEW ALL →</span>
-            </div>
-            {gameHistory.length === 0 ? (
-              <p className="no-games-msg">No games yet — start your first battle!</p>
-            ) : (
-              <div className="recent-games-list">
-                {gameHistory.slice(0, 3).map(g => {
-                  const modeIcon = GAME_MODE_ICONS[g.game_mode] || '🎮';
-                  const modeLabel = GAME_MODE_LABELS[g.game_mode] || cap(g.game_mode || 'Game');
-                  const subj = SUBJECTS.find(s => s.id === g.subject);
-                  const placeClass = g.placement === 1 ? 'gold' : g.placement === 2 ? 'silver' : 'normal';
-                  return (
-                    <div key={g.id} className="recent-game-row">
-                      <div className="recent-game-thumb">{modeIcon}</div>
-                      <div className="recent-game-info">
-                        <div className="recent-game-mode">{modeLabel}</div>
-                        <div className="recent-game-subject">{subj?.icon || '📚'} {cap(g.subject)}</div>
-                      </div>
-                      <div className="recent-game-result">
-                        <div className={`recent-game-place ${placeClass}`}>
-                          {g.placement === 1 ? '1st 🏆' : g.placement === 2 ? '2nd' : `#${g.placement}`}
-                        </div>
-                        <div className="recent-game-xp">+{g.xp_earned} XP</div>
-                        <div className="recent-game-time">{timeAgo(g.played_at)}</div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </div>
       </div>
 
       {/* Right Column */}
       <div className="dash-right-col">
-        {/* Daily Quests */}
-        <div
-          className="parchment-panel quests-panel"
-          style={panelBackgrounds.quests_panel_bg ? {
-            backgroundImage: `url(${panelBackgrounds.quests_panel_bg})`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-          } : {}}
-        >
-          <div className="panel-title">
-            Daily Quests
-            <span className="quests-timer">⏰ {timeLeft}</span>
-          </div>
-          <div className="quest-list">
-            {questsLoading ? (
-              <div className="quest-loading">Loading quests...</div>
-            ) : quests.length === 0 ? (
-              <div className="quest-empty">No quests available today</div>
-            ) : (
-              quests.map(q => (
-                <div key={q.id} className={`quest-item ${q.completed ? 'quest-completed' : ''}`}>
-                  <div className="quest-icon">{q.icon}</div>
-                  <div className="quest-info">
-                    <div className="quest-desc">{q.name || q.description}</div>
-                    <div className="quest-progress-bar">
-                      <div
-                        className={`quest-progress-fill ${q.completed ? 'quest-fill-complete' : ''}`}
-                        style={{ width: `${Math.min(100, (q.current / q.target) * 100)}%` }}
-                      />
-                    </div>
-                    <div className="quest-progress-text">
-                      {q.completed ? '✓ Complete!' : `${q.current} / ${q.target}`}
-                    </div>
-                  </div>
-                  <div className={`quest-reward ${q.completed ? 'quest-reward-claimed' : ''}`}>
-                    <span>🪙</span> {q.coin_reward}
-                    {q.xp_reward > 0 && <span className="quest-xp-reward">+{q.xp_reward} XP</span>}
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-          <div className="view-all-link" onClick={() => window.location.href = '/stats'}>
-            VIEW ALL QUESTS →
-          </div>
-        </div>
       </div>
 
       {showUsernameModal && (
@@ -994,14 +870,14 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
             <div className="currency-bar">
               <div className="currency-item">
                 {homeImages.icon_coins && (
-                  <img src={homeImages.icon_coins} alt="" className="currency-icon" />
+                  <img src={homeImages.icon_coins} alt="" className="currency-icon" style={{ width: '76px', height: '76px', display: 'block', flexShrink: 0 }} />
                 )}
                 <span className="currency-value">{coins.toLocaleString()}</span>
               </div>
               <div className="currency-divider"></div>
               <div className="currency-item">
                 {homeImages.icon_gems && (
-                  <img src={homeImages.icon_gems} alt="" className="currency-icon" />
+                  <img src={homeImages.icon_gems} alt="" className="currency-icon" style={{ width: '76px', height: '76px', display: 'block', flexShrink: 0 }} />
                 )}
                 <span className="currency-value">{gems.toLocaleString()}</span>
               </div>
