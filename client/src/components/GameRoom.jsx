@@ -151,18 +151,6 @@ export default function GameRoom({
         <Hearts count={myLives} />
       </div>
 
-      {/* Calculator button */}
-      <button
-        className="calculator-toggle-btn"
-        onClick={() => setShowCalculator(!showCalculator)}
-        title="Open Calculator"
-      >
-        🧮
-      </button>
-
-      {/* Calculator panel */}
-      {showCalculator && <Calculator onClose={() => setShowCalculator(false)} />}
-
       <div className="game-layout">
         {/* Main question column */}
         <div className="game-center">
@@ -189,6 +177,18 @@ export default function GameRoom({
               </div>
             )}
             <p className="question-text">{question.question}</p>
+
+            {/* Calculator button - appears below question */}
+            <button
+              className="calculator-toggle-btn"
+              onClick={() => setShowCalculator(!showCalculator)}
+              title="Toggle Calculator"
+            >
+              🧮 {showCalculator ? 'Hide' : 'Show'} Calculator
+            </button>
+
+            {/* Calculator inline - between question and answers on mobile */}
+            {showCalculator && <Calculator onClose={() => setShowCalculator(false)} />}
 
             <div className="options">
               {question.options.map((opt, i) => {

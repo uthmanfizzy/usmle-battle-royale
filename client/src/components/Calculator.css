@@ -180,7 +180,7 @@
   font-size: 16px;
 }
 
-/* Overlay for mobile - REMOVED: No blur or dim on question area */
+/* Overlay for mobile - NOT USED */
 .calc-overlay {
   display: none;
 }
@@ -195,120 +195,95 @@
   display: none;
 }
 
-/* Mobile responsiveness */
+/* Mobile responsiveness - INLINE centered calculator */
 @media (max-width: 768px) {
-  /* NO OVERLAY - Question must remain fully visible and readable */
+  /* NO OVERLAY */
   .calc-overlay {
     display: none;
   }
 
   .calculator-panel {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    top: auto;
-    width: 100%;
-    max-width: 100%;
-    max-height: 45vh;
+    /* INLINE positioning - sits in document flow between question and answers */
+    position: relative;
+    width: 90%;
+    max-width: 400px;
+    margin: 16px auto;
+    left: auto !important;
+    top: auto !important;
     height: auto;
-    border-radius: 20px 20px 0 0;
+    background: #1a1a2e;
+    border-radius: 12px;
     cursor: default;
-    z-index: 9999;
-    animation: slideUp 0.3s ease-out;
-    padding-bottom: max(env(safe-area-inset-bottom), 8px);
-    overflow: hidden;
+    z-index: 10;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
   }
 
-  @keyframes slideUp {
-    from {
-      transform: translateY(100%);
-    }
-    to {
-      transform: translateY(0);
-    }
-  }
-
-  /* Drag handle pill */
+  /* No drag handle needed for inline */
   .calc-drag-handle {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 8px 0;
-    cursor: pointer;
-  }
-
-  .calc-drag-pill {
-    width: 40px;
-    height: 4px;
-    background: rgba(255, 255, 255, 0.3);
-    border-radius: 2px;
+    display: none;
   }
 
   .calc-header {
     cursor: default;
-    padding: 8px 12px;
+    padding: 10px 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
   }
 
-  /* Hide desktop close button on mobile */
+  .calc-title {
+    font-size: 14px;
+  }
+
+  /* Show close button on mobile */
+  .calc-close-btn {
+    display: flex !important;
+  }
+
   .calc-close-desktop {
+    display: flex;
+  }
+
+  /* Hide mobile answer button - using regular close */
+  .calc-answer-btn {
     display: none;
   }
 
-  /* Show mobile answer button */
-  .calc-answer-btn {
-    display: block;
-    background: linear-gradient(135deg, #ffd700, #ffb700);
-    color: #000;
-    font-size: 13px;
-    font-weight: 700;
-    padding: 6px 16px;
-    border-radius: 6px;
-    border: none;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-
-  .calc-answer-btn:active {
-    transform: scale(0.95);
-  }
-
   .calc-display {
-    font-size: 24px;
-    padding: 16px 12px;
-    min-height: 60px;
+    font-size: 20px;
+    padding: 14px 12px;
+    min-height: 50px;
   }
 
   .calc-buttons {
-    gap: 8px;
-    padding: 8px 12px 12px 12px;
-    overflow-y: auto;
-    max-height: calc(45vh - 180px);
-    -webkit-overflow-scrolling: touch;
+    gap: 6px;
+    padding: 8px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
   }
 
   .calc-button {
-    padding: 14px;
-    font-size: 18px;
-    min-width: 48px;
-    min-height: 48px;
+    padding: 12px 8px;
+    font-size: 16px;
+    min-width: 44px;
+    min-height: 44px;
   }
 
   .mem-btn {
-    font-size: 11px;
-    padding: 10px;
+    font-size: 10px;
+    padding: 8px 4px;
     min-height: 40px;
   }
 
   .func-btn {
-    font-size: 16px;
+    font-size: 14px;
   }
 
   .op-btn {
-    font-size: 22px;
+    font-size: 20px;
   }
 
   .equals-btn {
-    font-size: 22px;
+    font-size: 20px;
   }
 }

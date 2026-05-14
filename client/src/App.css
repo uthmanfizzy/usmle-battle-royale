@@ -434,11 +434,20 @@ button:active:not(:disabled) { transform: scale(0.97); }
 
 @media (max-width: 768px) {
   .calculator-toggle-btn {
-    bottom: 16px;
-    right: 16px;
-    width: 48px;
-    height: 48px;
-    font-size: 24px;
+    /* Inline button below question text */
+    position: relative;
+    bottom: auto;
+    right: auto;
+    width: auto;
+    height: auto;
+    padding: 10px 16px;
+    margin: 12px auto 16px auto;
+    display: flex;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.2), rgba(255, 180, 0, 0.15));
+    gap: 8px;
   }
 }
 

@@ -142,6 +142,18 @@ export default function BuzzFunGame({
 
         <div className="bf-term">{question.question}</div>
 
+        {/* Calculator button - appears below question */}
+        <button
+          className="calculator-toggle-btn"
+          onClick={() => setShowCalculator(!showCalculator)}
+          title="Toggle Calculator"
+        >
+          🧮 {showCalculator ? 'Hide' : 'Show'} Calculator
+        </button>
+
+        {/* Calculator inline - between question and answers on mobile */}
+        {showCalculator && <Calculator onClose={() => setShowCalculator(false)} />}
+
         {/* Answer options */}
         <div className="bf-options">
           {question.options.map((opt, i) => {
@@ -192,18 +204,6 @@ export default function BuzzFunGame({
           ))}
         </div>
       )}
-
-      {/* Calculator button */}
-      <button
-        className="calculator-toggle-btn"
-        onClick={() => setShowCalculator(!showCalculator)}
-        title="Open Calculator"
-      >
-        🧮
-      </button>
-
-      {/* Calculator panel */}
-      {showCalculator && <Calculator onClose={() => setShowCalculator(false)} />}
     </div>
   );
 }

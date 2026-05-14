@@ -257,6 +257,19 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
 
         <div className="question-card">
           <p className="question-text">{q.question}</p>
+
+          {/* Calculator button - appears below question */}
+          <button
+            className="calculator-toggle-btn"
+            onClick={() => setShowCalculator(!showCalculator)}
+            title="Toggle Calculator"
+          >
+            🧮 {showCalculator ? 'Hide' : 'Show'} Calculator
+          </button>
+
+          {/* Calculator inline - between question and answers on mobile */}
+          {showCalculator && <Calculator onClose={() => setShowCalculator(false)} />}
+
           <div className="options">
             {q.options.map((opt, i) => {
               const label = LABELS[i];
@@ -300,18 +313,6 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
           </div>
         )}
       </div>
-
-      {/* Calculator button */}
-      <button
-        className="calculator-toggle-btn"
-        onClick={() => setShowCalculator(!showCalculator)}
-        title="Open Calculator"
-      >
-        🧮
-      </button>
-
-      {/* Calculator panel */}
-      {showCalculator && <Calculator onClose={() => setShowCalculator(false)} />}
     </div>
   );
 }

@@ -139,6 +139,18 @@ export default function SpeedRaceGame({
 
             <div className="question-text">{question.question}</div>
 
+            {/* Calculator button - appears below question */}
+            <button
+              className="calculator-toggle-btn"
+              onClick={() => setShowCalculator(!showCalculator)}
+              title="Toggle Calculator"
+            >
+              🧮 {showCalculator ? 'Hide' : 'Show'} Calculator
+            </button>
+
+            {/* Calculator inline - between question and answers on mobile */}
+            {showCalculator && <Calculator onClose={() => setShowCalculator(false)} />}
+
             <div className="options-grid">
               {LABELS.map((opt, i) => {
                 if (hiddenOptions.includes(opt)) return null;
@@ -184,18 +196,6 @@ export default function SpeedRaceGame({
           <div className="waiting-msg">Get ready…</div>
         )}
       </div>
-
-      {/* Calculator button */}
-      <button
-        className="calculator-toggle-btn"
-        onClick={() => setShowCalculator(!showCalculator)}
-        title="Open Calculator"
-      >
-        🧮
-      </button>
-
-      {/* Calculator panel */}
-      {showCalculator && <Calculator onClose={() => setShowCalculator(false)} />}
     </div>
   );
 }

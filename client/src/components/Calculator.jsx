@@ -166,32 +166,26 @@ export default function Calculator({ onClose }) {
     setMemory(0);
   };
 
+  // On mobile, position: relative overrides these inline styles
+  const panelStyle = window.innerWidth > 768 ? { left: `${position.x}px`, top: `${position.y}px` } : {};
+
   return (
-    <>
-      {/* NO OVERLAY ON MOBILE - Question must remain visible */}
-
-      <div
-        ref={panelRef}
-        className="calculator-panel"
-        style={{ left: `${position.x}px`, top: `${position.y}px` }}
-        onMouseDown={handleMouseDown}
-      >
-        {showTooltip && (
-          <div className="calc-tooltip">
-            Use calculator for biostatistics calculations
-          </div>
-        )}
-
-        {/* Drag handle for mobile */}
-        <div className="calc-drag-handle" onClick={onClose}>
-          <div className="calc-drag-pill"></div>
+    <div
+      ref={panelRef}
+      className="calculator-panel"
+      style={panelStyle}
+      onMouseDown={handleMouseDown}
+    >
+      {showTooltip && (
+        <div className="calc-tooltip">
+          Use calculator for biostatistics calculations
         </div>
+      )}
 
-        <div className="calc-header">
-          <span className="calc-title">Calculator</span>
-          <button className="calc-close-btn calc-close-desktop" onClick={onClose}>×</button>
-          <button className="calc-answer-btn" onClick={onClose}>Close & Answer</button>
-        </div>
+      <div className="calc-header">
+        <span className="calc-title">Calculator</span>
+        <button className="calc-close-btn" onClick={onClose}>×</button>
+      </div>
 
         <div className="calc-display">{display}</div>
 
