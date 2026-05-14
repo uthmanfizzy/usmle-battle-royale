@@ -31,7 +31,8 @@
       "Bash(ls -la main.* index.*)",
       "PowerShell(git add *)",
       "PowerShell(git push *)",
-      "PowerShell(git commit *)"
+      "PowerShell(git commit *)",
+      "Bash(awk *)"
     ]
   }
 }
