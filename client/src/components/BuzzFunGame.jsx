@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import './BuzzFunGame.css';
 import ExplanationText from './ExplanationText';
+import Calculator from './Calculator';
 
 const BUZZ_TYPE_LABELS = {
   BUZZWORD:    { label: 'BUZZWORD',    color: '#e67e22' },
@@ -18,6 +19,7 @@ export default function BuzzFunGame({
   onAnswer, username, onTick,
 }) {
   const [timeLeft,    setTimeLeft]    = useState(timeLimit || 8);
+  const [showCalculator, setShowCalculator] = useState(false);
   const [flashState,  setFlashState]  = useState(null); // 'correct' | 'wrong' | null
   const [revealCorrect, setRevealCorrect] = useState(false);
   const timerRef = useRef(null);
@@ -190,6 +192,18 @@ export default function BuzzFunGame({
           ))}
         </div>
       )}
+
+      {/* Calculator button */}
+      <button
+        className="calculator-toggle-btn"
+        onClick={() => setShowCalculator(!showCalculator)}
+        title="Open Calculator"
+      >
+        🧮
+      </button>
+
+      {/* Calculator panel */}
+      {showCalculator && <Calculator onClose={() => setShowCalculator(false)} />}
     </div>
   );
 }

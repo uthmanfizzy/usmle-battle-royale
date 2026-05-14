@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import PowerupBar from './PowerupBar';
 import ExplanationText from './ExplanationText';
+import Calculator from './Calculator';
 
 const LABELS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
 
@@ -84,6 +85,7 @@ export default function GameRoom({
   socketId,
   gameMode = 'battle_royale',
 }) {
+  const [showCalculator, setShowCalculator] = useState(false);
   if (showSuddenDeathScreen) {
     return (
       <div className="screen sd-announcement-screen">
@@ -148,6 +150,18 @@ export default function GameRoom({
         <span className="topbar-score">🏅 {myScore} pts</span>
         <Hearts count={myLives} />
       </div>
+
+      {/* Calculator button */}
+      <button
+        className="calculator-toggle-btn"
+        onClick={() => setShowCalculator(!showCalculator)}
+        title="Open Calculator"
+      >
+        🧮
+      </button>
+
+      {/* Calculator panel */}
+      {showCalculator && <Calculator onClose={() => setShowCalculator(false)} />}
 
       <div className="game-layout">
         {/* Main question column */}

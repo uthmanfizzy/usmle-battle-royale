@@ -400,6 +400,48 @@ button:active:not(:disabled) { transform: scale(0.97); }
 .heart-icon { font-size: 22px; transition: filter 0.3s; }
 .heart-icon.dead { filter: grayscale(1) opacity(0.35); }
 
+/* Calculator toggle button */
+.calculator-toggle-btn {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 56px;
+  height: 56px;
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.15), rgba(255, 180, 0, 0.1));
+  border: 1px solid rgba(255, 215, 0, 0.3);
+  border-radius: 50%;
+  font-size: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s;
+  z-index: 9999;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(10px);
+}
+
+.calculator-toggle-btn:hover {
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.25), rgba(255, 180, 0, 0.2));
+  border-color: rgba(255, 215, 0, 0.5);
+  box-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
+  transform: scale(1.05);
+}
+
+.calculator-toggle-btn:active {
+  transform: scale(0.95);
+}
+
+@media (max-width: 768px) {
+  .calculator-toggle-btn {
+    bottom: 16px;
+    right: 16px;
+    width: 48px;
+    height: 48px;
+    font-size: 24px;
+  }
+}
+
 /* Layout */
 .game-layout {
   display: flex;

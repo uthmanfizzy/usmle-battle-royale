@@ -1,0 +1,224 @@
+.calculator-panel {
+  position: fixed;
+  width: 220px;
+  background: rgba(20, 20, 30, 0.95);
+  border: 1px solid rgba(255, 215, 0, 0.3);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8);
+  z-index: 10000;
+  backdrop-filter: blur(10px);
+  cursor: move;
+  user-select: none;
+}
+
+.calc-tooltip {
+  position: absolute;
+  top: -45px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(255, 215, 0, 0.95);
+  color: #000;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 11px;
+  white-space: nowrap;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  animation: fadeInOut 3s ease-in-out;
+}
+
+.calc-tooltip::after {
+  content: '';
+  position: absolute;
+  bottom: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 6px solid rgba(255, 215, 0, 0.95);
+}
+
+@keyframes fadeInOut {
+  0%, 100% { opacity: 0; }
+  10%, 90% { opacity: 1; }
+}
+
+.calc-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(255, 215, 0, 0.2);
+  cursor: move;
+}
+
+.calc-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #ffd700;
+  letter-spacing: 0.5px;
+}
+
+.calc-close-btn {
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.calc-close-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffd700;
+}
+
+.calc-display {
+  background: rgba(0, 0, 0, 0.4);
+  color: #fff;
+  font-size: 20px;
+  font-weight: 600;
+  padding: 16px 12px;
+  text-align: right;
+  border-radius: 6px;
+  margin: 8px;
+  min-height: 32px;
+  word-break: break-all;
+  font-family: 'Courier New', monospace;
+}
+
+.calc-buttons {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  padding: 8px;
+}
+
+.calc-button {
+  background: rgba(40, 40, 60, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 600;
+  padding: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+  user-select: none;
+}
+
+.calc-button:hover {
+  background: rgba(60, 60, 80, 0.9);
+  border-color: rgba(255, 215, 0, 0.3);
+  transform: translateY(-1px);
+}
+
+.calc-button:active {
+  transform: translateY(0);
+  background: rgba(50, 50, 70, 0.9);
+}
+
+/* Memory buttons */
+.mem-btn {
+  background: rgba(80, 60, 120, 0.6);
+  font-size: 11px;
+  padding: 8px;
+}
+
+.mem-btn:hover {
+  background: rgba(100, 80, 140, 0.8);
+}
+
+/* Function buttons */
+.func-btn {
+  background: rgba(60, 60, 90, 0.8);
+  font-size: 14px;
+}
+
+.func-btn:hover {
+  background: rgba(80, 80, 110, 0.9);
+}
+
+/* Operator buttons */
+.op-btn {
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.2), rgba(255, 180, 0, 0.15));
+  border-color: rgba(255, 215, 0, 0.3);
+  color: #ffd700;
+  font-size: 20px;
+}
+
+.op-btn:hover {
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.3), rgba(255, 180, 0, 0.25));
+  border-color: rgba(255, 215, 0, 0.5);
+}
+
+/* Equals button */
+.equals-btn {
+  background: linear-gradient(135deg, #ffd700, #ffb700);
+  border-color: #ffd700;
+  color: #000;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.equals-btn:hover {
+  background: linear-gradient(135deg, #ffe44d, #ffc700);
+  box-shadow: 0 0 12px rgba(255, 215, 0, 0.4);
+}
+
+/* Number buttons */
+.num-btn {
+  font-size: 16px;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .calculator-panel {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    top: auto;
+    width: 100%;
+    max-width: 100%;
+    border-radius: 16px 16px 0 0;
+    cursor: default;
+  }
+
+  .calc-header {
+    cursor: default;
+  }
+
+  .calc-display {
+    font-size: 24px;
+    padding: 20px 16px;
+  }
+
+  .calc-buttons {
+    gap: 8px;
+    padding: 12px;
+  }
+
+  .calc-button {
+    padding: 16px;
+    font-size: 18px;
+  }
+
+  .mem-btn {
+    font-size: 12px;
+    padding: 12px;
+  }
+
+  .func-btn {
+    font-size: 16px;
+  }
+}

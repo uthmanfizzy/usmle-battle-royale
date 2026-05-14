@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useGameSettings } from '../contexts/GameSettingsContext';
 import * as audio from '../audio';
 import ExplanationText from './ExplanationText';
+import Calculator from './Calculator';
 
 const LABELS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
 const SERVER_URL = 'https://usmle-battle-royale-production.up.railway.app';
@@ -35,6 +36,7 @@ export default function SoloGame({ subject, username, onBack, onTryAgain, onChan
   const [isNewHi, setIsNewHi] = useState(false);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState('');
+  const [showCalculator, setShowCalculator] = useState(false);
 
   const timerRef      = useRef(null);
   const timeLeftRef   = useRef(defaultTimer);
@@ -293,6 +295,18 @@ export default function SoloGame({ subject, username, onBack, onTryAgain, onChan
           </div>
         )}
       </div>
+
+      {/* Calculator button */}
+      <button
+        className="calculator-toggle-btn"
+        onClick={() => setShowCalculator(!showCalculator)}
+        title="Open Calculator"
+      >
+        🧮
+      </button>
+
+      {/* Calculator panel */}
+      {showCalculator && <Calculator onClose={() => setShowCalculator(false)} />}
     </div>
   );
 }

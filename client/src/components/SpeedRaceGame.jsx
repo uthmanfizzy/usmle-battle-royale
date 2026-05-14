@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import PowerupBar from './PowerupBar';
+import Calculator from './Calculator';
 
 const LABELS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
 
@@ -59,6 +60,7 @@ export default function SpeedRaceGame({
   showPowerupIntro = false,
   socketId,
 }) {
+  const [showCalculator, setShowCalculator] = useState(false);
   const GOAL = 20;
   const sortedProgress = [...(raceProgress || [])].sort((a, b) => b.correct - a.correct);
 
@@ -182,6 +184,18 @@ export default function SpeedRaceGame({
           <div className="waiting-msg">Get ready…</div>
         )}
       </div>
+
+      {/* Calculator button */}
+      <button
+        className="calculator-toggle-btn"
+        onClick={() => setShowCalculator(!showCalculator)}
+        title="Open Calculator"
+      >
+        🧮
+      </button>
+
+      {/* Calculator panel */}
+      {showCalculator && <Calculator onClose={() => setShowCalculator(false)} />}
     </div>
   );
 }

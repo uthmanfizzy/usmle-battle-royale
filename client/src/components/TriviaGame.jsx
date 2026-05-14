@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import TriviaBoard from './TriviaBoard';
 import ExplanationText from './ExplanationText';
+import Calculator from './Calculator';
 
 const LABELS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
 
@@ -79,6 +80,7 @@ export default function TriviaGame({
   streaks = {},
 }) {
   const [rolling, setRolling] = useState(false);
+  const [showCalculator, setShowCalculator] = useState(false);
 
   // Stop rolling animation when server responds with dice value
   useEffect(() => {
@@ -289,6 +291,18 @@ export default function TriviaGame({
         </div>
 
       </div>
+
+      {/* Calculator button */}
+      <button
+        className="calculator-toggle-btn"
+        onClick={() => setShowCalculator(!showCalculator)}
+        title="Open Calculator"
+      >
+        🧮
+      </button>
+
+      {/* Calculator panel */}
+      {showCalculator && <Calculator onClose={() => setShowCalculator(false)} />}
     </div>
   );
 }
