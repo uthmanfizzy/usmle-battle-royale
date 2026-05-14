@@ -87,108 +87,6 @@
   box-shadow: none;
 }
 
-/* Player Profile Card - Avatar + Info Panel */
-.player-profile-card {
-  display: flex;
-  align-items: center;
-  position: relative;
-}
-
-.player-avatar {
-  width: 68px;
-  height: 68px;
-  border-radius: 50%;
-  border: 3px solid rgba(255, 215, 0, 0.6);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-  overflow: hidden;
-  position: relative;
-  z-index: 2;
-  flex-shrink: 0;
-}
-
-.player-avatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.player-avatar-placeholder {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, #2a5298, #1e3a6e);
-  color: white;
-  font-size: 28px;
-  font-weight: 700;
-}
-
-.player-info-panel {
-  background: rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 40px;
-  padding: 10px 20px 10px 40px;
-  margin-left: -28px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 200px;
-}
-
-.player-name-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.player-username {
-  font-family: 'Playfair Display', Georgia, serif;
-  font-size: 16px;
-  font-weight: 700;
-  color: #ffffff;
-}
-
-.player-crown {
-  font-size: 14px;
-}
-
-.player-level {
-  font-size: 13px;
-  color: rgba(255, 215, 0, 0.9);
-  font-weight: 600;
-}
-
-.player-xp-section {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  margin-top: 2px;
-}
-
-.player-xp-bar-container {
-  width: 100%;
-  height: 7px;
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 999px;
-  overflow: hidden;
-}
-
-.player-xp-bar-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #f5a623, #f0c040);
-  border-radius: 999px;
-  transition: width 0.3s ease;
-}
-
-.player-xp-text {
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.7);
-  font-weight: 500;
-}
-
 .dash-topbar-right {
   display: flex;
   align-items: center;
@@ -221,9 +119,11 @@
 }
 
 .currency-icon {
-  width: 30px;
-  height: 30px;
+  width: 60px;
+  height: 60px;
   object-fit: contain;
+  padding: 0 !important;
+  margin: 0 !important;
 }
 
 .currency-value {
@@ -914,8 +814,10 @@
 }
 
 .dash-nav-btn .nav-icon {
-  font-size: 24px;
+  font-size: 48px;
   line-height: 1;
+  padding: 0 !important;
+  margin: 0 !important;
 }
 
 .dash-nav-btn .nav-label {
@@ -1362,47 +1264,14 @@
     padding: 10px 16px;
   }
 
-  .player-avatar {
-    width: 52px;
-    height: 52px;
-    border-width: 2px;
-  }
-
-  .player-avatar-placeholder {
-    font-size: 22px;
-  }
-
-  .player-info-panel {
-    padding: 8px 16px 8px 32px;
-    margin-left: -20px;
-    min-width: 150px;
-    border-radius: 30px;
-  }
-
-  .player-username {
-    font-size: 14px;
-  }
-
-  .player-level {
-    font-size: 12px;
-  }
-
-  .player-xp-bar-container {
-    height: 6px;
-  }
-
-  .player-xp-text {
-    font-size: 10px;
-  }
-
   .currency-pill {
     padding: 6px 16px;
     gap: 12px;
   }
 
   .currency-icon {
-    width: 24px;
-    height: 24px;
+    width: 48px;
+    height: 48px;
   }
 
   .currency-value {

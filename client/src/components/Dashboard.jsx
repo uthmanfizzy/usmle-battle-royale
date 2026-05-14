@@ -992,37 +992,6 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
 
         {/* Top Bar */}
         <div className="dash-topbar">
-          {/* Player Profile Card */}
-          <div className="player-profile-card">
-            <div className="player-avatar">
-              {user.avatar_url ? (
-                <img src={user.avatar_url} alt={user.username} referrerPolicy="no-referrer" />
-              ) : (
-                <div className="player-avatar-placeholder">
-                  {user.username?.[0]?.toUpperCase() || 'U'}
-                </div>
-              )}
-            </div>
-            <div className="player-info-panel">
-              <div className="player-name-row">
-                <span className="player-username">{user.username || 'Player'}</span>
-                <span className="player-crown">👑</span>
-              </div>
-              <div className="player-level">Level {user.level || 1}</div>
-              <div className="player-xp-section">
-                <div className="player-xp-bar-container">
-                  <div
-                    className="player-xp-bar-fill"
-                    style={{ width: `${Math.round(((user.xp || 0) % 500) / 500 * 100)}%` }}
-                  />
-                </div>
-                <div className="player-xp-text">
-                  {((user.xp || 0) % 500).toLocaleString()} / 500 XP
-                </div>
-              </div>
-            </div>
-          </div>
-
           <div className="dash-topbar-right">
             <div className="currency-pill">
               <div className="currency-item">
@@ -1069,7 +1038,7 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
             onClick={() => setDashTab('home')}
           >
             {homeImages.icon_home && (
-              <img src={homeImages.icon_home} alt="" className="nav-icon" style={{ width: '24px', height: '24px', objectFit: 'contain' }} />
+              <img src={homeImages.icon_home} alt="" className="nav-icon" style={{ width: '48px', height: '48px', objectFit: 'contain', padding: 0, margin: 0 }} />
             )}
             <span className="nav-label">Home</span>
           </button>
@@ -1078,7 +1047,7 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
             onClick={() => setDashTab('leaderboard')}
           >
             {homeImages.icon_leaderboards && (
-              <img src={homeImages.icon_leaderboards} alt="" className="nav-icon" style={{ width: '24px', height: '24px', objectFit: 'contain' }} />
+              <img src={homeImages.icon_leaderboards} alt="" className="nav-icon" style={{ width: '48px', height: '48px', objectFit: 'contain', padding: 0, margin: 0 }} />
             )}
             <span className="nav-label">Leaderboards</span>
           </button>
@@ -1087,7 +1056,7 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
             onClick={() => setDashTab('clans')}
           >
             {homeImages.icon_clans && (
-              <img src={homeImages.icon_clans} alt="" className="nav-icon" style={{ width: '24px', height: '24px', objectFit: 'contain' }} />
+              <img src={homeImages.icon_clans} alt="" className="nav-icon" style={{ width: '48px', height: '48px', objectFit: 'contain', padding: 0, margin: 0 }} />
             )}
             <span className="nav-label">Clans</span>
           </button>
@@ -1098,13 +1067,13 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
           >
             {unreadCount > 0 && <span className="ann-unread-dot" />}
             {homeImages.icon_news && (
-              <img src={homeImages.icon_news} alt="" className="nav-icon" style={{ width: '24px', height: '24px', objectFit: 'contain' }} />
+              <img src={homeImages.icon_news} alt="" className="nav-icon" style={{ width: '48px', height: '48px', objectFit: 'contain', padding: 0, margin: 0 }} />
             )}
             <span className="nav-label">News</span>
           </button>
           <button className="dash-nav-btn dash-nav-play" onClick={onPlayNow}>
             {homeImages.icon_play && (
-              <img src={homeImages.icon_play} alt="" className="nav-icon" style={{ width: '24px', height: '24px', objectFit: 'contain' }} />
+              <img src={homeImages.icon_play} alt="" className="nav-icon" style={{ width: '48px', height: '48px', objectFit: 'contain', padding: 0, margin: 0 }} />
             )}
             <span className="nav-label">Play</span>
           </button>
