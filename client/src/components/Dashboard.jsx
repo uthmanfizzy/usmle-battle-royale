@@ -954,38 +954,39 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
       <div className="dashboard-container">
         {showWelcome && <WelcomePopup announcement={welcomeAnn} onClose={handleWelcomeClose} />}
 
-        {/* Top Bar */}
-        <div className="dash-topbar">
-          <div className="player-profile-card">
-            <div className="player-avatar">
-              {user.avatar_url ? (
-                <img src={user.avatar_url} alt={user.username} referrerPolicy="no-referrer" />
-              ) : (
-                <div className="player-avatar-placeholder">
-                  {user.username?.[0]?.toUpperCase() || 'U'}
-                </div>
-              )}
-            </div>
-            <div className="player-info-panel">
-              <div className="player-name-row">
-                <span className="player-username">{user.username || 'Player'}</span>
-                <span className="player-crown">👑</span>
+        {/* Horizontal Profile Card - Top Left */}
+        <div className="horizontal-profile-card">
+          <div className="profile-card-avatar">
+            {user.avatar_url ? (
+              <img src={user.avatar_url} alt={user.username} referrerPolicy="no-referrer" />
+            ) : (
+              <div className="profile-card-avatar-placeholder">
+                {user.username?.[0]?.toUpperCase() || 'U'}
               </div>
-              <div className="player-level">Level {user.level || 1}</div>
-              <div className="player-xp-section">
-                <div className="player-xp-bar-container">
-                  <div
-                    className="player-xp-bar-fill"
-                    style={{ width: `${Math.round(((user.xp || 0) % 500) / 500 * 100)}%` }}
-                  />
-                </div>
-                <div className="player-xp-text">
-                  {((user.xp || 0) % 500).toLocaleString()} / 500 XP
-                </div>
+            )}
+          </div>
+          <div className="profile-card-panel">
+            <div className="profile-card-username">
+              {user.username || 'Player'}
+              <span className="profile-card-crown">👑</span>
+            </div>
+            <div className="profile-card-level">Level {user.level || 1}</div>
+            <div className="profile-card-xp">
+              <div className="profile-card-xp-bar">
+                <div
+                  className="profile-card-xp-fill"
+                  style={{ width: `${Math.round(((user.xp || 0) % 500) / 500 * 100)}%` }}
+                />
+              </div>
+              <div className="profile-card-xp-text">
+                {((user.xp || 0) % 500).toLocaleString()} / 500 XP
               </div>
             </div>
           </div>
+        </div>
 
+        {/* Top Bar */}
+        <div className="dash-topbar">
           <div className="dash-topbar-right">
             <div className="currency-pill">
               <div className="currency-item">
