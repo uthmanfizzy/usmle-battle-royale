@@ -32,7 +32,8 @@
       "PowerShell(git add *)",
       "PowerShell(git push *)",
       "PowerShell(git commit *)",
-      "Bash(awk *)"
+      "Bash(awk *)",
+      "Bash(git rm *)"
     ]
   }
 }
