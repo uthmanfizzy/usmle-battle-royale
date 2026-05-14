@@ -246,6 +246,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  position: relative; /* For absolute overlay positioning */
 }
 
 .lp-hero-content {
@@ -255,6 +256,8 @@
   grid-template-columns: 1fr auto;
   gap: 40px;
   align-items: center;
+  position: relative;
+  z-index: 2; /* Above the dimming overlay */
 }
 
 /* Hero Left - Text Content */

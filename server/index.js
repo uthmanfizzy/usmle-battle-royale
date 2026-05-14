@@ -246,6 +246,8 @@ let gameSettings = {
   stats_board_position: 'right',
   stats_board_opacity: 100,
   stats_board_visible: true,
+  hero_bg_dim_enabled: true,
+  hero_bg_dim_opacity: 40,
   // Section 8: Tower / Story Mode
   towerQuestionsNormal: 3,
   towerQuestionsChallenge: 5,
@@ -2391,6 +2393,10 @@ app.post('/admin/settings', adminAuth, async (req, res) => {
 
   // Stats board position (string: 'left' or 'right')
   if (b.stats_board_position !== undefined) gameSettings.stats_board_position = String(b.stats_board_position);
+
+  // Hero background dimming
+  if (b.hero_bg_dim_enabled !== undefined) gameSettings.hero_bg_dim_enabled = Boolean(b.hero_bg_dim_enabled);
+  if (b.hero_bg_dim_opacity !== undefined) gameSettings.hero_bg_dim_opacity = Number(b.hero_bg_dim_opacity);
   if (b.maintenanceMessage !== undefined) gameSettings.maintenanceMessage = String(b.maintenanceMessage).slice(0, 500);
   // Hard Mode strings
   if (b.hardModeDescription !== undefined) gameSettings.hardModeDescription = String(b.hardModeDescription).slice(0, 200);
@@ -2784,6 +2790,8 @@ app.get('/api/landing-settings', (req, res) => {
     stats_board_position: gameSettings.stats_board_position,
     stats_board_opacity: gameSettings.stats_board_opacity,
     stats_board_visible: gameSettings.stats_board_visible,
+    hero_bg_dim_enabled: gameSettings.hero_bg_dim_enabled,
+    hero_bg_dim_opacity: gameSettings.hero_bg_dim_opacity,
   });
 });
 

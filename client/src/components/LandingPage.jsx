@@ -62,6 +62,8 @@ export default function LandingPage({ onSignIn }) {
   const [statsBoardPosition, setStatsBoardPosition] = useState('right');
   const [statsBoardOpacity, setStatsBoardOpacity] = useState(100);
   const [statsBoardVisible, setStatsBoardVisible] = useState(true);
+  const [heroBgDimEnabled, setHeroBgDimEnabled] = useState(true);
+  const [heroBgDimOpacity, setHeroBgDimOpacity] = useState(40);
 
   useEffect(() => {
     fetch(`${API}/api/landing-images`)
@@ -78,10 +80,14 @@ export default function LandingPage({ onSignIn }) {
         setStatsBoardPosition(data.stats_board_position || 'right');
         setStatsBoardOpacity(data.stats_board_opacity || 100);
         setStatsBoardVisible(data.stats_board_visible !== false);
+        setHeroBgDimEnabled(data.hero_bg_dim_enabled !== false);
+        setHeroBgDimOpacity(data.hero_bg_dim_opacity || 40);
       })
       .catch(() => {
         setNavbarBlur(true);
         setStatsBoardVisible(true);
+        setHeroBgDimEnabled(true);
+        setHeroBgDimOpacity(40);
       });
   }, []);
 
@@ -163,6 +169,22 @@ export default function LandingPage({ onSignIn }) {
       <main className="lp-main">
         {/* Hero Section - Top ~55% */}
         <section className="lp-hero">
+          {/* Hero Background Dimming Overlay */}
+          {heroBgDimEnabled && (
+            <div
+              className="lp-hero-dim-overlay"
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                background: `rgba(0, 0, 0, ${heroBgDimOpacity / 100})`,
+                zIndex: 1,
+                pointerEvents: 'none',
+              }}
+            />
+          )}
           <div className="lp-hero-content">
             {/* Left Side - Main Content */}
             <div className="lp-hero-left">

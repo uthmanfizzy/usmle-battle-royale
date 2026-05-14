@@ -2992,6 +2992,12 @@ function LandingImagesPanel() {
   const [savingStats, setSavingStats] = useState(false);
   const [statsSaveMsg, setStatsSaveMsg] = useState('');
 
+  // Hero background dimming settings
+  const [heroBgDimEnabled, setHeroBgDimEnabled] = useState(true);
+  const [heroBgDimOpacity, setHeroBgDimOpacity] = useState(40);
+  const [savingDim, setSavingDim] = useState(false);
+  const [dimSaveMsg, setDimSaveMsg] = useState('');
+
   useEffect(() => {
     loadImages();
     loadSettings();
@@ -3008,6 +3014,8 @@ function LandingImagesPanel() {
         setStatsBoardPosition(data.stats_board_position || 'right');
         setStatsBoardOpacity(data.stats_board_opacity || 100);
         setStatsBoardVisible(data.stats_board_visible !== false);
+        setHeroBgDimEnabled(data.hero_bg_dim_enabled !== false);
+        setHeroBgDimOpacity(data.hero_bg_dim_opacity || 40);
       }
     } catch (err) {
       console.error('Failed to load settings:', err);
@@ -3080,6 +3088,26 @@ function LandingImagesPanel() {
     setStatsBoardPosition('right');
     setStatsBoardOpacity(100);
     setStatsBoardVisible(true);
+  }
+
+  async function saveDimSettings() {
+    setSavingDim(true);
+    setDimSaveMsg('');
+    try {
+      await apiCall('/admin/settings', {
+        method: 'POST',
+        body: JSON.stringify({
+          hero_bg_dim_enabled: heroBgDimEnabled,
+          hero_bg_dim_opacity: heroBgDimOpacity,
+        }),
+      });
+      setDimSaveMsg('success');
+      setTimeout(() => setDimSaveMsg(''), 3000);
+    } catch (err) {
+      setDimSaveMsg('error');
+      setTimeout(() => setDimSaveMsg(''), 3000);
+    }
+    setSavingDim(false);
   }
 
   async function loadImages() {
@@ -3329,6 +3357,58 @@ function LandingImagesPanel() {
           </button>
           {statsSaveMsg === 'success' && <span className="li-save-success">✓ Saved successfully</span>}
           {statsSaveMsg === 'error' && <span className="li-save-error">✗ Failed to save</span>}
+        </div>
+      </div>
+
+      {/* Hero Background Dimming Settings Section */}
+      <div className="li-settings-section">
+        <h3 className="li-settings-title">🌙 Hero Background Dimming</h3>
+
+        <div className="li-setting-row">
+          <div className="li-setting-info">
+            <span className="li-setting-label">Dim Background Image</span>
+            <span className="li-setting-desc">Apply a dark overlay on the hero background image to improve text readability</span>
+          </div>
+          <button
+            className={`li-toggle ${heroBgDimEnabled ? 'on' : 'off'}`}
+            onClick={() => setHeroBgDimEnabled(!heroBgDimEnabled)}
+            disabled={savingDim}
+          >
+            <span className="li-toggle-slider"></span>
+            <span className="li-toggle-label">{heroBgDimEnabled ? 'ON' : 'OFF'}</span>
+          </button>
+        </div>
+
+        {heroBgDimEnabled && (
+          <div className="li-setting-row li-setting-slider-row">
+            <div className="li-setting-info">
+              <span className="li-setting-label">Dim Intensity</span>
+              <span className="li-setting-desc">Adjust how dark the overlay appears (0% = no dimming, 80% = very dark)</span>
+            </div>
+            <div className="li-slider-control">
+              <input
+                type="range"
+                min="0"
+                max="80"
+                value={heroBgDimOpacity}
+                onChange={(e) => setHeroBgDimOpacity(parseInt(e.target.value))}
+                className="li-slider"
+              />
+              <span className="li-slider-value">{heroBgDimOpacity}%</span>
+            </div>
+          </div>
+        )}
+
+        <div className="li-save-row">
+          <button
+            className="li-save-btn"
+            onClick={saveDimSettings}
+            disabled={savingDim}
+          >
+            {savingDim ? '⏳ Saving...' : '💾 Save Dimming Settings'}
+          </button>
+          {dimSaveMsg === 'success' && <span className="li-save-success">✓ Saved successfully</span>}
+          {dimSaveMsg === 'error' && <span className="li-save-error">✗ Failed to save</span>}
         </div>
       </div>
 
