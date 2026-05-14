@@ -71,32 +71,45 @@
 }
 
 /* ══════════════════════════════════════════════════════════════════════════════
-   TOP BAR
+   DASHBOARD HEADER - 3-Part Layout
    ══════════════════════════════════════════════════════════════════════════════ */
-.dash-topbar {
+.dashboard-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  width: 100%;
+  padding: 12px 16px;
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   z-index: 100;
-  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.4) 0%, rgba(0, 0, 0, 0.2) 70%, transparent 100%);
-  padding: 12px 24px;
+  pointer-events: none;
+}
+
+.dashboard-header > * {
+  pointer-events: all;
+}
+
+.header-left {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  box-shadow: none;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
 }
 
 /* ══════════════════════════════════════════════════════════════════════════════
-   HORIZONTAL PROFILE CARD - Top Left
+   HORIZONTAL PROFILE CARD - Left Side
    ══════════════════════════════════════════════════════════════════════════════ */
 .horizontal-profile-card {
-  position: fixed;
-  top: 16px;
-  left: 16px;
-  z-index: 100;
   display: flex;
   align-items: center;
+  position: relative;
 }
 
 .profile-card-avatar {
@@ -191,82 +204,96 @@
   font-weight: 500;
 }
 
-.dash-topbar-right {
+/* ══════════════════════════════════════════════════════════════════════════════
+   CURRENCY BAR - Right Side
+   ══════════════════════════════════════════════════════════════════════════════ */
+.currency-bar {
   display: flex;
   align-items: center;
   gap: 16px;
-}
-
-/* Currency Pill - Single horizontal bar with both currencies */
-.currency-pill {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  background: rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  background: rgba(20, 30, 40, 0.6);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 999px;
-  padding: 8px 20px;
+  padding: 4px 16px;
+  height: auto;
 }
 
 .currency-item {
   display: flex;
   align-items: center;
   gap: 6px;
-}
-
-.currency-divider {
-  width: 1px;
-  height: 28px;
-  background: rgba(255, 255, 255, 0.15);
+  color: white;
+  font-weight: 700;
+  font-size: 15px;
 }
 
 .currency-icon {
-  width: 60px;
-  height: 60px;
+  width: 28px;
+  height: 28px;
   object-fit: contain;
   padding: 0 !important;
   margin: 0 !important;
 }
 
 .currency-value {
-  font-family: 'Playfair Display', Georgia, serif;
-  font-size: 16px;
-  font-weight: 700;
   color: #ffffff;
+  font-weight: 700;
 }
 
-/* Remove old currency-label - no longer used */
-.currency-label {
-  display: none;
+.currency-divider {
+  width: 1px;
+  height: 18px;
+  background: rgba(255, 255, 255, 0.2);
 }
 
-.topbar-icon-btn {
-  background: transparent;
+/* ══════════════════════════════════════════════════════════════════════════════
+   ICONS PILL - Right Side
+   ══════════════════════════════════════════════════════════════════════════════ */
+.icons-pill {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(20, 30, 40, 0.6);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  padding: 4px 14px;
+  height: auto;
+}
+
+.icons-pill button,
+.icons-pill a {
+  background: none;
   border: none;
-  color: var(--gold-dark);
-  font-size: 28px;
-  padding: 8px;
   cursor: pointer;
-  transition: color 0.2s, transform 0.2s;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  padding: 0;
+  margin: 0;
   position: relative;
+  transition: color 0.2s, transform 0.2s;
 }
 
-.topbar-icon-btn:hover {
-  color: var(--gold-light);
+.icons-pill button:hover,
+.icons-pill a:hover {
+  color: rgba(255, 255, 255, 1);
   transform: scale(1.1);
 }
 
 .notification-dot {
   position: absolute;
-  top: 4px;
-  right: 4px;
-  width: 10px;
-  height: 10px;
-  background: var(--red-rpg);
+  top: -2px;
+  right: -2px;
+  width: 8px;
+  height: 8px;
+  background: #e74c3c;
   border-radius: 50%;
-  border: 2px solid var(--forest-dark);
+  border: 2px solid rgba(20, 30, 40, 0.9);
 }
 
 /* ══════════════════════════════════════════════════════════════════════════════

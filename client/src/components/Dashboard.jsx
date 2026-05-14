@@ -954,41 +954,44 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
       <div className="dashboard-container">
         {showWelcome && <WelcomePopup announcement={welcomeAnn} onClose={handleWelcomeClose} />}
 
-        {/* Horizontal Profile Card - Top Left */}
-        <div className="horizontal-profile-card">
-          <div className="profile-card-avatar">
-            {user.avatar_url ? (
-              <img src={user.avatar_url} alt={user.username} referrerPolicy="no-referrer" />
-            ) : (
-              <div className="profile-card-avatar-placeholder">
-                {user.username?.[0]?.toUpperCase() || 'U'}
+        {/* Dashboard Header - Profile Left, Currency + Icons Right */}
+        <div className="dashboard-header">
+          <div className="header-left">
+            {/* Profile Card */}
+            <div className="horizontal-profile-card">
+              <div className="profile-card-avatar">
+                {user.avatar_url ? (
+                  <img src={user.avatar_url} alt={user.username} referrerPolicy="no-referrer" />
+                ) : (
+                  <div className="profile-card-avatar-placeholder">
+                    {user.username?.[0]?.toUpperCase() || 'U'}
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-          <div className="profile-card-panel">
-            <div className="profile-card-username">
-              {user.username || 'Player'}
-              <span className="profile-card-crown">👑</span>
+              <div className="profile-card-panel">
+                <div className="profile-card-username">
+                  {user.username || 'Player'}
+                  <span className="profile-card-crown">👑</span>
+                </div>
+                <div className="profile-card-level">Level {user.level || 1}</div>
+                <div className="profile-card-xp">
+                  <div className="profile-card-xp-bar">
+                    <div
+                      className="profile-card-xp-fill"
+                      style={{ width: `${Math.round(((user.xp || 0) % 500) / 500 * 100)}%` }}
+                    />
+                  </div>
+                  <div className="profile-card-xp-text">
+                    {((user.xp || 0) % 500).toLocaleString()} / 500 XP
+                  </div>
+                </div>
+              </div>
             </div>
-            <div className="profile-card-level">Level {user.level || 1}</div>
-            <div className="profile-card-xp">
-              <div className="profile-card-xp-bar">
-                <div
-                  className="profile-card-xp-fill"
-                  style={{ width: `${Math.round(((user.xp || 0) % 500) / 500 * 100)}%` }}
-                />
-              </div>
-              <div className="profile-card-xp-text">
-                {((user.xp || 0) % 500).toLocaleString()} / 500 XP
-              </div>
-            </div>
           </div>
-        </div>
 
-        {/* Top Bar */}
-        <div className="dash-topbar">
-          <div className="dash-topbar-right">
-            <div className="currency-pill">
+          <div className="header-right">
+            {/* Currency Bar */}
+            <div className="currency-bar">
               <div className="currency-item">
                 {homeImages.icon_coins && (
                   <img src={homeImages.icon_coins} alt="" className="currency-icon" />
@@ -1003,13 +1006,17 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
                 <span className="currency-value">{gems.toLocaleString()}</span>
               </div>
             </div>
-            <button className="topbar-icon-btn" title="Notifications">
-              🔔
-              {unreadCount > 0 && <span className="notification-dot" />}
-            </button>
-            <button className="topbar-icon-btn" onClick={() => setShowSettings(true)} title="Settings">
-              ⚙️
-            </button>
+
+            {/* Icons Pill */}
+            <div className="icons-pill">
+              <button title="Notifications">
+                🔔
+                {unreadCount > 0 && <span className="notification-dot" />}
+              </button>
+              <button onClick={() => setShowSettings(true)} title="Settings">
+                ⚙️
+              </button>
+            </div>
           </div>
         </div>
 
