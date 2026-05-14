@@ -168,6 +168,9 @@ export default function Calculator({ onClose }) {
 
   return (
     <>
+      {/* Semi-transparent overlay for mobile */}
+      <div className="calc-overlay" onClick={onClose} />
+
       <div
         ref={panelRef}
         className="calculator-panel"
@@ -180,9 +183,15 @@ export default function Calculator({ onClose }) {
           </div>
         )}
 
+        {/* Drag handle for mobile */}
+        <div className="calc-drag-handle" onClick={onClose}>
+          <div className="calc-drag-pill"></div>
+        </div>
+
         <div className="calc-header">
           <span className="calc-title">Calculator</span>
-          <button className="calc-close-btn" onClick={onClose}>×</button>
+          <button className="calc-close-btn calc-close-desktop" onClick={onClose}>×</button>
+          <button className="calc-answer-btn" onClick={onClose}>Hide Calculator</button>
         </div>
 
         <div className="calc-display">{display}</div>

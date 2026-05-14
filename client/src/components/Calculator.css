@@ -180,8 +180,36 @@
   font-size: 16px;
 }
 
+/* Overlay for mobile */
+.calc-overlay {
+  display: none;
+}
+
+/* Drag handle (mobile only) */
+.calc-drag-handle {
+  display: none;
+}
+
+/* Answer button (mobile only) */
+.calc-answer-btn {
+  display: none;
+}
+
 /* Mobile responsiveness */
 @media (max-width: 768px) {
+  /* Semi-transparent overlay */
+  .calc-overlay {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 9998;
+    backdrop-filter: blur(2px);
+  }
+
   .calculator-panel {
     position: fixed;
     bottom: 0;
@@ -190,35 +218,101 @@
     top: auto;
     width: 100%;
     max-width: 100%;
-    border-radius: 16px 16px 0 0;
+    height: 50vh;
+    border-radius: 20px 20px 0 0;
     cursor: default;
+    z-index: 9999;
+    animation: slideUp 0.3s ease-out;
+  }
+
+  @keyframes slideUp {
+    from {
+      transform: translateY(100%);
+    }
+    to {
+      transform: translateY(0);
+    }
+  }
+
+  /* Drag handle pill */
+  .calc-drag-handle {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 8px 0;
+    cursor: pointer;
+  }
+
+  .calc-drag-pill {
+    width: 40px;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 2px;
   }
 
   .calc-header {
     cursor: default;
+    padding: 8px 12px;
+  }
+
+  /* Hide desktop close button on mobile */
+  .calc-close-desktop {
+    display: none;
+  }
+
+  /* Show mobile answer button */
+  .calc-answer-btn {
+    display: block;
+    background: linear-gradient(135deg, #ffd700, #ffb700);
+    color: #000;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 6px 16px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .calc-answer-btn:active {
+    transform: scale(0.95);
   }
 
   .calc-display {
     font-size: 24px;
-    padding: 20px 16px;
+    padding: 16px 12px;
+    min-height: 60px;
   }
 
   .calc-buttons {
     gap: 8px;
-    padding: 12px;
+    padding: 8px 12px 12px 12px;
+    overflow-y: auto;
+    max-height: calc(50vh - 200px);
   }
 
   .calc-button {
-    padding: 16px;
+    padding: 14px;
     font-size: 18px;
+    min-width: 48px;
+    min-height: 48px;
   }
 
   .mem-btn {
-    font-size: 12px;
-    padding: 12px;
+    font-size: 11px;
+    padding: 10px;
+    min-height: 40px;
   }
 
   .func-btn {
     font-size: 16px;
+  }
+
+  .op-btn {
+    font-size: 22px;
+  }
+
+  .equals-btn {
+    font-size: 22px;
   }
 }
