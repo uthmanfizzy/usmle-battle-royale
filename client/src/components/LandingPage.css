@@ -146,18 +146,20 @@
   background: none;
   border: none;
   cursor: pointer;
-  color: var(--text-muted);
+  color: #000000;
   font-family: 'Crimson Text', Georgia, serif;
   font-size: 13px;
   font-weight: 600;
   letter-spacing: 1.5px;
   padding: 6px 12px;
   transition: color 0.25s;
+  text-shadow: 0 1px 3px rgba(255,255,255,0.8), 0 0 8px rgba(255,255,255,0.5);
 }
 
 .lp-nav-link:hover,
 .lp-nav-link.active {
   color: var(--gold);
+  text-shadow: 0 1px 3px rgba(255,255,255,0.8), 0 0 8px rgba(255,255,255,0.5);
 }
 
 /* Nav Right */
@@ -300,18 +302,20 @@
   font-family: 'Crimson Text', Georgia, serif;
   font-size: 13px;
   font-weight: 600;
-  color: var(--gold);
+  color: #000000;
   letter-spacing: 4px;
   margin: 0;
+  text-shadow: 0 1px 3px rgba(255,255,255,0.8), 0 0 8px rgba(255,255,255,0.5);
 }
 
 .lp-hero-desc {
   font-family: 'Crimson Text', Georgia, serif;
   font-size: 15px;
   line-height: 1.5;
-  color: var(--text-muted);
+  color: #000000;
   margin: 0;
   max-width: 400px;
+  text-shadow: 0 1px 3px rgba(255,255,255,0.8), 0 0 8px rgba(255,255,255,0.5);
 }
 
 .lp-hero-buttons {
@@ -389,10 +393,11 @@
   font-size: 13px;
   font-weight: 600;
   letter-spacing: 2px;
-  color: var(--cream);
+  color: #000000;
   padding: 10px 20px;
   cursor: pointer;
   transition: all 0.3s ease;
+  text-shadow: 0 1px 3px rgba(255,255,255,0.8), 0 0 8px rgba(255,255,255,0.5);
 }
 
 .lp-btn-ghost:hover {
