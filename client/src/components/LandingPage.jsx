@@ -57,11 +57,6 @@ export default function LandingPage({ onSignIn }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [images, setImages] = useState({});
   const [navbarBlur, setNavbarBlur] = useState(true);
-  const [statsBoardWidth, setStatsBoardWidth] = useState(280);
-  const [statsBoardTop, setStatsBoardTop] = useState(0);
-  const [statsBoardPosition, setStatsBoardPosition] = useState('right');
-  const [statsBoardOpacity, setStatsBoardOpacity] = useState(100);
-  const [statsBoardVisible, setStatsBoardVisible] = useState(true);
   const [heroBgDimEnabled, setHeroBgDimEnabled] = useState(true);
   const [heroBgDimOpacity, setHeroBgDimOpacity] = useState(40);
 
@@ -75,17 +70,11 @@ export default function LandingPage({ onSignIn }) {
       .then(res => res.ok ? res.json() : {})
       .then(data => {
         setNavbarBlur(data.navbarBlurEnabled !== false);
-        setStatsBoardWidth(data.stats_board_width || 280);
-        setStatsBoardTop(data.stats_board_top || 0);
-        setStatsBoardPosition(data.stats_board_position || 'right');
-        setStatsBoardOpacity(data.stats_board_opacity || 100);
-        setStatsBoardVisible(data.stats_board_visible !== false);
         setHeroBgDimEnabled(data.hero_bg_dim_enabled !== false);
         setHeroBgDimOpacity(data.hero_bg_dim_opacity || 40);
       })
       .catch(() => {
         setNavbarBlur(true);
-        setStatsBoardVisible(true);
         setHeroBgDimEnabled(true);
         setHeroBgDimOpacity(40);
       });
@@ -196,36 +185,6 @@ export default function LandingPage({ onSignIn }) {
                   <span>WATCH TRAILER</span>
                   <span className="lp-play-icon">▶</span>
                 </button>
-              </div>
-            </div>
-
-            {/* Right Side - Stats Board */}
-            <div className="lp-hero-right">
-              <div
-                className="lp-stats-board"
-                style={{
-                  width: `${statsBoardWidth}px`,
-                  [statsBoardPosition]: 0,
-                  top: `${statsBoardTop}%`,
-                  opacity: statsBoardOpacity / 100,
-                  display: statsBoardVisible ? 'block' : 'none',
-                }}
-              >
-                <img src="/assets/Board.png" alt="Stats Board" className="lp-board-image" />
-                <div className="lp-board-stats">
-                  <div className="lp-board-stat lp-board-stat-top">
-                    <div className="lp-board-stat-label">STUDENTS</div>
-                    <div className="lp-board-stat-value">12,458</div>
-                  </div>
-                  <div className="lp-board-stat lp-board-stat-middle">
-                    <div className="lp-board-stat-label">QUESTIONS</div>
-                    <div className="lp-board-stat-value">3.24M</div>
-                  </div>
-                  <div className="lp-board-stat lp-board-stat-bottom">
-                    <div className="lp-board-stat-label">AVG. SCORE</div>
-                    <div className="lp-board-stat-value">87.6%</div>
-                  </div>
-                </div>
               </div>
             </div>
           </div>

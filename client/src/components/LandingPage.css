@@ -405,65 +405,6 @@
   opacity: 0.8;
 }
 
-/* Hero Right - Stats Board */
-.lp-hero-right {
-  display: flex;
-  align-items: center;
-}
-
-.lp-stats-board {
-  position: relative;
-  width: 240px;
-  margin-left: auto;
-  margin-right: 20px;
-}
-
-.lp-board-image {
-  width: 100%;
-  height: auto;
-  display: block;
-  filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.4));
-}
-
-.lp-board-stats {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-evenly;
-  padding: 16% 15px 14% 45%;
-}
-
-.lp-board-stat {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 3px;
-  text-align: right;
-}
-
-.lp-board-stat-label {
-  font-size: 11px;
-  letter-spacing: 1.5px;
-  font-weight: 600;
-  color: #3D2B0F;
-  opacity: 0.85;
-  text-transform: uppercase;
-  line-height: 1;
-}
-
-.lp-board-stat-value {
-  font-size: 22px;
-  font-weight: 700;
-  color: #3D2B0F;
-  font-family: 'Playfair Display', Georgia, serif;
-  line-height: 1;
-  letter-spacing: 0.5px;
-}
-
 /* ═══════════════════════════════════════════════════════════════════════════
    GAME MODES SECTION - Bottom portion (~45%)
    ═══════════════════════════════════════════════════════════════════════════ */
@@ -709,23 +650,6 @@
     justify-content: center;
   }
 
-  .lp-hero-right {
-    justify-content: center;
-  }
-
-  .lp-stats-board {
-    width: 240px;
-    margin: 0 auto;
-  }
-
-  .lp-board-stat-value {
-    font-size: 20px;
-  }
-
-  .lp-board-stat-label {
-    font-size: 9px;
-  }
-
   .lp-modes {
     padding: 20px;
   }
@@ -791,18 +715,6 @@
 
   .lp-hero-desc {
     font-size: 14px;
-  }
-
-  .lp-stats-board {
-    width: 200px;
-  }
-
-  .lp-board-stat-value {
-    font-size: 18px;
-  }
-
-  .lp-board-stat-label {
-    font-size: 8px;
   }
 
   .lp-modes-grid {

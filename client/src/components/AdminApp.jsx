@@ -2983,15 +2983,6 @@ function LandingImagesPanel() {
   const [savingNav, setSavingNav] = useState(false);
   const [navSaveMsg, setNavSaveMsg] = useState('');
 
-  // Stats board settings
-  const [statsBoardWidth, setStatsBoardWidth] = useState(280);
-  const [statsBoardTop, setStatsBoardTop] = useState(0);
-  const [statsBoardPosition, setStatsBoardPosition] = useState('right');
-  const [statsBoardOpacity, setStatsBoardOpacity] = useState(100);
-  const [statsBoardVisible, setStatsBoardVisible] = useState(true);
-  const [savingStats, setSavingStats] = useState(false);
-  const [statsSaveMsg, setStatsSaveMsg] = useState('');
-
   // Hero background dimming settings
   const [heroBgDimEnabled, setHeroBgDimEnabled] = useState(false);  // OFF by default
   const [heroBgDimOpacity, setHeroBgDimOpacity] = useState(40);
@@ -3009,11 +3000,6 @@ function LandingImagesPanel() {
       if (res.ok) {
         const data = await res.json();
         setNavbarBlur(data.navbarBlurEnabled !== false);
-        setStatsBoardWidth(data.stats_board_width || 280);
-        setStatsBoardTop(data.stats_board_top || 0);
-        setStatsBoardPosition(data.stats_board_position || 'right');
-        setStatsBoardOpacity(data.stats_board_opacity || 100);
-        setStatsBoardVisible(data.stats_board_visible !== false);
         setHeroBgDimEnabled(data.hero_bg_dim_enabled !== false);
         setHeroBgDimOpacity(data.hero_bg_dim_opacity || 40);
       }
@@ -3039,56 +3025,6 @@ function LandingImagesPanel() {
     setSavingNav(false);
   }
 
-  async function saveStatsBoardSettings() {
-    console.log('[SAVE] Starting stats board save...');
-    console.log('[SAVE] Settings to save:', {
-      stats_board_width: statsBoardWidth,
-      stats_board_top: statsBoardTop,
-      stats_board_position: statsBoardPosition,
-      stats_board_opacity: statsBoardOpacity,
-      stats_board_visible: statsBoardVisible,
-    });
-
-    setSavingStats(true);
-    setStatsSaveMsg('');
-    try {
-      console.log('[SAVE] Calling /admin/settings endpoint...');
-      const res = await apiCall('/admin/settings', {
-        method: 'POST',
-        body: JSON.stringify({
-          stats_board_width: statsBoardWidth,
-          stats_board_top: statsBoardTop,
-          stats_board_position: statsBoardPosition,
-          stats_board_opacity: statsBoardOpacity,
-          stats_board_visible: statsBoardVisible,
-        }),
-      });
-      console.log('[SAVE] Response status:', res.status);
-      const data = await res.json();
-      console.log('[SAVE] Response data:', data);
-
-      if (!res.ok) {
-        throw new Error(data.error || `Server returned ${res.status}`);
-      }
-
-      console.log('[SAVE] Save successful!');
-      setStatsSaveMsg('success');
-      setTimeout(() => setStatsSaveMsg(''), 3000);
-    } catch (err) {
-      console.error('[SAVE] Save failed:', err);
-      setStatsSaveMsg('error');
-      setTimeout(() => setStatsSaveMsg(''), 3000);
-    }
-    setSavingStats(false);
-  }
-
-  function resetStatsBoardDefaults() {
-    setStatsBoardWidth(280);
-    setStatsBoardTop(0);
-    setStatsBoardPosition('right');
-    setStatsBoardOpacity(100);
-    setStatsBoardVisible(true);
-  }
 
   async function saveDimSettings() {
     setSavingDim(true);
@@ -3230,133 +3166,6 @@ function LandingImagesPanel() {
           </button>
           {navSaveMsg === 'success' && <span className="li-save-success">✓ Saved successfully</span>}
           {navSaveMsg === 'error' && <span className="li-save-error">✗ Failed to save</span>}
-        </div>
-      </div>
-
-      {/* Stats Board Settings Section */}
-      <div className="li-settings-section">
-        <h3 className="li-settings-title">📊 Stats Board Settings</h3>
-
-        <div className="li-setting-row">
-          <div className="li-setting-info">
-            <span className="li-setting-label">Show Stats Board</span>
-            <span className="li-setting-desc">Display the stats board on the hero section</span>
-          </div>
-          <button
-            className={`li-toggle ${statsBoardVisible ? 'on' : 'off'}`}
-            onClick={() => setStatsBoardVisible(!statsBoardVisible)}
-            disabled={savingStats}
-          >
-            <span className="li-toggle-slider"></span>
-            <span className="li-toggle-label">{statsBoardVisible ? 'ON' : 'OFF'}</span>
-          </button>
-        </div>
-
-        {statsBoardVisible && (
-          <>
-            <div className="li-setting-row li-setting-slider-row">
-              <div className="li-setting-info">
-                <span className="li-setting-label">Stats Board Width</span>
-                <span className="li-setting-desc">Adjust the size of the stats board (150px - 500px)</span>
-              </div>
-              <div className="li-slider-control">
-                <input
-                  type="range"
-                  min="150"
-                  max="500"
-                  value={statsBoardWidth}
-                  onChange={(e) => setStatsBoardWidth(parseInt(e.target.value))}
-                  className="li-slider"
-                />
-                <span className="li-slider-value">{statsBoardWidth}px</span>
-              </div>
-            </div>
-
-            <div className="li-setting-row li-setting-slider-row">
-              <div className="li-setting-info">
-                <span className="li-setting-label">Vertical Position</span>
-                <span className="li-setting-desc">Move the board up or down (0% - 50% from top)</span>
-              </div>
-              <div className="li-slider-control">
-                <input
-                  type="range"
-                  min="0"
-                  max="50"
-                  value={statsBoardTop}
-                  onChange={(e) => setStatsBoardTop(parseInt(e.target.value))}
-                  className="li-slider"
-                />
-                <span className="li-slider-value">{statsBoardTop}%</span>
-              </div>
-            </div>
-
-            <div className="li-setting-row li-setting-slider-row">
-              <div className="li-setting-info">
-                <span className="li-setting-label">Opacity</span>
-                <span className="li-setting-desc">Adjust transparency (50% - 100%)</span>
-              </div>
-              <div className="li-slider-control">
-                <input
-                  type="range"
-                  min="50"
-                  max="100"
-                  value={statsBoardOpacity}
-                  onChange={(e) => setStatsBoardOpacity(parseInt(e.target.value))}
-                  className="li-slider"
-                />
-                <span className="li-slider-value">{statsBoardOpacity}%</span>
-              </div>
-            </div>
-
-            <div className="li-setting-row">
-              <div className="li-setting-info">
-                <span className="li-setting-label">Horizontal Position</span>
-                <span className="li-setting-desc">Place the board on left or right side</span>
-              </div>
-              <div className="li-position-buttons">
-                <button
-                  className={`li-pos-btn ${statsBoardPosition === 'left' ? 'active' : ''}`}
-                  onClick={() => setStatsBoardPosition('left')}
-                  disabled={savingStats}
-                >
-                  Left
-                </button>
-                <button
-                  className={`li-pos-btn ${statsBoardPosition === 'right' ? 'active' : ''}`}
-                  onClick={() => setStatsBoardPosition('right')}
-                  disabled={savingStats}
-                >
-                  Right
-                </button>
-              </div>
-            </div>
-
-            <div className="li-setting-row">
-              <div className="li-setting-info">
-                <span className="li-setting-label">Reset to Defaults</span>
-                <span className="li-setting-desc">Restore original stats board settings (280px width, right position, 100% opacity, 0% offset)</span>
-              </div>
-              <button
-                className="li-reset-btn"
-                onClick={resetStatsBoardDefaults}
-                disabled={savingStats}
-              >
-                Reset All
-              </button>
-            </div>
-          </>
-        )}
-
-        <div className="li-save-row">
-          <button
-            className="li-save-btn"
-            onClick={saveStatsBoardSettings}
-            disabled={savingStats}
-          >
-            {savingStats ? '⏳ Saving...' : '💾 Save Stats Board Settings'}
-          </button>
-          {statsSaveMsg === 'success' && <span className="li-save-success">✓ Saved successfully</span>}
-          {statsSaveMsg === 'error' && <span className="li-save-error">✗ Failed to save</span>}
         </div>
       </div>
 
