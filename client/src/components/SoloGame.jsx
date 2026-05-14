@@ -14,11 +14,14 @@ function saveHi(subject, score) {
   try { localStorage.setItem(`usmle-hs-${subject}`, String(score)); } catch {}
 }
 
-export default function SoloGame({ subject, username, onBack, onTryAgain, onChangeSubject }) {
+export default function SoloGame({ subject, username, difficulty, onBack, onTryAgain, onChangeSubject }) {
   const { settings } = useGameSettings();
-  const defaultTimer = settings.timerDefault || 20;
+
+  // HARDCODED: Hard mode uses 30s timer and 20s explanation, easy mode uses defaults
+  const isHardMode = difficulty === 'hard';
+  const defaultTimer = isHardMode ? 30 : (settings.timerDefault || 20);
   const defaultLives = settings.battleRoyaleLives || 3;
-  const explanationTime = settings.explanationTime || 5;
+  const explanationTime = isHardMode ? 20 : (settings.explanationTime || 5);
 
   const [questions, setQuestions] = useState([]);
   const [qIdx, setQIdx] = useState(0);
@@ -143,8 +146,10 @@ export default function SoloGame({ subject, username, onBack, onTryAgain, onChan
     };
 
     skipActionRef.current = doAdvance;
-    skipTimerRef.current  = setTimeout(doAdvance, 12500);
-  }, [subject]);
+    // HARDCODED: Use explanationTime (20s for hard mode, 5s for easy) + 2.5s buffer
+    const explanationDelay = explanationTime * 1000 + 2500;
+    skipTimerRef.current  = setTimeout(doAdvance, explanationDelay);
+  }, [subject, explanationTime]);
 
   processAnswerRef.current = processAnswer;
 

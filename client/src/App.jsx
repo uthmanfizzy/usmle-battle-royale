@@ -805,6 +805,7 @@ export default function App() {
           key={soloKey}
           subject={soloSubject}
           username={username}
+          difficulty={difficulty}
           onBack={handleReturnHome}
           onTryAgain={handleSoloTryAgain}
           onChangeSubject={() => setPhase('solo_subject')}
