@@ -955,7 +955,9 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
           >
             {unreadCount > 0 && <span className="ann-unread-dot" />}
             {homeImages.icon_news && (
-              <img src={homeImages.icon_news} alt="" className="nav-icon" style={{ width: '96px', height: '96px', objectFit: 'contain', padding: 0, margin: 0, display: 'block', flexShrink: 0 }} />
+              <div style={{ position: 'relative', width: '48px', height: '48px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'visible' }}>
+                <img src={homeImages.icon_news} alt="" className="nav-icon" style={{ width: '96px', height: '96px', objectFit: 'contain', position: 'absolute', transform: 'translate(-50%, -50%)', pointerEvents: 'none', zIndex: 10 }} />
+              </div>
             )}
             <span className="nav-label">News</span>
           </button>
