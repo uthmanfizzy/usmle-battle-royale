@@ -169,22 +169,6 @@ export default function LandingPage({ onSignIn }) {
       <main className="lp-main">
         {/* Hero Section - Top ~55% */}
         <section className="lp-hero">
-          {/* Hero Background Dimming Overlay */}
-          {heroBgDimEnabled && (
-            <div
-              className="lp-hero-dim-overlay"
-              style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                width: '100%',
-                height: '100%',
-                background: `rgba(0, 0, 0, ${heroBgDimOpacity / 100})`,
-                zIndex: 1,
-                pointerEvents: 'none',
-              }}
-            />
-          )}
           <div className="lp-hero-content">
             {/* Left Side - Main Content */}
             <div className="lp-hero-left">

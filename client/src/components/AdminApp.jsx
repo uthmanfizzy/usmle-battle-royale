@@ -2993,7 +2993,7 @@ function LandingImagesPanel() {
   const [statsSaveMsg, setStatsSaveMsg] = useState('');
 
   // Hero background dimming settings
-  const [heroBgDimEnabled, setHeroBgDimEnabled] = useState(true);
+  const [heroBgDimEnabled, setHeroBgDimEnabled] = useState(false);  // OFF by default
   const [heroBgDimOpacity, setHeroBgDimOpacity] = useState(40);
   const [savingDim, setSavingDim] = useState(false);
   const [dimSaveMsg, setDimSaveMsg] = useState('');

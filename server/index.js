@@ -246,7 +246,7 @@ let gameSettings = {
   stats_board_position: 'right',
   stats_board_opacity: 100,
   stats_board_visible: true,
-  hero_bg_dim_enabled: true,
+  hero_bg_dim_enabled: false,  // OFF by default - no dimming
   hero_bg_dim_opacity: 40,
   // Section 8: Tower / Story Mode
   towerQuestionsNormal: 3,
