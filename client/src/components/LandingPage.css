@@ -43,6 +43,8 @@
 }
 
 .lp.has-bg {
+  /* Override default dark gradients - use only the uploaded image at full brightness */
+  background: none;
   background-size: cover;
   background-position: center;
   background-attachment: fixed;

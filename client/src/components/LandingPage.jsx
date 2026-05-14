@@ -114,7 +114,7 @@ export default function LandingPage({ onSignIn }) {
   }, []);
 
   const pageStyle = images.hero_bg ? {
-    backgroundImage: `linear-gradient(rgba(0,0,0,0.45), rgba(0,0,0,0.5)), url(${images.hero_bg})`,
+    backgroundImage: `url(${images.hero_bg})`,
   } : {};
 
   return (
