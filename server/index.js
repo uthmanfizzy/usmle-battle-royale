@@ -241,11 +241,6 @@ let gameSettings = {
   backgroundMusicEnabled: true,
   // Section 9: Landing Page
   navbarBlurEnabled: true,
-  stats_board_width: 280,
-  stats_board_top: 0,
-  stats_board_position: 'right',
-  stats_board_opacity: 100,
-  stats_board_visible: true,
   hero_bg_dim_enabled: false,  // OFF by default - no dimming
   hero_bg_dim_opacity: 40,
   // Section 8: Tower / Story Mode
@@ -2380,19 +2375,11 @@ app.post('/admin/settings', adminAuth, async (req, res) => {
     'dailyChallengeEnabled','weeklyTournamentEnabled','powerUpsEnabled',
     'maintenanceMode','showStreakCounter','showPlayerCount','showCorrectAnswer',
     'showGameLeaderboard','soundEffectsEnabled','backgroundMusicEnabled',
-    'navbarBlurEnabled','stats_board_visible',
+    'navbarBlurEnabled',
     'hardModeHideExplanations',
   ];
   for (const k of numFields)  { if (b[k] !== undefined) gameSettings[k] = Number(b[k]); }
   for (const k of boolFields) { if (b[k] !== undefined) gameSettings[k] = Boolean(b[k]); }
-
-  // Stats board numeric settings
-  if (b.stats_board_width !== undefined) gameSettings.stats_board_width = Number(b.stats_board_width);
-  if (b.stats_board_top !== undefined) gameSettings.stats_board_top = Number(b.stats_board_top);
-  if (b.stats_board_opacity !== undefined) gameSettings.stats_board_opacity = Number(b.stats_board_opacity);
-
-  // Stats board position (string: 'left' or 'right')
-  if (b.stats_board_position !== undefined) gameSettings.stats_board_position = String(b.stats_board_position);
 
   // Hero background dimming
   if (b.hero_bg_dim_enabled !== undefined) gameSettings.hero_bg_dim_enabled = Boolean(b.hero_bg_dim_enabled);
@@ -2409,13 +2396,6 @@ app.post('/admin/settings', adminAuth, async (req, res) => {
   }
   // Persist to Supabase so settings survive server restarts
   console.log('[admin/settings] Updated gameSettings, now persisting to DB...');
-  console.log('[admin/settings] Stats board settings:', {
-    stats_board_width: gameSettings.stats_board_width,
-    stats_board_top: gameSettings.stats_board_top,
-    stats_board_position: gameSettings.stats_board_position,
-    stats_board_opacity: gameSettings.stats_board_opacity,
-    stats_board_visible: gameSettings.stats_board_visible,
-  });
   const persistErr = await persistSettingsToDB();
   if (persistErr) {
     console.warn('[Settings] Persist error:', persistErr.message);
@@ -2785,11 +2765,6 @@ app.get('/api/landing-images', async (req, res) => {
 app.get('/api/landing-settings', (req, res) => {
   res.json({
     navbarBlurEnabled: gameSettings.navbarBlurEnabled,
-    stats_board_width: gameSettings.stats_board_width,
-    stats_board_top: gameSettings.stats_board_top,
-    stats_board_position: gameSettings.stats_board_position,
-    stats_board_opacity: gameSettings.stats_board_opacity,
-    stats_board_visible: gameSettings.stats_board_visible,
     hero_bg_dim_enabled: gameSettings.hero_bg_dim_enabled,
     hero_bg_dim_opacity: gameSettings.hero_bg_dim_opacity,
   });
