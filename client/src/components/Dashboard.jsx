@@ -992,28 +992,52 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
 
         {/* Top Bar */}
         <div className="dash-topbar">
-          <div className="dash-logo-section">
-            <div className="dash-logo">
-              <span className="dash-logo-icon">🏆</span>
-              MedVale
+          {/* Player Profile Card */}
+          <div className="player-profile-card">
+            <div className="player-avatar">
+              {user.avatar_url ? (
+                <img src={user.avatar_url} alt={user.username} referrerPolicy="no-referrer" />
+              ) : (
+                <div className="player-avatar-placeholder">
+                  {user.username?.[0]?.toUpperCase() || 'U'}
+                </div>
+              )}
             </div>
-            <div className="dash-tagline">LIVE. FIGHT. SURVIVE. BECOME LEGEND.</div>
+            <div className="player-info-panel">
+              <div className="player-name-row">
+                <span className="player-username">{user.username || 'Player'}</span>
+                <span className="player-crown">👑</span>
+              </div>
+              <div className="player-level">Level {user.level || 1}</div>
+              <div className="player-xp-section">
+                <div className="player-xp-bar-container">
+                  <div
+                    className="player-xp-bar-fill"
+                    style={{ width: `${Math.round(((user.xp || 0) % 500) / 500 * 100)}%` }}
+                  />
+                </div>
+                <div className="player-xp-text">
+                  {((user.xp || 0) % 500).toLocaleString()} / 500 XP
+                </div>
+              </div>
+            </div>
           </div>
 
           <div className="dash-topbar-right">
-            <div className="currency-box">
-              {homeImages.icon_coins && (
-                <img src={homeImages.icon_coins} alt="" className="currency-icon" />
-              )}
-              <span className="currency-value">{coins.toLocaleString()}</span>
-              <span className="currency-label">Coins</span>
-            </div>
-            <div className="currency-box">
-              {homeImages.icon_gems && (
-                <img src={homeImages.icon_gems} alt="" className="currency-icon" />
-              )}
-              <span className="currency-value">{gems.toLocaleString()}</span>
-              <span className="currency-label">Gems</span>
+            <div className="currency-pill">
+              <div className="currency-item">
+                {homeImages.icon_coins && (
+                  <img src={homeImages.icon_coins} alt="" className="currency-icon" />
+                )}
+                <span className="currency-value">{coins.toLocaleString()}</span>
+              </div>
+              <div className="currency-divider"></div>
+              <div className="currency-item">
+                {homeImages.icon_gems && (
+                  <img src={homeImages.icon_gems} alt="" className="currency-icon" />
+                )}
+                <span className="currency-value">{gems.toLocaleString()}</span>
+              </div>
             </div>
             <button className="topbar-icon-btn" title="Notifications">
               🔔

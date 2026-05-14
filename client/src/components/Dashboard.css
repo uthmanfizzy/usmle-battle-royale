@@ -79,35 +79,106 @@
   box-shadow: none;
 }
 
-.dash-logo-section {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.dash-logo {
-  font-family: 'Playfair Display', Georgia, serif;
-  font-size: 26px;
-  font-weight: 700;
-  color: var(--gold-rpg);
+/* Player Profile Card - Avatar + Info Panel */
+.player-profile-card {
   display: flex;
   align-items: center;
-  gap: 10px;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
-  letter-spacing: 1px;
+  position: relative;
 }
 
-.dash-logo-icon {
+.player-avatar {
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 215, 0, 0.6);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+  position: relative;
+  z-index: 2;
+  flex-shrink: 0;
+}
+
+.player-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.player-avatar-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #2a5298, #1e3a6e);
+  color: white;
   font-size: 28px;
+  font-weight: 700;
 }
 
-.dash-tagline {
+.player-info-panel {
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 40px;
+  padding: 10px 20px 10px 40px;
+  margin-left: -28px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 200px;
+}
+
+.player-name-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.player-username {
   font-family: 'Playfair Display', Georgia, serif;
-  font-size: 9px;
-  color: var(--gold-dark);
-  text-transform: uppercase;
-  letter-spacing: 3px;
+  font-size: 16px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.player-crown {
+  font-size: 14px;
+}
+
+.player-level {
+  font-size: 13px;
+  color: rgba(255, 215, 0, 0.9);
   font-weight: 600;
+}
+
+.player-xp-section {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: 2px;
+}
+
+.player-xp-bar-container {
+  width: 100%;
+  height: 7px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.player-xp-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #f5a623, #f0c040);
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
+.player-xp-text {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.7);
+  font-weight: 500;
 }
 
 .dash-topbar-right {
@@ -116,37 +187,47 @@
   gap: 16px;
 }
 
-.currency-box {
+/* Currency Pill - Single horizontal bar with both currencies */
+.currency-pill {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 2px;
-  background: linear-gradient(135deg, rgba(26, 58, 32, 0.9), rgba(13, 31, 18, 0.9));
-  border: 1px solid var(--gold-dark);
-  border-radius: 8px;
-  padding: 8px 14px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  gap: 16px;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  padding: 8px 20px;
+}
+
+.currency-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.currency-divider {
+  width: 1px;
+  height: 28px;
+  background: rgba(255, 255, 255, 0.15);
 }
 
 .currency-icon {
-  width: 28px;
-  height: 28px;
+  width: 30px;
+  height: 30px;
   object-fit: contain;
 }
 
 .currency-value {
   font-family: 'Playfair Display', Georgia, serif;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 700;
-  color: var(--gold-light);
+  color: #ffffff;
 }
 
+/* Remove old currency-label - no longer used */
 .currency-label {
-  font-size: 10px;
-  font-weight: 600;
-  color: var(--gold);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  display: none;
 }
 
 .topbar-icon-btn {
@@ -1273,20 +1354,55 @@
     padding: 10px 16px;
   }
 
-  .dash-logo {
-    font-size: 20px;
+  .player-avatar {
+    width: 52px;
+    height: 52px;
+    border-width: 2px;
   }
 
-  .dash-tagline {
-    display: none;
+  .player-avatar-placeholder {
+    font-size: 22px;
   }
 
-  .currency-box {
-    padding: 6px 10px;
+  .player-info-panel {
+    padding: 8px 16px 8px 32px;
+    margin-left: -20px;
+    min-width: 150px;
+    border-radius: 30px;
+  }
+
+  .player-username {
+    font-size: 14px;
+  }
+
+  .player-level {
+    font-size: 12px;
+  }
+
+  .player-xp-bar-container {
+    height: 6px;
+  }
+
+  .player-xp-text {
+    font-size: 10px;
+  }
+
+  .currency-pill {
+    padding: 6px 16px;
+    gap: 12px;
+  }
+
+  .currency-icon {
+    width: 24px;
+    height: 24px;
   }
 
   .currency-value {
     font-size: 14px;
+  }
+
+  .currency-divider {
+    height: 24px;
   }
 
   .dash-main {
