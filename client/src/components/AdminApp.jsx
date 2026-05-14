@@ -2775,8 +2775,8 @@ function withDefaults(raw) {
     timerDuration:            raw.timerDefault            ?? raw.timerDuration            ?? 20,
     startingLives:            raw.battleRoyaleLives       ?? raw.startingLives            ?? 3,
     // Hard Mode settings
-    hardModeTimer:            raw.hardModeTimer           ?? 10,
-    hardModeExplanationTime:  raw.hardModeExplanationTime ?? 5,
+    hardModeTimer:            raw.hardModeTimer           ?? 30,  // HARDCODED: 30s for hard mode
+    hardModeExplanationTime:  raw.hardModeExplanationTime ?? 20,  // HARDCODED: 20s explanation
     hardModeHideExplanations: raw.hardModeHideExplanations ?? false,
     hardModeDescription:      raw.hardModeDescription     ?? 'For advanced students. Questions present concepts in tricky and complex clinical scenarios that challenge your deeper understanding.',
     hardModeLabel:            raw.hardModeLabel           ?? 'Hard Mode',

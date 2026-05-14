@@ -8,8 +8,8 @@ export function GameSettingsProvider({ children }) {
   const [settings, setSettings] = useState({
     // Defaults while loading
     hardModeEnabled: false,
-    hardModeTimer: 10,
-    hardModeExplanationTime: 5,
+    hardModeTimer: 30,  // HARDCODED: 30 seconds for hard mode
+    hardModeExplanationTime: 20,  // HARDCODED: 20 seconds explanation time
     hardModeHideExplanations: false,
     hardModeLabel: 'Hard Mode',
     hardModeDescription: 'For advanced students. Questions present concepts in tricky and complex clinical scenarios that challenge your deeper understanding.',

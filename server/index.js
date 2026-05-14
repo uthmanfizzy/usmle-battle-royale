@@ -183,8 +183,8 @@ let gameSettings = {
   timerDuration: 20,
   startingLives: 3,
   // Hard Mode settings
-  hardModeTimer: 10,
-  hardModeExplanationTime: 5,
+  hardModeTimer: 30,  // HARDCODED: 30 seconds for hard mode (not used, see line 760)
+  hardModeExplanationTime: 20,  // HARDCODED: 20 seconds explanation (not used, see lines 682, 860, 870, 879)
   hardModeHideExplanations: false,
   hardModeDescription: 'For advanced students. Questions present concepts in tricky and complex clinical scenarios that challenge your deeper understanding.',
   hardModeLabel: 'Hard Mode',
@@ -679,7 +679,7 @@ function processBuzzFunAnswers(lobby) {
   });
 
   const explanationDelay = lobby.difficulty === 'hard'
-    ? (gameSettings.hardModeHideExplanations ? 2500 : (gameSettings.hardModeExplanationTime * 1000 + 2000))
+    ? (gameSettings.hardModeHideExplanations ? 2500 : 22000)  // HARDCODED: 20s explanation + 2s buffer
     : (gameSettings.explanationTime * 1000 + 2000);
   if (lobby.questionIdx >= lobby.questionQueue.length - 1) {
     setTimeout(() => endGame(lobby, 'questions_exhausted'), explanationDelay);
@@ -757,7 +757,7 @@ function nextQuestion(lobby) {
   const q         = lobby.questionQueue[lobby.questionIdx];
   const timeLimit = lobby.suddenDeath ? gameSettings.suddenDeathTimer
     : lobby.gameMode === 'scan_master' ? gameSettings.timerScanMaster
-    : lobby.difficulty === 'hard' ? gameSettings.hardModeTimer
+    : lobby.difficulty === 'hard' ? 30  // HARDCODED: 30 seconds for hard mode
     : gameSettings.timerDefault;
 
   io.to(lobby.id).emit('new_question', {
@@ -857,7 +857,7 @@ function processAnswers(lobby) {
 
   if (alive.length <= 1) {
     const explanationDelay = lobby.difficulty === 'hard'
-      ? (gameSettings.hardModeHideExplanations ? 3000 : (gameSettings.hardModeExplanationTime * 1000 + 2000))
+      ? (gameSettings.hardModeHideExplanations ? 3000 : 22000)  // HARDCODED: 20s explanation + 2s buffer
       : (gameSettings.explanationTime * 1000 + 2000);
     setTimeout(() => endGame(lobby, 'last_standing'), explanationDelay);
     return;
@@ -867,7 +867,7 @@ function processAnswers(lobby) {
   if (alive.length === 2 && !lobby.suddenDeath) {
     lobby.suddenDeath = true;
     const explanationDelay = lobby.difficulty === 'hard'
-      ? (gameSettings.hardModeHideExplanations ? 3000 : (gameSettings.hardModeExplanationTime * 1000 + 2000))
+      ? (gameSettings.hardModeHideExplanations ? 3000 : 22000)  // HARDCODED: 20s explanation + 2s buffer
       : (gameSettings.explanationTime * 1000 + 2000);
     // Emit announcement after round results have been shown, then give 3s for the screen
     setTimeout(() => io.to(lobby.id).emit('sudden_death'), explanationDelay);
@@ -876,7 +876,7 @@ function processAnswers(lobby) {
   }
 
   const explanationDelay = lobby.difficulty === 'hard'
-    ? (gameSettings.hardModeHideExplanations ? 2500 : (gameSettings.hardModeExplanationTime * 1000 + 2000))
+    ? (gameSettings.hardModeHideExplanations ? 2500 : 22000)  // HARDCODED: 20s explanation + 2s buffer
     : (gameSettings.explanationTime * 1000 + 2000);
   setTimeout(() => nextQuestion(lobby), explanationDelay);
 }
