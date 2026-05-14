@@ -238,7 +238,7 @@
   display: flex;
   flex-direction: column;
   padding-top: var(--nav-height);
-  min-height: 0;
+  min-height: calc(100vh - var(--nav-height));
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -246,11 +246,12 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 .lp-hero {
   flex: 0 0 auto;
-  padding: 8px 24px 12px;
+  padding: 20px 24px 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  position: relative; /* For absolute overlay positioning */
+  position: relative;
+  min-height: 300px;
 }
 
 .lp-hero-content {
@@ -411,14 +412,14 @@
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   GAME MODES SECTION - Bottom portion (~45%)
+   GAME MODES SECTION - Anchored at bottom above footer
    ═══════════════════════════════════════════════════════════════════════════ */
 .lp-modes {
-  flex: 1;
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
-  padding: 2px 24px 8px;
-  min-height: 0;
+  padding: 20px 24px 16px;
+  margin-top: auto;
 }
 
 .lp-modes-header {
@@ -451,8 +452,6 @@
   gap: 14px;
   max-width: 1240px;
   margin: 0 auto;
-  flex: 1;
-  min-height: 0;
 }
 
 /* Game Mode Card - Larger */
