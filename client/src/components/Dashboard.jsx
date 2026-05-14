@@ -867,17 +867,21 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
 
           <div className="header-right">
             {/* Currency Bar */}
-            <div className="currency-bar">
+            <div className="currency-bar" style={{ overflow: 'visible' }}>
               <div className="currency-item">
                 {homeImages.icon_coins && (
-                  <img src={homeImages.icon_coins} alt="" className="currency-icon" style={{ width: '76px', height: '76px', display: 'block', flexShrink: 0 }} />
+                  <div style={{ position: 'relative', width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'visible' }}>
+                    <img src={homeImages.icon_coins} alt="" className="currency-icon" style={{ width: '76px', height: '76px', position: 'absolute', transform: 'translate(-50%, -50%)', pointerEvents: 'none', zIndex: 10 }} />
+                  </div>
                 )}
                 <span className="currency-value">{coins.toLocaleString()}</span>
               </div>
               <div className="currency-divider"></div>
               <div className="currency-item">
                 {homeImages.icon_gems && (
-                  <img src={homeImages.icon_gems} alt="" className="currency-icon" style={{ width: '76px', height: '76px', display: 'block', flexShrink: 0 }} />
+                  <div style={{ position: 'relative', width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'visible' }}>
+                    <img src={homeImages.icon_gems} alt="" className="currency-icon" style={{ width: '76px', height: '76px', position: 'absolute', transform: 'translate(-50%, -50%)', pointerEvents: 'none', zIndex: 10 }} />
+                  </div>
                 )}
                 <span className="currency-value">{gems.toLocaleString()}</span>
               </div>
@@ -916,7 +920,9 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
             onClick={() => setDashTab('home')}
           >
             {homeImages.icon_home && (
-              <img src={homeImages.icon_home} alt="" className="nav-icon" style={{ width: '96px', height: '96px', objectFit: 'contain', padding: 0, margin: 0, display: 'block', flexShrink: 0 }} />
+              <div style={{ position: 'relative', width: '48px', height: '48px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'visible' }}>
+                <img src={homeImages.icon_home} alt="" className="nav-icon" style={{ width: '96px', height: '96px', objectFit: 'contain', position: 'absolute', transform: 'translate(-50%, -50%)', pointerEvents: 'none', zIndex: 10 }} />
+              </div>
             )}
             <span className="nav-label">Home</span>
           </button>
@@ -925,7 +931,9 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
             onClick={() => setDashTab('leaderboard')}
           >
             {homeImages.icon_leaderboards && (
-              <img src={homeImages.icon_leaderboards} alt="" className="nav-icon" style={{ width: '96px', height: '96px', objectFit: 'contain', padding: 0, margin: 0, display: 'block', flexShrink: 0 }} />
+              <div style={{ position: 'relative', width: '48px', height: '48px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'visible' }}>
+                <img src={homeImages.icon_leaderboards} alt="" className="nav-icon" style={{ width: '96px', height: '96px', objectFit: 'contain', position: 'absolute', transform: 'translate(-50%, -50%)', pointerEvents: 'none', zIndex: 10 }} />
+              </div>
             )}
             <span className="nav-label">Leaderboards</span>
           </button>
@@ -934,7 +942,9 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
             onClick={() => setDashTab('clans')}
           >
             {homeImages.icon_clans && (
-              <img src={homeImages.icon_clans} alt="" className="nav-icon" style={{ width: '96px', height: '96px', objectFit: 'contain', padding: 0, margin: 0, display: 'block', flexShrink: 0 }} />
+              <div style={{ position: 'relative', width: '48px', height: '48px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'visible' }}>
+                <img src={homeImages.icon_clans} alt="" className="nav-icon" style={{ width: '96px', height: '96px', objectFit: 'contain', position: 'absolute', transform: 'translate(-50%, -50%)', pointerEvents: 'none', zIndex: 10 }} />
+              </div>
             )}
             <span className="nav-label">Clans</span>
           </button>
@@ -951,7 +961,9 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
           </button>
           <button className="dash-nav-btn dash-nav-play" onClick={onPlayNow}>
             {homeImages.icon_play && (
-              <img src={homeImages.icon_play} alt="" className="nav-icon" style={{ width: '96px', height: '96px', objectFit: 'contain', padding: 0, margin: 0, display: 'block', flexShrink: 0 }} />
+              <div style={{ position: 'relative', width: '48px', height: '48px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'visible' }}>
+                <img src={homeImages.icon_play} alt="" className="nav-icon" style={{ width: '96px', height: '96px', objectFit: 'contain', position: 'absolute', transform: 'translate(-50%, -50%)', pointerEvents: 'none', zIndex: 10 }} />
+              </div>
             )}
             <span className="nav-label">Play</span>
           </button>
