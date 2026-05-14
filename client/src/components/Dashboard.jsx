@@ -916,7 +916,7 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
             onClick={() => setDashTab('home')}
           >
             {homeImages.icon_home && (
-              <img src={homeImages.icon_home} alt="" className="nav-icon" style={{ width: '48px', height: '48px', objectFit: 'contain', padding: 0, margin: 0 }} />
+              <img src={homeImages.icon_home} alt="" className="nav-icon" style={{ width: '96px', height: '96px', objectFit: 'contain', padding: 0, margin: 0, display: 'block', flexShrink: 0 }} />
             )}
             <span className="nav-label">Home</span>
           </button>
@@ -925,7 +925,7 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
             onClick={() => setDashTab('leaderboard')}
           >
             {homeImages.icon_leaderboards && (
-              <img src={homeImages.icon_leaderboards} alt="" className="nav-icon" style={{ width: '48px', height: '48px', objectFit: 'contain', padding: 0, margin: 0 }} />
+              <img src={homeImages.icon_leaderboards} alt="" className="nav-icon" style={{ width: '96px', height: '96px', objectFit: 'contain', padding: 0, margin: 0, display: 'block', flexShrink: 0 }} />
             )}
             <span className="nav-label">Leaderboards</span>
           </button>
@@ -934,7 +934,7 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
             onClick={() => setDashTab('clans')}
           >
             {homeImages.icon_clans && (
-              <img src={homeImages.icon_clans} alt="" className="nav-icon" style={{ width: '48px', height: '48px', objectFit: 'contain', padding: 0, margin: 0 }} />
+              <img src={homeImages.icon_clans} alt="" className="nav-icon" style={{ width: '96px', height: '96px', objectFit: 'contain', padding: 0, margin: 0, display: 'block', flexShrink: 0 }} />
             )}
             <span className="nav-label">Clans</span>
           </button>
@@ -945,13 +945,13 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
           >
             {unreadCount > 0 && <span className="ann-unread-dot" />}
             {homeImages.icon_news && (
-              <img src={homeImages.icon_news} alt="" className="nav-icon" style={{ width: '48px', height: '48px', objectFit: 'contain', padding: 0, margin: 0 }} />
+              <img src={homeImages.icon_news} alt="" className="nav-icon" style={{ width: '96px', height: '96px', objectFit: 'contain', padding: 0, margin: 0, display: 'block', flexShrink: 0 }} />
             )}
             <span className="nav-label">News</span>
           </button>
           <button className="dash-nav-btn dash-nav-play" onClick={onPlayNow}>
             {homeImages.icon_play && (
-              <img src={homeImages.icon_play} alt="" className="nav-icon" style={{ width: '48px', height: '48px', objectFit: 'contain', padding: 0, margin: 0 }} />
+              <img src={homeImages.icon_play} alt="" className="nav-icon" style={{ width: '96px', height: '96px', objectFit: 'contain', padding: 0, margin: 0, display: 'block', flexShrink: 0 }} />
             )}
             <span className="nav-label">Play</span>
           </button>
