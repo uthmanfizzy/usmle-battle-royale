@@ -168,8 +168,7 @@ export default function Calculator({ onClose }) {
 
   return (
     <>
-      {/* Semi-transparent overlay for mobile */}
-      <div className="calc-overlay" onClick={onClose} />
+      {/* NO OVERLAY ON MOBILE - Question must remain visible */}
 
       <div
         ref={panelRef}
@@ -191,7 +190,7 @@ export default function Calculator({ onClose }) {
         <div className="calc-header">
           <span className="calc-title">Calculator</span>
           <button className="calc-close-btn calc-close-desktop" onClick={onClose}>×</button>
-          <button className="calc-answer-btn" onClick={onClose}>Hide Calculator</button>
+          <button className="calc-answer-btn" onClick={onClose}>Close & Answer</button>
         </div>
 
         <div className="calc-display">{display}</div>
