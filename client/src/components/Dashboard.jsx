@@ -867,21 +867,17 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
 
           <div className="header-right">
             {/* Currency Bar */}
-            <div className="currency-bar" style={{ overflow: 'visible' }}>
+            <div className="currency-bar">
               <div className="currency-item">
                 {homeImages.icon_coins && (
-                  <div style={{ position: 'relative', width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'visible' }}>
-                    <img src={homeImages.icon_coins} alt="" className="currency-icon" style={{ width: '76px', height: '76px', position: 'absolute', transform: 'translate(-50%, -50%)', pointerEvents: 'none', zIndex: 10 }} />
-                  </div>
+                  <img src={homeImages.icon_coins} alt="" className="currency-icon" />
                 )}
                 <span className="currency-value">{coins.toLocaleString()}</span>
               </div>
               <div className="currency-divider"></div>
               <div className="currency-item">
                 {homeImages.icon_gems && (
-                  <div style={{ position: 'relative', width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'visible' }}>
-                    <img src={homeImages.icon_gems} alt="" className="currency-icon" style={{ width: '76px', height: '76px', position: 'absolute', transform: 'translate(-50%, -50%)', pointerEvents: 'none', zIndex: 10 }} />
-                  </div>
+                  <img src={homeImages.icon_gems} alt="" className="currency-icon" />
                 )}
                 <span className="currency-value">{gems.toLocaleString()}</span>
               </div>
