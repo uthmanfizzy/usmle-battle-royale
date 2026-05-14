@@ -197,8 +197,8 @@ export default function Calculator({ onClose }) {
           {/* Function row */}
           <button className="calc-button func-btn" onClick={handleClear}>C</button>
           <button className="calc-button func-btn" onClick={handleBackspace}>⌫</button>
-          <button className="calc-button func-btn" onClick={() => handleInput('('))}>(</button>
-          <button className="calc-button func-btn" onClick={() => handleInput(')')}>)</button>
+          <button className="calc-button func-btn" onClick={() => handleInput('(')}>{'('}</button>
+          <button className="calc-button func-btn" onClick={() => handleInput(')')}>{')'}</button>
 
           {/* Scientific functions */}
           <button className="calc-button func-btn" onClick={handleSqrt}>√</button>
