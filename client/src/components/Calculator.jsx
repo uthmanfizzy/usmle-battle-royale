@@ -229,7 +229,6 @@ export default function Calculator({ onClose }) {
           <button className="calc-button num-btn" onClick={() => handleInput('.')}>.</button>
           <button className="calc-button equals-btn" onClick={handleEquals}>=</button>
         </div>
-      </div>
-    </>
+    </div>
   );
 }
