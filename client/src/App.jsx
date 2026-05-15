@@ -20,8 +20,9 @@ import TowerMode from './components/TowerMode';
 import BuzzFunGame from './components/BuzzFunGame';
 import LandingPage from './components/LandingPage';
 import TrainingGrounds from './components/TrainingGrounds';
+import PlayPage from './components/PlayPage';
 
-// phases: 'loading' | 'entry' | 'exam_select' | 'difficulty_select' | 'mode_select' |
+// phases: 'loading' | 'entry' | 'exam_select' | 'difficulty_select' | 'mode_select' | 'play_page' |
 //         'how_to_play' | 'lobby_select' | 'subject_select' | 'lobby_difficulty' | 'join_input' | 'lobby' | 'game' |
 //         'game_over' | 'solo_subject' | 'solo_difficulty' | 'solo_game' | 'tower' | 'training_grounds'
 
@@ -416,9 +417,8 @@ export default function App() {
   }
 
   function handleSelectStep1() {
-    // Skip difficulty selection - Training Grounds handles it internally
-    // Other modes can add difficulty selection before their specific flow if needed
-    setPhase('mode_select');
+    // Go directly to unified Play page
+    setPhase('play_page');
   }
 
   function handleSelectDifficulty(diff) {
@@ -431,6 +431,19 @@ export default function App() {
     if (mode === 'training_grounds') {
       setPhase('training_grounds');
     } else {
+      setPhase('how_to_play');
+    }
+  }
+
+  function handlePlayPageModeSelect(mode, options = {}) {
+    setGameMode(mode);
+    // For solo modes, go directly
+    if (mode === 'tower') {
+      setPhase('tower');
+    } else if (mode === 'training_grounds') {
+      setPhase('training_grounds');
+    } else {
+      // For multiplayer modes, show how to play then lobby options
       setPhase('how_to_play');
     }
   }
@@ -644,6 +657,15 @@ export default function App() {
         <DifficultySelect
           username={username}
           onSelectDifficulty={handleSelectDifficulty}
+          onBack={() => setPhase('exam_select')}
+        />
+      )}
+
+      {phase === 'play_page' && (
+        <PlayPage
+          user={user}
+          username={username}
+          onModeSelect={handlePlayPageModeSelect}
           onBack={() => setPhase('exam_select')}
         />
       )}
