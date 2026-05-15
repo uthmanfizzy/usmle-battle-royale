@@ -683,3 +683,335 @@
     gap: 16px;
   }
 }
+
+/* ============================================
+   MOBILE RESPONSIVE - 768px and below
+   ============================================ */
+
+@media (max-width: 768px) {
+
+  /* PLAY PAGE - switch from 3-column grid to single column */
+  .play-page {
+    grid-template-columns: 1fr !important;
+    grid-template-rows: auto !important;
+    position: relative !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    height: auto !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    padding: 76px 12px 220px 12px !important;
+    /* 76px top header, 220px = party bar + bottom nav + buffer */
+  }
+
+  /* LEFT PANEL - game mode list becomes horizontal scrollable row */
+  .play-left {
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  .mode-list {
+    display: flex !important;
+    flex-direction: row !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    gap: 8px !important;
+    padding-bottom: 8px !important;
+    scrollbar-width: thin !important;
+    scrollbar-color: rgba(180,140,40,0.3) transparent !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .mode-list-item {
+    flex-shrink: 0 !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    padding: 10px 14px !important;
+    min-width: 90px !important;
+    max-width: 90px !important;
+    gap: 6px !important;
+    text-align: center !important;
+  }
+
+  .mode-list-icon {
+    width: 28px !important;
+    height: 28px !important;
+  }
+
+  .mode-list-info h4 {
+    font-size: 10px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    width: 100% !important;
+  }
+
+  .mode-list-info p {
+    display: none !important; /* hide description in horizontal scroll mode */
+  }
+
+  .mode-info-btn {
+    display: none !important;
+  }
+
+  /* CENTER PANEL - full width */
+  .play-center {
+    height: auto !important;
+    overflow: visible !important;
+    order: -1 !important; /* show center first on mobile */
+  }
+
+  .play-title {
+    font-size: 22px !important;
+    margin-bottom: 2px !important;
+  }
+
+  .play-subtitle {
+    font-size: 11px !important;
+    margin-bottom: 10px !important;
+  }
+
+  .mode-detail-card {
+    padding: 14px !important;
+    gap: 10px !important;
+  }
+
+  .mode-detail-title {
+    font-size: 16px !important;
+  }
+
+  .mode-detail-image {
+    height: 140px !important;
+  }
+
+  .mode-detail-desc {
+    font-size: 12px !important;
+  }
+
+  .squad-options {
+    gap: 6px !important;
+  }
+
+  .squad-btn {
+    padding: 8px 4px !important;
+    font-size: 10px !important;
+  }
+
+  .toggle-options {
+    gap: 6px !important;
+  }
+
+  .toggle-btn {
+    padding: 7px 16px !important;
+    font-size: 11px !important;
+  }
+
+  .find-match-btn {
+    padding: 13px !important;
+    font-size: 15px !important;
+  }
+
+  /* RIGHT PANEL - full width, stacked below center */
+  .play-right {
+    height: auto !important;
+    overflow: visible !important;
+    display: flex !important;
+    flex-direction: row !important;
+    gap: 10px !important;
+  }
+
+  .season-card {
+    flex: 1 !important;
+    padding: 12px !important;
+    text-align: center !important;
+  }
+
+  .season-badge {
+    width: 40px !important;
+    height: 40px !important;
+    font-size: 18px !important;
+    margin: 6px auto !important;
+  }
+
+  .season-timer {
+    font-size: 13px !important;
+  }
+
+  .challenges-card {
+    flex: 2 !important;
+    padding: 12px !important;
+  }
+
+  .challenges-card h3 {
+    font-size: 10px !important;
+    margin-bottom: 8px !important;
+  }
+
+  .challenge-item {
+    margin-bottom: 6px !important;
+  }
+
+  .challenge-icon {
+    width: 22px !important;
+    height: 22px !important;
+  }
+
+  .challenge-info p {
+    font-size: 10px !important;
+  }
+
+  .challenge-reward {
+    font-size: 10px !important;
+  }
+
+  .view-all-btn {
+    font-size: 9px !important;
+    padding: 6px !important;
+  }
+
+  /* PARTY BAR - mobile */
+  .party-bar {
+    bottom: 70px !important;
+    height: auto !important;
+    min-height: 50px !important;
+    padding: 6px 12px !important;
+    gap: 12px !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+  }
+
+  .party-left-group {
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 8px !important;
+    flex-shrink: 0 !important;
+  }
+
+  .party-bar-label {
+    display: none !important;
+  }
+
+  .party-members {
+    gap: 8px !important;
+  }
+
+  .party-member {
+    width: auto !important;
+    flex-direction: row !important;
+    gap: 4px !important;
+  }
+
+  .party-avatar {
+    width: 28px !important;
+    height: 28px !important;
+  }
+
+  .party-invite-btn {
+    width: 28px !important;
+    height: 28px !important;
+    font-size: 14px !important;
+  }
+
+  .party-name, .leader-tag {
+    display: none !important;
+  }
+
+  .view-friends-btn {
+    font-size: 8px !important;
+    padding: 2px 6px !important;
+    white-space: nowrap !important;
+  }
+
+  .party-divider {
+    height: 30px !important;
+    flex-shrink: 0 !important;
+  }
+
+  .party-right-group {
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 8px !important;
+    flex-shrink: 0 !important;
+  }
+
+  .recent-players-list {
+    flex-direction: row !important;
+    gap: 10px !important;
+    align-items: center !important;
+  }
+
+  .recent-player-item {
+    gap: 4px !important;
+  }
+
+  .recent-player-avatar {
+    width: 22px !important;
+    height: 22px !important;
+  }
+
+  .recent-player-name {
+    font-size: 10px !important;
+    max-width: 50px !important;
+  }
+
+  .status-text {
+    display: none !important;
+  }
+}
+
+/* ============================================
+   SMALL MOBILE - 480px and below
+   ============================================ */
+
+@media (max-width: 480px) {
+
+  .play-page {
+    padding: 70px 8px 210px 8px !important;
+  }
+
+  .mode-list-item {
+    min-width: 75px !important;
+    max-width: 75px !important;
+    padding: 8px !important;
+  }
+
+  .mode-list-icon {
+    width: 24px !important;
+    height: 24px !important;
+  }
+
+  .mode-list-info h4 {
+    font-size: 9px !important;
+  }
+
+  .mode-detail-image {
+    height: 110px !important;
+  }
+
+  .play-right {
+    flex-direction: column !important;
+  }
+
+  .squad-btn {
+    font-size: 9px !important;
+  }
+
+  .find-match-btn {
+    font-size: 13px !important;
+  }
+
+  .play-title {
+    font-size: 18px !important;
+  }
+
+  /* Stack season and challenges vertically on very small screens */
+  .season-card, .challenges-card {
+    flex: 1 1 100% !important;
+  }
+
+  .recent-player-name {
+    display: none !important;
+  }
+}
