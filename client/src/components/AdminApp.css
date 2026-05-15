@@ -99,6 +99,8 @@
   color: var(--text);
   display: flex;
   flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 /* Header */
@@ -173,7 +175,8 @@
 .ap-main {
   flex: 1;
   padding: 24px 28px;
-  overflow-y: auto;
+  overflow-y: auto !important;
+  min-height: 0;
 }
 
 /* ── Shared Utilities ─────────────────────────────────────────────────────── */
