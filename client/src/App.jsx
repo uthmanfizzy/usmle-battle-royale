@@ -416,7 +416,9 @@ export default function App() {
   }
 
   function handleSelectStep1() {
-    setPhase('difficulty_select');
+    // Skip difficulty selection - Training Grounds handles it internally
+    // Other modes can add difficulty selection before their specific flow if needed
+    setPhase('mode_select');
   }
 
   function handleSelectDifficulty(diff) {
@@ -642,7 +644,7 @@ export default function App() {
         <ModeSelect
           username={username}
           onSelect={handleSelectGameMode}
-          onBack={() => setPhase('difficulty_select')}
+          onBack={() => setPhase('exam_select')}
         />
       )}
 

@@ -30,31 +30,40 @@ const SUBJECTS = [
 
 export default function TrainingGrounds({ user, onBack, onStartPractice }) {
   const [selectedSubject, setSelectedSubject] = useState(null);
+  const [selectedDifficulty, setSelectedDifficulty] = useState(null);
   const [easyFolders, setEasyFolders] = useState([]);
   const [hardFolders, setHardFolders] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [allFolders, setAllFolders] = useState([]);
 
-  // Fetch topics for selected subject and split by difficulty
+  // Fetch topics for selected subject
   async function fetchFolders(subjectId) {
     setLoading(true);
     try {
       const res = await fetch(`${SERVER}/api/topics?category=${subjectId}`);
       const data = await res.json();
-      const allFolders = data.topics || [];
+      const folders = data.topics || [];
 
-      // Split folders by difficulty
-      const easy = allFolders.filter(f => !f.difficulty || f.difficulty === 'easy');
-      const hard = allFolders.filter(f => f.difficulty === 'hard');
-
-      setEasyFolders(easy);
-      setHardFolders(hard);
+      setAllFolders(folders);
       setSelectedSubject(subjectId);
+      setSelectedDifficulty(null); // Reset difficulty when changing subject
     } catch (err) {
       console.error('Failed to load topics:', err);
-      setEasyFolders([]);
-      setHardFolders([]);
+      setAllFolders([]);
     }
     setLoading(false);
+  }
+
+  // Handle difficulty selection and filter folders
+  function handleDifficultySelect(difficulty) {
+    setSelectedDifficulty(difficulty);
+
+    // Split folders by difficulty
+    const easy = allFolders.filter(f => !f.difficulty || f.difficulty === 'easy');
+    const hard = allFolders.filter(f => f.difficulty === 'hard');
+
+    setEasyFolders(easy);
+    setHardFolders(hard);
   }
 
   // Handle folder selection and start practice
@@ -71,6 +80,15 @@ export default function TrainingGrounds({ user, onBack, onStartPractice }) {
   // Back to subject selection
   function handleBackToSubjects() {
     setSelectedSubject(null);
+    setSelectedDifficulty(null);
+    setAllFolders([]);
+    setEasyFolders([]);
+    setHardFolders([]);
+  }
+
+  // Back to difficulty selection
+  function handleBackToDifficulty() {
+    setSelectedDifficulty(null);
     setEasyFolders([]);
     setHardFolders([]);
   }
@@ -105,17 +123,74 @@ export default function TrainingGrounds({ user, onBack, onStartPractice }) {
     );
   }
 
-  // SCREEN 2: Folder Selection
   const subject = SUBJECTS.find(s => s.id === selectedSubject);
+
+  // SCREEN 2: Difficulty Selection
+  if (!selectedDifficulty) {
+    return (
+      <div className="training-grounds">
+        <div className="training-overlay">
+          <button className="tg-back-btn" onClick={handleBackToSubjects}>← Back to Subjects</button>
+
+          <div className="tg-header">
+            <div className="tg-breadcrumb">
+              Training Grounds › {subject?.label || selectedSubject}
+            </div>
+            <h1 className="tg-title">Choose Difficulty</h1>
+            <p className="tg-subtitle">Select the challenge level for your training</p>
+          </div>
+
+          {loading ? (
+            <div className="tg-loading">
+              <div className="spinner"></div>
+              <p>Loading...</p>
+            </div>
+          ) : (
+            <div className="tg-difficulty-grid">
+              <button
+                className="tg-difficulty-card tg-difficulty-card--easy"
+                onClick={() => handleDifficultySelect('easy')}
+              >
+                <div className="tg-diff-icon">🟢</div>
+                <h3 className="tg-diff-title">Easy Mode</h3>
+                <p className="tg-diff-desc">
+                  Standard questions with straightforward presentations. Perfect for building foundational knowledge.
+                </p>
+                <div className="tg-diff-count">
+                  {allFolders.filter(f => !f.difficulty || f.difficulty === 'easy').length} topics available
+                </div>
+              </button>
+
+              <button
+                className="tg-difficulty-card tg-difficulty-card--hard"
+                onClick={() => handleDifficultySelect('hard')}
+              >
+                <div className="tg-diff-icon">🔴</div>
+                <h3 className="tg-diff-title">Hard Mode</h3>
+                <p className="tg-diff-desc">
+                  Complex clinical scenarios with tricky presentations. Test your deeper understanding.
+                </p>
+                <div className="tg-diff-count">
+                  {allFolders.filter(f => f.difficulty === 'hard').length} topics available
+                </div>
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // SCREEN 3: Folder Selection
 
   return (
     <div className="training-grounds">
       <div className="training-overlay">
-        <button className="tg-back-btn" onClick={handleBackToSubjects}>← Back to Subjects</button>
+        <button className="tg-back-btn" onClick={handleBackToDifficulty}>← Back to Difficulty</button>
 
         <div className="tg-header">
           <div className="tg-breadcrumb">
-            Training Grounds › {subject?.label || selectedSubject}
+            Training Grounds › {subject?.label || selectedSubject} › {selectedDifficulty === 'easy' ? 'Easy Mode' : 'Hard Mode'}
           </div>
           <h1 className="tg-title">{subject?.icon} {subject?.label}</h1>
           <p className="tg-subtitle">Select a topic folder to practice</p>
@@ -126,21 +201,10 @@ export default function TrainingGrounds({ user, onBack, onStartPractice }) {
             <div className="spinner"></div>
             <p>Loading topics...</p>
           </div>
-        ) : (easyFolders.length === 0 && hardFolders.length === 0) ? (
-          <div className="tg-empty">
-            <p>No topics available for this subject yet.</p>
-            <p className="tg-empty-sub">Check back soon!</p>
-          </div>
         ) : (
           <div className="training-folders">
-
-            {/* EASY SECTION */}
-            <div className="difficulty-section">
-              <div className="difficulty-header difficulty-header--easy">
-                <span className="difficulty-icon">🟢</span>
-                <h3>EASY</h3>
-                <span className="folder-count">{easyFolders.length} {easyFolders.length === 1 ? 'folder' : 'folders'}</span>
-              </div>
+            {/* Show folders filtered by selected difficulty */}
+            {selectedDifficulty === 'easy' ? (
               <div className="tg-folder-grid">
                 {easyFolders.map(folder => (
                   <button
@@ -156,18 +220,13 @@ export default function TrainingGrounds({ user, onBack, onStartPractice }) {
                   </button>
                 ))}
                 {easyFolders.length === 0 && (
-                  <p className="no-folders">No easy folders available</p>
+                  <div className="tg-empty">
+                    <p>No easy topics available for this subject yet.</p>
+                    <p className="tg-empty-sub">Try selecting Hard mode or check back soon!</p>
+                  </div>
                 )}
               </div>
-            </div>
-
-            {/* HARD SECTION */}
-            <div className="difficulty-section">
-              <div className="difficulty-header difficulty-header--hard">
-                <span className="difficulty-icon">🔴</span>
-                <h3>HARD</h3>
-                <span className="folder-count">{hardFolders.length} {hardFolders.length === 1 ? 'folder' : 'folders'}</span>
-              </div>
+            ) : (
               <div className="tg-folder-grid">
                 {hardFolders.map(folder => (
                   <button
@@ -183,11 +242,13 @@ export default function TrainingGrounds({ user, onBack, onStartPractice }) {
                   </button>
                 ))}
                 {hardFolders.length === 0 && (
-                  <p className="no-folders">No hard folders available</p>
+                  <div className="tg-empty">
+                    <p>No hard topics available for this subject yet.</p>
+                    <p className="tg-empty-sub">Try selecting Easy mode or check back soon!</p>
+                  </div>
                 )}
               </div>
-            </div>
-
+            )}
           </div>
         )}
       </div>
