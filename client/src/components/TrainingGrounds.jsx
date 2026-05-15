@@ -30,20 +30,29 @@ const SUBJECTS = [
 
 export default function TrainingGrounds({ user, onBack, onStartPractice }) {
   const [selectedSubject, setSelectedSubject] = useState(null);
-  const [folders, setFolders] = useState([]);
+  const [easyFolders, setEasyFolders] = useState([]);
+  const [hardFolders, setHardFolders] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // Fetch topics for selected subject
+  // Fetch topics for selected subject and split by difficulty
   async function fetchFolders(subjectId) {
     setLoading(true);
     try {
       const res = await fetch(`${SERVER}/api/topics?category=${subjectId}`);
       const data = await res.json();
-      setFolders(data.topics || []);
+      const allFolders = data.topics || [];
+
+      // Split folders by difficulty
+      const easy = allFolders.filter(f => !f.difficulty || f.difficulty === 'easy');
+      const hard = allFolders.filter(f => f.difficulty === 'hard');
+
+      setEasyFolders(easy);
+      setHardFolders(hard);
       setSelectedSubject(subjectId);
     } catch (err) {
       console.error('Failed to load topics:', err);
-      setFolders([]);
+      setEasyFolders([]);
+      setHardFolders([]);
     }
     setLoading(false);
   }
@@ -62,7 +71,8 @@ export default function TrainingGrounds({ user, onBack, onStartPractice }) {
   // Back to subject selection
   function handleBackToSubjects() {
     setSelectedSubject(null);
-    setFolders([]);
+    setEasyFolders([]);
+    setHardFolders([]);
   }
 
   // SCREEN 1: Subject Selection
@@ -116,28 +126,68 @@ export default function TrainingGrounds({ user, onBack, onStartPractice }) {
             <div className="spinner"></div>
             <p>Loading topics...</p>
           </div>
-        ) : folders.length === 0 ? (
+        ) : (easyFolders.length === 0 && hardFolders.length === 0) ? (
           <div className="tg-empty">
             <p>No topics available for this subject yet.</p>
             <p className="tg-empty-sub">Check back soon!</p>
           </div>
         ) : (
-          <div className="tg-folder-grid">
-            {folders.map(folder => (
-              <button
-                key={folder.id}
-                className="tg-folder-card"
-                onClick={() => handleFolderClick(folder)}
-              >
-                <div className="tg-folder-icon">📁</div>
-                <div className="tg-folder-name">{folder.name}</div>
-                <div className="tg-folder-difficulty">
-                  {folder.difficulty === 'hard' ? '🔴 Hard' :
-                   folder.difficulty === 'medium' ? '🟡 Medium' :
-                   '🟢 Easy'}
-                </div>
-              </button>
-            ))}
+          <div className="training-folders">
+
+            {/* EASY SECTION */}
+            <div className="difficulty-section">
+              <div className="difficulty-header difficulty-header--easy">
+                <span className="difficulty-icon">🟢</span>
+                <h3>EASY</h3>
+                <span className="folder-count">{easyFolders.length} {easyFolders.length === 1 ? 'folder' : 'folders'}</span>
+              </div>
+              <div className="tg-folder-grid">
+                {easyFolders.map(folder => (
+                  <button
+                    key={folder.id}
+                    className="tg-folder-card tg-folder-card--easy"
+                    onClick={() => handleFolderClick(folder)}
+                  >
+                    <div className="tg-folder-icon">📁</div>
+                    <div className="tg-folder-name">{folder.name}</div>
+                    {folder.question_count > 0 && (
+                      <div className="tg-folder-qcount">{folder.question_count} questions</div>
+                    )}
+                  </button>
+                ))}
+                {easyFolders.length === 0 && (
+                  <p className="no-folders">No easy folders available</p>
+                )}
+              </div>
+            </div>
+
+            {/* HARD SECTION */}
+            <div className="difficulty-section">
+              <div className="difficulty-header difficulty-header--hard">
+                <span className="difficulty-icon">🔴</span>
+                <h3>HARD</h3>
+                <span className="folder-count">{hardFolders.length} {hardFolders.length === 1 ? 'folder' : 'folders'}</span>
+              </div>
+              <div className="tg-folder-grid">
+                {hardFolders.map(folder => (
+                  <button
+                    key={folder.id}
+                    className="tg-folder-card tg-folder-card--hard"
+                    onClick={() => handleFolderClick(folder)}
+                  >
+                    <div className="tg-folder-icon">📁</div>
+                    <div className="tg-folder-name">{folder.name}</div>
+                    {folder.question_count > 0 && (
+                      <div className="tg-folder-qcount">{folder.question_count} questions</div>
+                    )}
+                  </button>
+                ))}
+                {hardFolders.length === 0 && (
+                  <p className="no-folders">No hard folders available</p>
+                )}
+              </div>
+            </div>
+
           </div>
         )}
       </div>
