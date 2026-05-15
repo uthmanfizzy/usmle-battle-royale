@@ -454,58 +454,52 @@
   background: rgba(8, 12, 8, 0.9);
   backdrop-filter: blur(10px);
   border-top: 1px solid rgba(180, 140, 40, 0.3);
-  padding: 12px 24px;
+  padding: 8px 24px;
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: 48px;
-  height: 110px;
+  gap: 24px;
+  height: 90px;
   box-sizing: border-box;
 }
 
-.party-section {
+.party-left-group {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
-  flex-shrink: 0;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
 }
 
-.recent-players-section {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  flex-shrink: 0;
-  min-width: 280px;
-}
-
-.party-section h4,
-.recent-players-section h4 {
+.party-bar-label {
   font-family: 'Cinzel', serif;
-  font-size: 10px;
+  font-size: 9px;
   letter-spacing: 0.15em;
-  color: rgba(200, 165, 60, 0.65);
-  margin: 0 0 4px 0;
+  color: rgba(200, 165, 60, 0.55);
+  margin: 0;
   text-transform: uppercase;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .party-members {
   display: flex;
   flex-direction: row;
-  align-items: flex-start;
-  gap: 16px;
+  align-items: center;
+  gap: 10px;
 }
 
 .party-member {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
-  width: 60px;
+  gap: 3px;
+  width: 52px;
 }
 
 .party-avatar {
-  width: 48px;
-  height: 48px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   border: 2px solid rgba(200, 165, 60, 0.6);
   object-fit: cover;
@@ -519,31 +513,32 @@
   font-family: 'Cinzel', serif;
   font-weight: 700;
   color: rgba(200, 165, 60, 0.9);
-  font-size: 20px;
+  font-size: 16px;
 }
 
-.party-member span {
-  font-size: 10px;
+.party-name {
+  font-size: 9px;
   color: rgba(255, 255, 255, 0.7);
   font-family: 'Cinzel', serif;
   text-align: center;
   word-break: break-word;
+  line-height: 1.2;
 }
 
 .leader-tag {
   color: rgba(200, 165, 60, 0.8) !important;
-  font-size: 9px !important;
+  font-size: 8px !important;
 }
 
 .party-invite-btn {
-  width: 48px;
-  height: 48px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   border: 1px dashed rgba(180, 140, 40, 0.35);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 20px;
+  font-size: 18px;
   color: rgba(180, 140, 40, 0.45);
   cursor: pointer;
   background: transparent;
@@ -556,10 +551,46 @@
   color: rgba(200, 165, 60, 0.7);
 }
 
+.view-friends-btn {
+  background: transparent;
+  border: 1px solid rgba(180, 140, 40, 0.3);
+  border-radius: 5px;
+  color: rgba(200, 165, 60, 0.75);
+  font-family: 'Cinzel', serif;
+  font-size: 9px;
+  padding: 5px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all 0.2s;
+  margin-left: 8px;
+}
+
+.view-friends-btn:hover {
+  border-color: rgba(200, 165, 60, 0.6);
+  background: rgba(180, 140, 40, 0.08);
+}
+
+.party-divider {
+  width: 1px;
+  height: 50px;
+  background: rgba(180, 140, 40, 0.25);
+  flex-shrink: 0;
+}
+
+.party-right-group {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
 .recent-players-list {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 4px;
+  min-width: 200px;
 }
 
 .recent-player-item {
@@ -567,12 +598,11 @@
   flex-direction: row;
   align-items: center;
   gap: 8px;
-  width: 100%;
 }
 
 .recent-player-avatar {
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   object-fit: cover;
   flex-shrink: 0;
@@ -586,20 +616,23 @@
   font-family: 'Cinzel', serif;
   font-weight: 700;
   color: rgba(200, 165, 60, 0.7);
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .recent-player-name {
   font-family: 'Cinzel', serif;
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.85);
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.8);
   flex: 1;
   min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .status-dot {
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   flex-shrink: 0;
 }
@@ -617,29 +650,11 @@
 }
 
 .status-text {
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.4);
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.35);
   flex-shrink: 0;
-  width: 50px;
+  width: 45px;
   text-align: right;
-}
-
-.view-friends-btn {
-  background: transparent;
-  border: 1px solid rgba(180, 140, 40, 0.3);
-  border-radius: 6px;
-  color: rgba(200, 165, 60, 0.8);
-  font-family: 'Cinzel', serif;
-  font-size: 11px;
-  padding: 6px 12px;
-  cursor: pointer;
-  align-self: flex-start;
-  transition: all 0.2s;
-}
-
-.view-friends-btn:hover {
-  border-color: rgba(200, 165, 60, 0.6);
-  background: rgba(180, 140, 40, 0.08);
 }
 
 /* Responsive */

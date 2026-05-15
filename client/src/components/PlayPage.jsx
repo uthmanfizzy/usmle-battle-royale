@@ -288,10 +288,12 @@ export default function PlayPage({ user, username, onModeSelect, onBack }) {
 
       {/* PARTY BAR - fixed at bottom above nav */}
       <div className="party-bar">
-        <div className="party-section">
-          <h4>YOUR PARTY</h4>
+
+        {/* LEFT: Your Party + View All Friends */}
+        <div className="party-left-group">
+          <h4 className="party-bar-label">YOUR PARTY</h4>
           <div className="party-members">
-            <div className="party-member party-member--leader">
+            <div className="party-member">
               {user?.avatar_url ? (
                 <img src={user.avatar_url} className="party-avatar" alt={username} referrerPolicy="no-referrer" />
               ) : (
@@ -299,20 +301,25 @@ export default function PlayPage({ user, username, onModeSelect, onBack }) {
                   {username?.[0]?.toUpperCase() || 'U'}
                 </div>
               )}
-              <span>{username}</span>
+              <span className="party-name">{username}</span>
               <span className="leader-tag">Leader</span>
             </div>
             {[1, 2, 3].map(i => (
-              <div className="party-member party-member--empty" key={i}>
+              <div className="party-member" key={i}>
                 <div className="party-invite-btn">+</div>
-                <span>Invite Player</span>
+                <span className="party-name">Invite</span>
               </div>
             ))}
           </div>
+          <button className="view-friends-btn">VIEW ALL FRIENDS →</button>
         </div>
 
-        <div className="recent-players-section">
-          <h4>RECENT PLAYERS</h4>
+        {/* DIVIDER */}
+        <div className="party-divider" />
+
+        {/* RIGHT: Recent Players */}
+        <div className="party-right-group">
+          <h4 className="party-bar-label">RECENT PLAYERS</h4>
           <div className="recent-players-list">
             {recentPlayers.length > 0 ? (
               recentPlayers.map(player => (
@@ -330,11 +337,11 @@ export default function PlayPage({ user, username, onModeSelect, onBack }) {
                 </div>
               ))
             ) : (
-              <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)' }}>No recent players</p>
+              <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', margin: 0 }}>No recent players</p>
             )}
           </div>
-          <button className="view-friends-btn">VIEW ALL FRIENDS →</button>
         </div>
+
       </div>
     </div>
   );
