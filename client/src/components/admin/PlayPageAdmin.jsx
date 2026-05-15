@@ -390,6 +390,7 @@ function GameModesTab() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState('');
+  const [uploading, setUploading] = useState({});
 
   useEffect(() => {
     loadConfig();
@@ -434,32 +435,136 @@ function GameModesTab() {
   function toggleMode(modeId) {
     setConfig(prev => ({
       ...prev,
-      [modeId]: { enabled: !(prev[modeId]?.enabled ?? true) },
+      [modeId]: {
+        enabled: !(prev[modeId]?.enabled ?? true),
+        image: prev[modeId]?.image || ''
+      },
     }));
+  }
+
+  async function handleModeImageUpload(modeId, file) {
+    if (!file) return;
+    const maxSize = 5 * 1024 * 1024;
+    if (file.size > maxSize) {
+      alert('Image must be under 5MB');
+      return;
+    }
+
+    setUploading(u => ({ ...u, [modeId]: true }));
+
+    try {
+      const base64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      const res = await apiCall('/admin/game-mode-image', {
+        method: 'POST',
+        body: JSON.stringify({
+          mode_id: modeId,
+          base64,
+          filename: file.name,
+          mimeType: file.type,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Upload failed');
+
+      setConfig(prev => ({
+        ...prev,
+        [modeId]: {
+          enabled: prev[modeId]?.enabled ?? true,
+          image: data.image_url
+        }
+      }));
+
+      setSaveMsg('success');
+      setTimeout(() => setSaveMsg(''), 3000);
+    } catch (err) {
+      alert(`Upload failed: ${err.message}`);
+    }
+
+    setUploading(u => ({ ...u, [modeId]: false }));
+  }
+
+  async function handleRemoveModeImage(modeId) {
+    if (!window.confirm('Remove this image?')) return;
+
+    setConfig(prev => ({
+      ...prev,
+      [modeId]: {
+        enabled: prev[modeId]?.enabled ?? true,
+        image: ''
+      }
+    }));
+
+    setSaveMsg('success');
+    setTimeout(() => setSaveMsg(''), 3000);
   }
 
   if (loading) return <div className="pp-loading">Loading...</div>;
 
   return (
     <div className="pp-section">
-      <h3 className="pp-section-title">Game Modes Toggle</h3>
-      <p className="pp-section-desc">Enable or disable game modes. Disabled modes appear greyed out on the Play page.</p>
+      <h3 className="pp-section-title">Game Modes Configuration</h3>
+      <p className="pp-section-desc">Enable/disable game modes and upload images for each mode.</p>
 
       <div className="pp-modes-list">
         {GAME_MODES.map(mode => {
           const isEnabled = config[mode.id]?.enabled ?? true;
+          const modeImage = config[mode.id]?.image || '';
+          const isUploading = uploading[mode.id];
+
           return (
-            <div key={mode.id} className={`pp-mode-item ${isEnabled ? '' : 'pp-mode-item--disabled'}`}>
-              <span className="pp-mode-icon">{mode.icon}</span>
-              <span className="pp-mode-name">{mode.name}</span>
-              <label className="pp-toggle">
-                <input
-                  type="checkbox"
-                  checked={isEnabled}
-                  onChange={() => toggleMode(mode.id)}
-                />
-                <span className="pp-toggle-slider"></span>
-              </label>
+            <div key={mode.id} className="pp-mode-card">
+
+              {/* Header: icon, name, toggle */}
+              <div className="pp-mode-header">
+                <div className="pp-mode-header-left">
+                  <span className="pp-mode-icon">{mode.icon}</span>
+                  <span className="pp-mode-name">{mode.name}</span>
+                </div>
+                <label className="pp-toggle">
+                  <input
+                    type="checkbox"
+                    checked={isEnabled}
+                    onChange={() => toggleMode(mode.id)}
+                  />
+                  <span className="pp-toggle-slider"></span>
+                </label>
+              </div>
+
+              {/* Image section */}
+              <div className="pp-mode-image-section">
+                {modeImage ? (
+                  <div className="pp-mode-image-preview">
+                    <img src={modeImage} alt={mode.name} />
+                    <button
+                      className="pp-btn pp-btn-remove pp-btn-sm"
+                      onClick={() => handleRemoveModeImage(mode.id)}
+                      disabled={isUploading}
+                    >
+                      🗑️ Remove
+                    </button>
+                  </div>
+                ) : (
+                  <div className="pp-mode-image-empty">No image set</div>
+                )}
+                <label className="pp-mode-image-upload-btn">
+                  {isUploading ? 'Uploading...' : `📁 ${modeImage ? 'Change' : 'Upload'} Image`}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    style={{ display: 'none' }}
+                    onChange={e => handleModeImageUpload(mode.id, e.target.files[0])}
+                    disabled={isUploading}
+                  />
+                </label>
+              </div>
+
             </div>
           );
         })}

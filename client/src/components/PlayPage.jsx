@@ -311,11 +311,19 @@ export default function PlayPage({ user, username, onModeSelect, onBack }) {
             </h2>
 
             <div className="mode-detail-image">
-              <div className="mode-image-placeholder" style={{
-                background: `linear-gradient(135deg, rgba(40,60,40,0.8), rgba(20,30,20,0.9))`
-              }}>
-                <span style={{ fontSize: '48px', opacity: 0.3 }}>{selectedModeData.icon}</span>
-              </div>
+              {gameModesConfig[selectedMode]?.image ? (
+                <img
+                  src={gameModesConfig[selectedMode].image}
+                  alt={selectedModeData.name}
+                  className="mode-detail-img"
+                />
+              ) : (
+                <div className="mode-image-placeholder" style={{
+                  background: `linear-gradient(135deg, rgba(40,60,40,0.8), rgba(20,30,20,0.9))`
+                }}>
+                  <span style={{ fontSize: '48px', opacity: 0.3 }}>{selectedModeData.icon}</span>
+                </div>
+              )}
             </div>
 
             <p className="mode-detail-desc">{selectedModeData.longDescription}</p>

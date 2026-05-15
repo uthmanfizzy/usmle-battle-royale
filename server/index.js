@@ -3151,6 +3151,50 @@ app.delete('/admin/play-page-bg', adminAuth, async (req, res) => {
   }
 });
 
+// Upload game mode image
+app.post('/admin/game-mode-image', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  const { mode_id, base64, filename, mimeType } = req.body;
+
+  if (!mode_id || !base64 || !filename) {
+    return res.status(400).json({ error: 'Missing required fields: mode_id, base64, filename' });
+  }
+
+  try {
+    // Remove data URL prefix
+    const base64Data = base64.replace(/^data:image\/\w+;base64,/, '');
+    const buffer = Buffer.from(base64Data, 'base64');
+
+    // Generate unique filename
+    const ext = filename.split('.').pop();
+    const uniqueName = `game_mode_${mode_id}_${Date.now()}.${ext}`;
+    const filePath = `game-modes/${uniqueName}`;
+
+    // Upload new image
+    const { error: uploadError } = await supabase.storage
+      .from('home-images')
+      .upload(filePath, buffer, {
+        contentType: mimeType,
+        upsert: true
+      });
+
+    if (uploadError) throw uploadError;
+
+    // Get public URL
+    const { data: urlData } = supabase.storage
+      .from('home-images')
+      .getPublicUrl(filePath);
+
+    const image_url = urlData.publicUrl;
+
+    console.log(`[/admin/game-mode-image POST] Successfully saved image for ${mode_id}:`, image_url.substring(0, 60) + '...');
+    res.json({ ok: true, mode_id, image_url });
+  } catch (err) {
+    console.error('[/admin/game-mode-image POST] Error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post('/admin/questions', adminAuth, async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Supabase not configured. Cannot save questions.' });
 
