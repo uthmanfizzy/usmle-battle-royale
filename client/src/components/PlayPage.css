@@ -20,7 +20,7 @@
   top: 70px;        /* height of top header bar */
   left: 0;
   right: 0;
-  bottom: 146px;    /* 56px party bar + 90px bottom nav */
+  bottom: 56px;     /* 56px party bar (no bottom nav on play page) */
   display: grid;
   grid-template-columns: 260px 1fr 280px;
   gap: 12px;
@@ -458,7 +458,7 @@
 /* PARTY BAR */
 .party-bar {
   position: fixed;
-  bottom: 90px;
+  bottom: 0 !important;
   left: 0;
   right: 0;
   z-index: 150;
@@ -703,7 +703,7 @@
     min-height: 100vh !important;
     overflow-y: auto !important;
     overflow-x: hidden !important;
-    padding: 76px 0 220px 0 !important;
+    padding: 76px 0 70px 0 !important;
     display: flex !important;
     flex-direction: column !important;
     gap: 10px !important;
@@ -906,7 +906,7 @@
 
   /* PARTY BAR - mobile */
   .party-bar {
-    bottom: 70px !important;
+    bottom: 0 !important;
     height: auto !important;
     min-height: 50px !important;
     padding: 6px 12px !important;
@@ -1001,7 +1001,7 @@
 @media (max-width: 480px) {
 
   .play-page {
-    padding: 70px 8px 210px 8px !important;
+    padding: 70px 8px 60px 8px !important;
   }
 
   .mode-list-item {
