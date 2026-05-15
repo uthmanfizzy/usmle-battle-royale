@@ -2120,3 +2120,237 @@
   background: linear-gradient(135deg, var(--gold-light), var(--gold-rpg));
   transform: translateY(-2px);
 }
+
+/* ============================================
+   MOBILE RESPONSIVE - 768px and below
+   ============================================ */
+
+@media (max-width: 768px) {
+
+  /* TOP HEADER */
+  .dashboard-header {
+    padding: 8px 12px;
+    flex-wrap: nowrap;
+    gap: 6px;
+  }
+
+  /* PROFILE CARD - smaller on mobile */
+  .player-profile-card {
+    gap: 0;
+  }
+  .player-avatar {
+    width: 44px !important;
+    height: 44px !important;
+  }
+  .player-info-panel {
+    padding: 6px 12px 6px 28px !important;
+    min-width: 130px !important;
+  }
+  .player-username {
+    font-size: 13px !important;
+  }
+  .player-level {
+    font-size: 11px !important;
+  }
+  .xp-bar {
+    height: 5px !important;
+  }
+  .xp-text {
+    font-size: 9px !important;
+  }
+
+  /* CURRENCY BAR - compact on mobile */
+  .currency-bar {
+    padding: 3px 10px !important;
+    gap: 10px !important;
+  }
+  .currency-item {
+    font-size: 12px !important;
+    gap: 4px !important;
+  }
+  .currency-icon {
+    width: 18px !important;
+    height: 18px !important;
+  }
+  .currency-divider {
+    height: 14px !important;
+  }
+
+  /* ICONS PILL - smaller icons */
+  .icons-pill {
+    padding: 3px 8px !important;
+    gap: 8px !important;
+  }
+  .icons-pill button, .icons-pill a {
+    font-size: 16px !important;
+  }
+
+  /* MAIN DASHBOARD CONTENT */
+  .dashboard-content,
+  .dashboard-main,
+  .home-content {
+    padding: 70px 12px 180px 12px !important;
+    /* 70px top header, 180px = party bar + bottom nav */
+  }
+
+  /* GAME MODES GRID - single column on mobile */
+  .game-modes-grid,
+  .modes-grid,
+  .game-mode-grid {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 10px !important;
+  }
+
+  /* GAME MODE CARDS */
+  .game-mode-card,
+  .mode-card {
+    padding: 14px 10px !important;
+    min-height: 90px !important;
+  }
+  .game-mode-card h3,
+  .mode-card h3 {
+    font-size: 12px !important;
+  }
+  .game-mode-card img,
+  .mode-card img {
+    width: 32px !important;
+    height: 32px !important;
+  }
+
+  /* BOTTOM NAV - adjust for mobile */
+  .bottom-nav {
+    height: 70px !important;
+    padding: 0 !important;
+  }
+  .nav-item {
+    padding: 0 12px !important;
+    gap: 3px !important;
+  }
+  .nav-icon {
+    width: 24px !important;
+    height: 24px !important;
+  }
+  .nav-label {
+    font-size: 8px !important;
+    letter-spacing: 0.05em !important;
+  }
+  .nav-item--play {
+    padding: 0 16px !important;
+    min-width: 80px !important;
+  }
+
+  /* PARTY BAR on mobile */
+  .party-bar {
+    bottom: 70px !important;
+    height: 50px !important;
+    padding: 0 12px !important;
+    gap: 12px !important;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+  .party-bar-label {
+    display: none !important; /* hide labels on mobile */
+  }
+  .party-avatar {
+    width: 28px !important;
+    height: 28px !important;
+  }
+  .party-invite-btn {
+    width: 28px !important;
+    height: 28px !important;
+    font-size: 14px !important;
+  }
+  .party-name, .leader-tag {
+    display: none !important;
+  }
+  .party-divider {
+    height: 30px !important;
+  }
+  .recent-player-avatar {
+    width: 22px !important;
+    height: 22px !important;
+  }
+  .recent-player-name {
+    font-size: 10px !important;
+    max-width: 60px !important;
+  }
+  .status-text {
+    display: none !important;
+  }
+  .view-friends-btn {
+    font-size: 8px !important;
+    padding: 2px 6px !important;
+    white-space: nowrap;
+  }
+
+  /* LEADERBOARD / CLANS / other sections */
+  .section-grid,
+  .content-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+
+  /* CARDS general */
+  .card, .panel, .info-card {
+    padding: 14px !important;
+    border-radius: 10px !important;
+  }
+
+  /* HEADINGS */
+  h1 { font-size: 22px !important; }
+  h2 { font-size: 18px !important; }
+  h3 { font-size: 14px !important; }
+
+  /* HIDE non-essential decorative elements */
+  .decorative, .side-decoration {
+    display: none !important;
+  }
+}
+
+/* ============================================
+   SMALL MOBILE - 480px and below
+   ============================================ */
+
+@media (max-width: 480px) {
+
+  .dashboard-header {
+    padding: 6px 8px;
+  }
+
+  /* Stack currency and icons if too cramped */
+  .header-right {
+    gap: 4px !important;
+  }
+
+  .currency-bar {
+    padding: 3px 8px !important;
+    gap: 8px !important;
+  }
+
+  /* Game modes single column on very small screens */
+  .game-modes-grid,
+  .modes-grid,
+  .game-mode-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .bottom-nav {
+    height: 60px !important;
+  }
+
+  .nav-label {
+    display: none !important;
+  }
+
+  .nav-item {
+    padding: 0 8px !important;
+  }
+
+  .party-bar {
+    bottom: 60px !important;
+  }
+
+  .player-info-panel {
+    display: none !important; /* show only avatar on very small screens */
+  }
+}
