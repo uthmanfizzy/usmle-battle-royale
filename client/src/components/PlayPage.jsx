@@ -137,26 +137,6 @@ export default function PlayPage({ user, username, onModeSelect, onBack }) {
     return () => clearInterval(interval);
   }, []);
 
-  // DEBUG: Height audit
-  useEffect(() => {
-    const header = document.querySelector('.dashboard-header') || document.querySelector('.top-header') || document.querySelector('nav') || document.querySelector('header');
-    const bottomNav = document.querySelector('.bottom-nav');
-    const partyBar = document.querySelector('.party-bar');
-    const playPage = document.querySelector('.play-page');
-    const wrapper = document.querySelector('.play-page-wrapper');
-
-    console.log('=== HEIGHT AUDIT ===');
-    console.log('viewport height:', window.innerHeight);
-    console.log('header element:', header?.className, 'height:', header?.getBoundingClientRect().height);
-    console.log('bottomNav element:', bottomNav?.className, 'height:', bottomNav?.getBoundingClientRect().height);
-    console.log('partyBar element:', partyBar?.className, 'height:', partyBar?.getBoundingClientRect().height, 'bottom:', partyBar?.getBoundingClientRect().bottom);
-    console.log('playPage element:', playPage?.className, 'height:', playPage?.getBoundingClientRect().height, 'top:', playPage?.getBoundingClientRect().top, 'bottom:', playPage?.getBoundingClientRect().bottom);
-    console.log('wrapper element:', wrapper?.className, 'height:', wrapper?.getBoundingClientRect().height);
-    console.log('document body scrollHeight:', document.body.scrollHeight);
-    console.log('document body clientHeight:', document.body.clientHeight);
-    console.log('===================');
-  }, []);
-
   function getPlaceholderChallenges() {
     return [
       { id: 1, name: 'Answer 10 questions', icon: '🎯', progress: '0/10', percent: 0, reward: 100 },

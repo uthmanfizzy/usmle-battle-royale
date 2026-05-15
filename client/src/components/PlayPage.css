@@ -1,13 +1,18 @@
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&display=swap');
 
 .play-page-wrapper {
-  height: 100vh;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  padding: 0;
-  margin: 0;
+  pointer-events: none;
   background: #0a0f0a;
+}
+
+.play-page-wrapper > * {
+  pointer-events: all;
 }
 
 .play-page {
