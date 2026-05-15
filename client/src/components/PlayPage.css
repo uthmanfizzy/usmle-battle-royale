@@ -4,6 +4,8 @@
   height: 100vh;
   overflow: hidden;
   background: #0a0f0a;
+  display: flex;
+  flex-direction: column;
 }
 
 .play-page {
@@ -11,7 +13,8 @@
   grid-template-columns: 260px 1fr 280px;
   gap: 12px;
   padding: 80px 16px 0 16px;
-  height: calc(100vh - 260px); /* exact height: viewport - header - nav - party bar */
+  height: calc(100vh - 56px - 90px);
+  /* 80px top padding (header space), 56px party bar, 90px bottom nav */
   overflow: hidden;
   max-width: 1400px;
   margin: 0 auto;

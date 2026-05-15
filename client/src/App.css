@@ -25,13 +25,19 @@
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
 html { font-size: 16px; }
 
 body {
   background: var(--bg);
   color: var(--text);
   font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-  min-height: 100vh;
   -webkit-font-smoothing: antialiased;
 }
 
