@@ -100,7 +100,7 @@ export default function App() {
     const token = getToken();
 
     if (autoPlay) {
-      // Arrived from /dashboard Play Now button
+      // Arrived from /dashboard Play Now button → go directly to play page
       window.history.replaceState({}, '', '/');
       if (!token) { setPhase('entry'); return; }
       const cached = getCachedUser();
@@ -108,10 +108,10 @@ export default function App() {
         setUser(cached);
         setUsername(cached.username);
         connectSocket();
-        setPhase('exam_select');
+        setPhase('play_page');
       } else {
         fetchMe().then(me => {
-          if (me) { setUser(me); setUsername(me.username); connectSocket(); setPhase('exam_select'); }
+          if (me) { setUser(me); setUsername(me.username); connectSocket(); setPhase('play_page'); }
           else { setPhase('entry'); }
         });
       }
@@ -408,12 +408,12 @@ export default function App() {
     setUsername(name);
     setError('');
     connectSocket();
-    setPhase('exam_select');
+    setPhase('play_page');
   }
 
   function handlePlayNow() {
     connectSocket();
-    setPhase('exam_select');
+    setPhase('play_page');
   }
 
   function handleSelectStep1() {
@@ -657,7 +657,7 @@ export default function App() {
         <DifficultySelect
           username={username}
           onSelectDifficulty={handleSelectDifficulty}
-          onBack={() => setPhase('exam_select')}
+          onBack={() => window.location.href = '/dashboard'}
         />
       )}
 
@@ -666,7 +666,7 @@ export default function App() {
           user={user}
           username={username}
           onModeSelect={handlePlayPageModeSelect}
-          onBack={() => setPhase('exam_select')}
+          onBack={() => window.location.href = '/dashboard'}
         />
       )}
 
@@ -674,7 +674,7 @@ export default function App() {
         <ModeSelect
           username={username}
           onSelect={handleSelectGameMode}
-          onBack={() => setPhase('exam_select')}
+          onBack={() => window.location.href = '/dashboard'}
         />
       )}
 
