@@ -14,7 +14,7 @@ function saveHi(subject, score) {
   try { localStorage.setItem(`usmle-hs-${subject}`, String(score)); } catch {}
 }
 
-export default function SoloGame({ subject, username, difficulty, onBack, onTryAgain, onChangeSubject }) {
+export default function SoloGame({ subject, username, difficulty, onBack, onTryAgain, onChangeSubject, topicId }) {
   const { settings } = useGameSettings();
 
   // HARDCODED: Hard mode uses 30s timer and 20s explanation, easy mode uses defaults
@@ -69,7 +69,10 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   }, []);
 
   useEffect(() => {
-    fetch(`${SERVER_URL}/api/questions?subject=${subject}`)
+    const url = topicId
+      ? `${SERVER_URL}/api/questions?topic_id=${topicId}`
+      : `${SERVER_URL}/api/questions?subject=${subject}`;
+    fetch(url)
       .then(r => r.json())
       .then(data => {
         setQuestions(data.questions || []);
@@ -79,7 +82,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
         setFetchError('Failed to load questions. Check your connection.');
         setLoading(false);
       });
-  }, [subject]);
+  }, [subject, topicId]);
 
   const processAnswerRef = useRef(null);
 

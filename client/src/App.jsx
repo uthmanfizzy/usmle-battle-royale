@@ -19,10 +19,11 @@ import SoloGame from './components/SoloGame';
 import TowerMode from './components/TowerMode';
 import BuzzFunGame from './components/BuzzFunGame';
 import LandingPage from './components/LandingPage';
+import TrainingGrounds from './components/TrainingGrounds';
 
 // phases: 'loading' | 'entry' | 'exam_select' | 'difficulty_select' | 'mode_select' |
 //         'how_to_play' | 'lobby_select' | 'subject_select' | 'join_input' | 'lobby' | 'game' |
-//         'game_over' | 'solo_subject' | 'solo_game' | 'tower'
+//         'game_over' | 'solo_subject' | 'solo_game' | 'tower' | 'training_grounds'
 
 export default function App() {
   const [phase,    setPhase]    = useState('loading');
@@ -38,6 +39,7 @@ export default function App() {
   const [gameMode,   setGameMode]   = useState('battle_royale');
   const [soloSubject, setSoloSubject] = useState('all');
   const [soloKey,  setSoloKey]  = useState(0);
+  const [trainingTopic, setTrainingTopic] = useState(null);
 
   const [raceProgress, setRaceProgress] = useState([]);
   const [openToQuickJoin, setOpenToQuickJoin] = useState(true);
@@ -424,12 +426,22 @@ export default function App() {
 
   function handleSelectGameMode(mode) {
     setGameMode(mode);
-    setPhase('how_to_play');
+    if (mode === 'training_grounds') {
+      setPhase('training_grounds');
+    } else {
+      setPhase('how_to_play');
+    }
   }
 
   function handleHowToPlayContinue() {
     if (gameMode === 'tower') { setPhase('tower'); return; }
     setPhase('lobby_select');
+  }
+
+  function handleStartTrainingPractice(topicData) {
+    setTrainingTopic(topicData);
+    setSoloSubject(topicData.category);
+    setPhase('solo_game');
   }
 
   function handleShowSubjectSelect() {
@@ -809,6 +821,7 @@ export default function App() {
           onBack={handleReturnHome}
           onTryAgain={handleSoloTryAgain}
           onChangeSubject={() => setPhase('solo_subject')}
+          topicId={trainingTopic?.topicId}
         />
       )}
 
@@ -816,6 +829,14 @@ export default function App() {
         <TowerMode
           username={username}
           onBack={() => setPhase('mode_select')}
+        />
+      )}
+
+      {phase === 'training_grounds' && (
+        <TrainingGrounds
+          user={user}
+          onBack={() => setPhase('mode_select')}
+          onStartPractice={handleStartTrainingPractice}
         />
       )}
     </div>

@@ -116,6 +116,16 @@ const MODES = [
     gradient:    'linear-gradient(135deg, #e67e22 0%, #c0392b 100%)',
     border:      '#e67e22',
   },
+  {
+    id:          'training_grounds',
+    name:        'Training Grounds',
+    icon:        '📚',
+    tagline:     'Study by subject and topic',
+    description: 'Choose a subject category, then select a topic folder to practice questions at your own pace.',
+    gradient:    'linear-gradient(135deg, #c8a32c 0%, #8b7223 100%)',
+    border:      '#c8a32c',
+    solo:        true,
+  },
 ];
 
 export default function ModeSelect({ username, onSelect, onBack }) {

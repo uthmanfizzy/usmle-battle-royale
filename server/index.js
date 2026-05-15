@@ -1961,6 +1961,13 @@ io.on('connection', (socket) => {
 app.get('/api/questions', (req, res) => {
   const subject    = (req.query.subject || 'all').toLowerCase();
   const towerFloor = parseInt(req.query.tower_floor);
+  const topicId    = req.query.topic_id;
+
+  // Training Grounds: filter by topic_id
+  if (topicId) {
+    const topicPool = questionBank.filter(q => q.topic_id === topicId);
+    return res.json({ questions: shuffle(topicPool.length >= 5 ? topicPool : questionBank) });
+  }
 
   if (!isNaN(towerFloor) && towerFloor >= 1 && towerFloor <= 100) {
     const zoneNum   = Math.ceil(towerFloor / 10);
@@ -3366,6 +3373,31 @@ app.put('/admin/subjects/:id', adminAuth, async (req, res) => {
     if (error) throw error;
     res.json(data);
   } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── Topics API (Public) ──────────────────────────────────────────────────────
+
+app.get('/api/topics', async (req, res) => {
+  if (!supabase) return res.json({ topics: [] });
+  const { category } = req.query;
+  try {
+    let query = supabase.from('topics').select('*').order('name');
+    if (category) query = query.eq('category', category);
+    const { data, error } = await query;
+    if (error) throw error;
+
+    // Add question count for each topic
+    const topics = (data || []).map(t => ({
+      ...t,
+      difficulty: t.difficulty || 'easy',
+      question_count: questionBank.filter(q => q.topic_id === t.id).length,
+    }));
+
+    res.json({ topics });
+  } catch (err) {
+    console.error('[/api/topics] error:', err.message);
+    res.status(500).json({ error: err.message, topics: [] });
+  }
 });
 
 // ── Announcements API ─────────────────────────────────────────────────────────
