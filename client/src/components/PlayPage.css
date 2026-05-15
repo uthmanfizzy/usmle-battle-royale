@@ -693,74 +693,103 @@
   /* PLAY PAGE - switch from 3-column grid to single column */
   .play-page {
     grid-template-columns: 1fr !important;
-    grid-template-rows: auto !important;
+    grid-template-rows: auto auto auto !important;
     position: relative !important;
     top: 0 !important;
     left: 0 !important;
     right: 0 !important;
     bottom: 0 !important;
     height: auto !important;
+    min-height: 100vh !important;
     overflow-y: auto !important;
     overflow-x: hidden !important;
-    padding: 76px 12px 220px 12px !important;
-    /* 76px top header, 220px = party bar + bottom nav + buffer */
+    padding: 76px 0 220px 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 10px !important;
   }
 
-  /* LEFT PANEL - game mode list becomes horizontal scrollable row */
+  /* Show left panel first - horizontal scrollable game mode strip */
   .play-left {
+    order: 1 !important;
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
     height: auto !important;
     overflow: visible !important;
+    padding: 0 12px !important;
+    flex-shrink: 0 !important;
+  }
+
+  .panel-title {
+    display: block !important;
+    padding: 0 0 6px 0 !important;
+    font-size: 10px !important;
   }
 
   .mode-list {
     display: flex !important;
     flex-direction: row !important;
     overflow-x: auto !important;
-    overflow-y: hidden !important;
+    overflow-y: visible !important;
     gap: 8px !important;
-    padding-bottom: 8px !important;
+    padding: 4px 0 10px 0 !important;
     scrollbar-width: thin !important;
     scrollbar-color: rgba(180,140,40,0.3) transparent !important;
-    -webkit-overflow-scrolling: touch;
+    -webkit-overflow-scrolling: touch !important;
+    width: 100% !important;
   }
 
   .mode-list-item {
     flex-shrink: 0 !important;
     flex-direction: column !important;
     align-items: center !important;
-    padding: 10px 14px !important;
-    min-width: 90px !important;
-    max-width: 90px !important;
+    justify-content: center !important;
+    padding: 10px 8px !important;
+    width: 85px !important;
+    min-width: 85px !important;
+    max-width: 85px !important;
     gap: 6px !important;
     text-align: center !important;
+    border-radius: 10px !important;
   }
 
   .mode-list-icon {
-    width: 28px !important;
-    height: 28px !important;
+    width: 30px !important;
+    height: 30px !important;
+    flex-shrink: 0 !important;
   }
 
-  .mode-list-info h4 {
-    font-size: 10px !important;
-    white-space: nowrap !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
+  .mode-list-info {
     width: 100% !important;
   }
 
+  .mode-list-info h4 {
+    font-size: 9px !important;
+    white-space: normal !important;
+    word-break: break-word !important;
+    line-height: 1.2 !important;
+    width: 100% !important;
+    text-align: center !important;
+  }
+
   .mode-list-info p {
-    display: none !important; /* hide description in horizontal scroll mode */
+    display: none !important;
   }
 
   .mode-info-btn {
     display: none !important;
   }
 
-  /* CENTER PANEL - full width */
+  /* Center panel below game modes */
   .play-center {
+    order: 2 !important;
+    display: block !important;
+    visibility: visible !important;
     height: auto !important;
     overflow: visible !important;
-    order: -1 !important; /* show center first on mobile */
+    padding: 0 12px !important;
+    flex-shrink: 0 !important;
   }
 
   .play-title {
@@ -813,12 +842,16 @@
     font-size: 15px !important;
   }
 
-  /* RIGHT PANEL - full width, stacked below center */
+  /* Right panel at bottom */
   .play-right {
+    order: 3 !important;
+    display: flex !important;
+    visibility: visible !important;
+    flex-direction: row !important;
     height: auto !important;
     overflow: visible !important;
-    display: flex !important;
-    flex-direction: row !important;
+    padding: 0 12px 12px 12px !important;
+    flex-shrink: 0 !important;
     gap: 10px !important;
   }
 
