@@ -2401,6 +2401,9 @@ app.post('/admin/settings', adminAuth, async (req, res) => {
     if (b[nk] !== undefined) gameSettings[nk] = String(b[nk]).slice(0, 100);
     if (b[dk] !== undefined) gameSettings[dk] = String(b[dk]).slice(0, 500);
   }
+  // Play Page configs (stored as JSON)
+  if (b.game_modes_config !== undefined) gameSettings.game_modes_config = b.game_modes_config;
+  if (b.exam_boards_config !== undefined) gameSettings.exam_boards_config = b.exam_boards_config;
   // Persist to Supabase so settings survive server restarts
   console.log('[admin/settings] Updated gameSettings, now persisting to DB...');
   const persistErr = await persistSettingsToDB();
@@ -3028,6 +3031,122 @@ app.get('/api/home-images', async (req, res) => {
     res.json({ images });
   } catch (err) {
     console.error('[/api/home-images] Error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Play Page Background ──────────────────────────────────────────────────────
+
+// Get play page background
+app.get('/admin/play-page-bg', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  try {
+    const { data } = await supabase
+      .from('game_settings')
+      .select('value')
+      .eq('key', 'play_page_background')
+      .single();
+
+    res.json({ background_url: data?.value || '' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Upload play page background
+app.post('/admin/play-page-bg', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  const { base64, filename, mimeType } = req.body;
+
+  if (!base64 || !filename) {
+    return res.status(400).json({ error: 'Missing required fields: base64, filename' });
+  }
+
+  try {
+    // Remove data URL prefix
+    const base64Data = base64.replace(/^data:image\/\w+;base64,/, '');
+    const buffer = Buffer.from(base64Data, 'base64');
+
+    // Generate unique filename
+    const ext = filename.split('.').pop();
+    const uniqueName = `play_page_bg_${Date.now()}.${ext}`;
+    const filePath = `play-page/${uniqueName}`;
+
+    // Delete old image if exists
+    const { data: existing } = await supabase
+      .from('game_settings')
+      .select('value')
+      .eq('key', 'play_page_background')
+      .single();
+
+    if (existing?.value) {
+      const urlParts = existing.value.split('/');
+      const oldFileName = urlParts.slice(-2).join('/');
+      await supabase.storage.from('home-images').remove([oldFileName]);
+    }
+
+    // Upload new image
+    const { error: uploadError } = await supabase.storage
+      .from('home-images')
+      .upload(filePath, buffer, {
+        contentType: mimeType,
+        upsert: true
+      });
+
+    if (uploadError) throw uploadError;
+
+    // Get public URL
+    const { data: urlData } = supabase.storage
+      .from('home-images')
+      .getPublicUrl(filePath);
+
+    const background_url = urlData.publicUrl;
+
+    // Save to database
+    const { error: dbError } = await supabase
+      .from('game_settings')
+      .upsert({
+        key: 'play_page_background',
+        value: background_url,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'key' });
+
+    if (dbError) throw dbError;
+
+    res.json({ ok: true, background_url });
+  } catch (err) {
+    console.error('[/admin/play-page-bg POST] Error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Delete play page background
+app.delete('/admin/play-page-bg', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+
+  try {
+    // Get current image URL to delete from storage
+    const { data: existing } = await supabase
+      .from('game_settings')
+      .select('value')
+      .eq('key', 'play_page_background')
+      .single();
+
+    if (existing?.value) {
+      const urlParts = existing.value.split('/');
+      const fileName = urlParts.slice(-2).join('/');
+      await supabase.storage.from('home-images').remove([fileName]);
+    }
+
+    // Delete from database
+    const { error: dbError } = await supabase
+      .from('game_settings')
+      .delete()
+      .eq('key', 'play_page_background');
+    if (dbError) throw dbError;
+
+    res.json({ ok: true });
+  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });

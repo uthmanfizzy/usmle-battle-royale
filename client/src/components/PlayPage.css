@@ -93,6 +93,17 @@
   box-shadow: 0 0 12px rgba(200, 165, 60, 0.15);
 }
 
+.mode-list-item--disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  background: rgba(10, 15, 10, 0.3);
+}
+
+.mode-list-item--disabled:hover {
+  background: rgba(10, 15, 10, 0.3);
+  border-color: rgba(180, 140, 40, 0.15);
+}
+
 .mode-list-icon {
   font-size: 36px;
   flex-shrink: 0;

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import './AdminApp.css';
+import PlayPageAdmin from './admin/PlayPageAdmin';
 
 const API = 'https://usmle-battle-royale-production.up.railway.app';
 const AUTH_KEY = 'usmle_admin_session';
@@ -4497,6 +4498,9 @@ export default function AdminApp() {
         <button className={`ap-nav-btn ${tab === 'landing'       ? 'active' : ''}`} onClick={() => setTab('landing')}>
           🖼️ Landing Page
         </button>
+        <button className={`ap-nav-btn ${tab === 'playpage'     ? 'active' : ''}`} onClick={() => setTab('playpage')}>
+          🎮 Play Page
+        </button>
         <button className={`ap-nav-btn ${tab === 'homepage'      ? 'active' : ''}`} onClick={() => setTab('homepage')}>
           🏠 Home Page
         </button>
@@ -4513,6 +4517,7 @@ export default function AdminApp() {
         {tab === 'quests'        && <QuestsPanel />}
         {tab === 'announcements' && <AnnouncementsPanel />}
         {tab === 'landing'       && <LandingImagesPanel />}
+        {tab === 'playpage'      && <PlayPageAdmin />}
         {tab === 'homepage'      && <HomePagePanel />}
         {tab === 'settings'      && <SettingsPanel />}
       </main>

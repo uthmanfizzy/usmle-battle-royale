@@ -72,8 +72,25 @@ export default function PlayPage({ user, username, onModeSelect, onBack }) {
   const [seasonTimeLeft, setSeasonTimeLeft] = useState('');
   const [selectedExam, setSelectedExam] = useState('usmle'); // default to USMLE
   const [selectedStep, setSelectedStep] = useState('step1'); // default to Step 1
+  const [gameModesConfig, setGameModesConfig] = useState({});
+  const [examBoardsConfig, setExamBoardsConfig] = useState({});
 
   const selectedModeData = GAME_MODES.find(m => m.id === selectedMode) || GAME_MODES[0];
+
+  // Fetch game modes and exam boards configs
+  useEffect(() => {
+    async function loadConfigs() {
+      try {
+        const res = await authFetch('/api/game-settings');
+        const data = await res.json();
+        setGameModesConfig(data.game_modes_config || {});
+        setExamBoardsConfig(data.exam_boards_config || {});
+      } catch (err) {
+        console.error('Failed to load configs:', err);
+      }
+    }
+    loadConfigs();
+  }, []);
 
   // Fetch daily challenges
   useEffect(() => {
@@ -139,28 +156,6 @@ export default function PlayPage({ user, username, onModeSelect, onBack }) {
     return () => clearInterval(interval);
   }, []);
 
-  // DEBUG: Find all elements extending beyond viewport
-  useEffect(() => {
-    // Find ALL elements taller than viewport
-    const all = document.querySelectorAll('*');
-    const viewport = window.innerHeight;
-    const offenders = [];
-    all.forEach(el => {
-      const rect = el.getBoundingClientRect();
-      const style = window.getComputedStyle(el);
-      if (rect.bottom > viewport + 10) {
-        offenders.push({
-          tag: el.tagName,
-          class: el.className?.toString().slice(0, 60),
-          bottom: Math.round(rect.bottom),
-          height: Math.round(rect.height),
-          overflow: style.overflow + ' ' + style.overflowY
-        });
-      }
-    });
-    console.table(offenders);
-  }, []);
-
   function getPlaceholderChallenges() {
     return [
       { id: 1, name: 'Answer 10 questions', icon: '🎯', progress: '0/10', percent: 0, reward: 100 },
@@ -187,19 +182,22 @@ export default function PlayPage({ user, username, onModeSelect, onBack }) {
         <div className="play-left">
           <h3 className="panel-title">GAME MODE</h3>
           <div className="mode-list">
-            {GAME_MODES.map(mode => (
-              <div
-                key={mode.id}
-                className={`mode-list-item ${selectedMode === mode.id ? 'mode-list-item--active' : ''}`}
-                onClick={() => setSelectedMode(mode.id)}
-              >
-                <div className="mode-list-icon">{mode.icon}</div>
-                <div className="mode-list-info">
-                  <h4>{mode.name}</h4>
-                  <p>{mode.shortDesc}</p>
+            {GAME_MODES.map(mode => {
+              const isEnabled = gameModesConfig[mode.id]?.enabled ?? true;
+              return (
+                <div
+                  key={mode.id}
+                  className={`mode-list-item ${selectedMode === mode.id ? 'mode-list-item--active' : ''} ${!isEnabled ? 'mode-list-item--disabled' : ''}`}
+                  onClick={() => isEnabled && setSelectedMode(mode.id)}
+                >
+                  <div className="mode-list-icon">{mode.icon}</div>
+                  <div className="mode-list-info">
+                    <h4>{mode.name}</h4>
+                    <p>{!isEnabled ? 'Coming Soon' : mode.shortDesc}</p>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           <div className="exam-board-section">
@@ -207,47 +205,85 @@ export default function PlayPage({ user, username, onModeSelect, onBack }) {
 
             <div className="exam-board-list">
 
-              {/* USMLE - Active */}
-              <div
-                className={`exam-board-item ${selectedExam === 'usmle' ? 'exam-board-item--active' : ''}`}
-                onClick={() => setSelectedExam(selectedExam === 'usmle' ? null : 'usmle')}
-              >
-                <span className="exam-board-name">USMLE</span>
-                <span className="exam-board-arrow">{selectedExam === 'usmle' ? '▾' : '▸'}</span>
-              </div>
+              {/* USMLE */}
+              {(() => {
+                const usmlEnabled = examBoardsConfig.usmle?.enabled ?? true;
+                const step1Enabled = examBoardsConfig.usmle?.steps?.step1?.enabled ?? true;
+                const step2Enabled = examBoardsConfig.usmle?.steps?.step2?.enabled ?? true;
 
-              {/* USMLE Steps - shown when USMLE is selected */}
-              {selectedExam === 'usmle' && (
-                <div className="exam-steps">
+                return (
+                  <>
+                    <div
+                      className={`exam-board-item ${selectedExam === 'usmle' ? 'exam-board-item--active' : ''} ${!usmlEnabled ? 'exam-board-item--locked' : ''}`}
+                      onClick={() => usmlEnabled && setSelectedExam(selectedExam === 'usmle' ? null : 'usmle')}
+                      title={!usmlEnabled ? 'Coming Soon' : ''}
+                    >
+                      <span className="exam-board-name">USMLE</span>
+                      {!usmlEnabled ? (
+                        <span className="coming-soon-tag">Soon</span>
+                      ) : (
+                        <span className="exam-board-arrow">{selectedExam === 'usmle' ? '▾' : '▸'}</span>
+                      )}
+                    </div>
+
+                    {/* USMLE Steps - shown when USMLE is selected */}
+                    {selectedExam === 'usmle' && usmlEnabled && (
+                      <div className="exam-steps">
+                        <div
+                          className={`exam-step-item ${selectedStep === 'step1' ? 'exam-step-item--active' : ''} ${!step1Enabled ? 'exam-step-item--locked' : ''}`}
+                          onClick={() => step1Enabled && setSelectedStep('step1')}
+                          title={!step1Enabled ? 'Coming Soon' : ''}
+                        >
+                          <span className={`step-dot ${step1Enabled ? 'step-dot--available' : 'step-dot--locked'}`}>
+                            {step1Enabled ? '●' : '🔒'}
+                          </span>
+                          Step 1
+                          {!step1Enabled && <span className="coming-soon-tag">Soon</span>}
+                        </div>
+                        <div
+                          className={`exam-step-item ${selectedStep === 'step2' ? 'exam-step-item--active' : ''} ${!step2Enabled ? 'exam-step-item--locked' : ''}`}
+                          onClick={() => step2Enabled && setSelectedStep('step2')}
+                          title={!step2Enabled ? 'Coming Soon' : ''}
+                        >
+                          <span className={`step-dot ${step2Enabled ? 'step-dot--available' : 'step-dot--locked'}`}>
+                            {step2Enabled ? '●' : '🔒'}
+                          </span>
+                          Step 2
+                          {!step2Enabled && <span className="coming-soon-tag">Soon</span>}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
+
+              {/* PLAB */}
+              {(() => {
+                const plabEnabled = examBoardsConfig.plab?.enabled ?? false;
+                return (
                   <div
-                    className={`exam-step-item ${selectedStep === 'step1' ? 'exam-step-item--active' : ''}`}
-                    onClick={() => setSelectedStep('step1')}
+                    className={`exam-board-item ${!plabEnabled ? 'exam-board-item--locked' : ''}`}
+                    title={!plabEnabled ? 'Coming Soon' : ''}
                   >
-                    <span className="step-dot step-dot--available">●</span>
-                    Step 1
-                  </div>
-                  <div
-                    className="exam-step-item exam-step-item--locked"
-                    title="Coming Soon"
-                  >
-                    <span className="step-dot step-dot--locked">🔒</span>
-                    Step 2
+                    <span className="exam-board-name">PLAB</span>
                     <span className="coming-soon-tag">Soon</span>
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
-              {/* PLAB - Locked */}
-              <div className="exam-board-item exam-board-item--locked" title="Coming Soon">
-                <span className="exam-board-name">PLAB</span>
-                <span className="coming-soon-tag">Soon</span>
-              </div>
-
-              {/* AMC - Locked */}
-              <div className="exam-board-item exam-board-item--locked" title="Coming Soon">
-                <span className="exam-board-name">AMC</span>
-                <span className="coming-soon-tag">Soon</span>
-              </div>
+              {/* AMC */}
+              {(() => {
+                const amcEnabled = examBoardsConfig.amc?.enabled ?? false;
+                return (
+                  <div
+                    className={`exam-board-item ${!amcEnabled ? 'exam-board-item--locked' : ''}`}
+                    title={!amcEnabled ? 'Coming Soon' : ''}
+                  >
+                    <span className="exam-board-name">AMC</span>
+                    <span className="coming-soon-tag">Soon</span>
+                  </div>
+                );
+              })()}
 
             </div>
           </div>
