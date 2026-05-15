@@ -137,6 +137,28 @@ export default function PlayPage({ user, username, onModeSelect, onBack }) {
     return () => clearInterval(interval);
   }, []);
 
+  // DEBUG: Find all elements extending beyond viewport
+  useEffect(() => {
+    // Find ALL elements taller than viewport
+    const all = document.querySelectorAll('*');
+    const viewport = window.innerHeight;
+    const offenders = [];
+    all.forEach(el => {
+      const rect = el.getBoundingClientRect();
+      const style = window.getComputedStyle(el);
+      if (rect.bottom > viewport + 10) {
+        offenders.push({
+          tag: el.tagName,
+          class: el.className?.toString().slice(0, 60),
+          bottom: Math.round(rect.bottom),
+          height: Math.round(rect.height),
+          overflow: style.overflow + ' ' + style.overflowY
+        });
+      }
+    });
+    console.table(offenders);
+  }, []);
+
   function getPlaceholderChallenges() {
     return [
       { id: 1, name: 'Answer 10 questions', icon: '🎯', progress: '0/10', percent: 0, reward: 100 },
