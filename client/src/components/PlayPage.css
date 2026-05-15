@@ -11,8 +11,20 @@
   background: #0a0f0a;
 }
 
+/* Dark overlay for background image readability */
+.play-page-wrapper::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 0;
+  pointer-events: none;
+}
+
 .play-page-wrapper > * {
   pointer-events: all;
+  position: relative;
+  z-index: 1;
 }
 
 .play-page {

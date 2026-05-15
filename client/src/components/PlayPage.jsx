@@ -74,10 +74,11 @@ export default function PlayPage({ user, username, onModeSelect, onBack }) {
   const [selectedStep, setSelectedStep] = useState('step1'); // default to Step 1
   const [gameModesConfig, setGameModesConfig] = useState({});
   const [examBoardsConfig, setExamBoardsConfig] = useState({});
+  const [playBgImage, setPlayBgImage] = useState('');
 
   const selectedModeData = GAME_MODES.find(m => m.id === selectedMode) || GAME_MODES[0];
 
-  // Fetch game modes and exam boards configs
+  // Fetch game modes, exam boards configs, and background image
   useEffect(() => {
     async function loadConfigs() {
       try {
@@ -85,6 +86,7 @@ export default function PlayPage({ user, username, onModeSelect, onBack }) {
         const data = await res.json();
         setGameModesConfig(data.game_modes_config || {});
         setExamBoardsConfig(data.exam_boards_config || {});
+        setPlayBgImage(data.play_page_background || '');
       } catch (err) {
         console.error('Failed to load configs:', err);
       }
@@ -175,7 +177,15 @@ export default function PlayPage({ user, username, onModeSelect, onBack }) {
   }
 
   return (
-    <div className="play-page-wrapper">
+    <div
+      className="play-page-wrapper"
+      style={{
+        backgroundImage: playBgImage ? `url(${playBgImage})` : 'none',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+      }}
+    >
       <div className="play-page">
 
         {/* LEFT PANEL - Game Mode List */}
