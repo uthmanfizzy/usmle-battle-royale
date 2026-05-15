@@ -70,6 +70,8 @@ export default function PlayPage({ user, username, onModeSelect, onBack }) {
   const [dailyChallenges, setDailyChallenges] = useState([]);
   const [recentPlayers, setRecentPlayers] = useState([]);
   const [seasonTimeLeft, setSeasonTimeLeft] = useState('');
+  const [selectedExam, setSelectedExam] = useState('usmle'); // default to USMLE
+  const [selectedStep, setSelectedStep] = useState('step1'); // default to Step 1
 
   const selectedModeData = GAME_MODES.find(m => m.id === selectedMode) || GAME_MODES[0];
 
@@ -169,7 +171,12 @@ export default function PlayPage({ user, username, onModeSelect, onBack }) {
 
   function handleFindMatch() {
     // Pass mode and options to parent
-    onModeSelect(selectedMode, { squadSize, fillTeam });
+    onModeSelect(selectedMode, {
+      squadSize,
+      fillTeam,
+      exam: selectedExam,      // 'usmle'
+      step: selectedStep,       // 'step1'
+    });
   }
 
   return (
@@ -194,7 +201,56 @@ export default function PlayPage({ user, username, onModeSelect, onBack }) {
               </div>
             ))}
           </div>
-          <button className="mode-info-btn">ⓘ GAME MODE INFO</button>
+
+          <div className="exam-board-section">
+            <h4 className="exam-board-title">CHOOSE EXAM BOARD</h4>
+
+            <div className="exam-board-list">
+
+              {/* USMLE - Active */}
+              <div
+                className={`exam-board-item ${selectedExam === 'usmle' ? 'exam-board-item--active' : ''}`}
+                onClick={() => setSelectedExam(selectedExam === 'usmle' ? null : 'usmle')}
+              >
+                <span className="exam-board-name">USMLE</span>
+                <span className="exam-board-arrow">{selectedExam === 'usmle' ? '▾' : '▸'}</span>
+              </div>
+
+              {/* USMLE Steps - shown when USMLE is selected */}
+              {selectedExam === 'usmle' && (
+                <div className="exam-steps">
+                  <div
+                    className={`exam-step-item ${selectedStep === 'step1' ? 'exam-step-item--active' : ''}`}
+                    onClick={() => setSelectedStep('step1')}
+                  >
+                    <span className="step-dot step-dot--available">●</span>
+                    Step 1
+                  </div>
+                  <div
+                    className="exam-step-item exam-step-item--locked"
+                    title="Coming Soon"
+                  >
+                    <span className="step-dot step-dot--locked">🔒</span>
+                    Step 2
+                    <span className="coming-soon-tag">Soon</span>
+                  </div>
+                </div>
+              )}
+
+              {/* PLAB - Locked */}
+              <div className="exam-board-item exam-board-item--locked" title="Coming Soon">
+                <span className="exam-board-name">PLAB</span>
+                <span className="coming-soon-tag">Soon</span>
+              </div>
+
+              {/* AMC - Locked */}
+              <div className="exam-board-item exam-board-item--locked" title="Coming Soon">
+                <span className="exam-board-name">AMC</span>
+                <span className="coming-soon-tag">Soon</span>
+              </div>
+
+            </div>
+          </div>
         </div>
 
         {/* CENTER PANEL - Selected Mode Detail */}
