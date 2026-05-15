@@ -3,21 +3,24 @@
 .play-page-wrapper {
   height: 100vh;
   overflow: hidden;
-  background: #0a0f0a;
   display: flex;
   flex-direction: column;
+  padding: 0;
+  margin: 0;
+  background: #0a0f0a;
 }
 
 .play-page {
+  position: fixed;
+  top: 70px;        /* height of top header bar */
+  left: 0;
+  right: 0;
+  bottom: 146px;    /* 56px party bar + 90px bottom nav */
   display: grid;
   grid-template-columns: 260px 1fr 280px;
   gap: 12px;
-  padding: 80px 16px 0 16px;
-  height: calc(100vh - 56px - 90px);
-  /* 80px top padding (header space), 56px party bar, 90px bottom nav */
+  padding: 12px 16px;
   overflow: hidden;
-  max-width: 1400px;
-  margin: 0 auto;
   box-sizing: border-box;
 }
 

@@ -613,7 +613,7 @@ export default function App() {
   const showHomeBtn = !['loading', 'entry', 'landing'].includes(phase);
 
   return (
-    <div>
+    <div style={{ height: '100vh', overflow: 'hidden' }}>
       {toast && <div className="notification">{toast}</div>}
 
       {showHomeBtn && (

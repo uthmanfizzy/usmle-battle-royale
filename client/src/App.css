@@ -73,7 +73,7 @@ button:active:not(:disabled) { transform: scale(0.97); }
 
 /* ── Screens ───────────────────────────────────────────────────────────── */
 .screen {
-  min-height: 100vh;
+  min-height: 0;
   display: flex;
   align-items: center;
   justify-content: center;
