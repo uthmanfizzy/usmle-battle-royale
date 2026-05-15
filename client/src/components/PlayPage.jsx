@@ -250,9 +250,6 @@ export default function PlayPage({ user, username, onModeSelect, onBack }) {
             )}
           </div>
 
-          {onBack && (
-            <button className="play-back-btn" onClick={onBack}>← Back</button>
-          )}
         </div>
 
         {/* RIGHT PANEL - Season + Challenges + Rewards */}
@@ -283,13 +280,6 @@ export default function PlayPage({ user, username, onModeSelect, onBack }) {
               </div>
             ))}
             <button className="view-all-btn">VIEW ALL CHALLENGES</button>
-          </div>
-
-          <div className="rewards-card">
-            <h3>REWARDS</h3>
-            <div className="chest-image">🎁</div>
-            <p>Play matches and complete challenges to earn rewards!</p>
-            <button className="view-rewards-btn">🎁 VIEW REWARDS</button>
           </div>
 
         </div>
