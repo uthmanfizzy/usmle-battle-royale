@@ -22,8 +22,8 @@ import LandingPage from './components/LandingPage';
 import TrainingGrounds from './components/TrainingGrounds';
 
 // phases: 'loading' | 'entry' | 'exam_select' | 'difficulty_select' | 'mode_select' |
-//         'how_to_play' | 'lobby_select' | 'subject_select' | 'join_input' | 'lobby' | 'game' |
-//         'game_over' | 'solo_subject' | 'solo_game' | 'tower' | 'training_grounds'
+//         'how_to_play' | 'lobby_select' | 'subject_select' | 'lobby_difficulty' | 'join_input' | 'lobby' | 'game' |
+//         'game_over' | 'solo_subject' | 'solo_difficulty' | 'solo_game' | 'tower' | 'training_grounds'
 
 export default function App() {
   const [phase,    setPhase]    = useState('loading');
@@ -450,16 +450,23 @@ export default function App() {
     setError('');
     // Scan Master has no subject selection — always uses image questions
     if (gameMode === 'scan_master') {
-      handleCreateLobby('scan_master');
+      setSubject('scan_master');
+      setPhase('lobby_difficulty');
     } else {
       setPhase('subject_select');
     }
   }
 
-  function handleCreateLobby(selectedSubject) {
+  function handleLobbySubjectSelect(selectedSubject) {
     setSubject(selectedSubject);
+    setPhase('lobby_difficulty');
+  }
+
+  function handleLobbyDifficultySelect(diff) {
+    setDifficulty(diff);
+    // Create lobby with chosen subject and difficulty
     setError('');
-    socket.timeout(5000).emit('create_lobby', { username, subject: selectedSubject, gameMode, difficulty, clanTag: user?.clan?.tag ?? null, isGuest: !user }, (err, res) => {
+    socket.timeout(5000).emit('create_lobby', { username, subject, gameMode, difficulty: diff, clanTag: user?.clan?.tag ?? null, isGuest: !user }, (err, res) => {
       if (err)      { setError('No response from server. Please try again.'); return; }
       if (!res.ok)  { setError(res.error ?? 'Failed to create lobby.'); return; }
       setLobbyId(res.lobbyId);
@@ -493,7 +500,7 @@ export default function App() {
 
   function handleQuickJoin({ onCreating, onError } = {}) {
     setError('');
-    socket.timeout(8000).emit('quick_join', { username, gameMode, clanTag: user?.clan?.tag ?? null, isGuest: !user }, (err, res) => {
+    socket.timeout(8000).emit('quick_join', { username, gameMode, difficulty, clanTag: user?.clan?.tag ?? null, isGuest: !user }, (err, res) => {
       if (err) {
         setError('Quick join timed out. Please try again.');
         if (onError) onError();
@@ -542,7 +549,8 @@ export default function App() {
   }
 
   function handleShowSoloMode()              { setError(''); setPhase('solo_subject'); }
-  function handleSoloSubjectSelect(s)        { setSoloSubject(s); setPhase('solo_game'); }
+  function handleSoloSubjectSelect(s)        { setSoloSubject(s); setPhase('solo_difficulty'); }
+  function handleSoloDifficultySelect(diff)  { setDifficulty(diff); setPhase('solo_game'); }
   function handleSoloTryAgain()              { setSoloKey(k => k + 1); setPhase('solo_game'); }
   function handlePlayAgain()                 { socket.emit('reset_game'); }
 
@@ -670,8 +678,16 @@ export default function App() {
       {phase === 'subject_select' && (
         <SubjectSelect
           username={username}
-          onSelect={handleCreateLobby}
+          onSelect={handleLobbySubjectSelect}
           onBack={() => { setError(''); setPhase('lobby_select'); }}
+        />
+      )}
+
+      {phase === 'lobby_difficulty' && (
+        <DifficultySelect
+          username={username}
+          onSelectDifficulty={handleLobbyDifficultySelect}
+          onBack={() => setPhase(gameMode === 'scan_master' ? 'lobby_select' : 'subject_select')}
         />
       )}
 
@@ -811,6 +827,14 @@ export default function App() {
           username={username}
           onSelect={handleSoloSubjectSelect}
           onBack={() => { setError(''); setPhase('lobby_select'); }}
+        />
+      )}
+
+      {phase === 'solo_difficulty' && (
+        <DifficultySelect
+          username={username}
+          onSelectDifficulty={handleSoloDifficultySelect}
+          onBack={() => setPhase('solo_subject')}
         />
       )}
 
