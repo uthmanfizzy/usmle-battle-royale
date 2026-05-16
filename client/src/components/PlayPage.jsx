@@ -107,44 +107,14 @@ function TrainingGroundsFlow({ onStart }) {
   const fetchCategories = async () => {
     setLoading(true);
     try {
-      // Check which column holds the subject/category name
-      const { data, error } = await supabase
-        .from('topics')
-        .select('*')
-        .limit(5);
-      console.log('Sample topics data:', data, 'Error:', error);
+      const res = await fetch(`${SERVER_URL}/api/topics`);
+      const data = await res.json();
+      console.log('Topics API response:', data);
 
-      if (error) {
-        console.error('Supabase error:', error);
-        setLoading(false);
-        return;
-      }
-
-      // Try to get distinct subjects - check if 'subject' column exists
-      const { data: subjectData, error: subjectError } = await supabase
-        .from('topics')
-        .select('subject')
-        .not('subject', 'is', null)
-        .order('subject');
-
-      console.log('Subject data:', subjectData, 'Error:', subjectError);
-
-      if (subjectData && subjectData.length > 0) {
-        const unique = [...new Set(subjectData.map(s => s.subject).filter(Boolean))];
-        setCategories(unique);
-      } else {
-        // Fallback: try 'category' column name
-        const { data: catData } = await supabase
-          .from('topics')
-          .select('category')
-          .not('category', 'is', null)
-          .order('category');
-
-        if (catData && catData.length > 0) {
-          const unique = [...new Set(catData.map(s => s.category).filter(Boolean))];
-          setCategories(unique);
-        }
-      }
+      // Extract unique categories from topics array
+      const topicsArray = data.topics || [];
+      const unique = [...new Set(topicsArray.map(t => t.category).filter(Boolean))];
+      setCategories(unique);
     } catch(e) {
       console.error('fetchCategories error:', e);
     }
@@ -152,12 +122,21 @@ function TrainingGroundsFlow({ onStart }) {
   };
 
   const fetchTopics = async () => {
+    if (!selectedCategory || !selectedDifficulty) return;
     setLoading(true);
-    let query = supabase.from('topics').select('*').order('name');
-    if (selectedCategory) query = query.eq('subject', selectedCategory);
-    if (selectedDifficulty) query = query.eq('difficulty', selectedDifficulty);
-    const { data } = await query;
-    setTopics(data || []);
+    try {
+      const res = await fetch(`${SERVER_URL}/api/topics?category=${encodeURIComponent(selectedCategory)}`);
+      const data = await res.json();
+      console.log('Topics for category:', data);
+
+      // Filter by difficulty on client side (API returns all topics for the category)
+      const topicsArray = data.topics || [];
+      const filtered = topicsArray.filter(t => (t.difficulty || 'easy') === selectedDifficulty);
+      setTopics(filtered);
+    } catch(e) {
+      console.error('fetchTopics error:', e);
+      setTopics([]);
+    }
     setLoading(false);
   };
 
