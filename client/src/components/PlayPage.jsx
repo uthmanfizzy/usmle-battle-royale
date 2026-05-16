@@ -93,7 +93,7 @@ function TrainingGroundsFlow({ onStart }) {
   const [tgStep, setTgStep] = useState('category'); // 'category' | 'difficulty' | 'topic'
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [selectedDifficulty, setSelectedDifficulty] = useState(null);
-  const [selectedTopic, setSelectedTopic] = useState(null); // null = all topics
+  const [selectedTopics, setSelectedTopics] = useState([]); // array of selected topics
   const [topics, setTopics] = useState([]);
   const [loading, setLoading] = useState(false);
 
@@ -120,17 +120,25 @@ function TrainingGroundsFlow({ onStart }) {
 
   const handleDifficultySelect = (diff) => {
     setSelectedDifficulty(diff);
-    fetchTopics(selectedCategory.id, diff);
+    fetchTopics(selectedCategory, diff);
     setTgStep('topic');
+  };
+
+  const toggleTopic = (topic) => {
+    setSelectedTopics(prev =>
+      prev.find(t => t.id === topic.id)
+        ? prev.filter(t => t.id !== topic.id)
+        : [...prev, topic]
+    );
   };
 
   const handleStart = () => {
     onStart({
-      category: selectedCategory.id,
+      category: selectedCategory,
       difficulty: selectedDifficulty,
-      topicId: selectedTopic?.id || null,
-      topicName: selectedTopic?.name || null,
-      mode: selectedTopic ? 'specific' : 'all'
+      topicIds: selectedTopics.map(t => t.id),
+      topicNames: selectedTopics.map(t => t.name),
+      mode: selectedTopics.length === 0 ? 'all' : selectedTopics.length === 1 ? 'specific' : 'multi'
     });
   };
 
@@ -143,10 +151,10 @@ function TrainingGroundsFlow({ onStart }) {
           <p className="tg-subtitle">Choose a category to begin</p>
         </div>
         {loading ? <p className="tg-loading">Loading...</p> : (
-          <div className="tg-category-grid">
+          <div className="tg-category-chips">
             {SUBJECTS.map(cat => (
-              <div className="tg-category-card" key={cat.id} onClick={() => handleCategorySelect(cat)}>
-                <span className="tg-category-name">{cat.label}</span>
+              <div className="tg-category-chip" key={cat.id} onClick={() => handleCategorySelect(cat.label)}>
+                {cat.label}
               </div>
             ))}
             {SUBJECTS.length === 0 && <p className="tg-empty">No categories found.</p>}
@@ -162,7 +170,7 @@ function TrainingGroundsFlow({ onStart }) {
       <div className="tg-flow">
         <div className="tg-header">
           <button className="tg-back" onClick={() => setTgStep('category')}>← Back</button>
-          <h3 className="tg-title">{selectedCategory.label}</h3>
+          <h3 className="tg-title">{selectedCategory}</h3>
           <p className="tg-subtitle">Choose difficulty</p>
         </div>
         <div className="tg-difficulty-row">
@@ -181,21 +189,30 @@ function TrainingGroundsFlow({ onStart }) {
     );
   }
 
-  // STEP: Topic (optional)
+  // STEP: Topic (optional multi-select)
   if (tgStep === 'topic') {
     return (
       <div className="tg-flow">
         <div className="tg-header">
-          <button className="tg-back" onClick={() => { setTgStep('difficulty'); setSelectedTopic(null); }}>← Back</button>
-          <h3 className="tg-title">{selectedCategory.label} · {selectedDifficulty}</h3>
-          <p className="tg-subtitle">Choose a topic — or skip to study all</p>
+          <button className="tg-back" onClick={() => { setTgStep('difficulty'); setSelectedTopics([]); }}>← Back</button>
+          <h3 className="tg-title">{selectedCategory} · {selectedDifficulty}</h3>
+          <p className="tg-subtitle">
+            {selectedTopics.length === 0
+              ? 'Select topics (optional) or start with all'
+              : `${selectedTopics.length} topic${selectedTopics.length > 1 ? 's' : ''} selected`}
+          </p>
         </div>
 
-        {/* Selected topic indicator */}
-        {selectedTopic && (
-          <div className="tg-selected-topic">
-            <span>📁 {selectedTopic.name}</span>
-            <button className="tg-clear-topic" onClick={() => setSelectedTopic(null)}>✕ Clear</button>
+        {/* Selected topics chips */}
+        {selectedTopics.length > 0 && (
+          <div className="tg-selected-chips">
+            {selectedTopics.map(t => (
+              <span className="tg-selected-chip" key={t.id}>
+                {t.name}
+                <button onClick={() => toggleTopic(t)}>✕</button>
+              </span>
+            ))}
+            <button className="tg-clear-all" onClick={() => setSelectedTopics([])}>Clear all</button>
           </div>
         )}
 
@@ -204,22 +221,29 @@ function TrainingGroundsFlow({ onStart }) {
           <div className="tg-topics-list">
             {topics.map(topic => (
               <div
-                className={`tg-topic-card ${selectedTopic?.id === topic.id ? 'tg-topic-card--selected' : ''}`}
+                className={`tg-topic-card ${selectedTopics.find(t => t.id === topic.id) ? 'tg-topic-card--selected' : ''}`}
                 key={topic.id}
-                onClick={() => setSelectedTopic(selectedTopic?.id === topic.id ? null : topic)}
+                onClick={() => toggleTopic(topic)}
               >
                 <span className="tg-topic-icon">📁</span>
                 <span className="tg-topic-name">{topic.name}</span>
-                {selectedTopic?.id === topic.id && <span className="tg-topic-check">✓</span>}
+                {selectedTopics.find(t => t.id === topic.id)
+                  ? <span className="tg-topic-check">✓</span>
+                  : <span className="tg-topic-plus">+</span>
+                }
               </div>
             ))}
             {topics.length === 0 && <p className="tg-empty">No topics found.</p>}
           </div>
         )}
 
-        {/* START button - always visible */}
+        {/* START button */}
         <button className="tg-start-btn" onClick={handleStart}>
-          {selectedTopic ? `▶ Start — ${selectedTopic.name}` : '▶ Start — All Topics'}
+          {selectedTopics.length === 0
+            ? '▶ Start — All Topics'
+            : selectedTopics.length === 1
+            ? `▶ Start — ${selectedTopics[0].name}`
+            : `▶ Start — ${selectedTopics.length} Topics`}
         </button>
       </div>
     );
