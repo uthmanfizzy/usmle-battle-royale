@@ -436,7 +436,7 @@ export default function App() {
 
   function handlePlayPageModeSelect(modeOrOptions, legacyOptions = {}) {
     // Handle both old (mode, options) and new ({mode, action, ...}) signatures
-    let mode, action, lobbyCode;
+    let mode, action, lobbyCode, squadSize, fillTeam, exam, step;
     if (typeof modeOrOptions === 'string') {
       // Legacy signature: handlePlayPageModeSelect('mode_id', {options})
       mode = modeOrOptions;
@@ -446,6 +446,10 @@ export default function App() {
       mode = modeOrOptions.mode;
       action = modeOrOptions.action || 'find';
       lobbyCode = modeOrOptions.lobbyCode;
+      squadSize = modeOrOptions.squadSize;
+      fillTeam = modeOrOptions.fillTeam;
+      exam = modeOrOptions.exam;
+      step = modeOrOptions.step;
     }
 
     setGameMode(mode);
@@ -458,12 +462,47 @@ export default function App() {
     } else {
       // For multiplayer modes, handle based on action
       if (action === 'create') {
-        setPhase('lobby_select');  // Will create a lobby
+        // CREATE LOBBY - skip all intermediate screens, create directly
+        setError('');
+        const lobbySubject = mode === 'scan_master' ? 'scan_master' : 'all';
+        const lobbyDifficulty = 'easy'; // Default to easy, can be changed in lobby
+        setSubject(lobbySubject);
+        setDifficulty(lobbyDifficulty);
+
+        socket.timeout(5000).emit('create_lobby', {
+          username,
+          subject: lobbySubject,
+          gameMode: mode,
+          difficulty: lobbyDifficulty,
+          clanTag: user?.clan?.tag ?? null,
+          isGuest: !user
+        }, (err, res) => {
+          if (err) { setError('No response from server. Please try again.'); return; }
+          if (!res.ok) { setError(res.error ?? 'Failed to create lobby.'); return; }
+          setLobbyId(res.lobbyId);
+          setIsHost(true);
+          setPhase('lobby');
+          audio.startBgMusic();
+        });
       } else if (action === 'join') {
-        setPhase('lobby_select');  // Will join with lobbyCode
-        // TODO: Store lobbyCode in state when implementing lobby join logic
+        // JOIN LOBBY - skip intermediate screen, join directly with code
+        setError('');
+        socket.timeout(5000).emit('join_lobby', {
+          username,
+          lobbyId: lobbyCode,
+          clanTag: user?.clan?.tag ?? null,
+          isGuest: !user
+        }, (err, res) => {
+          if (err) { setError('No response from server. Please try again.'); return; }
+          if (!res.ok) { setError(res.error ?? 'Failed to join lobby.'); return; }
+          setLobbyId(res.lobbyId);
+          setIsHost(false);
+          setPhase('lobby');
+          audio.startBgMusic();
+        });
       } else if (action === 'find') {
-        setPhase('lobby_select');  // Will use matchmaking
+        // FIND MATCH - use quick join (matchmaking)
+        handleQuickJoin();
       }
     }
   }
@@ -682,6 +721,8 @@ export default function App() {
           username={username}
           onModeSelect={handlePlayPageModeSelect}
           onBack={() => window.location.href = '/dashboard'}
+          error={error}
+          onClearError={() => setError('')}
         />
       )}
 

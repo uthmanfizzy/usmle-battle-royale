@@ -63,7 +63,7 @@ const GAME_MODES = [
   },
 ];
 
-export default function PlayPage({ user, username, onModeSelect, onBack }) {
+export default function PlayPage({ user, username, onModeSelect, onBack, error, onClearError }) {
   const [selectedMode, setSelectedMode] = useState('battle_royale');
   const [squadSize, setSquadSize] = useState('solo');
   const [fillTeam, setFillTeam] = useState(false);
@@ -196,6 +196,7 @@ export default function PlayPage({ user, username, onModeSelect, onBack }) {
   function handleJoinLobby() {
     if (!lobbyCode.trim()) return;
     setJoinError('');
+    if (onClearError) onClearError();
     onModeSelect({
       mode: selectedMode,
       action: 'join',
@@ -467,7 +468,11 @@ export default function PlayPage({ user, username, onModeSelect, onBack }) {
                     className="join-lobby-input"
                     placeholder="Enter lobby code..."
                     value={lobbyCode}
-                    onChange={e => setLobbyCode(e.target.value.toUpperCase())}
+                    onChange={e => {
+                      setLobbyCode(e.target.value.toUpperCase());
+                      setJoinError('');
+                      if (onClearError) onClearError();
+                    }}
                     maxLength={8}
                     onKeyDown={e => e.key === 'Enter' && handleJoinLobby()}
                   />
@@ -479,7 +484,7 @@ export default function PlayPage({ user, username, onModeSelect, onBack }) {
                     JOIN →
                   </button>
                 </div>
-                {joinError && <p className="join-lobby-error">{joinError}</p>}
+                {(joinError || error) && <p className="join-lobby-error">{joinError || error}</p>}
               </div>
             )}
 
