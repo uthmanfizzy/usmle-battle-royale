@@ -92,18 +92,22 @@ const SUBJECTS = [
 
 // Training Grounds Flow Component
 function TrainingGroundsFlow({ onStart }) {
-  const [step, setStep] = useState('category'); // 'category' | 'difficulty' | 'topic'
+  const [tgStep, setTgStep] = useState('category'); // 'category' | 'difficulty' | 'topic'
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [selectedDifficulty, setSelectedDifficulty] = useState(null);
+  const [selectedTopic, setSelectedTopic] = useState(null); // null = all topics
   const [topics, setTopics] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  const fetchTopics = async (category) => {
+  const fetchTopics = async (category, difficulty) => {
     setLoading(true);
     try {
       const res = await fetch(`${SERVER_URL}/api/topics?category=${category}`);
       const data = await res.json();
-      setTopics(data.topics || []);
+      const allTopics = data.topics || [];
+      // Filter by difficulty if provided
+      const filtered = difficulty ? allTopics.filter(t => !t.difficulty || t.difficulty === difficulty) : allTopics;
+      setTopics(filtered);
     } catch (err) {
       console.error('Failed to load topics:', err);
       setTopics([]);
@@ -113,108 +117,112 @@ function TrainingGroundsFlow({ onStart }) {
 
   const handleCategorySelect = (cat) => {
     setSelectedCategory(cat);
-    fetchTopics(cat.id);
-    setStep('difficulty');
+    setTgStep('difficulty');
   };
 
   const handleDifficultySelect = (diff) => {
     setSelectedDifficulty(diff);
-    setStep('topic');
+    fetchTopics(selectedCategory.id, diff);
+    setTgStep('topic');
   };
 
-  const filteredTopics = selectedDifficulty
-    ? topics.filter(t => !t.difficulty || t.difficulty === selectedDifficulty)
-    : topics;
+  const handleStart = () => {
+    onStart({
+      category: selectedCategory.id,
+      difficulty: selectedDifficulty,
+      topicId: selectedTopic?.id || null,
+      topicName: selectedTopic?.name || null,
+      mode: selectedTopic ? 'specific' : 'all'
+    });
+  };
 
-  // SCREEN A: Category selection
-  if (step === 'category') {
+  // STEP: Category
+  if (tgStep === 'category') {
     return (
       <div className="tg-flow">
-        <h3 className="tg-title">📚 Choose a Category</h3>
-        <div className="tg-category-grid">
-          {SUBJECTS.map(cat => (
-            <div className="tg-category-card" key={cat.id} onClick={() => handleCategorySelect(cat)}>
-              <span style={{ fontSize: '16px', marginBottom: '4px' }}>{cat.icon}</span>
-              <span className="tg-category-name">{cat.label}</span>
-            </div>
-          ))}
+        <div className="tg-header">
+          <h3 className="tg-title">📚 Training Grounds</h3>
+          <p className="tg-subtitle">Choose a category to begin</p>
         </div>
+        {loading ? <p className="tg-loading">Loading...</p> : (
+          <div className="tg-category-grid">
+            {SUBJECTS.map(cat => (
+              <div className="tg-category-card" key={cat.id} onClick={() => handleCategorySelect(cat)}>
+                <span className="tg-category-name">{cat.label}</span>
+              </div>
+            ))}
+            {SUBJECTS.length === 0 && <p className="tg-empty">No categories found.</p>}
+          </div>
+        )}
       </div>
     );
   }
 
-  // SCREEN B: Difficulty selection
-  if (step === 'difficulty') {
+  // STEP: Difficulty
+  if (tgStep === 'difficulty') {
     return (
       <div className="tg-flow">
-        <button className="tg-back" onClick={() => setStep('category')}>← Back</button>
-        <h3 className="tg-title">Choose Difficulty</h3>
-        <p className="tg-subtitle">{selectedCategory?.label}</p>
+        <div className="tg-header">
+          <button className="tg-back" onClick={() => setTgStep('category')}>← Back</button>
+          <h3 className="tg-title">{selectedCategory.label}</h3>
+          <p className="tg-subtitle">Choose difficulty</p>
+        </div>
         <div className="tg-difficulty-row">
           <div className="tg-diff-card tg-diff-card--easy" onClick={() => handleDifficultySelect('easy')}>
-            <span>🟢</span>
-            <span>Easy</span>
+            <span className="tg-diff-icon">🟢</span>
+            <span className="tg-diff-label">Easy</span>
+            <span className="tg-diff-sub">Standard questions</span>
           </div>
           <div className="tg-diff-card tg-diff-card--hard" onClick={() => handleDifficultySelect('hard')}>
-            <span>🔴</span>
-            <span>Hard</span>
+            <span className="tg-diff-icon">🔴</span>
+            <span className="tg-diff-label">Hard</span>
+            <span className="tg-diff-sub">Advanced clinical</span>
           </div>
         </div>
       </div>
     );
   }
 
-  // SCREEN C: Topic selection
-  if (step === 'topic') {
+  // STEP: Topic (optional)
+  if (tgStep === 'topic') {
     return (
       <div className="tg-flow">
-        <button className="tg-back" onClick={() => setStep('difficulty')}>← Back</button>
-        <h3 className="tg-title">{selectedCategory?.label} — {selectedDifficulty}</h3>
-        {loading && <p className="tg-loading">Loading topics...</p>}
-
-        {/* Special options at top */}
-        <div className="tg-special-options">
-          <div
-            className="tg-special-card tg-special-card--all"
-            onClick={() => onStart({ category: selectedCategory.id, difficulty: selectedDifficulty, topicId: null, mode: 'all' })}
-          >
-            <span className="tg-special-icon">📖</span>
-            <div className="tg-special-text">
-              <span className="tg-special-title">All Topics</span>
-              <span className="tg-special-sub">Questions from every topic in {selectedCategory.label}</span>
-            </div>
-          </div>
-          <div
-            className="tg-special-card tg-special-card--mix"
-            onClick={() => onStart({ category: selectedCategory.id, difficulty: selectedDifficulty, topicId: null, mode: 'mix' })}
-          >
-            <span className="tg-special-icon">🎲</span>
-            <div className="tg-special-text">
-              <span className="tg-special-title">Mixed Topics</span>
-              <span className="tg-special-sub">Random selection from multiple topics</span>
-            </div>
-          </div>
+        <div className="tg-header">
+          <button className="tg-back" onClick={() => { setTgStep('difficulty'); setSelectedTopic(null); }}>← Back</button>
+          <h3 className="tg-title">{selectedCategory.label} · {selectedDifficulty}</h3>
+          <p className="tg-subtitle">Choose a topic — or skip to study all</p>
         </div>
 
-        <p className="tg-or-divider">— OR CHOOSE A SPECIFIC TOPIC —</p>
+        {/* Selected topic indicator */}
+        {selectedTopic && (
+          <div className="tg-selected-topic">
+            <span>📁 {selectedTopic.name}</span>
+            <button className="tg-clear-topic" onClick={() => setSelectedTopic(null)}>✕ Clear</button>
+          </div>
+        )}
 
-        {/* Individual topics */}
-        <div className="tg-topics-list">
-          {filteredTopics.map(topic => (
-            <div
-              className="tg-topic-card"
-              key={topic.id}
-              onClick={() => onStart({ category: selectedCategory.id, difficulty: selectedDifficulty, topicId: topic.id, topicName: topic.name, mode: 'specific' })}
-            >
-              <span className="tg-topic-icon">📁</span>
-              <span className="tg-topic-name">{topic.name}</span>
-              <span className="tg-topic-count">{topic.questionCount || 0} Q</span>
-            </div>
-          ))}
-          {!loading && filteredTopics.length === 0 && (
-            <p className="tg-empty">No topics found for this selection.</p>
-          )}
-        </div>
+        {/* Topic list */}
+        {loading ? <p className="tg-loading">Loading topics...</p> : (
+          <div className="tg-topics-list">
+            {topics.map(topic => (
+              <div
+                className={`tg-topic-card ${selectedTopic?.id === topic.id ? 'tg-topic-card--selected' : ''}`}
+                key={topic.id}
+                onClick={() => setSelectedTopic(selectedTopic?.id === topic.id ? null : topic)}
+              >
+                <span className="tg-topic-icon">📁</span>
+                <span className="tg-topic-name">{topic.name}</span>
+                {selectedTopic?.id === topic.id && <span className="tg-topic-check">✓</span>}
+              </div>
+            ))}
+            {topics.length === 0 && <p className="tg-empty">No topics found.</p>}
+          </div>
+        )}
+
+        {/* START button - always visible */}
+        <button className="tg-start-btn" onClick={handleStart}>
+          {selectedTopic ? `▶ Start — ${selectedTopic.name}` : '▶ Start — All Topics'}
+        </button>
       </div>
     );
   }

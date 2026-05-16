@@ -5,7 +5,6 @@ import { getToken, clearToken, fetchMe, getCachedUser, redirectToGoogle } from '
 import UsernameEntry from './components/UsernameEntry';
 import ExamSelect from './components/ExamSelect';
 import DifficultySelect from './components/DifficultySelect';
-import ModeSelect from './components/ModeSelect';
 import LobbySelect from './components/LobbySelect';
 import JoinLobbyInput from './components/JoinLobbyInput';
 import SubjectSelect from './components/SubjectSelect';
@@ -422,7 +421,7 @@ export default function App() {
 
   function handleSelectDifficulty(diff) {
     setDifficulty(diff);
-    setPhase('mode_select');
+    setPhase('play_page');
   }
 
   function handleSelectGameMode(mode) {
@@ -743,14 +742,6 @@ export default function App() {
         />
       )}
 
-      {phase === 'mode_select' && (
-        <ModeSelect
-          username={username}
-          onSelect={handleSelectGameMode}
-          onBack={() => window.location.href = '/dashboard'}
-        />
-      )}
-
       {phase === 'lobby_select' && (
         <LobbySelect
           username={username}
@@ -758,7 +749,7 @@ export default function App() {
           onJoinLobby={handleShowJoinInput}
           onSoloMode={handleShowSoloMode}
           onQuickJoin={handleQuickJoin}
-          onBack={() => setPhase('mode_select')}
+          onBack={() => setPhase('play_page')}
         />
       )}
 
@@ -941,14 +932,14 @@ export default function App() {
       {phase === 'tower' && (
         <TowerMode
           username={username}
-          onBack={() => setPhase('mode_select')}
+          onBack={() => setPhase('play_page')}
         />
       )}
 
       {phase === 'training_grounds' && (
         <TrainingGrounds
           user={user}
-          onBack={() => setPhase('mode_select')}
+          onBack={() => setPhase('play_page')}
           onStartPractice={handleStartTrainingPractice}
         />
       )}
