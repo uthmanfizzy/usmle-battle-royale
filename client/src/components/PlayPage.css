@@ -1600,3 +1600,255 @@
   font-family: 'Cinzel', serif;
   margin: 0;
 }
+
+/* ============================================
+   TRAINING GROUNDS FLOW
+   ============================================ */
+
+.tg-flow {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  height: 100%;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(180,140,40,0.3) transparent;
+}
+
+.tg-title {
+  font-family: 'Cinzel', serif;
+  font-size: 15px;
+  font-weight: 700;
+  color: rgba(220,190,80,0.95);
+  margin: 0;
+}
+
+.tg-subtitle {
+  font-family: 'Cinzel', serif;
+  font-size: 12px;
+  color: rgba(255,255,255,0.5);
+  margin: 0;
+}
+
+.tg-back {
+  background: transparent;
+  border: none;
+  color: rgba(200,165,60,0.7);
+  font-family: 'Cinzel', serif;
+  font-size: 11px;
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+  letter-spacing: 0.05em;
+}
+
+.tg-back:hover { color: rgba(220,190,80,0.95); }
+
+.tg-loading {
+  color: rgba(255,255,255,0.35);
+  font-size: 12px;
+  font-family: 'Cinzel', serif;
+}
+
+.tg-category-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  overflow-y: auto;
+  flex: 1;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(180,140,40,0.3) transparent;
+}
+
+.tg-category-card {
+  padding: 12px 10px;
+  background: rgba(15,22,15,0.85);
+  border: 1px solid rgba(180,140,40,0.2);
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.2s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.tg-category-card:hover {
+  background: rgba(30,45,20,0.9);
+  border-color: rgba(200,165,60,0.6);
+  transform: translateY(-1px);
+}
+
+.tg-category-name {
+  font-family: 'Cinzel', serif;
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(220,190,80,0.9);
+  text-align: center;
+}
+
+.tg-difficulty-row {
+  display: flex;
+  gap: 10px;
+}
+
+.tg-diff-card {
+  flex: 1;
+  padding: 16px;
+  border-radius: 10px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  font-family: 'Cinzel', serif;
+  font-size: 13px;
+  font-weight: 700;
+  transition: all 0.2s;
+  border: 1px solid transparent;
+}
+
+.tg-diff-card--easy {
+  background: rgba(20,60,20,0.7);
+  border-color: rgba(80,180,80,0.4);
+  color: rgba(120,220,120,0.95);
+}
+.tg-diff-card--easy:hover {
+  background: rgba(30,80,30,0.85);
+  border-color: rgba(80,220,80,0.7);
+  transform: translateY(-2px);
+}
+
+.tg-diff-card--hard {
+  background: rgba(70,15,15,0.7);
+  border-color: rgba(200,60,60,0.4);
+  color: rgba(230,100,100,0.95);
+}
+.tg-diff-card--hard:hover {
+  background: rgba(90,20,20,0.85);
+  border-color: rgba(230,80,80,0.7);
+  transform: translateY(-2px);
+}
+
+.tg-special-options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tg-special-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.2s;
+}
+
+.tg-special-card--all {
+  background: rgba(20,40,60,0.8);
+  border-color: rgba(70,130,200,0.35);
+}
+.tg-special-card--all:hover {
+  background: rgba(25,50,75,0.9);
+  border-color: rgba(70,150,220,0.65);
+  transform: translateY(-1px);
+}
+
+.tg-special-card--mix {
+  background: rgba(50,20,60,0.8);
+  border-color: rgba(150,70,200,0.35);
+}
+.tg-special-card--mix:hover {
+  background: rgba(65,25,80,0.9);
+  border-color: rgba(170,90,220,0.65);
+  transform: translateY(-1px);
+}
+
+.tg-special-icon { font-size: 20px; flex-shrink: 0; }
+
+.tg-special-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tg-special-title {
+  font-family: 'Cinzel', serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.9);
+}
+
+.tg-special-sub {
+  font-size: 10px;
+  color: rgba(255,255,255,0.4);
+  font-family: 'Cinzel', serif;
+}
+
+.tg-or-divider {
+  text-align: center;
+  font-family: 'Cinzel', serif;
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  color: rgba(255,255,255,0.25);
+  margin: 2px 0;
+}
+
+.tg-topics-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  overflow-y: auto;
+  flex: 1;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(180,140,40,0.3) transparent;
+}
+
+.tg-topic-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: rgba(15,22,15,0.8);
+  border: 1px solid rgba(180,140,40,0.15);
+  border-radius: 7px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tg-topic-card:hover {
+  background: rgba(25,38,20,0.9);
+  border-color: rgba(180,140,40,0.4);
+  transform: translateX(3px);
+}
+
+.tg-topic-icon { font-size: 14px; flex-shrink: 0; }
+
+.tg-topic-name {
+  flex: 1;
+  font-family: 'Cinzel', serif;
+  font-size: 11px;
+  color: rgba(220,190,80,0.85);
+  font-weight: 700;
+}
+
+.tg-topic-count {
+  font-size: 10px;
+  color: rgba(255,255,255,0.3);
+  font-family: 'Cinzel', serif;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.tg-empty {
+  color: rgba(255,255,255,0.25);
+  font-size: 12px;
+  font-family: 'Cinzel', serif;
+  text-align: center;
+  padding: 20px;
+}

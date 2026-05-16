@@ -63,6 +63,165 @@ const GAME_MODES = [
   },
 ];
 
+const SERVER_URL = 'https://usmle-battle-royale-production.up.railway.app';
+
+// Subject categories for Training Grounds
+const SUBJECTS = [
+  { id: 'cardiology', label: 'Cardiology', icon: '❤️' },
+  { id: 'neurology', label: 'Neurology', icon: '🧠' },
+  { id: 'pharmacology', label: 'Pharmacology', icon: '💊' },
+  { id: 'microbiology', label: 'Microbiology', icon: '🦠' },
+  { id: 'biochemistry', label: 'Biochemistry', icon: '⚗️' },
+  { id: 'biostatistics', label: 'Biostatistics', icon: '📊' },
+  { id: 'pathology', label: 'Pathology', icon: '🔬' },
+  { id: 'pulmonology', label: 'Pulmonology', icon: '🫁' },
+  { id: 'nephrology', label: 'Nephrology', icon: '💧' },
+  { id: 'gastroenterology', label: 'Gastroenterology', icon: '🫃' },
+  { id: 'endocrinology', label: 'Endocrinology', icon: '🦋' },
+  { id: 'haematology', label: 'Haematology', icon: '🩸' },
+  { id: 'immunology', label: 'Immunology', icon: '🛡️' },
+  { id: 'musculoskeletal', label: 'Musculoskeletal', icon: '🦴' },
+  { id: 'dermatology', label: 'Dermatology', icon: '🩹' },
+  { id: 'reproductive', label: 'Reproductive', icon: '👶' },
+  { id: 'psychiatry', label: 'Psychiatry', icon: '🧠' },
+  { id: 'ophthalmology', label: 'Ophthalmology', icon: '👁️' },
+  { id: 'ent', label: 'ENT', icon: '👂' },
+  { id: 'genetics', label: 'Genetics', icon: '🧬' },
+  { id: 'anatomy', label: 'Anatomy', icon: '🫀' },
+];
+
+// Training Grounds Flow Component
+function TrainingGroundsFlow({ onStart }) {
+  const [step, setStep] = useState('category'); // 'category' | 'difficulty' | 'topic'
+  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [selectedDifficulty, setSelectedDifficulty] = useState(null);
+  const [topics, setTopics] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  const fetchTopics = async (category) => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${SERVER_URL}/api/topics?category=${category}`);
+      const data = await res.json();
+      setTopics(data.topics || []);
+    } catch (err) {
+      console.error('Failed to load topics:', err);
+      setTopics([]);
+    }
+    setLoading(false);
+  };
+
+  const handleCategorySelect = (cat) => {
+    setSelectedCategory(cat);
+    fetchTopics(cat.id);
+    setStep('difficulty');
+  };
+
+  const handleDifficultySelect = (diff) => {
+    setSelectedDifficulty(diff);
+    setStep('topic');
+  };
+
+  const filteredTopics = selectedDifficulty
+    ? topics.filter(t => !t.difficulty || t.difficulty === selectedDifficulty)
+    : topics;
+
+  // SCREEN A: Category selection
+  if (step === 'category') {
+    return (
+      <div className="tg-flow">
+        <h3 className="tg-title">📚 Choose a Category</h3>
+        <div className="tg-category-grid">
+          {SUBJECTS.map(cat => (
+            <div className="tg-category-card" key={cat.id} onClick={() => handleCategorySelect(cat)}>
+              <span style={{ fontSize: '16px', marginBottom: '4px' }}>{cat.icon}</span>
+              <span className="tg-category-name">{cat.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // SCREEN B: Difficulty selection
+  if (step === 'difficulty') {
+    return (
+      <div className="tg-flow">
+        <button className="tg-back" onClick={() => setStep('category')}>← Back</button>
+        <h3 className="tg-title">Choose Difficulty</h3>
+        <p className="tg-subtitle">{selectedCategory?.label}</p>
+        <div className="tg-difficulty-row">
+          <div className="tg-diff-card tg-diff-card--easy" onClick={() => handleDifficultySelect('easy')}>
+            <span>🟢</span>
+            <span>Easy</span>
+          </div>
+          <div className="tg-diff-card tg-diff-card--hard" onClick={() => handleDifficultySelect('hard')}>
+            <span>🔴</span>
+            <span>Hard</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // SCREEN C: Topic selection
+  if (step === 'topic') {
+    return (
+      <div className="tg-flow">
+        <button className="tg-back" onClick={() => setStep('difficulty')}>← Back</button>
+        <h3 className="tg-title">{selectedCategory?.label} — {selectedDifficulty}</h3>
+        {loading && <p className="tg-loading">Loading topics...</p>}
+
+        {/* Special options at top */}
+        <div className="tg-special-options">
+          <div
+            className="tg-special-card tg-special-card--all"
+            onClick={() => onStart({ category: selectedCategory.id, difficulty: selectedDifficulty, topicId: null, mode: 'all' })}
+          >
+            <span className="tg-special-icon">📖</span>
+            <div className="tg-special-text">
+              <span className="tg-special-title">All Topics</span>
+              <span className="tg-special-sub">Questions from every topic in {selectedCategory.label}</span>
+            </div>
+          </div>
+          <div
+            className="tg-special-card tg-special-card--mix"
+            onClick={() => onStart({ category: selectedCategory.id, difficulty: selectedDifficulty, topicId: null, mode: 'mix' })}
+          >
+            <span className="tg-special-icon">🎲</span>
+            <div className="tg-special-text">
+              <span className="tg-special-title">Mixed Topics</span>
+              <span className="tg-special-sub">Random selection from multiple topics</span>
+            </div>
+          </div>
+        </div>
+
+        <p className="tg-or-divider">— OR CHOOSE A SPECIFIC TOPIC —</p>
+
+        {/* Individual topics */}
+        <div className="tg-topics-list">
+          {filteredTopics.map(topic => (
+            <div
+              className="tg-topic-card"
+              key={topic.id}
+              onClick={() => onStart({ category: selectedCategory.id, difficulty: selectedDifficulty, topicId: topic.id, topicName: topic.name, mode: 'specific' })}
+            >
+              <span className="tg-topic-icon">📁</span>
+              <span className="tg-topic-name">{topic.name}</span>
+              <span className="tg-topic-count">{topic.questionCount || 0} Q</span>
+            </div>
+          ))}
+          {!loading && filteredTopics.length === 0 && (
+            <p className="tg-empty">No topics found for this selection.</p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  return null;
+}
+
 export default function PlayPage({
   user, username, onModeSelect, onBack, error, onClearError,
   lobbyId, lobbyPlayers, isHost, lobbySubject, lobbyGameMode, openToQuickJoin,
@@ -204,6 +363,17 @@ export default function PlayPage({
       mode: selectedMode,
       action: 'join',
       lobbyCode: lobbyCode.trim(),
+      exam: selectedExam,
+      step: selectedStep,
+    });
+  }
+
+  function handleStartTraining(config) {
+    // Navigate to solo practice / training game with the config
+    onModeSelect({
+      mode: 'training_grounds',
+      action: 'start_training',
+      ...config,
       exam: selectedExam,
       step: selectedStep,
     });
@@ -423,65 +593,72 @@ export default function PlayPage({
               </>
             )}
 
-            <div className="lobby-actions">
+            {/* TRAINING GROUNDS FLOW or LOBBY ACTIONS */}
+            {selectedMode === 'training_grounds' ? (
+              <TrainingGroundsFlow onStart={handleStartTraining} />
+            ) : (
+              <>
+                <div className="lobby-actions">
 
-              {/* CREATE LOBBY */}
-              <button
-                className="lobby-btn lobby-btn--create"
-                onClick={() => handleCreateLobby()}
-              >
-                <span className="lobby-btn-icon">⚔️</span>
-                <div className="lobby-btn-text">
-                  <span className="lobby-btn-title">CREATE LOBBY</span>
-                  <span className="lobby-btn-sub">Host your own game</span>
-                </div>
-              </button>
-
-              {/* JOIN LOBBY */}
-              <div className="join-lobby-combined">
-                <div className="join-lobby-label">
-                  <span className="lobby-btn-icon">🚪</span>
-                  <span className="join-lobby-title">JOIN LOBBY</span>
-                </div>
-                <div className="join-lobby-inline">
-                  <input
-                    className="join-lobby-inline-input"
-                    placeholder="Enter code..."
-                    value={lobbyCode}
-                    onChange={e => {
-                      setLobbyCode(e.target.value.toUpperCase());
-                      setJoinError('');
-                      if (onClearError) onClearError();
-                    }}
-                    maxLength={8}
-                    onKeyDown={e => e.key === 'Enter' && lobbyCode.trim() && handleJoinLobby()}
-                  />
+                  {/* CREATE LOBBY */}
                   <button
-                    className="join-lobby-inline-btn"
-                    onClick={handleJoinLobby}
-                    disabled={!lobbyCode.trim()}
+                    className="lobby-btn lobby-btn--create"
+                    onClick={() => handleCreateLobby()}
                   >
-                    JOIN →
+                    <span className="lobby-btn-icon">⚔️</span>
+                    <div className="lobby-btn-text">
+                      <span className="lobby-btn-title">CREATE LOBBY</span>
+                      <span className="lobby-btn-sub">Host your own game</span>
+                    </div>
                   </button>
+
+                  {/* JOIN LOBBY */}
+                  <div className="join-lobby-combined">
+                    <div className="join-lobby-label">
+                      <span className="lobby-btn-icon">🚪</span>
+                      <span className="join-lobby-title">JOIN LOBBY</span>
+                    </div>
+                    <div className="join-lobby-inline">
+                      <input
+                        className="join-lobby-inline-input"
+                        placeholder="Enter code..."
+                        value={lobbyCode}
+                        onChange={e => {
+                          setLobbyCode(e.target.value.toUpperCase());
+                          setJoinError('');
+                          if (onClearError) onClearError();
+                        }}
+                        maxLength={8}
+                        onKeyDown={e => e.key === 'Enter' && lobbyCode.trim() && handleJoinLobby()}
+                      />
+                      <button
+                        className="join-lobby-inline-btn"
+                        onClick={handleJoinLobby}
+                        disabled={!lobbyCode.trim()}
+                      >
+                        JOIN →
+                      </button>
+                    </div>
+                    {(joinError || error) && <p className="join-lobby-error">{joinError || error}</p>}
+                  </div>
+
+                  {/* FIND MATCH */}
+                  <button
+                    className="lobby-btn lobby-btn--find"
+                    onClick={() => handleFindMatch()}
+                  >
+                    <span className="lobby-btn-icon">🔍</span>
+                    <div className="lobby-btn-text">
+                      <span className="lobby-btn-title">FIND MATCH</span>
+                      <span className="lobby-btn-sub">Auto matchmaking</span>
+                    </div>
+                  </button>
+
                 </div>
-                {(joinError || error) && <p className="join-lobby-error">{joinError || error}</p>}
-              </div>
 
-              {/* FIND MATCH */}
-              <button
-                className="lobby-btn lobby-btn--find"
-                onClick={() => handleFindMatch()}
-              >
-                <span className="lobby-btn-icon">🔍</span>
-                <div className="lobby-btn-text">
-                  <span className="lobby-btn-title">FIND MATCH</span>
-                  <span className="lobby-btn-sub">Auto matchmaking</span>
-                </div>
-              </button>
-
-            </div>
-
-            <p className="wait-time">Estimated wait time: 00:15</p>
+                <p className="wait-time">Estimated wait time: 00:15</p>
+              </>
+            )}
           </div>
 
         </div>
