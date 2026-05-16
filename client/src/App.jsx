@@ -481,7 +481,7 @@ export default function App() {
           if (!res.ok) { setError(res.error ?? 'Failed to create lobby.'); return; }
           setLobbyId(res.lobbyId);
           setIsHost(true);
-          setPhase('lobby');
+          // Stay on play_page, lobby will show as overlay
           audio.startBgMusic();
         });
       } else if (action === 'join') {
@@ -497,7 +497,7 @@ export default function App() {
           if (!res.ok) { setError(res.error ?? 'Failed to join lobby.'); return; }
           setLobbyId(res.lobbyId);
           setIsHost(false);
-          setPhase('lobby');
+          // Stay on play_page, lobby will show as overlay
           audio.startBgMusic();
         });
       } else if (action === 'find') {
@@ -585,7 +585,7 @@ export default function App() {
           setSubject(res.subject || 'all');
           setIsHost(true);
           setOpenToQuickJoin(true);
-          setPhase('lobby');
+          // Stay on play_page, lobby will show as overlay
           audio.startBgMusic();
         }, 1200);
       } else {
@@ -593,7 +593,7 @@ export default function App() {
         setSubject(res.subject || 'all');
         setIsHost(false);
         setOpenToQuickJoin(true);
-        setPhase('lobby');
+        // Stay on play_page, lobby will show as overlay
         audio.startBgMusic();
       }
     });
@@ -723,6 +723,23 @@ export default function App() {
           onBack={() => window.location.href = '/dashboard'}
           error={error}
           onClearError={() => setError('')}
+          lobbyId={lobbyId}
+          lobbyPlayers={players}
+          isHost={isHost}
+          lobbySubject={subject}
+          lobbyGameMode={gameMode}
+          openToQuickJoin={openToQuickJoin}
+          onStartGame={handleStartGame}
+          onAddBot={handleAddBot}
+          onRemoveBot={handleRemoveBot}
+          onToggleQuickJoin={handleToggleQuickJoin}
+          onLeaveLobby={() => {
+            socket.emit('leave_lobby');
+            setLobbyId('');
+            setPlayers([]);
+            setIsHost(false);
+            setError('');
+          }}
         />
       )}
 

@@ -1340,3 +1340,263 @@
     display: none !important;
   }
 }
+
+/* ============================================
+   LOBBY OVERLAY
+   ============================================ */
+
+.lobby-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  background: rgba(0,0,0,0.75);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.lobby-panel {
+  background: rgba(12,18,12,0.97);
+  border: 1px solid rgba(180,140,40,0.5);
+  border-radius: 16px;
+  padding: 28px;
+  width: 100%;
+  max-width: 520px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.lobby-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.lobby-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.lobby-panel-title h2 {
+  font-family: 'Cinzel', serif;
+  font-size: 20px;
+  font-weight: 700;
+  color: rgba(220,190,80,0.95);
+  margin: 0;
+}
+
+.lobby-close-btn {
+  background: rgba(80,20,20,0.7);
+  border: 1px solid rgba(180,60,60,0.4);
+  border-radius: 6px;
+  color: rgba(220,100,100,0.9);
+  font-family: 'Cinzel', serif;
+  font-size: 12px;
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.lobby-close-btn:hover {
+  background: rgba(100,20,20,0.9);
+}
+
+.lobby-code-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.lobby-code-label {
+  font-family: 'Cinzel', serif;
+  font-size: 10px;
+  letter-spacing: 0.15em;
+  color: rgba(200,165,60,0.6);
+  margin: 0;
+}
+
+.lobby-code-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(5,8,5,0.9);
+  border: 2px solid rgba(200,165,60,0.6);
+  border-radius: 10px;
+  padding: 14px 18px;
+}
+
+.lobby-code-text {
+  font-family: 'Cinzel', serif;
+  font-size: 28px;
+  font-weight: 900;
+  color: rgba(220,190,80,0.95);
+  letter-spacing: 0.3em;
+}
+
+.lobby-copy-btn {
+  background: rgba(40,40,20,0.9);
+  border: 1px solid rgba(180,140,40,0.4);
+  border-radius: 6px;
+  color: rgba(200,165,60,0.85);
+  font-family: 'Cinzel', serif;
+  font-size: 12px;
+  padding: 6px 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.lobby-copy-btn:hover {
+  background: rgba(60,55,20,0.95);
+  border-color: rgba(200,165,60,0.8);
+}
+
+.lobby-players-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.lobby-players-count {
+  font-family: 'Cinzel', serif;
+  font-size: 12px;
+  color: rgba(255,255,255,0.5);
+  margin: 0;
+}
+
+.lobby-players-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.lobby-player-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: rgba(20,28,20,0.8);
+  border: 1px solid rgba(180,140,40,0.15);
+  border-radius: 8px;
+}
+
+.lobby-player-num {
+  font-family: 'Cinzel', serif;
+  font-size: 12px;
+  color: rgba(255,255,255,0.35);
+  width: 24px;
+}
+
+.lobby-player-name {
+  font-family: 'Cinzel', serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.85);
+  flex: 1;
+}
+
+.lobby-host-badge {
+  background: rgba(180,140,40,0.3);
+  border: 1px solid rgba(200,165,60,0.5);
+  border-radius: 4px;
+  color: rgba(220,190,80,0.95);
+  font-family: 'Cinzel', serif;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  letter-spacing: 0.08em;
+}
+
+.lobby-bot-badge {
+  background: rgba(80,120,180,0.3);
+  border: 1px solid rgba(120,160,200,0.5);
+  border-radius: 4px;
+  color: rgba(150,190,220,0.95);
+  font-family: 'Cinzel', serif;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  letter-spacing: 0.08em;
+}
+
+.lobby-actions-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.lobby-add-bot-btn {
+  width: 100%;
+  padding: 12px;
+  background: rgba(20,28,20,0.8);
+  border: 1px solid rgba(180,140,40,0.25);
+  border-radius: 8px;
+  color: rgba(255,255,255,0.65);
+  font-family: 'Cinzel', serif;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.lobby-add-bot-btn:hover {
+  background: rgba(30,40,25,0.9);
+  border-color: rgba(180,140,40,0.4);
+  color: rgba(255,255,255,0.85);
+}
+
+.lobby-start-btn {
+  width: 100%;
+  padding: 16px;
+  border-radius: 10px;
+  font-family: 'Cinzel', serif;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.2s;
+}
+
+.lobby-start-btn--waiting {
+  background: rgba(140,110,20,0.5);
+  border-color: rgba(180,140,40,0.4);
+  color: rgba(200,165,60,0.7);
+  cursor: not-allowed;
+}
+
+.lobby-start-btn--ready {
+  background: linear-gradient(135deg, rgba(30,90,30,0.95), rgba(50,120,40,0.95));
+  border-color: rgba(80,200,80,0.5);
+  color: white;
+}
+
+.lobby-start-btn--ready:hover {
+  background: linear-gradient(135deg, rgba(40,110,40,0.98), rgba(60,140,50,0.98));
+  box-shadow: 0 4px 20px rgba(60,180,60,0.35);
+  transform: translateY(-1px);
+}
+
+.lobby-waiting-msg {
+  text-align: center;
+  padding: 14px;
+  background: rgba(20,28,20,0.6);
+  border-radius: 8px;
+  color: rgba(200,165,60,0.7);
+  font-family: 'Cinzel', serif;
+  font-size: 13px;
+  border: 1px solid rgba(180,140,40,0.2);
+}
+
+.lobby-min-players {
+  text-align: center;
+  font-size: 11px;
+  color: rgba(255,255,255,0.3);
+  font-family: 'Cinzel', serif;
+  margin: 0;
+}

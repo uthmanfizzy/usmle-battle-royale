@@ -63,7 +63,11 @@ const GAME_MODES = [
   },
 ];
 
-export default function PlayPage({ user, username, onModeSelect, onBack, error, onClearError }) {
+export default function PlayPage({
+  user, username, onModeSelect, onBack, error, onClearError,
+  lobbyId, lobbyPlayers, isHost, lobbySubject, lobbyGameMode, openToQuickJoin,
+  onStartGame, onAddBot, onRemoveBot, onToggleQuickJoin, onLeaveLobby
+}) {
   const [selectedMode, setSelectedMode] = useState('battle_royale');
   const [squadSize, setSquadSize] = useState('solo');
   const [fillTeam, setFillTeam] = useState(false);
@@ -573,6 +577,83 @@ export default function PlayPage({ user, username, onModeSelect, onBack, error, 
         </div>
 
       </div>
+
+      {/* LOBBY OVERLAY - shows when lobby is active */}
+      {lobbyId && (
+        <div className="lobby-overlay">
+          <div className="lobby-panel">
+
+            {/* Header */}
+            <div className="lobby-panel-header">
+              <div className="lobby-panel-title">
+                <span>⚔️</span>
+                <h2>{GAME_MODES.find(m => m.id === selectedMode)?.name || 'LOBBY'}</h2>
+              </div>
+              <button className="lobby-close-btn" onClick={onLeaveLobby}>✕ Leave</button>
+            </div>
+
+            {/* Lobby Code */}
+            <div className="lobby-code-section">
+              <p className="lobby-code-label">LOBBY CODE — SHARE WITH FRIENDS</p>
+              <div className="lobby-code-box">
+                <span className="lobby-code-text">{lobbyId}</span>
+                <button
+                  className="lobby-copy-btn"
+                  onClick={() => {
+                    navigator.clipboard.writeText(lobbyId);
+                  }}
+                >
+                  Copy
+                </button>
+              </div>
+            </div>
+
+            {/* Players */}
+            <div className="lobby-players-section">
+              <p className="lobby-players-count">{lobbyPlayers?.length || 1} / ∞ players joined</p>
+              <div className="lobby-players-list">
+                {(lobbyPlayers || [{ username: username, isHost: true }]).map((player, i) => (
+                  <div className="lobby-player-row" key={i}>
+                    <span className="lobby-player-num">#{i + 1}</span>
+                    <span className="lobby-player-name">{player.username}</span>
+                    {player.isHost && <span className="lobby-host-badge">HOST</span>}
+                    {player.isBot && <span className="lobby-bot-badge">BOT</span>}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="lobby-actions-section">
+              {isHost && (
+                <button className="lobby-add-bot-btn" onClick={() => onAddBot('medium')}>
+                  🤖 Add Bot
+                </button>
+              )}
+
+              {isHost ? (
+                <button
+                  className={`lobby-start-btn ${(lobbyPlayers?.length || 1) < 2 ? 'lobby-start-btn--waiting' : 'lobby-start-btn--ready'}`}
+                  onClick={onStartGame}
+                  disabled={(lobbyPlayers?.length || 1) < 2}
+                >
+                  {(lobbyPlayers?.length || 1) < 2 ? '⏳ Waiting for players...' : '⚔️ Start Game!'}
+                </button>
+              ) : (
+                <div className="lobby-waiting-msg">
+                  <span>⏳ Waiting for host to start...</span>
+                </div>
+              )}
+
+              {(lobbyPlayers?.length || 1) < 2 && (
+                <p className="lobby-min-players">Need at least 2 players (or add a bot)</p>
+              )}
+            </div>
+
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
