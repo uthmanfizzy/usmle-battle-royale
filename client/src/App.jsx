@@ -6,7 +6,6 @@ import UsernameEntry from './components/UsernameEntry';
 import ExamSelect from './components/ExamSelect';
 import DifficultySelect from './components/DifficultySelect';
 import ModeSelect from './components/ModeSelect';
-import HowToPlay from './components/HowToPlay';
 import LobbySelect from './components/LobbySelect';
 import JoinLobbyInput from './components/JoinLobbyInput';
 import SubjectSelect from './components/SubjectSelect';
@@ -431,7 +430,7 @@ export default function App() {
     if (mode === 'training_grounds') {
       setPhase('training_grounds');
     } else {
-      setPhase('how_to_play');
+      setPhase('lobby_select');
     }
   }
 
@@ -443,14 +442,9 @@ export default function App() {
     } else if (mode === 'training_grounds') {
       setPhase('training_grounds');
     } else {
-      // For multiplayer modes, show how to play then lobby options
-      setPhase('how_to_play');
+      // For multiplayer modes, go directly to lobby options
+      setPhase('lobby_select');
     }
-  }
-
-  function handleHowToPlayContinue() {
-    if (gameMode === 'tower') { setPhase('tower'); return; }
-    setPhase('lobby_select');
   }
 
   function handleStartTrainingPractice(topicData) {
@@ -675,14 +669,6 @@ export default function App() {
           username={username}
           onSelect={handleSelectGameMode}
           onBack={() => window.location.href = '/dashboard'}
-        />
-      )}
-
-      {phase === 'how_to_play' && (
-        <HowToPlay
-          gameMode={gameMode}
-          onContinue={handleHowToPlayContinue}
-          onBack={() => setPhase('mode_select')}
         />
       )}
 
