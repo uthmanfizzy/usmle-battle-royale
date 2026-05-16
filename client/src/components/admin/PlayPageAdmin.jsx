@@ -414,6 +414,8 @@ function GameModesTab() {
     setSaving(true);
     setSaveMsg('');
 
+    console.log('[Admin] Saving game_modes_config:', config);
+
     try {
       const res = await apiCall('/admin/settings', {
         method: 'POST',
@@ -422,9 +424,11 @@ function GameModesTab() {
         }),
       });
       if (!res.ok) throw new Error('Save failed');
+      console.log('[Admin] Save successful');
       setSaveMsg('success');
       setTimeout(() => setSaveMsg(''), 3000);
     } catch (err) {
+      console.error('[Admin] Save failed:', err);
       setSaveMsg('error');
       setTimeout(() => setSaveMsg(''), 3000);
     }
@@ -473,6 +477,8 @@ function GameModesTab() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Upload failed');
 
+      console.log('[Admin] Uploaded image URL for', modeId, ':', data.image_url);
+
       setConfig(prev => ({
         ...prev,
         [modeId]: {
@@ -480,6 +486,11 @@ function GameModesTab() {
           image: data.image_url
         }
       }));
+
+      console.log('[Admin] Updated config for', modeId, ':', {
+        enabled: config[modeId]?.enabled ?? true,
+        image: data.image_url
+      });
 
       setSaveMsg('success');
       setTimeout(() => setSaveMsg(''), 3000);

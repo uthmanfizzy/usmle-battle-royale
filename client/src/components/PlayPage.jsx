@@ -84,6 +84,8 @@ export default function PlayPage({ user, username, onModeSelect, onBack }) {
       try {
         const res = await authFetch('/api/game-settings');
         const data = await res.json();
+        console.log('[PlayPage] Raw game_modes_config:', data.game_modes_config);
+        console.log('[PlayPage] Type:', typeof data.game_modes_config);
         setGameModesConfig(data.game_modes_config || {});
         setExamBoardsConfig(data.exam_boards_config || {});
         setPlayBgImage(data.play_page_background || '');
@@ -311,19 +313,35 @@ export default function PlayPage({ user, username, onModeSelect, onBack }) {
             </h2>
 
             <div className="mode-detail-image">
-              {gameModesConfig[selectedMode]?.image ? (
-                <img
-                  src={gameModesConfig[selectedMode].image}
-                  alt={selectedModeData.name}
-                  className="mode-detail-img"
-                />
-              ) : (
-                <div className="mode-image-placeholder" style={{
-                  background: `linear-gradient(135deg, rgba(40,60,40,0.8), rgba(20,30,20,0.9))`
-                }}>
-                  <span style={{ fontSize: '48px', opacity: 0.3 }}>{selectedModeData.icon}</span>
-                </div>
-              )}
+              {(() => {
+                const modeImage = gameModesConfig[selectedMode]?.image;
+                console.log(`[PlayPage] Mode '${selectedMode}' image:`, modeImage);
+                console.log('[PlayPage] Full config for mode:', gameModesConfig[selectedMode]);
+
+                if (modeImage) {
+                  return (
+                    <img
+                      src={modeImage}
+                      alt={selectedModeData.name}
+                      className="mode-detail-img"
+                      style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }}
+                      onError={(e) => {
+                        console.error('[PlayPage] Image failed to load:', modeImage);
+                        e.target.style.display = 'none';
+                      }}
+                      onLoad={() => console.log('[PlayPage] Image loaded successfully:', modeImage)}
+                    />
+                  );
+                }
+
+                return (
+                  <div className="mode-image-placeholder" style={{
+                    background: `linear-gradient(135deg, rgba(40,60,40,0.8), rgba(20,30,20,0.9))`
+                  }}>
+                    <span style={{ fontSize: '48px', opacity: 0.3 }}>{selectedModeData.icon}</span>
+                  </div>
+                );
+              })()}
             </div>
 
             <p className="mode-detail-desc">{selectedModeData.longDescription}</p>
