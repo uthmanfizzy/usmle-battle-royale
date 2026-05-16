@@ -75,6 +75,9 @@ export default function PlayPage({ user, username, onModeSelect, onBack }) {
   const [gameModesConfig, setGameModesConfig] = useState({});
   const [examBoardsConfig, setExamBoardsConfig] = useState({});
   const [playBgImage, setPlayBgImage] = useState('');
+  const [showJoinInput, setShowJoinInput] = useState(false);
+  const [lobbyCode, setLobbyCode] = useState('');
+  const [joinError, setJoinError] = useState('');
 
   const selectedModeData = GAME_MODES.find(m => m.id === selectedMode) || GAME_MODES[0];
 
@@ -168,13 +171,37 @@ export default function PlayPage({ user, username, onModeSelect, onBack }) {
     ];
   }
 
-  function handleFindMatch() {
-    // Pass mode and options to parent
-    onModeSelect(selectedMode, {
+  function handleCreateLobby() {
+    onModeSelect({
+      mode: selectedMode,
+      action: 'create',
       squadSize,
       fillTeam,
-      exam: selectedExam,      // 'usmle'
-      step: selectedStep,       // 'step1'
+      exam: selectedExam,
+      step: selectedStep,
+    });
+  }
+
+  function handleFindMatch() {
+    onModeSelect({
+      mode: selectedMode,
+      action: 'find',
+      squadSize,
+      fillTeam,
+      exam: selectedExam,
+      step: selectedStep,
+    });
+  }
+
+  function handleJoinLobby() {
+    if (!lobbyCode.trim()) return;
+    setJoinError('');
+    onModeSelect({
+      mode: selectedMode,
+      action: 'join',
+      lobbyCode: lobbyCode.trim(),
+      exam: selectedExam,
+      step: selectedStep,
     });
   }
 
@@ -392,12 +419,71 @@ export default function PlayPage({ user, username, onModeSelect, onBack }) {
               </>
             )}
 
-            <button className="find-match-btn" onClick={handleFindMatch}>
-              ⚔️ {selectedModeData.supportsSolo ? 'START' : 'FIND MATCH'}
-            </button>
-            {!selectedModeData.supportsSolo && (
-              <p className="wait-time">Estimated wait time: 00:15</p>
+            <div className="lobby-actions">
+
+              {/* CREATE LOBBY */}
+              <button
+                className="lobby-btn lobby-btn--create"
+                onClick={() => handleCreateLobby()}
+              >
+                <span className="lobby-btn-icon">⚔️</span>
+                <div className="lobby-btn-text">
+                  <span className="lobby-btn-title">CREATE LOBBY</span>
+                  <span className="lobby-btn-sub">Host your own game</span>
+                </div>
+              </button>
+
+              {/* JOIN LOBBY */}
+              <button
+                className="lobby-btn lobby-btn--join"
+                onClick={() => setShowJoinInput(!showJoinInput)}
+              >
+                <span className="lobby-btn-icon">🚪</span>
+                <div className="lobby-btn-text">
+                  <span className="lobby-btn-title">JOIN LOBBY</span>
+                  <span className="lobby-btn-sub">Enter a lobby code</span>
+                </div>
+              </button>
+
+              {/* FIND MATCH */}
+              <button
+                className="lobby-btn lobby-btn--find"
+                onClick={() => handleFindMatch()}
+              >
+                <span className="lobby-btn-icon">🔍</span>
+                <div className="lobby-btn-text">
+                  <span className="lobby-btn-title">FIND MATCH</span>
+                  <span className="lobby-btn-sub">Auto matchmaking</span>
+                </div>
+              </button>
+
+            </div>
+
+            {/* JOIN LOBBY INPUT - shown when Join Lobby is clicked */}
+            {showJoinInput && (
+              <div className="join-lobby-input-section">
+                <div className="join-lobby-row">
+                  <input
+                    className="join-lobby-input"
+                    placeholder="Enter lobby code..."
+                    value={lobbyCode}
+                    onChange={e => setLobbyCode(e.target.value.toUpperCase())}
+                    maxLength={8}
+                    onKeyDown={e => e.key === 'Enter' && handleJoinLobby()}
+                  />
+                  <button
+                    className="join-lobby-confirm-btn"
+                    onClick={handleJoinLobby}
+                    disabled={!lobbyCode.trim()}
+                  >
+                    JOIN →
+                  </button>
+                </div>
+                {joinError && <p className="join-lobby-error">{joinError}</p>}
+              </div>
             )}
+
+            <p className="wait-time">Estimated wait time: 00:15</p>
           </div>
 
         </div>

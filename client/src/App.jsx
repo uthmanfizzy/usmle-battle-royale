@@ -434,16 +434,37 @@ export default function App() {
     }
   }
 
-  function handlePlayPageModeSelect(mode, options = {}) {
+  function handlePlayPageModeSelect(modeOrOptions, legacyOptions = {}) {
+    // Handle both old (mode, options) and new ({mode, action, ...}) signatures
+    let mode, action, lobbyCode;
+    if (typeof modeOrOptions === 'string') {
+      // Legacy signature: handlePlayPageModeSelect('mode_id', {options})
+      mode = modeOrOptions;
+      action = 'find';
+    } else {
+      // New signature: handlePlayPageModeSelect({mode, action, lobbyCode, ...})
+      mode = modeOrOptions.mode;
+      action = modeOrOptions.action || 'find';
+      lobbyCode = modeOrOptions.lobbyCode;
+    }
+
     setGameMode(mode);
+
     // For solo modes, go directly
     if (mode === 'tower') {
       setPhase('tower');
     } else if (mode === 'training_grounds') {
       setPhase('training_grounds');
     } else {
-      // For multiplayer modes, go directly to lobby options
-      setPhase('lobby_select');
+      // For multiplayer modes, handle based on action
+      if (action === 'create') {
+        setPhase('lobby_select');  // Will create a lobby
+      } else if (action === 'join') {
+        setPhase('lobby_select');  // Will join with lobbyCode
+        // TODO: Store lobbyCode in state when implementing lobby join logic
+      } else if (action === 'find') {
+        setPhase('lobby_select');  // Will use matchmaking
+      }
     }
   }
 
