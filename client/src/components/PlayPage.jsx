@@ -90,38 +90,36 @@ const SUBJECTS = [
 
 // Training Grounds Flow Component
 function TrainingGroundsFlow({ onStart }) {
-  const [tgStep, setTgStep] = useState('category'); // 'category' | 'difficulty' | 'topic'
+  const [categories, setCategories] = useState([]);
+  const [topics, setTopics] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [selectedDifficulty, setSelectedDifficulty] = useState(null);
-  const [selectedTopics, setSelectedTopics] = useState([]); // array of selected topics
-  const [topics, setTopics] = useState([]);
+  const [selectedTopics, setSelectedTopics] = useState([]);
+  const [openPanel, setOpenPanel] = useState(null); // 'category' | 'difficulty' | null
   const [loading, setLoading] = useState(false);
 
-  const fetchTopics = async (category, difficulty) => {
+  useEffect(() => { fetchCategories(); }, []);
+
+  useEffect(() => {
+    if (selectedCategory && selectedDifficulty) fetchTopics();
+  }, [selectedCategory, selectedDifficulty]);
+
+  const fetchCategories = async () => {
     setLoading(true);
-    try {
-      const res = await fetch(`${SERVER_URL}/api/topics?category=${category}`);
-      const data = await res.json();
-      const allTopics = data.topics || [];
-      // Filter by difficulty if provided
-      const filtered = difficulty ? allTopics.filter(t => !t.difficulty || t.difficulty === difficulty) : allTopics;
-      setTopics(filtered);
-    } catch (err) {
-      console.error('Failed to load topics:', err);
-      setTopics([]);
-    }
+    const { data } = await supabase.from('topics').select('subject').order('subject');
+    const unique = [...new Set(data?.map(s => s.subject).filter(Boolean))];
+    setCategories(unique);
     setLoading(false);
   };
 
-  const handleCategorySelect = (cat) => {
-    setSelectedCategory(cat);
-    setTgStep('difficulty');
-  };
-
-  const handleDifficultySelect = (diff) => {
-    setSelectedDifficulty(diff);
-    fetchTopics(selectedCategory, diff);
-    setTgStep('topic');
+  const fetchTopics = async () => {
+    setLoading(true);
+    let query = supabase.from('topics').select('*').order('name');
+    if (selectedCategory) query = query.eq('subject', selectedCategory);
+    if (selectedDifficulty) query = query.eq('difficulty', selectedDifficulty);
+    const { data } = await query;
+    setTopics(data || []);
+    setLoading(false);
   };
 
   const toggleTopic = (topic) => {
@@ -133,123 +131,162 @@ function TrainingGroundsFlow({ onStart }) {
   };
 
   const handleStart = () => {
+    if (!selectedCategory || !selectedDifficulty) return;
     onStart({
       category: selectedCategory,
       difficulty: selectedDifficulty,
       topicIds: selectedTopics.map(t => t.id),
       topicNames: selectedTopics.map(t => t.name),
-      mode: selectedTopics.length === 0 ? 'all' : selectedTopics.length === 1 ? 'specific' : 'multi'
+      mode: selectedTopics.length === 0 ? 'all' : 'multi'
     });
   };
 
-  // STEP: Category
-  if (tgStep === 'category') {
-    return (
-      <div className="tg-flow">
-        <div className="tg-header">
-          <h3 className="tg-title">📚 Training Grounds</h3>
-          <p className="tg-subtitle">Choose a category to begin</p>
-        </div>
-        {loading ? <p className="tg-loading">Loading...</p> : (
-          <div className="tg-category-chips">
-            {SUBJECTS.map(cat => (
-              <div className="tg-category-chip" key={cat.id} onClick={() => handleCategorySelect(cat.label)}>
-                {cat.label}
-              </div>
-            ))}
-            {SUBJECTS.length === 0 && <p className="tg-empty">No categories found.</p>}
-          </div>
-        )}
-      </div>
-    );
-  }
+  const canStart = selectedCategory && selectedDifficulty;
 
-  // STEP: Difficulty
-  if (tgStep === 'difficulty') {
-    return (
-      <div className="tg-flow">
-        <div className="tg-header">
-          <button className="tg-back" onClick={() => setTgStep('category')}>← Back</button>
-          <h3 className="tg-title">{selectedCategory}</h3>
-          <p className="tg-subtitle">Choose difficulty</p>
-        </div>
-        <div className="tg-difficulty-row">
-          <div className="tg-diff-card tg-diff-card--easy" onClick={() => handleDifficultySelect('easy')}>
-            <span className="tg-diff-icon">🟢</span>
-            <span className="tg-diff-label">Easy</span>
-            <span className="tg-diff-sub">Standard questions</span>
-          </div>
-          <div className="tg-diff-card tg-diff-card--hard" onClick={() => handleDifficultySelect('hard')}>
-            <span className="tg-diff-icon">🔴</span>
-            <span className="tg-diff-label">Hard</span>
-            <span className="tg-diff-sub">Advanced clinical</span>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  return (
+    <div className="tg-flow">
 
-  // STEP: Topic (optional multi-select)
-  if (tgStep === 'topic') {
-    return (
-      <div className="tg-flow">
-        <div className="tg-header">
-          <button className="tg-back" onClick={() => { setTgStep('difficulty'); setSelectedTopics([]); }}>← Back</button>
-          <h3 className="tg-title">{selectedCategory} · {selectedDifficulty}</h3>
-          <p className="tg-subtitle">
-            {selectedTopics.length === 0
-              ? 'Select topics (optional) or start with all'
-              : `${selectedTopics.length} topic${selectedTopics.length > 1 ? 's' : ''} selected`}
-          </p>
-        </div>
-
-        {/* Selected topics chips */}
-        {selectedTopics.length > 0 && (
-          <div className="tg-selected-chips">
-            {selectedTopics.map(t => (
-              <span className="tg-selected-chip" key={t.id}>
-                {t.name}
-                <button onClick={() => toggleTopic(t)}>✕</button>
-              </span>
-            ))}
-            <button className="tg-clear-all" onClick={() => setSelectedTopics([])}>Clear all</button>
-          </div>
-        )}
-
-        {/* Topic list */}
-        {loading ? <p className="tg-loading">Loading topics...</p> : (
-          <div className="tg-topics-list">
-            {topics.map(topic => (
-              <div
-                className={`tg-topic-card ${selectedTopics.find(t => t.id === topic.id) ? 'tg-topic-card--selected' : ''}`}
-                key={topic.id}
-                onClick={() => toggleTopic(topic)}
-              >
-                <span className="tg-topic-icon">📁</span>
-                <span className="tg-topic-name">{topic.name}</span>
-                {selectedTopics.find(t => t.id === topic.id)
-                  ? <span className="tg-topic-check">✓</span>
-                  : <span className="tg-topic-plus">+</span>
-                }
-              </div>
-            ))}
-            {topics.length === 0 && <p className="tg-empty">No topics found.</p>}
-          </div>
-        )}
-
-        {/* START button */}
-        <button className="tg-start-btn" onClick={handleStart}>
-          {selectedTopics.length === 0
-            ? '▶ Start — All Topics'
-            : selectedTopics.length === 1
-            ? `▶ Start — ${selectedTopics[0].name}`
-            : `▶ Start — ${selectedTopics.length} Topics`}
+      {/* BUTTON 1 - Choose Category */}
+      <div className="tg-selector">
+        <button
+          className={`tg-selector-btn ${selectedCategory ? 'tg-selector-btn--selected' : ''} ${openPanel === 'category' ? 'tg-selector-btn--open' : ''}`}
+          onClick={() => setOpenPanel(openPanel === 'category' ? null : 'category')}
+        >
+          <span className="tg-selector-icon">📚</span>
+          <span className="tg-selector-label">
+            {selectedCategory || 'Choose Category'}
+          </span>
+          <span className="tg-selector-arrow">{openPanel === 'category' ? '▴' : '▾'}</span>
         </button>
-      </div>
-    );
-  }
 
-  return null;
+        {openPanel === 'category' && (
+          <div className="tg-dropdown">
+            {loading && <p className="tg-loading">Loading...</p>}
+            <div className="tg-category-chips">
+              {categories.map(cat => (
+                <div
+                  className={`tg-category-chip ${selectedCategory === cat ? 'tg-category-chip--selected' : ''}`}
+                  key={cat}
+                  onClick={() => {
+                    setSelectedCategory(cat);
+                    setSelectedTopics([]);
+                    setOpenPanel(null);
+                  }}
+                >
+                  {cat}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* BUTTON 2 - Choose Difficulty */}
+      <div className="tg-selector">
+        <button
+          className={`tg-selector-btn ${selectedDifficulty ? 'tg-selector-btn--selected' : ''} ${openPanel === 'difficulty' ? 'tg-selector-btn--open' : ''}`}
+          onClick={() => setOpenPanel(openPanel === 'difficulty' ? null : 'difficulty')}
+        >
+          <span className="tg-selector-icon">
+            {selectedDifficulty === 'easy' ? '🟢' : selectedDifficulty === 'hard' ? '🔴' : '⚔️'}
+          </span>
+          <span className="tg-selector-label">
+            {selectedDifficulty ? (selectedDifficulty === 'easy' ? 'Easy Mode' : 'Hard Mode') : 'Choose Difficulty'}
+          </span>
+          <span className="tg-selector-arrow">{openPanel === 'difficulty' ? '▴' : '▾'}</span>
+        </button>
+
+        {openPanel === 'difficulty' && (
+          <div className="tg-dropdown tg-dropdown--difficulty">
+            <div
+              className={`tg-diff-option tg-diff-option--easy ${selectedDifficulty === 'easy' ? 'tg-diff-option--selected' : ''}`}
+              onClick={() => { setSelectedDifficulty('easy'); setSelectedTopics([]); setOpenPanel(null); }}
+            >
+              <span>🟢</span>
+              <div>
+                <p className="tg-diff-name">Easy Mode</p>
+                <p className="tg-diff-desc">Standard foundational questions</p>
+              </div>
+              {selectedDifficulty === 'easy' && <span className="tg-check">✓</span>}
+            </div>
+            <div
+              className={`tg-diff-option tg-diff-option--hard ${selectedDifficulty === 'hard' ? 'tg-diff-option--selected' : ''}`}
+              onClick={() => { setSelectedDifficulty('hard'); setSelectedTopics([]); setOpenPanel(null); }}
+            >
+              <span>🔴</span>
+              <div>
+                <p className="tg-diff-name">Hard Mode</p>
+                <p className="tg-diff-desc">Advanced clinical questions</p>
+              </div>
+              {selectedDifficulty === 'hard' && <span className="tg-check">✓</span>}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* OPTIONAL - Choose Topics (only shown after category + difficulty selected) */}
+      {canStart && (
+        <div className="tg-selector">
+          <button
+            className={`tg-selector-btn ${selectedTopics.length > 0 ? 'tg-selector-btn--selected' : ''} ${openPanel === 'topics' ? 'tg-selector-btn--open' : ''}`}
+            onClick={() => setOpenPanel(openPanel === 'topics' ? null : 'topics')}
+          >
+            <span className="tg-selector-icon">📁</span>
+            <span className="tg-selector-label">
+              {selectedTopics.length === 0 ? 'Choose Topics (Optional)' : `${selectedTopics.length} topic${selectedTopics.length > 1 ? 's' : ''} selected`}
+            </span>
+            <span className="tg-selector-arrow">{openPanel === 'topics' ? '▴' : '▾'}</span>
+          </button>
+
+          {openPanel === 'topics' && (
+            <div className="tg-dropdown tg-dropdown--topics">
+              {loading && <p className="tg-loading">Loading topics...</p>}
+              {selectedTopics.length > 0 && (
+                <div className="tg-selected-chips">
+                  {selectedTopics.map(t => (
+                    <span className="tg-selected-chip" key={t.id}>
+                      {t.name}
+                      <button onClick={(e) => { e.stopPropagation(); toggleTopic(t); }}>✕</button>
+                    </span>
+                  ))}
+                  <button className="tg-clear-all" onClick={() => setSelectedTopics([])}>Clear all</button>
+                </div>
+              )}
+              <div className="tg-topics-list">
+                {topics.map(topic => (
+                  <div
+                    className={`tg-topic-card ${selectedTopics.find(t => t.id === topic.id) ? 'tg-topic-card--selected' : ''}`}
+                    key={topic.id}
+                    onClick={() => toggleTopic(topic)}
+                  >
+                    <span className="tg-topic-icon">📁</span>
+                    <span className="tg-topic-name">{topic.name}</span>
+                    {selectedTopics.find(t => t.id === topic.id)
+                      ? <span className="tg-topic-check">✓</span>
+                      : <span className="tg-topic-plus">+</span>}
+                  </div>
+                ))}
+                {!loading && topics.length === 0 && <p className="tg-empty">No topics found.</p>}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* START BUTTON */}
+      <button
+        className={`tg-start-btn ${!canStart ? 'tg-start-btn--disabled' : ''}`}
+        onClick={handleStart}
+        disabled={!canStart}
+      >
+        {!selectedCategory ? '← Select a category first' :
+         !selectedDifficulty ? '← Select difficulty' :
+         selectedTopics.length === 0 ? '▶ Start — All Topics' :
+         `▶ Start — ${selectedTopics.length} Topic${selectedTopics.length > 1 ? 's' : ''}`}
+      </button>
+
+    </div>
+  );
 }
 
 export default function PlayPage({
@@ -543,39 +580,44 @@ export default function PlayPage({
               {selectedModeData.name}
             </h2>
 
-            <div className="mode-detail-image">
-              {(() => {
-                const modeImage = gameModesConfig[selectedMode]?.image;
-                console.log(`[PlayPage] Mode '${selectedMode}' image:`, modeImage);
-                console.log('[PlayPage] Full config for mode:', gameModesConfig[selectedMode]);
+            {/* Hide image and description for training_grounds */}
+            {selectedMode !== 'training_grounds' && (
+              <>
+                <div className="mode-detail-image">
+                  {(() => {
+                    const modeImage = gameModesConfig[selectedMode]?.image;
+                    console.log(`[PlayPage] Mode '${selectedMode}' image:`, modeImage);
+                    console.log('[PlayPage] Full config for mode:', gameModesConfig[selectedMode]);
 
-                if (modeImage) {
-                  return (
-                    <img
-                      src={modeImage}
-                      alt={selectedModeData.name}
-                      className="mode-detail-img"
-                      style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }}
-                      onError={(e) => {
-                        console.error('[PlayPage] Image failed to load:', modeImage);
-                        e.target.style.display = 'none';
-                      }}
-                      onLoad={() => console.log('[PlayPage] Image loaded successfully:', modeImage)}
-                    />
-                  );
-                }
+                    if (modeImage) {
+                      return (
+                        <img
+                          src={modeImage}
+                          alt={selectedModeData.name}
+                          className="mode-detail-img"
+                          style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }}
+                          onError={(e) => {
+                            console.error('[PlayPage] Image failed to load:', modeImage);
+                            e.target.style.display = 'none';
+                          }}
+                          onLoad={() => console.log('[PlayPage] Image loaded successfully:', modeImage)}
+                        />
+                      );
+                    }
 
-                return (
-                  <div className="mode-image-placeholder" style={{
-                    background: `linear-gradient(135deg, rgba(40,60,40,0.8), rgba(20,30,20,0.9))`
-                  }}>
-                    <span style={{ fontSize: '48px', opacity: 0.3 }}>{selectedModeData.icon}</span>
-                  </div>
-                );
-              })()}
-            </div>
+                    return (
+                      <div className="mode-image-placeholder" style={{
+                        background: `linear-gradient(135deg, rgba(40,60,40,0.8), rgba(20,30,20,0.9))`
+                      }}>
+                        <span style={{ fontSize: '48px', opacity: 0.3 }}>{selectedModeData.icon}</span>
+                      </div>
+                    );
+                  })()}
+                </div>
 
-            <p className="mode-detail-desc">{selectedModeData.longDescription}</p>
+                <p className="mode-detail-desc">{selectedModeData.longDescription}</p>
+              </>
+            )}
 
             {!selectedModeData.supportsSolo && (
               <>
