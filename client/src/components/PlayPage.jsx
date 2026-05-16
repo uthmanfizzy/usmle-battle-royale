@@ -106,9 +106,48 @@ function TrainingGroundsFlow({ onStart }) {
 
   const fetchCategories = async () => {
     setLoading(true);
-    const { data } = await supabase.from('topics').select('subject').order('subject');
-    const unique = [...new Set(data?.map(s => s.subject).filter(Boolean))];
-    setCategories(unique);
+    try {
+      // Check which column holds the subject/category name
+      const { data, error } = await supabase
+        .from('topics')
+        .select('*')
+        .limit(5);
+      console.log('Sample topics data:', data, 'Error:', error);
+
+      if (error) {
+        console.error('Supabase error:', error);
+        setLoading(false);
+        return;
+      }
+
+      // Try to get distinct subjects - check if 'subject' column exists
+      const { data: subjectData, error: subjectError } = await supabase
+        .from('topics')
+        .select('subject')
+        .not('subject', 'is', null)
+        .order('subject');
+
+      console.log('Subject data:', subjectData, 'Error:', subjectError);
+
+      if (subjectData && subjectData.length > 0) {
+        const unique = [...new Set(subjectData.map(s => s.subject).filter(Boolean))];
+        setCategories(unique);
+      } else {
+        // Fallback: try 'category' column name
+        const { data: catData } = await supabase
+          .from('topics')
+          .select('category')
+          .not('category', 'is', null)
+          .order('category');
+
+        if (catData && catData.length > 0) {
+          const unique = [...new Set(catData.map(s => s.category).filter(Boolean))];
+          setCategories(unique);
+        }
+      }
+    } catch(e) {
+      console.error('fetchCategories error:', e);
+    }
     setLoading(false);
   };
 
@@ -667,7 +706,34 @@ export default function PlayPage({
 
             {/* TRAINING GROUNDS FLOW or LOBBY ACTIONS */}
             {selectedMode === 'training_grounds' ? (
-              <TrainingGroundsFlow onStart={handleStartTraining} />
+              <>
+                {/* Training Grounds Image */}
+                <div className="mode-detail-image" style={{flexShrink: 0, height: '100px'}}>
+                  {(() => {
+                    const modeImage = gameModesConfig['training_grounds']?.image;
+                    if (modeImage) {
+                      return (
+                        <img
+                          src={modeImage}
+                          alt="Training Grounds"
+                          style={{width:'100%', height:'100%', objectFit:'cover', borderRadius:'8px'}}
+                          onError={(e) => {
+                            console.error('[PlayPage] Training Grounds image failed to load:', modeImage);
+                            e.target.style.display = 'none';
+                          }}
+                        />
+                      );
+                    }
+                    return (
+                      <div className="mode-image-placeholder" style={{height:'100%', display:'flex', alignItems:'center', justifyContent:'center'}}>
+                        <span style={{fontSize:'40px'}}>📚</span>
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                <TrainingGroundsFlow onStart={handleStartTraining} />
+              </>
             ) : (
               <>
                 <div className="lobby-actions">
