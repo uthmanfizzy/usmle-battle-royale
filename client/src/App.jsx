@@ -466,11 +466,11 @@ export default function App() {
           category: modeOrOptions.category,
           difficulty: modeOrOptions.difficulty,
           topicId: modeOrOptions.topicIds?.[0] || null,
-          topicIds: modeOrOptions.topicIds,
+          topicIds: modeOrOptions.topicIds || [],
           topicName: modeOrOptions.topicNames?.[0] || null,
-          topicNames: modeOrOptions.topicNames,
+          topicNames: modeOrOptions.topicNames || [],
           subjectName: modeOrOptions.category,
-          mode: modeOrOptions.mode || 'all'
+          studyMode: modeOrOptions.studyMode || 'all'  // Use studyMode instead of mode
         });
       } else {
         setPhase('training_grounds');

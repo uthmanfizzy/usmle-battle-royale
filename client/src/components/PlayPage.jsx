@@ -455,11 +455,13 @@ export default function PlayPage({
 
   function handleStartTraining(config) {
     console.log('handleStartTraining called with:', config);
+    const { mode: studyMode, ...rest } = config; // rename 'mode' from config to 'studyMode'
     // Navigate to solo practice / training game with the config
     onModeSelect({
       mode: 'training_grounds',
       action: 'start_training',
-      ...config,
+      studyMode,  // 'all', 'specific', or 'multi'
+      ...rest,
       exam: selectedExam,
       step: selectedStep,
     });
