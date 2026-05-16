@@ -63,8 +63,6 @@ const GAME_MODES = [
   },
 ];
 
-const SERVER_URL = 'https://usmle-battle-royale-production.up.railway.app';
-
 // Subject categories for Training Grounds
 const SUBJECTS = [
   { id: 'cardiology', label: 'Cardiology', icon: '❤️' },
