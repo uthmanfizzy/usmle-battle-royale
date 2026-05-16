@@ -75,7 +75,6 @@ export default function PlayPage({ user, username, onModeSelect, onBack, error, 
   const [gameModesConfig, setGameModesConfig] = useState({});
   const [examBoardsConfig, setExamBoardsConfig] = useState({});
   const [playBgImage, setPlayBgImage] = useState('');
-  const [showJoinInput, setShowJoinInput] = useState(false);
   const [lobbyCode, setLobbyCode] = useState('');
   const [joinError, setJoinError] = useState('');
 
@@ -435,16 +434,34 @@ export default function PlayPage({ user, username, onModeSelect, onBack, error, 
               </button>
 
               {/* JOIN LOBBY */}
-              <button
-                className="lobby-btn lobby-btn--join"
-                onClick={() => setShowJoinInput(!showJoinInput)}
-              >
-                <span className="lobby-btn-icon">🚪</span>
-                <div className="lobby-btn-text">
-                  <span className="lobby-btn-title">JOIN LOBBY</span>
-                  <span className="lobby-btn-sub">Enter a lobby code</span>
+              <div className="join-lobby-combined">
+                <div className="join-lobby-label">
+                  <span className="lobby-btn-icon">🚪</span>
+                  <span className="join-lobby-title">JOIN LOBBY</span>
                 </div>
-              </button>
+                <div className="join-lobby-inline">
+                  <input
+                    className="join-lobby-inline-input"
+                    placeholder="Enter code..."
+                    value={lobbyCode}
+                    onChange={e => {
+                      setLobbyCode(e.target.value.toUpperCase());
+                      setJoinError('');
+                      if (onClearError) onClearError();
+                    }}
+                    maxLength={8}
+                    onKeyDown={e => e.key === 'Enter' && lobbyCode.trim() && handleJoinLobby()}
+                  />
+                  <button
+                    className="join-lobby-inline-btn"
+                    onClick={handleJoinLobby}
+                    disabled={!lobbyCode.trim()}
+                  >
+                    JOIN →
+                  </button>
+                </div>
+                {(joinError || error) && <p className="join-lobby-error">{joinError || error}</p>}
+              </div>
 
               {/* FIND MATCH */}
               <button
@@ -459,34 +476,6 @@ export default function PlayPage({ user, username, onModeSelect, onBack, error, 
               </button>
 
             </div>
-
-            {/* JOIN LOBBY INPUT - shown when Join Lobby is clicked */}
-            {showJoinInput && (
-              <div className="join-lobby-input-section">
-                <div className="join-lobby-row">
-                  <input
-                    className="join-lobby-input"
-                    placeholder="Enter lobby code..."
-                    value={lobbyCode}
-                    onChange={e => {
-                      setLobbyCode(e.target.value.toUpperCase());
-                      setJoinError('');
-                      if (onClearError) onClearError();
-                    }}
-                    maxLength={8}
-                    onKeyDown={e => e.key === 'Enter' && handleJoinLobby()}
-                  />
-                  <button
-                    className="join-lobby-confirm-btn"
-                    onClick={handleJoinLobby}
-                    disabled={!lobbyCode.trim()}
-                  >
-                    JOIN →
-                  </button>
-                </div>
-                {(joinError || error) && <p className="join-lobby-error">{joinError || error}</p>}
-              </div>
-            )}
 
             <p className="wait-time">Estimated wait time: 00:15</p>
           </div>
