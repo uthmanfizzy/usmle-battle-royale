@@ -451,13 +451,30 @@ export default function App() {
       step = modeOrOptions.step;
     }
 
+    console.log('handlePlayPageModeSelect received:', { mode, action, modeOrOptions });
+
     setGameMode(mode);
 
     // For solo modes, go directly
     if (mode === 'tower') {
       setPhase('tower');
     } else if (mode === 'training_grounds') {
-      setPhase('training_grounds');
+      // Handle start_training action
+      if (action === 'start_training') {
+        console.log('Starting training with config:', modeOrOptions);
+        handleStartTrainingPractice({
+          category: modeOrOptions.category,
+          difficulty: modeOrOptions.difficulty,
+          topicId: modeOrOptions.topicIds?.[0] || null,
+          topicIds: modeOrOptions.topicIds,
+          topicName: modeOrOptions.topicNames?.[0] || null,
+          topicNames: modeOrOptions.topicNames,
+          subjectName: modeOrOptions.category,
+          mode: modeOrOptions.mode || 'all'
+        });
+      } else {
+        setPhase('training_grounds');
+      }
     } else {
       // For multiplayer modes, handle based on action
       if (action === 'create') {

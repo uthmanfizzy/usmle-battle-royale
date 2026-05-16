@@ -454,6 +454,7 @@ export default function PlayPage({
   }
 
   function handleStartTraining(config) {
+    console.log('handleStartTraining called with:', config);
     // Navigate to solo practice / training game with the config
     onModeSelect({
       mode: 'training_grounds',
