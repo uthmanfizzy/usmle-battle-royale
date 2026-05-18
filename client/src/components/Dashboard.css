@@ -302,6 +302,13 @@
   transform: scale(1.1);
 }
 
+.header-icon-img {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  display: block;
+}
+
 .notification-dot {
   position: absolute;
   top: -2px;
@@ -2257,6 +2264,11 @@
     cursor: pointer !important;
     padding: 0 !important;
     margin: 0 !important;
+  }
+
+  .header-icon-img {
+    width: 38px !important;
+    height: 38px !important;
   }
 
   /* MAIN DASHBOARD CONTENT */

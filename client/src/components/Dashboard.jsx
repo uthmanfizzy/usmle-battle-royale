@@ -770,6 +770,8 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
     icon_play: '',
     icon_coins: '',
     icon_gems: '',
+    icon_notification: '',
+    icon_settings: '',
   });
 
   // Fetch home page images (backgrounds and icons)
@@ -886,11 +888,19 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
             {/* Icons Pill */}
             <div className="icons-pill">
               <button title="Notifications">
-                🔔
+                {homeImages.icon_notification ? (
+                  <img src={homeImages.icon_notification} alt="Notifications" className="header-icon-img" />
+                ) : (
+                  <span style={{fontSize: '22px'}}>🔔</span>
+                )}
                 {unreadCount > 0 && <span className="notification-dot" />}
               </button>
               <button onClick={() => setShowSettings(true)} title="Settings">
-                ⚙️
+                {homeImages.icon_settings ? (
+                  <img src={homeImages.icon_settings} alt="Settings" className="header-icon-img" />
+                ) : (
+                  <span style={{fontSize: '22px'}}>⚙️</span>
+                )}
               </button>
             </div>
           </div>

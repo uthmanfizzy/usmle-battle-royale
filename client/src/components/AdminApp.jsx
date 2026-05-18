@@ -4163,6 +4163,8 @@ function HomePagePanel() {
     icon_play: '',
     icon_coins: '',
     icon_gems: '',
+    icon_notification: '',
+    icon_settings: '',
     profile_panel_bg: '',
     stats_panel_bg: '',
     quests_panel_bg: '',
@@ -4279,6 +4281,8 @@ function HomePagePanel() {
     { id: 'icon_play', label: 'PLAY Icon', desc: 'Navigation icon for Play button' },
     { id: 'icon_coins', label: 'Coins Icon', desc: 'Icon for coin currency display' },
     { id: 'icon_gems', label: 'Gems Icon', desc: 'Icon for gem currency display' },
+    { id: 'icon_notification', label: 'Notification Icon', desc: 'Icon for notification button in header' },
+    { id: 'icon_settings', label: 'Settings Icon', desc: 'Icon for settings button in header' },
   ];
 
   return (
