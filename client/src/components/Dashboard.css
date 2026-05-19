@@ -86,6 +86,7 @@
   right: 0;
   z-index: 100;
   pointer-events: none;
+  overflow: visible !important;
 }
 
 .dashboard-header > * {
@@ -102,6 +103,7 @@
   align-items: center;
   gap: 8px;
   margin-left: auto;
+  overflow: visible !important;
 }
 
 /* ══════════════════════════════════════════════════════════════════════════════
@@ -236,17 +238,18 @@
 }
 
 .currency-icon {
-  width: 34px !important;
-  height: 34px !important;
-  min-width: 34px !important;
+  width: 48px !important;
+  height: 48px !important;
+  min-width: 48px !important;
   object-fit: contain !important;
   padding: 0 !important;
-  /* Negative margin to prevent expanding the pill */
-  margin: -4px 0 !important;
+  /* Negative margin so image is larger but pill stays same size */
+  margin: -12px -2px !important;
   flex-shrink: 0 !important;
   overflow: visible !important;
   position: relative !important;
   z-index: 1 !important;
+  pointer-events: none !important;
 }
 
 .currency-value {
@@ -274,6 +277,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  overflow: visible !important;
 }
 
 /* Each icon gets its own pill bubble */
@@ -303,23 +307,26 @@
 
 /* Icon image inside each bubble */
 .header-icon-bubble .header-icon-img {
-  width: 34px !important;
-  height: 34px !important;
+  width: 52px !important;
+  height: 52px !important;
   object-fit: contain !important;
   display: block !important;
-  margin: 0 !important;
+  /* Negative margin so image grows but bubble stays same size */
+  margin: -10px !important;
   padding: 0 !important;
   position: relative !important;
   z-index: 1 !important;
+  pointer-events: none !important;
 }
 
 /* Emoji fallback size */
 .header-icon-bubble span {
-  font-size: 24px !important;
+  font-size: 32px !important;
   line-height: 1 !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
+  pointer-events: none !important;
 }
 
 .notification-dot {
