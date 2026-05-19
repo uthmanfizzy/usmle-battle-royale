@@ -733,59 +733,62 @@ export default function PlayPage({
               <>
                 <div className="lobby-actions">
 
-                  {/* CREATE LOBBY */}
+                  {/* CREATE LOBBY - full width */}
                   <button
                     className="lobby-btn lobby-btn--create"
-                    onClick={() => handleCreateLobby()}
+                    onClick={handleCreateLobby}
                   >
                     <span className="lobby-btn-icon">⚔️</span>
                     <div className="lobby-btn-text">
                       <span className="lobby-btn-title">CREATE LOBBY</span>
-                      <span className="lobby-btn-sub">Host your own game</span>
                     </div>
                   </button>
 
-                  {/* JOIN LOBBY */}
-                  <div className="join-lobby-combined">
-                    <div className="join-lobby-label">
-                      <span className="lobby-btn-icon">🚪</span>
-                      <span className="join-lobby-title">JOIN LOBBY</span>
+                  {/* JOIN LOBBY + FIND MATCH - side by side */}
+                  <div className="lobby-btn-row">
+
+                    {/* JOIN LOBBY with inline input */}
+                    <div className="join-lobby-combined">
+                      <div className="join-lobby-label">
+                        <span className="lobby-btn-icon">🚪</span>
+                        <span className="join-lobby-title">JOIN LOBBY</span>
+                      </div>
+                      <div className="join-lobby-inline">
+                        <input
+                          className="join-lobby-inline-input"
+                          placeholder="Enter code..."
+                          value={lobbyCode}
+                          onChange={e => {
+                            setLobbyCode(e.target.value.toUpperCase());
+                            setJoinError('');
+                            if (onClearError) onClearError();
+                          }}
+                          maxLength={8}
+                          onKeyDown={e => e.key === 'Enter' && lobbyCode.trim() && handleJoinLobby()}
+                        />
+                        <button
+                          className="join-lobby-inline-btn"
+                          onClick={handleJoinLobby}
+                          disabled={!lobbyCode.trim()}
+                        >
+                          JOIN →
+                        </button>
+                      </div>
+                      {joinError && <p className="join-lobby-error">{joinError}</p>}
                     </div>
-                    <div className="join-lobby-inline">
-                      <input
-                        className="join-lobby-inline-input"
-                        placeholder="Enter code..."
-                        value={lobbyCode}
-                        onChange={e => {
-                          setLobbyCode(e.target.value.toUpperCase());
-                          setJoinError('');
-                          if (onClearError) onClearError();
-                        }}
-                        maxLength={8}
-                        onKeyDown={e => e.key === 'Enter' && lobbyCode.trim() && handleJoinLobby()}
-                      />
-                      <button
-                        className="join-lobby-inline-btn"
-                        onClick={handleJoinLobby}
-                        disabled={!lobbyCode.trim()}
-                      >
-                        JOIN →
-                      </button>
-                    </div>
-                    {(joinError || error) && <p className="join-lobby-error">{joinError || error}</p>}
+
+                    {/* FIND MATCH */}
+                    <button
+                      className="lobby-btn lobby-btn--find"
+                      onClick={handleFindMatch}
+                    >
+                      <span className="lobby-btn-icon">🔍</span>
+                      <div className="lobby-btn-text">
+                        <span className="lobby-btn-title">FIND MATCH</span>
+                      </div>
+                    </button>
+
                   </div>
-
-                  {/* FIND MATCH */}
-                  <button
-                    className="lobby-btn lobby-btn--find"
-                    onClick={() => handleFindMatch()}
-                  >
-                    <span className="lobby-btn-icon">🔍</span>
-                    <div className="lobby-btn-text">
-                      <span className="lobby-btn-title">FIND MATCH</span>
-                      <span className="lobby-btn-sub">Auto matchmaking</span>
-                    </div>
-                  </button>
 
                 </div>
 

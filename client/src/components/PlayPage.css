@@ -420,10 +420,10 @@
 }
 
 .lobby-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  width: 100%;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+  width: 100% !important;
 }
 
 .lobby-btn {
@@ -441,8 +441,8 @@
 }
 
 .lobby-btn-icon {
-  font-size: 22px;
-  flex-shrink: 0;
+  font-size: 16px !important;
+  flex-shrink: 0 !important;
 }
 
 .lobby-btn-text {
@@ -452,10 +452,11 @@
 }
 
 .lobby-btn-title {
-  font-family: 'Cinzel', serif;
-  font-weight: 700;
-  font-size: 14px;
-  letter-spacing: 0.1em;
+  font-family: 'Cinzel', serif !important;
+  font-weight: 700 !important;
+  font-size: 12px !important;
+  letter-spacing: 0.08em !important;
+  color: rgba(255,255,255,0.85) !important;
 }
 
 .lobby-btn-sub {
@@ -465,8 +466,9 @@
   font-weight: 400;
 }
 
-/* CREATE - green */
+/* Full width create lobby stays the same */
 .lobby-btn--create {
+  width: 100% !important;
   background: linear-gradient(135deg, rgba(30,80,30,0.9), rgba(50,110,30,0.9));
   border-color: rgba(80,180,80,0.4);
   color: white;
@@ -478,58 +480,70 @@
   box-shadow: 0 4px 16px rgba(60,160,60,0.3);
 }
 
-/* JOIN LOBBY COMBINED - inline input */
+/* Row container for join + find */
+.lobby-btn-row {
+  display: flex !important;
+  flex-direction: row !important;
+  gap: 8px !important;
+  width: 100% !important;
+}
+
+/* Join lobby combined takes half */
 .join-lobby-combined {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 10px 14px;
-  background: rgba(40,30,10,0.9);
-  border: 1px solid rgba(180,140,40,0.4);
-  border-radius: 10px;
-  transition: border-color 0.2s;
+  flex: 1 !important;
+  min-width: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 6px !important;
+  padding: 10px 12px !important;
+  background: rgba(40,30,10,0.9) !important;
+  border: 1px solid rgba(180,140,40,0.4) !important;
+  border-radius: 10px !important;
+  transition: border-color 0.2s !important;
+  box-sizing: border-box !important;
 }
 
 .join-lobby-combined:focus-within {
-  border-color: rgba(200,165,60,0.8);
+  border-color: rgba(200,165,60,0.8) !important;
   box-shadow: 0 0 10px rgba(180,140,40,0.15);
 }
 
 .join-lobby-label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
 }
 
 .join-lobby-title {
-  font-family: 'Cinzel', serif;
-  font-weight: 700;
-  font-size: 12px;
-  letter-spacing: 0.1em;
-  color: rgba(220,190,80,0.95);
+  font-family: 'Cinzel', serif !important;
+  font-weight: 700 !important;
+  font-size: 11px !important;
+  letter-spacing: 0.08em !important;
+  color: rgba(220,190,80,0.95) !important;
 }
 
+/* Join lobby input row compact */
 .join-lobby-inline {
-  display: flex;
-  gap: 6px;
-  align-items: center;
+  display: flex !important;
+  gap: 4px !important;
+  align-items: center !important;
 }
 
 .join-lobby-inline-input {
-  flex: 1;
-  padding: 8px 12px;
+  flex: 1 !important;
+  min-width: 0 !important;
+  padding: 6px 8px !important;
+  font-size: 12px !important;
+  letter-spacing: 0.1em !important;
   background: rgba(10,12,8,0.8);
   border: 1px solid rgba(180,140,40,0.3);
   border-radius: 6px;
   color: rgba(220,190,80,0.95);
   font-family: 'Cinzel', serif;
-  font-size: 14px;
   font-weight: 700;
-  letter-spacing: 0.2em;
   text-align: center;
   outline: none;
   transition: border-color 0.2s;
-  min-width: 0;
 }
 
 .join-lobby-inline-input:focus {
@@ -544,18 +558,18 @@
 }
 
 .join-lobby-inline-btn {
-  padding: 8px 14px;
+  padding: 6px 8px !important;
+  font-size: 10px !important;
+  white-space: nowrap !important;
+  flex-shrink: 0 !important;
   background: rgba(180,140,40,0.25);
   border: 1px solid rgba(200,165,60,0.5);
   border-radius: 6px;
   color: rgba(220,190,80,0.95);
   font-family: 'Cinzel', serif;
-  font-size: 12px;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.2s;
-  white-space: nowrap;
-  flex-shrink: 0;
 }
 
 .join-lobby-inline-btn:hover:not(:disabled) {
@@ -579,16 +593,36 @@
 /* Hide old join input section if it exists */
 .join-lobby-input-section { display: none !important; }
 
-/* FIND MATCH - subtle */
+/* Find match takes half */
 .lobby-btn--find {
-  background: rgba(20,25,20,0.8);
-  border-color: rgba(255,255,255,0.1);
-  color: rgba(255,255,255,0.7);
+  flex: 1 !important;
+  min-width: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  padding: 10px 12px !important;
+  background: rgba(20,25,20,0.8) !important;
+  border: 1px solid rgba(255,255,255,0.1) !important;
+  border-radius: 10px !important;
+  color: rgba(255,255,255,0.7) !important;
+  font-family: 'Cinzel', serif !important;
+  cursor: pointer !important;
+  transition: all 0.2s !important;
+  flex-direction: column !important;
 }
+
 .lobby-btn--find:hover {
-  background: rgba(30,35,25,0.9);
-  border-color: rgba(255,255,255,0.2);
+  background: rgba(30,35,25,0.9) !important;
+  border-color: rgba(255,255,255,0.2) !important;
   transform: translateY(-1px);
+}
+
+/* Mobile - stack vertically */
+@media (max-width: 768px) {
+  .lobby-btn-row {
+    flex-direction: column !important;
+  }
 }
 
 .wait-time {
