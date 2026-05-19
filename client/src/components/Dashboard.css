@@ -303,11 +303,11 @@
 }
 
 .header-icon-img {
-  width: 42px !important;
-  height: 42px !important;
+  width: 63px !important;
+  height: 63px !important;
   object-fit: contain !important;
   display: block !important;
-  margin: -8px -4px !important;
+  margin: -12px -6px !important;
   position: relative !important;
   z-index: 1 !important;
 }
@@ -964,6 +964,7 @@
   border-radius: 12px 12px 0 0;
   height: 90px;
   padding: 0;
+  overflow: visible !important;
 }
 
 .nav-item {
@@ -976,6 +977,7 @@
   cursor: pointer;
   position: relative;
   transition: background 0.2s;
+  overflow: visible !important;
 }
 
 .nav-item::before,
@@ -1022,9 +1024,12 @@
 }
 
 .nav-icon {
-  width: 32px;
-  height: 32px;
-  object-fit: contain;
+  width: 48px !important;
+  height: 48px !important;
+  object-fit: contain !important;
+  margin: -8px 0 !important;
+  position: relative !important;
+  z-index: 1 !important;
 }
 
 .nav-label {

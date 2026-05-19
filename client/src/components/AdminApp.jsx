@@ -4165,6 +4165,7 @@ function HomePagePanel() {
     icon_gems: '',
     icon_notification: '',
     icon_settings: '',
+    icon_friends: '',
     profile_panel_bg: '',
     stats_panel_bg: '',
     quests_panel_bg: '',
@@ -4282,6 +4283,7 @@ function HomePagePanel() {
     { id: 'icon_coins', label: 'Coins Icon', desc: 'Icon for coin currency display' },
     { id: 'icon_gems', label: 'Gems Icon', desc: 'Icon for gem currency display' },
     { id: 'icon_notification', label: 'Notification Icon', desc: 'Icon for notification button in header' },
+    { id: 'icon_friends', label: 'Friends Icon', desc: 'Icon for friends button in header (between notifications and settings)' },
     { id: 'icon_settings', label: 'Settings Icon', desc: 'Icon for settings button in header' },
   ];
 

@@ -771,6 +771,7 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
     icon_coins: '',
     icon_gems: '',
     icon_notification: '',
+    icon_friends: '',
     icon_settings: '',
   });
 
@@ -894,6 +895,13 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
                   <span style={{fontSize: '22px'}}>🔔</span>
                 )}
                 {unreadCount > 0 && <span className="notification-dot" />}
+              </button>
+              <button onClick={() => setCurrentView('clans')} title="Friends">
+                {homeImages.icon_friends ? (
+                  <img src={homeImages.icon_friends} alt="Friends" className="header-icon-img" />
+                ) : (
+                  <span style={{fontSize: '22px'}}>👥</span>
+                )}
               </button>
               <button onClick={() => setShowSettings(true)} title="Settings">
                 {homeImages.icon_settings ? (
