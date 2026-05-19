@@ -873,14 +873,14 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
             <div className="currency-bar">
               <div className="currency-item">
                 {homeImages.icon_coins && (
-                  <img src={homeImages.icon_coins} alt="" className="currency-icon" />
+                  <img loading="lazy" src={homeImages.icon_coins} alt="" className="currency-icon" />
                 )}
                 <span className="currency-value">{coins.toLocaleString()}</span>
               </div>
               <div className="currency-divider"></div>
               <div className="currency-item">
                 {homeImages.icon_gems && (
-                  <img src={homeImages.icon_gems} alt="" className="currency-icon" />
+                  <img loading="lazy" src={homeImages.icon_gems} alt="" className="currency-icon" />
                 )}
                 <span className="currency-value">{gems.toLocaleString()}</span>
               </div>
@@ -890,7 +890,7 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
             <div className="icons-pill">
               <button title="Notifications">
                 {homeImages.icon_notification ? (
-                  <img src={homeImages.icon_notification} alt="Notifications" className="header-icon-img" />
+                  <img loading="lazy" src={homeImages.icon_notification} alt="Notifications" className="header-icon-img" />
                 ) : (
                   <span style={{fontSize: '22px'}}>🔔</span>
                 )}
@@ -898,14 +898,14 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
               </button>
               <button onClick={() => setCurrentView('clans')} title="Friends">
                 {homeImages.icon_friends ? (
-                  <img src={homeImages.icon_friends} alt="Friends" className="header-icon-img" />
+                  <img loading="lazy" src={homeImages.icon_friends} alt="Friends" className="header-icon-img" />
                 ) : (
                   <span style={{fontSize: '22px'}}>👥</span>
                 )}
               </button>
               <button onClick={() => setShowSettings(true)} title="Settings">
                 {homeImages.icon_settings ? (
-                  <img src={homeImages.icon_settings} alt="Settings" className="header-icon-img" />
+                  <img loading="lazy" src={homeImages.icon_settings} alt="Settings" className="header-icon-img" />
                 ) : (
                   <span style={{fontSize: '22px'}}>⚙️</span>
                 )}
@@ -927,7 +927,7 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
             onClick={() => setDashTab('home')}
           >
             {homeImages.icon_home && (
-              <img src={homeImages.icon_home} className="nav-icon" alt="Home" />
+              <img loading="lazy" src={homeImages.icon_home} className="nav-icon" alt="Home" />
             )}
             <span className="nav-label">HOME</span>
           </div>
@@ -937,7 +937,7 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
             onClick={() => setDashTab('leaderboard')}
           >
             {homeImages.icon_leaderboards && (
-              <img src={homeImages.icon_leaderboards} className="nav-icon" alt="Leaderboards" />
+              <img loading="lazy" src={homeImages.icon_leaderboards} className="nav-icon" alt="Leaderboards" />
             )}
             <span className="nav-label">LEADERBOARDS</span>
           </div>
@@ -947,7 +947,7 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
             onClick={() => setDashTab('clans')}
           >
             {homeImages.icon_clans && (
-              <img src={homeImages.icon_clans} className="nav-icon" alt="Clans" />
+              <img loading="lazy" src={homeImages.icon_clans} className="nav-icon" alt="Clans" />
             )}
             <span className="nav-label">CLANS</span>
           </div>
@@ -959,14 +959,14 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
           >
             {unreadCount > 0 && <span className="ann-unread-dot" />}
             {homeImages.icon_news && (
-              <img src={homeImages.icon_news} className="nav-icon" alt="News" />
+              <img loading="lazy" src={homeImages.icon_news} className="nav-icon" alt="News" />
             )}
             <span className="nav-label">NEWS</span>
           </div>
           <div className="nav-divider" />
           <div className="nav-item nav-item--play" onClick={onPlayNow}>
             {homeImages.icon_play && (
-              <img src={homeImages.icon_play} className="nav-icon" alt="Play" />
+              <img loading="lazy" src={homeImages.icon_play} className="nav-icon" alt="Play" />
             )}
             <span className="nav-label">PLAY</span>
           </div>

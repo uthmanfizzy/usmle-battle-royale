@@ -4,6 +4,7 @@ const express    = require('express');
 const http       = require('http');
 const { Server } = require('socket.io');
 const cors       = require('cors');
+const compression = require('compression');
 const session    = require('express-session');
 const passport   = require('passport');
 const { Strategy: GoogleStrategy } = require('passport-google-oauth20');
@@ -60,7 +61,17 @@ app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
 
 app.set('trust proxy', 1); // needed for secure cookies behind Railway's proxy
+app.use(compression()); // gzip compress all responses
 app.use(express.json({ limit: '10mb' }));
+
+// Cache static assets
+app.use((req, res, next) => {
+  if (req.url.match(/\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2)$/)) {
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+  }
+  next();
+});
+
 app.use(session({
   secret: process.env.SESSION_SECRET || 'dev-session-secret',
   resave: false,

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import socket from './socket';
 import * as audio from './audio';
 import { getToken, clearToken, fetchMe, getCachedUser, redirectToGoogle } from './auth';
@@ -8,17 +8,19 @@ import DifficultySelect from './components/DifficultySelect';
 import LobbySelect from './components/LobbySelect';
 import JoinLobbyInput from './components/JoinLobbyInput';
 import SubjectSelect from './components/SubjectSelect';
-import Lobby from './components/Lobby';
-import GameRoom from './components/GameRoom';
-import SpeedRaceGame from './components/SpeedRaceGame';
-import TriviaGame from './components/TriviaGame';
-import Leaderboard from './components/Leaderboard';
-import SoloGame from './components/SoloGame';
-import TowerMode from './components/TowerMode';
-import BuzzFunGame from './components/BuzzFunGame';
-import LandingPage from './components/LandingPage';
-import TrainingGrounds from './components/TrainingGrounds';
-import PlayPage from './components/PlayPage';
+
+// Lazy load heavy components for better initial load performance
+const Lobby = lazy(() => import('./components/Lobby'));
+const GameRoom = lazy(() => import('./components/GameRoom'));
+const SpeedRaceGame = lazy(() => import('./components/SpeedRaceGame'));
+const TriviaGame = lazy(() => import('./components/TriviaGame'));
+const Leaderboard = lazy(() => import('./components/Leaderboard'));
+const SoloGame = lazy(() => import('./components/SoloGame'));
+const TowerMode = lazy(() => import('./components/TowerMode'));
+const BuzzFunGame = lazy(() => import('./components/BuzzFunGame'));
+const LandingPage = lazy(() => import('./components/LandingPage'));
+const TrainingGrounds = lazy(() => import('./components/TrainingGrounds'));
+const PlayPage = lazy(() => import('./components/PlayPage'));
 
 // phases: 'loading' | 'entry' | 'exam_select' | 'difficulty_select' | 'mode_select' | 'play_page' |
 //         'how_to_play' | 'lobby_select' | 'subject_select' | 'lobby_difficulty' | 'join_input' | 'lobby' | 'game' |
@@ -683,8 +685,17 @@ export default function App() {
   const showHomeBtn = !['loading', 'entry', 'landing'].includes(phase);
 
   return (
-    <div style={{ height: '100vh', overflow: 'hidden' }}>
-      {toast && <div className="notification">{toast}</div>}
+    <Suspense fallback={
+      <div style={{
+        height:'100vh', display:'flex', alignItems:'center',
+        justifyContent:'center', background:'#090914',
+        color:'rgba(200,165,60,0.8)', fontFamily:'Cinzel,serif', fontSize:'18px'
+      }}>
+        Loading MedVale...
+      </div>
+    }>
+      <div style={{ height: '100vh', overflow: 'hidden' }}>
+        {toast && <div className="notification">{toast}</div>}
 
       {showHomeBtn && (
         <button className="home-btn" onClick={handleReturnHome} title="Return to home">
@@ -960,6 +971,7 @@ export default function App() {
           onStartPractice={handleStartTrainingPractice}
         />
       )}
-    </div>
+      </div>
+    </Suspense>
   );
 }

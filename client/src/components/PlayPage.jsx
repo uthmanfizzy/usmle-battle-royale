@@ -334,10 +334,6 @@ export default function PlayPage({
       try {
         const res = await authFetch('/api/game-settings');
         const data = await res.json();
-        console.log('[PlayPage] Raw game_modes_config:', data.game_modes_config);
-        console.log('[PlayPage] Type:', typeof data.game_modes_config);
-        console.log('[PlayPage] Battle royale entry:', data.game_modes_config?.battle_royale);
-        console.log('[PlayPage] All mode keys:', Object.keys(data.game_modes_config || {}));
         setGameModesConfig(data.game_modes_config || {});
         setExamBoardsConfig(data.exam_boards_config || {});
         setPlayBgImage(data.play_page_background || '');
@@ -609,21 +605,18 @@ export default function PlayPage({
                 <div className="mode-detail-image">
                   {(() => {
                     const modeImage = gameModesConfig[selectedMode]?.image;
-                    console.log(`[PlayPage] Mode '${selectedMode}' image:`, modeImage);
-                    console.log('[PlayPage] Full config for mode:', gameModesConfig[selectedMode]);
 
                     if (modeImage) {
                       return (
                         <img
+                          loading="lazy"
                           src={modeImage}
                           alt={selectedModeData.name}
                           className="mode-detail-img"
                           style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }}
                           onError={(e) => {
-                            console.error('[PlayPage] Image failed to load:', modeImage);
                             e.target.style.display = 'none';
                           }}
-                          onLoad={() => console.log('[PlayPage] Image loaded successfully:', modeImage)}
                         />
                       );
                     }
@@ -698,11 +691,11 @@ export default function PlayPage({
                     if (modeImage) {
                       return (
                         <img
+                          loading="lazy"
                           src={modeImage}
                           alt="Training Grounds"
                           style={{width:'100%', height:'100%', objectFit:'cover', borderRadius:'8px'}}
                           onError={(e) => {
-                            console.error('[PlayPage] Training Grounds image failed to load:', modeImage);
                             e.target.style.display = 'none';
                           }}
                         />
@@ -828,7 +821,7 @@ export default function PlayPage({
           <div className="party-members">
             <div className="party-member">
               {user?.avatar_url ? (
-                <img src={user.avatar_url} className="party-avatar" alt={username} referrerPolicy="no-referrer" />
+                <img loading="lazy" src={user.avatar_url} className="party-avatar" alt={username} referrerPolicy="no-referrer" />
               ) : (
                 <div className="party-avatar party-avatar-placeholder">
                   {username?.[0]?.toUpperCase() || 'U'}
@@ -858,7 +851,7 @@ export default function PlayPage({
               recentPlayers.map(player => (
                 <div key={player.id} className="recent-player-item">
                   {player.avatar ? (
-                    <img src={player.avatar} className="recent-player-avatar" alt={player.username} referrerPolicy="no-referrer" />
+                    <img loading="lazy" src={player.avatar} className="recent-player-avatar" alt={player.username} referrerPolicy="no-referrer" />
                   ) : (
                     <div className="recent-player-avatar recent-player-avatar-placeholder">
                       {player.username?.[0]?.toUpperCase() || 'U'}
