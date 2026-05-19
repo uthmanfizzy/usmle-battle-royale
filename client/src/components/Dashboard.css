@@ -1041,12 +1041,14 @@
 }
 
 .nav-icon {
-  width: 48px !important;
-  height: 48px !important;
+  width: 72px !important;
+  height: 72px !important;
   object-fit: contain !important;
-  margin: -8px 0 !important;
+  margin: -12px 0 !important;
   position: relative !important;
   z-index: 1 !important;
+  pointer-events: none !important;
+  flex-shrink: 0 !important;
 }
 
 .nav-label {
@@ -2343,8 +2345,9 @@
   }
 
   .nav-icon {
-    width: 28px !important;
-    height: 28px !important;
+    width: 42px !important;
+    height: 42px !important;
+    margin: -7px 0 !important;
   }
 
   .nav-label {
@@ -2484,8 +2487,9 @@
   }
 
   .nav-icon {
-    width: 24px !important;
-    height: 24px !important;
+    width: 36px !important;
+    height: 36px !important;
+    margin: -6px 0 !important;
   }
 
   .nav-item {
