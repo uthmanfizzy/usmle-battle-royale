@@ -590,9 +590,6 @@ export default function PlayPage({
 
         {/* CENTER PANEL - Selected Mode Detail */}
         <div className="play-center">
-          <h1 className="play-title">PLAY</h1>
-          <p className="play-subtitle">Choose your mode. Fight for glory.</p>
-
           <div className="mode-detail-card">
             <h2 className="mode-detail-title">
               <span className="mode-detail-icon">{selectedModeData.icon}</span>

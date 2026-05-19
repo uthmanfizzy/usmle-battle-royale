@@ -290,24 +290,6 @@
   border-radius: 3px;
 }
 
-.play-title {
-  font-family: 'Cinzel', serif;
-  font-weight: 900;
-  font-size: 28px;
-  color: rgba(220, 190, 80, 0.95);
-  margin: 0 0 4px 0 !important;
-  padding: 0 !important;
-  letter-spacing: 0.2em;
-}
-
-.play-subtitle {
-  color: rgba(255, 255, 255, 0.5);
-  font-size: 12px;
-  margin: 0 0 8px 0 !important;
-  padding: 0 !important;
-  font-family: 'Cinzel', serif;
-}
-
 .mode-detail-card {
   width: 100%;
   max-width: 600px;
