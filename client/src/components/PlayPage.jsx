@@ -336,6 +336,8 @@ export default function PlayPage({
         const data = await res.json();
         console.log('[PlayPage] Raw game_modes_config:', data.game_modes_config);
         console.log('[PlayPage] Type:', typeof data.game_modes_config);
+        console.log('[PlayPage] Battle royale entry:', data.game_modes_config?.battle_royale);
+        console.log('[PlayPage] All mode keys:', Object.keys(data.game_modes_config || {}));
         setGameModesConfig(data.game_modes_config || {});
         setExamBoardsConfig(data.exam_boards_config || {});
         setPlayBgImage(data.play_page_background || '');

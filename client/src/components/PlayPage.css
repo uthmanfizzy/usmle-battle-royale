@@ -305,9 +305,12 @@
   border: 1px solid rgba(180, 140, 40, 0.35);
   border-radius: 12px;
   padding: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+  flex: 1 !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
 }
 
 .mode-detail-title {
@@ -327,42 +330,46 @@
 }
 
 .mode-detail-image {
-  width: 100%;
-  height: 120px;
-  border-radius: 8px;
-  overflow: hidden;
-  background: rgba(20, 30, 20, 0.8);
+  width: 100% !important;
+  height: 220px !important;
+  border-radius: 10px !important;
+  overflow: hidden !important;
+  flex-shrink: 0 !important;
+  background: rgba(20, 30, 20, 0.8) !important;
 }
 
 .mode-image-placeholder {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  width: 100% !important;
+  height: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
 
 .mode-detail-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  object-position: center !important;
+  border-radius: 10px !important;
+  display: block !important;
 }
 
 .mode-detail-desc {
   color: rgba(255, 255, 255, 0.65);
-  font-size: 12px;
-  line-height: 1.6;
+  font-size: 11px !important;
+  line-height: 1.4 !important;
   text-align: center;
-  margin: 0;
+  margin: 0 !important;
 }
 
 .squad-label {
   font-family: 'Cinzel', serif;
-  font-size: 11px;
+  font-size: 10px !important;
   letter-spacing: 0.12em;
   color: rgba(200, 165, 60, 0.7);
   display: block;
-  margin-bottom: 8px;
+  margin-bottom: 3px !important;
 }
 
 .squad-options {
@@ -1095,7 +1102,7 @@
   }
 
   .mode-detail-image {
-    height: 140px !important;
+    height: 180px !important;
   }
 
   .mode-detail-desc {
@@ -1308,7 +1315,7 @@
   }
 
   .mode-detail-image {
-    height: 110px !important;
+    height: 150px !important;
   }
 
   .play-right {
