@@ -933,11 +933,11 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
           </div>
           <div className="nav-divider" />
           <div
-            className={`nav-item ${dashTab === 'leaderboard' ? 'nav-item--active' : ''}`}
+            className={`nav-item nav-item--leaderboards ${dashTab === 'leaderboard' ? 'nav-item--active' : ''}`}
             onClick={() => setDashTab('leaderboard')}
           >
             {homeImages.icon_leaderboards && (
-              <img loading="lazy" src={homeImages.icon_leaderboards} className="nav-icon" alt="Leaderboards" />
+              <img loading="lazy" src={homeImages.icon_leaderboards} className="nav-icon nav-icon--leaderboards" alt="Leaderboards" />
             )}
             <span className="nav-label">LEADERBOARDS</span>
           </div>
