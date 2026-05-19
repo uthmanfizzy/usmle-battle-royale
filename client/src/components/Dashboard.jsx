@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { fetchMe, authFetch } from '../auth';
 import { DefaultPreview, PixelPreview } from './AppearanceSection';
 import { useTheme, PALETTE } from '../theme';
+import FriendsPanel from './FriendsPanel';
 import './Dashboard.css';
 
 const SERVER_URL = 'https://usmle-battle-royale-production.up.railway.app';
@@ -759,6 +760,7 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
   const [showWelcome,  setShowWelcome]  = useState(false);
   const [welcomeAnn,   setWelcomeAnn]   = useState(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [showFriendsPanel, setShowFriendsPanel] = useState(false);
   const [bgUrl,        setBgUrl]        = useState(null);
   const [homeImages,   setHomeImages]   = useState({
     dashboard_bg: '',
@@ -896,7 +898,7 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
                 )}
                 {unreadCount > 0 && <span className="notification-dot" />}
               </button>
-              <button className="header-icon-bubble friends-btn" onClick={() => setCurrentView('clans')} title="Friends">
+              <button className="header-icon-bubble friends-btn" onClick={() => setShowFriendsPanel(true)} title="Friends">
                 {homeImages.icon_friends ? (
                   <img loading="lazy" src={homeImages.icon_friends} alt="Friends" className="header-icon-img" />
                 ) : (
@@ -974,6 +976,18 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
       </div>
 
       {showSettings && <SettingsPanel onClose={() => setShowSettings(false)} onLogout={onLogout} />}
+
+      {showFriendsPanel && (
+        <FriendsPanel
+          user={user}
+          onClose={() => setShowFriendsPanel(false)}
+          onInviteToGame={(friend) => {
+            setShowFriendsPanel(false);
+            // Navigate to play page or open lobby invite
+            console.log('Invite friend to game:', friend);
+          }}
+        />
+      )}
     </div>
   );
 }

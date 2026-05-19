@@ -2360,6 +2360,220 @@ app.get('/api/leaderboard/players', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// ── Friends API ────────────────────────────────────────────────────────────────
+/*
+SQL to run in Supabase dashboard to create friends table:
+
+CREATE TABLE IF NOT EXISTS friends (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  friend_id TEXT NOT NULL,
+  status TEXT DEFAULT 'pending',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(user_id, friend_id)
+);
+CREATE INDEX IF NOT EXISTS idx_friends_user_id ON friends(user_id);
+CREATE INDEX IF NOT EXISTS idx_friends_friend_id ON friends(friend_id);
+*/
+
+// Search users by username
+app.get('/api/users/search', async (req, res) => {
+  if (!supabase) return res.json([]);
+  try {
+    const { q, currentUserId } = req.query;
+    if (!q || q.length < 2) return res.json([]);
+    const { data } = await supabase
+      .from('users')
+      .select('id, username, level, xp, avatar_url')
+      .ilike('username', `%${q}%`)
+      .neq('id', currentUserId)
+      .limit(10);
+    res.json(data || []);
+  } catch(e) {
+    console.error('[Friends] Search users error:', e);
+    res.status(500).json([]);
+  }
+});
+
+// Get friends list for a user
+app.get('/api/friends/:userId', async (req, res) => {
+  if (!supabase) return res.json([]);
+  try {
+    const { userId } = req.params;
+    // Get all friendships where user is either user_id or friend_id and status is accepted
+    const { data } = await supabase
+      .from('friends')
+      .select(`
+        id,
+        user_id,
+        friend_id,
+        status,
+        created_at
+      `)
+      .or(`user_id.eq.${userId},friend_id.eq.${userId}`)
+      .eq('status', 'accepted');
+
+    if (!data || data.length === 0) return res.json([]);
+
+    // Get user details for all friends
+    const friendIds = data.map(f => f.user_id === userId ? f.friend_id : f.user_id);
+    const { data: users } = await supabase
+      .from('users')
+      .select('id, username, level, xp, avatar_url')
+      .in('id', friendIds);
+
+    const userMap = {};
+    (users || []).forEach(u => { userMap[u.id] = u; });
+
+    const friendsList = data.map(f => {
+      const friendId = f.user_id === userId ? f.friend_id : f.user_id;
+      return {
+        id: f.id,
+        user_id: f.user_id,
+        friend_id: f.friend_id,
+        friend: userMap[friendId] || { id: friendId, username: 'Unknown' },
+        requester: userMap[f.user_id] || { id: f.user_id, username: 'Unknown' },
+      };
+    });
+
+    res.json(friendsList);
+  } catch(e) {
+    console.error('[Friends] Get friends error:', e);
+    res.status(500).json([]);
+  }
+});
+
+// Get pending friend requests for a user (requests sent TO this user)
+app.get('/api/friends/requests/:userId', async (req, res) => {
+  if (!supabase) return res.json([]);
+  try {
+    const { userId } = req.params;
+    const { data } = await supabase
+      .from('friends')
+      .select(`
+        id,
+        user_id,
+        friend_id,
+        status,
+        created_at
+      `)
+      .eq('friend_id', userId)
+      .eq('status', 'pending');
+
+    if (!data || data.length === 0) return res.json([]);
+
+    // Get requester details
+    const requesterIds = data.map(f => f.user_id);
+    const { data: users } = await supabase
+      .from('users')
+      .select('id, username, level, xp, avatar_url')
+      .in('id', requesterIds);
+
+    const userMap = {};
+    (users || []).forEach(u => { userMap[u.id] = u; });
+
+    const requests = data.map(f => ({
+      id: f.id,
+      user_id: f.user_id,
+      friend_id: f.friend_id,
+      status: f.status,
+      created_at: f.created_at,
+      requester: userMap[f.user_id] || { id: f.user_id, username: 'Unknown' },
+    }));
+
+    res.json(requests);
+  } catch(e) {
+    console.error('[Friends] Get requests error:', e);
+    res.status(500).json([]);
+  }
+});
+
+// Send friend request
+app.post('/api/friends/request', async (req, res) => {
+  if (!supabase) return res.json({ success: false, message: 'Database not configured' });
+  try {
+    const { userId, friendId } = req.body;
+
+    if (!userId || !friendId) {
+      return res.json({ success: false, message: 'Missing user IDs' });
+    }
+
+    if (userId === friendId) {
+      return res.json({ success: false, message: 'Cannot add yourself as friend' });
+    }
+
+    // Check if friendship already exists in either direction
+    const { data: existing } = await supabase
+      .from('friends')
+      .select('id, status')
+      .or(`and(user_id.eq.${userId},friend_id.eq.${friendId}),and(user_id.eq.${friendId},friend_id.eq.${userId})`)
+      .maybeSingle();
+
+    if (existing) {
+      if (existing.status === 'accepted') {
+        return res.json({ success: false, message: 'Already friends' });
+      }
+      return res.json({ success: false, message: 'Friend request already sent' });
+    }
+
+    // Create new friend request
+    await supabase.from('friends').insert({
+      user_id: userId,
+      friend_id: friendId,
+      status: 'pending'
+    });
+
+    res.json({ success: true, message: 'Friend request sent!' });
+  } catch(e) {
+    console.error('[Friends] Send request error:', e);
+    res.status(500).json({ success: false, message: 'Error sending request' });
+  }
+});
+
+// Accept friend request
+app.post('/api/friends/accept', async (req, res) => {
+  if (!supabase) return res.json({ success: false });
+  try {
+    const { requestId } = req.body;
+
+    if (!requestId) {
+      return res.json({ success: false, message: 'Missing request ID' });
+    }
+
+    await supabase
+      .from('friends')
+      .update({ status: 'accepted' })
+      .eq('id', requestId);
+
+    res.json({ success: true });
+  } catch(e) {
+    console.error('[Friends] Accept request error:', e);
+    res.status(500).json({ success: false });
+  }
+});
+
+// Decline friend request or remove friend
+app.delete('/api/friends/:friendshipId', async (req, res) => {
+  if (!supabase) return res.json({ success: false });
+  try {
+    const { friendshipId } = req.params;
+
+    if (!friendshipId) {
+      return res.json({ success: false, message: 'Missing friendship ID' });
+    }
+
+    await supabase
+      .from('friends')
+      .delete()
+      .eq('id', friendshipId);
+
+    res.json({ success: true });
+  } catch(e) {
+    console.error('[Friends] Remove friend error:', e);
+    res.status(500).json({ success: false });
+  }
+});
+
 // ── Admin API ──────────────────────────────────────────────────────────────────
 
 app.get('/admin/stats', adminAuth, async (req, res) => {
