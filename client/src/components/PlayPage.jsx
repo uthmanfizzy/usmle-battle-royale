@@ -125,14 +125,27 @@ function TrainingGroundsFlow({ onStart }) {
     if (!selectedCategory || !selectedDifficulty) return;
     setLoading(true);
     try {
-      const res = await fetch(`${SERVER_URL}/api/topics?category=${encodeURIComponent(selectedCategory)}`);
-      const data = await res.json();
-      console.log('Topics for category:', data);
+      // Fetch topics
+      const topicsRes = await fetch(`${SERVER_URL}/api/topics?category=${encodeURIComponent(selectedCategory)}`);
+      const topicsData = await topicsRes.json();
+      console.log('Topics for category:', topicsData);
 
       // Filter by difficulty on client side (API returns all topics for the category)
-      const topicsArray = data.topics || [];
+      const topicsArray = topicsData.topics || [];
       const filtered = topicsArray.filter(t => (t.difficulty || 'easy') === selectedDifficulty);
-      setTopics(filtered);
+
+      // Fetch question counts filtered by subject and difficulty
+      const countsRes = await fetch(`${SERVER_URL}/api/questions/counts?subject=${encodeURIComponent(selectedCategory)}&difficulty=${selectedDifficulty}`);
+      const counts = await countsRes.json();
+      console.log('Question counts:', counts);
+
+      // Merge counts into topics
+      const topicsWithCounts = filtered.map(t => ({
+        ...t,
+        questionCount: counts[t.id] || 0
+      }));
+
+      setTopics(topicsWithCounts);
     } catch(e) {
       console.error('fetchTopics error:', e);
       setTopics([]);
@@ -271,19 +284,27 @@ function TrainingGroundsFlow({ onStart }) {
                 </div>
               )}
               <div className="tg-topics-list">
-                {topics.map(topic => (
-                  <div
-                    className={`tg-topic-card ${selectedTopics.find(t => t.id === topic.id) ? 'tg-topic-card--selected' : ''}`}
-                    key={topic.id}
-                    onClick={() => toggleTopic(topic)}
-                  >
-                    <span className="tg-topic-icon">📁</span>
-                    <span className="tg-topic-name">{topic.name}</span>
-                    {selectedTopics.find(t => t.id === topic.id)
-                      ? <span className="tg-topic-check">✓</span>
-                      : <span className="tg-topic-plus">+</span>}
-                  </div>
-                ))}
+                {topics.map(topic => {
+                  const isEmpty = topic.questionCount === 0;
+                  const isSelected = selectedTopics.find(t => t.id === topic.id);
+                  return (
+                    <div
+                      className={`tg-topic-card ${isSelected ? 'tg-topic-card--selected' : ''} ${isEmpty ? 'tg-topic-card--empty' : ''}`}
+                      key={topic.id}
+                      onClick={() => !isEmpty && toggleTopic(topic)}
+                      style={{ cursor: isEmpty ? 'not-allowed' : 'pointer' }}
+                    >
+                      <span className="tg-topic-icon">📁</span>
+                      <span className="tg-topic-name">{topic.name}</span>
+                      <span className={`tg-topic-count ${isEmpty ? 'tg-topic-count--empty' : ''}`}>
+                        {isEmpty ? 'No Qs' : `${topic.questionCount} Q`}
+                      </span>
+                      {!isEmpty && (isSelected
+                        ? <span className="tg-topic-check">✓</span>
+                        : <span className="tg-topic-plus">+</span>)}
+                    </div>
+                  );
+                })}
                 {!loading && topics.length === 0 && <p className="tg-empty">No topics found.</p>}
               </div>
             </div>

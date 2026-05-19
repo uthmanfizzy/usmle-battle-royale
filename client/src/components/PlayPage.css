@@ -1851,6 +1851,31 @@
   flex-shrink: 0;
 }
 
+.tg-topic-count {
+  font-family: 'Cinzel', serif;
+  font-size: 9px;
+  color: rgba(180,140,40,0.6);
+  font-weight: 600;
+  flex-shrink: 0;
+  margin-left: auto;
+  padding-left: 8px;
+}
+
+.tg-topic-count--empty {
+  color: rgba(220,80,80,0.8);
+  font-weight: 700;
+}
+
+.tg-topic-card--empty {
+  opacity: 0.4;
+  cursor: not-allowed !important;
+}
+
+.tg-topic-card--empty:hover {
+  background: rgba(15,22,15,0.8) !important;
+  border-color: rgba(180,140,40,0.12) !important;
+}
+
 /* Selected chips row */
 .tg-selected-chips {
   display: flex;

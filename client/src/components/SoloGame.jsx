@@ -40,6 +40,8 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState('');
   const [showCalculator, setShowCalculator] = useState(false);
+  const [noQuestionsFound, setNoQuestionsFound] = useState(false);
+  const [noQuestionsMessage, setNoQuestionsMessage] = useState('');
 
   const timerRef      = useRef(null);
   const timeLeftRef   = useRef(defaultTimer);
@@ -69,20 +71,38 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   }, []);
 
   useEffect(() => {
-    const url = topicId
+    let url = topicId
       ? `${SERVER_URL}/api/questions?topic_id=${topicId}`
       : `${SERVER_URL}/api/questions?subject=${subject}`;
+
+    // Add difficulty filter to ensure strict filtering
+    if (difficulty) {
+      url += `&difficulty=${difficulty}`;
+    }
+
     fetch(url)
       .then(r => r.json())
       .then(data => {
-        setQuestions(data.questions || []);
+        const questions = data.questions || [];
+
+        // Check if empty or server indicated no questions
+        if (questions.length === 0 || data.empty) {
+          setNoQuestionsFound(true);
+          setNoQuestionsMessage(
+            data.message || `No ${difficulty || ''} questions found for this selection. Try a different topic or difficulty.`
+          );
+          setLoading(false);
+          return;
+        }
+
+        setQuestions(questions);
         setLoading(false);
       })
       .catch(() => {
         setFetchError('Failed to load questions. Check your connection.');
         setLoading(false);
       });
-  }, [subject, topicId]);
+  }, [subject, topicId, difficulty]);
 
   const processAnswerRef = useRef(null);
 
@@ -194,6 +214,21 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
     return (
       <div className="screen solo-screen">
         <div className="solo-card"><p className="error-msg">{fetchError}</p><button className="btn-start" onClick={onBack}>Back</button></div>
+      </div>
+    );
+  }
+
+  if (noQuestionsFound) {
+    return (
+      <div className="no-questions-screen">
+        <div className="no-questions-card">
+          <span className="no-questions-icon">📭</span>
+          <h3>No Questions Available</h3>
+          <p>{noQuestionsMessage}</p>
+          <button className="no-questions-back-btn" onClick={onBack}>
+            ← Go Back
+          </button>
+        </div>
       </div>
     );
   }

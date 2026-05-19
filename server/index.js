@@ -1969,37 +1969,106 @@ io.on('connection', (socket) => {
 
 // ── REST API ───────────────────────────────────────────────────────────────────
 
+// Get question counts per topic (for Training Grounds topic selection)
+app.get('/api/questions/counts', (req, res) => {
+  try {
+    const { subject, difficulty } = req.query;
+    let questions = questionBank;
+
+    // Filter by difficulty if provided
+    if (difficulty) {
+      questions = questions.filter(q => q.difficulty === difficulty);
+    }
+
+    // Filter by subject if provided
+    if (subject) {
+      questions = questions.filter(q => q.subject === subject);
+    }
+
+    // Count questions per topic_id
+    const counts = {};
+    questions.forEach(q => {
+      if (q.topic_id) {
+        counts[q.topic_id] = (counts[q.topic_id] || 0) + 1;
+      }
+    });
+
+    res.json(counts);
+  } catch (e) {
+    console.error('[GET /api/questions/counts] error:', e);
+    res.status(500).json({});
+  }
+});
+
 app.get('/api/questions', (req, res) => {
   const subject    = (req.query.subject || 'all').toLowerCase();
+  const difficulty = req.query.difficulty; // STRICT: never fall back to different difficulty
   const towerFloor = parseInt(req.query.tower_floor);
   const topicId    = req.query.topic_id;
 
-  // Training Grounds: filter by topic_id
+  // Training Grounds: filter by topic_id AND difficulty (STRICT - no fallback)
   if (topicId) {
-    const topicPool = questionBank.filter(q => q.topic_id === topicId);
-    return res.json({ questions: shuffle(topicPool.length >= 5 ? topicPool : questionBank) });
+    let topicPool = questionBank.filter(q => q.topic_id === topicId);
+
+    // STRICT difficulty filtering - never fall back
+    if (difficulty) {
+      topicPool = topicPool.filter(q => q.difficulty === difficulty);
+    }
+
+    // If no questions found, return empty with message - DO NOT fallback
+    if (topicPool.length === 0) {
+      return res.json({
+        questions: [],
+        empty: true,
+        message: `No ${difficulty || 'any'} questions found for this topic.`
+      });
+    }
+
+    return res.json({ questions: shuffle(topicPool), empty: false });
   }
 
   if (!isNaN(towerFloor) && towerFloor >= 1 && towerFloor <= 100) {
     const zoneNum   = Math.ceil(towerFloor / 10);
     const zoneStart = (zoneNum - 1) * 10 + 1;
     const zoneEnd   = zoneNum * 10;
-    const towerPool = questionBank.filter(q =>
+    let towerPool = questionBank.filter(q =>
       Array.isArray(q.game_modes) && q.game_modes.includes('tower') &&
       q.tower_floor >= zoneStart && q.tower_floor <= zoneEnd
     );
-    if (towerPool.length >= 3) {
-      return res.json({ questions: shuffle(towerPool) });
+
+    // Apply difficulty filter if provided
+    if (difficulty) {
+      towerPool = towerPool.filter(q => q.difficulty === difficulty);
     }
-    // Fallback: serve subject questions when no tower-specific questions exist yet
+
+    if (towerPool.length >= 3) {
+      return res.json({ questions: shuffle(towerPool), empty: false });
+    }
+    // Fallback for tower when no zone questions exist
     const fallback = subject === 'all' ? questionBank : questionBank.filter(q => q.subject === subject);
-    return res.json({ questions: shuffle(fallback.length >= 5 ? fallback : questionBank) });
+    return res.json({ questions: shuffle(fallback.length >= 5 ? fallback : questionBank), empty: false });
   }
 
-  const pool = subject === 'all'
+  // Regular subject-based questions with difficulty filter
+  let pool = subject === 'all'
     ? questionBank
     : questionBank.filter(q => q.subject === subject);
-  res.json({ questions: shuffle(pool.length >= 5 ? pool : questionBank) });
+
+  // STRICT difficulty filtering
+  if (difficulty) {
+    pool = pool.filter(q => q.difficulty === difficulty);
+
+    // If no questions found, return empty
+    if (pool.length === 0) {
+      return res.json({
+        questions: [],
+        empty: true,
+        message: `No ${difficulty} questions found for ${subject}.`
+      });
+    }
+  }
+
+  res.json({ questions: shuffle(pool.length >= 5 ? pool : questionBank), empty: false });
 });
 
 // ── Auth API ───────────────────────────────────────────────────────────────────
