@@ -236,13 +236,13 @@
 }
 
 .currency-icon {
-  width: 42px !important;
-  height: 42px !important;
-  min-width: 42px !important;
+  width: 34px !important;
+  height: 34px !important;
+  min-width: 34px !important;
   object-fit: contain !important;
   padding: 0 !important;
   /* Negative margin to prevent expanding the pill */
-  margin: -8px -2px !important;
+  margin: -4px 0 !important;
   flex-shrink: 0 !important;
   overflow: visible !important;
   position: relative !important;
@@ -262,54 +262,64 @@
 }
 
 /* ══════════════════════════════════════════════════════════════════════════════
-   ICONS PILL - Right Side
+   INDIVIDUAL ICON BUBBLES - Right Side
    ══════════════════════════════════════════════════════════════════════════════ */
+/* Hide old icons-pill if it still exists */
 .icons-pill {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  background: rgba(20, 30, 40, 0.25);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 999px;
-  padding: 4px 14px;
-  height: auto;
-  overflow: visible;
+  display: none !important;
 }
 
-.icons-pill button,
-.icons-pill a {
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: rgba(255, 255, 255, 0.85);
-  font-size: 28px;
+/* New individual bubble group */
+.header-icon-group {
   display: flex;
   align-items: center;
-  justify-content: center;
-  padding: 0;
-  margin: 0;
-  position: relative;
-  transition: color 0.2s, transform 0.2s;
-  flex-shrink: 0;
+  gap: 8px;
+}
+
+/* Each icon gets its own pill bubble */
+.header-icon-bubble {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 52px !important;
+  height: 52px !important;
+  background: rgba(20, 30, 40, 0.45) !important;
+  backdrop-filter: blur(6px) !important;
+  -webkit-backdrop-filter: blur(6px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 999px !important;
+  cursor: pointer !important;
+  padding: 0 !important;
+  transition: background 0.2s, border-color 0.2s, transform 0.15s !important;
   overflow: visible !important;
+  position: relative !important;
 }
 
-.icons-pill button:hover,
-.icons-pill a:hover {
-  color: rgba(255, 255, 255, 1);
-  transform: scale(1.1);
+.header-icon-bubble:hover {
+  background: rgba(30, 45, 60, 0.6) !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+  transform: scale(1.05) !important;
 }
 
-.header-icon-img {
-  width: 63px !important;
-  height: 63px !important;
+/* Icon image inside each bubble */
+.header-icon-bubble .header-icon-img {
+  width: 34px !important;
+  height: 34px !important;
   object-fit: contain !important;
   display: block !important;
-  margin: -12px -6px !important;
+  margin: 0 !important;
+  padding: 0 !important;
   position: relative !important;
   z-index: 1 !important;
+}
+
+/* Emoji fallback size */
+.header-icon-bubble span {
+  font-size: 24px !important;
+  line-height: 1 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
 
 .notification-dot {
@@ -2234,48 +2244,34 @@
   .currency-bar img,
   .currency-item img,
   .currency-icon {
-    width: 48px !important;
-    height: 48px !important;
-    min-width: 48px !important;
-    min-height: 48px !important;
-    margin: -10px -2px !important;
+    width: 38px !important;
+    height: 38px !important;
+    min-width: 38px !important;
+    min-height: 38px !important;
+    margin: -6px 0 !important;
   }
 
   .currency-divider {
     height: 24px !important;
   }
 
-  /* FIX 3: MAKE NOTIFICATIONS AND SETTINGS VISIBLE */
-  .icons-pill {
-    padding: 5px 10px !important;
-    gap: 12px !important;
-    display: flex !important;
-    align-items: center !important;
-    background: rgba(20, 30, 40, 0.55) !important;
-    backdrop-filter: blur(6px) !important;
-    border-radius: 999px !important;
-    border: 1px solid rgba(255,255,255,0.08) !important;
+  /* Individual icon bubbles on mobile */
+  .header-icon-group {
+    gap: 6px !important;
   }
 
-  .icons-pill button,
-  .icons-pill a {
-    font-size: 26px !important;
-    width: 26px !important;
-    height: 26px !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    background: none !important;
-    border: none !important;
-    cursor: pointer !important;
-    padding: 0 !important;
-    margin: 0 !important;
+  .header-icon-bubble {
+    width: 46px !important;
+    height: 46px !important;
   }
 
-  .header-icon-img {
-    width: 48px !important;
-    height: 48px !important;
-    margin: -10px -4px !important;
+  .header-icon-bubble .header-icon-img {
+    width: 30px !important;
+    height: 30px !important;
+  }
+
+  .header-icon-bubble span {
+    font-size: 22px !important;
   }
 
   /* MAIN DASHBOARD CONTENT */
@@ -2446,14 +2442,23 @@
   .currency-bar img,
   .currency-item img,
   .currency-icon {
-    width: 44px !important;
-    height: 44px !important;
-    margin: -10px -2px !important;
+    width: 34px !important;
+    height: 34px !important;
+    margin: -6px 0 !important;
   }
 
-  .icons-pill button,
-  .icons-pill a {
-    font-size: 24px !important;
+  .header-icon-bubble {
+    width: 42px !important;
+    height: 42px !important;
+  }
+
+  .header-icon-bubble .header-icon-img {
+    width: 28px !important;
+    height: 28px !important;
+  }
+
+  .header-icon-bubble span {
+    font-size: 20px !important;
   }
 
   /* Game modes single column on very small screens */

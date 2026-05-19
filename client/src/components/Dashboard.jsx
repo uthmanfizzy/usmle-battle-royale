@@ -886,28 +886,28 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
               </div>
             </div>
 
-            {/* Icons Pill */}
-            <div className="icons-pill">
-              <button title="Notifications">
+            {/* Individual Icon Bubbles */}
+            <div className="header-icon-group">
+              <button className="header-icon-bubble notification-btn" title="Notifications">
                 {homeImages.icon_notification ? (
                   <img loading="lazy" src={homeImages.icon_notification} alt="Notifications" className="header-icon-img" />
                 ) : (
-                  <span style={{fontSize: '22px'}}>🔔</span>
+                  <span>🔔</span>
                 )}
                 {unreadCount > 0 && <span className="notification-dot" />}
               </button>
-              <button onClick={() => setCurrentView('clans')} title="Friends">
+              <button className="header-icon-bubble friends-btn" onClick={() => setCurrentView('clans')} title="Friends">
                 {homeImages.icon_friends ? (
                   <img loading="lazy" src={homeImages.icon_friends} alt="Friends" className="header-icon-img" />
                 ) : (
-                  <span style={{fontSize: '22px'}}>👥</span>
+                  <span>👥</span>
                 )}
               </button>
-              <button onClick={() => setShowSettings(true)} title="Settings">
+              <button className="header-icon-bubble settings-btn" onClick={() => setShowSettings(true)} title="Settings">
                 {homeImages.icon_settings ? (
                   <img loading="lazy" src={homeImages.icon_settings} alt="Settings" className="header-icon-img" />
                 ) : (
-                  <span style={{fontSize: '22px'}}>⚙️</span>
+                  <span>⚙️</span>
                 )}
               </button>
             </div>
