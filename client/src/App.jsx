@@ -695,7 +695,7 @@ export default function App() {
         Loading MedVale...
       </div>
     }>
-      <div style={{ height: '100vh', overflow: 'hidden' }}>
+      <div style={{ minHeight: '100vh', overflow: 'auto' }}>
         {toast && <div className="notification">{toast}</div>}
 
       {showHomeBtn && (
