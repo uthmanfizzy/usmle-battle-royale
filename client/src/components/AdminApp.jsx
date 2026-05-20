@@ -843,6 +843,13 @@ function QuestionsPanel() {
   // ─── Import Modal ─────────────────────────────────────────────────────────────
   const [importModal, setImportModal] = useState(false);
 
+  // ─── Anki Import ──────────────────────────────────────────────────────────────
+  const [ankiFile, setAnkiFile] = useState(null);
+  const [ankiImporting, setAnkiImporting] = useState(false);
+  const [ankiResult, setAnkiResult] = useState(null);
+  const [ankiPreview, setAnkiPreview] = useState(null);
+  const [ankiPreviewing, setAnkiPreviewing] = useState(false);
+
   const isCatFolder = (id) => {
     const f = FOLDERS.find(x => x.id === id);
     return f && !f.special && !f.separator && id !== 'all';
@@ -1005,6 +1012,53 @@ function QuestionsPanel() {
     if (isCatFolder(activeFolder)) loadTopics(activeFolder, selectedDifficulty);
     setImportModal(false);
   }
+
+  // ─── Anki Import Handlers ────────────────────────────────────────────────────
+  const handleAnkiPreview = async () => {
+    if (!ankiFile) return;
+    setAnkiPreviewing(true);
+    setAnkiPreview(null);
+    const formData = new FormData();
+    formData.append('apkg', ankiFile);
+    try {
+      const res = await fetch(`${API}/api/admin/preview-anki`, {
+        method: 'POST',
+        body: formData,
+        headers: { 'x-admin-password': localStorage.getItem(AUTH_KEY) || '' }
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Preview failed');
+      setAnkiPreview(data);
+    } catch(e) {
+      setAnkiPreview({ error: e.message });
+    }
+    setAnkiPreviewing(false);
+  };
+
+  const handleAnkiImport = async () => {
+    if (!ankiFile) return;
+    if (!window.confirm(`Import all cards from ${ankiFile.name}? This may take several minutes for large decks.`)) return;
+    setAnkiImporting(true);
+    setAnkiResult(null);
+    const formData = new FormData();
+    formData.append('apkg', ankiFile);
+    try {
+      const res = await fetch(`${API}/api/admin/import-anki`, {
+        method: 'POST',
+        body: formData,
+        headers: { 'x-admin-password': localStorage.getItem(AUTH_KEY) || '' }
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Import failed');
+      setAnkiResult(data);
+      if (data.success && data.imported > 0) {
+        await loadQuestions();
+      }
+    } catch(e) {
+      setAnkiResult({ error: e.message });
+    }
+    setAnkiImporting(false);
+  };
 
   // ─── Derived ─────────────────────────────────────────────────────────────────
   const folderCounts = FOLDERS.reduce((acc, f) => {
@@ -1304,6 +1358,91 @@ function QuestionsPanel() {
                   <span className="ap-bc-item ap-bc-cur">
                     {selectedTopic === 'unassigned' ? '📋 Unassigned' : `📁 ${selectedTopic?.name}`}
                   </span>
+                </div>
+              )}
+
+              {/* Anki Importer */}
+              {activeFolder === 'all' && (
+                <div className="anki-importer">
+                  <h3>📦 Import Anki Deck (.apkg)</h3>
+                  <p className="admin-help-text">Upload an .apkg file to bulk import cards into your questions database.</p>
+
+                  <div className="anki-upload-row">
+                    <label className="anki-file-label">
+                      {ankiFile ? `📁 ${ankiFile.name} (${(ankiFile.size / 1024 / 1024).toFixed(1)}MB)` : '📁 Choose .apkg file'}
+                      <input
+                        type="file"
+                        accept=".apkg"
+                        style={{display:'none'}}
+                        onChange={e => { setAnkiFile(e.target.files[0]); setAnkiPreview(null); setAnkiResult(null); }}
+                      />
+                    </label>
+                    {ankiFile && (
+                      <>
+                        <button
+                          className="ap-btn-sec"
+                          onClick={handleAnkiPreview}
+                          disabled={ankiPreviewing}
+                        >
+                          {ankiPreviewing ? 'Loading...' : '👁 Preview'}
+                        </button>
+                        <button
+                          className="ap-btn-pri"
+                          onClick={handleAnkiImport}
+                          disabled={ankiImporting}
+                        >
+                          {ankiImporting ? '⏳ Importing... (may take minutes)' : '📥 Import All'}
+                        </button>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Preview */}
+                  {ankiPreview && !ankiPreview.error && (
+                    <div className="anki-preview">
+                      <p className="anki-preview-stats">
+                        📊 <strong>{ankiPreview.totalCards?.toLocaleString()}</strong> cards found
+                        {ankiPreview.deckNames?.length > 0 && ` | Decks: ${ankiPreview.deckNames.slice(0,3).join(', ')}${ankiPreview.deckNames.length > 3 ? '...' : ''}`}
+                      </p>
+                      <p className="anki-preview-label">Sample cards:</p>
+                      {ankiPreview.preview?.map((card, i) => (
+                        <div className="anki-preview-card" key={i}>
+                          <p className="anki-field-names">Fields: {card.fields?.join(' | ')}</p>
+                          {card.values?.slice(0,2).map((val, j) => (
+                            <p key={j} className="anki-field-value"><strong>{card.fields?.[j] || `Field ${j+1}`}:</strong> {val.substring(0,150)}{val.length > 150 ? '...' : ''}</p>
+                          ))}
+                          {card.tags && <p className="anki-tags">Tags: {card.tags}</p>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {ankiPreview?.error && (
+                    <div className="anki-error">❌ Preview error: {ankiPreview.error}</div>
+                  )}
+
+                  {/* Import Result */}
+                  {ankiResult && (
+                    <div className={`anki-result ${ankiResult.success ? 'anki-result--success' : 'anki-result--error'}`}>
+                      {ankiResult.success ? (
+                        <>
+                          <p>✅ Import complete!</p>
+                          <p>📥 Imported: <strong>{ankiResult.imported?.toLocaleString()}</strong></p>
+                          <p>⏭ Skipped: <strong>{ankiResult.skipped}</strong></p>
+                          {ankiResult.duplicate > 0 && <p>🔄 Duplicates: <strong>{ankiResult.duplicate}</strong></p>}
+                          <p>📊 Total cards in deck: <strong>{ankiResult.total?.toLocaleString()}</strong></p>
+                          {ankiResult.errors?.length > 0 && (
+                            <details>
+                              <summary>⚠️ {ankiResult.errors.length} errors</summary>
+                              {ankiResult.errors.map((e, i) => <p key={i} style={{fontSize:'11px',color:'rgba(255,150,150,0.7)'}}>{e}</p>)}
+                            </details>
+                          )}
+                        </>
+                      ) : (
+                        <p>❌ Import failed: {ankiResult.error}</p>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 

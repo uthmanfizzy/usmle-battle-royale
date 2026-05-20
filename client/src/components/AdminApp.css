@@ -3495,3 +3495,142 @@
   color: var(--text-dim);
   font-size: 14px;
 }
+
+/* ── Anki Importer ───────────────────────────────────────────────────────────── */
+.anki-importer {
+  background: rgba(10,15,10,0.7);
+  border: 1px solid rgba(180,140,40,0.25);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.anki-importer h3 {
+  font-family: 'Cinzel', serif;
+  color: rgba(220,190,80,0.95);
+  margin: 0;
+  font-size: 15px;
+}
+
+.admin-help-text {
+  color: rgba(255,255,255,0.5);
+  font-size: 12px;
+  margin: 0;
+}
+
+.anki-upload-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.anki-file-label {
+  padding: 10px 16px;
+  background: rgba(20,28,15,0.9);
+  border: 1px dashed rgba(180,140,40,0.35);
+  border-radius: 8px;
+  color: rgba(200,165,60,0.85);
+  font-family: 'Cinzel', serif;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex: 1;
+  min-width: 200px;
+}
+
+.anki-file-label:hover {
+  border-color: rgba(200,165,60,0.6);
+  background: rgba(30,40,20,0.9);
+}
+
+.anki-preview {
+  background: rgba(15,22,15,0.8);
+  border: 1px solid rgba(100,150,255,0.2);
+  border-radius: 8px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.anki-preview-stats {
+  font-family: 'Cinzel', serif;
+  font-size: 13px;
+  color: rgba(200,165,60,0.9);
+  margin: 0;
+}
+
+.anki-preview-label {
+  font-family: 'Cinzel', serif;
+  font-size: 11px;
+  color: rgba(255,255,255,0.4);
+  margin: 0;
+}
+
+.anki-preview-card {
+  background: rgba(20,30,20,0.7);
+  border: 1px solid rgba(180,140,40,0.15);
+  border-radius: 6px;
+  padding: 10px;
+}
+
+.anki-field-names {
+  font-size: 10px;
+  color: rgba(255,255,255,0.3);
+  font-family: 'Cinzel', serif;
+  margin: 0 0 4px 0;
+}
+
+.anki-field-value {
+  font-size: 12px;
+  color: rgba(255,255,255,0.75);
+  margin: 3px 0;
+}
+
+.anki-tags {
+  font-size: 10px;
+  color: rgba(200,165,60,0.5);
+  margin: 4px 0 0 0;
+}
+
+.anki-error {
+  color: rgba(220,100,100,0.9);
+  font-family: 'Cinzel', serif;
+  font-size: 13px;
+  padding: 10px;
+  background: rgba(80,20,20,0.4);
+  border-radius: 6px;
+}
+
+.anki-result {
+  padding: 14px;
+  border-radius: 8px;
+  font-family: 'Cinzel', serif;
+  font-size: 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.anki-result p {
+  margin: 0;
+  color: rgba(255,255,255,0.8);
+}
+
+.anki-result strong {
+  color: rgba(220,190,80,0.95);
+}
+
+.anki-result--success {
+  background: rgba(20,60,20,0.6);
+  border: 1px solid rgba(80,180,80,0.3);
+}
+
+.anki-result--error {
+  background: rgba(60,15,15,0.6);
+  border: 1px solid rgba(180,60,60,0.3);
+}

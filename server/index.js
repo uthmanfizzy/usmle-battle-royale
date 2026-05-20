@@ -11,6 +11,17 @@ const { Strategy: GoogleStrategy } = require('passport-google-oauth20');
 const jwt        = require('jsonwebtoken');
 const fs         = require('fs');
 const path       = require('path');
+const multer     = require('multer');
+const AdmZip     = require('adm-zip');
+const os         = require('os');
+
+// Try to load better-sqlite3
+let Database;
+try {
+  Database = require('better-sqlite3');
+} catch(e) {
+  console.log('[Anki Import] better-sqlite3 not available:', e.message);
+}
 
 // ── Supabase (optional — game works without it) ────────────────────────────────
 
@@ -30,6 +41,24 @@ const PORT       = process.env.PORT       || 3002;
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-jwt-secret-change-in-prod';
 const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
 const SERVER_URL = process.env.SERVER_URL || `http://localhost:${PORT}`;
+
+// ── Multer setup for Anki imports ──────────────────────────────────────────────
+
+const storage = multer.diskStorage({
+  destination: os.tmpdir(),
+  filename: (req, file, cb) => cb(null, `anki-${Date.now()}.apkg`)
+});
+const ankiUpload = multer({
+  storage,
+  limits: { fileSize: 500 * 1024 * 1024 }, // 500MB max
+  fileFilter: (req, file, cb) => {
+    if (file.originalname.endsWith('.apkg') || file.mimetype === 'application/zip') {
+      cb(null, true);
+    } else {
+      cb(new Error('Only .apkg files allowed'));
+    }
+  }
+});
 
 // ── Express setup ──────────────────────────────────────────────────────────────
 
@@ -3598,6 +3627,328 @@ app.delete('/admin/questions/:id', adminAuth, async (req, res) => {
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Anki Import API ────────────────────────────────────────────────────────────
+
+// Preview endpoint - shows first 5 cards without importing
+app.post('/api/admin/preview-anki', ankiUpload.single('apkg'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+  const tmpDir = path.join(os.tmpdir(), `anki-preview-${Date.now()}`);
+  try {
+    if (!Database) {
+      return res.status(500).json({ error: 'better-sqlite3 not installed on server. Run: npm install better-sqlite3' });
+    }
+
+    const zip = new AdmZip(req.file.path);
+    zip.extractAllTo(tmpDir, true);
+    let dbPath = path.join(tmpDir, 'collection.anki21');
+    if (!fs.existsSync(dbPath)) dbPath = path.join(tmpDir, 'collection.anki2');
+    if (!fs.existsSync(dbPath)) {
+      const files = fs.readdirSync(tmpDir);
+      return res.status(400).json({ error: 'No collection database found. Files: ' + files.join(', ') });
+    }
+
+    const db = new Database(dbPath, { readonly: true });
+    const col = db.prepare('SELECT decks, models FROM col').get();
+    const decks = JSON.parse(col.decks || '{}');
+    const models = JSON.parse(col.models || '{}');
+    const notes = db.prepare('SELECT id, mid, flds, tags FROM notes LIMIT 5').all();
+    const totalNotes = db.prepare('SELECT COUNT(*) as count FROM notes').get();
+
+    const deckNames = Object.values(decks).map(d => d.name);
+    const modelFieldNames = {};
+    Object.values(models).forEach(m => {
+      modelFieldNames[m.id] = m.flds.map(f => f.name);
+    });
+
+    const stripHtml = (h) => h?.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim() || '';
+
+    const preview = notes.map(note => {
+      const fields = note.flds.split('\x1f');
+      const fieldNames = modelFieldNames[note.mid] || [];
+      const fieldMap = {};
+      fieldNames.forEach((name, i) => { fieldMap[name] = fields[i] || ''; });
+      return {
+        fields: fieldNames,
+        values: fields.map(f => stripHtml(f).substring(0, 200)),
+        tags: note.tags?.trim()
+      };
+    });
+
+    db.close();
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+    fs.unlinkSync(req.file.path);
+
+    res.json({ totalCards: totalNotes.count, deckNames, preview });
+  } catch(e) {
+    console.error('[preview-anki] Error:', e);
+    try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch(_) {}
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Full import endpoint
+app.post('/api/admin/import-anki', ankiUpload.single('apkg'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+  const tmpDir = path.join(os.tmpdir(), `anki-extract-${Date.now()}`);
+
+  try {
+    if (!Database) {
+      return res.status(500).json({ error: 'better-sqlite3 not installed on server. Run: npm install better-sqlite3' });
+    }
+
+    console.log('[import-anki] Extracting .apkg file:', req.file.path);
+    const zip = new AdmZip(req.file.path);
+    zip.extractAllTo(tmpDir, true);
+
+    // .apkg can contain collection.anki2 or collection.anki21
+    let dbPath = path.join(tmpDir, 'collection.anki21');
+    if (!fs.existsSync(dbPath)) {
+      dbPath = path.join(tmpDir, 'collection.anki2');
+    }
+    if (!fs.existsSync(dbPath)) {
+      const files = fs.readdirSync(tmpDir);
+      console.log('[import-anki] Files in extracted zip:', files);
+      return res.status(400).json({ error: 'No collection database found in .apkg file. Files found: ' + files.join(', ') });
+    }
+
+    console.log('[import-anki] Opening database:', dbPath);
+    const db = new Database(dbPath, { readonly: true });
+
+    // Get deck names for subject mapping
+    const col = db.prepare('SELECT decks, models FROM col').get();
+    const decks = JSON.parse(col.decks || '{}');
+    const models = JSON.parse(col.models || '{}');
+
+    console.log('[import-anki] Deck names:', Object.values(decks).map(d => d.name));
+
+    // Get all notes with their model info
+    const notes = db.prepare('SELECT id, mid, flds, tags FROM notes').all();
+    console.log(`[import-anki] Found ${notes.length} notes`);
+
+    // Get cards to map note->deck
+    const cards = db.prepare('SELECT nid, did FROM cards').all();
+    const noteToDeck = {};
+    cards.forEach(c => { noteToDeck[c.nid] = c.did; });
+
+    // Get model fields to know field names
+    const modelFieldNames = {};
+    Object.values(models).forEach(model => {
+      modelFieldNames[model.id] = model.flds.map(f => f.name);
+    });
+
+    let imported = 0;
+    let skipped = 0;
+    let duplicate = 0;
+    const errors = [];
+    const BATCH_SIZE = 50;
+    let batch = [];
+
+    const stripHtml = (html) => {
+      if (!html) return '';
+      return html
+        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/<[^>]*>/g, '')
+        .replace(/&nbsp;/g, ' ')
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .trim();
+    };
+
+    const getDeckName = (deckId) => {
+      const deck = decks[deckId];
+      if (!deck) return 'General';
+      // AnkiNG format: "AnKing::SubDeck::Topic"
+      const parts = deck.name.split('::');
+      return parts[parts.length - 1] || parts[0] || 'General';
+    };
+
+    const getSubjectFromDeck = (deckId) => {
+      const deck = decks[deckId];
+      if (!deck) return 'General';
+      const parts = deck.name.split('::');
+      // Return second level as subject if available
+      return parts[1] || parts[0] || 'General';
+    };
+
+    for (const note of notes) {
+      try {
+        const fields = note.flds.split('\x1f');
+        const fieldNames = modelFieldNames[note.mid] || [];
+
+        // Map fields by name if available, otherwise by position
+        const fieldMap = {};
+        fieldNames.forEach((name, i) => {
+          fieldMap[name.toLowerCase()] = fields[i] || '';
+        });
+
+        // Try common AnkiNG field names
+        const questionRaw = fieldMap['text'] || fieldMap['front'] || fieldMap['question'] || fieldMap['primary'] || fields[0] || '';
+        const backRaw = fieldMap['back'] || fieldMap['answer'] || fieldMap['extra'] || fields[1] || '';
+        const explanationRaw = fieldMap['explanation'] || fieldMap['extra'] || fieldMap['notes'] || fields[2] || '';
+
+        const question = stripHtml(questionRaw);
+        const back = stripHtml(backRaw);
+        const explanation = stripHtml(explanationRaw);
+
+        if (!question || question.length < 3) { skipped++; continue; }
+
+        const deckId = noteToDeck[note.id];
+        const tags = note.tags?.trim().split(' ').filter(Boolean) || [];
+        const deckName = getDeckName(deckId);
+        const subject = getSubjectFromDeck(deckId);
+
+        // Determine if this looks like a multiple choice question
+        // AnkiNG cards are typically cloze or basic - convert to multiple choice format
+        const isMultipleChoice = back.includes('\n') && (back.includes('A)') || back.includes('1.'));
+
+        // Try to parse options from back field if formatted
+        let choices = [];
+        let correct = '';
+
+        if (isMultipleChoice) {
+          // Try to parse "A) option1\nB) option2" format
+          const lines = back.split('\n').filter(l => l.trim());
+          choices = lines.map(l => l.replace(/^[A-D]\)\s*/, '').trim());
+          correct = choices[0] || back.trim();
+        } else {
+          // For basic cards, create multiple choice from the answer
+          const answer = back.trim();
+          if (answer && answer.length > 0) {
+            // Create dummy options - in production you'd want better logic
+            choices = [answer];
+            correct = answer;
+
+            // Add some plausible distractors based on common patterns
+            if (answer.toLowerCase().includes('true') || answer.toLowerCase().includes('false')) {
+              choices = ['True', 'False'];
+              correct = answer.toLowerCase().includes('true') ? 'True' : 'False';
+            } else {
+              // Just use the answer as the only option for now
+              // Admin can edit to add more options later
+              choices = [answer, 'Option B (edit me)', 'Option C (edit me)', 'Option D (edit me)'];
+            }
+          } else {
+            skipped++;
+            continue;
+          }
+        }
+
+        if (choices.length < 2) {
+          choices = [correct || 'Answer', 'Option B', 'Option C', 'Option D'];
+        }
+
+        // Generate question_id in format similar to your nextQuestionId function
+        const subjectPrefix = subject.substring(0, 3).toUpperCase();
+        const questionId = `${subjectPrefix}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+        // Build question object matching YOUR questions table structure
+        const questionObj = {
+          question_id: questionId,
+          question: question.substring(0, 2000), // limit length
+          choices: choices.slice(0, 10), // max 10 options as per your validation
+          correct: correct.substring(0, 500),
+          explanation: explanation.substring(0, 2000) || 'No explanation provided',
+          category: subject.substring(0, 100),
+          difficulty: tags.includes('hard') || tags.includes('Hard') ? 'hard' : 'easy',
+          game_modes: ['battle_royale', 'speed_race', 'trivia_pursuit'],
+          image_url: null,
+          tower_floor: null,
+          buzz_type: null,
+          topic_id: null // Will be null - admin can assign topics later
+        };
+
+        batch.push(questionObj);
+
+        // Insert in batches of 50
+        if (batch.length >= BATCH_SIZE) {
+          const { data, error, count } = await supabase
+            .from('questions')
+            .insert(batch)
+            .select('id');
+
+          if (error) {
+            console.error('[import-anki] Batch insert error:', error.message);
+            // Try one by one to identify duplicates
+            for (const q of batch) {
+              const { error: singleError } = await supabase.from('questions').insert(q);
+              if (singleError) {
+                if (singleError.message?.includes('duplicate') || singleError.code === '23505') {
+                  duplicate++;
+                } else {
+                  errors.push(singleError.message);
+                  skipped++;
+                }
+              } else {
+                imported++;
+              }
+            }
+          } else {
+            imported += batch.length;
+          }
+          batch = [];
+        }
+
+      } catch(e) {
+        errors.push(`Note ${note.id}: ${e.message}`);
+        skipped++;
+      }
+    }
+
+    // Insert remaining batch
+    if (batch.length > 0) {
+      const { error } = await supabase.from('questions').insert(batch);
+      if (error) {
+        console.error('[import-anki] Final batch error:', error.message);
+        for (const q of batch) {
+          const { error: singleError } = await supabase.from('questions').insert(q);
+          if (singleError) {
+            if (singleError.code === '23505') duplicate++;
+            else { errors.push(singleError.message); skipped++; }
+          } else imported++;
+        }
+      } else {
+        imported += batch.length;
+      }
+    }
+
+    db.close();
+
+    // Cleanup
+    try {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+      fs.unlinkSync(req.file.path);
+    } catch(e) { console.log('[import-anki] Cleanup error:', e.message); }
+
+    console.log(`[import-anki] Complete: ${imported} imported, ${skipped} skipped, ${duplicate} duplicates`);
+
+    // Reload question bank from Supabase
+    if (imported > 0) {
+      console.log('[import-anki] Reloading question bank...');
+      await loadQuestionsFromSupabase();
+    }
+
+    res.json({
+      success: true,
+      imported,
+      skipped,
+      duplicate,
+      total: notes.length,
+      errors: errors.slice(0, 10)
+    });
+
+  } catch(e) {
+    console.error('[import-anki] Error:', e);
+    try {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+      if (req.file?.path) fs.unlinkSync(req.file.path);
+    } catch(_) {}
+    res.status(500).json({ error: e.message, stack: e.stack?.split('\n').slice(0,3) });
   }
 });
 
