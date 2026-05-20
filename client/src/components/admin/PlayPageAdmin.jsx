@@ -23,6 +23,7 @@ const GAME_MODES = [
   { id: 'buzz_fun', name: 'BUZZ FUN', icon: '⚡' },
   { id: 'tower', name: 'THE TOWER', icon: '🏰' },
   { id: 'training_grounds', name: 'TRAINING GROUNDS', icon: '📚' },
+  { id: 'anking', name: 'ANKING', icon: '🃏' },
 ];
 
 const EXAM_BOARDS = [

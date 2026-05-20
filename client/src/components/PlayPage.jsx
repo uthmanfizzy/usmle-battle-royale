@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { authFetch } from '../auth';
 import './PlayPage.css';
+import AnKingMode from './AnKingMode';
 
 const SERVER_URL = 'https://usmle-battle-royale-production.up.railway.app';
 
@@ -59,6 +60,14 @@ const GAME_MODES = [
     icon: '📚',
     shortDesc: 'Study by subject and topic',
     longDescription: 'Choose a medical subject, select your difficulty, then pick a specific topic folder. Practice questions at your own pace with detailed explanations.',
+    supportsSolo: true,
+  },
+  {
+    id: 'anking',
+    name: 'ANKING',
+    icon: '🃏',
+    shortDesc: 'Master AnKing flashcards',
+    longDescription: 'Study and master AnKing flashcards. Flip cards, test your knowledge, and track your progress through the entire AnKing deck.',
     supportsSolo: true,
   },
 ];
@@ -699,8 +708,17 @@ export default function PlayPage({
               </>
             )}
 
-            {/* TRAINING GROUNDS FLOW or LOBBY ACTIONS */}
-            {selectedMode === 'training_grounds' ? (
+            {/* ANKING MODE or TRAINING GROUNDS FLOW or LOBBY ACTIONS */}
+            {selectedMode === 'anking' ? (
+              <div className="mode-detail-card" style={{overflow:'hidden', height: '100%', display: 'flex', flexDirection: 'column'}}>
+                <AnKingMode
+                  user={user}
+                  config={{limit: 20}}
+                  onBack={() => setSelectedMode('battle_royale')}
+                  onComplete={(results) => console.log('AnKing session complete:', results)}
+                />
+              </div>
+            ) : selectedMode === 'training_grounds' ? (
               <>
                 {/* Training Grounds Image */}
                 <div className="mode-detail-image" style={{flexShrink: 0, height: '100px'}}>

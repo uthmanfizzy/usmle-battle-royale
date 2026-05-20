@@ -2100,6 +2100,37 @@ app.get('/api/questions', (req, res) => {
   res.json({ questions: shuffle(pool.length >= 5 ? pool : questionBank), empty: false });
 });
 
+// ── AnKing Mode Questions ──────────────────────────────────────────────────────
+
+app.get('/api/questions/anking', async (req, res) => {
+  try {
+    const { subject, deck, limit = 20 } = req.query;
+
+    // Filter from in-memory question bank for AnKing cards
+    let ankingCards = questionBank.filter(q =>
+      q.source === 'anki_import' ||
+      (Array.isArray(q.game_modes) && q.game_modes.includes('anking'))
+    );
+
+    if (subject && subject !== 'all') {
+      ankingCards = ankingCards.filter(q => q.subject === subject);
+    }
+
+    if (deck) {
+      ankingCards = ankingCards.filter(q => q.topic === deck);
+    }
+
+    // Shuffle and limit
+    const shuffled = shuffle(ankingCards);
+    const limited = shuffled.slice(0, parseInt(limit));
+
+    res.json(limited);
+  } catch(e) {
+    console.error('[GET /api/questions/anking] error:', e);
+    res.status(500).json([]);
+  }
+});
+
 // ── Auth API ───────────────────────────────────────────────────────────────────
 
 app.get('/auth/google', (req, res, next) => {
@@ -3856,11 +3887,12 @@ app.post('/api/admin/import-anki', ankiUpload.single('apkg'), async (req, res) =
           explanation: explanation.substring(0, 2000) || 'No explanation provided',
           category: subject.substring(0, 100),
           difficulty: tags.includes('hard') || tags.includes('Hard') ? 'hard' : 'easy',
-          game_modes: ['battle_royale', 'speed_race', 'trivia_pursuit'],
+          game_modes: ['battle_royale', 'speed_race', 'trivia_pursuit', 'anking'],
           image_url: null,
           tower_floor: null,
           buzz_type: null,
-          topic_id: null // Will be null - admin can assign topics later
+          topic_id: null, // Will be null - admin can assign topics later
+          source: 'anki_import' // Mark as imported from Anki
         };
 
         batch.push(questionObj);
