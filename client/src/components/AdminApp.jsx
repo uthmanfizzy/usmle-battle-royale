@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import './AdminApp.css';
 import PlayPageAdmin from './admin/PlayPageAdmin';
+import AnKingAdmin from './admin/AnKingAdmin';
 
 const API = 'https://usmle-battle-royale-production.up.railway.app';
 const AUTH_KEY = 'usmle_admin_session';
@@ -4652,6 +4653,9 @@ export default function AdminApp() {
         <button className={`ap-nav-btn ${tab === 'settings'      ? 'active' : ''}`} onClick={() => setTab('settings')}>
           ⚙️ Game Settings
         </button>
+        <button className={`ap-nav-btn ${tab === 'anking'        ? 'active' : ''}`} onClick={() => setTab('anking')}>
+          🃏 AnKing
+        </button>
       </nav>
 
       <main className="ap-main">
@@ -4665,6 +4669,7 @@ export default function AdminApp() {
         {tab === 'playpage'      && <PlayPageAdmin />}
         {tab === 'homepage'      && <HomePagePanel />}
         {tab === 'settings'      && <SettingsPanel />}
+        {tab === 'anking'        && <AnKingAdmin />}
       </main>
     </div>
   );

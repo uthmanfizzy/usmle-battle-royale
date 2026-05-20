@@ -2131,6 +2131,175 @@ app.get('/api/questions/anking', async (req, res) => {
   }
 });
 
+// ── AnKing Admin API ───────────────────────────────────────────────────────────
+
+// GET AnKing questions with pagination/search/filter
+app.get('/api/admin/anking/questions', adminAuth, async (req, res) => {
+  if (!supabase) return res.json({ questions: [], total: 0, subjects: [] });
+  try {
+    const { page = 1, limit = 20, subject, q } = req.query;
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+
+    let query = supabase
+      .from('questions')
+      .select('*', { count: 'exact' })
+      .eq('source', 'anki_import')
+      .order('created_at', { ascending: false })
+      .range(offset, offset + parseInt(limit) - 1);
+
+    if (subject) query = query.eq('category', subject);
+    if (q) query = query.ilike('question', `%${q}%`);
+
+    const { data, count, error } = await query;
+    if (error) throw error;
+
+    // Get unique subjects
+    const { data: subjectData } = await supabase
+      .from('questions')
+      .select('category')
+      .eq('source', 'anki_import')
+      .not('category', 'is', null);
+
+    const subjects = [...new Set(subjectData?.map(s => s.category).filter(Boolean))].sort();
+
+    res.json({ questions: data || [], total: count || 0, subjects });
+  } catch(e) {
+    console.error('[GET /api/admin/anking/questions] error:', e);
+    res.status(500).json({ questions: [], total: 0, subjects: [] });
+  }
+});
+
+// PUT update AnKing question
+app.put('/api/admin/anking/questions/:id', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ success: false, error: 'Supabase not configured' });
+  try {
+    const { id } = req.params;
+    const { question, correct, explanation, category, difficulty } = req.body;
+    const { error } = await supabase
+      .from('questions')
+      .update({ question, correct, explanation, category, difficulty })
+      .eq('id', id);
+    if (error) throw error;
+
+    // Update in-memory cache
+    const idx = questionBank.findIndex(q => q._supabase_id === id || q.id === id);
+    if (idx !== -1) {
+      questionBank[idx] = { ...questionBank[idx], question, correct, explanation, category, difficulty };
+    }
+
+    res.json({ success: true });
+  } catch(e) {
+    console.error('[PUT /api/admin/anking/questions/:id] error:', e);
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// DELETE single AnKing question
+app.delete('/api/admin/anking/questions/:id', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ success: false, error: 'Supabase not configured' });
+  try {
+    const { id } = req.params;
+    if (id === 'all') {
+      // Delete all AnKing questions
+      const { data, error } = await supabase
+        .from('questions')
+        .delete()
+        .eq('source', 'anki_import')
+        .select('id');
+      if (error) throw error;
+
+      // Remove from in-memory cache
+      questionBank = questionBank.filter(q => q.source !== 'anki_import');
+
+      res.json({ success: true, deleted: data?.length || 0 });
+    } else {
+      // Delete single question
+      const { error } = await supabase.from('questions').delete().eq('id', id);
+      if (error) throw error;
+
+      // Remove from in-memory cache
+      questionBank = questionBank.filter(q => q._supabase_id !== id && q.id !== id);
+
+      res.json({ success: true });
+    }
+  } catch(e) {
+    console.error('[DELETE /api/admin/anking/questions/:id] error:', e);
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// DELETE all AnKing questions
+app.delete('/api/admin/anking/questions/all', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ success: false, error: 'Supabase not configured' });
+  try {
+    const { data, error } = await supabase
+      .from('questions')
+      .delete()
+      .eq('source', 'anki_import')
+      .select('id');
+    if (error) throw error;
+
+    // Remove from in-memory cache
+    questionBank = questionBank.filter(q => q.source !== 'anki_import');
+
+    res.json({ success: true, deleted: data?.length || 0 });
+  } catch(e) {
+    console.error('[DELETE /api/admin/anking/questions/all] error:', e);
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// GET AnKing stats
+app.get('/api/admin/anking/stats', adminAuth, async (req, res) => {
+  if (!supabase) return res.json({ total: 0, easy: 0, hard: 0, subjects: [], topics: [] });
+  try {
+    const { count: total } = await supabase
+      .from('questions')
+      .select('*', { count: 'exact', head: true })
+      .eq('source', 'anki_import');
+
+    const { count: easy } = await supabase
+      .from('questions')
+      .select('*', { count: 'exact', head: true })
+      .eq('source', 'anki_import')
+      .eq('difficulty', 'easy');
+
+    const { count: hard } = await supabase
+      .from('questions')
+      .select('*', { count: 'exact', head: true })
+      .eq('source', 'anki_import')
+      .eq('difficulty', 'hard');
+
+    const { data: subjectData } = await supabase
+      .from('questions')
+      .select('category')
+      .eq('source', 'anki_import')
+      .not('category', 'is', null);
+
+    const { data: topicData } = await supabase
+      .from('questions')
+      .select('topic_id')
+      .eq('source', 'anki_import')
+      .not('topic_id', 'is', null);
+
+    // Count by subject
+    const subjectCounts = {};
+    subjectData?.forEach(q => {
+      if (q.category) subjectCounts[q.category] = (subjectCounts[q.category] || 0) + 1;
+    });
+    const subjects = Object.entries(subjectCounts)
+      .map(([subject, count]) => ({ subject, count }))
+      .sort((a, b) => b.count - a.count);
+
+    const uniqueTopics = [...new Set(topicData?.map(t => t.topic_id).filter(Boolean))];
+
+    res.json({ total, easy, hard, subjects, topics: uniqueTopics.map(t => ({ topic: t })) });
+  } catch(e) {
+    console.error('[GET /api/admin/anking/stats] error:', e);
+    res.status(500).json({ total: 0, easy: 0, hard: 0, subjects: [], topics: [] });
+  }
+});
+
 // ── Auth API ───────────────────────────────────────────────────────────────────
 
 app.get('/auth/google', (req, res, next) => {
