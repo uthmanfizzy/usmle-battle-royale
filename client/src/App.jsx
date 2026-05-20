@@ -528,6 +528,7 @@ export default function App() {
   function handleStartTrainingPractice(topicData) {
     setTrainingTopic(topicData);
     setSoloSubject(topicData.category);
+    setDifficulty(topicData.difficulty);
     setPhase('solo_game');
   }
 
