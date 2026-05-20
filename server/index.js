@@ -15,13 +15,8 @@ const multer     = require('multer');
 const AdmZip     = require('adm-zip');
 const os         = require('os');
 
-// Try to load better-sqlite3
-let Database;
-try {
-  Database = require('better-sqlite3');
-} catch(e) {
-  console.log('[Anki Import] better-sqlite3 not available:', e.message);
-}
+// Use sql.js - pure JavaScript SQLite, no native compilation needed
+const initSqlJs = require('sql.js');
 
 // ── Supabase (optional — game works without it) ────────────────────────────────
 
@@ -3838,10 +3833,6 @@ app.post('/api/admin/preview-anki', ankiUpload.single('apkg'), async (req, res) 
   const tmpDir = path.join(os.tmpdir(), `anki-preview-${Date.now()}`);
 
   try {
-    if (!Database) {
-      return res.status(500).json({ error: 'better-sqlite3 not installed on server. Run: npm install better-sqlite3' });
-    }
-
     console.log('[preview-anki] Extracting .apkg file (preview mode)');
     const zip = new AdmZip(req.file.path);
     zip.extractAllTo(tmpDir, true);
@@ -3853,19 +3844,30 @@ app.post('/api/admin/preview-anki', ankiUpload.single('apkg'), async (req, res) 
       return res.status(400).json({ error: 'No collection database found in .apkg file' });
     }
 
-    const db = new Database(dbPath, { readonly: true });
+    // Initialize sql.js and load database
+    const SQL = await initSqlJs();
+    const fileBuffer = fs.readFileSync(dbPath);
+    const db = new SQL.Database(fileBuffer);
 
     // Get total count FAST - this is the main metric users care about
-    const totalNotes = db.prepare('SELECT COUNT(*) as count FROM notes').get();
-    console.log(`[preview-anki] Found ${totalNotes.count} total cards`);
+    const countResult = db.exec('SELECT COUNT(*) as count FROM notes');
+    const totalCount = countResult[0]?.values?.[0]?.[0] || 0;
+    console.log(`[preview-anki] Found ${totalCount} total cards`);
 
     // Get deck/model info
-    const col = db.prepare('SELECT decks, models FROM col').get();
-    const decks = JSON.parse(col?.decks || '{}');
-    const models = JSON.parse(col?.models || '{}');
+    const colResult = db.exec('SELECT decks, models FROM col');
+    const colRow = colResult[0]?.values?.[0];
+    const decks = JSON.parse(colRow?.[0] || '{}');
+    const models = JSON.parse(colRow?.[1] || '{}');
 
     // Only get FIRST 3 notes for preview - much faster than 5
-    const notes = db.prepare('SELECT id, mid, flds, tags FROM notes LIMIT 3').all();
+    const notesResult = db.exec('SELECT id, mid, flds, tags FROM notes LIMIT 3');
+    const notes = notesResult[0]?.values?.map(row => ({
+      id: row[0],
+      mid: row[1],
+      flds: row[2],
+      tags: row[3]
+    })) || [];
 
     // Limit deck names to 30 and filter out "Default"
     const deckNames = Object.values(decks)
@@ -3899,7 +3901,7 @@ app.post('/api/admin/preview-anki', ankiUpload.single('apkg'), async (req, res) 
     } catch(_) {}
 
     console.log('[preview-anki] Preview complete');
-    res.json({ totalCards: totalNotes.count, deckNames, preview });
+    res.json({ totalCards: totalCount, deckNames, preview });
 
   } catch(e) {
     console.error('[preview-anki] Error:', e);
@@ -3918,10 +3920,6 @@ app.post('/api/admin/import-anki', ankiUpload.single('apkg'), async (req, res) =
   const tmpDir = path.join(os.tmpdir(), `anki-extract-${Date.now()}`);
 
   try {
-    if (!Database) {
-      return res.status(500).json({ error: 'better-sqlite3 not installed on server. Run: npm install better-sqlite3' });
-    }
-
     console.log('[import-anki] Extracting .apkg file:', req.file.path);
     const zip = new AdmZip(req.file.path);
     zip.extractAllTo(tmpDir, true);
@@ -3938,21 +3936,35 @@ app.post('/api/admin/import-anki', ankiUpload.single('apkg'), async (req, res) =
     }
 
     console.log('[import-anki] Opening database:', dbPath);
-    const db = new Database(dbPath, { readonly: true });
+    // Initialize sql.js and load database
+    const SQL = await initSqlJs();
+    const fileBuffer = fs.readFileSync(dbPath);
+    const db = new SQL.Database(fileBuffer);
 
     // Get deck names for subject mapping
-    const col = db.prepare('SELECT decks, models FROM col').get();
-    const decks = JSON.parse(col.decks || '{}');
-    const models = JSON.parse(col.models || '{}');
+    const colResult = db.exec('SELECT decks, models FROM col');
+    const colRow = colResult[0]?.values?.[0];
+    const decks = JSON.parse(colRow?.[0] || '{}');
+    const models = JSON.parse(colRow?.[1] || '{}');
 
     console.log('[import-anki] Deck names:', Object.values(decks).map(d => d.name));
 
     // Get all notes with their model info
-    const notes = db.prepare('SELECT id, mid, flds, tags FROM notes').all();
+    const notesResult = db.exec('SELECT id, mid, flds, tags FROM notes');
+    const notes = notesResult[0]?.values?.map(row => ({
+      id: row[0],
+      mid: row[1],
+      flds: row[2],
+      tags: row[3]
+    })) || [];
     console.log(`[import-anki] Found ${notes.length} notes`);
 
     // Get cards to map note->deck
-    const cards = db.prepare('SELECT nid, did FROM cards').all();
+    const cardsResult = db.exec('SELECT nid, did FROM cards');
+    const cards = cardsResult[0]?.values?.map(row => ({
+      nid: row[0],
+      did: row[1]
+    })) || [];
     const noteToDeck = {};
     cards.forEach(c => { noteToDeck[c.nid] = c.did; });
 
