@@ -75,17 +75,37 @@ export default function AnKingAdmin() {
     if (!ankiFile) return;
     setPreviewing(true);
     setPreview(null);
-    const formData = new FormData();
-    formData.append('apkg', ankiFile);
     try {
+      // Only send first 2MB for preview - enough to read SQLite header and first records
+      const PREVIEW_SIZE = 2 * 1024 * 1024; // 2MB
+      const slice = ankiFile.slice(0, Math.min(ankiFile.size, PREVIEW_SIZE));
+      const previewFile = new File([slice], ankiFile.name, { type: ankiFile.type });
+
+      const formData = new FormData();
+      formData.append('apkg', previewFile);
+      formData.append('isPreview', 'true');
+
+      // Add 15s timeout to prevent hanging
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 15000);
+
       const res = await fetch(`${SERVER_URL}/api/admin/preview-anki`, {
         method: 'POST',
         body: formData,
-        headers: { 'x-admin-password': localStorage.getItem(AUTH_KEY) || '' }
+        headers: { 'x-admin-password': localStorage.getItem(AUTH_KEY) || '' },
+        signal: controller.signal
       });
+      clearTimeout(timeout);
+
       const data = await res.json();
       setPreview(data);
-    } catch(e) { setPreview({ error: e.message }); }
+    } catch(e) {
+      if (e.name === 'AbortError') {
+        setPreview({ error: 'Preview timed out. The file may be too large — try importing directly.' });
+      } else {
+        setPreview({ error: e.message });
+      }
+    }
     setPreviewing(false);
   };
 
@@ -206,9 +226,19 @@ export default function AnKingAdmin() {
               accept=".apkg"
               style={{display:'none'}}
               onChange={e => {
-                setAnkiFile(e.target.files[0]);
-                setPreview(null);
+                const file = e.target.files[0];
+                setAnkiFile(file);
                 setImportResult(null);
+                // Show immediate file info without server call
+                if (file) {
+                  setPreview({
+                    fileName: file.name,
+                    fileSize: (file.size / 1024 / 1024).toFixed(1),
+                    quickInfo: true // flag to show loading state
+                  });
+                } else {
+                  setPreview(null);
+                }
               }}
             />
           </label>
@@ -232,8 +262,18 @@ export default function AnKingAdmin() {
             </div>
           )}
 
-          {/* Preview */}
-          {preview && !preview.error && (
+          {/* Quick file info - shown immediately on file selection */}
+          {preview?.quickInfo && !preview.totalCards && (
+            <div className="anking-preview-box">
+              <p className="anking-preview-header">
+                📦 <strong>{preview.fileName}</strong> — {preview.fileSize} MB
+              </p>
+              <p className="anking-help-text">Click "👁 Preview Deck" to see card count and sample cards.</p>
+            </div>
+          )}
+
+          {/* Full preview - shown after server processes */}
+          {preview && !preview.error && preview.totalCards && (
             <div className="anking-preview-box">
               <div className="anking-preview-header">
                 <span>📊 <strong>{preview.totalCards?.toLocaleString()}</strong> total cards</span>

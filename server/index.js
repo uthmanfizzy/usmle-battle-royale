@@ -3836,28 +3836,43 @@ app.delete('/admin/questions/:id', adminAuth, async (req, res) => {
 app.post('/api/admin/preview-anki', ankiUpload.single('apkg'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
   const tmpDir = path.join(os.tmpdir(), `anki-preview-${Date.now()}`);
+
   try {
     if (!Database) {
       return res.status(500).json({ error: 'better-sqlite3 not installed on server. Run: npm install better-sqlite3' });
     }
 
+    console.log('[preview-anki] Extracting .apkg file (preview mode)');
     const zip = new AdmZip(req.file.path);
     zip.extractAllTo(tmpDir, true);
+
     let dbPath = path.join(tmpDir, 'collection.anki21');
     if (!fs.existsSync(dbPath)) dbPath = path.join(tmpDir, 'collection.anki2');
     if (!fs.existsSync(dbPath)) {
       const files = fs.readdirSync(tmpDir);
-      return res.status(400).json({ error: 'No collection database found. Files: ' + files.join(', ') });
+      return res.status(400).json({ error: 'No collection database found in .apkg file' });
     }
 
     const db = new Database(dbPath, { readonly: true });
-    const col = db.prepare('SELECT decks, models FROM col').get();
-    const decks = JSON.parse(col.decks || '{}');
-    const models = JSON.parse(col.models || '{}');
-    const notes = db.prepare('SELECT id, mid, flds, tags FROM notes LIMIT 5').all();
-    const totalNotes = db.prepare('SELECT COUNT(*) as count FROM notes').get();
 
-    const deckNames = Object.values(decks).map(d => d.name);
+    // Get total count FAST - this is the main metric users care about
+    const totalNotes = db.prepare('SELECT COUNT(*) as count FROM notes').get();
+    console.log(`[preview-anki] Found ${totalNotes.count} total cards`);
+
+    // Get deck/model info
+    const col = db.prepare('SELECT decks, models FROM col').get();
+    const decks = JSON.parse(col?.decks || '{}');
+    const models = JSON.parse(col?.models || '{}');
+
+    // Only get FIRST 3 notes for preview - much faster than 5
+    const notes = db.prepare('SELECT id, mid, flds, tags FROM notes LIMIT 3').all();
+
+    // Limit deck names to 30 and filter out "Default"
+    const deckNames = Object.values(decks)
+      .map(d => d.name)
+      .filter(n => n !== 'Default')
+      .slice(0, 30);
+
     const modelFieldNames = {};
     Object.values(models).forEach(m => {
       modelFieldNames[m.id] = m.flds.map(f => f.name);
@@ -3868,23 +3883,30 @@ app.post('/api/admin/preview-anki', ankiUpload.single('apkg'), async (req, res) 
     const preview = notes.map(note => {
       const fields = note.flds.split('\x1f');
       const fieldNames = modelFieldNames[note.mid] || [];
-      const fieldMap = {};
-      fieldNames.forEach((name, i) => { fieldMap[name] = fields[i] || ''; });
       return {
         fields: fieldNames,
         values: fields.map(f => stripHtml(f).substring(0, 200)),
-        tags: note.tags?.trim()
+        tags: note.tags?.trim().substring(0, 100)
       };
     });
 
     db.close();
-    fs.rmSync(tmpDir, { recursive: true, force: true });
-    fs.unlinkSync(req.file.path);
 
+    // Cleanup immediately
+    try {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+      fs.unlinkSync(req.file.path);
+    } catch(_) {}
+
+    console.log('[preview-anki] Preview complete');
     res.json({ totalCards: totalNotes.count, deckNames, preview });
+
   } catch(e) {
     console.error('[preview-anki] Error:', e);
-    try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch(_) {}
+    try {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+      if (req.file?.path) fs.unlinkSync(req.file.path);
+    } catch(_) {}
     res.status(500).json({ error: e.message });
   }
 });
