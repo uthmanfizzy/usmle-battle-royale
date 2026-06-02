@@ -2192,28 +2192,33 @@
     overflow: visible !important;
   }
 
-  /* FIX 1: REDUCE PROFILE CARD SIZE SIGNIFICANTLY */
+  /* BIGGER PROFILE CARD ON MOBILE - increased from 0.62 to 0.85 */
   .horizontal-profile-card {
-    transform: scale(0.62) !important;
+    transform: scale(0.85) !important;
     transform-origin: top left !important;
-    margin-bottom: -20px !important;
+    margin-bottom: -24px !important;
   }
 
   .profile-card-avatar {
-    width: 50px !important;
-    height: 50px !important;
+    width: 58px !important;
+    height: 58px !important;
+    min-width: 58px !important;
   }
 
   .profile-card-panel {
-    padding: 8px 12px 8px 32px !important;
-    min-width: 150px !important;
+    padding: 8px 14px 8px 32px !important;
+    min-width: 160px !important;
   }
 
   .profile-card-username {
-    font-size: 14px !important;
+    font-size: 15px !important;
   }
 
   .profile-card-level {
+    font-size: 12px !important;
+  }
+
+  .profile-card-xp-text {
     font-size: 11px !important;
   }
 
@@ -2895,6 +2900,7 @@
     top: 8px !important;
     right: 8px !important;
     z-index: 300 !important;
+    overflow: visible !important;
   }
 
   /* Each wrapper takes full width of the column */
@@ -2903,12 +2909,33 @@
     width: 100% !important;
     display: flex !important;
     justify-content: center !important;
+    overflow: visible !important;
   }
 
-  /* Bubbles same size */
+  /* BIGGER ICONS INSIDE BUBBLES WITHOUT EXPANDING BUBBLE */
+  /* Keep bubble same size but make image overflow with negative margin */
   .header-icon-bubble {
-    width: 44px !important;
-    height: 44px !important;
+    width: 48px !important;
+    height: 48px !important;
+    overflow: visible !important;
+    position: relative !important;
+  }
+
+  .header-icon-bubble .header-icon-img {
+    width: 56px !important;
+    height: 56px !important;
+    object-fit: contain !important;
+    display: block !important;
+    position: relative !important;
+    margin: -4px !important;    /* negative margin so image is bigger than bubble */
+    z-index: 1 !important;
+    pointer-events: none !important;
+  }
+
+  /* Emoji fallback bigger too */
+  .header-icon-bubble span {
+    font-size: 30px !important;
+    pointer-events: none !important;
   }
 
   /* Header right area layout */
@@ -2917,6 +2944,7 @@
     flex-direction: row !important;
     align-items: center !important;
     gap: 6px !important;
+    overflow: visible !important;
   }
 
   /* Also move currency bar to not overlap the vertical icons */
@@ -3149,6 +3177,7 @@
 }
 
 /* Very small phones */
+/* Very small phones */
 @media (max-width: 380px) {
   .friends-dropdown {
     left: 8px !important;
@@ -3163,5 +3192,22 @@
   .friend-name {
     font-size: 13px !important;
     max-width: 130px !important;
+  }
+
+  /* Smaller profile card on very small screens */
+  .horizontal-profile-card {
+    transform: scale(0.78) !important;
+  }
+
+  /* Slightly smaller bubbles and icons on very small screens */
+  .header-icon-bubble {
+    width: 44px !important;
+    height: 44px !important;
+  }
+
+  .header-icon-bubble .header-icon-img {
+    width: 52px !important;
+    height: 52px !important;
+    margin: -4px !important;
   }
 }
