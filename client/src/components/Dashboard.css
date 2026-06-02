@@ -2885,12 +2885,54 @@
 
 @media (max-width: 768px) {
 
-  /* Position dropdown below header, full width, vertical layout */
+  /* Stack icons vertically */
+  .header-icon-group {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 6px !important;
+    position: fixed !important;
+    top: 8px !important;
+    right: 8px !important;
+    z-index: 300 !important;
+  }
+
+  /* Each wrapper takes full width of the column */
+  .friends-dropdown-wrapper {
+    position: relative !important;
+    width: 100% !important;
+    display: flex !important;
+    justify-content: center !important;
+  }
+
+  /* Bubbles same size */
+  .header-icon-bubble {
+    width: 44px !important;
+    height: 44px !important;
+  }
+
+  /* Header right area layout */
+  .header-right {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 6px !important;
+  }
+
+  /* Also move currency bar to not overlap the vertical icons */
+  .currency-bar {
+    position: fixed !important;
+    top: 8px !important;
+    right: 64px !important;  /* leave space for the vertical icon column */
+    z-index: 200 !important;
+  }
+
+  /* Dropdowns open below vertical icon stack */
   .friends-dropdown {
     position: fixed !important;
-    top: 70px !important;
-    left: 12px !important;
-    right: 12px !important;
+    top: 160px !important;  /* below the 3 stacked icons */
+    left: 8px !important;
+    right: 8px !important;
     transform: none !important;
     width: auto !important;
     max-width: none !important;
@@ -2898,8 +2940,8 @@
   }
 
   .friends-dropdown--left {
-    left: 12px !important;
-    right: 12px !important;
+    left: 8px !important;
+    right: 8px !important;
     transform: none !important;
   }
 
