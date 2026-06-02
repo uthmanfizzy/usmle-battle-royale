@@ -738,8 +738,12 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
     };
     if (showFriendsPanel) {
       document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('touchstart', handleClickOutside); // mobile touch
     }
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
   }, [showFriendsPanel]);
 
   // Close notifications dropdown when clicking outside
@@ -751,8 +755,12 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
     };
     if (showNotifications) {
       document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('touchstart', handleClickOutside); // mobile touch
     }
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
   }, [showNotifications]);
 
   // Close settings dropdown when clicking outside
@@ -764,8 +772,12 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
     };
     if (showSettings) {
       document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('touchstart', handleClickOutside); // mobile touch
     }
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
   }, [showSettings]);
 
   useEffect(() => {

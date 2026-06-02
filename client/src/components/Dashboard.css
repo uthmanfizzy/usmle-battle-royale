@@ -2878,3 +2878,160 @@
   border-color: rgba(220,190,80,0.9) !important;
   border-width: 3px !important;
 }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   MOBILE DROPDOWN FIXES
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 768px) {
+
+  /* Dropdown wrapper needs to be positioned correctly */
+  .friends-dropdown-wrapper {
+    position: static !important;  /* remove relative so dropdown can use fixed */
+  }
+
+  /* All dropdowns on mobile become fixed position centered on screen */
+  .friends-dropdown {
+    position: fixed !important;
+    top: 70px !important;        /* just below the header */
+    left: 50% !important;
+    right: auto !important;
+    transform: translateX(-50%) !important;
+    width: calc(100vw - 24px) !important;
+    max-width: 380px !important;
+    z-index: 1000 !important;
+  }
+
+  /* Remove the arrow pointer on mobile since position is fixed */
+  .friends-dropdown::before {
+    display: none !important;
+  }
+
+  /* Panel fills available width */
+  .dropdown-panel {
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: calc(100vh - 90px) !important; /* don't overlap bottom nav */
+    border-radius: 14px !important;
+  }
+
+  /* Settings dropdown also fixed centered */
+  .friends-dropdown--left {
+    left: 50% !important;
+    right: auto !important;
+    transform: translateX(-50%) !important;
+  }
+
+  /* Add a dim backdrop on mobile when dropdown is open */
+  .friends-dropdown-wrapper::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 999;
+    pointer-events: none;
+  }
+
+  /* Make dropdown content scrollable on mobile */
+  .dropdown-panel-content {
+    max-height: calc(100vh - 200px) !important;
+    overflow-y: auto !important;
+  }
+
+  /* Larger touch targets for notification items on mobile */
+  .notif-item {
+    padding: 12px 10px !important;
+    min-height: 50px !important;
+  }
+
+  .notif-text {
+    font-size: 13px !important;
+  }
+
+  /* Settings rows easier to tap */
+  .settings-row {
+    padding: 12px 4px !important;
+    min-height: 44px !important;
+  }
+
+  .settings-row-label {
+    font-size: 13px !important;
+  }
+
+  /* Toggle bigger for touch */
+  .settings-toggle {
+    width: 48px !important;
+    height: 26px !important;
+  }
+  .settings-toggle-knob {
+    width: 20px !important;
+    height: 20px !important;
+  }
+  .settings-toggle--on .settings-toggle-knob {
+    left: calc(100% - 22px) !important;
+  }
+
+  /* Save button bigger */
+  .settings-save-btn {
+    padding: 14px !important;
+    font-size: 13px !important;
+  }
+
+  /* Friends panel on mobile */
+  .friends-panel--dropdown {
+    width: 100% !important;
+    max-height: calc(100vh - 100px) !important;
+  }
+
+  .friend-card {
+    padding: 12px !important;
+    min-height: 60px !important;
+  }
+
+  .friend-name {
+    font-size: 14px !important;
+  }
+
+  .friend-avatar {
+    width: 46px !important;
+    height: 46px !important;
+  }
+
+  .friends-search-input {
+    font-size: 14px !important;
+    padding: 12px 14px !important;
+  }
+
+  /* Tabs bigger on mobile */
+  .friends-tab {
+    padding: 12px 6px !important;
+    font-size: 12px !important;
+  }
+
+  /* Dropdown header bigger */
+  .dropdown-panel-header {
+    padding: 16px !important;
+  }
+
+  .dropdown-panel-title {
+    font-size: 16px !important;
+  }
+
+  .dropdown-close-btn {
+    font-size: 20px !important;
+    padding: 4px 10px !important;
+  }
+
+}
+
+/* Extra small phones */
+@media (max-width: 400px) {
+  .friends-dropdown {
+    width: calc(100vw - 16px) !important;
+    top: 65px !important;
+  }
+
+  .dropdown-panel {
+    max-height: calc(100vh - 80px) !important;
+  }
+}
