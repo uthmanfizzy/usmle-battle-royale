@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { fetchMe, authFetch } from '../auth';
 import { DefaultPreview, PixelPreview } from './AppearanceSection';
 import { useTheme, PALETTE } from '../theme';
@@ -761,6 +761,7 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
   const [welcomeAnn,   setWelcomeAnn]   = useState(null);
   const [showSettings, setShowSettings] = useState(false);
   const [showFriendsPanel, setShowFriendsPanel] = useState(false);
+  const friendsDropdownRef = useRef(null);
   const [bgUrl,        setBgUrl]        = useState(null);
   const [homeImages,   setHomeImages]   = useState({
     dashboard_bg: '',
@@ -793,6 +794,19 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
         console.error('Failed to load home images:', err);
       });
   }, []);
+
+  // Close friends dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (friendsDropdownRef.current && !friendsDropdownRef.current.contains(e.target)) {
+        setShowFriendsPanel(false);
+      }
+    };
+    if (showFriendsPanel) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showFriendsPanel]);
 
   useEffect(() => {
     fetch(`${SERVER_URL}/api/announcements`)
@@ -898,13 +912,33 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
                 )}
                 {unreadCount > 0 && <span className="notification-dot" />}
               </button>
-              <button className="header-icon-bubble friends-btn" onClick={() => setShowFriendsPanel(true)} title="Friends">
-                {homeImages.icon_friends ? (
-                  <img loading="lazy" src={homeImages.icon_friends} alt="Friends" className="header-icon-img" />
-                ) : (
-                  <span>👥</span>
+              <div className="friends-dropdown-wrapper" ref={friendsDropdownRef}>
+                <button
+                  className="header-icon-bubble friends-btn"
+                  onClick={() => setShowFriendsPanel(!showFriendsPanel)}
+                  title="Friends"
+                >
+                  {homeImages.icon_friends ? (
+                    <img loading="lazy" src={homeImages.icon_friends} alt="Friends" className="header-icon-img" />
+                  ) : (
+                    <span>👥</span>
+                  )}
+                </button>
+
+                {showFriendsPanel && (
+                  <div className="friends-dropdown">
+                    <FriendsPanel
+                      user={user}
+                      onClose={() => setShowFriendsPanel(false)}
+                      onInviteToGame={(friend) => {
+                        setShowFriendsPanel(false);
+                        console.log('Invite friend to game:', friend);
+                      }}
+                      isDropdown={true}
+                    />
+                  </div>
                 )}
-              </button>
+              </div>
               <button className="header-icon-bubble settings-btn" onClick={() => setShowSettings(true)} title="Settings">
                 {homeImages.icon_settings ? (
                   <img loading="lazy" src={homeImages.icon_settings} alt="Settings" className="header-icon-img" />
@@ -976,18 +1010,6 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
       </div>
 
       {showSettings && <SettingsPanel onClose={() => setShowSettings(false)} onLogout={onLogout} />}
-
-      {showFriendsPanel && (
-        <FriendsPanel
-          user={user}
-          onClose={() => setShowFriendsPanel(false)}
-          onInviteToGame={(friend) => {
-            setShowFriendsPanel(false);
-            // Navigate to play page or open lobby invite
-            console.log('Invite friend to game:', friend);
-          }}
-        />
-      )}
     </div>
   );
 }

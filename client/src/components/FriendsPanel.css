@@ -354,3 +354,67 @@
   text-align: center;
   margin: 0;
 }
+
+/* ── Dropdown Styles ────────────────────────────────────────────────────── */
+
+.friends-dropdown-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.friends-dropdown {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 500;
+  animation: friendsDropIn 0.2s ease;
+}
+
+@keyframes friendsDropIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Arrow pointer at top of dropdown pointing to button */
+.friends-dropdown::before {
+  content: '';
+  position: absolute;
+  top: -6px;
+  right: 16px;
+  width: 12px;
+  height: 12px;
+  background: rgba(10,15,10,0.98);
+  border-left: 1px solid rgba(180,140,40,0.45);
+  border-top: 1px solid rgba(180,140,40,0.45);
+  transform: rotate(45deg);
+  z-index: 1;
+}
+
+/* Panel styles when used as dropdown */
+.friends-panel--dropdown {
+  width: 360px !important;
+  max-width: 90vw !important;
+  max-height: 500px !important;
+  border-radius: 14px !important;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.6) !important;
+}
+
+/* If dropdown would go off right edge of screen, align to left instead */
+@media (max-width: 480px) {
+  .friends-dropdown {
+    right: auto !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+  }
+  .friends-dropdown::before {
+    right: auto !important;
+    left: 50% !important;
+  }
+}

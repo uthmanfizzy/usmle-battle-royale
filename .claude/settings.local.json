@@ -36,7 +36,10 @@
       "Bash(git rm *)",
       "Bash(npm *)",
       "Bash(./node_modules/.bin/vite build *)",
-      "Bash(npx *)"
+      "Bash(npx *)",
+      "Bash(sort -k5 -rh)",
+      "PowerShell(node -e \"const sql = require\\('sql.js'\\); console.log\\('sql.js loaded successfully!'\\);\")",
+      "Bash(curl https://usmle-battle-royale-production.up.railway.app/health)"
     ]
   }
 }

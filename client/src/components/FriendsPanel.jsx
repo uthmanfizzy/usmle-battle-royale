@@ -3,7 +3,7 @@ import './FriendsPanel.css';
 
 const SERVER_URL = 'https://usmle-battle-royale-production.up.railway.app';
 
-export default function FriendsPanel({ user, onClose, onInviteToGame }) {
+export default function FriendsPanel({ user, onClose, onInviteToGame, isDropdown }) {
   const [activeTab, setActiveTab] = useState('friends');
   const [friends, setFriends] = useState([]);
   const [pendingRequests, setPendingRequests] = useState([]);
@@ -122,9 +122,9 @@ export default function FriendsPanel({ user, onClose, onInviteToGame }) {
     return Math.min((xp / xpForLevel) * 100, 100);
   };
 
-  return (
-    <div className="friends-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="friends-panel">
+  // Panel content
+  const content = (
+    <div className={`friends-panel ${isDropdown ? 'friends-panel--dropdown' : ''}`}>
 
         {/* Header */}
         <div className="friends-header">
@@ -301,7 +301,15 @@ export default function FriendsPanel({ user, onClose, onInviteToGame }) {
           </div>
         )}
 
-      </div>
+    </div>
+  );
+
+  // Render with or without overlay wrapper
+  if (isDropdown) return content;
+
+  return (
+    <div className="friends-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      {content}
     </div>
   );
 }
