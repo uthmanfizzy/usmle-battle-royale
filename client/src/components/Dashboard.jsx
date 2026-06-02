@@ -3,6 +3,8 @@ import { fetchMe, authFetch } from '../auth';
 import { DefaultPreview, PixelPreview } from './AppearanceSection';
 import { useTheme, PALETTE } from '../theme';
 import FriendsPanel from './FriendsPanel';
+import NotificationsDropdown from './NotificationsDropdown';
+import SettingsDropdown from './SettingsDropdown';
 import './Dashboard.css';
 
 const SERVER_URL = 'https://usmle-battle-royale-production.up.railway.app';
@@ -682,77 +684,6 @@ function AnnouncementsSection() {
   );
 }
 
-// ── Settings Panel ─────────────────────────────────────────────────────────────
-function SettingsPanel({ onClose, onLogout }) {
-  const { theme, color, applyTheme } = useTheme();
-
-  useEffect(() => {
-    const handler = e => { if (e.key === 'Escape') onClose(); };
-    document.addEventListener('keydown', handler);
-    return () => document.removeEventListener('keydown', handler);
-  }, [onClose]);
-
-  return (
-    <div className="settings-overlay" onClick={onClose}>
-      <div className="settings-panel" onClick={e => e.stopPropagation()}>
-
-        <div className="settings-panel-header">
-          <span className="settings-panel-title">⚙️ Settings</span>
-          <button className="settings-panel-close" onClick={onClose}>✕</button>
-        </div>
-
-        <div className="settings-panel-body">
-          <div className="stp-section-label">APPEARANCE</div>
-
-          <div className="stp-subsect">
-            <div className="stp-subsect-title">Theme</div>
-            <div className="stp-theme-grid">
-              {[
-                { id: 'default', name: 'Default', Preview: DefaultPreview },
-                { id: 'pixel',   name: 'Pixel Art', Preview: PixelPreview  },
-              ].map(({ id, name, Preview }) => (
-                <button
-                  key={id}
-                  className={`stp-theme-card ${theme === id ? 'stp-theme-sel' : ''}`}
-                  onClick={() => applyTheme(id, color)}
-                  style={{ '--tc': PALETTE.find(p => p.id === color)?.hex || '#7C3AED' }}
-                >
-                  {theme === id && <div className="stp-theme-check">✓</div>}
-                  <Preview color={color} />
-                  <div className="stp-theme-name">{name}</div>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="stp-subsect">
-            <div className="stp-subsect-title">Accent Colour</div>
-            <div className="stp-color-grid">
-              {PALETTE.map(p => (
-                <button
-                  key={p.id}
-                  className={`stp-color-dot ${color === p.id ? 'stp-color-sel' : ''}`}
-                  style={{ '--c': p.hex }}
-                  onClick={() => applyTheme(theme, p.id)}
-                  title={p.label}
-                >
-                  <div className="stp-dot" />
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="stp-subsect" style={{ marginTop: 32 }}>
-            <button className="btn-logout" onClick={onLogout} style={{ width: '100%' }}>
-              Sign Out
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ── Main Dashboard ─────────────────────────────────────────────────────────────
 export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
   const [dashTab,      setDashTab]      = useState('home');
@@ -760,8 +691,11 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
   const [showWelcome,  setShowWelcome]  = useState(false);
   const [welcomeAnn,   setWelcomeAnn]   = useState(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
   const [showFriendsPanel, setShowFriendsPanel] = useState(false);
   const friendsDropdownRef = useRef(null);
+  const notifDropdownRef = useRef(null);
+  const settingsDropdownRef = useRef(null);
   const [bgUrl,        setBgUrl]        = useState(null);
   const [homeImages,   setHomeImages]   = useState({
     dashboard_bg: '',
@@ -807,6 +741,32 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
     }
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showFriendsPanel]);
+
+  // Close notifications dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (notifDropdownRef.current && !notifDropdownRef.current.contains(e.target)) {
+        setShowNotifications(false);
+      }
+    };
+    if (showNotifications) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showNotifications]);
+
+  // Close settings dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (settingsDropdownRef.current && !settingsDropdownRef.current.contains(e.target)) {
+        setShowSettings(false);
+      }
+    };
+    if (showSettings) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showSettings]);
 
   useEffect(() => {
     fetch(`${SERVER_URL}/api/announcements`)
@@ -904,18 +864,33 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
 
             {/* Individual Icon Bubbles */}
             <div className="header-icon-group">
-              <button className="header-icon-bubble notification-btn" title="Notifications">
-                {homeImages.icon_notification ? (
-                  <img loading="lazy" src={homeImages.icon_notification} alt="Notifications" className="header-icon-img" />
-                ) : (
-                  <span>🔔</span>
+              <div className="friends-dropdown-wrapper" ref={notifDropdownRef}>
+                <button
+                  className="header-icon-bubble notification-btn"
+                  onClick={() => { setShowNotifications(!showNotifications); setShowFriendsPanel(false); setShowSettings(false); }}
+                  title="Notifications"
+                >
+                  {homeImages.icon_notification ? (
+                    <img loading="lazy" src={homeImages.icon_notification} alt="Notifications" className="header-icon-img" />
+                  ) : (
+                    <span>🔔</span>
+                  )}
+                  {unreadCount > 0 && <span className="notification-dot" />}
+                </button>
+
+                {showNotifications && (
+                  <div className="friends-dropdown">
+                    <NotificationsDropdown
+                      user={user}
+                      onClose={() => setShowNotifications(false)}
+                    />
+                  </div>
                 )}
-                {unreadCount > 0 && <span className="notification-dot" />}
-              </button>
+              </div>
               <div className="friends-dropdown-wrapper" ref={friendsDropdownRef}>
                 <button
                   className="header-icon-bubble friends-btn"
-                  onClick={() => setShowFriendsPanel(!showFriendsPanel)}
+                  onClick={() => { setShowFriendsPanel(!showFriendsPanel); setShowNotifications(false); setShowSettings(false); }}
                   title="Friends"
                 >
                   {homeImages.icon_friends ? (
@@ -939,13 +914,29 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
                   </div>
                 )}
               </div>
-              <button className="header-icon-bubble settings-btn" onClick={() => setShowSettings(true)} title="Settings">
-                {homeImages.icon_settings ? (
-                  <img loading="lazy" src={homeImages.icon_settings} alt="Settings" className="header-icon-img" />
-                ) : (
-                  <span>⚙️</span>
+              <div className="friends-dropdown-wrapper" ref={settingsDropdownRef}>
+                <button
+                  className="header-icon-bubble settings-btn"
+                  onClick={() => { setShowSettings(!showSettings); setShowNotifications(false); setShowFriendsPanel(false); }}
+                  title="Settings"
+                >
+                  {homeImages.icon_settings ? (
+                    <img loading="lazy" src={homeImages.icon_settings} alt="Settings" className="header-icon-img" />
+                  ) : (
+                    <span>⚙️</span>
+                  )}
+                </button>
+
+                {showSettings && (
+                  <div className="friends-dropdown friends-dropdown--left">
+                    <SettingsDropdown
+                      user={user}
+                      onClose={() => setShowSettings(false)}
+                      onLogout={onLogout}
+                    />
+                  </div>
                 )}
-              </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1008,8 +999,6 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
           </div>
         </div>
       </div>
-
-      {showSettings && <SettingsPanel onClose={() => setShowSettings(false)} onLogout={onLogout} />}
     </div>
   );
 }

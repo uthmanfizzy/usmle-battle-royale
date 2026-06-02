@@ -4527,6 +4527,38 @@ app.get('/api/announcements', async (req, res) => {
   }
 });
 
+// ── Notifications ──────────────────────────────────────────────────────────────
+app.get('/api/notifications/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    // Use announcements table for notifications
+    if (!supabase) return res.json([]);
+    const { data } = await supabase
+      .from('announcements')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(20);
+
+    const notifications = (data || []).map(a => ({
+      id: a.id,
+      message: a.message || a.content || a.title,
+      icon: '📢',
+      read: false,
+      time: new Date(a.created_at).toLocaleDateString()
+    }));
+
+    res.json(notifications);
+  } catch(e) {
+    console.error('[Notifications] GET error:', e.message);
+    res.json([]);
+  }
+});
+
+app.post('/api/notifications/:userId/read-all', async (req, res) => {
+  // Placeholder for marking all as read
+  res.json({ success: true });
+});
+
 app.post('/admin/announcements', adminAuth, async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Database not configured.' });
   const { title, message, category, pinned, urgent } = req.body;
