@@ -2922,16 +2922,6 @@
     transform: translateX(-50%) !important;
   }
 
-  /* Add a dim backdrop on mobile when dropdown is open */
-  .friends-dropdown-wrapper::after {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.5);
-    z-index: 999;
-    pointer-events: none;
-  }
-
   /* Make dropdown content scrollable on mobile */
   .dropdown-panel-content {
     max-height: calc(100vh - 200px) !important;
