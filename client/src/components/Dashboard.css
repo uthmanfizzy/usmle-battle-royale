@@ -2885,122 +2885,215 @@
 
 @media (max-width: 768px) {
 
-  /* Dropdown wrapper needs to be positioned correctly */
-  .friends-dropdown-wrapper {
-    position: static !important;  /* remove relative so dropdown can use fixed */
-  }
-
-  /* All dropdowns on mobile become fixed position centered on screen */
+  /* Position dropdown below header, full width, vertical layout */
   .friends-dropdown {
     position: fixed !important;
-    top: 70px !important;        /* just below the header */
-    left: 50% !important;
-    right: auto !important;
-    transform: translateX(-50%) !important;
-    width: calc(100vw - 24px) !important;
-    max-width: 380px !important;
+    top: 70px !important;
+    left: 12px !important;
+    right: 12px !important;
+    transform: none !important;
+    width: auto !important;
+    max-width: none !important;
     z-index: 1000 !important;
   }
 
-  /* Remove the arrow pointer on mobile since position is fixed */
+  .friends-dropdown--left {
+    left: 12px !important;
+    right: 12px !important;
+    transform: none !important;
+  }
+
+  /* Remove arrow pointer on mobile */
   .friends-dropdown::before {
     display: none !important;
   }
 
-  /* Panel fills available width */
+  /* Panel full width vertical */
   .dropdown-panel {
     width: 100% !important;
     max-width: 100% !important;
-    max-height: calc(100vh - 90px) !important; /* don't overlap bottom nav */
+    max-height: 70vh !important;
+    display: flex !important;
+    flex-direction: column !important;
     border-radius: 14px !important;
+    overflow: hidden !important;
   }
 
-  /* Settings dropdown also fixed centered */
-  .friends-dropdown--left {
-    left: 50% !important;
-    right: auto !important;
-    transform: translateX(-50%) !important;
-  }
-
-  /* Make dropdown content scrollable on mobile */
+  /* Scrollable content area */
   .dropdown-panel-content {
-    max-height: calc(100vh - 200px) !important;
+    flex: 1 !important;
     overflow-y: auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 6px !important;
+    padding: 12px !important;
   }
 
-  /* Larger touch targets for notification items on mobile */
+  /* Header stays at top */
+  .dropdown-panel-header {
+    flex-shrink: 0 !important;
+    padding: 14px 16px !important;
+  }
+
+  /* NOTIFICATIONS - vertical list */
   .notif-item {
-    padding: 12px 10px !important;
-    min-height: 50px !important;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: flex-start !important;
+    padding: 12px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    min-height: 52px !important;
   }
 
   .notif-text {
     font-size: 13px !important;
+    line-height: 1.5 !important;
   }
 
-  /* Settings rows easier to tap */
+  .notif-time {
+    font-size: 11px !important;
+  }
+
+  /* SETTINGS - vertical sections */
+  .settings-section {
+    width: 100% !important;
+    padding: 10px 0 !important;
+  }
+
   .settings-row {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between !important;
     padding: 12px 4px !important;
-    min-height: 44px !important;
+    min-height: 48px !important;
+    width: 100% !important;
   }
 
   .settings-row-label {
+    font-size: 14px !important;
+  }
+
+  .settings-select {
     font-size: 13px !important;
+    padding: 8px 12px !important;
   }
 
-  /* Toggle bigger for touch */
   .settings-toggle {
-    width: 48px !important;
-    height: 26px !important;
-  }
-  .settings-toggle-knob {
-    width: 20px !important;
-    height: 20px !important;
-  }
-  .settings-toggle--on .settings-toggle-knob {
-    left: calc(100% - 22px) !important;
+    width: 50px !important;
+    height: 28px !important;
+    flex-shrink: 0 !important;
   }
 
-  /* Save button bigger */
-  .settings-save-btn {
+  .settings-toggle-knob {
+    width: 22px !important;
+    height: 22px !important;
+  }
+
+  .settings-toggle--on .settings-toggle-knob {
+    left: calc(100% - 24px) !important;
+  }
+
+  .settings-danger-btn {
+    width: 100% !important;
     padding: 14px !important;
     font-size: 13px !important;
+    margin-top: 8px !important;
   }
 
-  /* Friends panel on mobile */
+  .settings-save-btn {
+    width: 100% !important;
+    padding: 16px !important;
+    font-size: 14px !important;
+    margin-top: 10px !important;
+  }
+
+  /* FRIENDS - vertical list */
   .friends-panel--dropdown {
     width: 100% !important;
-    max-height: calc(100vh - 100px) !important;
+    max-height: 70vh !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  .friends-tabs {
+    display: flex !important;
+    flex-direction: row !important;  /* tabs stay horizontal */
+    width: 100% !important;
+  }
+
+  .friends-tab {
+    flex: 1 !important;
+    padding: 12px 8px !important;
+    font-size: 11px !important;
+    text-align: center !important;
+  }
+
+  .friends-content {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+    padding: 12px !important;
+    overflow-y: auto !important;
+    flex: 1 !important;
   }
 
   .friend-card {
-    padding: 12px !important;
-    min-height: 60px !important;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    padding: 14px 12px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    min-height: 64px !important;
+  }
+
+  .friend-avatar {
+    width: 44px !important;
+    height: 44px !important;
+    flex-shrink: 0 !important;
   }
 
   .friend-name {
     font-size: 14px !important;
   }
 
-  .friend-avatar {
-    width: 46px !important;
-    height: 46px !important;
+  .friend-level {
+    font-size: 11px !important;
+  }
+
+  .friend-actions {
+    display: flex !important;
+    flex-direction: row !important;
+    gap: 8px !important;
+    flex-shrink: 0 !important;
+  }
+
+  .friend-action-btn {
+    width: 38px !important;
+    height: 38px !important;
+    font-size: 16px !important;
+  }
+
+  .friends-search-box {
+    margin-bottom: 8px !important;
   }
 
   .friends-search-input {
+    width: 100% !important;
+    padding: 14px !important;
     font-size: 14px !important;
-    padding: 12px 14px !important;
+    box-sizing: border-box !important;
   }
 
-  /* Tabs bigger on mobile */
-  .friends-tab {
-    padding: 12px 6px !important;
-    font-size: 12px !important;
+  .friends-empty {
+    padding: 30px 20px !important;
   }
 
-  /* Dropdown header bigger */
-  .dropdown-panel-header {
-    padding: 16px !important;
+  .friends-action-msg {
+    padding: 10px 16px !important;
+    font-size: 13px !important;
   }
 
   .dropdown-panel-title {
@@ -3011,17 +3104,22 @@
     font-size: 20px !important;
     padding: 4px 10px !important;
   }
-
 }
 
-/* Extra small phones */
-@media (max-width: 400px) {
+/* Very small phones */
+@media (max-width: 380px) {
   .friends-dropdown {
-    width: calc(100vw - 16px) !important;
+    left: 8px !important;
+    right: 8px !important;
     top: 65px !important;
   }
 
   .dropdown-panel {
-    max-height: calc(100vh - 80px) !important;
+    max-height: 65vh !important;
+  }
+
+  .friend-name {
+    font-size: 13px !important;
+    max-width: 130px !important;
   }
 }
