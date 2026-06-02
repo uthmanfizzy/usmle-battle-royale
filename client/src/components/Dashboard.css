@@ -329,6 +329,23 @@
   pointer-events: none !important;
 }
 
+/* Ensure all icon buttons are perfectly centered */
+.notification-btn,
+.friends-btn,
+.settings-btn {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  overflow: visible !important;
+}
+
+.notification-btn .header-icon-img,
+.friends-btn .header-icon-img,
+.settings-btn .header-icon-img {
+  object-fit: contain !important;
+  object-position: center !important;
+}
+
 .notification-dot {
   position: absolute;
   top: -2px;
@@ -2192,38 +2209,45 @@
     overflow: visible !important;
   }
 
-  /* BIGGER PROFILE CARD ON MOBILE - increased from 0.62 to 0.85 */
+  /* LARGER PROFILE CARD ON MOBILE - full size, no shrinking */
   .horizontal-profile-card {
-    transform: scale(0.85) !important;
+    zoom: 1.0 !important;          /* full size - no shrinking */
+    transform: none !important;
     transform-origin: top left !important;
-    margin-bottom: -24px !important;
   }
 
+  /* Make avatar bigger */
   .profile-card-avatar {
-    width: 58px !important;
-    height: 58px !important;
-    min-width: 58px !important;
+    width: 64px !important;
+    height: 64px !important;
+    min-width: 64px !important;
   }
 
+  /* Make info panel wider and taller */
   .profile-card-panel {
-    padding: 8px 14px 8px 32px !important;
-    min-width: 160px !important;
+    min-width: 170px !important;
+    max-width: 200px !important;
+    padding: 10px 16px 10px 36px !important;
   }
 
   .profile-card-username {
-    font-size: 15px !important;
+    font-size: 16px !important;
   }
 
   .profile-card-level {
-    font-size: 12px !important;
+    font-size: 13px !important;
+  }
+
+  .profile-card-xp-bar {
+    height: 6px !important;
   }
 
   .profile-card-xp-text {
     font-size: 11px !important;
   }
 
-  .profile-card-xp-bar {
-    height: 5px !important;
+  .profile-card-crown {
+    font-size: 14px !important;
   }
 
   .profile-card-xp-text {
@@ -3177,7 +3201,6 @@
 }
 
 /* Very small phones */
-/* Very small phones */
 @media (max-width: 380px) {
   .friends-dropdown {
     left: 8px !important;
@@ -3196,7 +3219,16 @@
 
   /* Smaller profile card on very small screens */
   .horizontal-profile-card {
-    transform: scale(0.78) !important;
+    zoom: 0.88 !important;
+  }
+
+  .profile-card-panel {
+    min-width: 140px !important;
+    max-width: 160px !important;
+  }
+
+  .profile-card-username {
+    font-size: 14px !important;
   }
 
   /* Slightly smaller bubbles and icons on very small screens */
