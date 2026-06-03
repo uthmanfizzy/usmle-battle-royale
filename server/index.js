@@ -4452,47 +4452,36 @@ app.put('/admin/subjects/:id', adminAuth, async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Database not configured.' });
   const id     = req.params.id;
   const active = !!req.body.active;
+
+  console.log('[Subjects PUT] Request:', { id, active });
+
   try {
-    // First check if table exists and has any data
-    const { data: allSubjects, error: listError } = await supabase.from('subjects').select('id').limit(1);
-    if (listError) {
-      console.error('[Subjects PUT] Table access error:', listError);
-      // Table might not exist - try to seed it
-      console.log('[Subjects PUT] Attempting to seed subjects table...');
-      const { data: seeded, error: seedError } = await supabase.from('subjects').insert(SUBJECT_DEFAULTS).select('id, name, icon, active, min_questions');
-      if (seedError) {
-        console.error('[Subjects PUT] Seed error:', seedError);
-        return res.status(500).json({ error: `Table error: ${seedError.message}. Please run server/supabase-subjects-table.sql in your database.` });
-      }
-      console.log('[Subjects PUT] Seeded', seeded?.length || 0, 'subjects');
-    }
-
-    const { data: existing, error: checkError } = await supabase.from('subjects').select('id').eq('id', id).single();
-    if (checkError && checkError.code !== 'PGRST116') { // PGRST116 = not found
-      console.error('[Subjects PUT] Check error:', checkError);
-      throw checkError;
-    }
-
-    if (existing) {
-      const { data, error } = await supabase.from('subjects').update({ active }).eq('id', id).select('id, name, icon, active, min_questions').single();
-      if (error) {
-        console.error('[Subjects PUT] Update error:', error);
-        throw error;
-      }
-      console.log('[Subjects PUT] Updated subject:', id, 'active:', active);
-      return res.json(data);
-    }
-
-    // Upsert if row missing
+    // Use upsert to handle both insert and update in one operation
     const def = SUBJECT_DEFAULTS.find(s => s.id === id);
-    if (!def) return res.status(404).json({ error: 'Subject not found in defaults' });
+    if (!def) {
+      console.error('[Subjects PUT] Subject not found in defaults:', id);
+      return res.status(404).json({ error: 'Subject not found in defaults' });
+    }
 
-    const { data, error } = await supabase.from('subjects').insert({ ...def, active }).select('id, name, icon, active, min_questions').single();
+    // Upsert: update if exists, insert if not
+    const { data, error } = await supabase
+      .from('subjects')
+      .upsert({ ...def, active }, { onConflict: 'id' })
+      .select('id, name, icon, active, min_questions')
+      .single();
+
     if (error) {
-      console.error('[Subjects PUT] Insert error:', error);
+      console.error('[Subjects PUT] Upsert error:', error);
+      // If table doesn't exist, provide helpful message
+      if (error.code === '42P01' || error.message?.includes('does not exist')) {
+        return res.status(500).json({
+          error: 'Subjects table does not exist. Please run server/supabase-subjects-table.sql in your Supabase database.'
+        });
+      }
       throw error;
     }
-    console.log('[Subjects PUT] Inserted subject:', id, 'active:', active);
+
+    console.log('[Subjects PUT] Success:', { id, active, returned: data });
     res.json(data);
   } catch (err) {
     console.error('[Subjects PUT] Unexpected error:', err);
