@@ -336,14 +336,28 @@
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
+  padding: 0 !important;
   overflow: visible !important;
 }
 
 .notification-btn .header-icon-img,
-.friends-btn .header-icon-img,
-.settings-btn .header-icon-img {
+.friends-btn .header-icon-img {
   object-fit: contain !important;
   object-position: center !important;
+}
+
+/* Settings icon - 1.2x larger (62px instead of 52px), perfectly centered */
+.settings-btn .header-icon-img {
+  width: 62px !important;
+  height: 62px !important;
+  object-fit: contain !important;
+  object-position: center center !important;
+  display: block !important;
+  margin: -15px auto !important;
+  padding: 0 !important;
+  position: relative !important;
+  z-index: 1 !important;
+  transform: none !important;
 }
 
 .notification-dot {
@@ -2313,6 +2327,15 @@
   .header-icon-bubble .header-icon-img {
     width: 30px !important;
     height: 30px !important;
+  }
+
+  /* Settings icon 1.2x larger on mobile (36px instead of 30px) */
+  .settings-btn .header-icon-img {
+    width: 36px !important;
+    height: 36px !important;
+    margin: -3px auto !important;
+    object-fit: contain !important;
+    object-position: center !important;
   }
 
   .header-icon-bubble span {
