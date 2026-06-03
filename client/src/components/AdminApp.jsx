@@ -1173,7 +1173,7 @@ function QuestionsPanel({ subjects = [] }) {
                   key={f.id}
                   className={`ap-folder-btn ${activeFolder === f.id ? 'active' : ''} ap-folder-${f.id === '__images__' ? 'images' : 'buzz-fun'} ${isInactive ? 'ap-folder-inactive' : ''}`}
                   onClick={() => setActiveFolder(f.id)}
-                  style={isInactive ? { opacity: 0.5, filter: 'grayscale(0.5)' } : {}}
+                  style={isInactive ? { opacity: 0.5, filter: 'grayscale(0.5)', cursor: 'pointer' } : {}}
                 >
                   <span className="ap-folder-icon">{f.icon}</span>
                   <span className="ap-folder-label">{f.label}</span>
@@ -1198,8 +1198,8 @@ function QuestionsPanel({ subjects = [] }) {
               <button
                 key={f.id}
                 className={`ap-folder-btn ${activeFolder === f.id ? 'active' : ''} ${f.id !== 'all' ? `ap-folder-${f.id}` : 'ap-folder-all'} ${f.comingSoon ? 'ap-folder-cs' : ''} ${isInactive ? 'ap-folder-inactive' : ''}`}
-                onClick={() => !f.comingSoon && setActiveFolder(f.id)}
-                style={isInactive ? { opacity: 0.5, filter: 'grayscale(0.5)' } : {}}
+                onClick={() => setActiveFolder(f.id)}
+                style={isInactive ? { opacity: 0.5, filter: 'grayscale(0.5)', cursor: 'pointer' } : {}}
               >
                 <span className="ap-folder-icon">{f.icon}</span>
                 <span className="ap-folder-label">{f.label}</span>
