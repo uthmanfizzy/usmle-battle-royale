@@ -40,7 +40,7 @@ const FOLDERS = [
   { id: 'all',              label: 'All Questions',                icon: '🏥', prefix: null,  special: false },
   { id: '__images__',       label: 'Image Questions',              icon: '🖼️', prefix: null,  special: true  },
   { id: 'buzz_fun',         label: 'Buzz Fun',                     icon: '⚡', prefix: 'BF',  special: true  },
-  { id: 'scan_master',      label: 'Scan Master',                  icon: '🔬', prefix: 'SM',  special: false },
+  { id: 'scan_master',      label: 'Scan Master',                  icon: '🔬', prefix: 'SM',  special: true  },
   { id: 'cardiology',       label: 'Cardiology',                   icon: '❤️',  prefix: 'CA',  special: false },
   { id: 'neurology',        label: 'Neurology',                    icon: '🧠', prefix: 'NE',  special: false },
   { id: 'pharmacology',     label: 'Pharmacology',                 icon: '💊', prefix: 'PH',  special: false },
@@ -1158,7 +1158,7 @@ function QuestionsPanel({ subjects = [] }) {
         <aside className="ap-sidebar">
           <div className="ap-sidebar-title">Categories</div>
 
-          {/* Active/available folders */}
+          {/* Active subjects */}
           {FOLDERS.filter(f => {
             if (f.separator || f.special) return false;
             const folderSubject = subjects.find(s =>
@@ -1177,10 +1177,26 @@ function QuestionsPanel({ subjects = [] }) {
             </button>
           ))}
 
-          {/* Coming Soon separator */}
-          <div className="ap-sidebar-separator">Coming Soon</div>
+          {/* Game Modes separator */}
+          <div className="ap-sidebar-separator">Game Modes</div>
 
-          {/* Inactive/coming soon folders */}
+          {/* Game mode folders - special folders excluding __images__ */}
+          {FOLDERS.filter(f => f.special && !f.separator && f.id !== '__images__').map(f => (
+            <button
+              key={f.id}
+              className={`ap-folder-btn ap-folder-gamemode ${activeFolder === f.id ? 'active' : ''}`}
+              onClick={() => setActiveFolder(f.id)}
+            >
+              <span className="ap-folder-icon">{f.icon}</span>
+              <span className="ap-folder-label">{f.label}</span>
+              <span className="ap-folder-count">{folderCounts[f.id] || 0}</span>
+            </button>
+          ))}
+
+          {/* Deactivated separator - renamed from Coming Soon */}
+          <div className="ap-sidebar-separator">Deactivated</div>
+
+          {/* Deactivated subjects */}
           {FOLDERS.filter(f => {
             if (f.separator || f.special) return false;
             const folderSubject = subjects.find(s =>
@@ -1196,23 +1212,7 @@ function QuestionsPanel({ subjects = [] }) {
               <span className="ap-folder-icon">{f.icon}</span>
               <span className="ap-folder-label">{f.label}</span>
               <span className="ap-folder-count">{folderCounts[f.id] || 0}</span>
-              <span className="ap-folder-cs-tag">Soon</span>
-            </button>
-          ))}
-
-          {/* Game Modes separator */}
-          <div className="ap-sidebar-separator">Game Modes</div>
-
-          {/* Game mode folders (special folders) */}
-          {FOLDERS.filter(f => f.special && !f.separator).map(f => (
-            <button
-              key={f.id}
-              className={`ap-folder-btn ap-folder-gamemode ${activeFolder === f.id ? 'active' : ''} ap-folder-${f.id === '__images__' ? 'images' : f.id === 'buzz_fun' ? 'buzz-fun' : f.id}`}
-              onClick={() => setActiveFolder(f.id)}
-            >
-              <span className="ap-folder-icon">{f.icon}</span>
-              <span className="ap-folder-label">{f.label}</span>
-              <span className="ap-folder-count">{folderCounts[f.id] || 0}</span>
+              <span className="ap-folder-cs-tag">Off</span>
             </button>
           ))}
 
