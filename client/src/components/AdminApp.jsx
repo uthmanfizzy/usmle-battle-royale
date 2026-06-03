@@ -810,7 +810,7 @@ function BulkImportModal({ activeFolder, selectedTopic, selectedDifficulty, onIm
 
 // ── Questions Panel ────────────────────────────────────────────────────────────
 
-function QuestionsPanel() {
+function QuestionsPanel({ subjects = [] }) {
   // ─── Data ────────────────────────────────────────────────────────────────────
   const [questions,     setQuestions]     = useState([]);
   const [loading,       setLoading]       = useState(true);
@@ -1158,30 +1158,66 @@ function QuestionsPanel() {
         <aside className="ap-sidebar">
           <div className="ap-sidebar-title">Categories</div>
           {FOLDERS.map(f => {
+            // Check if this folder's subject is inactive
+            const folderSubject = subjects.find(s =>
+              s.id === f.id ||
+              s.name?.toLowerCase() === f.id?.toLowerCase() ||
+              s.id?.toLowerCase() === (f.subject || '').toLowerCase()
+            );
+            const isInactive = folderSubject && !folderSubject.active;
+
             if (f.separator) return <div key={f.id} className="ap-sidebar-separator">Coming Soon</div>;
             if (f.special && (f.id === '__images__' || f.id === 'buzz_fun')) {
               return (
                 <button
                   key={f.id}
-                  className={`ap-folder-btn ${activeFolder === f.id ? 'active' : ''} ap-folder-${f.id === '__images__' ? 'images' : 'buzz-fun'}`}
+                  className={`ap-folder-btn ${activeFolder === f.id ? 'active' : ''} ap-folder-${f.id === '__images__' ? 'images' : 'buzz-fun'} ${isInactive ? 'ap-folder-inactive' : ''}`}
                   onClick={() => setActiveFolder(f.id)}
+                  style={isInactive ? { opacity: 0.5, filter: 'grayscale(0.5)' } : {}}
                 >
                   <span className="ap-folder-icon">{f.icon}</span>
                   <span className="ap-folder-label">{f.label}</span>
                   <span className="ap-folder-count">{folderCounts[f.id] || 0}</span>
+                  {isInactive && (
+                    <span style={{
+                      fontSize: '9px',
+                      padding: '1px 5px',
+                      background: 'rgba(180,60,60,0.3)',
+                      border: '1px solid rgba(180,60,60,0.4)',
+                      borderRadius: '4px',
+                      color: 'rgba(220,100,100,0.9)',
+                      marginLeft: 'auto',
+                      flexShrink: 0,
+                      fontFamily: 'Cinzel, serif'
+                    }}>Inactive</span>
+                  )}
                 </button>
               );
             }
             return (
               <button
                 key={f.id}
-                className={`ap-folder-btn ${activeFolder === f.id ? 'active' : ''} ${f.id !== 'all' ? `ap-folder-${f.id}` : 'ap-folder-all'} ${f.comingSoon ? 'ap-folder-cs' : ''}`}
+                className={`ap-folder-btn ${activeFolder === f.id ? 'active' : ''} ${f.id !== 'all' ? `ap-folder-${f.id}` : 'ap-folder-all'} ${f.comingSoon ? 'ap-folder-cs' : ''} ${isInactive ? 'ap-folder-inactive' : ''}`}
                 onClick={() => !f.comingSoon && setActiveFolder(f.id)}
+                style={isInactive ? { opacity: 0.5, filter: 'grayscale(0.5)' } : {}}
               >
                 <span className="ap-folder-icon">{f.icon}</span>
                 <span className="ap-folder-label">{f.label}</span>
                 <span className="ap-folder-count">{folderCounts[f.id] || 0}</span>
                 {f.comingSoon && <span className="ap-folder-cs-tag">Soon</span>}
+                {!f.comingSoon && isInactive && (
+                  <span style={{
+                    fontSize: '9px',
+                    padding: '1px 5px',
+                    background: 'rgba(180,60,60,0.3)',
+                    border: '1px solid rgba(180,60,60,0.4)',
+                    borderRadius: '4px',
+                    color: 'rgba(220,100,100,0.9)',
+                    marginLeft: 'auto',
+                    flexShrink: 0,
+                    fontFamily: 'Cinzel, serif'
+                  }}>Inactive</span>
+                )}
               </button>
             );
           })}
@@ -2393,8 +2429,7 @@ function SubjectCard({ subject, qCount, onToggle, saving }) {
   );
 }
 
-function SubjectsPanel() {
-  const [subjects,  setSubjects]  = useState([]);
+function SubjectsPanel({ subjects, setSubjects }) {
   const [questions, setQuestions] = useState([]);
   const [loading,   setLoading]   = useState(true);
   const [saving,    setSaving]    = useState({});
@@ -2411,7 +2446,7 @@ function SubjectsPanel() {
       })
       .catch(() => setError('Failed to load data.'))
       .finally(() => setLoading(false));
-  }, []);
+  }, [setSubjects]);
 
   function qCount(subjectId) {
     return questions.filter(q => q.subject === subjectId).length;
@@ -4601,6 +4636,16 @@ function HomePagePanel() {
 export default function AdminApp() {
   const [authed, setAuthed] = useState(() => !!localStorage.getItem(AUTH_KEY));
   const [tab, setTab] = useState('stats');
+  const [sharedSubjects, setSharedSubjects] = useState([]);
+
+  useEffect(() => {
+    if (authed) {
+      apiCall('/api/subjects')
+        .then(r => r.json())
+        .then(data => setSharedSubjects(data.subjects || []))
+        .catch(e => console.error('Failed to load subjects:', e));
+    }
+  }, [authed]);
 
   function logout() {
     localStorage.removeItem(AUTH_KEY);
@@ -4660,8 +4705,8 @@ export default function AdminApp() {
 
       <main className="ap-main">
         {tab === 'stats'         && <StatsPanel />}
-        {tab === 'questions'     && <QuestionsPanel />}
-        {tab === 'subjects'      && <SubjectsPanel />}
+        {tab === 'questions'     && <QuestionsPanel subjects={sharedSubjects} />}
+        {tab === 'subjects'      && <SubjectsPanel subjects={sharedSubjects} setSubjects={setSharedSubjects} />}
         {tab === 'tower'         && <TowerEditorPanel />}
         {tab === 'quests'        && <QuestsPanel />}
         {tab === 'announcements' && <AnnouncementsPanel />}
