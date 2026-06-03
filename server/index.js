@@ -4411,13 +4411,20 @@ app.get('/api/subjects', async (req, res) => {
       .order('name',   { ascending: true  });
 
     if (error) {
-      console.error('[Subjects GET] Error:', error);
-      // If table doesn't exist, try to create and seed it
-      if (error.code === '42P01' || error.message?.includes('does not exist')) {
-        console.log('[Subjects GET] Table does not exist. Please run server/supabase-subjects-table.sql');
-        return res.json({ subjects: SUBJECT_DEFAULTS, warning: 'Subjects table not found in database' });
+      console.error('[Subjects GET] Query error:', error);
+      console.error('[Subjects GET] Error code:', error.code);
+      console.error('[Subjects GET] Error message:', error.message);
+      console.error('[Subjects GET] Error details:', error.details);
+
+      // Only check for actual table not found error (PostgreSQL error code 42P01)
+      if (error.code === '42P01') {
+        console.log('[Subjects GET] Table truly does not exist. Please run server/supabase-subjects-table.sql');
+        return res.json({ subjects: SUBJECT_DEFAULTS, warning: 'Subjects table not found - run SQL migration' });
       }
-      throw error;
+
+      // For other errors (RLS, permissions, etc), log but return defaults
+      console.error('[Subjects GET] Database error (not table missing). Returning defaults.');
+      return res.json({ subjects: SUBJECT_DEFAULTS, warning: `Database error: ${error.message}` });
     }
 
     let list = data || [];
@@ -4472,13 +4479,23 @@ app.put('/admin/subjects/:id', adminAuth, async (req, res) => {
 
     if (error) {
       console.error('[Subjects PUT] Upsert error:', error);
-      // If table doesn't exist, provide helpful message
-      if (error.code === '42P01' || error.message?.includes('does not exist')) {
+      console.error('[Subjects PUT] Error code:', error.code);
+      console.error('[Subjects PUT] Error message:', error.message);
+      console.error('[Subjects PUT] Error details:', error.details);
+
+      // Only check for actual table not found error (PostgreSQL error code 42P01)
+      if (error.code === '42P01') {
         return res.status(500).json({
           error: 'Subjects table does not exist. Please run server/supabase-subjects-table.sql in your Supabase database.'
         });
       }
-      throw error;
+
+      // For other errors, return the actual error message
+      return res.status(500).json({
+        error: error.message || 'Database error',
+        code: error.code,
+        details: error.details
+      });
     }
 
     console.log('[Subjects PUT] Success:', { id, active, returned: data });
