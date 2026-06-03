@@ -1014,6 +1014,49 @@ function QuestionsPanel({ subjects = [] }) {
     setImportModal(false);
   }
 
+  // ─── Export Questions ─────────────────────────────────────────────────────────
+  const handleExportQuestions = () => {
+    try {
+      // Get current filtered questions
+      const questionsToExport = filteredAndSearched;
+
+      if (questionsToExport.length === 0) {
+        alert('No questions to export in current view.');
+        return;
+      }
+
+      // Format to match bulk import format exactly
+      const exportData = questionsToExport.map(q => ({
+        question: q.question,
+        options: q.choices || q.options || [],
+        correct: q.correct || q.answer,
+        explanation: q.explanation || '',
+        subject: q.category || q.subject || '',
+        difficulty: q.difficulty || 'easy',
+        game_modes: q.game_modes || [],
+        image_url: q.image_url || null,
+        topic_id: q.topic_id || null,
+      }));
+
+      // Download as JSON file
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `questions-export-${activeFolder || 'all'}-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      setBulkMsg(`✓ Exported ${exportData.length} question${exportData.length !== 1 ? 's' : ''}`);
+      setTimeout(() => setBulkMsg(''), 3000);
+    } catch(e) {
+      console.error('Export error:', e);
+      alert('Export failed: ' + e.message);
+    }
+  };
+
   // ─── Anki Import Handlers ────────────────────────────────────────────────────
   const handleAnkiPreview = async () => {
     if (!ankiFile) return;
@@ -1516,6 +1559,13 @@ function QuestionsPanel({ subjects = [] }) {
                   {bulkMsg && (
                     <span className={`ap-bulk-msg ${bulkMsg.startsWith('✓') ? 'ok' : 'err'}`}>{bulkMsg}</span>
                   )}
+                  <button
+                    className="ap-btn-sec"
+                    onClick={handleExportQuestions}
+                    title={`Export ${filteredAndSearched.length} question${filteredAndSearched.length !== 1 ? 's' : ''} as JSON`}
+                  >
+                    📤 Export
+                  </button>
                   <button className="ap-btn-sec" onClick={() => setImportModal(true)}>
                     📥 Bulk Import
                   </button>
