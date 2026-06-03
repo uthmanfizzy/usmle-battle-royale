@@ -39,7 +39,8 @@
       "Bash(npx *)",
       "Bash(sort -k5 -rh)",
       "PowerShell(node -e \"const sql = require\\('sql.js'\\); console.log\\('sql.js loaded successfully!'\\);\")",
-      "Bash(curl https://usmle-battle-royale-production.up.railway.app/health)"
+      "Bash(curl https://usmle-battle-royale-production.up.railway.app/health)",
+      "Bash(git checkout *)"
     ]
   }
 }

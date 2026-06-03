@@ -4406,7 +4406,7 @@ app.get('/api/subjects', async (req, res) => {
   try {
     let { data, error } = await supabase
       .from('subjects')
-      .select('id, name, icon, active, min_questions')
+      .select('id, name, icon, active')
       .order('active', { ascending: false })
       .order('name',   { ascending: true  });
 
@@ -4431,7 +4431,7 @@ app.get('/api/subjects', async (req, res) => {
     // Seed on first run
     if (list.length === 0) {
       console.log('[Subjects GET] Table empty, seeding with defaults...');
-      const { data: inserted, error: seedError } = await supabase.from('subjects').insert(SUBJECT_DEFAULTS).select('id, name, icon, active, min_questions');
+      const { data: inserted, error: seedError } = await supabase.from('subjects').insert(SUBJECT_DEFAULTS).select('id, name, icon, active');
       if (seedError) {
         console.error('[Subjects GET] Seed error:', seedError);
         return res.json({ subjects: SUBJECT_DEFAULTS, warning: 'Could not seed subjects table' });
@@ -4444,7 +4444,7 @@ app.get('/api/subjects', async (req, res) => {
       const missing = SUBJECT_DEFAULTS.filter(s => !dbIds.has(s.id));
       if (missing.length) {
         console.log('[Subjects GET] Adding', missing.length, 'missing subjects...');
-        const { data: newRows } = await supabase.from('subjects').insert(missing).select('id, name, icon, active, min_questions');
+        const { data: newRows } = await supabase.from('subjects').insert(missing).select('id, name, icon, active');
         if (newRows) list = [...list, ...newRows];
       }
     }
@@ -4474,7 +4474,7 @@ app.put('/admin/subjects/:id', adminAuth, async (req, res) => {
     const { data, error } = await supabase
       .from('subjects')
       .upsert({ ...def, active }, { onConflict: 'id' })
-      .select('id, name, icon, active, min_questions')
+      .select('id, name, icon, active')
       .single();
 
     if (error) {
