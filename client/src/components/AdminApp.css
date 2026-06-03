@@ -597,6 +597,19 @@
   flex-shrink: 0;
 }
 
+/* Game mode folder buttons */
+.ap-folder-btn.ap-folder-gamemode {
+  border-left: 2px solid rgba(100, 140, 220, 0.4) !important;
+}
+.ap-folder-btn.ap-folder-gamemode:hover {
+  border-left-color: rgba(120, 160, 255, 0.7) !important;
+  color: rgba(150, 190, 255, 0.95);
+}
+.ap-folder-btn.ap-folder-gamemode.active {
+  border-left-color: rgba(150, 190, 255, 0.9) !important;
+  background: rgba(20, 40, 80, 0.5) !important;
+}
+
 /* ── Question Table Area ──────────────────────────────────────────────────── */
 
 .ap-qm-main {
