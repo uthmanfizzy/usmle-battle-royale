@@ -29,7 +29,7 @@
 
 .play-page {
   position: fixed;
-  top: 70px;        /* height of top header bar */
+  top: 58px !important;        /* reduce from 70px - brings content up */
   left: 0;
   right: 0;
   bottom: 56px;     /* 56px party bar (no bottom nav on play page) */
@@ -38,9 +38,11 @@
   gap: 12px !important;
   align-items: start !important;
   align-content: start !important;
-  padding: 12px 16px !important;
+  padding: 8px 16px 0 16px !important;   /* reduce top padding */
   overflow: hidden !important;
   box-sizing: border-box !important;
+  border-top: none !important;
+  border: none !important;
 }
 
 /* LEFT PANEL */
@@ -54,8 +56,8 @@
   scrollbar-color: rgba(180, 140, 40, 0.2) transparent;
   height: 100% !important;
   align-self: stretch !important;
-  border-top: 1px solid rgba(180, 140, 40, 0.2) !important;
-  padding-top: 12px !important;
+  border-top: none !important;
+  padding-top: 0 !important;
   background: rgba(10, 18, 8, 0.95) !important;
   border-radius: 12px !important;
   padding: 12px !important;
@@ -80,7 +82,7 @@
   font-size: 11px;
   letter-spacing: 0.15em;
   color: rgba(200, 165, 60, 0.7);
-  margin: 0 0 8px 0;
+  margin: 0 0 6px 0 !important;
   padding: 0 4px;
 }
 
@@ -277,8 +279,8 @@
   scrollbar-color: rgba(180, 140, 40, 0.2) transparent;
   height: 100% !important;
   align-self: stretch !important;
-  border-top: 1px solid rgba(180, 140, 40, 0.2) !important;
-  padding-top: 12px !important;
+  border-top: none !important;
+  padding-top: 0 !important;
 }
 
 .play-center::-webkit-scrollbar {
@@ -657,8 +659,8 @@
   scrollbar-color: rgba(180, 140, 40, 0.2) transparent;
   height: 100% !important;
   align-self: stretch !important;
-  border-top: 1px solid rgba(180, 140, 40, 0.2) !important;
-  padding-top: 12px !important;
+  border-top: none !important;
+  padding-top: 0 !important;
 }
 
 .play-right::-webkit-scrollbar {
