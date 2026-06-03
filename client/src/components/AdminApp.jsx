@@ -1157,70 +1157,62 @@ function QuestionsPanel({ subjects = [] }) {
         {/* ── Folder Sidebar ───────────────────────────────────────── */}
         <aside className="ap-sidebar">
           <div className="ap-sidebar-title">Categories</div>
-          {FOLDERS.map(f => {
-            // Check if this folder's subject is inactive
-            const folderSubject = subjects.find(s =>
-              s.id === f.id ||
-              s.name?.toLowerCase() === f.id?.toLowerCase() ||
-              s.id?.toLowerCase() === (f.subject || '').toLowerCase()
-            );
-            const isInactive = folderSubject && !folderSubject.active;
 
-            if (f.separator) return <div key={f.id} className="ap-sidebar-separator">Coming Soon</div>;
-            if (f.special && (f.id === '__images__' || f.id === 'buzz_fun')) {
-              return (
-                <button
-                  key={f.id}
-                  className={`ap-folder-btn ${activeFolder === f.id ? 'active' : ''} ap-folder-${f.id === '__images__' ? 'images' : 'buzz-fun'} ${isInactive ? 'ap-folder-inactive' : ''}`}
-                  onClick={() => setActiveFolder(f.id)}
-                  style={isInactive ? { opacity: 0.5, filter: 'grayscale(0.5)', cursor: 'pointer' } : {}}
-                >
-                  <span className="ap-folder-icon">{f.icon}</span>
-                  <span className="ap-folder-label">{f.label}</span>
-                  <span className="ap-folder-count">{folderCounts[f.id] || 0}</span>
-                  {isInactive && (
-                    <span style={{
-                      fontSize: '9px',
-                      padding: '1px 5px',
-                      background: 'rgba(180,60,60,0.3)',
-                      border: '1px solid rgba(180,60,60,0.4)',
-                      borderRadius: '4px',
-                      color: 'rgba(220,100,100,0.9)',
-                      marginLeft: 'auto',
-                      flexShrink: 0,
-                      fontFamily: 'Cinzel, serif'
-                    }}>Inactive</span>
-                  )}
-                </button>
-              );
-            }
-            return (
-              <button
-                key={f.id}
-                className={`ap-folder-btn ${activeFolder === f.id ? 'active' : ''} ${f.id !== 'all' ? `ap-folder-${f.id}` : 'ap-folder-all'} ${f.comingSoon ? 'ap-folder-cs' : ''} ${isInactive ? 'ap-folder-inactive' : ''}`}
-                onClick={() => setActiveFolder(f.id)}
-                style={isInactive ? { opacity: 0.5, filter: 'grayscale(0.5)', cursor: 'pointer' } : {}}
-              >
-                <span className="ap-folder-icon">{f.icon}</span>
-                <span className="ap-folder-label">{f.label}</span>
-                <span className="ap-folder-count">{folderCounts[f.id] || 0}</span>
-                {f.comingSoon && <span className="ap-folder-cs-tag">Soon</span>}
-                {!f.comingSoon && isInactive && (
-                  <span style={{
-                    fontSize: '9px',
-                    padding: '1px 5px',
-                    background: 'rgba(180,60,60,0.3)',
-                    border: '1px solid rgba(180,60,60,0.4)',
-                    borderRadius: '4px',
-                    color: 'rgba(220,100,100,0.9)',
-                    marginLeft: 'auto',
-                    flexShrink: 0,
-                    fontFamily: 'Cinzel, serif'
-                  }}>Inactive</span>
-                )}
-              </button>
+          {/* Active/available folders */}
+          {FOLDERS.filter(f => {
+            if (f.separator || f.special) return false;
+            const folderSubject = subjects.find(s =>
+              s.id === f.id || s.name?.toLowerCase() === f.id?.toLowerCase()
             );
-          })}
+            return folderSubject ? folderSubject.active : !f.comingSoon;
+          }).map(f => (
+            <button
+              key={f.id}
+              className={`ap-folder-btn ${activeFolder === f.id ? 'active' : ''} ${f.id !== 'all' ? `ap-folder-${f.id}` : 'ap-folder-all'}`}
+              onClick={() => setActiveFolder(f.id)}
+            >
+              <span className="ap-folder-icon">{f.icon}</span>
+              <span className="ap-folder-label">{f.label}</span>
+              <span className="ap-folder-count">{folderCounts[f.id] || 0}</span>
+            </button>
+          ))}
+
+          {/* Special folders (images, buzz_fun) */}
+          {FOLDERS.filter(f => f.special && (f.id === '__images__' || f.id === 'buzz_fun')).map(f => (
+            <button
+              key={f.id}
+              className={`ap-folder-btn ${activeFolder === f.id ? 'active' : ''} ap-folder-${f.id === '__images__' ? 'images' : 'buzz-fun'}`}
+              onClick={() => setActiveFolder(f.id)}
+            >
+              <span className="ap-folder-icon">{f.icon}</span>
+              <span className="ap-folder-label">{f.label}</span>
+              <span className="ap-folder-count">{folderCounts[f.id] || 0}</span>
+            </button>
+          ))}
+
+          {/* Coming Soon separator */}
+          <div className="ap-sidebar-separator">Coming Soon</div>
+
+          {/* Inactive/coming soon folders */}
+          {FOLDERS.filter(f => {
+            if (f.separator || f.special) return false;
+            const folderSubject = subjects.find(s =>
+              s.id === f.id || s.name?.toLowerCase() === f.id?.toLowerCase()
+            );
+            return folderSubject ? !folderSubject.active : f.comingSoon;
+          }).map(f => (
+            <button
+              key={f.id}
+              className={`ap-folder-btn ap-folder-cs ${activeFolder === f.id ? 'active' : ''} ${f.id !== 'all' ? `ap-folder-${f.id}` : 'ap-folder-all'}`}
+              onClick={() => setActiveFolder(f.id)}
+            >
+              <span className="ap-folder-icon">{f.icon}</span>
+              <span className="ap-folder-label">{f.label}</span>
+              <span className="ap-folder-count">{folderCounts[f.id] || 0}</span>
+              <span className="ap-folder-cs-tag">Soon</span>
+            </button>
+          ))}
+
         </aside>
 
         {/* ── Main Content ─────────────────────────────────────────── */}
