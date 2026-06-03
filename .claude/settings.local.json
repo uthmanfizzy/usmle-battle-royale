@@ -40,7 +40,8 @@
       "Bash(sort -k5 -rh)",
       "PowerShell(node -e \"const sql = require\\('sql.js'\\); console.log\\('sql.js loaded successfully!'\\);\")",
       "Bash(curl https://usmle-battle-royale-production.up.railway.app/health)",
-      "Bash(git checkout *)"
+      "Bash(git checkout *)",
+      "Bash(grep -n -B2 -A25 \"app.put.*admin/subjects\\\\|app.put.*\\\\/subjects\" server/index.js)"
     ]
   }
 }

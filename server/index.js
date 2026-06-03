@@ -4401,6 +4401,27 @@ const SUBJECT_DEFAULTS = [
   { id: 'anatomy',          name: 'Anatomy',                     icon: '🫀', active: false },
 ];
 
+// Seed subjects on startup
+const seedSubjects = async () => {
+  if (!supabase) return;
+  try {
+    const { data: existing } = await supabase.from('subjects').select('id').limit(1);
+    // Only seed if table is accessible and empty
+    if (existing !== null && existing.length === 0) {
+      console.log('[Subjects] Table empty, seeding subjects...');
+      for (const subject of SUBJECT_DEFAULTS) {
+        await supabase
+          .from('subjects')
+          .upsert(subject, { onConflict: 'id' });
+      }
+      console.log('[Subjects] Seeded', SUBJECT_DEFAULTS.length, 'subjects');
+    }
+  } catch(e) {
+    console.error('[Subjects] Seed error:', e.message);
+  }
+};
+seedSubjects();
+
 app.get('/api/subjects', async (req, res) => {
   if (!supabase) return res.json({ subjects: SUBJECT_DEFAULTS });
   try {
