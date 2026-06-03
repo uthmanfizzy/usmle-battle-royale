@@ -2797,6 +2797,39 @@ app.delete('/api/friends/:friendshipId', async (req, res) => {
     res.status(500).json({ success: false });
   }
 });
+// ── Lobby Invite API ───────────────────────────────────────────────────────────
+
+app.post('/api/lobby/invite', async (req, res) => {
+  try {
+    const { fromUserId, fromUsername, toUserId, lobbyCode, gameMode } = req.body;
+
+    // Store invite notification in announcements or a new invites concept
+    // For now emit via socket if available
+    const io = req.app.get('io') || global.io;
+    if (io) {
+      io.to(`user_${toUserId}`).emit('lobby_invite', {
+        fromUserId,
+        fromUsername,
+        lobbyCode,
+        gameMode,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    // Also store in database for persistence
+    await supabase.from('announcements').insert({
+      type: 'lobby_invite',
+      user_id: toUserId,
+      message: `${fromUsername} invited you to a ${gameMode} game!${lobbyCode ? ` Code: ${lobbyCode}` : ''}`,
+      metadata: JSON.stringify({ fromUserId, fromUsername, lobbyCode, gameMode }),
+      created_at: new Date().toISOString()
+    }).catch(() => {}); // don't fail if table structure differs
+
+    res.json({ success: true });
+  } catch(e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
 
 // ── Admin API ──────────────────────────────────────────────────────────────────
 

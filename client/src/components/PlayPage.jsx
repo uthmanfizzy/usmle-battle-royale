@@ -355,6 +355,11 @@ export default function PlayPage({
   const [playBgImage, setPlayBgImage] = useState('');
   const [lobbyCode, setLobbyCode] = useState('');
   const [joinError, setJoinError] = useState('');
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [onlineFriends, setOnlineFriends] = useState([]);
+  const [recentPlayersOnline, setRecentPlayersOnline] = useState([]);
+  const [loadingInvites, setLoadingInvites] = useState(false);
+  const [inviteSent, setInviteSent] = useState({});
 
   const selectedModeData = GAME_MODES.find(m => m.id === selectedMode) || GAME_MODES[0];
 
@@ -480,6 +485,49 @@ export default function PlayPage({
       step: selectedStep,
     });
   }
+
+  const fetchOnlinePlayers = async () => {
+    setLoadingInvites(true);
+    try {
+      const [friendsRes, recentRes] = await Promise.all([
+        fetch(`${SERVER_URL}/api/friends/${user?.id}`),
+        fetch(`${SERVER_URL}/api/players/recent/${user?.id}`)
+      ]);
+      const friendsData = await friendsRes.json();
+      const recentData = await recentRes.json().catch(() => []);
+
+      // Filter to only online friends
+      const online = (friendsData || []).filter(f => f.status === 'online' || f.is_online);
+      setOnlineFriends(online);
+      setRecentPlayersOnline((recentData || []).filter(p => p.status === 'online' || p.is_online));
+    } catch(e) {
+      console.error('fetchOnlinePlayers error:', e);
+    }
+    setLoadingInvites(false);
+  };
+
+  const handleInviteClick = () => {
+    setShowInviteModal(true);
+    fetchOnlinePlayers();
+  };
+
+  const handleSendInvite = async (playerId, playerName) => {
+    try {
+      await fetch(`${SERVER_URL}/api/lobby/invite`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fromUserId: user?.id,
+          fromUsername: user?.username,
+          toUserId: playerId,
+          lobbyCode: lobbyState?.code || null,
+          gameMode: selectedMode
+        })
+      });
+      setInviteSent(prev => ({ ...prev, [playerId]: true }));
+      setTimeout(() => setInviteSent(prev => ({ ...prev, [playerId]: false })), 3000);
+    } catch(e) { console.error(e); }
+  };
 
   function handleStartTraining(config) {
     console.log('handleStartTraining called with:', config);
@@ -870,7 +918,7 @@ export default function PlayPage({
               <span className="leader-tag">Leader</span>
             </div>
             {[1, 2, 3].map(i => (
-              <div className="party-member" key={i}>
+              <div className="party-member" key={i} onClick={handleInviteClick} style={{ cursor: 'pointer' }}>
                 <div className="party-invite-btn">+</div>
                 <span className="party-name">Invite</span>
               </div>
@@ -981,6 +1029,84 @@ export default function PlayPage({
               )}
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* INVITE MODAL */}
+      {showInviteModal && (
+        <div className="invite-modal-overlay" onClick={e => e.target === e.currentTarget && setShowInviteModal(false)}>
+          <div className="invite-modal">
+            <div className="invite-modal-header">
+              <h3>Invite to Game</h3>
+              <button className="invite-modal-close" onClick={() => setShowInviteModal(false)}>✕</button>
+            </div>
+
+            {loadingInvites ? (
+              <div className="invite-loading">Loading players...</div>
+            ) : (
+              <div className="invite-modal-content">
+
+                {/* Online Friends */}
+                <div className="invite-section">
+                  <p className="invite-section-label">👥 FRIENDS ONLINE</p>
+                  {onlineFriends.length === 0 ? (
+                    <p className="invite-empty">No friends currently online</p>
+                  ) : (
+                    onlineFriends.map(friend => (
+                      <div className="invite-player-row" key={friend.id}>
+                        <div className="invite-player-avatar">
+                          {friend.avatar_url
+                            ? <img src={friend.avatar_url} alt={friend.username} />
+                            : <span>{friend.username?.[0]?.toUpperCase()}</span>
+                          }
+                        </div>
+                        <div className="invite-player-info">
+                          <span className="invite-player-name">{friend.username}</span>
+                          <span className="invite-player-status">🟢 Online</span>
+                        </div>
+                        <button
+                          className={`invite-send-btn ${inviteSent[friend.id] ? 'invite-send-btn--sent' : ''}`}
+                          onClick={() => handleSendInvite(friend.id, friend.username)}
+                          disabled={inviteSent[friend.id]}
+                        >
+                          {inviteSent[friend.id] ? '✓ Sent!' : '⚔️ Invite'}
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                {/* Recent Players Online */}
+                {recentPlayersOnline.length > 0 && (
+                  <div className="invite-section">
+                    <p className="invite-section-label">🕐 RECENT PLAYERS ONLINE</p>
+                    {recentPlayersOnline.map(player => (
+                      <div className="invite-player-row" key={player.id}>
+                        <div className="invite-player-avatar">
+                          {player.avatar_url
+                            ? <img src={player.avatar_url} alt={player.username} />
+                            : <span>{player.username?.[0]?.toUpperCase()}</span>
+                          }
+                        </div>
+                        <div className="invite-player-info">
+                          <span className="invite-player-name">{player.username}</span>
+                          <span className="invite-player-status">🟢 Online</span>
+                        </div>
+                        <button
+                          className={`invite-send-btn ${inviteSent[player.id] ? 'invite-send-btn--sent' : ''}`}
+                          onClick={() => handleSendInvite(player.id, player.username)}
+                          disabled={inviteSent[player.id]}
+                        >
+                          {inviteSent[player.id] ? '✓ Sent!' : '⚔️ Invite'}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+              </div>
+            )}
           </div>
         </div>
       )}
