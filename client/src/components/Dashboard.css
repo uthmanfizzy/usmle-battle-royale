@@ -353,7 +353,7 @@
   object-fit: contain !important;
   object-position: center center !important;
   display: block !important;
-  margin: -15px auto !important;
+  margin: -15px !important;
   padding: 0 !important;
   position: relative !important;
   z-index: 1 !important;
@@ -2333,7 +2333,7 @@
   .settings-btn .header-icon-img {
     width: 36px !important;
     height: 36px !important;
-    margin: -3px auto !important;
+    margin: -3px !important;
     object-fit: contain !important;
     object-position: center !important;
   }
