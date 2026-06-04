@@ -3259,3 +3259,31 @@
     margin: -4px !important;
   }
 }
+
+/* NUCLEAR OVERRIDE - must be at bottom of file */
+.settings-btn img,
+.settings-btn .header-icon-img,
+button.settings-btn img,
+.header-icon-bubble.settings-btn img,
+.header-icon-bubble.settings-btn .header-icon-img {
+  width: 52px !important;
+  height: 52px !important;
+  min-width: 52px !important;
+  min-height: 52px !important;
+  max-width: 52px !important;
+  max-height: 52px !important;
+  object-fit: contain !important;
+  position: static !important;
+  transform: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  display: block !important;
+  flex-shrink: 0 !important;
+}
+
+.header-icon-bubble.settings-btn {
+  width: 64px !important;
+  height: 64px !important;
+  min-width: 64px !important;
+  min-height: 64px !important;
+}
