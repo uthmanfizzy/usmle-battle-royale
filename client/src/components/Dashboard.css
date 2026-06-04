@@ -3282,8 +3282,8 @@ button.settings-btn img,
 }
 
 .header-icon-bubble.settings-btn {
-  width: 64px !important;
-  height: 64px !important;
-  min-width: 64px !important;
-  min-height: 64px !important;
+  width: 90px !important;
+  height: 90px !important;
+  min-width: 90px !important;
+  min-height: 90px !important;
 }
