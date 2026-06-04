@@ -796,6 +796,25 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
       .catch(() => {});
   }, []);
 
+  // DEBUG: Log settings button positioning
+  useEffect(() => {
+    setTimeout(() => {
+      const btn = document.querySelector('.settings-btn');
+      const img = document.querySelector('.settings-btn img');
+      console.log('=== SETTINGS BUTTON DEBUG ===');
+      console.log('Button rect:', btn?.getBoundingClientRect());
+      console.log('Image rect:', img?.getBoundingClientRect());
+      console.log('Button computed style:', btn ? window.getComputedStyle(btn).position : null);
+      console.log('Image computed style:', img ? {
+        position: window.getComputedStyle(img).position,
+        top: window.getComputedStyle(img).top,
+        left: window.getComputedStyle(img).left,
+        transform: window.getComputedStyle(img).transform,
+        margin: window.getComputedStyle(img).margin
+      } : null);
+    }, 1000);
+  }, []);
+
   function handleAnnouncementsTab() {
     setDashTab('announcements');
     setUnreadCount(0);
