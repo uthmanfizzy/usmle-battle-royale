@@ -338,6 +338,7 @@
   justify-content: center !important;
   padding: 0 !important;
   overflow: visible !important;
+  position: relative !important;
 }
 
 .notification-btn .header-icon-img,
@@ -352,12 +353,14 @@
   height: 62px !important;
   object-fit: contain !important;
   object-position: center center !important;
-  display: block !important;
-  margin: -15px !important;
+  position: absolute !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  margin: 0 !important;
   padding: 0 !important;
-  position: relative !important;
   z-index: 1 !important;
-  transform: none !important;
+  pointer-events: none !important;
 }
 
 .notification-dot {
@@ -2330,10 +2333,19 @@
   }
 
   /* Settings icon 1.2x larger on mobile (36px instead of 30px) */
+  .settings-btn {
+    position: relative !important;
+    overflow: visible !important;
+  }
+
   .settings-btn .header-icon-img {
-    width: 36px !important;
-    height: 36px !important;
-    margin: -3px !important;
+    width: 44px !important;
+    height: 44px !important;
+    position: absolute !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    margin: 0 !important;
     object-fit: contain !important;
     object-position: center !important;
   }
