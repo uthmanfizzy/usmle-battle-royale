@@ -238,8 +238,8 @@
 }
 
 .currency-icon {
-  width: 48px !important;
-  height: 48px !important;
+  width: 54px !important;
+  height: 54px !important;
   min-width: 48px !important;
   object-fit: contain !important;
   padding: 0 !important;
@@ -340,8 +340,8 @@
 
 /* Settings icon - smaller than bubble so flex centers it */
 .settings-btn .header-icon-img {
-  width: 48px !important;
-  height: 48px !important;
+  width: 54px !important;
+  height: 54px !important;
   object-fit: contain !important;
   position: static !important;
   transform: none !important;
@@ -1074,8 +1074,8 @@
 
 /* Leaderboards icon is smaller (reduced by 1.5x) */
 .nav-icon--leaderboards {
-  width: 48px !important;
-  height: 48px !important;
+  width: 54px !important;
+  height: 54px !important;
   margin: -8px 0 !important;
 }
 

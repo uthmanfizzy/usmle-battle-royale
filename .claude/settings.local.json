@@ -41,7 +41,10 @@
       "PowerShell(node -e \"const sql = require\\('sql.js'\\); console.log\\('sql.js loaded successfully!'\\);\")",
       "Bash(curl https://usmle-battle-royale-production.up.railway.app/health)",
       "Bash(git checkout *)",
-      "Bash(grep -n -B2 -A25 \"app.put.*admin/subjects\\\\|app.put.*\\\\/subjects\" server/index.js)"
+      "Bash(grep -n -B2 -A25 \"app.put.*admin/subjects\\\\|app.put.*\\\\/subjects\" server/index.js)",
+      "Bash(sed -i '2324s/48px/48px/' client/src/components/Dashboard.css)",
+      "Bash(sed -i '2325s/48px/48px/' client/src/components/Dashboard.css)",
+      "PowerShell(Set-Content *)"
     ]
   }
 }
