@@ -332,32 +332,22 @@
 /* Ensure all icon buttons are perfectly centered */
 .notification-btn,
 .friends-btn,
-.settings-btn {
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  padding: 0 !important;
-  overflow: visible !important;
-  position: relative !important;
-}
-
 .notification-btn .header-icon-img,
 .friends-btn .header-icon-img {
   object-fit: contain !important;
   object-position: center !important;
 }
 
-/* Settings icon - 1.2x larger (62px instead of 52px), centered by flex */
+/* Settings icon - smaller than bubble so flex centers it */
 .settings-btn .header-icon-img {
-  width: 62px !important;
-  height: 62px !important;
+  width: 36px !important;
+  height: 36px !important;
   object-fit: contain !important;
   position: static !important;
   transform: none !important;
   margin: 0 !important;
   padding: 0 !important;
   display: block !important;
-  flex-shrink: 0 !important;
 }
 
 .notification-dot {
@@ -2329,14 +2319,16 @@
     height: 30px !important;
   }
 
-  /* Settings icon 1.2x larger on mobile - centered by flex */
+  /* Settings icon - smaller than bubble so flex centers it */
   .settings-btn .header-icon-img {
-    width: 44px !important;
-    height: 44px !important;
+    width: 36px !important;
+    height: 36px !important;
     object-fit: contain !important;
     position: static !important;
     transform: none !important;
     margin: 0 !important;
+    padding: 0 !important;
+    display: block !important;
   }
 
   .header-icon-bubble span {
