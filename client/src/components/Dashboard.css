@@ -285,8 +285,8 @@
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  width: 52px !important;
-  height: 52px !important;
+  width: 58px !important;
+  height: 58px !important;
   background: rgba(20, 30, 40, 0.45) !important;
   backdrop-filter: blur(6px) !important;
   -webkit-backdrop-filter: blur(6px) !important;
@@ -340,8 +340,8 @@
 
 /* Settings icon - smaller than bubble so flex centers it */
 .settings-btn .header-icon-img {
-  width: 42px !important;
-  height: 42px !important;
+  width: 48px !important;
+  height: 48px !important;
   object-fit: contain !important;
   position: static !important;
   transform: none !important;
@@ -2310,8 +2310,8 @@
   }
 
   .header-icon-bubble {
-    width: 46px !important;
-    height: 46px !important;
+    width: 52px !important;
+    height: 52px !important;
   }
 
   .header-icon-bubble .header-icon-img {
@@ -2321,8 +2321,8 @@
 
   /* Settings icon - smaller than bubble so flex centers it */
   .settings-btn .header-icon-img {
-    width: 42px !important;
-    height: 42px !important;
+    width: 48px !important;
+    height: 48px !important;
     object-fit: contain !important;
     position: static !important;
     transform: none !important;
