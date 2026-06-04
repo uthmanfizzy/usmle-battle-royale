@@ -884,7 +884,13 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
                   title="Settings"
                 >
                   {homeImages.icon_settings ? (
-                    <img loading="lazy" src={homeImages.icon_settings} alt="Settings" className="header-icon-img" />
+                    <img
+                      loading="lazy"
+                      src={homeImages.icon_settings}
+                      alt="Settings"
+                      className="header-icon-img"
+                      style={{width:'52px', height:'52px', minWidth:'52px', minHeight:'52px', position:'static', margin:'0', display:'block'}}
+                    />
                   ) : (
                     <span>⚙️</span>
                   )}
