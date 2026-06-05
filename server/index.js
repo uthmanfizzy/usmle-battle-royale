@@ -3126,6 +3126,9 @@ app.post('/admin/questions/bulk', adminAuth, async (req, res) => {
     // Use provided explanation or empty string
     const explanation = raw.explanation || raw.rationale || '';
 
+    // Use provided why_others_wrong or empty string
+    const why_others_wrong = raw.why_others_wrong || raw.whyOthersWrong || raw.why_wrong || '';
+
     // Generate question_id if not provided
     const questionId = raw.question_id || raw.id || nextQuestionId(subject);
 
@@ -3134,7 +3137,28 @@ app.post('/admin/questions/bulk', adminAuth, async (req, res) => {
       ? raw.game_modes
       : (raw.image_url ? ['scan_master'] : ['battle_royale', 'speed_race', 'trivia_pursuit']);
 
-    console.log(`[bulk-import] Q${i + 1} Normalized: category=${subject}, difficulty=${difficulty}, options=${options.length}, correct=${correct}, questionId=${questionId}`);
+    // Look up topic_id from topic name if provided
+    let resolvedTopicId = topic_id || raw.topic_id || null;
+    const topicName = raw.topic || raw.folder;
+    if (topicName && !resolvedTopicId) {
+      try {
+        const { data: topicData } = await supabase
+          .from('topics')
+          .select('id')
+          .ilike('name', topicName)
+          .maybeSingle();
+        if (topicData) {
+          resolvedTopicId = topicData.id;
+          console.log(`[bulk-import] Q${i + 1} Found topic by name "${topicName}": ${resolvedTopicId}`);
+        } else {
+          console.log(`[bulk-import] Q${i + 1} Topic "${topicName}" not found in topics table`);
+        }
+      } catch (err) {
+        console.log(`[bulk-import] Q${i + 1} Topic lookup error: ${err.message}`);
+      }
+    }
+
+    console.log(`[bulk-import] Q${i + 1} Normalized: category=${subject}, difficulty=${difficulty}, options=${options.length}, correct=${correct}, questionId=${questionId}, topic_id=${resolvedTopicId || 'none'}`);
 
     // Build record for Supabase
     const record = {
@@ -3143,13 +3167,14 @@ app.post('/admin/questions/bulk', adminAuth, async (req, res) => {
       choices: options,
       correct: correct,
       explanation: explanation,
+      why_others_wrong: why_others_wrong || null,
       category: subject,
       difficulty: difficulty,
       game_modes: gameModes,
       image_url: raw.image_url || null,
       tower_floor: (raw.tower_floor != null && !isNaN(parseInt(raw.tower_floor))) ? parseInt(raw.tower_floor) : null,
       buzz_type: (raw.buzz_type && gameModes.includes('buzz_fun')) ? raw.buzz_type : null,
-      topic_id: topic_id || raw.topic_id || null,
+      topic_id: resolvedTopicId,
     };
 
     try {
@@ -3169,10 +3194,11 @@ app.post('/admin/questions/bulk', adminAuth, async (req, res) => {
             choices: options,
             correct: correct,
             explanation: explanation,
+            why_others_wrong: record.why_others_wrong,
             category: subject,
             difficulty: difficulty,
             game_modes: gameModes,
-            topic_id: topic_id || raw.topic_id || null,
+            topic_id: resolvedTopicId,
             image_url: raw.image_url || null,
             updated_at: new Date().toISOString(),
           })
