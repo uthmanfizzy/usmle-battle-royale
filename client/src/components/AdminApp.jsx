@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import './AdminApp.css';
 import PlayPageAdmin from './admin/PlayPageAdmin';
 import AnKingAdmin from './admin/AnKingAdmin';
@@ -4690,6 +4690,40 @@ function HomePagePanel() {
   );
 }
 
+// ── Error Boundary ─────────────────────────────────────────────────────────────
+
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error, info) {
+    console.error('QuestionsPanel crashed:', error, info);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{padding:'40px', color:'white', background:'#1a1a1a', minHeight:'400px'}}>
+          <h2 style={{color:'red'}}>Question Manager Error</h2>
+          <pre style={{color:'orange', fontSize:'12px', whiteSpace:'pre-wrap'}}>
+            {this.state.error?.toString()}
+          </pre>
+          <button
+            onClick={() => this.setState({ hasError: false, error: null })}
+            style={{marginTop:'20px', padding:'10px 20px', cursor:'pointer'}}
+          >
+            Try Again
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 // ── Root Admin App ─────────────────────────────────────────────────────────────
 
 export default function AdminApp() {
@@ -4764,7 +4798,11 @@ export default function AdminApp() {
 
       <main className="ap-main">
         {tab === 'stats'         && <StatsPanel />}
-        {tab === 'questions'     && <QuestionsPanel subjects={sharedSubjects} />}
+        {tab === 'questions'     && (
+          <ErrorBoundary>
+            <QuestionsPanel subjects={sharedSubjects} />
+          </ErrorBoundary>
+        )}
         {tab === 'subjects'      && <SubjectsPanel subjects={sharedSubjects} setSubjects={setSharedSubjects} />}
         {tab === 'tower'         && <TowerEditorPanel />}
         {tab === 'quests'        && <QuestsPanel />}
