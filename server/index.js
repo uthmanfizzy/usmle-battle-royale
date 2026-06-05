@@ -3107,9 +3107,10 @@ app.post('/admin/questions/bulk', adminAuth, async (req, res) => {
       continue;
     }
 
-    // Normalize category - use provided or fall back to default or 'general'
-    let subject = raw.subject || raw.category || defaultCategory || 'general';
-    subject = subject.toLowerCase().trim();
+    // Normalize category - use provided, fall back to passed default, or use 'general'
+    // Category is fully optional - if admin is importing into a specific folder, use that
+    let subject = raw.category || raw.subject || defaultCategory || 'general';
+    if (subject) subject = subject.toLowerCase().trim();
 
     // Get options from either field name, accept any array length
     const rawOptions = raw.options || raw.choices || [];
@@ -3150,8 +3151,9 @@ app.post('/admin/questions/bulk', adminAuth, async (req, res) => {
       ? raw.game_modes
       : (raw.image_url ? ['scan_master'] : ['battle_royale', 'speed_race', 'trivia_pursuit']);
 
-    // Look up topic_id from topic name if provided
-    let resolvedTopicId = topic_id || raw.topic_id || null;
+    // Look up topic_id from topic name if provided, otherwise use passed topic_id from context
+    // Topic is optional - admin selects folder/topic in UI before importing
+    let resolvedTopicId = raw.topic_id || topic_id || null;
     const topicName = raw.topic || raw.folder;
     if (topicName && !resolvedTopicId) {
       try {
@@ -3169,9 +3171,11 @@ app.post('/admin/questions/bulk', adminAuth, async (req, res) => {
       } catch (err) {
         console.log(`[bulk-import] Q${i + 1} Topic lookup error: ${err.message}`);
       }
+    } else if (topic_id && !raw.topic_id && !topicName) {
+      console.log(`[bulk-import] Q${i + 1} Using topic_id from import context: ${topic_id}`);
     }
 
-    console.log(`[bulk-import] Q${i + 1} Normalized: category=${subject}, difficulty=${difficulty}, options=${options.length}, correct=${correct}, questionId=${questionId}, topic_id=${resolvedTopicId || 'none'}`);
+    console.log(`[bulk-import] Q${i + 1} Normalized: category=${subject}${raw.category || raw.subject ? '' : ' (from context)'}, difficulty=${difficulty}, options=${options.length}, correct=${correct.substring(0, 30)}..., questionId=${questionId}, topic_id=${resolvedTopicId || 'none'}`);
 
     // Build record for Supabase
     const record = {
