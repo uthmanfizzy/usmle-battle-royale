@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import './AdminApp.css';
 import PlayPageAdmin from './admin/PlayPageAdmin';
 import AnKingAdmin from './admin/AnKingAdmin';
+import { parseRichText } from '../utils/parseRichText';
 
 const API = 'https://usmle-battle-royale-production.up.railway.app';
 const AUTH_KEY = 'usmle_admin_session';
@@ -475,6 +476,17 @@ function QuestionModal({ question, defaultSubject = 'cardiology', onSave, onClos
               placeholder="Explain why the correct answer is correct…"
               required
             />
+            <div className="rich-text-guide">
+              <p>Formatting: <code>**bold**</code> | <code>*italic*</code> | <code>__underline__</code> | <code>[red]text[/red]</code> | <code>[blue]text[/blue]</code> | <code>[green]text[/green]</code> | <code>[gold]text[/gold]</code> | <code>[orange]text[/orange]</code> | <code>[purple]text[/purple]</code></p>
+            </div>
+            {form.explanation && (
+              <div className="explanation-preview">
+                <p className="explanation-preview-label">Preview:</p>
+                <div className="explanation-rich explanation-preview-box">
+                  {parseRichText(form.explanation)}
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="ap-field">
