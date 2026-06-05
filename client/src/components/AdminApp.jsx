@@ -1018,7 +1018,7 @@ function QuestionsPanel({ subjects = [] }) {
   const handleExportQuestions = () => {
     try {
       // Get current filtered questions
-      const questionsToExport = filteredAndSearched;
+      const questionsToExport = filtered;
 
       if (questionsToExport.length === 0) {
         alert('No questions to export in current view.');
@@ -1576,7 +1576,7 @@ function QuestionsPanel({ subjects = [] }) {
                   <button
                     className="ap-btn-sec"
                     onClick={handleExportQuestions}
-                    title={`Export ${filteredAndSearched.length} question${filteredAndSearched.length !== 1 ? 's' : ''} as JSON`}
+                    title={`Export ${filtered.length} question${filtered.length !== 1 ? 's' : ''} as JSON`}
                   >
                     📤 Export
                   </button>
