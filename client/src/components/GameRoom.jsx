@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import PowerupBar from './PowerupBar';
 import ExplanationText from './ExplanationText';
+import { parseRichText } from '../utils/parseRichText';
 import Calculator from './Calculator';
 
 const LABELS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
@@ -320,6 +321,18 @@ function RoundResult({ answerResult, roundResults, isAlive }) {
         <strong>Correct answer: {roundResults.correctAnswer}</strong>
         <ExplanationText text={roundResults.explanation} />
       </div>
+
+      {roundResults.why_others_wrong && (
+        <div className="why-wrong-box">
+          <div className="why-wrong-header">
+            <span className="why-wrong-icon">❌</span>
+            <h4 className="why-wrong-title">Why Are The Other Options Wrong?</h4>
+          </div>
+          <div className="explanation-rich why-wrong-content">
+            {parseRichText(roundResults.why_others_wrong)}
+          </div>
+        </div>
+      )}
 
       {roundResults.eliminated?.length > 0 && (
         <p className="rr-eliminated">

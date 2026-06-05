@@ -3749,7 +3749,7 @@ app.post('/admin/game-mode-image', adminAuth, async (req, res) => {
 app.post('/admin/questions', adminAuth, async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Supabase not configured. Cannot save questions.' });
 
-  const { subject, difficulty, question, options, correct, explanation, image_url, game_modes, tower_floor, buzz_type, topic_id } = req.body;
+  const { subject, difficulty, question, options, correct, explanation, why_others_wrong, image_url, game_modes, tower_floor, buzz_type, topic_id } = req.body;
   if (!subject || !question || !Array.isArray(options) || options.length < 2 || options.length > 10 || !correct || !explanation)
     return res.status(400).json({ error: 'Missing required fields (options must be array of 2-10)' });
 
@@ -3762,6 +3762,7 @@ app.post('/admin/questions', adminAuth, async (req, res) => {
     choices: options,
     correct,
     explanation,
+    why_others_wrong: why_others_wrong || null,
     category: subject,
     difficulty: difficulty || 'easy',
     game_modes: gameModes,
@@ -3784,6 +3785,7 @@ app.post('/admin/questions', adminAuth, async (req, res) => {
       options,
       correct,
       explanation,
+      why_others_wrong: record.why_others_wrong || undefined,
       game_modes: gameModes,
       image_url: record.image_url || undefined,
       tower_floor: record.tower_floor || undefined,
@@ -3814,6 +3816,7 @@ app.put('/admin/questions/:id', adminAuth, async (req, res) => {
     choices: updated.options,
     correct: updated.correct,
     explanation: updated.explanation,
+    why_others_wrong: updated.why_others_wrong || null,
     category: updated.subject,
     difficulty: updated.difficulty || 'easy',
     game_modes: updated.game_modes || ['battle_royale', 'speed_race', 'trivia_pursuit'],

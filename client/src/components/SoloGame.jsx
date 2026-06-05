@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useGameSettings } from '../contexts/GameSettingsContext';
 import * as audio from '../audio';
 import ExplanationText from './ExplanationText';
+import { parseRichText } from '../utils/parseRichText';
 import Calculator from './Calculator';
 
 const LABELS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
@@ -345,6 +346,17 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
               <strong>Correct answer: {q.correct}</strong>
               <ExplanationText text={q.explanation} />
             </div>
+            {q.why_others_wrong && (
+              <div className="why-wrong-box">
+                <div className="why-wrong-header">
+                  <span className="why-wrong-icon">❌</span>
+                  <h4 className="why-wrong-title">Why Are The Other Options Wrong?</h4>
+                </div>
+                <div className="explanation-rich why-wrong-content">
+                  {parseRichText(q.why_others_wrong)}
+                </div>
+              </div>
+            )}
             <div className="rr-skip-row">
               <button className="rr-skip-btn" onClick={handleSkip}>Next Question →</button>
             </div>

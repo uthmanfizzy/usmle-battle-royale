@@ -225,6 +225,7 @@ function QuestionModal({ question, defaultSubject = 'cardiology', onSave, onClos
     optionD:      question.options[3] || '',
     correct:      question.correct,
     explanation:  question.explanation,
+    why_others_wrong: question.why_others_wrong || '',
     image_url:    question.image_url || '',
     questionType: question.image_url ? 'image' : 'text',
     game_modes:   question.game_modes || (question.image_url ? ['scan_master'] : ['battle_royale', 'speed_race', 'trivia_pursuit']),
@@ -241,6 +242,7 @@ function QuestionModal({ question, defaultSubject = 'cardiology', onSave, onClos
     optionD:      '',
     correct:      'A',
     explanation:  '',
+    why_others_wrong: '',
     image_url:    '',
     questionType: 'text',
     game_modes:   ['battle_royale', 'speed_race', 'trivia_pursuit'],
@@ -302,6 +304,7 @@ function QuestionModal({ question, defaultSubject = 'cardiology', onSave, onClos
       options:     [form.optionA.trim(), form.optionB.trim(), form.optionC.trim(), form.optionD.trim()],
       correct:     form.correct,
       explanation: form.explanation.trim(),
+      why_others_wrong: form.why_others_wrong ? form.why_others_wrong.trim() : null,
       image_url:   form.questionType === 'image' ? form.image_url : '',
       game_modes:  form.game_modes,
       tower_floor: form.game_modes.includes('tower') && form.tower_floor !== '' ? parseInt(form.tower_floor) : null,
@@ -487,6 +490,28 @@ function QuestionModal({ question, defaultSubject = 'cardiology', onSave, onClos
                 </div>
               </div>
             )}
+          </div>
+
+          <div className="ap-field">
+            <label>Why Are Other Options Wrong? <span style={{color:'rgba(255,255,255,0.3)', fontSize:'11px'}}>(optional)</span></label>
+            <textarea
+              className="ap-textarea"
+              rows={4}
+              placeholder="Explain why each incorrect option is wrong..."
+              value={form.why_others_wrong || ''}
+              onChange={e => set('why_others_wrong', e.target.value)}
+            />
+            {form.why_others_wrong && (
+              <div className="explanation-preview">
+                <p className="explanation-preview-label">Preview:</p>
+                <div className="explanation-rich explanation-preview-box">
+                  {parseRichText(form.why_others_wrong)}
+                </div>
+              </div>
+            )}
+            <div className="rich-text-guide">
+              <p>Supports: <code>**bold**</code> | <code>*italic*</code> | <code>[red]text[/red]</code> | <code>[green]text[/green]</code> | <code>[gold]text[/gold]</code></p>
+            </div>
           </div>
 
           <div className="ap-field">
