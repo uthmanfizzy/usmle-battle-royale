@@ -3011,6 +3011,7 @@ app.get('/admin/questions', adminAuth, async (req, res) => {
           options: q.choices,
           correct: q.correct,
           explanation: q.explanation || '',
+          why_others_wrong: q.why_others_wrong || undefined,
           game_modes: q.game_modes || ['battle_royale', 'speed_race', 'trivia_pursuit'],
           image_url: q.image_url || undefined,
           tower_floor: q.tower_floor || undefined,
@@ -5352,6 +5353,30 @@ app.post('/api/quest-progress/update', requireAuth, async (req, res) => {
   } catch (err) {
     console.error('[quest-progress] Error:', err.message);
     res.json({ updated: [], error: err.message });
+  }
+});
+
+app.get('/api/debug/questions', async (req, res) => {
+  if (!supabase) return res.json({ error: 'Supabase not configured', total: 0, sample: [] });
+  try {
+    const { data, count } = await supabase
+      .from('questions')
+      .select('id, question_id, question, category, topic_id, difficulty, game_modes', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .limit(10);
+    res.json({ total: count, sample: data });
+  } catch (err) {
+    res.json({ error: err.message, total: 0, sample: [] });
+  }
+});
+
+app.get('/api/debug/topics', async (req, res) => {
+  if (!supabase) return res.json({ error: 'Supabase not configured', topics: [] });
+  try {
+    const { data } = await supabase.from('topics').select('*').order('name');
+    res.json({ topics: data || [] });
+  } catch (err) {
+    res.json({ error: err.message, topics: [] });
   }
 });
 
