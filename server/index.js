@@ -194,7 +194,7 @@ const SUBJECT_PREFIXES = {
   pathology: 'PT', all: 'AL', scan_master: 'SM',
   // Coming soon subjects
   pulmonology: 'PL', nephrology: 'NP', gastroenterology: 'GI',
-  endocrinology: 'EN', haematology: 'HM', immunology: 'IM',
+  endocrinology: 'EN', haematology: 'HM', haematology_oncology: 'HO', immunology: 'IM',
   musculoskeletal: 'MS', dermatology: 'DR', reproductive: 'OB',
   psychiatry: 'PS', ophthalmology: 'OP', ent: 'ET',
   genetics: 'GC', anatomy: 'AN',
@@ -4390,6 +4390,7 @@ const SUBJECT_DEFAULTS = [
   { id: 'gastroenterology', name: 'Gastroenterology',            icon: '🫃', active: false },
   { id: 'endocrinology',    name: 'Endocrinology',               icon: '🦋', active: false },
   { id: 'haematology',      name: 'Haematology',                 icon: '🩸', active: false },
+  { id: 'haematology_oncology', name: 'Haematology & Oncology',  icon: '🩸', active: false },
   { id: 'immunology',       name: 'Immunology',                  icon: '🛡️', active: false },
   { id: 'musculoskeletal',  name: 'Musculoskeletal',             icon: '🦴', active: false },
   { id: 'dermatology',      name: 'Dermatology',                 icon: '🩹', active: false },
