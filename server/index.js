@@ -3121,8 +3121,20 @@ app.post('/admin/questions/bulk', adminAuth, async (req, res) => {
     let difficulty = raw.difficulty || defaultDifficulty || 'medium';
     difficulty = difficulty.toLowerCase().trim();
 
-    // Use provided correct answer or default to 'A'
-    const correct = raw.correct || raw.answer || 'A';
+    // Handle correct answer - convert letter to actual answer text if needed
+    let correct = raw.answer || raw.correct || 'A';
+    if (raw.correct && raw.choices && Array.isArray(raw.choices)) {
+      // If correct is a single letter like "H", convert to the actual answer text
+      const correctLetter = String(correct).trim().toUpperCase();
+      if (correctLetter.length === 1 && correctLetter >= 'A' && correctLetter <= 'Z') {
+        const letterIndex = correctLetter.charCodeAt(0) - 65; // A=0, B=1, C=2, ...
+        if (raw.choices[letterIndex]) {
+          // Extract text from "H. answer text" format
+          correct = String(raw.choices[letterIndex]).replace(/^[A-Za-z][.)]\s*/, '').trim();
+          console.log(`[bulk-import] Q${i + 1} Converted answer letter "${correctLetter}" to text: "${correct.substring(0, 30)}..."`);
+        }
+      }
+    }
 
     // Use provided explanation or empty string
     const explanation = raw.explanation || raw.rationale || '';
