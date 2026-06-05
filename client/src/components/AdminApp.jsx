@@ -1148,7 +1148,12 @@ function QuestionsPanel({ subjects = [] }) {
     else if (f.id === 'all')        acc[f.id] = questions.length;
     else if (f.id === '__images__') acc[f.id] = questions.filter(q => q.image_url).length;
     else if (f.id === 'buzz_fun')   acc[f.id] = questions.filter(q => (q.game_modes || []).includes('buzz_fun')).length;
-    else                            acc[f.id] = questions.filter(q => q.subject === f.id).length;
+    else                            acc[f.id] = questions.filter(q =>
+      q.subject === f.id ||
+      q.category === f.id ||
+      q.category?.toLowerCase() === f.id?.toLowerCase() ||
+      q.subject?.toLowerCase() === f.id?.toLowerCase()
+    ).length;
     return acc;
   }, {});
 
@@ -1156,7 +1161,15 @@ function QuestionsPanel({ subjects = [] }) {
   const catQuestions = activeFolder === 'all'        ? questions
     : activeFolder === '__images__'                  ? questions.filter(q => q.image_url)
     : activeFolder === 'buzz_fun'                    ? questions.filter(q => (q.game_modes || []).includes('buzz_fun'))
-    : questions.filter(q => q.subject === activeFolder);
+    : questions.filter(q => {
+        // Match by subject or category field
+        if (q.subject === activeFolder) return true;
+        if (q.category === activeFolder) return true;
+        // Case-insensitive fallback matching
+        if (q.category?.toLowerCase() === activeFolder?.toLowerCase()) return true;
+        if (q.subject?.toLowerCase() === activeFolder?.toLowerCase()) return true;
+        return false;
+      });
 
   // Counts for the difficulty cards
   const easyCount = isCatFolder(activeFolder)
