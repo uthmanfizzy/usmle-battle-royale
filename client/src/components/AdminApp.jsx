@@ -1202,23 +1202,30 @@ function QuestionsPanel({ subjects = [] }) {
           <div className="ap-sidebar-title">Categories</div>
 
           {/* Active subjects */}
-          {FOLDERS.filter(f => {
-            if (f.separator || f.special) return false;
-            const folderSubject = subjects.find(s =>
-              s.id === f.id || s.name?.toLowerCase() === f.id?.toLowerCase()
-            );
-            return folderSubject ? folderSubject.active : !f.comingSoon;
-          }).map(f => (
-            <button
-              key={f.id}
-              className={`ap-folder-btn ${activeFolder === f.id ? 'active' : ''} ${f.id !== 'all' ? `ap-folder-${f.id}` : 'ap-folder-all'}`}
-              onClick={() => setActiveFolder(f.id)}
-            >
-              <span className="ap-folder-icon">{f.icon}</span>
-              <span className="ap-folder-label">{f.label}</span>
-              <span className="ap-folder-count">{folderCounts[f.id] || 0}</span>
-            </button>
-          ))}
+          {(() => {
+            try {
+              return FOLDERS.filter(f => {
+                if (f.separator || f.special) return false;
+                const folderSubject = Array.isArray(subjects) ? subjects.find(s =>
+                  s.id === f.id || s.name?.toLowerCase() === f.id?.toLowerCase()
+                ) : null;
+                return folderSubject ? folderSubject.active : !f.comingSoon;
+              }).map(f => (
+                <button
+                  key={f.id}
+                  className={`ap-folder-btn ${activeFolder === f.id ? 'active' : ''} ${f.id !== 'all' ? `ap-folder-${f.id}` : 'ap-folder-all'}`}
+                  onClick={() => setActiveFolder(f.id)}
+                >
+                  <span className="ap-folder-icon">{f.icon}</span>
+                  <span className="ap-folder-label">{f.label}</span>
+                  <span className="ap-folder-count">{folderCounts[f.id] || 0}</span>
+                </button>
+              ));
+            } catch(e) {
+              console.error('Active subjects render error:', e);
+              return <div style={{color:'red', padding:'10px'}}>Error loading active subjects: {e.message}</div>;
+            }
+          })()}
 
           {/* Game Modes separator */}
           <div className="ap-sidebar-separator">Game Modes</div>
@@ -1240,24 +1247,31 @@ function QuestionsPanel({ subjects = [] }) {
           <div className="ap-sidebar-separator">Deactivated</div>
 
           {/* Deactivated subjects */}
-          {FOLDERS.filter(f => {
-            if (f.separator || f.special) return false;
-            const folderSubject = subjects.find(s =>
-              s.id === f.id || s.name?.toLowerCase() === f.id?.toLowerCase()
-            );
-            return folderSubject ? !folderSubject.active : f.comingSoon;
-          }).map(f => (
-            <button
-              key={f.id}
-              className={`ap-folder-btn ap-folder-cs ${activeFolder === f.id ? 'active' : ''} ${f.id !== 'all' ? `ap-folder-${f.id}` : 'ap-folder-all'}`}
-              onClick={() => setActiveFolder(f.id)}
-            >
-              <span className="ap-folder-icon">{f.icon}</span>
-              <span className="ap-folder-label">{f.label}</span>
-              <span className="ap-folder-count">{folderCounts[f.id] || 0}</span>
-              <span className="ap-folder-cs-tag">Off</span>
-            </button>
-          ))}
+          {(() => {
+            try {
+              return FOLDERS.filter(f => {
+                if (f.separator || f.special) return false;
+                const folderSubject = Array.isArray(subjects) ? subjects.find(s =>
+                  s.id === f.id || s.name?.toLowerCase() === f.id?.toLowerCase()
+                ) : null;
+                return folderSubject ? !folderSubject.active : f.comingSoon;
+              }).map(f => (
+                <button
+                  key={f.id}
+                  className={`ap-folder-btn ap-folder-cs ${activeFolder === f.id ? 'active' : ''} ${f.id !== 'all' ? `ap-folder-${f.id}` : 'ap-folder-all'}`}
+                  onClick={() => setActiveFolder(f.id)}
+                >
+                  <span className="ap-folder-icon">{f.icon}</span>
+                  <span className="ap-folder-label">{f.label}</span>
+                  <span className="ap-folder-count">{folderCounts[f.id] || 0}</span>
+                  <span className="ap-folder-cs-tag">Off</span>
+                </button>
+              ));
+            } catch(e) {
+              console.error('Deactivated subjects render error:', e);
+              return <div style={{color:'red', padding:'10px'}}>Error loading deactivated subjects: {e.message}</div>;
+            }
+          })()}
 
         </aside>
 
