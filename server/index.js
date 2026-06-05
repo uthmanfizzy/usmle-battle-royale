@@ -5339,8 +5339,18 @@ app.get('/health', (req, res) => res.json({
 
 server.listen(PORT, async () => {
   console.log(`USMLE Battle Royale server running on port ${PORT}`);
-  await loadSettingsFromDB();
-  await loadQuestionsFromDB();
+
+  try {
+    await loadSettingsFromDB();
+  } catch (err) {
+    console.error('[Startup] Failed to load settings:', err.message);
+  }
+
+  try {
+    await loadQuestionsFromDB();
+  } catch (err) {
+    console.error('[Startup] Failed to load questions:', err.message);
+  }
 
   // Refresh questions cache every 5 minutes
   setInterval(() => {

@@ -45,7 +45,8 @@
       "Bash(sed -i '2324s/48px/48px/' client/src/components/Dashboard.css)",
       "Bash(sed -i '2325s/48px/48px/' client/src/components/Dashboard.css)",
       "PowerShell(Set-Content *)",
-      "PowerShell(Get-Content client/src/components/AdminApp.jsx | Select-Object -Skip 1154 -First 106 | ForEach-Object -Begin {$i=1155} -Process {\"$i`t$_\"; $i++})"
+      "PowerShell(Get-Content client/src/components/AdminApp.jsx | Select-Object -Skip 1154 -First 106 | ForEach-Object -Begin {$i=1155} -Process {\"$i`t$_\"; $i++})",
+      "PowerShell(node --check server/index.js 2>&1)"
     ]
   }
 }
