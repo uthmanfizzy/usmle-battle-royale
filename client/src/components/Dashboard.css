@@ -7,9 +7,9 @@
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700;800;900&family=Crimson+Text:wght@400;600;700&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&display=swap');
 
-/* Apply Cinzel Bold to all dashboard text */
+/* Apply Cinzel Bold to all dashboard text, except explanations */
 .dashboard-screen,
-.dashboard-screen * {
+.dashboard-screen *:not(.explanation-rich):not(.explanation-rich *):not(.explanation-text):not(.explanation-text *):not(.explanation-sentence):not(.rr-explanation):not(.rr-explanation *) {
   font-family: 'Cinzel', serif !important;
   font-weight: 700 !important;
 }
