@@ -3337,6 +3337,42 @@ button.settings-btn img,
   margin: 0;
 }
 
+/* ── Inter Font for Homepage Readable Text ─────────────────────────────────── */
+/* Homepage readable text - use Inter for better readability */
+.dash-main,
+.dash-center-col,
+.home-widgets,
+.home-widget-content,
+.quest-name,
+.quest-progress-text,
+.reward-text,
+.news-item-title,
+.news-item-desc,
+.home-widget-empty {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+  text-transform: none !important;
+  font-variant: normal !important;
+  letter-spacing: normal !important;
+}
+
+/* Welcome message */
+.dash-center-col h1,
+.dash-center-col h2,
+.dash-center-col p,
+.center-welcome-title,
+.center-welcome-sub {
+  font-family: 'Inter', sans-serif !important;
+  text-transform: none !important;
+  letter-spacing: normal !important;
+}
+
+/* Keep Cinzel only for widget headers/labels */
+.home-widget-title,
+.home-widget-viewall,
+.quest-reward-amount {
+  font-family: 'Cinzel', serif !important;
+}
+
 /* QUEST ITEMS */
 .quest-item {
   display: flex;
