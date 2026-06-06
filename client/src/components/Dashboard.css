@@ -444,10 +444,11 @@
 }
 
 .dash-left-col .home-widgets {
-  width: 100% !important;
-  max-width: 280px !important;
-  position: static !important;
-  margin-top: 8px !important;
+  position: fixed !important;
+  left: 12px !important;
+  top: 115px !important;
+  width: 260px !important;
+  z-index: 50 !important;
 }
 
 /* ── Player Profile Panel ─────────────────────────────────────────────────── */
