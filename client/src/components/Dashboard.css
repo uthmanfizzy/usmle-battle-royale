@@ -437,10 +437,16 @@
 .dash-left-col {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  overflow: hidden;
-  max-height: 100%;
-  padding-top: 60px;
+  gap: 0;
+  width: auto;
+  pointer-events: all;
+}
+
+.dash-left-col .home-widgets {
+  width: 100% !important;
+  max-width: 280px !important;
+  position: static !important;
+  margin-top: 8px !important;
 }
 
 /* ── Player Profile Panel ─────────────────────────────────────────────────── */

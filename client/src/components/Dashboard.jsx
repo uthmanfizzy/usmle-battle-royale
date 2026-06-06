@@ -344,18 +344,6 @@ function HomeSection({ user, bgUrl, onUserUpdate }) {
     <div className="dash-main">
       {/* Left Column */}
       <div className="dash-left-col">
-      </div>
-
-      {/* Center Column - Transparent */}
-      <div className="dash-center-col">
-        <div className="center-welcome">
-          <div className="center-welcome-title">Welcome Back, {user.username}!</div>
-          <div className="center-welcome-sub">Ready for your next challenge?</div>
-        </div>
-      </div>
-
-      {/* Right Column */}
-      <div className="dash-right-col">
         <div className="home-widgets">
 
           {/* DAILY QUESTS */}
@@ -445,6 +433,18 @@ function HomeSection({ user, bgUrl, onUserUpdate }) {
           </div>
 
         </div>
+      </div>
+
+      {/* Center Column - Transparent */}
+      <div className="dash-center-col">
+        <div className="center-welcome">
+          <div className="center-welcome-title">Welcome Back, {user.username}!</div>
+          <div className="center-welcome-sub">Ready for your next challenge?</div>
+        </div>
+      </div>
+
+      {/* Right Column */}
+      <div className="dash-right-col">
       </div>
 
       {showUsernameModal && (
