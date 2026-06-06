@@ -2548,6 +2548,156 @@ app.post('/api/clans/leave', requireAuth, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// Get user's clan
+app.get('/api/clans/user/:userId', async (req, res) => {
+  if (!supabase) return res.json(null);
+  try {
+    const { userId } = req.params;
+    const { data: membership } = await supabase
+      .from('clan_members')
+      .select('*, clan:clan_id(*)')
+      .eq('user_id', userId)
+      .single();
+
+    if (!membership?.clan) return res.json(null);
+
+    res.json(membership.clan);
+  } catch (err) {
+    console.error('[clans/user] Error:', err.message);
+    res.json(null);
+  }
+});
+
+// Get clan details with members
+app.get('/api/clans/:clanId', async (req, res) => {
+  if (!supabase) return res.json(null);
+  try {
+    const { clanId } = req.params;
+
+    // Get clan info
+    const { data: clan } = await supabase
+      .from('clans')
+      .select('*')
+      .eq('id', clanId)
+      .single();
+
+    if (!clan) return res.json(null);
+
+    // Get clan members with user details
+    const { data: members } = await supabase
+      .from('clan_members')
+      .select(`
+        *,
+        user:user_id (
+          id,
+          username,
+          avatar_url,
+          level,
+          xp,
+          wins,
+          losses
+        )
+      `)
+      .eq('clan_id', clanId);
+
+    // Enhance members with calculated fields
+    const enhancedMembers = (members || []).map(m => ({
+      ...m,
+      user: {
+        ...m.user,
+        clan_xp: m.clan_xp || 0,
+        trophies: m.trophies || 0,
+        status: Math.random() > 0.6 ? 'online' : `${Math.floor(Math.random() * 24)}h ago`, // TODO: Real status
+        last_seen: new Date().toISOString()
+      }
+    }));
+
+    res.json({
+      ...clan,
+      members: enhancedMembers
+    });
+  } catch (err) {
+    console.error('[clans/:id] Error:', err.message);
+    res.status(500).json(null);
+  }
+});
+
+// Get clan chat messages
+app.get('/api/clans/:clanId/chat', async (req, res) => {
+  if (!supabase) return res.json([]);
+  try {
+    const { clanId } = req.params;
+
+    // Check if clan_chat table exists
+    const { data, error } = await supabase
+      .from('clan_chat')
+      .select(`
+        *,
+        user:user_id (
+          id,
+          username,
+          avatar_url
+        )
+      `)
+      .eq('clan_id', clanId)
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    if (error) {
+      console.error('[clans/chat] Error:', error.message);
+      return res.json([]);
+    }
+
+    // Return messages in chronological order
+    res.json((data || []).reverse());
+  } catch (err) {
+    console.error('[clans/chat] Error:', err.message);
+    res.json([]);
+  }
+});
+
+// Send clan chat message
+app.post('/api/clans/:clanId/chat', async (req, res) => {
+  if (!supabase) return res.status(503).json({ success: false, error: 'Database not configured' });
+  try {
+    const { clanId } = req.params;
+    const { userId, message } = req.body;
+
+    if (!userId || !message?.trim()) {
+      return res.status(400).json({ success: false, error: 'userId and message required' });
+    }
+
+    // Insert message
+    const { data, error } = await supabase
+      .from('clan_chat')
+      .insert({
+        clan_id: clanId,
+        user_id: userId,
+        message: message.trim(),
+        created_at: new Date().toISOString()
+      })
+      .select(`
+        *,
+        user:user_id (
+          id,
+          username,
+          avatar_url
+        )
+      `)
+      .single();
+
+    if (error) {
+      console.error('[clans/chat/post] Error:', error.message);
+      return res.status(500).json({ success: false, error: error.message });
+    }
+
+    res.json({ success: true, message: data });
+  } catch (err) {
+    console.error('[clans/chat/post] Error:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // ── Leaderboard API ────────────────────────────────────────────────────────────
 
 app.get('/api/username/check', async (req, res) => {

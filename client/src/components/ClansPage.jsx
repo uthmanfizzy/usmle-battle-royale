@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import './ClansPage.css';
 
 const SERVER_URL = 'https://usmle-battle-royale-production.up.railway.app';
@@ -8,37 +8,118 @@ export default function ClansPage({ user }) {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('members');
+  const [chatMessages, setChatMessages] = useState([]);
+  const [newMessage, setNewMessage] = useState('');
+  const [userRole, setUserRole] = useState('Member');
+  const chatEndRef = useRef(null);
 
   useEffect(() => {
-    // TODO: Fetch user's clan data
-    // For now, using placeholder data
-    setLoading(false);
-
-    // Placeholder clan data
-    setClan({
-      id: 1,
-      name: 'ROYAL GUARDIANS',
-      tag: 'RGD',
-      description: 'Elite medical warriors unite!',
-      level: 5,
-      xp: 15780,
-      members_count: 48,
-      banner_url: null,
-      crest_url: null,
-      location: 'Global',
-      type: 'Open',
-      required_trophies: 1500,
-      weekly_trophies: 12560,
-      rank: 152
-    });
-
-    // Placeholder members
-    setMembers([
-      { id: 1, username: user?.username || 'You', role: 'Leader', level: 15, xp: 5000, clan_xp: 2500, trophies: 3200, status: 'online', avatar_url: user?.avatar_url },
-      { id: 2, username: 'DrMedic', role: 'Elder', level: 12, xp: 3500, clan_xp: 2100, trophies: 2800, status: 'online', avatar_url: null },
-      { id: 3, username: 'Healer99', role: 'Member', level: 10, xp: 2800, clan_xp: 1800, trophies: 2400, status: '2h ago', avatar_url: null },
-    ]);
+    if (user?.id) {
+      fetchUserClan();
+    } else {
+      setLoading(false);
+    }
   }, [user]);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatMessages]);
+
+  const fetchUserClan = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${SERVER_URL}/api/clans/user/${user.id}`);
+      const clanData = await res.json();
+
+      if (clanData) {
+        setClan(clanData);
+        await fetchClanDetails(clanData.id);
+        await fetchClanChat(clanData.id);
+      }
+    } catch (e) {
+      console.error('Failed to fetch user clan:', e);
+    }
+    setLoading(false);
+  };
+
+  const fetchClanDetails = async (clanId) => {
+    try {
+      const res = await fetch(`${SERVER_URL}/api/clans/${clanId}`);
+      const data = await res.json();
+
+      if (data?.members) {
+        const sortedMembers = data.members
+          .map(m => ({
+            ...m.user,
+            role: m.role || 'Member',
+            clan_xp: m.user?.clan_xp || 0,
+            trophies: m.user?.trophies || 0,
+            status: m.user?.status || 'offline'
+          }))
+          .sort((a, b) => b.clan_xp - a.clan_xp);
+
+        setMembers(sortedMembers);
+
+        // Find current user's role
+        const userMember = data.members.find(m => m.user_id === user.id);
+        if (userMember) {
+          setUserRole(userMember.role || 'Member');
+        }
+      }
+    } catch (e) {
+      console.error('Failed to fetch clan details:', e);
+    }
+  };
+
+  const fetchClanChat = async (clanId) => {
+    try {
+      const res = await fetch(`${SERVER_URL}/api/clans/${clanId}/chat`);
+      const data = await res.json();
+      setChatMessages(data || []);
+    } catch (e) {
+      console.error('Failed to fetch chat:', e);
+    }
+  };
+
+  const sendMessage = async () => {
+    if (!newMessage.trim() || !clan) return;
+
+    try {
+      const res = await fetch(`${SERVER_URL}/api/clans/${clan.id}/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.id,
+          message: newMessage.trim()
+        })
+      });
+
+      const result = await res.json();
+
+      if (result.success) {
+        setChatMessages(prev => [...prev, {
+          id: Date.now(),
+          message: newMessage.trim(),
+          user: {
+            username: user.username,
+            avatar_url: user.avatar_url
+          },
+          created_at: new Date().toISOString()
+        }]);
+        setNewMessage('');
+      }
+    } catch (e) {
+      console.error('Failed to send message:', e);
+    }
+  };
+
+  const formatTimeAgo = (dateStr) => {
+    const diff = (new Date() - new Date(dateStr)) / 60000;
+    if (diff < 1) return 'just now';
+    if (diff < 60) return `${Math.floor(diff)}m ago`;
+    if (diff < 1440) return `${Math.floor(diff / 60)}h ago`;
+    return `${Math.floor(diff / 1440)}d ago`;
+  };
 
   if (loading) {
     return (
@@ -272,15 +353,43 @@ export default function ClansPage({ user }) {
       {/* RIGHT COLUMN */}
       <div className="clan-right">
 
-        {/* Clan Chat - Placeholder */}
+        {/* Clan Chat */}
         <p className="clan-section-label">CLAN CHAT</p>
         <div className="clan-card clan-chat-card">
           <div className="clan-chat-messages">
-            <p className="clan-placeholder">Chat feature coming soon...</p>
+            {chatMessages.length === 0 ? (
+              <p className="clan-placeholder">No messages yet. Say hello!</p>
+            ) : (
+              chatMessages.map((msg, i) => (
+                <div className="clan-chat-message" key={msg.id || i}>
+                  <div className="clan-chat-avatar">
+                    {msg.user?.avatar_url ? (
+                      <img src={msg.user.avatar_url} alt={msg.user.username} />
+                    ) : (
+                      <span>{msg.user?.username?.[0]?.toUpperCase() || '?'}</span>
+                    )}
+                  </div>
+                  <div className="clan-chat-content">
+                    <div className="clan-chat-meta">
+                      <span className="clan-chat-username">{msg.user?.username || 'Unknown'}</span>
+                      <span className="clan-chat-time">{formatTimeAgo(msg.created_at)}</span>
+                    </div>
+                    <p className="clan-chat-text">{msg.message}</p>
+                  </div>
+                </div>
+              ))
+            )}
+            <div ref={chatEndRef} />
           </div>
           <div className="clan-chat-input-row">
-            <input className="clan-chat-input" placeholder="Type a message..." disabled />
-            <button className="clan-chat-send" disabled>➤</button>
+            <input
+              className="clan-chat-input"
+              placeholder="Type a message..."
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
+            />
+            <button className="clan-chat-send" onClick={sendMessage}>➤</button>
           </div>
         </div>
 
