@@ -383,18 +383,24 @@ export default function PlayPage({
   useEffect(() => {
     async function loadChallenges() {
       try {
-        const res = await authFetch('/api/quest-progress');
+        const res = await fetch(`${SERVER_URL}/api/daily-quests/${user?.id || 'guest'}`);
         const data = await res.json();
-        const progress = (data.progress || []).slice(0, 3).map(p => ({
-          id: p.quest_id,
-          name: p.quest_name || 'Complete quest',
-          icon: '🎯',
-          progress: `${p.current_progress || 0}/${p.target || 1}`,
-          percent: Math.min(100, ((p.current_progress || 0) / (p.target || 1)) * 100),
-          reward: p.reward_coins || 100,
+        const quests = (data || []).slice(0, 3).map(q => ({
+          id: q.id,
+          name: q.name || 'Complete quest',
+          icon: q.icon || '🎯',
+          icon_image: q.icon_image || null,
+          progress: `${q.progress || 0}/${q.target || 1}`,
+          current: q.progress || 0,
+          target: q.target || 1,
+          percent: Math.min(100, ((q.progress || 0) / (q.target || 1)) * 100),
+          coin_reward: q.coin_reward || 0,
+          gem_reward: q.gem_reward || 0,
+          completed: q.completed || false,
         }));
-        setDailyChallenges(progress.length > 0 ? progress : getPlaceholderChallenges());
-      } catch {
+        setDailyChallenges(quests.length > 0 ? quests : getPlaceholderChallenges());
+      } catch (e) {
+        console.error('Failed to fetch daily challenges:', e);
         setDailyChallenges(getPlaceholderChallenges());
       }
     }
@@ -879,20 +885,34 @@ export default function PlayPage({
 
           <div className="challenges-card">
             <h3>DAILY CHALLENGES</h3>
-            {dailyChallenges.map(challenge => (
-              <div key={challenge.id} className="challenge-item">
-                <div className="challenge-icon">{challenge.icon}</div>
-                <div className="challenge-info">
-                  <p>{challenge.name}</p>
-                  <div className="challenge-progress-bar">
-                    <div style={{ width: `${challenge.percent}%` }} className="challenge-fill" />
+            {dailyChallenges.length === 0 ? (
+              <p style={{color:'rgba(255,255,255,0.3)', fontSize:'12px', fontFamily:'Cinzel,serif', textAlign:'center', padding:'10px'}}>
+                No challenges today
+              </p>
+            ) : (
+              dailyChallenges.map(challenge => (
+                <div key={challenge.id} className="challenge-item">
+                  <div className="challenge-icon">
+                    {challenge.icon_image ? (
+                      <img src={challenge.icon_image} alt={challenge.name} style={{width:'28px', height:'28px', objectFit:'cover', borderRadius:'6px'}} />
+                    ) : (
+                      <span style={{fontSize:'20px'}}>{challenge.icon || '⚔️'}</span>
+                    )}
                   </div>
-                  <span>{challenge.progress}</span>
+                  <div className="challenge-info">
+                    <p>{challenge.name}</p>
+                    <div className="challenge-progress-bar">
+                      <div style={{ width: `${challenge.percent}%` }} className="challenge-fill" />
+                    </div>
+                    <span>{challenge.progress}</span>
+                  </div>
+                  <span className="challenge-reward">
+                    {challenge.coin_reward > 0 && `🪙 ${challenge.coin_reward}`}
+                    {challenge.gem_reward > 0 && ` 💎 ${challenge.gem_reward}`}
+                  </span>
                 </div>
-                <span className="challenge-reward">🪙 {challenge.reward}</span>
-              </div>
-            ))}
-            <button className="view-all-btn">VIEW ALL CHALLENGES</button>
+              ))
+            )}
           </div>
 
         </div>

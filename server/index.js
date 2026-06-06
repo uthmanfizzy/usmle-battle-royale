@@ -5124,6 +5124,81 @@ app.get('/api/daily-quests', async (req, res) => {
   }
 });
 
+// Get daily quests with user progress
+app.get('/api/daily-quests/:userId', async (req, res) => {
+  if (!supabase) return res.json([]);
+
+  const { userId } = req.params;
+  const today = new Date().toISOString().split('T')[0];
+
+  try {
+    // Get today's quest IDs
+    const { data: dailyData } = await supabase
+      .from('daily_quests')
+      .select('quest_ids')
+      .eq('date', today)
+      .single();
+
+    let questIds = dailyData?.quest_ids;
+
+    // If no quests for today, fall back to all active quests
+    if (!questIds || questIds.length === 0) {
+      const { data: activeQuests } = await supabase
+        .from('quests')
+        .select('id')
+        .eq('active', true)
+        .order('created_at', { ascending: false })
+        .limit(3);
+
+      questIds = (activeQuests || []).map(q => q.id);
+    }
+
+    if (!questIds || questIds.length === 0) {
+      return res.json([]);
+    }
+
+    // Fetch full quest details
+    const { data: quests } = await supabase
+      .from('quests')
+      .select('*')
+      .in('id', questIds);
+
+    if (!quests || quests.length === 0) {
+      return res.json([]);
+    }
+
+    // Get player progress for each quest
+    const questsWithProgress = await Promise.all(quests.map(async (quest) => {
+      if (userId === 'guest') {
+        return {
+          ...quest,
+          progress: 0,
+          completed: false
+        };
+      }
+
+      const { data: progress } = await supabase
+        .from('player_quest_progress')
+        .select('progress, completed')
+        .eq('user_id', userId)
+        .eq('quest_id', quest.id)
+        .eq('date', today)
+        .single();
+
+      return {
+        ...quest,
+        progress: progress?.progress || 0,
+        completed: progress?.completed || false
+      };
+    }));
+
+    res.json(questsWithProgress);
+  } catch (err) {
+    console.error('[daily-quests/:userId] Error:', err.message);
+    res.json([]);
+  }
+});
+
 // Preview today's quests (admin)
 app.get('/admin/daily-quests/preview', adminAuth, async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
