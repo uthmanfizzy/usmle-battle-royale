@@ -190,6 +190,8 @@ function HomeSection({ user, bgUrl, onUserUpdate }) {
     quests_panel_bg: '',
     recent_games_panel_bg: '',
   });
+  const [newsItems, setNewsItems] = useState([]);
+  const [rewardChest, setRewardChest] = useState(null);
 
   const xp          = user.xp    || 0;
   const level       = user.level || 1;
@@ -259,6 +261,39 @@ function HomeSection({ user, bgUrl, onUserUpdate }) {
     loadPanelBackgrounds();
   }, []);
 
+  // Fetch news/announcements
+  useEffect(() => {
+    async function loadNews() {
+      try {
+        const res = await fetch(`${SERVER_URL}/api/announcements`);
+        if (res.ok) {
+          const data = await res.json();
+          setNewsItems((data.announcements || []).slice(0, 3));
+        }
+      } catch (err) {
+        console.error('Failed to load news:', err);
+      }
+    }
+    loadNews();
+  }, []);
+
+  // Fetch reward chest status
+  useEffect(() => {
+    async function loadRewardChest() {
+      if (!user?.id) return;
+      try {
+        const res = await fetch(`${SERVER_URL}/api/rewards/chest/${user.id}`);
+        if (res.ok) {
+          const data = await res.json();
+          setRewardChest(data);
+        }
+      } catch (err) {
+        console.error('Failed to load reward chest:', err);
+      }
+    }
+    loadRewardChest();
+  }, [user]);
+
   // Time until daily reset (midnight UTC)
   const [timeLeft, setTimeLeft] = useState('');
   useEffect(() => {
@@ -276,6 +311,35 @@ function HomeSection({ user, bgUrl, onUserUpdate }) {
     return () => clearInterval(interval);
   }, []);
 
+  // Handle claiming reward chest
+  const handleClaimChest = async () => {
+    if (!user?.id || !rewardChest?.available) return;
+    try {
+      const res = await fetch(`${SERVER_URL}/api/rewards/claim/${user.id}`, { method: 'POST' });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          // Refresh chest status
+          const refreshRes = await fetch(`${SERVER_URL}/api/rewards/chest/${user.id}`);
+          if (refreshRes.ok) {
+            const refreshData = await refreshRes.json();
+            setRewardChest(refreshData);
+          }
+          // Update user coins/gems
+          if (onUserUpdate) {
+            onUserUpdate({
+              ...user,
+              coins: (user.coins || 0) + (data.coins || 0),
+              gems: (user.gems || 0) + (data.gems || 0),
+            });
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Failed to claim chest:', err);
+    }
+  };
+
   return (
     <div className="dash-main">
       {/* Left Column */}
@@ -292,6 +356,95 @@ function HomeSection({ user, bgUrl, onUserUpdate }) {
 
       {/* Right Column */}
       <div className="dash-right-col">
+        <div className="home-widgets">
+
+          {/* DAILY QUESTS */}
+          <div className="home-widget">
+            <div className="home-widget-header">
+              <h3 className="home-widget-title">DAILY QUESTS</h3>
+            </div>
+            <div className="home-widget-content">
+              {quests.slice(0, 3).map((quest, i) => (
+                <div className="quest-item" key={quest.id || i}>
+                  <div className="quest-icon-wrap">
+                    {quest.icon_image ? (
+                      <img src={quest.icon_image} alt={quest.name} className="quest-icon-img" />
+                    ) : (
+                      <span className="quest-icon-emoji">{quest.icon || '⚔️'}</span>
+                    )}
+                  </div>
+                  <div className="quest-info">
+                    <p className="quest-name">{quest.name}</p>
+                    <div className="quest-progress-bar">
+                      <div
+                        className="quest-progress-fill"
+                        style={{ width: `${Math.min(100, ((quest.current || 0) / (quest.target || 1)) * 100)}%` }}
+                      />
+                    </div>
+                    <p className="quest-progress-text">{quest.current || 0} / {quest.target || 1}</p>
+                  </div>
+                  <div className="quest-reward">
+                    <span className="quest-gem-icon">💎</span>
+                    <span className="quest-reward-amount">{quest.gem_reward || 10}</span>
+                  </div>
+                </div>
+              ))}
+              {quests.length === 0 && (
+                <p className="home-widget-empty">No active quests today</p>
+              )}
+            </div>
+          </div>
+
+          {/* REWARDS */}
+          <div className="home-widget">
+            <div className="home-widget-header">
+              <h3 className="home-widget-title">REWARDS</h3>
+            </div>
+            <div className="home-widget-content reward-content">
+              <div className="reward-chest-wrap">
+                <span className="reward-chest-emoji">🎁</span>
+              </div>
+              <div className="reward-info">
+                <p className="reward-text">
+                  {rewardChest?.available ? 'Open your free chest!' : `Next chest in ${rewardChest?.timeLeft || '24h'}`}
+                </p>
+                <button
+                  className={`reward-claim-btn ${!rewardChest?.available ? 'reward-claim-btn--disabled' : ''}`}
+                  onClick={handleClaimChest}
+                  disabled={!rewardChest?.available}
+                >
+                  {rewardChest?.available ? 'CLAIM' : 'CLAIMED'}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* NEWS */}
+          <div className="home-widget">
+            <div className="home-widget-header">
+              <h3 className="home-widget-title">NEWS</h3>
+            </div>
+            <div className="home-widget-content">
+              {newsItems.map((item, i) => (
+                <div className="news-item" key={item.id || i}>
+                  {item.image_url ? (
+                    <img src={item.image_url} alt={item.title} className="news-item-img" />
+                  ) : (
+                    <div className="news-item-img-placeholder">📢</div>
+                  )}
+                  <div className="news-item-info">
+                    <p className="news-item-title">{item.title || item.message?.substring(0, 40)}</p>
+                    <p className="news-item-desc">{item.message?.substring(0, 60)}{item.message?.length > 60 ? '...' : ''}</p>
+                  </div>
+                </div>
+              ))}
+              {newsItems.length === 0 && (
+                <p className="home-widget-empty">No news yet</p>
+              )}
+            </div>
+          </div>
+
+        </div>
       </div>
 
       {showUsernameModal && (

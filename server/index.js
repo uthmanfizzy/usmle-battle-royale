@@ -5396,6 +5396,90 @@ app.get('/api/debug/topics', async (req, res) => {
   }
 });
 
+// ── Reward Chest Endpoints ─────────────────────────────────────────────────
+
+app.get('/api/rewards/chest/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const cooldownHours = 24;
+
+    // Check last claim time from game_settings or user metadata
+    let lastClaim = null;
+    if (supabase) {
+      const { data } = await supabase
+        .from('game_settings')
+        .select('value')
+        .eq('key', `last_chest_claim_${userId}`)
+        .maybeSingle();
+      lastClaim = data?.value ? new Date(data.value) : null;
+    }
+
+    const now = new Date();
+    const hoursSince = lastClaim ? (now - lastClaim) / (1000 * 60 * 60) : 999;
+    const available = hoursSince >= cooldownHours;
+    const hoursLeft = available ? 0 : Math.ceil(cooldownHours - hoursSince);
+
+    res.json({ available, timeLeft: `${hoursLeft}h`, lastClaim });
+  } catch (err) {
+    res.json({ available: true, timeLeft: '0h' });
+  }
+});
+
+app.post('/api/rewards/claim/:userId', async (req, res) => {
+  if (!supabase) return res.status(503).json({ success: false, error: 'Supabase not configured' });
+
+  try {
+    const { userId } = req.params;
+
+    // Check cooldown
+    const { data: lastClaimData } = await supabase
+      .from('game_settings')
+      .select('value')
+      .eq('key', `last_chest_claim_${userId}`)
+      .maybeSingle();
+
+    const lastClaim = lastClaimData?.value ? new Date(lastClaimData.value) : null;
+    const hoursSince = lastClaim ? (new Date() - lastClaim) / (1000 * 60 * 60) : 999;
+
+    if (hoursSince < 24) {
+      return res.json({ success: false, message: 'Chest already claimed today' });
+    }
+
+    // Give rewards - random coins and gems
+    const coinsReward = Math.floor(Math.random() * 100) + 50; // 50-149 coins
+    const gemsReward = Math.floor(Math.random() * 5) + 1; // 1-5 gems
+
+    // Update user coins and gems
+    const { data: userData } = await supabase
+      .from('users')
+      .select('coins, gems')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (userData) {
+      await supabase
+        .from('users')
+        .update({
+          coins: (userData.coins || 0) + coinsReward,
+          gems: (userData.gems || 0) + gemsReward
+        })
+        .eq('id', userId);
+    }
+
+    // Record claim time
+    await supabase
+      .from('game_settings')
+      .upsert(
+        { key: `last_chest_claim_${userId}`, value: new Date().toISOString() },
+        { onConflict: 'key' }
+      );
+
+    res.json({ success: true, coins: coinsReward, gems: gemsReward });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 app.get('/health', (req, res) => res.json({
   status: 'ok',
   supabase: !!supabase,
