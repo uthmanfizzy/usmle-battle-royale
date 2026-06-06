@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { fetchMe, authFetch } from '../auth';
 import { DefaultPreview, PixelPreview } from './AppearanceSection';
 import { useTheme, PALETTE } from '../theme';
@@ -6,6 +6,63 @@ import FriendsPanel from './FriendsPanel';
 import NotificationsDropdown from './NotificationsDropdown';
 import SettingsDropdown from './SettingsDropdown';
 import './Dashboard.css';
+
+// Error Boundary to prevent black screens
+class DashboardErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error, info) {
+    console.error('Dashboard crashed:', error, info);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{
+          height: '100vh',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: '#0a0f08',
+          color: 'white',
+          fontFamily: 'Cinzel, serif',
+          gap: '16px'
+        }}>
+          <h2 style={{color:'rgba(220,190,80,0.9)'}}>Something went wrong</h2>
+          <pre style={{
+            color: 'rgba(220,100,100,0.8)',
+            fontSize: '12px',
+            maxWidth: '600px',
+            whiteSpace: 'pre-wrap',
+            textAlign: 'center'
+          }}>
+            {this.state.error?.toString()}
+          </pre>
+          <button
+            onClick={() => this.setState({ hasError: false, error: null })}
+            style={{
+              padding: '10px 24px',
+              background: 'rgba(40,50,20,0.8)',
+              border: '1px solid rgba(180,140,40,0.5)',
+              borderRadius: '8px',
+              color: 'rgba(220,190,80,0.9)',
+              cursor: 'pointer',
+              fontFamily: 'Cinzel, serif'
+            }}
+          >
+            Try Again
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 const SERVER_URL = 'https://usmle-battle-royale-production.up.railway.app';
 const ANN_READ_KEY    = 'mrb_read_announcements';
@@ -842,7 +899,7 @@ function AnnouncementsSection() {
 }
 
 // ── Main Dashboard ─────────────────────────────────────────────────────────────
-export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
+function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
   const [dashTab,      setDashTab]      = useState('home');
   const [unreadCount,  setUnreadCount]  = useState(0);
   const [showWelcome,  setShowWelcome]  = useState(false);
@@ -867,6 +924,7 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
     icon_notification: '',
     icon_friends: '',
     icon_settings: '',
+    chest_image: '',
   });
 
   // Fetch home page images (backgrounds and icons)
@@ -1180,5 +1238,14 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
         </div>
       </div>
     </div>
+  );
+}
+
+// Wrap Dashboard with Error Boundary
+export default function DashboardWithBoundary(props) {
+  return (
+    <DashboardErrorBoundary>
+      <Dashboard {...props} />
+    </DashboardErrorBoundary>
   );
 }

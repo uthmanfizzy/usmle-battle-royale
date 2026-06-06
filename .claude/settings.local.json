@@ -48,7 +48,12 @@
       "PowerShell(Get-Content client/src/components/AdminApp.jsx | Select-Object -Skip 1154 -First 106 | ForEach-Object -Begin {$i=1155} -Process {\"$i`t$_\"; $i++})",
       "PowerShell(node --check server/index.js 2>&1)",
       "Bash(curl *)",
-      "PowerShell(git revert *)"
+      "PowerShell(git revert *)",
+      "PowerShell(\\(Get-Content src/components/Dashboard.jsx | Select-String \"return \\\\\\(\"\\).Count)",
+      "PowerShell(\\(Get-Content src/components/Dashboard.jsx | Select-String \"</div>\"\\).Count)",
+      "PowerShell(\\(Get-Content src/components/Dashboard.jsx | Select-String \"<div\"\\).Count)",
+      "PowerShell(\\(Get-Content src/components/Dashboard.jsx\\).Count)",
+      "PowerShell($content = Get-Content src/components/Dashboard.jsx; for \\($i = 0; $i -lt $content.Count; $i++\\) { if \\($content[$i] -match \"^export default function Dashboard\"\\) { Write-Output \"Line $\\($i+1\\): $\\($content[$i]\\)\" } })"
     ]
   }
 }
