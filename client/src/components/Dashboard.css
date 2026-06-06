@@ -285,8 +285,10 @@
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  width: 58px !important;
-  height: 58px !important;
+  width: 40px !important;
+  height: 40px !important;
+  min-width: 40px !important;
+  min-height: 40px !important;
   background: rgba(20, 30, 40, 0.45) !important;
   backdrop-filter: blur(6px) !important;
   -webkit-backdrop-filter: blur(6px) !important;
@@ -307,8 +309,8 @@
 
 /* Icon image inside each bubble */
 .header-icon-bubble .header-icon-img {
-  width: 52px !important;
-  height: 52px !important;
+  width: 32px !important;
+  height: 32px !important;
   object-fit: contain !important;
   display: block !important;
   /* Negative margin so image grows but bubble stays same size */

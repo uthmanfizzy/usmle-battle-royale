@@ -1046,7 +1046,7 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
                       src={homeImages.icon_settings}
                       alt="Settings"
                       className="header-icon-img"
-                      style={{width:'38px', height:'38px', minWidth:'38px', minHeight:'38px', position:'static', margin:'0', display:'block'}}
+                      style={{width:'28px', height:'28px', minWidth:'28px', minHeight:'28px', position:'static', margin:'0', display:'block'}}
                     />
                   ) : (
                     <span>⚙️</span>
