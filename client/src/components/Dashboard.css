@@ -94,8 +94,19 @@
 }
 
 .header-left {
-  display: flex;
-  align-items: center;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  gap: 8px !important;
+  position: fixed !important;
+  top: 12px !important;
+  left: 12px !important;
+  z-index: 100 !important;
+  pointer-events: none !important;
+}
+
+.header-left > * {
+  pointer-events: all !important;
 }
 
 .header-right {
@@ -440,14 +451,14 @@
   gap: 0;
   width: auto;
   pointer-events: all;
-  padding-top: 105px !important;
+  padding-top: 0 !important;
 }
 
-.dash-left-col .home-widgets {
-  width: 100% !important;
-  max-width: 280px !important;
+.home-widgets {
+  width: 280px !important;
   position: static !important;
-  margin-top: 8px !important;
+  margin: 0 !important;
+  padding: 0 !important;
 }
 
 /* ── Player Profile Panel ─────────────────────────────────────────────────── */
