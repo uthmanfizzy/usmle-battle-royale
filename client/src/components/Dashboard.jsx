@@ -429,8 +429,18 @@ function HomeSection({ user, bgUrl, onUserUpdate, homeImages }) {
                     <p className="quest-progress-text">{quest.current || 0} / {quest.target || 1}</p>
                   </div>
                   <div className="quest-reward">
-                    <span className="quest-gem-icon">💎</span>
-                    <span className="quest-reward-amount">{quest.gem_reward || 10}</span>
+                    {quest.coin_reward > 0 && (
+                      <>
+                        <span className="quest-gem-icon">🪙</span>
+                        <span className="quest-reward-amount">{quest.coin_reward}</span>
+                      </>
+                    )}
+                    {quest.gem_reward > 0 && (
+                      <>
+                        <span className="quest-gem-icon">💎</span>
+                        <span className="quest-reward-amount">{quest.gem_reward}</span>
+                      </>
+                    )}
                   </div>
                 </div>
               ))}
