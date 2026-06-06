@@ -5,6 +5,7 @@ import { useTheme, PALETTE } from '../theme';
 import FriendsPanel from './FriendsPanel';
 import NotificationsDropdown from './NotificationsDropdown';
 import SettingsDropdown from './SettingsDropdown';
+import ClansPage from './ClansPage';
 import './Dashboard.css';
 
 // Error Boundary to prevent black screens
@@ -1327,7 +1328,7 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
         {/* Tab content */}
         {dashTab === 'home'          && <HomeSection user={user} bgUrl={bgUrl} onUserUpdate={onUserUpdate} homeImages={homeImages} />}
         {dashTab === 'leaderboard'   && <LeaderboardSection userId={user.id} user={user} />}
-        {dashTab === 'clans'         && <ClanSection user={user} onUserUpdate={onUserUpdate} />}
+        {dashTab === 'clans'         && <ClansPage user={user} />}
         {dashTab === 'announcements' && <AnnouncementsSection />}
 
         {/* Bottom Navigation */}
