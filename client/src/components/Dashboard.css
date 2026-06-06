@@ -340,6 +340,14 @@
   object-position: center !important;
 }
 
+/* Increase friends and notifications icon size */
+.friends-btn .header-icon-img,
+.notification-btn .header-icon-img {
+  width: 44px !important;
+  height: 44px !important;
+  margin: -12px !important;
+}
+
 /* Settings icon - smaller than bubble so flex centers it */
 .settings-btn .header-icon-img {
   width: 54px !important;
@@ -448,7 +456,7 @@
 .dash-left-col .home-widgets {
   position: fixed !important;
   left: 12px !important;
-  top: 115px !important;
+  top: 130px !important;
   width: 260px !important;
   z-index: 50 !important;
 }
