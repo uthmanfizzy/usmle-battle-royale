@@ -235,7 +235,7 @@ function UsernameChangeModal({ user, onClose, onSuccess }) {
 }
 
 // ── Home Section (RPG Style) ───────────────────────────────────────────────────
-function HomeSection({ user, bgUrl, onUserUpdate }) {
+function HomeSection({ user, bgUrl, onUserUpdate, homeImages }) {
   const [showUsernameModal, setShowUsernameModal] = useState(false);
   const [quests, setQuests] = useState([]);
   const [questProgress, setQuestProgress] = useState({});
@@ -1180,7 +1180,7 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
         </div>
 
         {/* Tab content */}
-        {dashTab === 'home'          && <HomeSection user={user} bgUrl={bgUrl} onUserUpdate={onUserUpdate} />}
+        {dashTab === 'home'          && <HomeSection user={user} bgUrl={bgUrl} onUserUpdate={onUserUpdate} homeImages={homeImages} />}
         {dashTab === 'leaderboard'   && <LeaderboardSection userId={user.id} />}
         {dashTab === 'clans'         && <ClanSection user={user} onUserUpdate={onUserUpdate} />}
         {dashTab === 'announcements' && <AnnouncementsSection />}
