@@ -1729,6 +1729,451 @@
   color: var(--text-muted);
 }
 
+/* ══════════════════════════════════════════════════════════════════════════════
+   NEW LEADERBOARDS PAGE DESIGN
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+.lb-page {
+  min-height: calc(100vh - 120px);
+  padding: 20px 24px 100px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+.lb-header {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.lb-title {
+  font-family: 'Cinzel', serif;
+  font-size: 42px;
+  font-weight: 900;
+  color: rgba(220,190,80,0.95);
+  margin: 0;
+  letter-spacing: 0.15em;
+  text-shadow: 0 2px 20px rgba(180,140,40,0.4);
+}
+
+.lb-subtitle {
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  color: rgba(255,255,255,0.5);
+  margin: 0;
+}
+
+.lb-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 300px;
+  margin-top: 4px;
+}
+
+.lb-divider-line {
+  flex: 1;
+  height: 1px;
+  background: rgba(180,140,40,0.4);
+}
+
+.lb-divider-diamond {
+  color: rgba(200,165,60,0.7);
+  font-size: 10px;
+}
+
+.lb-body {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 20px;
+  align-items: start;
+}
+
+/* LEFT */
+.lb-left {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.lb-tabs {
+  display: flex;
+  gap: 0;
+  background: rgba(10,15,8,0.8);
+  border: 1px solid rgba(180,140,40,0.3);
+  border-bottom: none;
+  border-radius: 12px 12px 0 0;
+  overflow: hidden;
+}
+
+.lb-tab {
+  flex: 1;
+  padding: 12px 16px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: rgba(255,255,255,0.4);
+  font-family: 'Cinzel', serif;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.lb-tab:hover { color: rgba(200,165,60,0.8); }
+
+.lb-tab--active {
+  color: rgba(220,190,80,0.95) !important;
+  border-bottom-color: rgba(200,165,60,0.8) !important;
+  background: rgba(40,50,20,0.3);
+}
+
+.lb-table {
+  background: rgba(10,15,8,0.8);
+  border: 1px solid rgba(180,140,40,0.3);
+  border-radius: 0 0 12px 12px;
+  overflow: hidden;
+}
+
+.lb-table-header {
+  display: grid;
+  grid-template-columns: 80px 1fr 100px 120px 80px 100px;
+  padding: 10px 16px;
+  border-bottom: 1px solid rgba(180,140,40,0.2);
+  background: rgba(20,28,15,0.5);
+}
+
+.lb-table-header span {
+  font-family: 'Cinzel', serif;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: rgba(200,165,60,0.6);
+}
+
+.lb-row {
+  display: grid;
+  grid-template-columns: 80px 1fr 100px 120px 80px 100px;
+  padding: 10px 16px;
+  border-bottom: 1px solid rgba(180,140,40,0.08);
+  align-items: center;
+  transition: background 0.15s;
+}
+
+.lb-row:hover { background: rgba(30,40,20,0.4); }
+
+.lb-row--you {
+  background: rgba(40,50,20,0.5) !important;
+  border-left: 3px solid rgba(200,165,60,0.7) !important;
+}
+
+.lb-row--top1 { background: rgba(180,140,40,0.08); }
+.lb-row--top2 { background: rgba(150,150,160,0.06); }
+.lb-row--top3 { background: rgba(140,80,20,0.06); }
+
+.lb-rank-badge {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Cinzel', serif;
+  font-size: 10px;
+  font-weight: 900;
+  gap: 1px;
+}
+
+.lb-rank-1 {
+  background: linear-gradient(135deg, rgba(220,190,80,0.3), rgba(180,140,40,0.2));
+  border: 2px solid rgba(220,190,80,0.6);
+  color: rgba(220,190,80,0.95);
+}
+
+.lb-rank-2 {
+  background: rgba(180,180,190,0.15);
+  border: 2px solid rgba(180,180,190,0.5);
+  color: rgba(200,200,210,0.9);
+}
+
+.lb-rank-3 {
+  background: rgba(180,100,40,0.15);
+  border: 2px solid rgba(180,100,40,0.5);
+  color: rgba(200,130,60,0.9);
+}
+
+.lb-col-player {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.lb-player-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid rgba(180,140,40,0.3);
+  overflow: hidden;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(40,50,20,0.8);
+  font-family: 'Cinzel', serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: rgba(220,190,80,0.9);
+}
+
+.lb-player-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.lb-player-name {
+  font-family: 'Cinzel', serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.85);
+}
+
+.lb-you-badge {
+  color: rgba(200,165,60,0.7);
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.lb-player-icon { font-size: 14px; }
+
+.lb-col-level, .lb-col-xp, .lb-col-wins, .lb-col-winrate {
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  color: rgba(255,255,255,0.6);
+}
+
+.lb-col-xp { color: rgba(200,165,60,0.8); }
+.lb-col-winrate { color: rgba(100,200,100,0.8); }
+
+.lb-row-separator {
+  text-align: center;
+  padding: 8px;
+  color: rgba(255,255,255,0.2);
+  font-size: 18px;
+  letter-spacing: 4px;
+}
+
+.lb-refresh-note {
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  color: rgba(255,255,255,0.25);
+  margin: 8px 0 0 0;
+  padding-left: 4px;
+}
+
+/* RIGHT */
+.lb-right {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.lb-right-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.lb-right-label {
+  font-family: 'Cinzel', serif;
+  font-size: 10px;
+  letter-spacing: 0.15em;
+  color: rgba(200,165,60,0.65);
+  margin: 0;
+}
+
+.lb-top-player-card, .lb-top-clan-card, .lb-rewards-card {
+  background: rgba(10,15,8,0.85);
+  border: 1px solid rgba(180,140,40,0.3);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.lb-top-player-icon {
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  border: 3px solid rgba(200,165,60,0.6);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(40,50,20,0.8);
+  font-family: 'Cinzel', serif;
+  font-size: 28px;
+  font-weight: 900;
+  color: rgba(220,190,80,0.9);
+}
+
+.lb-top-player-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.lb-top-player-name {
+  font-family: 'Cinzel', serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: rgba(220,190,80,0.95);
+  margin: 0;
+  text-align: center;
+}
+
+.lb-top-player-stats {
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  color: rgba(255,255,255,0.5);
+  margin: 0;
+}
+
+.lb-view-btn {
+  width: 100%;
+  padding: 10px;
+  background: rgba(30,80,30,0.8);
+  border: 1px solid rgba(80,180,80,0.4);
+  border-radius: 8px;
+  color: white;
+  font-family: 'Cinzel', serif;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-top: 4px;
+}
+
+.lb-view-btn:hover {
+  background: rgba(40,100,40,0.9);
+  border-color: rgba(80,200,80,0.6);
+}
+
+.lb-view-btn--full { width: 100%; }
+
+.lb-top-clan-card {
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 12px !important;
+  flex-wrap: wrap;
+}
+
+.lb-clan-banner {
+  width: 60px;
+  height: 70px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: rgba(40,50,20,0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  flex-shrink: 0;
+  border: 1px solid rgba(180,140,40,0.3);
+}
+
+.lb-clan-banner img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.lb-clan-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.lb-clan-name {
+  font-family: 'Cinzel', serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: rgba(220,190,80,0.95);
+  margin: 0;
+}
+
+.lb-clan-members, .lb-clan-score {
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  color: rgba(255,255,255,0.5);
+  margin: 0;
+}
+
+.lb-reward-tiers {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+  width: 100%;
+}
+
+.lb-reward-tier {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 6px;
+  background: rgba(20,28,15,0.6);
+  border: 1px solid rgba(180,140,40,0.15);
+  border-radius: 8px;
+}
+
+.lb-reward-chest { font-size: 28px; }
+
+.lb-reward-rank {
+  font-family: 'Cinzel', serif;
+  font-size: 10px;
+  font-weight: 700;
+  color: rgba(220,190,80,0.85);
+  margin: 0;
+  text-align: center;
+}
+
+.lb-reward-name {
+  font-family: 'Inter', sans-serif;
+  font-size: 9px;
+  color: rgba(255,255,255,0.4);
+  margin: 0;
+  text-align: center;
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+  .lb-body {
+    grid-template-columns: 1fr !important;
+  }
+  .lb-table-header,
+  .lb-row {
+    grid-template-columns: 50px 1fr 70px 80px !important;
+  }
+  .lb-col-wins,
+  .lb-col-winrate {
+    display: none !important;
+  }
+  .lb-title { font-size: 28px !important; }
+  .lb-page { padding: 20px 12px 120px !important; }
+}
+
 .no-history {
   color: var(--text-muted);
   font-size: 14px;

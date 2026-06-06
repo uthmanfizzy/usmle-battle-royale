@@ -533,105 +533,240 @@ function HomeSection({ user, bgUrl, onUserUpdate, homeImages }) {
 }
 
 // ── Leaderboard Section ────────────────────────────────────────────────────────
-function LeaderboardSection({ userId }) {
-  const [lbTab,    setLbTab]    = useState('players');
-  const [players,  setPlayers]  = useState([]);
-  const [clans,    setClans]    = useState([]);
-  const [loading,  setLoading]  = useState(false);
-  const [loaded,   setLoaded]   = useState(false);
+function LeaderboardSection({ userId, user }) {
+  const [activeTab, setActiveTab] = useState('global');
+  const [leaderboard, setLeaderboard] = useState([]);
+  const [topClan, setTopClan] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (loaded) return;
+    fetchLeaderboard();
+    fetchTopClan();
+  }, [activeTab, userId]);
+
+  const fetchLeaderboard = async () => {
     setLoading(true);
-    Promise.all([
-      authFetch('/api/leaderboard/players').then(r => r.ok ? r.json() : { players: [] }),
-      authFetch('/api/clans/leaderboard').then(r => r.ok ? r.json() : { clans: [] }),
-    ]).then(([pd, cd]) => {
-      setPlayers(pd.players || []);
-      setClans(cd.clans || []);
-      setLoaded(true);
-      setLoading(false);
-    }).catch(() => setLoading(false));
-  }, []);
+    try {
+      const res = await authFetch(`/api/leaderboard/players`);
+      const data = await res.json();
+      const players = (data.players || []).map((p, i) => ({
+        ...p,
+        rank: i + 1,
+        winRate: p.wins ? Math.round((p.wins / Math.max(1, p.wins + (p.losses || 0))) * 100) : 0
+      }));
+      setLeaderboard(players);
+    } catch (e) {
+      console.error('Failed to load leaderboard:', e);
+      setLeaderboard([]);
+    }
+    setLoading(false);
+  };
+
+  const fetchTopClan = async () => {
+    try {
+      const res = await authFetch('/api/clans/leaderboard');
+      const data = await res.json();
+      const clans = data.clans || [];
+      setTopClan(clans.length > 0 ? clans[0] : null);
+    } catch (e) {
+      console.error('Failed to load top clan:', e);
+    }
+  };
+
+  const topPlayer = leaderboard[0];
+  const isCurrentUser = (playerId) => playerId === userId;
+
+  const getRankBadge = (rank) => {
+    if (rank === 1) return <div className="lb-rank-badge lb-rank-1"><span>👑</span><span>1</span></div>;
+    if (rank === 2) return <div className="lb-rank-badge lb-rank-2"><span>🥈</span><span>2</span></div>;
+    if (rank === 3) return <div className="lb-rank-badge lb-rank-3"><span>🥉</span><span>3</span></div>;
+    return <div className="lb-rank-num">{rank}</div>;
+  };
+
+  const getPlayerIcon = (rank) => {
+    if (rank === 1) return '👑';
+    if (rank === 2) return '💎';
+    if (rank === 3) return '⚔️';
+    return null;
+  };
 
   return (
-    <div className="dash-content">
-      <div className="lb-tab-bar">
-        <button className={`lb-tab-btn ${lbTab === 'players' ? 'active' : ''}`} onClick={() => setLbTab('players')}>
-          Players
-        </button>
-        <button className={`lb-tab-btn ${lbTab === 'clans' ? 'active' : ''}`} onClick={() => setLbTab('clans')}>
-          Clans
-        </button>
+    <div className="lb-page">
+
+      {/* Header */}
+      <div className="lb-header">
+        <h1 className="lb-title">LEADERBOARDS</h1>
+        <p className="lb-subtitle">Compete with players and climb to the top!</p>
+        <div className="lb-divider">
+          <div className="lb-divider-line" />
+          <div className="lb-divider-diamond">◆</div>
+          <div className="lb-divider-line" />
+        </div>
       </div>
 
-      {loading && <div className="lb-loading"><div className="spinner" /></div>}
+      <div className="lb-body">
 
-      {!loading && lbTab === 'players' && (
-        <div className="dash-card">
-          <div className="card-title">Top 50 Players</div>
-          {players.length === 0
-            ? <p className="no-history">No players ranked yet.</p>
-            : (
-              <table className="lb-big-table">
-                <thead>
-                  <tr><th>#</th><th>Player</th><th>Clan</th><th>Level</th><th>XP</th></tr>
-                </thead>
-                <tbody>
-                  {players.map(p => (
-                    <tr key={p.id} className={p.id === userId ? 'lb-me' : ''}>
-                      <td className="lb-rank-cell">
-                        {p.rank <= 3 ? PLACE_ICONS[p.rank] : <span className="lb-rank-num">#{p.rank}</span>}
-                      </td>
-                      <td className="lb-player-cell">
-                        {p.avatar_url
-                          ? <img src={p.avatar_url} alt="" className="lb-avatar" referrerPolicy="no-referrer" />
-                          : <div className="lb-avatar-placeholder">{p.username?.[0]?.toUpperCase()}</div>
+        {/* LEFT: Tabs + Table */}
+        <div className="lb-left">
+
+          {/* Tabs */}
+          <div className="lb-tabs">
+            {[
+              { id: 'global', label: 'GLOBAL', icon: '🌍' },
+              { id: 'clans', label: 'CLANS', icon: '🛡' },
+              { id: 'friends', label: 'FRIENDS', icon: '👥' },
+            ].map(tab => (
+              <button
+                key={tab.id}
+                className={`lb-tab ${activeTab === tab.id ? 'lb-tab--active' : ''}`}
+                onClick={() => setActiveTab(tab.id)}
+              >
+                {tab.icon} {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Table */}
+          <div className="lb-table">
+            <div className="lb-table-header">
+              <span className="lb-col-rank">RANK</span>
+              <span className="lb-col-player">PLAYER</span>
+              <span className="lb-col-level">LEVEL</span>
+              <span className="lb-col-xp">XP</span>
+              <span className="lb-col-wins">WINS</span>
+              <span className="lb-col-winrate">WIN RATE</span>
+            </div>
+
+            {loading ? (
+              <div className="lb-loading">Loading...</div>
+            ) : (
+              <>
+                {leaderboard.slice(0, 10).map(player => (
+                  <div
+                    key={player.id}
+                    className={`lb-row ${isCurrentUser(player.id) ? 'lb-row--you' : ''} ${player.rank <= 3 ? `lb-row--top${player.rank}` : ''}`}
+                  >
+                    <span className="lb-col-rank">{getRankBadge(player.rank)}</span>
+                    <span className="lb-col-player">
+                      <div className="lb-player-avatar">
+                        {player.avatar_url
+                          ? <img src={player.avatar_url} alt={player.username} referrerPolicy="no-referrer" />
+                          : <span>{player.username?.[0]?.toUpperCase()}</span>
                         }
-                        <span className="lb-username">{p.username}</span>
-                      </td>
-                      <td>{p.clan_tag ? <span className="lb-clan-tag">[{p.clan_tag}]</span> : <span className="lb-no-clan">—</span>}</td>
-                      <td><span className="lb-level">Lv {p.level}</span></td>
-                      <td className="lb-xp">{p.xp?.toLocaleString()}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )
-          }
-        </div>
-      )}
+                      </div>
+                      <span className="lb-player-name">
+                        {player.username}
+                        {isCurrentUser(player.id) && <span className="lb-you-badge"> (YOU)</span>}
+                      </span>
+                      {getPlayerIcon(player.rank) && (
+                        <span className="lb-player-icon">{getPlayerIcon(player.rank)}</span>
+                      )}
+                    </span>
+                    <span className="lb-col-level">Level {player.level || 1}</span>
+                    <span className="lb-col-xp">{(player.xp || 0).toLocaleString()} XP</span>
+                    <span className="lb-col-wins">{player.wins || 0}</span>
+                    <span className="lb-col-winrate">{player.winRate || 0}%</span>
+                  </div>
+                ))}
 
-      {!loading && lbTab === 'clans' && (
-        <div className="dash-card">
-          <div className="card-title">Top 10 Clans</div>
-          {clans.length === 0
-            ? <p className="no-history">No clans yet.</p>
-            : (
-              <table className="lb-big-table">
-                <thead>
-                  <tr><th>#</th><th>Clan</th><th>Members</th><th>Total XP</th></tr>
-                </thead>
-                <tbody>
-                  {clans.map((c, i) => (
-                    <tr key={c.id}>
-                      <td className="lb-rank-cell">
-                        {i < 3 ? PLACE_ICONS[i + 1] : <span className="lb-rank-num">#{i + 1}</span>}
-                      </td>
-                      <td className="lb-player-cell">
-                        <span className="lb-clan-tag-big">[{c.tag}]</span>
-                        <span className="lb-username">{c.name}</span>
-                      </td>
-                      <td className="lb-members">{c.member_count}</td>
-                      <td className="lb-xp">{c.total_xp?.toLocaleString()}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )
-          }
+                {/* Current user if not in top 10 */}
+                {user && !leaderboard.slice(0, 10).find(p => p.id === userId) && (
+                  <>
+                    <div className="lb-row-separator">...</div>
+                    <div className="lb-row lb-row--you">
+                      <span className="lb-col-rank"><div className="lb-rank-num">-</div></span>
+                      <span className="lb-col-player">
+                        <div className="lb-player-avatar">
+                          {user.avatar_url
+                            ? <img src={user.avatar_url} alt={user.username} referrerPolicy="no-referrer" />
+                            : <span>{user.username?.[0]?.toUpperCase()}</span>
+                          }
+                        </div>
+                        <span className="lb-player-name">{user.username} <span className="lb-you-badge">(YOU)</span></span>
+                      </span>
+                      <span className="lb-col-level">Level {user.level || 1}</span>
+                      <span className="lb-col-xp">{(user.xp || 0).toLocaleString()} XP</span>
+                      <span className="lb-col-wins">{user.wins || 0}</span>
+                      <span className="lb-col-winrate">0%</span>
+                    </div>
+                  </>
+                )}
+              </>
+            )}
+          </div>
+
+          <p className="lb-refresh-note">Leaderboards refresh every 10 minutes.</p>
         </div>
-      )}
+
+        {/* RIGHT: Top Player, Top Clan, Rewards */}
+        <div className="lb-right">
+
+          {/* Top Player */}
+          <div className="lb-right-section">
+            <p className="lb-right-label">TOP PLAYERS</p>
+            <div className="lb-top-player-card">
+              <div className="lb-top-player-icon">
+                {topPlayer?.avatar_url
+                  ? <img src={topPlayer.avatar_url} alt={topPlayer.username} referrerPolicy="no-referrer" />
+                  : <span>{topPlayer?.username?.[0]?.toUpperCase() || '?'}</span>
+                }
+              </div>
+              <h3 className="lb-top-player-name">
+                {topPlayer?.username || 'No players yet'} {topPlayer && '👑'}
+              </h3>
+              <p className="lb-top-player-stats">
+                Level {topPlayer?.level || '-'} &nbsp;·&nbsp; {(topPlayer?.xp || 0).toLocaleString()} XP
+              </p>
+              <button className="lb-view-btn">VIEW PROFILE</button>
+            </div>
+          </div>
+
+          {/* Top Clan */}
+          <div className="lb-right-section">
+            <p className="lb-right-label">TOP CLAN</p>
+            <div className="lb-top-clan-card">
+              <div className="lb-clan-banner">
+                {topClan?.banner_url
+                  ? <img src={topClan.banner_url} alt={topClan.name} />
+                  : <span>🛡</span>
+                }
+              </div>
+              <div className="lb-clan-info">
+                <h4 className="lb-clan-name">{topClan?.name || 'No clans yet'} {topClan && '👑'}</h4>
+                <p className="lb-clan-members">Members: {topClan?.member_count || 0} / 50</p>
+                <p className="lb-clan-score">🏆 {(topClan?.total_xp || 0).toLocaleString()}</p>
+              </div>
+              <button className="lb-view-btn">VIEW CLAN</button>
+            </div>
+          </div>
+
+          {/* Leaderboard Rewards */}
+          <div className="lb-right-section">
+            <p className="lb-right-label">LEADERBOARD REWARDS</p>
+            <div className="lb-rewards-card">
+              <div className="lb-reward-tiers">
+                <div className="lb-reward-tier">
+                  <span className="lb-reward-chest">🏆</span>
+                  <p className="lb-reward-rank">Top 1</p>
+                  <p className="lb-reward-name">Exclusive Chest</p>
+                </div>
+                <div className="lb-reward-tier">
+                  <span className="lb-reward-chest">🥈</span>
+                  <p className="lb-reward-rank">Top 2-10</p>
+                  <p className="lb-reward-name">Epic Chest</p>
+                </div>
+                <div className="lb-reward-tier">
+                  <span className="lb-reward-chest">🥉</span>
+                  <p className="lb-reward-rank">Top 11-50</p>
+                  <p className="lb-reward-name">Rare Chest</p>
+                </div>
+              </div>
+              <button className="lb-view-btn lb-view-btn--full">VIEW ALL REWARDS</button>
+            </div>
+          </div>
+
+        </div>
+      </div>
     </div>
   );
 }
@@ -1191,7 +1326,7 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
 
         {/* Tab content */}
         {dashTab === 'home'          && <HomeSection user={user} bgUrl={bgUrl} onUserUpdate={onUserUpdate} homeImages={homeImages} />}
-        {dashTab === 'leaderboard'   && <LeaderboardSection userId={user.id} />}
+        {dashTab === 'leaderboard'   && <LeaderboardSection userId={user.id} user={user} />}
         {dashTab === 'clans'         && <ClanSection user={user} onUserUpdate={onUserUpdate} />}
         {dashTab === 'announcements' && <AnnouncementsSection />}
 
