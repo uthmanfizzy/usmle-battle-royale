@@ -390,7 +390,11 @@ function HomeSection({ user, bgUrl, onUserUpdate }) {
             </div>
             <div className="home-widget-content reward-content">
               <div className="reward-chest-wrap">
-                <span className="reward-chest-emoji">🎁</span>
+                {homeImages.chest_image ? (
+                  <img src={homeImages.chest_image} alt="Reward Chest" className="reward-chest-img" />
+                ) : (
+                  <div className="reward-chest-placeholder" />
+                )}
               </div>
               <div className="reward-info">
                 <p className="reward-text">

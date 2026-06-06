@@ -4455,6 +4455,7 @@ function HomePagePanel() {
     stats_panel_bg: '',
     quests_panel_bg: '',
     recent_games_panel_bg: '',
+    chest_image: '',
   });
   const [uploading, setUploading] = useState({});
   const [loading, setLoading] = useState(true);
@@ -4723,6 +4724,50 @@ function HomePagePanel() {
             </div>
           </div>
         ))}
+      </div>
+
+      {/* Widget Images */}
+      <h3 className="li-images-title">🎁 Widget Images</h3>
+      <div className="li-grid">
+        <div className="li-slot">
+          <div className="li-slot-header">
+            <span className="li-slot-label">Reward Chest Image</span>
+            <span className="li-slot-desc">Image shown in the Rewards widget on the homepage</span>
+          </div>
+
+          <div className="li-slot-preview" style={{ height: '80px' }}>
+            {homeImages.chest_image ? (
+              <img src={homeImages.chest_image} alt="Reward Chest" className="li-slot-img" style={{ objectFit: 'contain' }} />
+            ) : (
+              <div className="li-slot-empty">
+                <span className="li-slot-empty-icon">🎁</span>
+                <span>No chest image uploaded</span>
+              </div>
+            )}
+          </div>
+
+          <div className="li-slot-actions">
+            <label className={`li-upload-btn ${uploading.chest_image ? 'uploading' : ''}`}>
+              {uploading.chest_image ? 'Uploading...' : homeImages.chest_image ? 'Replace' : 'Upload'}
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => handleUpload('chest_image', e.target.files[0])}
+                disabled={uploading.chest_image}
+                style={{ display: 'none' }}
+              />
+            </label>
+            {homeImages.chest_image && (
+              <button
+                className="li-remove-btn"
+                onClick={() => handleRemove('chest_image')}
+                disabled={uploading.chest_image}
+              >
+                Remove
+              </button>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Save Button */}
