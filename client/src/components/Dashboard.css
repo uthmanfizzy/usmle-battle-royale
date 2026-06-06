@@ -729,15 +729,21 @@
   font-family: 'Playfair Display', Georgia, serif;
   font-size: 36px;
   font-weight: 700;
-  color: var(--gold-rpg);
-  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+  color: rgba(220,190,80,0.95) !important;
+  text-shadow:
+    0 0 20px rgba(200,165,60,0.8),
+    0 0 40px rgba(180,140,40,0.5),
+    0 0 80px rgba(160,120,20,0.3) !important;
   margin-bottom: 12px;
 }
 
 .center-welcome-sub {
   font-size: 18px;
-  color: var(--parchment);
-  opacity: 0.8;
+  color: rgba(255,255,255,0.75) !important;
+  text-shadow:
+    0 0 15px rgba(200,165,60,0.4),
+    0 0 30px rgba(180,140,40,0.2) !important;
+  opacity: 1;
 }
 
 .center-recent-games {
@@ -3810,16 +3816,7 @@ button.settings-btn img,
   letter-spacing: normal !important;
 }
 
-/* Welcome message */
-.dash-center-col h1,
-.dash-center-col h2,
-.dash-center-col p,
-.center-welcome-title,
-.center-welcome-sub {
-  font-family: 'Inter', sans-serif !important;
-  text-transform: none !important;
-  letter-spacing: normal !important;
-}
+/* Welcome message - keep original Playfair Display font for elegance */
 
 /* Keep Cinzel only for widget headers/labels */
 .home-widget-title,
