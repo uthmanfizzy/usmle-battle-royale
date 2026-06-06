@@ -109,22 +109,10 @@
 /* ══════════════════════════════════════════════════════════════════════════════
    HORIZONTAL PROFILE CARD - Left Side
    ══════════════════════════════════════════════════════════════════════════════ */
-.dashboard-top-left {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  position: fixed;
-  top: 12px;
-  left: 12px;
-  z-index: 100;
-  width: 300px;
-}
-
 .horizontal-profile-card {
   display: flex;
   align-items: center;
   position: relative;
-  width: 100%;
 }
 
 .profile-card-avatar {
@@ -3299,9 +3287,10 @@ button.settings-btn img,
 .home-widgets {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
+  padding: 12px;
+  max-width: 360px;
   width: 100%;
-  padding: 0;
 }
 
 .home-widget {
