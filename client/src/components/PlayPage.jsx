@@ -453,7 +453,6 @@ export default function PlayPage({
     return [
       { id: 1, name: 'Answer 10 questions', icon: '🎯', progress: '0/10', percent: 0, reward: 100 },
       { id: 2, name: 'Win 3 matches', icon: '🏆', progress: '0/3', percent: 0, reward: 250 },
-      { id: 3, name: 'Study Cardiology', icon: '❤️', progress: '0/1', percent: 0, reward: 150 },
     ];
   }
 
