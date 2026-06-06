@@ -356,6 +356,95 @@ function HomeSection({ user, bgUrl, onUserUpdate }) {
 
       {/* Right Column */}
       <div className="dash-right-col">
+        <div className="home-widgets">
+
+          {/* DAILY QUESTS */}
+          <div className="home-widget">
+            <div className="home-widget-header">
+              <h3 className="home-widget-title">DAILY QUESTS</h3>
+            </div>
+            <div className="home-widget-content">
+              {quests.slice(0, 3).map((quest, i) => (
+                <div className="quest-item" key={quest.id || i}>
+                  <div className="quest-icon-wrap">
+                    {quest.icon_image ? (
+                      <img src={quest.icon_image} alt={quest.name} className="quest-icon-img" />
+                    ) : (
+                      <span className="quest-icon-emoji">{quest.icon || '⚔️'}</span>
+                    )}
+                  </div>
+                  <div className="quest-info">
+                    <p className="quest-name">{quest.name}</p>
+                    <div className="quest-progress-bar">
+                      <div
+                        className="quest-progress-fill"
+                        style={{ width: `${Math.min(100, ((quest.current || 0) / (quest.target || 1)) * 100)}%` }}
+                      />
+                    </div>
+                    <p className="quest-progress-text">{quest.current || 0} / {quest.target || 1}</p>
+                  </div>
+                  <div className="quest-reward">
+                    <span className="quest-gem-icon">💎</span>
+                    <span className="quest-reward-amount">{quest.gem_reward || 10}</span>
+                  </div>
+                </div>
+              ))}
+              {quests.length === 0 && (
+                <p className="home-widget-empty">No active quests today</p>
+              )}
+            </div>
+          </div>
+
+          {/* REWARDS */}
+          <div className="home-widget">
+            <div className="home-widget-header">
+              <h3 className="home-widget-title">REWARDS</h3>
+            </div>
+            <div className="home-widget-content reward-content">
+              <div className="reward-chest-wrap">
+                <span className="reward-chest-emoji">🎁</span>
+              </div>
+              <div className="reward-info">
+                <p className="reward-text">
+                  {rewardChest?.available ? 'Open your free chest!' : `Next chest in ${rewardChest?.timeLeft || '24h'}`}
+                </p>
+                <button
+                  className={`reward-claim-btn ${!rewardChest?.available ? 'reward-claim-btn--disabled' : ''}`}
+                  onClick={handleClaimChest}
+                  disabled={!rewardChest?.available}
+                >
+                  {rewardChest?.available ? 'CLAIM' : 'CLAIMED'}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* NEWS */}
+          <div className="home-widget">
+            <div className="home-widget-header">
+              <h3 className="home-widget-title">NEWS</h3>
+            </div>
+            <div className="home-widget-content">
+              {newsItems.map((item, i) => (
+                <div className="news-item" key={item.id || i}>
+                  {item.image_url ? (
+                    <img src={item.image_url} alt={item.title} className="news-item-img" />
+                  ) : (
+                    <div className="news-item-img-placeholder">📢</div>
+                  )}
+                  <div className="news-item-info">
+                    <p className="news-item-title">{item.title || item.message?.substring(0, 40)}</p>
+                    <p className="news-item-desc">{item.message?.substring(0, 60)}{item.message?.length > 60 ? '...' : ''}</p>
+                  </div>
+                </div>
+              ))}
+              {newsItems.length === 0 && (
+                <p className="home-widget-empty">No news yet</p>
+              )}
+            </div>
+          </div>
+
+        </div>
       </div>
 
       {showUsernameModal && (
@@ -918,99 +1007,6 @@ export default function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
                 </div>
               </div>
             </div>
-
-            {/* Home Widgets below profile card */}
-            {dashTab === 'home' && (
-              <div className="home-widgets">
-
-                {/* DAILY QUESTS */}
-                <div className="home-widget">
-                  <div className="home-widget-header">
-                    <h3 className="home-widget-title">DAILY QUESTS</h3>
-                  </div>
-                  <div className="home-widget-content">
-                    {quests.slice(0, 3).map((quest, i) => (
-                      <div className="quest-item" key={quest.id || i}>
-                        <div className="quest-icon-wrap">
-                          {quest.icon_image ? (
-                            <img src={quest.icon_image} alt={quest.name} className="quest-icon-img" />
-                          ) : (
-                            <span className="quest-icon-emoji">{quest.icon || '⚔️'}</span>
-                          )}
-                        </div>
-                        <div className="quest-info">
-                          <p className="quest-name">{quest.name}</p>
-                          <div className="quest-progress-bar">
-                            <div
-                              className="quest-progress-fill"
-                              style={{ width: `${Math.min(100, ((quest.current || 0) / (quest.target || 1)) * 100)}%` }}
-                            />
-                          </div>
-                          <p className="quest-progress-text">{quest.current || 0} / {quest.target || 1}</p>
-                        </div>
-                        <div className="quest-reward">
-                          <span className="quest-gem-icon">💎</span>
-                          <span className="quest-reward-amount">{quest.gem_reward || 10}</span>
-                        </div>
-                      </div>
-                    ))}
-                    {quests.length === 0 && (
-                      <p className="home-widget-empty">No active quests today</p>
-                    )}
-                  </div>
-                </div>
-
-                {/* REWARDS */}
-                <div className="home-widget">
-                  <div className="home-widget-header">
-                    <h3 className="home-widget-title">REWARDS</h3>
-                  </div>
-                  <div className="home-widget-content reward-content">
-                    <div className="reward-chest-wrap">
-                      <span className="reward-chest-emoji">🎁</span>
-                    </div>
-                    <div className="reward-info">
-                      <p className="reward-text">
-                        {rewardChest?.available ? 'Open your free chest!' : `Next chest in ${rewardChest?.timeLeft || '24h'}`}
-                      </p>
-                      <button
-                        className={`reward-claim-btn ${!rewardChest?.available ? 'reward-claim-btn--disabled' : ''}`}
-                        onClick={handleClaimChest}
-                        disabled={!rewardChest?.available}
-                      >
-                        {rewardChest?.available ? 'CLAIM' : 'CLAIMED'}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* NEWS */}
-                <div className="home-widget">
-                  <div className="home-widget-header">
-                    <h3 className="home-widget-title">NEWS</h3>
-                  </div>
-                  <div className="home-widget-content">
-                    {newsItems.map((item, i) => (
-                      <div className="news-item" key={item.id || i}>
-                        {item.image_url ? (
-                          <img src={item.image_url} alt={item.title} className="news-item-img" />
-                        ) : (
-                          <div className="news-item-img-placeholder">📢</div>
-                        )}
-                        <div className="news-item-info">
-                          <p className="news-item-title">{item.title || item.message?.substring(0, 40)}</p>
-                          <p className="news-item-desc">{item.message?.substring(0, 60)}{item.message?.length > 60 ? '...' : ''}</p>
-                        </div>
-                      </div>
-                    ))}
-                    {newsItems.length === 0 && (
-                      <p className="home-widget-empty">No news yet</p>
-                    )}
-                  </div>
-                </div>
-
-              </div>
-            )}
           </div>
 
           <div className="header-right">

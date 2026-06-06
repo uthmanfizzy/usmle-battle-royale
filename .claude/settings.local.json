@@ -47,8 +47,7 @@
       "PowerShell(Set-Content *)",
       "PowerShell(Get-Content client/src/components/AdminApp.jsx | Select-Object -Skip 1154 -First 106 | ForEach-Object -Begin {$i=1155} -Process {\"$i`t$_\"; $i++})",
       "PowerShell(node --check server/index.js 2>&1)",
-      "Bash(curl *)",
-      "PowerShell(git revert *)"
+      "Bash(curl *)"
     ]
   }
 }

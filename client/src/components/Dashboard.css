@@ -3287,15 +3287,10 @@ button.settings-btn img,
 .home-widgets {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  width: 100% !important;
-  max-width: 100% !important;
-  position: static !important;
-  right: auto !important;
-  top: auto !important;
-  padding: 8px 0 0 0 !important;
-  margin: 0 !important;
-  box-sizing: border-box !important;
+  gap: 12px;
+  padding: 12px;
+  max-width: 360px;
+  width: 100%;
 }
 
 .home-widget {
