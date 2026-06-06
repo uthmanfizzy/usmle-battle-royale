@@ -1091,32 +1091,26 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
 
             {/* Individual Icon Bubbles */}
             <div className="header-icon-group">
-              {/* 1. SETTINGS - top on mobile */}
-              <div className="friends-dropdown-wrapper" ref={settingsDropdownRef}>
+              {/* 1. NOTIFICATIONS - top on mobile */}
+              <div className="friends-dropdown-wrapper" ref={notifDropdownRef}>
                 <button
-                  className="header-icon-bubble settings-btn"
-                  onClick={() => { setShowSettings(!showSettings); setShowNotifications(false); setShowFriendsPanel(false); }}
-                  title="Settings"
+                  className="header-icon-bubble notification-btn"
+                  onClick={() => { setShowNotifications(!showNotifications); setShowFriendsPanel(false); setShowSettings(false); }}
+                  title="Notifications"
                 >
-                  {homeImages.icon_settings ? (
-                    <img
-                      loading="lazy"
-                      src={homeImages.icon_settings}
-                      alt="Settings"
-                      className="header-icon-img"
-                      style={{width:'28px', height:'28px', minWidth:'28px', minHeight:'28px', position:'static', margin:'0', display:'block'}}
-                    />
+                  {homeImages.icon_notification ? (
+                    <img loading="lazy" src={homeImages.icon_notification} alt="Notifications" className="header-icon-img" />
                   ) : (
-                    <span>⚙️</span>
+                    <span>🔔</span>
                   )}
+                  {unreadCount > 0 && <span className="notification-dot" />}
                 </button>
 
-                {showSettings && (
-                  <div className="friends-dropdown friends-dropdown--left">
-                    <SettingsDropdown
+                {showNotifications && (
+                  <div className="friends-dropdown">
+                    <NotificationsDropdown
                       user={user}
-                      onClose={() => setShowSettings(false)}
-                      onLogout={onLogout}
+                      onClose={() => setShowNotifications(false)}
                     />
                   </div>
                 )}
@@ -1151,26 +1145,32 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
                 )}
               </div>
 
-              {/* 3. NOTIFICATIONS - bottom on mobile */}
-              <div className="friends-dropdown-wrapper" ref={notifDropdownRef}>
+              {/* 3. SETTINGS - bottom on mobile */}
+              <div className="friends-dropdown-wrapper" ref={settingsDropdownRef}>
                 <button
-                  className="header-icon-bubble notification-btn"
-                  onClick={() => { setShowNotifications(!showNotifications); setShowFriendsPanel(false); setShowSettings(false); }}
-                  title="Notifications"
+                  className="header-icon-bubble settings-btn"
+                  onClick={() => { setShowSettings(!showSettings); setShowNotifications(false); setShowFriendsPanel(false); }}
+                  title="Settings"
                 >
-                  {homeImages.icon_notification ? (
-                    <img loading="lazy" src={homeImages.icon_notification} alt="Notifications" className="header-icon-img" />
+                  {homeImages.icon_settings ? (
+                    <img
+                      loading="lazy"
+                      src={homeImages.icon_settings}
+                      alt="Settings"
+                      className="header-icon-img"
+                      style={{width:'28px', height:'28px', minWidth:'28px', minHeight:'28px', position:'static', margin:'0', display:'block'}}
+                    />
                   ) : (
-                    <span>🔔</span>
+                    <span>⚙️</span>
                   )}
-                  {unreadCount > 0 && <span className="notification-dot" />}
                 </button>
 
-                {showNotifications && (
-                  <div className="friends-dropdown">
-                    <NotificationsDropdown
+                {showSettings && (
+                  <div className="friends-dropdown friends-dropdown--left">
+                    <SettingsDropdown
                       user={user}
-                      onClose={() => setShowNotifications(false)}
+                      onClose={() => setShowSettings(false)}
+                      onLogout={onLogout}
                     />
                   </div>
                 )}
