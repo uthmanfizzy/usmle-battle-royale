@@ -548,14 +548,30 @@ function LeaderboardSection({ userId, user }) {
   const fetchLeaderboard = async () => {
     setLoading(true);
     try {
-      const res = await authFetch(`/api/leaderboard/players`);
+      let url;
+      if (activeTab === 'clans') {
+        url = `/api/leaderboard/clans`;
+      } else if (activeTab === 'friends') {
+        url = `/api/leaderboard/players`; // TODO: Add friends filtering
+      } else {
+        url = `/api/leaderboard/players`;
+      }
+
+      const res = await authFetch(url);
       const data = await res.json();
-      const players = (data.players || []).map((p, i) => ({
-        ...p,
-        rank: i + 1,
-        winRate: p.wins ? Math.round((p.wins / Math.max(1, p.wins + (p.losses || 0))) * 100) : 0
-      }));
-      setLeaderboard(players);
+
+      if (activeTab === 'clans') {
+        // Clans data is already in the correct format
+        setLeaderboard(data || []);
+      } else {
+        // Players data needs formatting
+        const players = (data.players || []).map((p, i) => ({
+          ...p,
+          rank: i + 1,
+          winRate: p.wins ? Math.round((p.wins / Math.max(1, p.wins + (p.losses || 0))) * 100) : 0
+        }));
+        setLeaderboard(players);
+      }
     } catch (e) {
       console.error('Failed to load leaderboard:', e);
       setLeaderboard([]);
@@ -630,48 +646,93 @@ function LeaderboardSection({ userId, user }) {
           {/* Table */}
           <div className="lb-table">
             <div className="lb-table-header">
-              <span className="lb-col-rank">RANK</span>
-              <span className="lb-col-player">PLAYER</span>
-              <span className="lb-col-level">LEVEL</span>
-              <span className="lb-col-xp">XP</span>
-              <span className="lb-col-wins">WINS</span>
-              <span className="lb-col-winrate">WIN RATE</span>
+              {activeTab === 'clans' ? (
+                <>
+                  <span className="lb-col-rank">RANK</span>
+                  <span className="lb-col-player">CLAN</span>
+                  <span className="lb-col-level">LEVEL</span>
+                  <span className="lb-col-xp">SCORE</span>
+                  <span className="lb-col-wins">MEMBERS</span>
+                  <span className="lb-col-winrate">TAG</span>
+                </>
+              ) : (
+                <>
+                  <span className="lb-col-rank">RANK</span>
+                  <span className="lb-col-player">PLAYER</span>
+                  <span className="lb-col-level">LEVEL</span>
+                  <span className="lb-col-xp">XP</span>
+                  <span className="lb-col-wins">WINS</span>
+                  <span className="lb-col-winrate">WIN RATE</span>
+                </>
+              )}
             </div>
 
             {loading ? (
               <div className="lb-loading">Loading...</div>
+            ) : leaderboard.length === 0 ? (
+              <div className="lb-loading">
+                {activeTab === 'clans' ? 'No clans yet. Create one to compete!' :
+                 activeTab === 'friends' ? 'Add friends to see their rankings!' :
+                 'No players yet.'}
+              </div>
             ) : (
               <>
-                {leaderboard.slice(0, 10).map(player => (
+                {leaderboard.slice(0, 10).map(item => (
                   <div
-                    key={player.id}
-                    className={`lb-row ${isCurrentUser(player.id) ? 'lb-row--you' : ''} ${player.rank <= 3 ? `lb-row--top${player.rank}` : ''}`}
+                    key={item.id}
+                    className={`lb-row ${activeTab !== 'clans' && isCurrentUser(item.id) ? 'lb-row--you' : ''} ${item.rank <= 3 ? `lb-row--top${item.rank}` : ''}`}
                   >
-                    <span className="lb-col-rank">{getRankBadge(player.rank)}</span>
-                    <span className="lb-col-player">
-                      <div className="lb-player-avatar">
-                        {player.avatar_url
-                          ? <img src={player.avatar_url} alt={player.username} referrerPolicy="no-referrer" />
-                          : <span>{player.username?.[0]?.toUpperCase()}</span>
-                        }
-                      </div>
-                      <span className="lb-player-name">
-                        {player.username}
-                        {isCurrentUser(player.id) && <span className="lb-you-badge"> (YOU)</span>}
-                      </span>
-                      {getPlayerIcon(player.rank) && (
-                        <span className="lb-player-icon">{getPlayerIcon(player.rank)}</span>
-                      )}
-                    </span>
-                    <span className="lb-col-level">Level {player.level || 1}</span>
-                    <span className="lb-col-xp">{(player.xp || 0).toLocaleString()} XP</span>
-                    <span className="lb-col-wins">{player.wins || 0}</span>
-                    <span className="lb-col-winrate">{player.winRate || 0}%</span>
+                    <span className="lb-col-rank">{getRankBadge(item.rank)}</span>
+
+                    {activeTab === 'clans' ? (
+                      /* CLAN ROW */
+                      <>
+                        <span className="lb-col-player">
+                          <div className="lb-player-avatar">
+                            {item.banner_url
+                              ? <img src={item.banner_url} alt={item.name} />
+                              : <span>🛡</span>
+                            }
+                          </div>
+                          <span className="lb-player-name">{item.name}</span>
+                          {item.rank <= 3 && (
+                            <span className="lb-player-icon">{getPlayerIcon(item.rank)}</span>
+                          )}
+                        </span>
+                        <span className="lb-col-level">Level {item.level || 1}</span>
+                        <span className="lb-col-xp">{(item.score || 0).toLocaleString()}</span>
+                        <span className="lb-col-wins">{item.memberCount || 0}</span>
+                        <span className="lb-col-winrate">[{item.tag || 'N/A'}]</span>
+                      </>
+                    ) : (
+                      /* PLAYER ROW */
+                      <>
+                        <span className="lb-col-player">
+                          <div className="lb-player-avatar">
+                            {item.avatar_url
+                              ? <img src={item.avatar_url} alt={item.username} referrerPolicy="no-referrer" />
+                              : <span>{item.username?.[0]?.toUpperCase()}</span>
+                            }
+                          </div>
+                          <span className="lb-player-name">
+                            {item.username}
+                            {isCurrentUser(item.id) && <span className="lb-you-badge"> (YOU)</span>}
+                          </span>
+                          {getPlayerIcon(item.rank) && (
+                            <span className="lb-player-icon">{getPlayerIcon(item.rank)}</span>
+                          )}
+                        </span>
+                        <span className="lb-col-level">Level {item.level || 1}</span>
+                        <span className="lb-col-xp">{(item.xp || 0).toLocaleString()} XP</span>
+                        <span className="lb-col-wins">{item.wins || 0}</span>
+                        <span className="lb-col-winrate">{item.winRate || 0}%</span>
+                      </>
+                    )}
                   </div>
                 ))}
 
-                {/* Current user if not in top 10 */}
-                {user && !leaderboard.slice(0, 10).find(p => p.id === userId) && (
+                {/* Current user if not in top 10 (only for player tabs) */}
+                {activeTab !== 'clans' && user && !leaderboard.slice(0, 10).find(p => p.id === userId) && (
                   <>
                     <div className="lb-row-separator">...</div>
                     <div className="lb-row lb-row--you">

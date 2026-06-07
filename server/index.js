@@ -3342,6 +3342,30 @@ app.get('/api/leaderboard/players', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+app.get('/api/leaderboard/clans', async (req, res) => {
+  if (!supabase) return res.json([]);
+  try {
+    const { data, error } = await supabase
+      .from('clans')
+      .select('id, name, tag, score, rank, level, xp, banner_url, member_count:clan_members(count)')
+      .order('score', { ascending: false })
+      .limit(50);
+
+    if (error) throw error;
+
+    const clans = (data || []).map((clan, i) => ({
+      ...clan,
+      rank: i + 1,
+      memberCount: clan.member_count?.[0]?.count || 0,
+    }));
+
+    res.json(clans);
+  } catch(e) {
+    console.error('[leaderboard/clans] Error:', e.message);
+    res.json([]);
+  }
+});
+
 // ── Friends API ────────────────────────────────────────────────────────────────
 /*
 SQL to run in Supabase dashboard to create friends table:
