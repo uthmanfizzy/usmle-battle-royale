@@ -105,6 +105,23 @@ app.use(session({
 app.use(passport.initialize());
 app.use(passport.session());
 
+// ── Clan Perks by Level ────────────────────────────────────────────────────────
+
+const CLAN_PERKS = {
+  1: [],
+  2: [{ icon: '🔄', text: '+5% Clan XP Boost' }],
+  3: [{ icon: '🔄', text: '+10% Clan XP Boost' }, { icon: '🪙', text: '+10% Gold from Battles' }],
+  4: [{ icon: '🔄', text: '+10% Clan XP Boost' }, { icon: '🪙', text: '+20% Gold from Battles' }, { icon: '⚔️', text: '+5% Damage in Clan Wars' }],
+  5: [{ icon: '🔄', text: '+10% Clan XP Boost' }, { icon: '🪙', text: '+20% Gold from Battles' }, { icon: '⚔️', text: '+5% Damage in Clan Wars' }, { icon: '📋', text: '+1 Extra Daily Quest' }],
+  6: [{ icon: '🔄', text: '+15% Clan XP Boost' }, { icon: '🪙', text: '+25% Gold from Battles' }, { icon: '⚔️', text: '+10% Damage in Clan Wars' }, { icon: '📋', text: '+2 Extra Daily Quests' }, { icon: '💎', text: '+5% Gem Drop Rate' }],
+  7: [{ icon: '🔄', text: '+20% Clan XP Boost' }, { icon: '🪙', text: '+30% Gold from Battles' }, { icon: '⚔️', text: '+15% Damage in Clan Wars' }, { icon: '📋', text: '+2 Extra Daily Quests' }, { icon: '💎', text: '+10% Gem Drop Rate' }, { icon: '🛡', text: '+10% Defense Bonus' }],
+};
+
+const getClanPerks = (level) => {
+  const clampedLevel = Math.min(Math.max(level || 1, 1), 7);
+  return CLAN_PERKS[clampedLevel] || [];
+};
+
 const server = http.createServer(app);
 
 const io = new Server(server, {
@@ -2659,7 +2676,8 @@ app.get('/api/clans/:clanId', async (req, res) => {
 
     res.json({
       ...clan,
-      members: enhancedMembers
+      members: enhancedMembers,
+      perks: getClanPerks(clan.level)
     });
   } catch (err) {
     console.error('[clans/:id] Error:', err.message);
@@ -2960,7 +2978,7 @@ app.put('/api/clans/:clanId', async (req, res) => {
   if (!supabase) return res.status(503).json({ success: false, error: 'Database not configured' });
   try {
     const { clanId } = req.params;
-    const { leaderId, name, description, type, location, required_trophies, tag } = req.body;
+    const { leaderId, name, description, type, location, required_trophies, tag, banner_url, crest_url } = req.body;
 
     const { data: leader } = await supabase
       .from('clan_members')
@@ -2972,9 +2990,21 @@ app.put('/api/clans/:clanId', async (req, res) => {
       return res.status(403).json({ success: false, error: 'Only the Leader can update clan settings' });
     }
 
+    const updateData = {
+      name,
+      description,
+      type,
+      location,
+      required_trophies,
+      tag: tag?.toUpperCase().slice(0, 5)
+    };
+
+    if (banner_url !== undefined) updateData.banner_url = banner_url;
+    if (crest_url !== undefined) updateData.crest_url = crest_url;
+
     const { error } = await supabase
       .from('clans')
-      .update({ name, description, type, location, required_trophies, tag: tag?.toUpperCase().slice(0,5) })
+      .update(updateData)
       .eq('id', clanId);
 
     if (error) throw error;

@@ -1203,7 +1203,258 @@
   margin-top: 8px;
 }
 
+/* Sortable Headers */
+.clan-sortable {
+  cursor: pointer !important;
+  user-select: none;
+  transition: color 0.15s;
+}
+.clan-sortable:hover { color: rgba(220, 190, 80, 0.9) !important; }
+
+/* Settings Modal */
+.clan-settings-modal {
+  background: rgba(10, 15, 8, 0.98);
+  border: 1px solid rgba(180, 140, 40, 0.45);
+  border-radius: 16px;
+  width: 100%;
+  max-width: 520px;
+  max-height: 88vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(180, 140, 40, 0.2) transparent;
+}
+
+.clan-settings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 20px;
+  border-bottom: 1px solid rgba(180, 140, 40, 0.2);
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  background: rgba(10, 15, 8, 0.98);
+  z-index: 1;
+}
+
+.clan-settings-header h2 {
+  font-family: 'Cinzel', serif;
+  font-size: 18px;
+  color: rgba(220, 190, 80, 0.95);
+  margin: 0;
+}
+
+.clan-settings-header button {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 18px;
+  cursor: pointer;
+}
+
+.clan-settings-body {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.clan-settings-error {
+  padding: 10px 14px;
+  background: rgba(60, 15, 15, 0.8);
+  border: 1px solid rgba(180, 60, 60, 0.4);
+  border-radius: 8px;
+  color: rgba(220, 100, 100, 0.9);
+  font-family: 'Cinzel', serif;
+  font-size: 12px;
+}
+
+.clan-settings-success {
+  padding: 10px 14px;
+  background: rgba(20, 60, 20, 0.8);
+  border: 1px solid rgba(80, 180, 80, 0.4);
+  border-radius: 8px;
+  color: rgba(100, 220, 100, 0.9);
+  font-family: 'Cinzel', serif;
+  font-size: 12px;
+}
+
+.clan-settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.clan-settings-label {
+  font-family: 'Cinzel', serif;
+  font-size: 10px;
+  letter-spacing: 0.15em;
+  color: rgba(200, 165, 60, 0.65);
+  margin: 0;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(180, 140, 40, 0.15);
+}
+
+.clan-image-upload-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.clan-banner-preview {
+  width: 60px;
+  height: 80px;
+  background: rgba(40, 55, 20, 0.8);
+  border: 1px solid rgba(180, 140, 40, 0.3);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.clan-banner-preview img { width: 100%; height: 100%; object-fit: cover; }
+
+.clan-crest-preview {
+  width: 70px;
+  height: 70px;
+  background: rgba(40, 55, 20, 0.8);
+  border: 2px solid rgba(180, 140, 40, 0.4);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.clan-crest-preview img { width: 100%; height: 100%; object-fit: cover; }
+
+.clan-image-upload-btn {
+  padding: 8px 16px;
+  background: rgba(20, 28, 15, 0.9);
+  border: 1px dashed rgba(180, 140, 40, 0.35);
+  border-radius: 8px;
+  color: rgba(200, 165, 60, 0.8);
+  font-family: 'Cinzel', serif;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.clan-image-upload-btn:hover {
+  background: rgba(30, 40, 20, 0.9);
+  border-color: rgba(200, 165, 60, 0.6);
+}
+
+.clan-image-remove-btn {
+  padding: 6px 12px;
+  background: rgba(60, 15, 15, 0.7);
+  border: 1px solid rgba(180, 60, 60, 0.3);
+  border-radius: 6px;
+  color: rgba(220, 100, 100, 0.8);
+  font-family: 'Cinzel', serif;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.clan-image-remove-btn:hover { background: rgba(80, 20, 20, 0.9); }
+
+.clan-settings-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.clan-settings-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex: 1;
+}
+
+.clan-settings-field label {
+  font-family: 'Cinzel', serif;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: rgba(200, 165, 60, 0.65);
+}
+
+.clan-settings-field label span {
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 9px;
+}
+
+.clan-settings-input {
+  padding: 10px 12px;
+  background: rgba(20, 28, 15, 0.9);
+  border: 1px solid rgba(180, 140, 40, 0.25);
+  border-radius: 7px;
+  color: rgba(255, 255, 255, 0.85);
+  font-family: 'Cinzel', serif;
+  font-size: 13px;
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
+  transition: border-color 0.2s;
+}
+.clan-settings-input:focus { border-color: rgba(200, 165, 60, 0.5); }
+
+.clan-settings-textarea { resize: vertical; min-height: 80px; font-family: 'Inter', sans-serif; }
+
+.clan-settings-row { display: flex; gap: 12px; }
+
+.clan-settings-footer {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  padding: 14px 20px;
+  border-top: 1px solid rgba(180, 140, 40, 0.15);
+  flex-shrink: 0;
+  position: sticky;
+  bottom: 0;
+  background: rgba(10, 15, 8, 0.98);
+}
+
+.clan-settings-cancel {
+  padding: 10px 20px;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.5);
+  font-family: 'Cinzel', serif;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.clan-settings-cancel:hover { border-color: rgba(255, 255, 255, 0.3); color: rgba(255, 255, 255, 0.7); }
+
+.clan-settings-save {
+  padding: 10px 24px;
+  background: linear-gradient(135deg, rgba(30, 80, 30, 0.9), rgba(50, 110, 30, 0.9));
+  border: 1px solid rgba(80, 180, 80, 0.4);
+  border-radius: 8px;
+  color: white;
+  font-family: 'Cinzel', serif;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: 0.08em;
+  transition: all 0.2s;
+}
+.clan-settings-save:hover:not(:disabled) { background: linear-gradient(135deg, rgba(40, 100, 40, 0.95), rgba(60, 130, 40, 0.95)); }
+.clan-settings-save:disabled { opacity: 0.5; cursor: not-allowed; }
+
 /* Mobile Responsive */
+@media (max-width: 768px) {
+  .clan-settings-modal { max-width: 100%; border-radius: 14px 14px 0 0; max-height: 95vh; }
+  .clan-settings-row { flex-direction: column; }
+}
+
+@media (max-width: 1024px) {
 @media (max-width: 1024px) {
   .clan-page {
     grid-template-columns: 1fr !important;

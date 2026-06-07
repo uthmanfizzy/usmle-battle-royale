@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import './ClansPage.css';
 import CreateClanModal from './CreateClanModal';
 import BrowseClansModal from './BrowseClansModal';
+import ClanSettingsModal from './ClanSettingsModal';
 
 const SERVER_URL = 'https://usmle-battle-royale-production.up.railway.app';
 
@@ -25,6 +26,10 @@ export default function ClansPage({ user }) {
     target: 1000, reward_gems: 50, reward_coins: 500,
     reward_xp: 1000, expires_hours: 168
   });
+  const [showSettings, setShowSettings] = useState(false);
+  const [memberSort, setMemberSort] = useState('clan_xp');
+  const [memberSortDir, setMemberSortDir] = useState('desc');
+  const [clanPerks, setClanPerks] = useState([]);
   const chatEndRef = useRef(null);
 
   useEffect(() => {
@@ -89,6 +94,13 @@ export default function ClansPage({ user }) {
         // Fetch online status for all members
         fetchOnlineStatus(sortedMembers.map(m => m.id).filter(Boolean));
       }
+
+      // Set clan perks from response or calculate from level
+      if (data?.perks) {
+        setClanPerks(data.perks);
+      } else {
+        setClanPerks(getClanPerksClient(data?.level || 1));
+      }
     } catch (e) {
       console.error('Failed to fetch clan details:', e);
     }
@@ -142,6 +154,28 @@ export default function ClansPage({ user }) {
     if (diff < 60) return `${Math.floor(diff)}m ago`;
     if (diff < 1440) return `${Math.floor(diff / 60)}h ago`;
     return `${Math.floor(diff / 1440)}d ago`;
+  };
+
+  const getClanPerksClient = (level) => {
+    const allPerks = {
+      1: [],
+      2: [{ icon: '🔄', text: '+5% Clan XP Boost' }],
+      3: [{ icon: '🔄', text: '+10% Clan XP Boost' }, { icon: '🪙', text: '+10% Gold from Battles' }],
+      4: [{ icon: '🔄', text: '+10% Clan XP Boost' }, { icon: '🪙', text: '+20% Gold from Battles' }, { icon: '⚔️', text: '+5% Damage in Clan Wars' }],
+      5: [{ icon: '🔄', text: '+10% Clan XP Boost' }, { icon: '🪙', text: '+20% Gold from Battles' }, { icon: '⚔️', text: '+5% Damage in Clan Wars' }, { icon: '📋', text: '+1 Extra Daily Quest' }],
+      6: [{ icon: '🔄', text: '+15% Clan XP Boost' }, { icon: '🪙', text: '+25% Gold from Battles' }, { icon: '⚔️', text: '+10% Damage in Clan Wars' }, { icon: '📋', text: '+2 Extra Daily Quests' }, { icon: '💎', text: '+5% Gem Drop Rate' }],
+      7: [{ icon: '🔄', text: '+20% Clan XP Boost' }, { icon: '🪙', text: '+30% Gold from Battles' }, { icon: '⚔️', text: '+15% Damage in Clan Wars' }, { icon: '📋', text: '+2 Extra Daily Quests' }, { icon: '💎', text: '+10% Gem Drop Rate' }, { icon: '🛡', text: '+10% Defense Bonus' }],
+    };
+    return allPerks[Math.min(level || 1, 7)] || [];
+  };
+
+  const handleSort = (field) => {
+    if (memberSort === field) {
+      setMemberSortDir(d => d === 'desc' ? 'asc' : 'desc');
+    } else {
+      setMemberSort(field);
+      setMemberSortDir('desc');
+    }
   };
 
   const fetchJoinRequests = async () => {
@@ -320,6 +354,16 @@ export default function ClansPage({ user }) {
   const topContributors = [...members].sort((a, b) => b.clan_xp - a.clan_xp).slice(0, 3);
   const onlineCount = members.filter(m => onlineStatus[m.id]?.online).length;
 
+  const sortedMembers = [...members].sort((a, b) => {
+    const dir = memberSortDir === 'desc' ? -1 : 1;
+    if (memberSort === 'role') {
+      const roleOrder = { Leader: 0, Elder: 1, Member: 2 };
+      return dir * ((roleOrder[a.role] || 2) - (roleOrder[b.role] || 2));
+    }
+    if (memberSort === 'name') return dir * (a.username || '').localeCompare(b.username || '');
+    return dir * ((a[memberSort] || 0) - (b[memberSort] || 0));
+  });
+
   return (
     <div className="clan-page">
 
@@ -381,13 +425,25 @@ export default function ClansPage({ user }) {
             </div>
           </div>
 
-          {userRole === 'Leader' && <button className="clan-settings-btn">SETTINGS</button>}
+          {userRole === 'Leader' && <button className="clan-settings-btn" onClick={() => setShowSettings(true)}>SETTINGS</button>}
           {userRole !== 'Leader' && (
             <button className="clan-leave-btn" onClick={handleLeave} disabled={leaving}>
               {leaving ? 'Leaving...' : '🚪 Leave Clan'}
             </button>
           )}
         </div>
+
+        {showSettings && (
+          <ClanSettingsModal
+            clan={clan}
+            user={user}
+            onClose={() => setShowSettings(false)}
+            onUpdated={(updatedClan) => {
+              setClan(updatedClan);
+              setShowSettings(false);
+            }}
+          />
+        )}
 
         {/* Top Contributors */}
         <p className="clan-section-label">TOP CONTRIBUTORS</p>
@@ -430,9 +486,15 @@ export default function ClansPage({ user }) {
           </div>
           <div className="clan-perks">
             <p className="clan-perks-title">CLAN PERKS</p>
-            <div className="clan-perk">🔄 +10% Clan XP Boost</div>
-            <div className="clan-perk">🪙 +20% Gold from Battles</div>
-            <div className="clan-perk">⚔️ +5% Damage in Clan Wars</div>
+            {clanPerks.length === 0 ? (
+              <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', fontFamily: 'Inter,sans-serif', margin: '8px 0' }}>
+                Reach Level 2 to unlock perks!
+              </p>
+            ) : (
+              clanPerks.map((perk, i) => (
+                <div className="clan-perk" key={i}>{perk.icon} {perk.text}</div>
+              ))
+            )}
           </div>
         </div>
 
@@ -490,13 +552,21 @@ export default function ClansPage({ user }) {
             <div className="clan-members-table">
               <div className="clan-members-header">
                 <span>RANK</span>
-                <span>MEMBER</span>
-                <span>ROLE</span>
-                <span>TROPHIES</span>
-                <span>CLAN XP</span>
+                <span className="clan-sortable" onClick={() => handleSort('username')}>
+                  MEMBER {memberSort === 'username' ? (memberSortDir === 'desc' ? '▼' : '▲') : ''}
+                </span>
+                <span className="clan-sortable" onClick={() => handleSort('role')}>
+                  ROLE {memberSort === 'role' ? (memberSortDir === 'desc' ? '▼' : '▲') : ''}
+                </span>
+                <span className="clan-sortable" onClick={() => handleSort('trophies')}>
+                  TROPHIES {memberSort === 'trophies' ? (memberSortDir === 'desc' ? '▼' : '▲') : ''}
+                </span>
+                <span className="clan-sortable" onClick={() => handleSort('clan_xp')}>
+                  CLAN XP {memberSort === 'clan_xp' ? (memberSortDir === 'desc' ? '▼' : '▲') : ''}
+                </span>
                 <span>STATUS</span>
               </div>
-              {members.map((member, i) => (
+              {sortedMembers.map((member, i) => (
                 <div className="clan-member-row" key={member.id}>
                   <span>{i + 1}</span>
                   <span className="clan-member-cell">
