@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import './AdminApp.css';
 import PlayPageAdmin from './admin/PlayPageAdmin';
 import AnKingAdmin from './admin/AnKingAdmin';
+import QuestionParser from './QuestionParser';
 import { parseRichText } from '../utils/parseRichText';
 
 const API = 'https://usmle-battle-royale-production.up.railway.app';
@@ -882,6 +883,9 @@ function QuestionsPanel({ subjects = [] }) {
   // ─── Import Modal ─────────────────────────────────────────────────────────────
   const [importModal, setImportModal] = useState(false);
 
+  // ─── Question Parser ──────────────────────────────────────────────────────────
+  const [showParser, setShowParser] = useState(false);
+
   // ─── Anki Import ──────────────────────────────────────────────────────────────
   const [ankiFile, setAnkiFile] = useState(null);
   const [ankiImporting, setAnkiImporting] = useState(false);
@@ -1642,6 +1646,9 @@ function QuestionsPanel({ subjects = [] }) {
                   <button className="ap-btn-sec" onClick={() => setImportModal(true)}>
                     📥 Bulk Import
                   </button>
+                  <button className="ap-btn-sec" onClick={() => setShowParser(true)}>
+                    📋 Paste & Parse
+                  </button>
                   <button className="ap-btn-pri" onClick={() => setModal('add')}>+ Add Question</button>
                 </div>
               </div>
@@ -1849,6 +1856,15 @@ function QuestionsPanel({ subjects = [] }) {
           selectedDifficulty={selectedDifficulty}
           onImport={handleImportDone}
           onClose={() => setImportModal(false)}
+        />
+      )}
+
+      {showParser && (
+        <QuestionParser
+          activeFolder={activeFolder}
+          selectedDifficulty={selectedDifficulty}
+          onImport={handleImportDone}
+          onClose={() => setShowParser(false)}
         />
       )}
     </div>
