@@ -1869,7 +1869,7 @@ const QUEST_TYPES = [
   { id: 'streak', label: 'Get X correct answers in a row' },
   { id: 'different_modes', label: 'Play X different game modes' },
 ];
-const QUEST_DIFFICULTIES = ['easy', 'medium', 'hard'];
+const QUEST_DIFFICULTIES = ['easy', 'hard'];
 const DAYS_OF_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 function QuestModal({ quest, onSave, onClose }) {
@@ -2197,10 +2197,6 @@ function QuestsPanel() {
         <div className="ap-stat-card">
           <div className="ap-stat-val">{quests.filter(q => q.difficulty === 'easy').length}</div>
           <div className="ap-stat-label">Easy</div>
-        </div>
-        <div className="ap-stat-card">
-          <div className="ap-stat-val">{quests.filter(q => q.difficulty === 'medium').length}</div>
-          <div className="ap-stat-label">Medium</div>
         </div>
         <div className="ap-stat-card">
           <div className="ap-stat-val">{quests.filter(q => q.difficulty === 'hard').length}</div>

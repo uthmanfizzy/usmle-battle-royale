@@ -1024,7 +1024,7 @@ export default function PlayPage({
             {/* Actions */}
             <div className="lobby-actions-section">
               {isHost && (
-                <button className="lobby-add-bot-btn" onClick={() => onAddBot('medium')}>
+                <button className="lobby-add-bot-btn" onClick={() => onAddBot('hard')}>
                   🤖 Add Bot
                 </button>
               )}

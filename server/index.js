@@ -1289,12 +1289,11 @@ const BOT_NAMES = [
   'Dr. Cerebrum', 'Dr. Ventricle', 'Dr. Cochlea', 'Dr. Retina',
 ];
 
-const BOT_ACCURACY = { easy: 0.40, medium: 0.65, hard: 0.85, expert: 0.95 };
+const BOT_ACCURACY = { easy: 0.40, hard: 0.85, expert: 0.95 };
 
 // Reaction time [minMs, maxMs] — capped to (timeLimit - 500ms) at call site
 const BOT_REACTION_MS = {
   easy:   [12000, 18000],
-  medium: [8000,  14000],
   hard:   [3000,  8000],
   expert: [1000,  3000],
 };
@@ -3944,8 +3943,10 @@ app.post('/admin/questions/bulk', adminAuth, async (req, res) => {
       : ['Option A', 'Option B', 'Option C', 'Option D']; // Default if no options
 
     // Use provided difficulty or default
-    let difficulty = raw.difficulty || defaultDifficulty || 'medium';
+    let difficulty = raw.difficulty || defaultDifficulty || 'easy';
     difficulty = difficulty.toLowerCase().trim();
+    // Normalize: convert medium/normal to easy, only allow easy or hard
+    if (difficulty !== 'hard') difficulty = 'easy';
 
     // Handle correct answer - convert letter to actual answer text if needed
     let correct = raw.answer || raw.correct || 'A';
@@ -5886,26 +5887,25 @@ app.get('/api/daily-quests', async (req, res) => {
         .eq('active', true)
         .is('pinned_day', null);
 
-      // Try to get a mix of difficulties
-      const easyQuests = (activeQuests || []).filter(q => q.difficulty === 'easy');
-      const mediumQuests = (activeQuests || []).filter(q => q.difficulty === 'medium');
+      // Try to get a mix of difficulties (easy and hard only)
+      const easyQuests = (activeQuests || []).filter(q => q.difficulty === 'easy' || !q.difficulty);
       const hardQuests = (activeQuests || []).filter(q => q.difficulty === 'hard');
 
       // Shuffle arrays
       const shuffle = arr => arr.sort(() => Math.random() - 0.5);
       shuffle(easyQuests);
-      shuffle(mediumQuests);
       shuffle(hardQuests);
 
-      // Select quests: prefer 1 easy, 1 medium, 1 hard (or fill as available)
+      // Select quests: prefer mix of easy and hard (or fill as available)
       const selectedIds = [...pinnedIds];
       const remaining = 3 - selectedIds.length;
 
       if (remaining > 0) {
         const pool = [];
         if (easyQuests.length > 0) pool.push(easyQuests[0]);
-        if (mediumQuests.length > 0) pool.push(mediumQuests[0]);
         if (hardQuests.length > 0) pool.push(hardQuests[0]);
+        // Add more easy if available for variety
+        if (easyQuests.length > 1) pool.push(easyQuests[1]);
 
         // Fill with shuffled pool
         shuffle(pool);
@@ -5916,7 +5916,7 @@ app.get('/api/daily-quests', async (req, res) => {
 
         // If still not enough, grab any active quest
         if (selectedIds.length < 3) {
-          const allShuffled = shuffle([...easyQuests, ...mediumQuests, ...hardQuests]);
+          const allShuffled = shuffle([...easyQuests, ...hardQuests]);
           for (const q of allShuffled) {
             if (selectedIds.length >= 3) break;
             if (!selectedIds.includes(q.id)) selectedIds.push(q.id);
@@ -6079,8 +6079,7 @@ app.post('/admin/daily-quests/regenerate', adminAuth, async (req, res) => {
       .is('pinned_day', null);
 
     const shuffle = arr => arr.sort(() => Math.random() - 0.5);
-    const easyQuests = shuffle((activeQuests || []).filter(q => q.difficulty === 'easy'));
-    const mediumQuests = shuffle((activeQuests || []).filter(q => q.difficulty === 'medium'));
+    const easyQuests = shuffle((activeQuests || []).filter(q => q.difficulty === 'easy' || !q.difficulty));
     const hardQuests = shuffle((activeQuests || []).filter(q => q.difficulty === 'hard'));
 
     const selectedIds = [...pinnedIds];
@@ -6089,8 +6088,9 @@ app.post('/admin/daily-quests/regenerate', adminAuth, async (req, res) => {
     if (remaining > 0) {
       const pool = [];
       if (easyQuests.length > 0) pool.push(easyQuests[0]);
-      if (mediumQuests.length > 0) pool.push(mediumQuests[0]);
       if (hardQuests.length > 0) pool.push(hardQuests[0]);
+      // Add more easy if available for variety
+      if (easyQuests.length > 1) pool.push(easyQuests[1]);
       shuffle(pool);
 
       for (const q of pool) {
@@ -6099,7 +6099,7 @@ app.post('/admin/daily-quests/regenerate', adminAuth, async (req, res) => {
       }
 
       if (selectedIds.length < 3) {
-        const allShuffled = shuffle([...easyQuests, ...mediumQuests, ...hardQuests]);
+        const allShuffled = shuffle([...easyQuests, ...hardQuests]);
         for (const q of allShuffled) {
           if (selectedIds.length >= 3) break;
           if (!selectedIds.includes(q.id)) selectedIds.push(q.id);
