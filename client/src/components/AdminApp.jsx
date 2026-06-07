@@ -3064,6 +3064,12 @@ function withDefaults(raw) {
     step2Enabled:             raw.step2Enabled            ?? false,
     timerDuration:            raw.timerDefault            ?? raw.timerDuration            ?? 20,
     startingLives:            raw.battleRoyaleLives       ?? raw.startingLives            ?? 3,
+    // Easy Mode settings
+    easyModeTimer:            raw.easyModeTimer           ?? 30,
+    easyModeExplanationTime:  raw.easyModeExplanationTime ?? 15,
+    easyModeHideExplanations: raw.easyModeHideExplanations ?? false,
+    easyModeDescription:      raw.easyModeDescription     ?? 'Perfect for learning. Questions present straightforward clinical scenarios with detailed explanations to build your foundation.',
+    easyModeLabel:            raw.easyModeLabel           ?? 'Easy Mode',
     // Hard Mode settings
     hardModeTimer:            raw.hardModeTimer           ?? 30,  // HARDCODED: 30s for hard mode
     hardModeExplanationTime:  raw.hardModeExplanationTime ?? 20,  // HARDCODED: 20s explanation
@@ -3565,7 +3571,7 @@ function LandingImagesPanel() {
 // ── Settings Panel ─────────────────────────────────────────────────────────────
 
 function SettingsPanel() {
-  const SECTIONS = ['questions', 'lives', 'lobby', 'xp', 'modes', 'hardMode', 'maintenance', 'ui', 'tower'];
+  const SECTIONS = ['questions', 'lives', 'lobby', 'xp', 'modes', 'easyMode', 'hardMode', 'maintenance', 'ui', 'tower'];
   const sectionInit = () => Object.fromEntries(SECTIONS.map(k => [k, false]));
   const sectionErrInit = () => Object.fromEntries(SECTIONS.map(k => [k, '']));
 
@@ -4031,6 +4037,82 @@ function SettingsPanel() {
       </div>
 
       {/* ── 5.5 HARD MODE SETTINGS ────────────────────────────────────── */}
+      {/* ══════════════ EASY MODE SETTINGS ══════════════ */}
+      <div className="ap-settings-section">
+        <div className="ap-section-hd">
+          <div className="ap-section-icon">😊</div>
+          <div>
+            <h2 className="ap-section-title-lg">Easy Mode Settings</h2>
+            <p className="ap-section-subtitle">Configure Easy Mode timer, explanations, and presentation</p>
+          </div>
+        </div>
+
+        <div className="ap-settings-rows">
+          <SliderRow label="Question Timer (Easy Mode)"
+            desc="Seconds per question when Easy Mode is selected"
+            min={10} max={60} step={1} unit="sec"
+            value={settings.easyModeTimer}
+            onChange={v => upd('easyModeTimer', v)} />
+
+          <ToggleRow label="Hide Explanations Completely"
+            desc="When ON, no explanations are shown in Easy Mode (not recommended for learning)"
+            checked={settings.easyModeHideExplanations}
+            onChange={v => upd('easyModeHideExplanations', v)} />
+
+          {!settings.easyModeHideExplanations && (
+            <SliderRow label="Explanation Display Time (Easy Mode)"
+              desc="How long to show the answer explanation in Easy Mode (0 to skip)"
+              min={0} max={45} step={1} unit="sec"
+              value={settings.easyModeExplanationTime}
+              onChange={v => upd('easyModeExplanationTime', v)} />
+          )}
+
+          <div className="ap-srow">
+            <div className="ap-srow-info">
+              <div className="ap-srow-label">Easy Mode Label</div>
+              <div className="ap-srow-desc">The name displayed to players (e.g., "Easy Mode", "Learning Mode", "Beginner Mode")</div>
+            </div>
+            <div className="ap-srow-ctrl">
+              <input
+                type="text"
+                className="ap-text-input"
+                value={settings.easyModeLabel}
+                onChange={e => upd('easyModeLabel', e.target.value)}
+                placeholder="Easy Mode"
+                maxLength={30}
+              />
+            </div>
+          </div>
+
+          <div className="ap-srow">
+            <div className="ap-srow-info">
+              <div className="ap-srow-label">Easy Mode Description</div>
+              <div className="ap-srow-desc">Description shown on difficulty selection screen (200 char limit)</div>
+            </div>
+            <div className="ap-srow-ctrl">
+              <textarea
+                className="ap-textarea"
+                value={settings.easyModeDescription}
+                onChange={e => upd('easyModeDescription', e.target.value.slice(0, 200))}
+                placeholder="Perfect for learning..."
+                rows={3}
+                maxLength={200}
+              />
+            </div>
+          </div>
+        </div>
+
+        <button
+          className="ap-save-btn"
+          onClick={() => saveSection('easyMode')}
+          disabled={saving.easyMode}
+        >
+          {saving.easyMode ? '💾 Saving…' : saved.easyMode ? '✓ Saved' : '💾 Save Easy Mode Settings'}
+        </button>
+        {saveErr.easyMode && <div className="ap-save-error">{saveErr.easyMode}</div>}
+      </div>
+
+      {/* ══════════════ HARD MODE SETTINGS ══════════════ */}
       <div className="ap-settings-section">
         <div className="ap-section-hd">
           <div className="ap-section-icon">💀</div>

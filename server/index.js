@@ -234,6 +234,12 @@ let gameSettings = {
   step2Enabled: false,
   timerDuration: 20,
   startingLives: 3,
+  // Easy Mode settings
+  easyModeTimer: 30,
+  easyModeExplanationTime: 15,
+  easyModeHideExplanations: false,
+  easyModeDescription: 'Perfect for learning. Questions present straightforward clinical scenarios with detailed explanations to build your foundation.',
+  easyModeLabel: 'Easy Mode',
   // Hard Mode settings
   hardModeTimer: 30,  // HARDCODED: 30 seconds for hard mode (not used, see line 760)
   hardModeExplanationTime: 20,  // HARDCODED: 20 seconds explanation (not used, see lines 682, 860, 870, 879)
