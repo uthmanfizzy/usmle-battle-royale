@@ -35,129 +35,137 @@ export default function QuestionParser({ activeFolder, selectedDifficulty, onImp
     const questions = [];
     const errs = [];
 
-    // Split by common question separators
-    // Handles: numbered questions (1. 2. Q1. Question 1:), blank lines between questions
-    const blocks = rawText
-      .split(/\n{2,}|\n(?=\s*(?:Q?\d+[\.\):]|\bQuestion\s+\d+))/i)
-      .map(b => b.trim())
-      .filter(Boolean);
+    if (!rawText.trim()) return;
 
-    blocks.forEach((block, blockIndex) => {
+    // Split into blocks by double newlines
+    // But keep blocks that start with a question number together
+    const blocks = rawText
+      .trim()
+      .split(/\n\s*\n/)
+      .reduce((acc, block) => {
+        const trimmed = block.trim();
+        if (!trimmed) return acc;
+        // If this block starts with a choice letter or keyword, merge with previous
+        const isChoice = /^[A-H][.)]\s/i.test(trimmed);
+        const isKeyword = /^(correct\s*answer|answer|explanation|why\s+are|why\s+other|educational)/i.test(trimmed);
+        const isQuestion = /^(Q?\d+[.):\s]|Question\s+\d+)/i.test(trimmed);
+
+        if ((isChoice || isKeyword) && acc.length > 0 && !isQuestion) {
+          acc[acc.length - 1] += '\n\n' + trimmed;
+        } else {
+          acc.push(trimmed);
+        }
+        return acc;
+      }, []);
+
+    // If only one block after reduction, treat whole text as one question
+    const finalBlocks = blocks.length === 0 ? [rawText.trim()] : blocks;
+
+    finalBlocks.forEach((block, blockIndex) => {
       try {
         const lines = block.split('\n').map(l => l.trim()).filter(Boolean);
-        if (lines.length < 3) return; // skip blocks too short to be a question
+        if (lines.length < 3) return;
 
-        let questionText = '';
+        let questionLines = [];
         let choices = [];
         let correctLetter = '';
         let explanation = '';
         let whyOthersWrong = '';
-        let inExplanation = false;
-        let inWhyOthers = false;
-        let questionLines = [];
+        let mode = 'question'; // 'question' | 'choices' | 'answer' | 'explanation' | 'why'
 
         for (let i = 0; i < lines.length; i++) {
           const line = lines[i];
 
-          // Detect "why others wrong" section
-          if (/^(why\s+(are\s+)?(the\s+)?other(\s+options?)?(\s+(are\s+)?wrong)?|incorrect\s+options?|wrong\s+options?|other\s+options?|distractors?)[\s:]*/i.test(line)) {
-            inWhyOthers = true;
-            inExplanation = false;
-            const whyText = line.replace(/^(why\s+(are\s+)?(the\s+)?other(\s+options?)?(\s+(are\s+)?wrong)?|incorrect\s+options?|wrong\s+options?|other\s+options?|distractors?)[\s:]*/i, '').trim();
-            if (whyText) whyOthersWrong += whyText + '\n';
+          // ── Detect section headers ──────────────────
+          // Why others wrong
+          if (/^why\s+(are\s+)?(the\s+)?other/i.test(line) ||
+              /^incorrect\s+options?/i.test(line) ||
+              /^wrong\s+options?/i.test(line)) {
+            mode = 'why';
+            // grab any text after the header on same line
+            const rest = line.replace(/^[^:?]*[?:]?\s*/i, '').trim();
+            if (rest) whyOthersWrong += rest + '\n';
             continue;
           }
 
-          if (inWhyOthers) {
-            // Stop why others section if we hit a new major section
-            if (/^(explanation|answer explanation|rationale|discussion|educational\s+objective)[\s:]/i.test(line)) {
-              inWhyOthers = false;
-              // fall through to other checks
-            } else {
-              // Detect individual option explanations (A - wrong because...)
-              const optionExplainMatch = line.match(/^([A-H])\s*[-:)]\s*.+/i);
-              if (optionExplainMatch) {
-                whyOthersWrong += line + '\n';
-                continue;
-              }
-              whyOthersWrong += line + '\n';
-              continue;
-            }
+          // Explanation
+          if (/^(explanation|rationale|discussion|answer\s+explanation)[\s:]*/i.test(line)) {
+            mode = 'explanation';
+            const rest = line.replace(/^(explanation|rationale|discussion|answer\s+explanation)[\s:]*/i, '').trim();
+            if (rest) explanation += rest + '\n';
+            continue;
           }
 
-          // Detect educational objective section (treat as part of explanation)
+          // Educational objective - append to explanation
           if (/^educational\s+objective[\s:]*/i.test(line)) {
-            inExplanation = true;
-            inWhyOthers = false;
-            const eduText = line.replace(/^educational\s+objective[\s:]*/i, '').trim();
-            if (eduText) explanation += '\n\nEducational Objective: ' + eduText + '\n';
+            mode = 'explanation';
+            const rest = line.replace(/^educational\s+objective[\s:]*/i, '').trim();
+            if (rest) explanation += '\n[gold]Educational Objective:[/gold] ' + rest + '\n';
             continue;
           }
 
-          // Detect explanation section
-          if (/^(explanation|answer explanation|rationale|discussion)[\s:]/i.test(line) ||
-              /^(correct answer[\s:]*[A-H].*\n)/i.test(line)) {
-            inExplanation = true;
-            inWhyOthers = false;
-            // Extract explanation text after the label
-            const expText = line.replace(/^(explanation|answer explanation|rationale|discussion)[\s:]*/i, '').trim();
-            if (expText) explanation += expText + '\n';
-            continue;
-          }
-
-          if (inExplanation) {
-            explanation += line + '\n';
-            continue;
-          }
-
-          // Detect answer line: "Correct Answer: B" or "Answer: B" or "Correct: B"
+          // Correct answer line
           const answerMatch = line.match(/^(?:correct\s+)?answer[\s:]+([A-H])/i) ||
-                              line.match(/^(?:the\s+)?correct\s+(?:answer\s+)?(?:is\s+)?([A-H])[.\s]/i);
+                              line.match(/^(?:the\s+)?correct\s+(?:answer\s+)?(?:is\s+)?:?\s*([A-H])[.\s,)]/i);
           if (answerMatch) {
             correctLetter = answerMatch[1].toUpperCase();
-            // Check if explanation follows on same line
-            const rest = line.replace(/^.*?[A-H][.\s]*/i, '').trim();
-            if (rest && rest.length > 5) explanation += rest + '\n';
-            inExplanation = true;
+            mode = 'answer';
             continue;
           }
 
-          // Detect choices: A. B. C. D. or A) B) C) D) or (A) (B) (C) (D)
+          // ── Handle content by mode ──────────────────
+          if (mode === 'why') {
+            whyOthersWrong += line + '\n';
+            continue;
+          }
+
+          if (mode === 'explanation' || mode === 'answer') {
+            // If we hit a choice after explanation start, it's part of why others wrong
+            const choiceInExp = line.match(/^([A-H])[.)]\s+(.+)/);
+            if (choiceInExp && mode === 'explanation' && choices.find(c => c.letter === choiceInExp[1])) {
+              // this looks like a distractor explanation
+              whyOthersWrong += line + '\n';
+            } else {
+              explanation += line + '\n';
+            }
+            continue;
+          }
+
+          // Choice detection: A. B) (A) A -
           const choiceMatch = line.match(/^([A-H])[.)]\s+(.+)/) ||
-                              line.match(/^\(([A-H])\)\s+(.+)/);
+                              line.match(/^\(([A-H])\)\s+(.+)/) ||
+                              line.match(/^([A-H])\s+-\s+(.+)/);
           if (choiceMatch) {
-            choices.push({
-              letter: choiceMatch[1].toUpperCase(),
-              text: choiceMatch[2].trim()
-            });
+            choices.push({ letter: choiceMatch[1].toUpperCase(), text: choiceMatch[2].trim() });
+            mode = 'choices';
             continue;
           }
 
-          // Otherwise it's part of the question text
-          // Strip leading question number: "1." "Q1." "Question 1:" etc
-          const stripped = line
-            .replace(/^\s*(?:Q(?:uestion)?\s*)?\d+[\.\):\s]+/i, '')
-            .trim();
-          if (stripped) questionLines.push(stripped);
+          // Question text - strip leading number
+          if (mode === 'question') {
+            const stripped = line
+              .replace(/^\s*(?:Q(?:uestion)?\s*)?\d+\s*[.):\s]\s*/i, '')
+              .trim();
+            if (stripped) questionLines.push(stripped);
+          }
         }
 
-        questionText = questionLines.join(' ').trim();
+        const questionText = questionLines.join(' ').trim();
 
         // Validate
         if (!questionText) {
-          errs.push(`Block ${blockIndex + 1}: Could not extract question text`);
+          errs.push(`Block ${blockIndex + 1}: No question text found`);
           return;
         }
         if (choices.length < 2) {
-          errs.push(`Block ${blockIndex + 1}: Less than 2 choices found - "${questionText.substring(0, 50)}..."`);
+          errs.push(`Block ${blockIndex + 1}: Need at least 2 choices — found ${choices.length}. Text: "${questionText.substring(0,60)}..."`);
           return;
         }
         if (!correctLetter) {
-          errs.push(`Block ${blockIndex + 1}: No correct answer found - "${questionText.substring(0, 50)}..."`);
+          errs.push(`Block ${blockIndex + 1}: No correct answer found — "${questionText.substring(0,60)}..."`);
           return;
         }
 
-        // Format choices with letter prefix
         const formattedChoices = choices.map(c => `${c.letter}. ${c.text}`);
 
         questions.push({
@@ -170,14 +178,18 @@ export default function QuestionParser({ activeFolder, selectedDifficulty, onImp
           game_modes: gameModes
         });
 
-      } catch (e) {
-        errs.push(`Block ${blockIndex + 1}: Parse error - ${e.message}`);
+      } catch(e) {
+        errs.push(`Block ${blockIndex + 1}: Error — ${e.message}`);
       }
     });
 
     setParsed(questions);
     setErrors(errs);
-    if (questions.length > 0) setStep('preview');
+    if (questions.length > 0) {
+      setStep('preview');
+    } else {
+      setErrors(prev => [...prev, 'No valid questions found. Make sure choices use A. B. C. format and include "Correct Answer: X"']);
+    }
   };
 
   const handleImport = async () => {
