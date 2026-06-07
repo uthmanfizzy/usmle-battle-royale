@@ -198,7 +198,7 @@ export default function QuestionParser({ activeFolder, selectedDifficulty, onImp
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-admin-password': localStorage.getItem('adminPassword') || ''
+          'x-admin-password': localStorage.getItem('usmle_admin_session') || ''
         },
         body: JSON.stringify({
           questions: parsed,
@@ -397,13 +397,13 @@ export default function QuestionParser({ activeFolder, selectedDifficulty, onImp
                   {q.explanation && (
                     <div className="qp-preview-explanation">
                       <span className="qp-preview-explanation-label">Explanation:</span>
-                      <p>{q.explanation.substring(0, 150)}{q.explanation.length > 150 ? '...' : ''}</p>
+                      <p style={{whiteSpace: 'pre-wrap'}}>{q.explanation}</p>
                     </div>
                   )}
                   {q.why_others_wrong && (
                     <div className="qp-preview-why-wrong">
                       <span className="qp-preview-explanation-label">Why Others Wrong:</span>
-                      <p>{q.why_others_wrong.substring(0, 150)}{q.why_others_wrong.length > 150 ? '...' : ''}</p>
+                      <p style={{whiteSpace: 'pre-wrap'}}>{q.why_others_wrong}</p>
                     </div>
                   )}
                   <div className="qp-preview-edit-row">
