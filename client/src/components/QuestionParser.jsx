@@ -226,136 +226,117 @@ export default function QuestionParser({ activeFolder, selectedDifficulty, onImp
         </div>
 
         {step === 'input' && (
-          <div className="qp-body">
+          <div className="qp-body-horizontal">
 
-            {/* Info bar */}
-            <div className="qp-info-bar">
-              <div className="qp-info-item">
-                <span className="qp-info-icon">🔢</span>
-                <span>Numbered questions</span>
-                <code>1. Q1. Question 1:</code>
-              </div>
-              <div className="qp-info-divider" />
-              <div className="qp-info-item">
-                <span className="qp-info-icon">🔤</span>
-                <span>Multiple choice</span>
-                <code>A. B. C. or A) B) C)</code>
-              </div>
-              <div className="qp-info-divider" />
-              <div className="qp-info-item">
-                <span className="qp-info-icon">✅</span>
-                <span>Answer line</span>
-                <code>Correct Answer: B</code>
-              </div>
-              <div className="qp-info-divider" />
-              <div className="qp-info-item">
-                <span className="qp-info-icon">📝</span>
-                <span>Sections detected</span>
-                <code>Explanation: / Why others wrong:</code>
-              </div>
-            </div>
+            {/* LEFT COLUMN - Example and settings */}
+            <div className="qp-left-col">
 
-            {/* Example format */}
-            <div className="qp-example-section">
-              <div className="qp-example-header">
-                <div className="qp-example-dots">
-                  <span className="qp-dot qp-dot--red" />
-                  <span className="qp-dot qp-dot--yellow" />
-                  <span className="qp-dot qp-dot--green" />
-                </div>
-                <span className="qp-example-title">Example Format</span>
-                <button
-                  className="qp-copy-btn"
-                  onClick={() => {
-                    navigator.clipboard.writeText(EXAMPLE_TEXT);
-                    setCopied(true);
-                    setTimeout(() => setCopied(false), 2000);
-                  }}
-                >
-                  {copied ? '✓ Copied!' : '📋 Copy Example'}
-                </button>
-              </div>
-              <pre className="qp-example-text">{EXAMPLE_TEXT}</pre>
-            </div>
-
-            {/* Settings bar */}
-            <div className="qp-settings-bar">
-              <div className="qp-setting-group">
-                <label>Default Difficulty</label>
-                <div className="qp-difficulty-toggle">
+              {/* Example section */}
+              <div className="qp-example-section">
+                <div className="qp-example-header">
+                  <div className="qp-example-dots">
+                    <span className="qp-dot qp-dot--red" />
+                    <span className="qp-dot qp-dot--yellow" />
+                    <span className="qp-dot qp-dot--green" />
+                  </div>
+                  <span className="qp-example-title">Example Format</span>
                   <button
-                    className={`qp-diff-btn ${difficulty === 'easy' ? 'qp-diff-btn--easy--active' : ''}`}
-                    onClick={() => setDifficulty('easy')}
+                    className="qp-copy-btn"
+                    onClick={() => {
+                      navigator.clipboard.writeText(EXAMPLE_TEXT);
+                      setCopied(true);
+                      setTimeout(() => setCopied(false), 2000);
+                    }}
                   >
-                    🟢 Easy
-                  </button>
-                  <button
-                    className={`qp-diff-btn ${difficulty === 'hard' ? 'qp-diff-btn--hard--active' : ''}`}
-                    onClick={() => setDifficulty('hard')}
-                  >
-                    🔴 Hard
+                    {copied ? '✓ Copied!' : '📋 Copy'}
                   </button>
                 </div>
+                <pre className="qp-example-text">{EXAMPLE_TEXT}</pre>
               </div>
-              <div className="qp-setting-group">
-                <label>Game Modes</label>
-                <div className="qp-mode-toggles">
-                  {[
-                    { id: 'battle_royale', label: '⚔️ Battle' },
-                    { id: 'speed_race', label: '🏎️ Speed' },
-                    { id: 'trivia_pursuit', label: '🎯 Trivia' }
-                  ].map(mode => (
+
+              {/* Settings */}
+              <div className="qp-settings-col">
+                <div className="qp-setting-group">
+                  <label>DIFFICULTY</label>
+                  <div className="qp-difficulty-toggle">
                     <button
-                      key={mode.id}
-                      className={`qp-mode-btn ${gameModes.includes(mode.id) ? 'qp-mode-btn--active' : ''}`}
-                      onClick={() => setGameModes(prev =>
-                        prev.includes(mode.id)
-                          ? prev.filter(m => m !== mode.id)
-                          : [...prev, mode.id]
-                      )}
-                    >
-                      {mode.label}
-                    </button>
-                  ))}
+                      className={`qp-diff-btn ${difficulty === 'easy' ? 'qp-diff-btn--easy--active' : ''}`}
+                      onClick={() => setDifficulty('easy')}
+                    >🟢 Easy</button>
+                    <button
+                      className={`qp-diff-btn ${difficulty === 'hard' ? 'qp-diff-btn--hard--active' : ''}`}
+                      onClick={() => setDifficulty('hard')}
+                    >🔴 Hard</button>
+                  </div>
+                </div>
+                <div className="qp-setting-group">
+                  <label>GAME MODES</label>
+                  <div className="qp-mode-toggles">
+                    {[
+                      { id: 'battle_royale', label: '⚔️ Battle Royale' },
+                      { id: 'speed_race', label: '🏎️ Speed Race' },
+                      { id: 'trivia_pursuit', label: '🎯 Trivia' }
+                    ].map(mode => (
+                      <button
+                        key={mode.id}
+                        className={`qp-mode-btn ${gameModes.includes(mode.id) ? 'qp-mode-btn--active' : ''}`}
+                        onClick={() => setGameModes(prev =>
+                          prev.includes(mode.id)
+                            ? prev.filter(m => m !== mode.id)
+                            : [...prev, mode.id]
+                        )}
+                      >
+                        {mode.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="qp-setting-group">
+                  <label>SUPPORTS</label>
+                  <div className="qp-supports-list">
+                    <span>🔢 Numbered questions</span>
+                    <span>🔤 A. B. C. or A) B) C)</span>
+                    <span>✅ Correct Answer: B</span>
+                    <span>📝 Explanation:</span>
+                    <span>❌ Why others wrong:</span>
+                  </div>
                 </div>
               </div>
+
             </div>
 
-            {/* Paste area */}
-            <div className="qp-paste-section">
+            {/* RIGHT COLUMN - Paste area */}
+            <div className="qp-right-col">
               <div className="qp-paste-header">
                 <span className="qp-paste-label">📄 Paste Your Questions</span>
                 {rawText && (
-                  <button className="qp-clear-btn" onClick={() => setRawText('')}>
-                    ✕ Clear
-                  </button>
+                  <button className="qp-clear-btn" onClick={() => setRawText('')}>✕ Clear</button>
                 )}
               </div>
               <textarea
                 className="qp-textarea"
-                placeholder="Paste your questions here... Separate multiple questions with a blank line."
+                placeholder={`Paste questions here...\n\nSeparate multiple questions with a blank line.`}
                 value={rawText}
                 onChange={e => setRawText(e.target.value)}
-                rows={14}
                 autoFocus
               />
               {rawText && (
                 <p className="qp-char-count">
-                  {rawText.length.toLocaleString()} characters · ~{Math.max(1, rawText.split(/\n{2,}/).length)} question block{rawText.split(/\n{2,}/).length !== 1 ? 's' : ''} detected
+                  {rawText.length.toLocaleString()} chars · ~{Math.max(1, rawText.split(/\n{2,}/).length)} question block{rawText.split(/\n{2,}/).length !== 1 ? 's' : ''} detected
                 </p>
               )}
+              <div className="qp-right-footer">
+                <button className="qp-cancel" onClick={onClose}>Cancel</button>
+                <button
+                  className="qp-parse-btn"
+                  onClick={parseQuestions}
+                  disabled={!rawText.trim()}
+                >
+                  🔍 Parse Questions
+                </button>
+              </div>
             </div>
 
-            <div className="qp-footer">
-              <button className="qp-cancel" onClick={onClose}>Cancel</button>
-              <button
-                className="qp-parse-btn"
-                onClick={parseQuestions}
-                disabled={!rawText.trim()}
-              >
-                🔍 Parse Questions
-              </button>
-            </div>
           </div>
         )}
 

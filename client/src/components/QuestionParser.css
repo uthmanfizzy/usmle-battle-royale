@@ -2,8 +2,8 @@
 .qp-modal {
   background: white;
   border-radius: 12px;
-  max-width: 900px;
-  width: 90vw;
+  max-width: 1100px;
+  width: 95vw;
   max-height: 85vh;
   overflow: hidden;
   display: flex;
@@ -51,6 +51,17 @@
   flex: 1;
   overflow-y: auto;
   padding: 24px;
+}
+
+/* Horizontal body layout */
+.qp-body-horizontal {
+  display: flex;
+  flex-direction: row;
+  gap: 16px;
+  padding: 16px 20px;
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
 }
 
 .qp-desc {
@@ -782,4 +793,97 @@
   color: #9ca3af;
   margin: 0;
   text-align: right;
+}
+
+/* Left column */
+.qp-left-col {
+  width: 420px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow: hidden;
+}
+
+/* Example section fills left column */
+.qp-example-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.qp-example-text {
+  flex: 1;
+  max-height: none !important;
+  overflow-y: auto !important;
+}
+
+/* Settings below example */
+.qp-settings-col {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 12px 14px;
+  flex-shrink: 0;
+}
+
+.qp-supports-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.qp-supports-list span {
+  font-size: 11px;
+  color: #6b7280;
+}
+
+/* Right column */
+.qp-right-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* Textarea fills right column */
+.qp-textarea {
+  flex: 1 !important;
+  min-height: 0 !important;
+  height: 100% !important;
+  resize: none !important;
+  box-sizing: border-box !important;
+}
+
+.qp-right-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+/* Mobile - back to vertical */
+@media (max-width: 768px) {
+  .qp-body-horizontal {
+    flex-direction: column !important;
+    overflow-y: auto !important;
+  }
+  .qp-left-col {
+    width: 100% !important;
+  }
+  .qp-modal {
+    max-width: 100% !important;
+    max-height: 95vh !important;
+  }
+  .qp-textarea {
+    min-height: 300px !important;
+    height: auto !important;
+  }
 }
