@@ -3,6 +3,24 @@ import './QuestionParser.css';
 
 const SERVER_URL = 'https://usmle-battle-royale-production.up.railway.app';
 
+const EXAMPLE_TEXT = `1. A 45-year-old man presents with fatigue, pallor, and shortness of breath. His blood film shows hypochromic microcytic red blood cells. Serum ferritin is low. Which is the most likely diagnosis?
+
+A. Iron deficiency anaemia
+B. Anaemia of chronic disease
+C. Thalassaemia trait
+D. Sideroblastic anaemia
+E. Vitamin B12 deficiency
+
+Correct Answer: A
+
+Explanation: Iron deficiency anaemia is the most common cause of hypochromic microcytic anaemia worldwide. Low serum ferritin is the most sensitive and specific marker for iron deficiency. Patients typically present with fatigue, pallor, and shortness of breath.
+
+Why are the other options wrong?
+B. Anaemia of chronic disease - Ferritin is normal or elevated due to inflammation. Iron is sequestered in macrophages.
+C. Thalassaemia trait - Ferritin is normal. Red cell count is often elevated and patients are usually asymptomatic.
+D. Sideroblastic anaemia - Ferritin is elevated. Blood film shows ring sideroblasts on Prussian blue staining.
+E. Vitamin B12 deficiency - Causes macrocytic megaloblastic anaemia, not microcytic. Shows hypersegmented neutrophils.`;
+
 export default function QuestionParser({ activeFolder, selectedDifficulty, onImport, onClose }) {
   const [rawText, setRawText] = useState('');
   const [parsed, setParsed] = useState([]);
@@ -11,6 +29,7 @@ export default function QuestionParser({ activeFolder, selectedDifficulty, onImp
   const [importing, setImporting] = useState(false);
   const [difficulty, setDifficulty] = useState(selectedDifficulty || 'easy');
   const [gameModes, setGameModes] = useState(['battle_royale', 'speed_race', 'trivia_pursuit']);
+  const [copied, setCopied] = useState(false);
 
   const parseQuestions = () => {
     const questions = [];
@@ -208,69 +227,124 @@ export default function QuestionParser({ activeFolder, selectedDifficulty, onImp
 
         {step === 'input' && (
           <div className="qp-body">
-            <p className="qp-desc">
-              Paste questions in any common format. The parser handles:
-              <br />• Numbered questions (1. Q1. Question 1:)
-              <br />• Multiple choice (A. B. C. or A) B) C) or (A) (B) (C))
-              <br />• Answer lines (Correct Answer: B, Answer: C)
-              <br />• Explanation sections
-              <br />Separate multiple questions with a blank line.
-            </p>
 
-            <div className="qp-example">
-              <p className="qp-example-label">Example format:</p>
-              <pre className="qp-example-text">{`1. A 45-year-old man presents with fatigue and pallor. Blood film shows microcytic hypochromic cells. What is the most likely diagnosis?
-
-A. Iron deficiency anaemia
-B. Thalassaemia
-C. Vitamin B12 deficiency
-D. Anaemia of chronic disease
-
-Correct Answer: A
-
-Explanation: Iron deficiency anaemia is the most common cause of microcytic anaemia worldwide...`}</pre>
+            {/* Info bar */}
+            <div className="qp-info-bar">
+              <div className="qp-info-item">
+                <span className="qp-info-icon">🔢</span>
+                <span>Numbered questions</span>
+                <code>1. Q1. Question 1:</code>
+              </div>
+              <div className="qp-info-divider" />
+              <div className="qp-info-item">
+                <span className="qp-info-icon">🔤</span>
+                <span>Multiple choice</span>
+                <code>A. B. C. or A) B) C)</code>
+              </div>
+              <div className="qp-info-divider" />
+              <div className="qp-info-item">
+                <span className="qp-info-icon">✅</span>
+                <span>Answer line</span>
+                <code>Correct Answer: B</code>
+              </div>
+              <div className="qp-info-divider" />
+              <div className="qp-info-item">
+                <span className="qp-info-icon">📝</span>
+                <span>Sections detected</span>
+                <code>Explanation: / Why others wrong:</code>
+              </div>
             </div>
 
-            <div className="qp-settings-row">
-              <div className="qp-setting">
-                <label>Default Difficulty</label>
-                <select
-                  className="qp-select"
-                  value={difficulty}
-                  onChange={e => setDifficulty(e.target.value)}
+            {/* Example format */}
+            <div className="qp-example-section">
+              <div className="qp-example-header">
+                <div className="qp-example-dots">
+                  <span className="qp-dot qp-dot--red" />
+                  <span className="qp-dot qp-dot--yellow" />
+                  <span className="qp-dot qp-dot--green" />
+                </div>
+                <span className="qp-example-title">Example Format</span>
+                <button
+                  className="qp-copy-btn"
+                  onClick={() => {
+                    navigator.clipboard.writeText(EXAMPLE_TEXT);
+                    setCopied(true);
+                    setTimeout(() => setCopied(false), 2000);
+                  }}
                 >
-                  <option value="easy">Easy</option>
-                  <option value="hard">Hard</option>
-                </select>
+                  {copied ? '✓ Copied!' : '📋 Copy Example'}
+                </button>
               </div>
-              <div className="qp-setting">
+              <pre className="qp-example-text">{EXAMPLE_TEXT}</pre>
+            </div>
+
+            {/* Settings bar */}
+            <div className="qp-settings-bar">
+              <div className="qp-setting-group">
+                <label>Default Difficulty</label>
+                <div className="qp-difficulty-toggle">
+                  <button
+                    className={`qp-diff-btn ${difficulty === 'easy' ? 'qp-diff-btn--easy--active' : ''}`}
+                    onClick={() => setDifficulty('easy')}
+                  >
+                    🟢 Easy
+                  </button>
+                  <button
+                    className={`qp-diff-btn ${difficulty === 'hard' ? 'qp-diff-btn--hard--active' : ''}`}
+                    onClick={() => setDifficulty('hard')}
+                  >
+                    🔴 Hard
+                  </button>
+                </div>
+              </div>
+              <div className="qp-setting-group">
                 <label>Game Modes</label>
-                <div className="qp-checkboxes">
-                  {['battle_royale', 'speed_race', 'trivia_pursuit'].map(mode => (
-                    <label key={mode} className="qp-checkbox">
-                      <input
-                        type="checkbox"
-                        checked={gameModes.includes(mode)}
-                        onChange={e => setGameModes(prev =>
-                          e.target.checked
-                            ? [...prev, mode]
-                            : prev.filter(m => m !== mode)
-                        )}
-                      />
-                      {mode.replace(/_/g, ' ')}
-                    </label>
+                <div className="qp-mode-toggles">
+                  {[
+                    { id: 'battle_royale', label: '⚔️ Battle' },
+                    { id: 'speed_race', label: '🏎️ Speed' },
+                    { id: 'trivia_pursuit', label: '🎯 Trivia' }
+                  ].map(mode => (
+                    <button
+                      key={mode.id}
+                      className={`qp-mode-btn ${gameModes.includes(mode.id) ? 'qp-mode-btn--active' : ''}`}
+                      onClick={() => setGameModes(prev =>
+                        prev.includes(mode.id)
+                          ? prev.filter(m => m !== mode.id)
+                          : [...prev, mode.id]
+                      )}
+                    >
+                      {mode.label}
+                    </button>
                   ))}
                 </div>
               </div>
             </div>
 
-            <textarea
-              className="qp-textarea"
-              placeholder="Paste your questions here..."
-              value={rawText}
-              onChange={e => setRawText(e.target.value)}
-              rows={16}
-            />
+            {/* Paste area */}
+            <div className="qp-paste-section">
+              <div className="qp-paste-header">
+                <span className="qp-paste-label">📄 Paste Your Questions</span>
+                {rawText && (
+                  <button className="qp-clear-btn" onClick={() => setRawText('')}>
+                    ✕ Clear
+                  </button>
+                )}
+              </div>
+              <textarea
+                className="qp-textarea"
+                placeholder="Paste your questions here... Separate multiple questions with a blank line."
+                value={rawText}
+                onChange={e => setRawText(e.target.value)}
+                rows={14}
+                autoFocus
+              />
+              {rawText && (
+                <p className="qp-char-count">
+                  {rawText.length.toLocaleString()} characters · ~{Math.max(1, rawText.split(/\n{2,}/).length)} question block{rawText.split(/\n{2,}/).length !== 1 ? 's' : ''} detected
+                </p>
+              )}
+            </div>
 
             <div className="qp-footer">
               <button className="qp-cancel" onClick={onClose}>Cancel</button>

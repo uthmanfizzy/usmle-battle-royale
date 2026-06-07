@@ -526,3 +526,260 @@
   font-size: 16px;
   margin: 0 0 32px 0;
 }
+
+/* Info bar */
+.qp-info-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 10px 16px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.qp-info-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #6b7280;
+  flex-shrink: 0;
+}
+
+.qp-info-icon { font-size: 14px; }
+
+.qp-info-item code {
+  background: #e5e7eb;
+  color: #374151;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-family: 'Courier New', monospace;
+}
+
+.qp-info-divider {
+  width: 1px;
+  height: 16px;
+  background: #d1d5db;
+  flex-shrink: 0;
+}
+
+/* Example section */
+.qp-example-section {
+  background: #111827;
+  border: 1px solid #374151;
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+
+.qp-example-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  background: #1f2937;
+  border-bottom: 1px solid #374151;
+}
+
+.qp-example-dots {
+  display: flex;
+  gap: 5px;
+}
+
+.qp-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+.qp-dot--red { background: #ef4444; }
+.qp-dot--yellow { background: #eab308; }
+.qp-dot--green { background: #22c55e; }
+
+.qp-example-title {
+  font-size: 11px;
+  color: #9ca3af;
+  letter-spacing: 0.05em;
+  flex: 1;
+}
+
+.qp-copy-btn {
+  padding: 4px 12px;
+  background: #374151;
+  border: 1px solid #4b5563;
+  border-radius: 5px;
+  color: #d1d5db;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+.qp-copy-btn:hover {
+  background: #4b5563;
+  border-color: #6b7280;
+  color: #f3f4f6;
+}
+
+.qp-example-text {
+  font-family: 'Courier New', monospace;
+  font-size: 11.5px;
+  color: #d1d5db;
+  white-space: pre-wrap;
+  margin: 0;
+  line-height: 1.7;
+  padding: 14px 16px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.qp-example-text::-webkit-scrollbar {
+  width: 8px;
+}
+
+.qp-example-text::-webkit-scrollbar-track {
+  background: #1f2937;
+}
+
+.qp-example-text::-webkit-scrollbar-thumb {
+  background: #374151;
+  border-radius: 4px;
+}
+
+.qp-example-text::-webkit-scrollbar-thumb:hover {
+  background: #4b5563;
+}
+
+/* Settings bar */
+.qp-settings-bar {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 12px 16px;
+  margin-bottom: 20px;
+}
+
+.qp-setting-group {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.qp-setting-group label {
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  color: #6b7280;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.qp-difficulty-toggle {
+  display: flex;
+  gap: 6px;
+}
+
+.qp-diff-btn {
+  padding: 6px 14px;
+  background: white;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  color: #6b7280;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.qp-diff-btn:hover {
+  border-color: #9ca3af;
+  background: #f9fafb;
+}
+
+.qp-diff-btn--easy--active {
+  background: #dcfce7 !important;
+  border-color: #86efac !important;
+  color: #166534 !important;
+  font-weight: 600;
+}
+
+.qp-diff-btn--hard--active {
+  background: #fee2e2 !important;
+  border-color: #fca5a5 !important;
+  color: #991b1b !important;
+  font-weight: 600;
+}
+
+.qp-mode-toggles {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.qp-mode-btn {
+  padding: 6px 12px;
+  background: white;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  color: #6b7280;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.qp-mode-btn:hover {
+  border-color: #9ca3af;
+  background: #f9fafb;
+}
+
+.qp-mode-btn--active {
+  background: #dbeafe !important;
+  border-color: #93c5fd !important;
+  color: #1e40af !important;
+  font-weight: 600;
+}
+
+/* Paste section */
+.qp-paste-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.qp-paste-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.qp-paste-label {
+  font-size: 12px;
+  color: #374151;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+}
+
+.qp-clear-btn {
+  background: transparent;
+  border: none;
+  color: #dc2626;
+  font-size: 11px;
+  cursor: pointer;
+  padding: 2px 6px;
+  transition: color 0.2s;
+}
+.qp-clear-btn:hover {
+  color: #b91c1c;
+}
+
+.qp-char-count {
+  font-size: 11px;
+  color: #9ca3af;
+  margin: 0;
+  text-align: right;
+}
