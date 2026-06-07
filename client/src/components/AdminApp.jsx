@@ -1144,16 +1144,24 @@ function QuestionsPanel({ subjects = [] }) {
 
   // ─── Derived ─────────────────────────────────────────────────────────────────
   const folderCounts = FOLDERS.reduce((acc, f) => {
-    if (f.separator)                acc[f.id] = 0;
-    else if (f.id === 'all')        acc[f.id] = questions.length;
-    else if (f.id === '__images__') acc[f.id] = questions.filter(q => q.image_url).length;
-    else if (f.id === 'buzz_fun')   acc[f.id] = questions.filter(q => (q.game_modes || []).includes('buzz_fun')).length;
-    else                            acc[f.id] = questions.filter(q =>
-      q.subject === f.id ||
-      q.category === f.id ||
-      q.category?.toLowerCase() === f.id?.toLowerCase() ||
-      q.subject?.toLowerCase() === f.id?.toLowerCase()
-    ).length;
+    if (f.separator) {
+      acc[f.id] = 0;
+    } else if (f.id === 'all') {
+      acc[f.id] = questions.length;
+    } else if (f.id === '__images__') {
+      acc[f.id] = questions.filter(q => q.image_url).length;
+    } else if (f.id === 'buzz_fun') {
+      acc[f.id] = questions.filter(q => (q.game_modes || []).includes('buzz_fun')).length;
+    } else {
+      // Use the EXACT same filter logic as catQuestions below
+      acc[f.id] = questions.filter(q => {
+        if (q.subject === f.id) return true;
+        if (q.category === f.id) return true;
+        if (q.category?.toLowerCase() === f.id?.toLowerCase()) return true;
+        if (q.subject?.toLowerCase() === f.id?.toLowerCase()) return true;
+        return false;
+      }).length;
+    }
     return acc;
   }, {});
 
