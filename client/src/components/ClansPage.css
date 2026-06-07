@@ -26,27 +26,37 @@
   text-align: center;
 }
 
+.clan-no-clan h2 {
+  color: rgba(220, 190, 80, 0.95);
+  font-size: 24px;
+  margin: 0;
+}
+
+.clan-no-clan p {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 14px;
+  margin: 0;
+}
+
 .clan-action-btn {
-  padding: 12px 24px;
-  background: rgba(30, 80, 30, 0.8);
-  border: 1px solid rgba(80, 180, 80, 0.4);
-  border-radius: 8px;
-  color: white;
+  padding: 12px 28px;
+  background: rgba(10, 15, 8, 0.85);
+  border: 1px solid rgba(180, 140, 40, 0.4);
+  border-radius: 10px;
+  color: rgba(220, 190, 80, 0.9);
   font-family: 'Cinzel', serif;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
   cursor: pointer;
-  letter-spacing: 0.08em;
   transition: all 0.2s;
+  letter-spacing: 0.08em;
 }
-
-.clan-action-btn:hover {
-  background: rgba(40, 100, 40, 0.9);
-}
+.clan-action-btn:hover { background: rgba(30, 40, 20, 0.9); border-color: rgba(200, 165, 60, 0.7); }
 
 .clan-action-btn--create {
-  background: rgba(80, 30, 30, 0.8);
-  border-color: rgba(180, 80, 80, 0.4);
+  background: rgba(30, 80, 30, 0.8) !important;
+  border-color: rgba(80, 180, 80, 0.4) !important;
+  color: white !important;
 }
 
 /* Section Labels */
@@ -655,6 +665,427 @@
   line-height: 1.4;
   word-break: break-word;
 }
+
+/* Leave Button */
+.clan-leave-btn {
+  display: block;
+  width: calc(100% - 28px);
+  margin: 0 14px 14px;
+  padding: 10px;
+  background: rgba(60, 15, 15, 0.7);
+  border: 1px solid rgba(180, 60, 60, 0.4);
+  border-radius: 8px;
+  color: rgba(220, 100, 100, 0.9);
+  font-family: 'Cinzel', serif;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: 0.08em;
+  transition: all 0.2s;
+}
+.clan-leave-btn:hover { background: rgba(80, 20, 20, 0.9); }
+.clan-leave-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Member Actions */
+.clan-member-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.clan-member-action-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 4px;
+  border: 1px solid rgba(180, 140, 40, 0.25);
+  background: rgba(20, 28, 15, 0.8);
+  color: rgba(200, 165, 60, 0.8);
+  cursor: pointer;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+.clan-member-action-btn:hover { background: rgba(40, 55, 20, 0.9); }
+.clan-member-action-btn--kick { color: rgba(220, 100, 100, 0.8); border-color: rgba(180, 60, 60, 0.25); }
+.clan-member-action-btn--kick:hover { background: rgba(60, 15, 15, 0.9); }
+
+/* Join Requests */
+.clan-requests-list { display: flex; flex-direction: column; gap: 6px; padding: 10px 14px; }
+
+.clan-request-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: rgba(15, 22, 12, 0.7);
+  border: 1px solid rgba(180, 140, 40, 0.15);
+  border-radius: 8px;
+}
+
+.clan-request-info { flex: 1; }
+
+.clan-request-name {
+  font-family: 'Cinzel', serif;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.85);
+  margin: 0;
+}
+
+.clan-request-meta {
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.4);
+  margin: 2px 0 0 0;
+}
+
+.clan-request-actions { display: flex; gap: 6px; flex-shrink: 0; }
+
+.clan-request-approve {
+  padding: 5px 10px;
+  background: rgba(30, 80, 30, 0.8);
+  border: 1px solid rgba(80, 180, 80, 0.4);
+  border-radius: 6px;
+  color: white;
+  font-family: 'Cinzel', serif;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.clan-request-approve:hover { background: rgba(40, 100, 40, 0.9); }
+
+.clan-request-deny {
+  padding: 5px 10px;
+  background: rgba(60, 15, 15, 0.7);
+  border: 1px solid rgba(180, 60, 60, 0.3);
+  border-radius: 6px;
+  color: rgba(220, 100, 100, 0.9);
+  font-family: 'Cinzel', serif;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.clan-request-deny:hover { background: rgba(80, 20, 20, 0.9); }
+
+/* Modal Overlay */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 20px;
+}
+
+/* CREATE CLAN MODAL */
+.create-clan-modal {
+  background: rgba(10, 15, 8, 0.98);
+  border: 1px solid rgba(180, 140, 40, 0.45);
+  border-radius: 16px;
+  width: 100%;
+  max-width: 480px;
+  max-height: 85vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.create-clan-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 20px;
+  border-bottom: 1px solid rgba(180, 140, 40, 0.2);
+}
+
+.create-clan-header h2 {
+  font-family: 'Cinzel', serif;
+  font-size: 18px;
+  color: rgba(220, 190, 80, 0.95);
+  margin: 0;
+}
+
+.create-clan-header button {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 18px;
+  cursor: pointer;
+}
+
+.create-clan-body {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.create-clan-error {
+  padding: 10px 14px;
+  background: rgba(60, 15, 15, 0.8);
+  border: 1px solid rgba(180, 60, 60, 0.4);
+  border-radius: 8px;
+  color: rgba(220, 100, 100, 0.9);
+  font-family: 'Cinzel', serif;
+  font-size: 12px;
+}
+
+.create-clan-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex: 1;
+}
+
+.create-clan-field label {
+  font-family: 'Cinzel', serif;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: rgba(200, 165, 60, 0.65);
+}
+
+.create-clan-field label span {
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 9px;
+}
+
+.create-clan-input {
+  padding: 10px 12px;
+  background: rgba(20, 28, 15, 0.9);
+  border: 1px solid rgba(180, 140, 40, 0.25);
+  border-radius: 7px;
+  color: rgba(255, 255, 255, 0.85);
+  font-family: 'Cinzel', serif;
+  font-size: 13px;
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
+}
+.create-clan-input:focus { border-color: rgba(200, 165, 60, 0.5); }
+
+.create-clan-textarea { resize: vertical; font-family: 'Inter', sans-serif; }
+
+.create-clan-row { display: flex; gap: 12px; }
+
+.create-clan-footer {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  padding: 14px 20px;
+  border-top: 1px solid rgba(180, 140, 40, 0.15);
+}
+
+.create-clan-cancel {
+  padding: 10px 20px;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.5);
+  font-family: 'Cinzel', serif;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.create-clan-cancel:hover { background: rgba(255, 255, 255, 0.05); }
+
+.create-clan-submit {
+  padding: 10px 24px;
+  background: linear-gradient(135deg, rgba(30, 80, 30, 0.9), rgba(50, 110, 30, 0.9));
+  border: 1px solid rgba(80, 180, 80, 0.4);
+  border-radius: 8px;
+  color: white;
+  font-family: 'Cinzel', serif;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.create-clan-submit:hover { background: linear-gradient(135deg, rgba(40, 100, 40, 0.95), rgba(60, 130, 40, 0.95)); }
+.create-clan-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* BROWSE CLANS MODAL */
+.browse-clans-modal {
+  background: rgba(10, 15, 8, 0.98);
+  border: 1px solid rgba(180, 140, 40, 0.45);
+  border-radius: 16px;
+  width: 100%;
+  max-width: 560px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.browse-clans-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 20px;
+  border-bottom: 1px solid rgba(180, 140, 40, 0.2);
+  flex-shrink: 0;
+}
+
+.browse-clans-header h2 {
+  font-family: 'Cinzel', serif;
+  font-size: 18px;
+  color: rgba(220, 190, 80, 0.95);
+  margin: 0;
+}
+
+.browse-clans-header button {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 18px;
+  cursor: pointer;
+}
+
+.browse-clans-search {
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(180, 140, 40, 0.15);
+  flex-shrink: 0;
+}
+
+.browse-clans-input {
+  width: 100%;
+  padding: 10px 14px;
+  background: rgba(20, 28, 15, 0.9);
+  border: 1px solid rgba(180, 140, 40, 0.25);
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.85);
+  font-family: 'Cinzel', serif;
+  font-size: 13px;
+  outline: none;
+  box-sizing: border-box;
+}
+.browse-clans-input:focus { border-color: rgba(200, 165, 60, 0.5); }
+
+.browse-clans-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(180, 140, 40, 0.2) transparent;
+}
+
+.browse-clans-loading, .browse-clans-empty {
+  text-align: center;
+  padding: 30px;
+  font-family: 'Cinzel', serif;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.browse-clan-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  background: rgba(15, 22, 12, 0.8);
+  border: 1px solid rgba(180, 140, 40, 0.15);
+  border-radius: 10px;
+  transition: border-color 0.2s;
+}
+.browse-clan-row:hover { border-color: rgba(180, 140, 40, 0.35); }
+
+.browse-clan-banner {
+  width: 44px;
+  height: 54px;
+  background: rgba(40, 55, 20, 0.8);
+  border: 1px solid rgba(180, 140, 40, 0.3);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+.browse-clan-banner img { width: 100%; height: 100%; object-fit: cover; }
+
+.browse-clan-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+
+.browse-clan-name {
+  font-family: 'Cinzel', serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: rgba(220, 190, 80, 0.95);
+  margin: 0;
+}
+
+.browse-clan-tag {
+  font-size: 11px;
+  color: rgba(200, 165, 60, 0.6);
+  font-weight: 400;
+}
+
+.browse-clan-desc {
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.45);
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.browse-clan-meta {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.browse-clan-meta span {
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.browse-clan-type {
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 9px !important;
+  font-family: 'Cinzel', serif !important;
+}
+
+.browse-clan-type--open { background: rgba(30, 80, 30, 0.5); color: rgba(80, 200, 80, 0.9) !important; }
+.browse-clan-type--invite-only { background: rgba(40, 40, 80, 0.5); color: rgba(100, 140, 255, 0.9) !important; }
+.browse-clan-type--closed { background: rgba(60, 20, 20, 0.5); color: rgba(220, 100, 100, 0.9) !important; }
+
+.browse-clan-msg {
+  font-family: 'Cinzel', serif;
+  font-size: 10px;
+  color: rgba(80, 200, 80, 0.8);
+  margin: 2px 0 0 0;
+}
+
+.browse-clan-join-btn {
+  padding: 8px 16px;
+  background: rgba(30, 80, 30, 0.8);
+  border: 1px solid rgba(80, 180, 80, 0.4);
+  border-radius: 7px;
+  color: white;
+  font-family: 'Cinzel', serif;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all 0.2s;
+}
+.browse-clan-join-btn:hover:not(:disabled) { background: rgba(40, 100, 40, 0.9); }
+.browse-clan-join-btn:disabled { opacity: 0.5; cursor: default; }
 
 /* Mobile Responsive */
 @media (max-width: 1024px) {

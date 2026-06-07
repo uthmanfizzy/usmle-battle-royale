@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import './ClansPage.css';
+import CreateClanModal from './CreateClanModal';
+import BrowseClansModal from './BrowseClansModal';
 
 const SERVER_URL = 'https://usmle-battle-royale-production.up.railway.app';
 
@@ -11,6 +13,10 @@ export default function ClansPage({ user }) {
   const [chatMessages, setChatMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [userRole, setUserRole] = useState('Member');
+  const [showCreate, setShowCreate] = useState(false);
+  const [showBrowse, setShowBrowse] = useState(false);
+  const [joinRequests, setJoinRequests] = useState([]);
+  const [leaving, setLeaving] = useState(false);
   const chatEndRef = useRef(null);
 
   useEffect(() => {
@@ -121,6 +127,109 @@ export default function ClansPage({ user }) {
     return `${Math.floor(diff / 1440)}d ago`;
   };
 
+  const fetchJoinRequests = async () => {
+    if (!clan || !['Leader','Elder'].includes(userRole)) return;
+    try {
+      const res = await fetch(`${SERVER_URL}/api/clans/${clan.id}/requests`);
+      const data = await res.json();
+      setJoinRequests(data || []);
+    } catch(e) {
+      console.error('Failed to fetch join requests:', e);
+    }
+  };
+
+  const handleLeave = async () => {
+    if (!window.confirm('Are you sure you want to leave this clan?')) return;
+    setLeaving(true);
+    try {
+      const res = await fetch(`${SERVER_URL}/api/clans/${clan.id}/members/${user.id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+      });
+      const data = await res.json();
+      if (data.success) {
+        setClan(null);
+        setMembers([]);
+      } else {
+        alert(data.error || 'Failed to leave clan');
+      }
+    } catch(e) {
+      alert('Error leaving clan');
+    }
+    setLeaving(false);
+  };
+
+  const handleKick = async (memberId) => {
+    if (!window.confirm('Kick this member?')) return;
+    try {
+      const res = await fetch(`${SERVER_URL}/api/clans/${clan.id}/members/${memberId}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kickedBy: user.id })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setMembers(prev => prev.filter(m => m.id !== memberId));
+      } else {
+        alert(data.error);
+      }
+    } catch(e) {
+      alert('Error kicking member');
+    }
+  };
+
+  const handlePromote = async (memberId, newRole) => {
+    try {
+      const res = await fetch(`${SERVER_URL}/api/clans/${clan.id}/members/${memberId}/role`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ newRole, leaderId: user.id })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setMembers(prev => prev.map(m => m.id === memberId ? {...m, role: newRole} : m));
+      } else {
+        alert(data.error);
+      }
+    } catch(e) {
+      alert('Error changing role');
+    }
+  };
+
+  const handleApproveRequest = async (requestId) => {
+    try {
+      const res = await fetch(`${SERVER_URL}/api/clans/${clan.id}/requests/${requestId}/approve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ leaderId: user.id })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setJoinRequests(prev => prev.filter(r => r.id !== requestId));
+        fetchClanDetails(clan.id);
+      }
+    } catch(e) {
+      console.error('Failed to approve request:', e);
+    }
+  };
+
+  const handleDenyRequest = async (requestId) => {
+    try {
+      const res = await fetch(`${SERVER_URL}/api/clans/${clan.id}/requests/${requestId}/deny`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ leaderId: user.id })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setJoinRequests(prev => prev.filter(r => r.id !== requestId));
+      }
+    } catch(e) {
+      console.error('Failed to deny request:', e);
+    }
+  };
+
   if (loading) {
     return (
       <div className="clan-loading">
@@ -134,8 +243,10 @@ export default function ClansPage({ user }) {
       <div className="clan-no-clan">
         <h2>You are not in a clan</h2>
         <p>Join or create a clan to compete with others!</p>
-        <button className="clan-action-btn">Browse Clans</button>
-        <button className="clan-action-btn clan-action-btn--create">Create Clan</button>
+        <button className="clan-action-btn" onClick={() => setShowBrowse(true)}>🔍 Browse Clans</button>
+        <button className="clan-action-btn clan-action-btn--create" onClick={() => setShowCreate(true)}>⚔️ Create Clan</button>
+        {showCreate && <CreateClanModal user={user} onClose={() => setShowCreate(false)} onCreated={(c) => { setClan(c); fetchClanDetails(c.id); }} />}
+        {showBrowse && <BrowseClansModal user={user} onClose={() => setShowBrowse(false)} onJoined={(c) => { setClan(c); setShowBrowse(false); fetchClanDetails(c.id); }} />}
       </div>
     );
   }
@@ -206,7 +317,12 @@ export default function ClansPage({ user }) {
             </div>
           </div>
 
-          <button className="clan-settings-btn">SETTINGS</button>
+          {userRole === 'Leader' && <button className="clan-settings-btn">SETTINGS</button>}
+          {userRole !== 'Leader' && (
+            <button className="clan-leave-btn" onClick={handleLeave} disabled={leaving}>
+              {leaving ? 'Leaving...' : '🚪 Leave Clan'}
+            </button>
+          )}
         </div>
 
         {/* Top Contributors */}
@@ -294,9 +410,9 @@ export default function ClansPage({ user }) {
             </button>
             <button
               className={`clan-tab ${activeTab === 'pending' ? 'clan-tab--active' : ''}`}
-              onClick={() => setActiveTab('pending')}
+              onClick={() => { setActiveTab('pending'); fetchJoinRequests(); }}
             >
-              PENDING (0)
+              PENDING ({joinRequests.length})
             </button>
             <button
               className={`clan-tab ${activeTab === 'invites' ? 'clan-tab--active' : ''}`}
@@ -335,13 +451,45 @@ export default function ClansPage({ user }) {
                   <span className={member.status === 'online' ? 'status-online' : ''}>
                     {member.status}
                   </span>
+                  {(userRole === 'Leader' || userRole === 'Elder') && member.id !== user?.id && (
+                    <div className="clan-member-actions">
+                      {userRole === 'Leader' && member.role !== 'Elder' && (
+                        <button className="clan-member-action-btn" onClick={() => handlePromote(member.id, 'Elder')} title="Promote to Elder">▲</button>
+                      )}
+                      {userRole === 'Leader' && member.role === 'Elder' && (
+                        <button className="clan-member-action-btn" onClick={() => handlePromote(member.id, 'Member')} title="Demote to Member">▼</button>
+                      )}
+                      <button className="clan-member-action-btn clan-member-action-btn--kick" onClick={() => handleKick(member.id)} title="Kick member">✕</button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
           )}
 
           {activeTab === 'pending' && (
-            <div className="clan-empty-tab">No pending requests</div>
+            <div className="clan-requests-list">
+              {joinRequests.length === 0 && <div className="clan-empty-tab">No pending requests</div>}
+              {joinRequests.map(req => (
+                <div className="clan-request-row" key={req.id}>
+                  <div className="clan-member-avatar">
+                    {req.user?.avatar_url ? (
+                      <img src={req.user.avatar_url} alt={req.user.username} />
+                    ) : (
+                      <span>{req.user?.username?.[0]?.toUpperCase()}</span>
+                    )}
+                  </div>
+                  <div className="clan-request-info">
+                    <p className="clan-request-name">{req.user?.username}</p>
+                    <p className="clan-request-meta">Level {req.user?.level || 1} · {req.message || 'No message'}</p>
+                  </div>
+                  <div className="clan-request-actions">
+                    <button className="clan-request-approve" onClick={() => handleApproveRequest(req.id)}>✓ Approve</button>
+                    <button className="clan-request-deny" onClick={() => handleDenyRequest(req.id)}>✕ Deny</button>
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
 
           {activeTab === 'invites' && (

@@ -2698,6 +2698,274 @@ app.post('/api/clans/:clanId/chat', async (req, res) => {
   }
 });
 
+// ── JOIN REQUEST ─────────────────────────────────────
+app.post('/api/clans/:clanId/request', async (req, res) => {
+  if (!supabase) return res.status(503).json({ success: false, error: 'Database not configured' });
+  try {
+    const { clanId } = req.params;
+    const { userId, message } = req.body;
+
+    // Check not already in a clan
+    const { data: existing } = await supabase
+      .from('clan_members')
+      .select('id')
+      .eq('user_id', userId)
+      .single();
+    if (existing) return res.status(400).json({ success: false, error: 'Already in a clan' });
+
+    // Check not already requested
+    const { data: requested } = await supabase
+      .from('clan_join_requests')
+      .select('id, status')
+      .eq('clan_id', clanId)
+      .eq('user_id', userId)
+      .single();
+    if (requested) return res.status(400).json({ success: false, error: 'Request already sent' });
+
+    // Get clan to check if Open type
+    const { data: clan } = await supabase
+      .from('clans')
+      .select('type, required_trophies')
+      .eq('id', clanId)
+      .single();
+
+    if (clan?.type === 'Open') {
+      // Auto join for open clans
+      await supabase.from('clan_members').insert({
+        clan_id: clanId,
+        user_id: userId,
+        role: 'Member',
+        joined_at: new Date().toISOString(),
+        clan_xp: 0,
+        trophies: 0
+      });
+      return res.json({ success: true, joined: true, message: 'Joined clan!' });
+    }
+
+    // Create join request for invite-only clans
+    const { error } = await supabase
+      .from('clan_join_requests')
+      .insert({ clan_id: clanId, user_id: userId, message: message || '', status: 'pending' });
+
+    if (error) throw error;
+    res.json({ success: true, joined: false, message: 'Join request sent!' });
+  } catch(e) {
+    console.error('[clan/request] Error:', e.message);
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// ── GET JOIN REQUESTS (for leader/elder) ─────────────
+app.get('/api/clans/:clanId/requests', async (req, res) => {
+  if (!supabase) return res.status(503).json([]);
+  try {
+    const { clanId } = req.params;
+    const { data } = await supabase
+      .from('clan_join_requests')
+      .select('*, user:user_id(id, username, level, xp, avatar_url)')
+      .eq('clan_id', clanId)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false });
+    res.json(data || []);
+  } catch(e) {
+    console.error('[clan/requests/get] Error:', e.message);
+    res.json([]);
+  }
+});
+
+// ── APPROVE/DENY JOIN REQUEST ─────────────────────────
+app.post('/api/clans/:clanId/requests/:requestId/:action', async (req, res) => {
+  if (!supabase) return res.status(503).json({ success: false, error: 'Database not configured' });
+  try {
+    const { clanId, requestId, action } = req.params;
+    const { leaderId } = req.body;
+
+    // Verify requester is leader/elder
+    const { data: leaderMember } = await supabase
+      .from('clan_members')
+      .select('role')
+      .eq('clan_id', clanId)
+      .eq('user_id', leaderId)
+      .single();
+    if (!leaderMember || !['Leader', 'Elder'].includes(leaderMember.role)) {
+      return res.status(403).json({ success: false, error: 'Not authorized' });
+    }
+
+    const { data: request } = await supabase
+      .from('clan_join_requests')
+      .select('*')
+      .eq('id', requestId)
+      .single();
+
+    if (!request) return res.status(404).json({ success: false, error: 'Request not found' });
+
+    if (action === 'approve') {
+      await supabase.from('clan_members').insert({
+        clan_id: clanId,
+        user_id: request.user_id,
+        role: 'Member',
+        joined_at: new Date().toISOString(),
+        clan_xp: 0,
+        trophies: 0
+      });
+    }
+
+    await supabase
+      .from('clan_join_requests')
+      .update({ status: action === 'approve' ? 'approved' : 'denied' })
+      .eq('id', requestId);
+
+    res.json({ success: true });
+  } catch(e) {
+    console.error('[clan/requests/action] Error:', e.message);
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// ── LEAVE/KICK CLAN ─────────────────────────────────────
+app.delete('/api/clans/:clanId/members/:userId', async (req, res) => {
+  if (!supabase) return res.status(503).json({ success: false, error: 'Database not configured' });
+  try {
+    const { clanId, userId } = req.params;
+    const { kickedBy } = req.body;
+
+    // Check if being kicked by someone else
+    if (kickedBy && kickedBy !== userId) {
+      const { data: kicker } = await supabase
+        .from('clan_members')
+        .select('role')
+        .eq('clan_id', clanId)
+        .eq('user_id', kickedBy)
+        .single();
+      if (!kicker || !['Leader', 'Elder'].includes(kicker.role)) {
+        return res.status(403).json({ success: false, error: 'Not authorized to kick members' });
+      }
+    }
+
+    // Check if user is the leader
+    const { data: member } = await supabase
+      .from('clan_members')
+      .select('role')
+      .eq('clan_id', clanId)
+      .eq('user_id', userId)
+      .single();
+
+    if (member?.role === 'Leader') {
+      // Count other members
+      const { count } = await supabase
+        .from('clan_members')
+        .select('*', { count: 'exact', head: true })
+        .eq('clan_id', clanId);
+
+      if (count > 1) {
+        return res.status(400).json({ success: false, error: 'Transfer leadership before leaving' });
+      }
+
+      // Last member - delete clan
+      await supabase.from('clans').delete().eq('id', clanId);
+    }
+
+    await supabase
+      .from('clan_members')
+      .delete()
+      .eq('clan_id', clanId)
+      .eq('user_id', userId);
+
+    res.json({ success: true });
+  } catch(e) {
+    console.error('[clan/members/delete] Error:', e.message);
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// ── PROMOTE/DEMOTE MEMBER ─────────────────────────────
+app.put('/api/clans/:clanId/members/:userId/role', async (req, res) => {
+  if (!supabase) return res.status(503).json({ success: false, error: 'Database not configured' });
+  try {
+    const { clanId, userId } = req.params;
+    const { newRole, leaderId } = req.body;
+
+    // Verify requester is Leader
+    const { data: leader } = await supabase
+      .from('clan_members')
+      .select('role')
+      .eq('clan_id', clanId)
+      .eq('user_id', leaderId)
+      .single();
+    if (!leader || leader.role !== 'Leader') {
+      return res.status(403).json({ success: false, error: 'Only the Leader can change roles' });
+    }
+
+    const { error } = await supabase
+      .from('clan_members')
+      .update({ role: newRole })
+      .eq('clan_id', clanId)
+      .eq('user_id', userId);
+
+    if (error) throw error;
+    res.json({ success: true });
+  } catch(e) {
+    console.error('[clan/members/role] Error:', e.message);
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// ── UPDATE CLAN SETTINGS ─────────────────────────────
+app.put('/api/clans/:clanId', async (req, res) => {
+  if (!supabase) return res.status(503).json({ success: false, error: 'Database not configured' });
+  try {
+    const { clanId } = req.params;
+    const { leaderId, name, description, type, location, required_trophies, tag } = req.body;
+
+    const { data: leader } = await supabase
+      .from('clan_members')
+      .select('role')
+      .eq('clan_id', clanId)
+      .eq('user_id', leaderId)
+      .single();
+    if (!leader || leader.role !== 'Leader') {
+      return res.status(403).json({ success: false, error: 'Only the Leader can update clan settings' });
+    }
+
+    const { error } = await supabase
+      .from('clans')
+      .update({ name, description, type, location, required_trophies, tag: tag?.toUpperCase().slice(0,5) })
+      .eq('id', clanId);
+
+    if (error) throw error;
+    res.json({ success: true });
+  } catch(e) {
+    console.error('[clan/update] Error:', e.message);
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// ── BROWSE CLANS ─────────────────────────────────────
+app.get('/api/clans', async (req, res) => {
+  if (!supabase) return res.status(503).json({ clans: [], total: 0 });
+  try {
+    const { search, type, sort = 'score', page = 1, limit = 20 } = req.query;
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+
+    let query = supabase
+      .from('clans')
+      .select('*, member_count:clan_members(count)', { count: 'exact' })
+      .order(sort, { ascending: false })
+      .range(offset, offset + parseInt(limit) - 1);
+
+    if (search) query = query.ilike('name', `%${search}%`);
+    if (type) query = query.eq('type', type);
+
+    const { data, count, error } = await query;
+    if (error) throw error;
+
+    res.json({ clans: data || [], total: count || 0 });
+  } catch(e) {
+    console.error('[clans/browse] Error:', e.message);
+    res.json({ clans: [], total: 0 });
+  }
+});
+
 // ── Leaderboard API ────────────────────────────────────────────────────────────
 
 app.get('/api/username/check', async (req, res) => {
