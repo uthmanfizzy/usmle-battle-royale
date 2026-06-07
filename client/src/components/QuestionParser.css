@@ -416,6 +416,25 @@
   margin: 0;
 }
 
+.qp-preview-why-wrong {
+  background: #fef2f2;
+  border-left: 3px solid #dc2626;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  border-radius: 4px;
+}
+
+.qp-preview-why-wrong .qp-preview-explanation-label {
+  color: #991b1b;
+}
+
+.qp-preview-why-wrong p {
+  color: #7f1d1d;
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 0;
+}
+
 .qp-preview-edit-row {
   display: flex;
   gap: 12px;

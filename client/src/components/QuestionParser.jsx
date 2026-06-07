@@ -32,16 +32,54 @@ export default function QuestionParser({ activeFolder, selectedDifficulty, onImp
         let choices = [];
         let correctLetter = '';
         let explanation = '';
+        let whyOthersWrong = '';
         let inExplanation = false;
+        let inWhyOthers = false;
         let questionLines = [];
 
         for (let i = 0; i < lines.length; i++) {
           const line = lines[i];
 
+          // Detect "why others wrong" section
+          if (/^(why\s+(are\s+)?(the\s+)?other(\s+options?)?(\s+(are\s+)?wrong)?|incorrect\s+options?|wrong\s+options?|other\s+options?|distractors?)[\s:]*/i.test(line)) {
+            inWhyOthers = true;
+            inExplanation = false;
+            const whyText = line.replace(/^(why\s+(are\s+)?(the\s+)?other(\s+options?)?(\s+(are\s+)?wrong)?|incorrect\s+options?|wrong\s+options?|other\s+options?|distractors?)[\s:]*/i, '').trim();
+            if (whyText) whyOthersWrong += whyText + '\n';
+            continue;
+          }
+
+          if (inWhyOthers) {
+            // Stop why others section if we hit a new major section
+            if (/^(explanation|answer explanation|rationale|discussion|educational\s+objective)[\s:]/i.test(line)) {
+              inWhyOthers = false;
+              // fall through to other checks
+            } else {
+              // Detect individual option explanations (A - wrong because...)
+              const optionExplainMatch = line.match(/^([A-H])\s*[-:)]\s*.+/i);
+              if (optionExplainMatch) {
+                whyOthersWrong += line + '\n';
+                continue;
+              }
+              whyOthersWrong += line + '\n';
+              continue;
+            }
+          }
+
+          // Detect educational objective section (treat as part of explanation)
+          if (/^educational\s+objective[\s:]*/i.test(line)) {
+            inExplanation = true;
+            inWhyOthers = false;
+            const eduText = line.replace(/^educational\s+objective[\s:]*/i, '').trim();
+            if (eduText) explanation += '\n\nEducational Objective: ' + eduText + '\n';
+            continue;
+          }
+
           // Detect explanation section
           if (/^(explanation|answer explanation|rationale|discussion)[\s:]/i.test(line) ||
               /^(correct answer[\s:]*[A-H].*\n)/i.test(line)) {
             inExplanation = true;
+            inWhyOthers = false;
             // Extract explanation text after the label
             const expText = line.replace(/^(explanation|answer explanation|rationale|discussion)[\s:]*/i, '').trim();
             if (expText) explanation += expText + '\n';
@@ -108,7 +146,7 @@ export default function QuestionParser({ activeFolder, selectedDifficulty, onImp
           choices: formattedChoices,
           correct: correctLetter,
           explanation: explanation.trim(),
-          why_others_wrong: '',
+          why_others_wrong: whyOthersWrong.trim(),
           difficulty,
           game_modes: gameModes
         });
@@ -294,6 +332,12 @@ Explanation: Iron deficiency anaemia is the most common cause of microcytic anae
                     <div className="qp-preview-explanation">
                       <span className="qp-preview-explanation-label">Explanation:</span>
                       <p>{q.explanation.substring(0, 150)}{q.explanation.length > 150 ? '...' : ''}</p>
+                    </div>
+                  )}
+                  {q.why_others_wrong && (
+                    <div className="qp-preview-why-wrong">
+                      <span className="qp-preview-explanation-label">Why Others Wrong:</span>
+                      <p>{q.why_others_wrong.substring(0, 150)}{q.why_others_wrong.length > 150 ? '...' : ''}</p>
                     </div>
                   )}
                   <div className="qp-preview-edit-row">
