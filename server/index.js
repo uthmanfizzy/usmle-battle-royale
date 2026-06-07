@@ -3306,6 +3306,49 @@ const checkWeeklyReset = () => {
 };
 setInterval(checkWeeklyReset, 60 * 60 * 1000); // Check every hour
 
+// ── Debug Endpoints ────────────────────────────────────────────────────────────
+
+app.get('/api/debug/question-audit', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Database not configured' });
+  try {
+    const { data } = await supabase
+      .from('questions')
+      .select('id, question_id, category, difficulty, topic_id')
+      .order('category');
+
+    const audit = {
+      total: data?.length || 0,
+      byCategory: {},
+      nullDifficulty: data?.filter(q => !q.difficulty).length || 0,
+      byDifficulty: {
+        easy: data?.filter(q => q.difficulty === 'easy').length || 0,
+        hard: data?.filter(q => q.difficulty === 'hard').length || 0,
+        null: data?.filter(q => !q.difficulty).length || 0
+      }
+    };
+
+    data?.forEach(q => {
+      const cat = q.category || 'unknown';
+      if (!audit.byCategory[cat]) {
+        audit.byCategory[cat] = { easy: 0, hard: 0, null: 0, total: 0 };
+      }
+      audit.byCategory[cat].total++;
+      if (q.difficulty === 'easy') {
+        audit.byCategory[cat].easy++;
+      } else if (q.difficulty === 'hard') {
+        audit.byCategory[cat].hard++;
+      } else {
+        audit.byCategory[cat].null++;
+      }
+    });
+
+    res.json(audit);
+  } catch(e) {
+    console.error('[debug/question-audit] Error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ── Leaderboard API ────────────────────────────────────────────────────────────
 
 app.get('/api/username/check', async (req, res) => {
