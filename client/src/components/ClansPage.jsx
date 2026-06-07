@@ -17,6 +17,14 @@ export default function ClansPage({ user }) {
   const [showBrowse, setShowBrowse] = useState(false);
   const [joinRequests, setJoinRequests] = useState([]);
   const [leaving, setLeaving] = useState(false);
+  const [onlineStatus, setOnlineStatus] = useState({});
+  const [clanQuests, setClanQuests] = useState([]);
+  const [showAddQuest, setShowAddQuest] = useState(false);
+  const [questForm, setQuestForm] = useState({
+    name: '', description: '', type: 'damage',
+    target: 1000, reward_gems: 50, reward_coins: 500,
+    reward_xp: 1000, expires_hours: 168
+  });
   const chatEndRef = useRef(null);
 
   useEffect(() => {
@@ -26,6 +34,12 @@ export default function ClansPage({ user }) {
       setLoading(false);
     }
   }, [user]);
+
+  useEffect(() => {
+    if (clan) {
+      fetchClanQuests();
+    }
+  }, [clan]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -71,6 +85,9 @@ export default function ClansPage({ user }) {
         if (userMember) {
           setUserRole(userMember.role || 'Member');
         }
+
+        // Fetch online status for all members
+        fetchOnlineStatus(sortedMembers.map(m => m.id).filter(Boolean));
       }
     } catch (e) {
       console.error('Failed to fetch clan details:', e);
@@ -230,6 +247,53 @@ export default function ClansPage({ user }) {
     }
   };
 
+  const fetchOnlineStatus = async (memberIds) => {
+    if (!memberIds.length) return;
+    try {
+      const res = await fetch(`${SERVER_URL}/api/users/online-status`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userIds: memberIds })
+      });
+      const data = await res.json();
+      setOnlineStatus(data);
+    } catch(e) {
+      console.error('Failed to fetch online status:', e);
+    }
+  };
+
+  const fetchClanQuests = async () => {
+    if (!clan) return;
+    try {
+      const res = await fetch(`${SERVER_URL}/api/clans/${clan.id}/quests`);
+      const data = await res.json();
+      setClanQuests(data || []);
+    } catch(e) {
+      console.error('Failed to fetch clan quests:', e);
+    }
+  };
+
+  const handleAddQuest = async () => {
+    if (!questForm.name.trim()) return alert('Quest name is required');
+    try {
+      const res = await fetch(`${SERVER_URL}/api/clans/${clan.id}/quests`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...questForm, userId: user.id })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setClanQuests(prev => [data.quest, ...prev]);
+        setShowAddQuest(false);
+        setQuestForm({ name: '', description: '', type: 'damage', target: 1000, reward_gems: 50, reward_coins: 500, reward_xp: 1000, expires_hours: 168 });
+      } else {
+        alert(data.error || 'Failed to create quest');
+      }
+    } catch(e) {
+      alert('Error creating quest');
+    }
+  };
+
   if (loading) {
     return (
       <div className="clan-loading">
@@ -254,7 +318,7 @@ export default function ClansPage({ user }) {
   const xpForNextLevel = clan.level * 5000;
   const xpProgress = Math.min(100, (clan.xp / xpForNextLevel) * 100);
   const topContributors = [...members].sort((a, b) => b.clan_xp - a.clan_xp).slice(0, 3);
-  const onlineCount = members.filter(m => m.status === 'online').length;
+  const onlineCount = members.filter(m => onlineStatus[m.id]?.online).length;
 
   return (
     <div className="clan-page">
@@ -448,8 +512,8 @@ export default function ClansPage({ user }) {
                   <span>{member.role}</span>
                   <span>{member.trophies?.toLocaleString()}</span>
                   <span>{member.clan_xp?.toLocaleString()}</span>
-                  <span className={member.status === 'online' ? 'status-online' : ''}>
-                    {member.status}
+                  <span className={onlineStatus[member.id]?.online ? 'status-online' : ''}>
+                    {onlineStatus[member.id]?.online ? 'Online' : formatTimeAgo(onlineStatus[member.id]?.lastSeen || member.last_seen || new Date())}
                   </span>
                   {(userRole === 'Leader' || userRole === 'Elder') && member.id !== user?.id && (
                     <div className="clan-member-actions">
@@ -541,10 +605,54 @@ export default function ClansPage({ user }) {
           </div>
         </div>
 
-        {/* Clan Quest - Placeholder */}
-        <p className="clan-section-label">CLAN QUEST</p>
+        {/* Clan Quest - Real Data */}
+        <p className="clan-section-label">CLAN QUESTS</p>
         <div className="clan-card clan-quest-card">
-          <p className="clan-placeholder">Clan quests coming soon...</p>
+          {clanQuests.length === 0 && !showAddQuest && (
+            <p className="clan-placeholder">No active quests</p>
+          )}
+          {clanQuests.slice(0, 2).map(quest => (
+            <div className="clan-quest-content" key={quest.id}>
+              <div className="clan-quest-icon">🎯</div>
+              <div className="clan-quest-info">
+                <p className="clan-quest-name">{quest.name}</p>
+                <div className="clan-quest-bar">
+                  <div className="clan-quest-fill" style={{ width: `${Math.min(100, (quest.progress / quest.target) * 100)}%` }} />
+                </div>
+                <p className="clan-quest-progress">{quest.progress.toLocaleString()} / {quest.target.toLocaleString()}</p>
+                <p className="clan-quest-time">Expires: {new Date(quest.expires_at).toLocaleDateString()}</p>
+              </div>
+              <div className="clan-quest-reward">
+                <span>💎 {quest.reward_gems}</span>
+              </div>
+            </div>
+          ))}
+          {['Leader', 'Elder'].includes(userRole) && (
+            <button
+              className="clan-green-btn clan-green-btn--full"
+              onClick={() => setShowAddQuest(!showAddQuest)}
+              style={{ marginTop: clanQuests.length > 0 ? '8px' : '0' }}
+            >
+              {showAddQuest ? '✕ Cancel' : '+ Add Quest'}
+            </button>
+          )}
+          {showAddQuest && (
+            <div className="clan-add-quest-form">
+              <input className="create-clan-input" placeholder="Quest name" value={questForm.name} onChange={e => setQuestForm(f => ({ ...f, name: e.target.value }))} />
+              <input className="create-clan-input" placeholder="Description (optional)" value={questForm.description} onChange={e => setQuestForm(f => ({ ...f, description: e.target.value }))} />
+              <select className="create-clan-input" value={questForm.type} onChange={e => setQuestForm(f => ({ ...f, type: e.target.value }))}>
+                <option value="damage">Deal Damage</option>
+                <option value="wins">Win Matches</option>
+                <option value="questions">Answer Questions</option>
+                <option value="xp">Earn XP</option>
+              </select>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input className="create-clan-input" type="number" placeholder="Target" value={questForm.target} onChange={e => setQuestForm(f => ({ ...f, target: parseInt(e.target.value) || 1000 }))} />
+                <input className="create-clan-input" type="number" placeholder="Gem reward" value={questForm.reward_gems} onChange={e => setQuestForm(f => ({ ...f, reward_gems: parseInt(e.target.value) || 0 }))} />
+              </div>
+              <button className="clan-green-btn clan-green-btn--full" onClick={handleAddQuest}>Create Quest</button>
+            </div>
+          )}
         </div>
 
         {/* Clan Wars - Placeholder */}

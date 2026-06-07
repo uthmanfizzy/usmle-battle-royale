@@ -1087,6 +1087,122 @@
 .browse-clan-join-btn:hover:not(:disabled) { background: rgba(40, 100, 40, 0.9); }
 .browse-clan-join-btn:disabled { opacity: 0.5; cursor: default; }
 
+/* Clan Quest Styles */
+.clan-quest-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.clan-quest-content {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  background: rgba(15, 22, 12, 0.7);
+  border: 1px solid rgba(180, 140, 40, 0.15);
+  border-radius: 8px;
+}
+
+.clan-quest-icon {
+  font-size: 28px;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(40, 55, 20, 0.6);
+  border-radius: 50%;
+}
+
+.clan-quest-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.clan-quest-name {
+  font-family: 'Cinzel', serif;
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(220, 190, 80, 0.95);
+  margin: 0 0 4px 0;
+}
+
+.clan-quest-bar {
+  width: 100%;
+  height: 6px;
+  background: rgba(20, 28, 15, 0.8);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 3px;
+}
+
+.clan-quest-fill {
+  height: 100%;
+  background: linear-gradient(90deg, rgba(30, 80, 30, 0.9), rgba(50, 110, 30, 0.9));
+  border-radius: 3px;
+  transition: width 0.3s;
+}
+
+.clan-quest-progress {
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.6);
+  margin: 0 0 2px 0;
+}
+
+.clan-quest-time {
+  font-family: 'Inter', sans-serif;
+  font-size: 9px;
+  color: rgba(255, 255, 255, 0.4);
+  margin: 0;
+}
+
+.clan-quest-reward {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 8px;
+  background: rgba(30, 80, 30, 0.3);
+  border: 1px solid rgba(80, 180, 80, 0.3);
+  border-radius: 6px;
+  font-family: 'Cinzel', serif;
+  font-size: 11px;
+  color: rgba(80, 200, 80, 0.9);
+  flex-shrink: 0;
+}
+
+.clan-green-btn {
+  padding: 8px 14px;
+  background: rgba(30, 80, 30, 0.8);
+  border: 1px solid rgba(80, 180, 80, 0.4);
+  border-radius: 7px;
+  color: white;
+  font-family: 'Cinzel', serif;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: 0.05em;
+}
+.clan-green-btn:hover { background: rgba(40, 100, 40, 0.9); }
+
+.clan-green-btn--full {
+  width: 100%;
+  display: block;
+}
+
+.clan-add-quest-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 0;
+  border-top: 1px solid rgba(180, 140, 40, 0.15);
+  margin-top: 8px;
+}
+
 /* Mobile Responsive */
 @media (max-width: 1024px) {
   .clan-page {

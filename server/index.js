@@ -1588,8 +1588,33 @@ io.use((socket, next) => {
 
 // ── Socket handlers ────────────────────────────────────────────────────────────
 
+// Track online users
+const onlineUsers = new Map(); // userId -> socketId
+
 io.on('connection', (socket) => {
   console.log('[+] connected:', socket.id, socket.userId ? `(user ${socket.userId})` : '');
+
+  // Handle user coming online
+  socket.on('user_online', async (userId) => {
+    if (!userId) return;
+    onlineUsers.set(userId, socket.id);
+    socket.userId = userId;
+
+    // Update last_seen and is_online in database
+    if (supabase) {
+      try {
+        await supabase
+          .from('users')
+          .update({ is_online: true, last_seen: new Date().toISOString() })
+          .eq('id', userId);
+      } catch(e) {
+        console.error('[user_online] update error:', e.message);
+      }
+    }
+
+    // Broadcast to clan members
+    socket.broadcast.emit('user_status_change', { userId, online: true });
+  });
 
   socket.on('create_lobby', ({ username, subject = 'all', gameMode = 'battle_royale', difficulty = 'easy', clanTag = null, isGuest = false }, ack) => {
     const name = (username ?? '').trim().slice(0, 20);
@@ -1928,8 +1953,28 @@ io.on('connection', (socket) => {
     io.to(lobby.id).emit('lobby_update', lobbyPayload(lobby));
   });
 
-  socket.on('disconnect', () => {
+  socket.on('disconnect', async () => {
     console.log('[-] disconnected:', socket.id);
+
+    // Update user online status
+    const userId = socket.userId;
+    if (userId) {
+      onlineUsers.delete(userId);
+
+      if (supabase) {
+        try {
+          await supabase
+            .from('users')
+            .update({ is_online: false, last_seen: new Date().toISOString() })
+            .eq('id', userId);
+        } catch(e) {
+          console.error('[disconnect] update error:', e.message);
+        }
+      }
+
+      socket.broadcast.emit('user_status_change', { userId, online: false });
+    }
+
     const lobby = lobbies.get(socket.lobbyId);
     if (!lobby) return;
 
@@ -2965,6 +3010,271 @@ app.get('/api/clans', async (req, res) => {
     res.json({ clans: [], total: 0 });
   }
 });
+
+// ── ONLINE STATUS ─────────────────────────────────────
+app.post('/api/users/online-status', async (req, res) => {
+  if (!supabase) return res.json({});
+  try {
+    const { userIds } = req.body;
+    if (!userIds || !userIds.length) return res.json({});
+
+    const { data } = await supabase
+      .from('users')
+      .select('id, is_online, last_seen')
+      .in('id', userIds);
+
+    const statusMap = {};
+    data?.forEach(u => {
+      statusMap[u.id] = {
+        online: u.is_online || false,
+        lastSeen: u.last_seen
+      };
+    });
+
+    res.json(statusMap);
+  } catch(e) {
+    console.error('[online-status] Error:', e.message);
+    res.status(500).json({});
+  }
+});
+
+// ── CLAN QUESTS ─────────────────────────────────────
+app.get('/api/clans/:clanId/quests', async (req, res) => {
+  if (!supabase) return res.json([]);
+  try {
+    const { clanId } = req.params;
+    const { data, error } = await supabase
+      .from('clan_quests')
+      .select('*')
+      .eq('clan_id', clanId)
+      .eq('status', 'active')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    res.json(data || []);
+  } catch(e) {
+    console.error('[clan/quests/get] Error:', e.message);
+    res.json([]);
+  }
+});
+
+app.post('/api/clans/:clanId/quests', async (req, res) => {
+  if (!supabase) return res.status(503).json({ success: false, error: 'Database not configured' });
+  try {
+    const { clanId } = req.params;
+    const { userId, name, description, type, target, reward_gems, reward_coins, reward_xp, expires_hours } = req.body;
+
+    // Verify leader/elder
+    const { data: member } = await supabase
+      .from('clan_members')
+      .select('role')
+      .eq('clan_id', clanId)
+      .eq('user_id', userId)
+      .single();
+
+    if (!member || !['Leader', 'Elder'].includes(member.role)) {
+      return res.status(403).json({ success: false, error: 'Not authorized' });
+    }
+
+    const expiresAt = expires_hours
+      ? new Date(Date.now() + expires_hours * 60 * 60 * 1000).toISOString()
+      : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(); // 7 days default
+
+    const { data, error } = await supabase
+      .from('clan_quests')
+      .insert({
+        clan_id: clanId,
+        name,
+        description,
+        type: type || 'damage',
+        target: target || 1000,
+        progress: 0,
+        reward_gems: reward_gems || 50,
+        reward_coins: reward_coins || 500,
+        reward_xp: reward_xp || 1000,
+        status: 'active',
+        expires_at: expiresAt
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    res.json({ success: true, quest: data });
+  } catch(e) {
+    console.error('[clan/quests/post] Error:', e.message);
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+app.put('/api/clans/:clanId/quests/:questId/progress', async (req, res) => {
+  if (!supabase) return res.status(503).json({ success: false });
+  try {
+    const { clanId, questId } = req.params;
+    const { amount } = req.body;
+
+    const { data: quest } = await supabase
+      .from('clan_quests')
+      .select('*')
+      .eq('id', questId)
+      .eq('clan_id', clanId)
+      .single();
+
+    if (!quest) return res.status(404).json({ success: false });
+
+    const newProgress = Math.min(quest.target, (quest.progress || 0) + (amount || 0));
+    const completed = newProgress >= quest.target;
+
+    await supabase
+      .from('clan_quests')
+      .update({
+        progress: newProgress,
+        status: completed ? 'completed' : 'active'
+      })
+      .eq('id', questId);
+
+    // If completed, reward all clan members
+    if (completed && quest.status !== 'completed') {
+      const { data: members } = await supabase
+        .from('clan_members')
+        .select('user_id')
+        .eq('clan_id', clanId);
+
+      for (const member of (members || [])) {
+        const { data: userData } = await supabase
+          .from('users')
+          .select('coins, gems, xp')
+          .eq('id', member.user_id)
+          .single();
+
+        if (userData) {
+          await supabase
+            .from('users')
+            .update({
+              coins: (userData.coins || 0) + (quest.reward_coins || 0),
+              gems: (userData.gems || 0) + (quest.reward_gems || 0),
+              xp: (userData.xp || 0) + (quest.reward_xp || 0)
+            })
+            .eq('id', member.user_id);
+        }
+      }
+    }
+
+    res.json({ success: true, progress: newProgress, completed });
+  } catch(e) {
+    console.error('[clan/quests/progress] Error:', e.message);
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+app.delete('/api/clans/:clanId/quests/:questId', async (req, res) => {
+  if (!supabase) return res.status(503).json({ success: false });
+  try {
+    const { clanId, questId } = req.params;
+    await supabase.from('clan_quests').delete().eq('id', questId).eq('clan_id', clanId);
+    res.json({ success: true });
+  } catch(e) {
+    console.error('[clan/quests/delete] Error:', e.message);
+    res.status(500).json({ success: false });
+  }
+});
+
+// ── CLAN RANKINGS ─────────────────────────────────────
+const updateClanRankings = async () => {
+  if (!supabase) return;
+  try {
+    const { data: clans } = await supabase
+      .from('clans')
+      .select('id, score, xp')
+      .order('score', { ascending: false });
+
+    if (!clans) return;
+
+    for (let i = 0; i < clans.length; i++) {
+      await supabase
+        .from('clans')
+        .update({ rank: i + 1 })
+        .eq('id', clans[i].id);
+    }
+
+    console.log(`[Rankings] Updated ${clans.length} clan rankings`);
+  } catch(e) {
+    console.error('[Rankings] Error:', e.message);
+  }
+};
+
+// Run rankings update every hour
+setInterval(updateClanRankings, 60 * 60 * 1000);
+
+// Also run on startup
+setTimeout(updateClanRankings, 5000);
+
+app.get('/api/clans/rankings', async (req, res) => {
+  if (!supabase) return res.json({ clans: [], total: 0 });
+  try {
+    const { limit = 50, page = 1 } = req.query;
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+
+    const { data, count } = await supabase
+      .from('clans')
+      .select('id, name, tag, score, rank, level, xp, banner_url, member_count:clan_members(count)', { count: 'exact' })
+      .order('rank', { ascending: true })
+      .range(offset, offset + parseInt(limit) - 1);
+
+    res.json({ clans: data || [], total: count || 0 });
+  } catch(e) {
+    console.error('[rankings] Error:', e.message);
+    res.json({ clans: [], total: 0 });
+  }
+});
+
+app.post('/api/clans/:clanId/score', async (req, res) => {
+  if (!supabase) return res.status(503).json({ success: false });
+  try {
+    const { clanId } = req.params;
+    const { amount } = req.body;
+
+    const { data: clan } = await supabase
+      .from('clans')
+      .select('score, xp')
+      .eq('id', clanId)
+      .single();
+
+    if (!clan) return res.status(404).json({ success: false });
+
+    await supabase
+      .from('clans')
+      .update({
+        score: (clan.score || 0) + (amount || 0),
+        xp: (clan.xp || 0) + (amount || 0)
+      })
+      .eq('id', clanId);
+
+    res.json({ success: true });
+  } catch(e) {
+    console.error('[clan/score] Error:', e.message);
+    res.status(500).json({ success: false });
+  }
+});
+
+// Weekly trophies reset - run every Monday
+const resetWeeklyTrophies = async () => {
+  if (!supabase) return;
+  try {
+    await supabase.from('clans').update({ weekly_trophies: 0 });
+    console.log('[Rankings] Weekly trophies reset');
+  } catch(e) {
+    console.error('[Rankings] Weekly reset error:', e.message);
+  }
+};
+
+// Check if it's Monday and reset (simplified - in production use a proper cron)
+const checkWeeklyReset = () => {
+  const now = new Date();
+  if (now.getDay() === 1 && now.getHours() === 0) {
+    resetWeeklyTrophies();
+  }
+};
+setInterval(checkWeeklyReset, 60 * 60 * 1000); // Check every hour
 
 // ── Leaderboard API ────────────────────────────────────────────────────────────
 

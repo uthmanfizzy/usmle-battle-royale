@@ -386,6 +386,14 @@ export default function App() {
     if (!socket.connected) socket.connect();
   }
 
+  // ── Emit user_online event when user is logged in ──────────────────────
+
+  useEffect(() => {
+    if (user?.id && socket.connected) {
+      socket.emit('user_online', user.id);
+    }
+  }, [user, socket.connected]);
+
   // ── Auth handlers ─────────────────────────────────────────────────────────
 
   function handleGoogleLogin() {
