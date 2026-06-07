@@ -38,19 +38,18 @@ export default function QuestionParser({ activeFolder, selectedDifficulty, onImp
     if (!rawText.trim()) return;
 
     // Split into blocks by double newlines
-    // But keep blocks that start with a question number together
+    // Merge all non-question-starting blocks with previous to keep multi-paragraph explanations together
     const blocks = rawText
       .trim()
       .split(/\n\s*\n/)
       .reduce((acc, block) => {
         const trimmed = block.trim();
         if (!trimmed) return acc;
-        // If this block starts with a choice letter or keyword, merge with previous
-        const isChoice = /^[A-H][.)]\s/i.test(trimmed);
-        const isKeyword = /^(correct\s*answer|answer|explanation|why\s+are|why\s+other|educational)/i.test(trimmed);
+        // Check if this block starts a new question
         const isQuestion = /^(Q?\d+[.):\s]|Question\s+\d+)/i.test(trimmed);
 
-        if ((isChoice || isKeyword) && acc.length > 0 && !isQuestion) {
+        // If NOT a new question and we have previous blocks, merge with last block
+        if (acc.length > 0 && !isQuestion) {
           acc[acc.length - 1] += '\n\n' + trimmed;
         } else {
           acc.push(trimmed);
