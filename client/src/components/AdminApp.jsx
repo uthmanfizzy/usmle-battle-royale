@@ -1862,6 +1862,7 @@ function QuestionsPanel({ subjects = [] }) {
       {showParser && (
         <QuestionParser
           activeFolder={activeFolder}
+          selectedTopic={selectedTopic}
           selectedDifficulty={selectedDifficulty}
           onImport={handleImportDone}
           onClose={() => setShowParser(false)}

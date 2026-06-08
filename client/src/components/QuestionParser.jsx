@@ -21,7 +21,7 @@ C. Thalassaemia trait - Ferritin is normal. Red cell count is often elevated and
 D. Sideroblastic anaemia - Ferritin is elevated. Blood film shows ring sideroblasts on Prussian blue staining.
 E. Vitamin B12 deficiency - Causes macrocytic megaloblastic anaemia, not microcytic. Shows hypersegmented neutrophils.`;
 
-export default function QuestionParser({ activeFolder, selectedDifficulty, onImport, onClose }) {
+export default function QuestionParser({ activeFolder, selectedTopic, selectedDifficulty, onImport, onClose }) {
   const [rawText, setRawText] = useState('');
   const [parsed, setParsed] = useState([]);
   const [errors, setErrors] = useState([]);
@@ -194,6 +194,9 @@ export default function QuestionParser({ activeFolder, selectedDifficulty, onImp
   const handleImport = async () => {
     setImporting(true);
     try {
+      // Extract topic_id from selectedTopic (can be object with .id or 'unassigned' string)
+      const topicId = selectedTopic && typeof selectedTopic === 'object' ? selectedTopic.id : null;
+
       const res = await fetch(`${SERVER_URL}/admin/questions/bulk`, {
         method: 'POST',
         headers: {
@@ -202,7 +205,7 @@ export default function QuestionParser({ activeFolder, selectedDifficulty, onImp
         },
         body: JSON.stringify({
           questions: parsed,
-          topic_id: null,
+          topic_id: topicId,
           category: activeFolder !== 'all' ? activeFolder : null,
           difficulty
         })
@@ -211,7 +214,7 @@ export default function QuestionParser({ activeFolder, selectedDifficulty, onImp
       if (!res.ok) throw new Error(data.error || 'Import failed');
       setStep('done');
       setTimeout(() => {
-        onImport(data);
+        onImport(data, selectedTopic);
         onClose();
       }, 1500);
     } catch (e) {
