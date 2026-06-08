@@ -1788,13 +1788,24 @@ function QuestionsPanel({ subjects = [] }) {
                 <table className="ap-table">
                   <thead>
                     <tr>
-                      <th style={{ width: 36 }}>
+                      <th style={{ width: 40, minWidth: 40, textAlign: 'center', padding: '4px 8px' }}>
                         <input
                           type="checkbox"
                           className="ap-checkbox"
                           checked={filtered.length > 0 && selectedBulk.size === filtered.length}
                           onChange={toggleSelectAll}
                           title="Select all"
+                          style={{
+                            width: '18px',
+                            height: '18px',
+                            cursor: 'pointer',
+                            display: 'block',
+                            visibility: 'visible',
+                            opacity: '1',
+                            position: 'static',
+                            accentColor: 'rgba(200,165,60,0.9)',
+                            flexShrink: 0
+                          }}
                         />
                       </th>
                       <th>ID</th>
@@ -1819,7 +1830,7 @@ function QuestionsPanel({ subjects = [] }) {
                       const isSelected = selectedBulk.has(String(qId));
                       return (
                         <tr key={qId} className={isSelected ? 'ap-q-row--selected' : ''}>
-                          <td className="ap-col-check" onClick={e => e.stopPropagation()}>
+                          <td className="ap-col-check" onClick={e => e.stopPropagation()} style={{width:'40px', minWidth:'40px', textAlign:'center', verticalAlign:'middle', padding:'4px 8px'}}>
                             <input
                               type="checkbox"
                               className="ap-checkbox"
@@ -1829,6 +1840,17 @@ function QuestionsPanel({ subjects = [] }) {
                                 e.target.checked ? next.add(String(qId)) : next.delete(String(qId));
                                 return next;
                               })}
+                              style={{
+                                width: '18px',
+                                height: '18px',
+                                cursor: 'pointer',
+                                display: 'block',
+                                visibility: 'visible',
+                                opacity: '1',
+                                position: 'static',
+                                accentColor: 'rgba(200,165,60,0.9)',
+                                flexShrink: 0
+                              }}
                             />
                           </td>
                           <td className="ap-td-id"><span className="ap-id-pill">{qId}</span></td>
