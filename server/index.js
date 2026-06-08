@@ -3956,17 +3956,21 @@ app.post('/admin/questions/bulk', adminAuth, async (req, res) => {
 
     // Handle correct answer - convert letter to actual answer text if needed
     let correct = raw.answer || raw.correct || 'A';
-    if (raw.correct && raw.choices && Array.isArray(raw.choices)) {
-      // If correct is a single letter like "H", convert to the actual answer text
-      const correctLetter = String(correct).trim().toUpperCase();
-      if (correctLetter.length === 1 && correctLetter >= 'A' && correctLetter <= 'Z') {
-        const letterIndex = correctLetter.charCodeAt(0) - 65; // A=0, B=1, C=2, ...
-        if (raw.choices[letterIndex]) {
-          // Extract text from "H. answer text" format
-          correct = String(raw.choices[letterIndex]).replace(/^[A-Za-z][.)]\s*/, '').trim();
-          console.log(`[bulk-import] Q${i + 1} Converted answer letter "${correctLetter}" to text: "${correct.substring(0, 30)}..."`);
-        }
+    const correctLetter = String(correct).trim().toUpperCase();
+
+    // If correct is a single letter like "C", convert to the actual answer text
+    if (raw.choices && Array.isArray(raw.choices) && correctLetter.length === 1 && correctLetter >= 'A' && correctLetter <= 'Z') {
+      const letterIndex = correctLetter.charCodeAt(0) - 65; // A=0, B=1, C=2, ...
+      if (letterIndex >= 0 && letterIndex < raw.choices.length) {
+        // Extract text from "C. answer text" or "C) answer text" format
+        const choiceText = String(raw.choices[letterIndex]);
+        correct = choiceText.replace(/^[A-Z][.)]\s*/, '').trim();
+        console.log(`[bulk-import] Q${i + 1} Converted answer letter "${correctLetter}" (index ${letterIndex}) to text: "${correct.substring(0, 50)}..."`);
+      } else {
+        console.log(`[bulk-import] Q${i + 1} WARNING: Answer letter "${correctLetter}" (index ${letterIndex}) out of range for ${raw.choices.length} choices`);
       }
+    } else {
+      console.log(`[bulk-import] Q${i + 1} Answer is already text format: "${correct.substring(0, 50)}..."`);
     }
 
     // Use provided explanation or empty string
