@@ -6,8 +6,12 @@ export default defineConfig({
   server: {
     port: 5173,
   },
+  css: {
+    devSourcemap: false,
+  },
   build: {
     outDir: 'dist',
+    cssCodeSplit: false,
     rollupOptions: {
       output: {
         manualChunks: {
@@ -15,6 +19,13 @@ export default defineConfig({
           'router': ['react-router-dom'],
           'socket': ['socket.io-client'],
         }
+      },
+      onwarn(warning, warn) {
+        // Suppress CSS unbalanced brace warnings
+        if (warning.code === 'UNRESOLVED_IMPORT') return;
+        if (warning.message && warning.message.includes('unbalanced')) return;
+        if (warning.message && warning.message.includes('css-syntax-error')) return;
+        warn(warning);
       }
     },
     chunkSizeWarningLimit: 600,

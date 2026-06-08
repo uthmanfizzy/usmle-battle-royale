@@ -1455,7 +1455,6 @@
 }
 
 @media (max-width: 1024px) {
-@media (max-width: 1024px) {
   .clan-page {
     grid-template-columns: 1fr !important;
     padding: 70px 12px 120px !important;
