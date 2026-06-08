@@ -3691,3 +3691,158 @@
   font-size: 13px;
   line-height: 1.6;
 }
+
+/* --------------------------------------------------------------------------- */
+/* BULK ACTIONS - ENHANCED                                                      */
+/* --------------------------------------------------------------------------- */
+
+.ap-col-check {
+  width: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.ap-checkbox {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: rgba(200,165,60,0.9);
+  flex-shrink: 0;
+}
+
+.ap-q-row--selected {
+  background: rgba(180,140,40,0.08) !important;
+  border-left: 3px solid rgba(200,165,60,0.6) !important;
+}
+
+.ap-bulk-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  background: rgba(30,40,20,0.9);
+  border: 1px solid rgba(180,140,40,0.35);
+  border-radius: 10px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.ap-bulk-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'Cinzel', serif;
+  font-size: 13px;
+  color: rgba(220,190,80,0.9);
+}
+
+.ap-bulk-clear {
+  background: transparent;
+  border: none;
+  color: rgba(255,255,255,0.4);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: color 0.15s;
+}
+.ap-bulk-clear:hover { color: rgba(255,255,255,0.8); }
+
+.ap-bulk-btns {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ap-bulk-btn {
+  padding: 6px 14px;
+  border-radius: 7px;
+  font-family: 'Cinzel', serif;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+  border: 1px solid;
+  white-space: nowrap;
+}
+
+.ap-bulk-btn--easy {
+  background: rgba(15,55,15,0.8);
+  border-color: rgba(80,180,80,0.4);
+  color: rgba(100,220,100,0.9);
+}
+.ap-bulk-btn--easy:hover { background: rgba(20,75,20,0.9); }
+
+.ap-bulk-btn--hard {
+  background: rgba(55,12,12,0.8);
+  border-color: rgba(180,60,60,0.4);
+  color: rgba(220,100,100,0.9);
+}
+.ap-bulk-btn--hard:hover { background: rgba(75,15,15,0.9); }
+
+.ap-bulk-btn--move {
+  background: rgba(20,30,60,0.8);
+  border-color: rgba(80,120,220,0.4);
+  color: rgba(140,170,255,0.9);
+}
+.ap-bulk-btn--move:hover { background: rgba(30,45,80,0.9); }
+
+.ap-bulk-btn--delete {
+  background: rgba(55,12,12,0.8);
+  border-color: rgba(180,60,60,0.4);
+  color: rgba(220,80,80,0.9);
+}
+.ap-bulk-btn--delete:hover { background: rgba(80,15,15,0.9); }
+
+.ap-bulk-move-wrap {
+  position: relative;
+}
+
+.ap-bulk-move-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 100;
+  background: rgba(12,18,12,0.98);
+  border: 1px solid rgba(180,140,40,0.35);
+  border-radius: 10px;
+  padding: 8px;
+  min-width: 220px;
+  max-height: 300px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(180,140,40,0.2) transparent;
+}
+
+.ap-bulk-move-label {
+  font-family: 'Cinzel', serif;
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  color: rgba(200,165,60,0.55);
+  margin: 0 0 4px 4px;
+}
+
+.ap-bulk-move-option {
+  padding: 7px 10px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: rgba(255,255,255,0.7);
+  font-family: 'Cinzel', serif;
+  font-size: 11px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s;
+}
+.ap-bulk-move-option:hover {
+  background: rgba(180,140,40,0.12);
+  color: rgba(220,190,80,0.95);
+}

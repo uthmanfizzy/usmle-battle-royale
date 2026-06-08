@@ -5210,6 +5210,86 @@ app.post('/admin/questions/bulk-assign-topic', adminAuth, async (req, res) => {
 
   res.json({ ok: true, updated, errors: errors.length > 0 ? errors : undefined });
 });
+// Bulk delete questions
+app.post('/admin/questions/bulk-delete', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  
+  try {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ success: false, error: 'No IDs provided' });
+    }
+    
+    const { error } = await supabase
+      .from('questions')
+      .delete()
+      .in('id', ids);
+    
+    if (error) throw error;
+    res.json({ success: true, deleted: ids.length });
+  } catch(e) {
+    console.error('[bulk-delete] Error:', e);
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// Bulk move questions
+app.post('/admin/questions/bulk-move', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  
+  try {
+    const { ids, topicId, subject } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ success: false, error: 'No IDs provided' });
+    }
+    
+    const updates = { updated_at: new Date().toISOString() };
+    if (topicId !== undefined) updates.topic_id = topicId;
+    if (subject !== undefined) {
+      updates.subject = subject;
+      updates.category = subject;
+    }
+    
+    const { error } = await supabase
+      .from('questions')
+      .update(updates)
+      .in('id', ids);
+    
+    if (error) throw error;
+    res.json({ success: true, moved: ids.length });
+  } catch(e) {
+    console.error('[bulk-move] Error:', e);
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// Bulk update questions (difficulty, etc)
+app.post('/admin/questions/bulk-update', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  
+  try {
+    const { ids, updates } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ success: false, error: 'No IDs provided' });
+    }
+    if (!updates || typeof updates !== 'object') {
+      return res.status(400).json({ success: false, error: 'Updates object required' });
+    }
+    
+    updates.updated_at = new Date().toISOString();
+    
+    const { error } = await supabase
+      .from('questions')
+      .update(updates)
+      .in('id', ids);
+    
+    if (error) throw error;
+    res.json({ success: true, updated: ids.length });
+  } catch(e) {
+    console.error('[bulk-update] Error:', e);
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
 
 // ── Tower Progress API ─────────────────────────────────────────────────────────
 

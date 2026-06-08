@@ -879,6 +879,7 @@ function QuestionsPanel({ subjects = [] }) {
   const [selectedBulk,    setSelectedBulk]    = useState(new Set());
   const [bulkTargetTopic, setBulkTargetTopic] = useState('');
   const [bulkAssigning,   setBulkAssigning]   = useState(false);
+  const [showBulkMoveDropdown, setShowBulkMoveDropdown] = useState(false);
 
   // ─── Import Modal ─────────────────────────────────────────────────────────────
   const [importModal, setImportModal] = useState(false);
@@ -1032,6 +1033,68 @@ function QuestionsPanel({ subjects = [] }) {
       loadTopics(activeFolder, selectedDifficulty);
     } catch (err) { alert(err.message); }
     setBulkAssigning(false);
+  }
+
+  // ─── Bulk Actions ────────────────────────────────────────────────────────────
+  const toggleSelectAll = () => {
+    if (selectedBulk.size === filtered.length && filtered.length > 0) {
+      setSelectedBulk(new Set());
+    } else {
+      setSelectedBulk(new Set(filtered.map(q => String(q.id))));
+    }
+  };
+
+  async function handleBulkDelete() {
+    if (selectedBulk.size === 0) return;
+    if (!window.confirm(`Delete ${selectedBulk.size} question${selectedBulk.size !== 1 ? 's' : ''}? This cannot be undone.`)) return;
+    try {
+      const res = await apiCall('/admin/questions/bulk-delete', {
+        method: 'POST',
+        body: JSON.stringify({ ids: [...selectedBulk] })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Bulk delete failed');
+      loadQuestions();
+      setSelectedBulk(new Set());
+      if (isCatFolder(activeFolder)) loadTopics(activeFolder, selectedDifficulty);
+    } catch(e) {
+      alert('Delete error: ' + e.message);
+    }
+  }
+
+  async function handleBulkMove(targetTopicId, targetSubject) {
+    if (selectedBulk.size === 0) return;
+    try {
+      const res = await apiCall('/admin/questions/bulk-move', {
+        method: 'POST',
+        body: JSON.stringify({ ids: [...selectedBulk], topicId: targetTopicId, subject: targetSubject })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Bulk move failed');
+      loadQuestions();
+      setSelectedBulk(new Set());
+      setShowBulkMoveDropdown(false);
+      if (isCatFolder(activeFolder)) loadTopics(activeFolder, selectedDifficulty);
+    } catch(e) {
+      alert('Move error: ' + e.message);
+    }
+  }
+
+  async function handleBulkDifficultyChange(difficulty) {
+    if (selectedBulk.size === 0) return;
+    try {
+      const res = await apiCall('/admin/questions/bulk-update', {
+        method: 'POST',
+        body: JSON.stringify({ ids: [...selectedBulk], updates: { difficulty } })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Bulk update failed');
+      loadQuestions();
+      setSelectedBulk(new Set());
+      if (isCatFolder(activeFolder)) loadTopics(activeFolder, selectedDifficulty);
+    } catch(e) {
+      alert('Update error: ' + e.message);
+    }
   }
 
   // ─── Import done callback ─────────────────────────────────────────────────────
@@ -1653,23 +1716,71 @@ function QuestionsPanel({ subjects = [] }) {
                 </div>
               </div>
 
-              {selectedTopic === 'unassigned' && topics.length > 0 && selectedBulk.size > 0 && (
-                <div className="ap-bulk-assign-bar">
-                  <span className="ap-ba-count">{selectedBulk.size} selected</span>
-                  <select
-                    className="ap-ba-select"
-                    value={bulkTargetTopic}
-                    onChange={e => setBulkTargetTopic(e.target.value)}
-                  >
-                    <option value="">Move to topic…</option>
-                    {topics.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                  </select>
-                  <button
-                    className="ap-btn-pri ap-ba-btn"
-                    onClick={handleBulkAssign}
-                    disabled={!bulkTargetTopic || bulkAssigning}
-                  >{bulkAssigning ? 'Assigning…' : '→ Assign'}</button>
-                  <button className="ap-btn-sec" onClick={() => setSelectedBulk(new Set())}>Clear</button>
+              {selectedBulk.size > 0 && (
+                <div className="ap-bulk-actions">
+                  <div className="ap-bulk-info">
+                    <button className="ap-bulk-clear" onClick={() => setSelectedBulk(new Set())}>✕</button>
+                    <span>{selectedBulk.size} question{selectedBulk.size !== 1 ? 's' : ''} selected</span>
+                  </div>
+                  <div className="ap-bulk-btns">
+                    <button
+                      className="ap-bulk-btn ap-bulk-btn--easy"
+                      onClick={() => handleBulkDifficultyChange('easy')}
+                      title="Set to Easy"
+                    >
+                      🟢 Set Easy
+                    </button>
+                    <button
+                      className="ap-bulk-btn ap-bulk-btn--hard"
+                      onClick={() => handleBulkDifficultyChange('hard')}
+                      title="Set to Hard"
+                    >
+                      🔴 Set Hard
+                    </button>
+                    <div className="ap-bulk-move-wrap">
+                      <button
+                        className="ap-bulk-btn ap-bulk-btn--move"
+                        onClick={() => setShowBulkMoveDropdown(v => !v)}
+                      >
+                        📁 Move to...
+                      </button>
+                      {showBulkMoveDropdown && (
+                        <div className="ap-bulk-move-dropdown">
+                          <p className="ap-bulk-move-label">SELECT DESTINATION:</p>
+                          {topics.length > 0 && (
+                            <>
+                              <p className="ap-bulk-move-label" style={{marginTop: 8}}>TOPICS:</p>
+                              {topics.map(t => (
+                                <button
+                                  key={t.id}
+                                  className="ap-bulk-move-option"
+                                  onClick={() => handleBulkMove(t.id, t.subject || activeFolder)}
+                                >
+                                  📁 {t.name}
+                                </button>
+                              ))}
+                            </>
+                          )}
+                          <p className="ap-bulk-move-label" style={{marginTop: 8}}>SUBJECTS:</p>
+                          {FOLDERS.filter(f => !f.special && !f.separator && !f.comingSoon).map(f => (
+                            <button
+                              key={f.id}
+                              className="ap-bulk-move-option"
+                              onClick={() => handleBulkMove(null, f.id)}
+                            >
+                              {f.icon} {f.label}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      className="ap-bulk-btn ap-bulk-btn--delete"
+                      onClick={handleBulkDelete}
+                    >
+                      🗑 Delete {selectedBulk.size}
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -1677,7 +1788,15 @@ function QuestionsPanel({ subjects = [] }) {
                 <table className="ap-table">
                   <thead>
                     <tr>
-                      {selectedTopic === 'unassigned' && topics.length > 0 && <th style={{ width: 32 }}></th>}
+                      <th style={{ width: 36 }}>
+                        <input
+                          type="checkbox"
+                          className="ap-checkbox"
+                          checked={filtered.length > 0 && selectedBulk.size === filtered.length}
+                          onChange={toggleSelectAll}
+                          title="Select all"
+                        />
+                      </th>
                       <th>ID</th>
                       <th>Subject</th>
                       <th>Difficulty</th>
@@ -1697,21 +1816,21 @@ function QuestionsPanel({ subjects = [] }) {
                       const qDiff    = q.difficulty || 'easy';
                       const qModes   = Array.isArray(q.game_modes) ? q.game_modes : [];
                       const preview  = q.question || '';  // guard against missing question field
+                      const isSelected = selectedBulk.has(String(qId));
                       return (
-                        <tr key={qId}>
-                          {selectedTopic === 'unassigned' && topics.length > 0 && (
-                            <td>
-                              <input
-                                type="checkbox"
-                                checked={selectedBulk.has(String(qId))}
-                                onChange={e => setSelectedBulk(prev => {
-                                  const next = new Set(prev);
-                                  e.target.checked ? next.add(String(qId)) : next.delete(String(qId));
-                                  return next;
-                                })}
-                              />
-                            </td>
-                          )}
+                        <tr key={qId} className={isSelected ? 'ap-q-row--selected' : ''}>
+                          <td className="ap-col-check" onClick={e => e.stopPropagation()}>
+                            <input
+                              type="checkbox"
+                              className="ap-checkbox"
+                              checked={isSelected}
+                              onChange={e => setSelectedBulk(prev => {
+                                const next = new Set(prev);
+                                e.target.checked ? next.add(String(qId)) : next.delete(String(qId));
+                                return next;
+                              })}
+                            />
+                          </td>
                           <td className="ap-td-id"><span className="ap-id-pill">{qId}</span></td>
                           <td>
                             <span className={`ap-badge ap-subj-${qSubj}`}>
