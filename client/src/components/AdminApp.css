@@ -3698,10 +3698,9 @@
 
 .ap-col-check {
   width: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
+  text-align: center;
+  vertical-align: middle;
+  padding: 4px !important;
 }
 
 .ap-checkbox {
@@ -3709,7 +3708,8 @@
   height: 16px;
   cursor: pointer;
   accent-color: rgba(200,165,60,0.9);
-  flex-shrink: 0;
+  margin: 0 auto;
+  display: block;
 }
 
 .ap-q-row--selected {
