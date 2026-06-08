@@ -3846,3 +3846,35 @@
   background: rgba(180,140,40,0.12);
   color: rgba(220,190,80,0.95);
 }
+
+/* --------------------------------------------------------------------------- */
+/* FORCE CHECKBOX COLUMN VISIBLE - OVERRIDES                                    */
+/* --------------------------------------------------------------------------- */
+
+/* Force checkbox column visible */
+.ap-table th:first-child,
+.ap-table td:first-child {
+  width: 40px !important;
+  min-width: 40px !important;
+  max-width: 40px !important;
+  padding: 0 8px !important;
+  text-align: center !important;
+  vertical-align: middle !important;
+}
+
+.ap-checkbox {
+  width: 16px !important;
+  height: 16px !important;
+  cursor: pointer !important;
+  accent-color: rgba(200,165,60,0.9) !important;
+  display: inline-block !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  position: static !important;
+  margin: 0 auto !important;
+}
+
+.ap-q-row--selected {
+  background: rgba(180,140,40,0.12) !important;
+  outline: 1px solid rgba(200,165,60,0.4) !important;
+}
