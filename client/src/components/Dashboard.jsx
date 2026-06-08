@@ -18,7 +18,14 @@ class DashboardErrorBoundary extends React.Component {
     return { hasError: true, error };
   }
   componentDidCatch(error, info) {
-    console.error('Dashboard crashed:', error, info);
+    console.error('🔴 DASHBOARD ERROR BOUNDARY CAUGHT:', {
+      error: error,
+      errorInfo: info,
+      stack: error?.stack,
+      componentStack: info?.componentStack
+    });
+    // Also alert to make it visible immediately
+    alert(`Dashboard crashed: ${error?.message || error}\n\nCheck console for details`);
   }
   render() {
     if (this.state.hasError) {
@@ -1133,6 +1140,31 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
     icon_settings: '',
     chest_image: '',
   });
+
+  // DEBUG: Catch runtime errors to diagnose black screen
+  useEffect(() => {
+    window.onerror = (msg, src, line, col, err) => {
+      console.error('🔴 DASHBOARD RUNTIME ERROR:', {
+        message: msg,
+        source: src,
+        line: line,
+        column: col,
+        error: err,
+        stack: err?.stack
+      });
+      alert(`Dashboard Error at line ${line}: ${msg}`);
+      return false;
+    };
+    window.onunhandledrejection = (event) => {
+      console.error('🔴 UNHANDLED PROMISE REJECTION:', event.reason);
+      alert(`Promise Rejection: ${event.reason}`);
+    };
+    console.log('✅ Dashboard error handlers installed');
+    return () => {
+      window.onerror = null;
+      window.onunhandledrejection = null;
+    };
+  }, []);
 
   // Fetch home page images (backgrounds and icons)
   useEffect(() => {
