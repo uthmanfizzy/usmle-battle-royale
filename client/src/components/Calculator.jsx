@@ -97,8 +97,16 @@ export default function Calculator({ onClose }) {
     try {
       // Replace × and ÷ with * and /
       let expression = display.replace(/×/g, '*').replace(/÷/g, '/');
-      // Evaluate the expression
-      const result = eval(expression);
+
+      // Safe math evaluation using Function constructor instead of eval
+      // Only allows math operations, no arbitrary code execution
+      const sanitized = expression.replace(/[^0-9+\-*/.()]/g, '');
+      if (!sanitized) throw new Error('Invalid expression');
+
+      // Use Function constructor for safer evaluation than eval
+      const result = Function('"use strict"; return (' + sanitized + ')')();
+
+      if (!isFinite(result)) throw new Error('Invalid result');
       setDisplay(String(result));
       setLastResult(result);
     } catch (error) {
