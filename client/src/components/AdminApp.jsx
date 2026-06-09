@@ -233,7 +233,7 @@ function QuestionModal({ question, defaultSubject = 'cardiology', onSave, onClos
     why_others_wrong: question.why_others_wrong || '',
     image_url:    question.image_url || '',
     questionType: question.image_url ? 'image' : 'text',
-    game_modes:   question.game_modes || (question.image_url ? ['scan_master'] : ['battle_royale', 'speed_race', 'trivia_pursuit']),
+    game_modes:   question.game_modes || ['battle_royale', 'speed_race', 'trivia_pursuit'],
     tower_floor:  question.tower_floor || '',
     buzz_type:    question.buzz_type || 'BUZZWORD',
     topic_id:     question.topic_id || '',
@@ -368,7 +368,7 @@ function QuestionModal({ question, defaultSubject = 'cardiology', onSave, onClos
               <button
                 type="button"
                 className={`ap-type-btn ${form.questionType === 'image' ? 'active' : ''}`}
-                onClick={() => setForm(f => ({ ...f, questionType: 'image', game_modes: ['scan_master'], subject: f.subject !== 'scan_master' ? 'scan_master' : f.subject }))}
+                onClick={() => setForm(f => ({ ...f, questionType: 'image' }))}
               >
                 🖼️ Image Question
               </button>
@@ -553,9 +553,7 @@ function QuestionModal({ question, defaultSubject = 'cardiology', onSave, onClos
             <label>Game Modes <span style={{ color: 'var(--red)', marginLeft: 2 }}>*</span></label>
             <div className="ap-gm-grid">
               {GAME_MODES.map(gm => {
-                const needsImage = gm.id === 'scan_master';
-                const isImageMode = form.questionType === 'image';
-                const isDisabled = needsImage ? !form.image_url : isImageMode;
+                const isDisabled = false;
                 const isChecked = form.game_modes.includes(gm.id);
                 return (
                   <label

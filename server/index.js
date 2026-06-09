@@ -4037,7 +4037,7 @@ app.post('/admin/questions/bulk', adminAuth, async (req, res) => {
     // Game modes - use provided or defaults
     const gameModes = Array.isArray(raw.game_modes) && raw.game_modes.length > 0
       ? raw.game_modes
-      : (raw.image_url ? ['scan_master'] : ['battle_royale', 'speed_race', 'trivia_pursuit']);
+      : ['battle_royale', 'speed_race', 'trivia_pursuit'];
 
     // Look up topic_id from topic name if provided, otherwise use passed topic_id from context
     // Topic is optional - admin selects folder/topic in UI before importing
