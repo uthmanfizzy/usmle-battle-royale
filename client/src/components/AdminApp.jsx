@@ -4322,7 +4322,7 @@ function SettingsPanel() {
 
           <SliderRow label="Question Timer (Hard Mode)"
             desc="Seconds per question when Hard Mode is selected"
-            min={5} max={30} step={1} unit="sec"
+            min={5} max={120} step={1} unit="sec"
             value={settings.hardModeTimer}
             onChange={v => upd('hardModeTimer', v)} />
 
@@ -4334,7 +4334,7 @@ function SettingsPanel() {
           {!settings.hardModeHideExplanations && (
             <SliderRow label="Explanation Display Time (Hard Mode)"
               desc="How long to show the answer explanation in Hard Mode (set to 0 to skip)"
-              min={0} max={30} step={1} unit="sec"
+              min={0} max={60} step={1} unit="sec"
               value={settings.hardModeExplanationTime}
               onChange={v => upd('hardModeExplanationTime', v)} />
           )}
