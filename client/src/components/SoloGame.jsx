@@ -130,25 +130,13 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
     setRevealed(true);
     setSelected(label);
 
-    // q.correct is stored as full text, label is the letter (A, B, C...)
-    // Find which letter corresponds to the correct answer text
+    // q.correct is now stored as letter (A, B, C...), label is also letter
     console.log('[SoloGame] Answer check:', {
       submittedLabel: label,
       qCorrect: q.correct,
-      qCorrectType: typeof q.correct,
-      qOptions: q.options,
-      qOptionsLength: q.options?.length
+      match: label === q.correct
     });
-    const correctIndex = q.options ? q.options.findIndex(opt => opt === q.correct) : -1;
-    const correctLetter = correctIndex >= 0 ? String.fromCharCode(65 + correctIndex) : q.correct;
-    console.log('[SoloGame] Comparison:', {
-      correctIndex,
-      correctLetter,
-      labelMatchesLetter: label === correctLetter,
-      labelMatchesCorrect: label === q.correct,
-      finalResult: label === correctLetter || label === q.correct
-    });
-    const correct = label === correctLetter || label === q.correct;
+    const correct = label === q.correct;
     const tl = timeLeftRef.current;
     let newLives = livesRef.current;
     let newScore = scoreRef.current;
@@ -343,9 +331,9 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
             {q.options.map((opt, i) => {
               const label = LABELS[i];
               const isMine = selected === label;
-              // Compare option text to correct answer text
-              const isRight = revealed && opt === q.correct;
-              const isWrong = revealed && isMine && opt !== q.correct;
+              // Compare letter to letter (q.correct is now "A", "B", "C"...)
+              const isRight = revealed && label === q.correct;
+              const isWrong = revealed && isMine && label !== q.correct;
               return (
                 <button
                   key={i}

@@ -611,11 +611,7 @@ function assignPowerups(lobby) {
 function isAnswerCorrect(submittedAnswer, question) {
   console.log('[isAnswerCorrect] Input:', {
     submittedAnswer,
-    submittedType: typeof submittedAnswer,
-    questionCorrect: question?.correct,
-    correctType: typeof question?.correct,
-    questionOptions: question?.options,
-    optionsLength: question?.options?.length
+    questionCorrect: question?.correct
   });
 
   if (!submittedAnswer || !question || !question.correct) {
@@ -623,34 +619,10 @@ function isAnswerCorrect(submittedAnswer, question) {
     return false;
   }
 
-  // Direct match (both are text or both are letters)
-  if (submittedAnswer === question.correct) {
-    console.log('[isAnswerCorrect] Direct match! Returning true');
-    return true;
-  }
-
-  // Handle letter-based answer (A, B, C...) vs text-based correct answer
-  // Find which index in options matches the correct answer text
-  if (question.options && Array.isArray(question.options)) {
-    const correctIndex = question.options.findIndex(opt => opt === question.correct);
-    console.log('[isAnswerCorrect] correctIndex:', correctIndex);
-    if (correctIndex >= 0) {
-      const correctLetter = String.fromCharCode(65 + correctIndex);
-      console.log('[isAnswerCorrect] correctLetter:', correctLetter, 'matches submitted?', submittedAnswer === correctLetter);
-      if (submittedAnswer === correctLetter) return true;
-    }
-
-    // Also check if submitted answer is full text matching an option
-    const submittedIndex = question.options.findIndex(opt => opt === submittedAnswer);
-    console.log('[isAnswerCorrect] submittedIndex:', submittedIndex);
-    if (submittedIndex >= 0 && question.options[submittedIndex] === question.correct) {
-      console.log('[isAnswerCorrect] Submitted full text matches! Returning true');
-      return true;
-    }
-  }
-
-  console.log('[isAnswerCorrect] No match found, returning false');
-  return false;
+  // Both should now be letters (A, B, C...) - simple comparison
+  const result = submittedAnswer.trim().toUpperCase() === String(question.correct).trim().toUpperCase();
+  console.log('[isAnswerCorrect] Result:', result);
+  return result;
 }
 
 // ── Streak helpers ─────────────────────────────────────────────────────────────
@@ -4021,31 +3993,36 @@ app.post('/admin/questions/bulk', adminAuth, async (req, res) => {
 
     let correct;
     if (!rawCorrect) {
-      console.error(`[bulk-import] Q${i + 1} ERROR: No correct answer found! Defaulting to first option.`);
-      correct = options[0] || 'A';
+      console.error(`[bulk-import] Q${i + 1} ERROR: No correct answer found! Defaulting to A.`);
+      correct = 'A';
     } else if (rawCorrect.length === 1 && rawCorrect >= 'A' && rawCorrect <= 'H') {
-      // Single letter A-H: convert to answer text
+      // Single letter A-H: validate it's in range and store the LETTER
       const letterIndex = rawCorrect.charCodeAt(0) - 65; // A=0, B=1, C=2, ...
-      console.log(`[bulk-import] Q${i + 1} Letter conversion:`, {
+      console.log(`[bulk-import] Q${i + 1} Letter validation:`, {
         correctLetter: rawCorrect,
         letterIndex,
-        rawOptionsLength: rawOptions.length,
         optionsLength: options.length,
-        optionAtIndex: options[letterIndex]
+        isValid: letterIndex >= 0 && letterIndex < options.length
       });
 
       if (letterIndex >= 0 && letterIndex < options.length) {
-        // Use the already-cleaned option text (letter prefix already stripped at line 3948)
-        correct = options[letterIndex];
-        console.log(`[bulk-import] Q${i + 1} ✓ Converted answer letter "${rawCorrect}" (index ${letterIndex}) to text: "${correct.substring(0, 50)}..."`);
+        // Store the LETTER, not the text
+        correct = rawCorrect;
+        console.log(`[bulk-import] Q${i + 1} ✓ Storing answer as letter: "${correct}"`);
       } else {
-        console.error(`[bulk-import] Q${i + 1} ERROR: Letter index ${letterIndex} out of range for ${options.length} options! Using first option.`);
-        correct = options[0] || 'A';
+        console.error(`[bulk-import] Q${i + 1} ERROR: Letter ${rawCorrect} out of range for ${options.length} options! Defaulting to A.`);
+        correct = 'A';
       }
     } else {
-      // Already text format
-      console.log(`[bulk-import] Q${i + 1} Answer is already text format: "${rawCorrect.substring(0, 50)}..."`);
-      correct = rawCorrect;
+      // Text format - convert to letter by finding which option matches
+      const matchIndex = options.findIndex(opt => opt === rawCorrect);
+      if (matchIndex >= 0) {
+        correct = String.fromCharCode(65 + matchIndex);
+        console.log(`[bulk-import] Q${i + 1} Converted text to letter: "${rawCorrect.substring(0, 30)}..." → ${correct}`);
+      } else {
+        console.error(`[bulk-import] Q${i + 1} ERROR: Answer text doesn't match any option! Defaulting to A.`);
+        correct = 'A';
+      }
     }
 
     // Use provided explanation or empty string

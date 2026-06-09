@@ -196,9 +196,9 @@ export default function GameRoom({
                 const label    = LABELS[i];
                 if (hiddenOptions.includes(label)) return null;
                 const isMine   = myAnswer === label;
-                // Compare option text to correct answer text
-                const isRight  = showingRoundResult && roundResults?.correctAnswer === opt;
-                const isWrong  = showingRoundResult && isMine && roundResults?.correctAnswer !== opt;
+                // Compare letter to letter (correctAnswer is now "A", "B", "C"...)
+                const isRight  = showingRoundResult && roundResults?.correctAnswer === label;
+                const isWrong  = showingRoundResult && isMine && roundResults?.correctAnswer !== label;
 
                 return (
                   <button
