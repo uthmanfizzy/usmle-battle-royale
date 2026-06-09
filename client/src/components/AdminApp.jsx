@@ -8,7 +8,7 @@ import { parseRichText } from '../utils/parseRichText';
 const API = 'https://usmle-battle-royale-production.up.railway.app';
 const AUTH_KEY = 'usmle_admin_session';
 
-const LETTERS = ['A', 'B', 'C', 'D'];
+const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
 
 const GAME_MODES = [
   { id: 'battle_royale',  label: 'Battle Royale',  icon: '⚔️', color: '#e74c3c' },
@@ -224,6 +224,10 @@ function QuestionModal({ question, defaultSubject = 'cardiology', onSave, onClos
     optionB:      question.options[1] || '',
     optionC:      question.options[2] || '',
     optionD:      question.options[3] || '',
+    optionE:      question.options[4] || '',
+    optionF:      question.options[5] || '',
+    optionG:      question.options[6] || '',
+    optionH:      question.options[7] || '',
     correct:      question.correct,
     explanation:  question.explanation,
     why_others_wrong: question.why_others_wrong || '',
@@ -241,6 +245,10 @@ function QuestionModal({ question, defaultSubject = 'cardiology', onSave, onClos
     optionB:      '',
     optionC:      '',
     optionD:      '',
+    optionE:      '',
+    optionF:      '',
+    optionG:      '',
+    optionH:      '',
     correct:      'A',
     explanation:  '',
     why_others_wrong: '',
@@ -302,7 +310,16 @@ function QuestionModal({ question, defaultSubject = 'cardiology', onSave, onClos
       subject:     form.subject,
       difficulty:  form.difficulty,
       question:    form.question.trim(),
-      options:     [form.optionA.trim(), form.optionB.trim(), form.optionC.trim(), form.optionD.trim()],
+      options:     [
+        form.optionA.trim(),
+        form.optionB.trim(),
+        form.optionC.trim(),
+        form.optionD.trim(),
+        form.optionE.trim(),
+        form.optionF.trim(),
+        form.optionG.trim(),
+        form.optionH.trim()
+      ].filter(opt => opt !== ''),
       correct:     form.correct,
       explanation: form.explanation.trim(),
       why_others_wrong: form.why_others_wrong ? form.why_others_wrong.trim() : null,
@@ -386,7 +403,14 @@ function QuestionModal({ question, defaultSubject = 'cardiology', onSave, onClos
             <div className="ap-field">
               <label>Correct Answer</label>
               <select value={form.correct} onChange={e => set('correct', e.target.value)}>
-                {LETTERS.map(l => <option key={l} value={l}>{l}</option>)}
+                {LETTERS.map((l, idx) => {
+                  const hasValue = form[`option${l}`] && form[`option${l}`].trim() !== '';
+                  const isRequired = idx < 4;
+                  if (!hasValue && !isRequired) return null;
+                  const optionText = form[`option${l}`] ? form[`option${l}`].substring(0, 40) : '';
+                  const displayText = optionText ? `${l} — ${optionText}${form[`option${l}`].length > 40 ? '...' : ''}` : l;
+                  return <option key={l} value={l}>{displayText}</option>;
+                }).filter(Boolean)}
               </select>
             </div>
           </div>
@@ -454,21 +478,31 @@ function QuestionModal({ question, defaultSubject = 'cardiology', onSave, onClos
           </div>
 
           <div className="ap-options-grid">
-            {LETTERS.map(l => (
-              <div key={l} className="ap-field">
-                <label>
-                  <span className={`ap-letter ${l === form.correct ? 'ap-letter-correct' : 'ap-letter-plain'}`}>{l}</span>
-                  {' '}Answer {l}
-                </label>
-                <input
-                  type="text"
-                  value={form[`option${l}`]}
-                  onChange={e => set(`option${l}`, e.target.value)}
-                  placeholder={`Answer choice ${l}`}
-                  required
-                />
-              </div>
-            ))}
+            {LETTERS.map((l, idx) => {
+              const isRequired = idx < 4;
+              const hasValue = form[`option${l}`] && form[`option${l}`].trim() !== '';
+              const showField = isRequired || hasValue || (idx > 0 && form[`option${LETTERS[idx - 1]}`] && form[`option${LETTERS[idx - 1]}`].trim() !== '');
+
+              if (!showField) return null;
+
+              return (
+                <div key={l} className="ap-field">
+                  <label>
+                    <span className={`ap-letter ${l === form.correct ? 'ap-letter-correct' : 'ap-letter-plain'}`}>{l}</span>
+                    {' '}Answer {l}
+                    {!isRequired && ' '}
+                    {!isRequired && <span style={{color:'rgba(255,255,255,0.3)', fontSize:'11px'}}>(optional)</span>}
+                  </label>
+                  <input
+                    type="text"
+                    value={form[`option${l}`]}
+                    onChange={e => set(`option${l}`, e.target.value)}
+                    placeholder={`Answer choice ${l}`}
+                    required={isRequired}
+                  />
+                </div>
+              );
+            })}
           </div>
 
           <div className="ap-field">
