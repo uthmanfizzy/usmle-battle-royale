@@ -3955,43 +3955,42 @@ app.post('/admin/questions/bulk', adminAuth, async (req, res) => {
     if (difficulty !== 'hard') difficulty = 'easy';
 
     // Handle correct answer - convert letter to actual answer text if needed
-    let correct = raw.correct || raw.answer || raw.correct_letter || '';
+    const rawCorrect = String(raw.correct || raw.answer || raw.correct_letter || '').trim().toUpperCase();
     console.log(`[bulk-import] Q${i + 1} Correct field resolution:`, {
       rawAnswer: raw.answer,
       rawCorrect: raw.correct,
       rawCorrectLetter: raw.correct_letter,
-      resolved: correct,
-      isEmpty: !correct
+      resolved: rawCorrect,
+      isEmpty: !rawCorrect
     });
 
-    if (!correct) {
+    let correct;
+    if (!rawCorrect) {
       console.error(`[bulk-import] Q${i + 1} ERROR: No correct answer found! Defaulting to first option.`);
       correct = options[0] || 'A';
-    }
-
-    const correctLetter = String(correct).trim().toUpperCase();
-
-    // If correct is a single letter like "C", convert to the actual answer text
-    if (raw.choices && Array.isArray(raw.choices) && correctLetter.length === 1 && correctLetter >= 'A' && correctLetter <= 'Z') {
-      const letterIndex = correctLetter.charCodeAt(0) - 65; // A=0, B=1, C=2, ...
+    } else if (rawCorrect.length === 1 && rawCorrect >= 'A' && rawCorrect <= 'H') {
+      // Single letter A-H: convert to answer text
+      const letterIndex = rawCorrect.charCodeAt(0) - 65; // A=0, B=1, C=2, ...
       console.log(`[bulk-import] Q${i + 1} Letter conversion:`, {
-        correctLetter,
+        correctLetter: rawCorrect,
         letterIndex,
-        choicesLength: raw.choices.length,
-        choiceAtIndex: raw.choices[letterIndex]
+        rawOptionsLength: rawOptions.length,
+        optionsLength: options.length,
+        optionAtIndex: options[letterIndex]
       });
 
-      if (letterIndex >= 0 && letterIndex < raw.choices.length) {
-        // Extract text from "C. answer text" or "C) answer text" format
-        const choiceText = String(raw.choices[letterIndex]);
-        correct = choiceText.replace(/^[A-Z][.)]\s*/, '').trim();
-        console.log(`[bulk-import] Q${i + 1} ✓ Converted answer letter "${correctLetter}" (index ${letterIndex}) to text: "${correct.substring(0, 50)}..."`);
+      if (letterIndex >= 0 && letterIndex < options.length) {
+        // Use the already-cleaned option text (letter prefix already stripped at line 3948)
+        correct = options[letterIndex];
+        console.log(`[bulk-import] Q${i + 1} ✓ Converted answer letter "${rawCorrect}" (index ${letterIndex}) to text: "${correct.substring(0, 50)}..."`);
       } else {
-        console.error(`[bulk-import] Q${i + 1} ERROR: Letter index ${letterIndex} out of range for ${raw.choices.length} choices! Using first option.`);
+        console.error(`[bulk-import] Q${i + 1} ERROR: Letter index ${letterIndex} out of range for ${options.length} options! Using first option.`);
         correct = options[0] || 'A';
       }
     } else {
-      console.log(`[bulk-import] Q${i + 1} Answer is already text format: "${correct.substring(0, 50)}..."`);
+      // Already text format
+      console.log(`[bulk-import] Q${i + 1} Answer is already text format: "${rawCorrect.substring(0, 50)}..."`);
+      correct = rawCorrect;
     }
 
     // Use provided explanation or empty string
