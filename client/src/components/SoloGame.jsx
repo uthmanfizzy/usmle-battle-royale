@@ -86,6 +86,18 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
       .then(data => {
         const questions = data.questions || [];
 
+        // DEBUG: Check what fields the question object actually has
+        if (questions.length > 0) {
+          console.log('[SoloGame] First question structure:', {
+            hasOptions: 'options' in questions[0],
+            hasChoices: 'choices' in questions[0],
+            optionsValue: questions[0].options,
+            choicesValue: questions[0].choices,
+            correctValue: questions[0].correct,
+            allKeys: Object.keys(questions[0])
+          });
+        }
+
         // Check if empty or server indicated no questions
         if (questions.length === 0 || data.empty) {
           setNoQuestionsFound(true);
