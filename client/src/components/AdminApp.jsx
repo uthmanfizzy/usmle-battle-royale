@@ -553,19 +553,16 @@ function QuestionModal({ question, defaultSubject = 'cardiology', onSave, onClos
             <label>Game Modes <span style={{ color: 'var(--red)', marginLeft: 2 }}>*</span></label>
             <div className="ap-gm-grid">
               {GAME_MODES.map(gm => {
-                const isDisabled = false;
                 const isChecked = form.game_modes.includes(gm.id);
                 return (
                   <label
                     key={gm.id}
-                    className={`ap-gm-item${isChecked ? ' checked' : ''}${isDisabled ? ' disabled' : ''}`}
+                    className={`ap-gm-item${isChecked ? ' checked' : ''}`}
                   >
                     <input
                       type="checkbox"
                       checked={isChecked}
-                      disabled={isDisabled}
                       onChange={e => {
-                        if (isDisabled) return;
                         const modes = e.target.checked
                           ? [...form.game_modes, gm.id]
                           : form.game_modes.filter(m => m !== gm.id);
@@ -574,9 +571,6 @@ function QuestionModal({ question, defaultSubject = 'cardiology', onSave, onClos
                     />
                     <span className="ap-gm-icon">{gm.icon}</span>
                     <span className="ap-gm-label">{gm.label}</span>
-                    {needsImage && !form.image_url && (
-                      <span className="ap-gm-hint">image required</span>
-                    )}
                   </label>
                 );
               })}
