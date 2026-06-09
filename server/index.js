@@ -3915,6 +3915,12 @@ app.post('/admin/questions/bulk', adminAuth, async (req, res) => {
   for (let i = 0; i < questions.length; i++) {
     const raw = questions[i];
     console.log(`[bulk-import] ───────────────────────────────────────────────────────────`);
+    console.log('[DEBUG-CORRECT] Full raw question:', JSON.stringify({
+      correct: raw.correct,
+      answer: raw.answer,
+      choices: raw.choices,
+      options: raw.options
+    }));
     console.log(`[bulk-import] Q${i + 1} Raw data:`, JSON.stringify({
       hasQuestion: !!raw.question,
       questionPreview: raw.question ? raw.question.substring(0, 50) : null,
@@ -4032,6 +4038,8 @@ app.post('/admin/questions/bulk', adminAuth, async (req, res) => {
     }
 
     console.log(`[bulk-import] Q${i + 1} Normalized: category=${subject}${raw.category || raw.subject ? '' : ' (from context)'}, difficulty=${difficulty}, options=${options.length}, correct=${correct.substring(0, 30)}..., questionId=${questionId}, topic_id=${resolvedTopicId || 'none'}`);
+
+    console.log('[DEBUG-INSERT] correct being saved:', correct);
 
     // Build record for Supabase
     const record = {
