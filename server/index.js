@@ -609,27 +609,47 @@ function assignPowerups(lobby) {
 // ── Answer checking helper ─────────────────────────────────────────────────────
 
 function isAnswerCorrect(submittedAnswer, question) {
-  if (!submittedAnswer || !question || !question.correct) return false;
+  console.log('[isAnswerCorrect] Input:', {
+    submittedAnswer,
+    submittedType: typeof submittedAnswer,
+    questionCorrect: question?.correct,
+    correctType: typeof question?.correct,
+    questionOptions: question?.options,
+    optionsLength: question?.options?.length
+  });
+
+  if (!submittedAnswer || !question || !question.correct) {
+    console.log('[isAnswerCorrect] Missing data, returning false');
+    return false;
+  }
 
   // Direct match (both are text or both are letters)
-  if (submittedAnswer === question.correct) return true;
+  if (submittedAnswer === question.correct) {
+    console.log('[isAnswerCorrect] Direct match! Returning true');
+    return true;
+  }
 
   // Handle letter-based answer (A, B, C...) vs text-based correct answer
   // Find which index in options matches the correct answer text
   if (question.options && Array.isArray(question.options)) {
     const correctIndex = question.options.findIndex(opt => opt === question.correct);
+    console.log('[isAnswerCorrect] correctIndex:', correctIndex);
     if (correctIndex >= 0) {
       const correctLetter = String.fromCharCode(65 + correctIndex);
+      console.log('[isAnswerCorrect] correctLetter:', correctLetter, 'matches submitted?', submittedAnswer === correctLetter);
       if (submittedAnswer === correctLetter) return true;
     }
 
     // Also check if submitted answer is full text matching an option
     const submittedIndex = question.options.findIndex(opt => opt === submittedAnswer);
+    console.log('[isAnswerCorrect] submittedIndex:', submittedIndex);
     if (submittedIndex >= 0 && question.options[submittedIndex] === question.correct) {
+      console.log('[isAnswerCorrect] Submitted full text matches! Returning true');
       return true;
     }
   }
 
+  console.log('[isAnswerCorrect] No match found, returning false');
   return false;
 }
 

@@ -120,8 +120,22 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
 
     // q.correct is stored as full text, label is the letter (A, B, C...)
     // Find which letter corresponds to the correct answer text
+    console.log('[SoloGame] Answer check:', {
+      submittedLabel: label,
+      qCorrect: q.correct,
+      qCorrectType: typeof q.correct,
+      qOptions: q.options,
+      qOptionsLength: q.options?.length
+    });
     const correctIndex = q.options ? q.options.findIndex(opt => opt === q.correct) : -1;
     const correctLetter = correctIndex >= 0 ? String.fromCharCode(65 + correctIndex) : q.correct;
+    console.log('[SoloGame] Comparison:', {
+      correctIndex,
+      correctLetter,
+      labelMatchesLetter: label === correctLetter,
+      labelMatchesCorrect: label === q.correct,
+      finalResult: label === correctLetter || label === q.correct
+    });
     const correct = label === correctLetter || label === q.correct;
     const tl = timeLeftRef.current;
     let newLives = livesRef.current;
