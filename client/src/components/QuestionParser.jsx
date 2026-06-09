@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import './QuestionParser.css';
+import { supabase } from '../supabaseClient';
 
 const SERVER_URL = 'https://usmle-battle-royale-production.up.railway.app';
 
@@ -174,7 +175,8 @@ export default function QuestionParser({ activeFolder, selectedTopic, selectedDi
           explanation: explanation.trim(),
           why_others_wrong: whyOthersWrong.trim(),
           difficulty,
-          game_modes: gameModes
+          game_modes: gameModes,
+          image_url: ''
         });
 
       } catch(e) {
@@ -435,6 +437,44 @@ export default function QuestionParser({ activeFolder, selectedTopic, selectedDi
                       value={q.why_others_wrong || ''}
                       onChange={e => updateQuestion(i, 'why_others_wrong', e.target.value)}
                     />
+                  </div>
+                  {/* Image upload for this question */}
+                  <div className="qp-image-row">
+                    {q.image_url ? (
+                      <div className="qp-image-preview">
+                        <img src={q.image_url} alt="Question" className="qp-image-thumb" />
+                        <button
+                          className="qp-image-remove"
+                          onClick={() => updateQuestion(i, 'image_url', '')}
+                        >✕ Remove</button>
+                      </div>
+                    ) : (
+                      <label className="qp-image-upload-btn">
+                        🖼️ Add Image (optional)
+                        <input
+                          type="file"
+                          accept="image/*"
+                          style={{display:'none'}}
+                          onChange={async (e) => {
+                            const file = e.target.files[0];
+                            if (!file) return;
+                            try {
+                              const fileName = `question-img-${Date.now()}.${file.name.split('.').pop()}`;
+                              const { error } = await supabase.storage
+                                .from('images')
+                                .upload(fileName, file, { upsert: true });
+                              if (error) throw error;
+                              const { data: urlData } = supabase.storage
+                                .from('images')
+                                .getPublicUrl(fileName);
+                              updateQuestion(i, 'image_url', urlData.publicUrl);
+                            } catch(err) {
+                              alert('Image upload failed: ' + err.message);
+                            }
+                          }}
+                        />
+                      </label>
+                    )}
                   </div>
                 </div>
               ))}

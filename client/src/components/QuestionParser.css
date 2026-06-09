@@ -617,6 +617,57 @@
   margin: 0;
 }
 
+/* ── IMAGE UPLOAD ────────────────────────────── */
+.qp-image-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  border-top: 1px solid rgba(180,140,40,0.1);
+}
+
+.qp-image-preview {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.qp-image-thumb {
+  width: 80px;
+  height: 60px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid rgba(180,140,40,0.3);
+}
+
+.qp-image-remove {
+  background: rgba(60,15,15,0.8);
+  border: 1px solid rgba(180,60,60,0.4);
+  border-radius: 6px;
+  color: rgba(220,100,100,0.9);
+  font-family: 'Cinzel', serif;
+  font-size: 11px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+.qp-image-upload-btn {
+  padding: 6px 14px;
+  background: rgba(20,28,15,0.9);
+  border: 1px dashed rgba(180,140,40,0.35);
+  border-radius: 7px;
+  color: rgba(200,165,60,0.8);
+  font-family: 'Cinzel', serif;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-block;
+}
+.qp-image-upload-btn:hover {
+  background: rgba(30,40,20,0.95);
+  border-color: rgba(200,165,60,0.6);
+}
+
 /* ── MOBILE ──────────────────────────────────── */
 @media (max-width: 900px) {
   .qp-body-horizontal {
