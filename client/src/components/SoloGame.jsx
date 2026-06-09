@@ -118,7 +118,11 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
     setRevealed(true);
     setSelected(label);
 
-    const correct = label === q.correct;
+    // q.correct is stored as full text, label is the letter (A, B, C...)
+    // Find which letter corresponds to the correct answer text
+    const correctIndex = q.options ? q.options.findIndex(opt => opt === q.correct) : -1;
+    const correctLetter = correctIndex >= 0 ? String.fromCharCode(65 + correctIndex) : q.correct;
+    const correct = label === correctLetter || label === q.correct;
     const tl = timeLeftRef.current;
     let newLives = livesRef.current;
     let newScore = scoreRef.current;
@@ -313,8 +317,9 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
             {q.options.map((opt, i) => {
               const label = LABELS[i];
               const isMine = selected === label;
-              const isRight = revealed && q.correct === label;
-              const isWrong = revealed && isMine && q.correct !== label;
+              // Compare option text to correct answer text
+              const isRight = revealed && opt === q.correct;
+              const isWrong = revealed && isMine && opt !== q.correct;
               return (
                 <button
                   key={i}

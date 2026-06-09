@@ -606,6 +606,33 @@ function assignPowerups(lobby) {
   }
 }
 
+// ── Answer checking helper ─────────────────────────────────────────────────────
+
+function isAnswerCorrect(submittedAnswer, question) {
+  if (!submittedAnswer || !question || !question.correct) return false;
+
+  // Direct match (both are text or both are letters)
+  if (submittedAnswer === question.correct) return true;
+
+  // Handle letter-based answer (A, B, C...) vs text-based correct answer
+  // Find which index in options matches the correct answer text
+  if (question.options && Array.isArray(question.options)) {
+    const correctIndex = question.options.findIndex(opt => opt === question.correct);
+    if (correctIndex >= 0) {
+      const correctLetter = String.fromCharCode(65 + correctIndex);
+      if (submittedAnswer === correctLetter) return true;
+    }
+
+    // Also check if submitted answer is full text matching an option
+    const submittedIndex = question.options.findIndex(opt => opt === submittedAnswer);
+    if (submittedIndex >= 0 && question.options[submittedIndex] === question.correct) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 // ── Streak helpers ─────────────────────────────────────────────────────────────
 
 function updateStreak(lobby, playerId, correct) {
@@ -693,7 +720,7 @@ function processBuzzFunAnswers(lobby) {
 
   for (const player of lobby.players.values()) {
     const answer     = lobby.answers.get(player.id);
-    const correct    = answer === q.correct;
+    const correct    = isAnswerCorrect(answer, q);
     const answerTime = lobby.buzzAnswerTimes.get(player.id) ?? null;
 
     let pointsEarned = 0;
@@ -849,10 +876,11 @@ function processAnswers(lobby) {
     let onFire  = false;
 
     if (!isSkip) {
-      const sr = updateStreak(lobby, player.id, answer === q.correct);
+      const isCorrectAnswer = isAnswerCorrect(answer, q);
+      const sr = updateStreak(lobby, player.id, isCorrectAnswer);
       streak  = sr.streak;
       onFire  = sr.onFire;
-      correct = answer === q.correct;
+      correct = isCorrectAnswer;
     }
 
     if (correct && lobby.pendingDoubleXp?.has(player.id)) {
@@ -1198,10 +1226,11 @@ function advanceSpeedPlayer(lobby, playerId, answer) {
 
   const q      = lobby.questionQueue[state.idx % lobby.questionQueue.length];
   const isSkip = answer === '__skip__';
-  const correct = !isSkip && answer !== null && answer === q.correct;
+  const isCorrectAnswer = !isSkip && answer !== null && isAnswerCorrect(answer, q);
+  const correct = isCorrectAnswer;
   const { streak, onFire } = isSkip
     ? { streak: lobby.streaks?.get(playerId) || 0, onFire: false }
-    : updateStreak(lobby, playerId, answer !== null && answer === q.correct);
+    : updateStreak(lobby, playerId, isCorrectAnswer);
 
   if (correct) {
     if (lobby.pendingDoubleXp?.has(playerId)) {
@@ -1538,7 +1567,7 @@ function processTriviaAnswer(lobby, answer) {
 
   if (!q) { lobby.triviaTurnIdx++; setTimeout(() => nextTriviaTurn(lobby), 300); return; }
 
-  const correct   = answer !== null && answer === q.correct;
+  const correct   = answer !== null && isAnswerCorrect(answer, q);
   let earnedWedge = false;
 
   const { streak, onFire } = updateStreak(lobby, sid, correct);
@@ -1854,7 +1883,7 @@ io.on('connection', (socket) => {
       lobby.answers.set(socket.id, answer);
       lobby.buzzAnswerTimes.set(socket.id, elapsed);
       const q = lobby.questionQueue[lobby.questionIdx];
-      if (answer === q.correct && !lobby.buzzFirstCorrect) lobby.buzzFirstCorrect = socket.id;
+      if (isAnswerCorrect(answer, q) && !lobby.buzzFirstCorrect) lobby.buzzFirstCorrect = socket.id;
       const answeredCount = lobby.answers.size;
       const totalPlayers  = lobby.players.size;
       io.to(lobby.id).emit('answer_count', { answered: answeredCount, total: totalPlayers });
