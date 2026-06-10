@@ -14,6 +14,7 @@ const path       = require('path');
 const multer     = require('multer');
 const AdmZip     = require('adm-zip');
 const os         = require('os');
+const { fromDb, toDb, toPublicQuestion, answerResultPayload } = require('./questionMapper');
 
 // Use sql.js - pure JavaScript SQLite, no native compilation needed
 const initSqlJs = require('sql.js');
@@ -156,22 +157,7 @@ async function loadQuestionsFromDB() {
 
     if (data && data.length > 0) {
       // Transform Supabase format to internal format
-      questionBank = data.map(q => ({
-        id: q.question_id,
-        subject: q.category,
-        difficulty: q.difficulty || 'easy',
-        question: q.question,
-        options: q.choices,
-        correct: q.correct,
-        explanation: q.explanation || '',
-        game_modes: q.game_modes || ['battle_royale', 'speed_race', 'trivia_pursuit'],
-        image_url: q.image_url || undefined,
-        tower_floor: q.tower_floor || undefined,
-        topic_id: q.topic_id || undefined,
-        buzz_type: q.buzz_type || undefined,
-        question_type: q.question_type || 'mcq',
-        _supabase_id: q.id, // Keep Supabase UUID for updates
-      }));
+      questionBank = data.map(fromDb);
       questionsLastLoaded = Date.now();
       console.log(`[Questions] Loaded ${questionBank.length} questions from Supabase`);
     } else {
@@ -691,7 +677,7 @@ function nextBuzzFunQuestion(lobby) {
   const timeLimit = 8;
 
   io.to(lobby.id).emit('new_question', {
-    id: q.id, question: q.question, options: q.options,
+    ...toPublicQuestion(q),
     round: lobby.round, timeLimit, alivePlayers: lobby.players.size,
     buzz_type: q.buzz_type || 'BUZZWORD',
     totalRounds: lobby.questionQueue.length,
@@ -733,11 +719,14 @@ function processBuzzFunAnswers(lobby) {
       ? ''
       : (q.explanation || '');
     const sock = io.sockets.sockets.get(player.id);
-    if (sock) sock.emit('answer_result', {
-      correct, correctAnswer: q.correct, lives: 3, alive: true,
-      score: player.score, explanation,
-      streak: sr.streak, onFire: sr.onFire, pointsEarned,
-    });
+    if (sock) sock.emit('answer_result', answerResultPayload({
+      isCorrect: correct, q,
+      extras: {
+        lives: 3, alive: true,
+        score: player.score, explanation,
+        streak: sr.streak, onFire: sr.onFire, pointsEarned,
+      },
+    }));
   }
 
   const snapshot = [...lobby.players.values()].map(p => ({
@@ -835,7 +824,7 @@ function nextQuestion(lobby) {
     : gameSettings.timerDefault;
 
   io.to(lobby.id).emit('new_question', {
-    id: q.id, question: q.question, options: q.options,
+    ...toPublicQuestion(q),
     round: lobby.round, timeLimit, alivePlayers: alive.length,
     suddenDeath: lobby.suddenDeath || false,
     image_url: q.image_url || null,
@@ -907,12 +896,14 @@ function processAnswers(lobby) {
       const explanation = lobby.difficulty === 'hard' && gameSettings.hardModeHideExplanations
         ? ''
         : (q.explanation || '');
-      sock.emit('answer_result', {
-        correct, correctAnswer: q.correct,
-        lives: player.lives, alive: player.alive,
-        score: player.score, explanation,
-        streak, onFire,
-      });
+      sock.emit('answer_result', answerResultPayload({
+        isCorrect: correct, q,
+        extras: {
+          lives: player.lives, alive: player.alive,
+          score: player.score, explanation,
+          streak, onFire,
+        },
+      }));
     }
   }
 
@@ -1184,7 +1175,7 @@ function sendSpeedQuestion(lobby, playerId) {
     const sock = io.sockets.sockets.get(playerId);
     if (sock) {
       sock.emit('new_question', {
-        id: q.id, question: q.question, options: q.options,
+        ...toPublicQuestion(q),
         round: state.idx + 1, timeLimit, alivePlayers: lobby.players.size,
       });
     }
@@ -1245,12 +1236,14 @@ function advanceSpeedPlayer(lobby, playerId, answer) {
   if (!player.isBot) {
     const sock = io.sockets.sockets.get(playerId);
     if (sock) {
-      sock.emit('answer_result', {
-        correct, correctAnswer: q.correct,
-        lives: 3, alive: true,
-        score: lobby.raceCorrects.get(playerId) || 0,
-        streak, onFire,
-      });
+      sock.emit('answer_result', answerResultPayload({
+        isCorrect: correct, q,
+        extras: {
+          lives: 3, alive: true,
+          score: lobby.raceCorrects.get(playerId) || 0,
+          streak, onFire,
+        },
+      }));
     }
   }
 
@@ -1456,7 +1449,7 @@ function nextTriviaTurn(lobby) {
       lobby.triviaCanEarnWedge    = false;
 
       io.to(lobby.id).emit('trivia_question', {
-        question: { id: q.id, question: q.question, options: q.options },
+        question: toPublicQuestion(q),
         category: q.subject, isHQ: false, canEarnWedge: false,
         isFinalQuestion: true, round: lobby.round, timeLimit: gameSettings.timerTriviaPursuit,
         wedgeState: triviaWedgeSnapshot(lobby),
@@ -1531,7 +1524,7 @@ function handleTriviaRoll(lobby) {
     lobby.triviaCurrentQuestion = q;
 
     io.to(lobby.id).emit('trivia_question', {
-      question: { id: q.id, question: q.question, options: q.options },
+      question: toPublicQuestion(q),
       category: space.category, isHQ: space.isHQ, canEarnWedge,
       isFinalQuestion: false, round: lobby.round, timeLimit: gameSettings.timerTriviaPursuit,
       wedgeState: triviaWedgeSnapshot(lobby),
@@ -1581,9 +1574,15 @@ function processTriviaAnswer(lobby, answer) {
   lobby.status = 'trivia_result';
 
   io.to(lobby.id).emit('trivia_answer_result', {
-    playerId: sid, correct, correctAnswer: q.correct, explanation: q.explanation,
-    earnedWedge, category, isHQ, canEarnWedge, isFinalQuestion, allWedges, wedgeState,
-    streak, onFire, streaks: streakSnapshot(lobby),
+    playerId: sid,
+    ...answerResultPayload({
+      isCorrect: correct, q,
+      extras: {
+        explanation: q.explanation,
+        earnedWedge, category, isHQ, canEarnWedge, isFinalQuestion, allWedges, wedgeState,
+        streak, onFire, streaks: streakSnapshot(lobby),
+      },
+    }),
   });
 
   if (correct && isFinalQuestion) {
@@ -4701,21 +4700,7 @@ app.put('/admin/questions/:id', adminAuth, async (req, res) => {
   const updated = { ...existing, ...req.body, id };
 
   // Build Supabase update record
-  const record = {
-    question: updated.question,
-    choices: updated.options,
-    correct: updated.correct,
-    explanation: updated.explanation,
-    why_others_wrong: updated.why_others_wrong || null,
-    category: updated.subject,
-    difficulty: updated.difficulty || 'easy',
-    game_modes: updated.game_modes || ['battle_royale', 'speed_race', 'trivia_pursuit'],
-    image_url: updated.image_url || null,
-    tower_floor: updated.tower_floor || null,
-    topic_id: updated.topic_id || null,
-    buzz_type: updated.buzz_type || null,
-    updated_at: new Date().toISOString(),
-  };
+  const record = toDb(updated);
 
   try {
     const { error } = await supabase
