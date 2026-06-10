@@ -35,6 +35,7 @@ export default function TrainingGrounds({ user, onBack, onStartPractice }) {
   const [hardFolders, setHardFolders] = useState([]);
   const [loading, setLoading] = useState(false);
   const [allFolders, setAllFolders] = useState([]);
+  const [allGroups, setAllGroups] = useState([]);
 
   // Fetch topics for selected subject
   async function fetchFolders(subjectId) {
@@ -45,11 +46,13 @@ export default function TrainingGrounds({ user, onBack, onStartPractice }) {
       const folders = data.topics || [];
 
       setAllFolders(folders);
+      setAllGroups(data.groups || []);
       setSelectedSubject(subjectId);
       setSelectedDifficulty(null); // Reset difficulty when changing subject
     } catch (err) {
       console.error('Failed to load topics:', err);
       setAllFolders([]);
+      setAllGroups([]);
     }
     setLoading(false);
   }
@@ -82,6 +85,7 @@ export default function TrainingGrounds({ user, onBack, onStartPractice }) {
     setSelectedSubject(null);
     setSelectedDifficulty(null);
     setAllFolders([]);
+    setAllGroups([]);
     setEasyFolders([]);
     setHardFolders([]);
   }
@@ -183,6 +187,25 @@ export default function TrainingGrounds({ user, onBack, onStartPractice }) {
 
   // SCREEN 3: Folder Selection
 
+  const activeFolders    = selectedDifficulty === 'easy' ? easyFolders : hardFolders;
+  const activeGroups     = allGroups.filter(g => (g.difficulty || 'easy') === selectedDifficulty);
+  const ungroupedFolders = activeFolders.filter(f => !f.group_id);
+
+  // Identical markup to the original folder card — clicking still starts one topic
+  const renderFolderCard = (folder) => (
+    <button
+      key={folder.id}
+      className={`tg-folder-card tg-folder-card--${selectedDifficulty}`}
+      onClick={() => handleFolderClick(folder)}
+    >
+      <div className="tg-folder-icon">📁</div>
+      <div className="tg-folder-name">{folder.name}</div>
+      {folder.question_count > 0 && (
+        <div className="tg-folder-qcount">{folder.question_count} questions</div>
+      )}
+    </button>
+  );
+
   return (
     <div className="training-grounds">
       <div className="training-overlay">
@@ -203,52 +226,33 @@ export default function TrainingGrounds({ user, onBack, onStartPractice }) {
           </div>
         ) : (
           <div className="training-folders">
-            {/* Show folders filtered by selected difficulty */}
-            {selectedDifficulty === 'easy' ? (
-              <div className="tg-folder-grid">
-                {easyFolders.map(folder => (
-                  <button
-                    key={folder.id}
-                    className="tg-folder-card tg-folder-card--easy"
-                    onClick={() => handleFolderClick(folder)}
-                  >
-                    <div className="tg-folder-icon">📁</div>
-                    <div className="tg-folder-name">{folder.name}</div>
-                    {folder.question_count > 0 && (
-                      <div className="tg-folder-qcount">{folder.question_count} questions</div>
-                    )}
-                  </button>
-                ))}
-                {easyFolders.length === 0 && (
+            {/* Grouped topics first (display-only sections), then ungrouped exactly as before */}
+            {activeGroups.map(group => {
+              const members = activeFolders.filter(f => f.group_id === group.id);
+              if (members.length === 0) return null;
+              return (
+                <div className="tg-group-section" key={group.id}>
+                  <div className="tg-group-label">🗂️ {group.name}</div>
+                  <div className="tg-folder-grid">{members.map(renderFolderCard)}</div>
+                </div>
+              );
+            })}
+            <div className="tg-folder-grid">
+              {ungroupedFolders.map(renderFolderCard)}
+              {activeFolders.length === 0 && (
+                selectedDifficulty === 'easy' ? (
                   <div className="tg-empty">
                     <p>No easy topics available for this subject yet.</p>
                     <p className="tg-empty-sub">Try selecting Hard mode or check back soon!</p>
                   </div>
-                )}
-              </div>
-            ) : (
-              <div className="tg-folder-grid">
-                {hardFolders.map(folder => (
-                  <button
-                    key={folder.id}
-                    className="tg-folder-card tg-folder-card--hard"
-                    onClick={() => handleFolderClick(folder)}
-                  >
-                    <div className="tg-folder-icon">📁</div>
-                    <div className="tg-folder-name">{folder.name}</div>
-                    {folder.question_count > 0 && (
-                      <div className="tg-folder-qcount">{folder.question_count} questions</div>
-                    )}
-                  </button>
-                ))}
-                {hardFolders.length === 0 && (
+                ) : (
                   <div className="tg-empty">
                     <p>No hard topics available for this subject yet.</p>
                     <p className="tg-empty-sub">Try selecting Easy mode or check back soon!</p>
                   </div>
-                )}
-              </div>
-            )}
+                )
+              )}
+            </div>
           </div>
         )}
       </div>

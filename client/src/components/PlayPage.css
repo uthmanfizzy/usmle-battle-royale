@@ -1853,6 +1853,53 @@
   gap: 4px;
 }
 
+/* Topic group sections in the dropdown */
+.tg-topic-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+
+.tg-group-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  background: rgba(35,30,12,0.85);
+  border: 1px solid rgba(200,165,60,0.3);
+  border-radius: 6px;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+.tg-group-header:hover { border-color: rgba(200,165,60,0.55); }
+.tg-group-header--selected {
+  background: rgba(55,70,20,0.85);
+  border-color: rgba(200,165,60,0.45);
+}
+
+.tg-group-icon { font-size: 13px; flex-shrink: 0; }
+.tg-group-name {
+  font-family: 'Cinzel', serif;
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(220,190,80,0.95);
+  flex: 1;
+}
+.tg-group-count {
+  font-size: 10px;
+  color: rgba(200,165,60,0.6);
+  flex-shrink: 0;
+}
+.tg-group-check {
+  color: rgba(120,220,120,0.9);
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.tg-topic-group .tg-topic-card { margin-left: 14px; }
+
 .tg-topic-card {
   display: flex;
   align-items: center;

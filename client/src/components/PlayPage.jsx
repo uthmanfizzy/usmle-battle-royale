@@ -101,6 +101,7 @@ const SUBJECTS = [
 function TrainingGroundsFlow({ onStart }) {
   const [categories, setCategories] = useState([]);
   const [topics, setTopics] = useState([]);
+  const [groups, setGroups] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [selectedDifficulty, setSelectedDifficulty] = useState(null);
   const [selectedTopics, setSelectedTopics] = useState([]);
@@ -155,9 +156,12 @@ function TrainingGroundsFlow({ onStart }) {
       }));
 
       setTopics(topicsWithCounts);
+      // Groups are display/selection only — filter by difficulty like topics above
+      setGroups((topicsData.groups || []).filter(g => (g.difficulty || 'easy') === selectedDifficulty));
     } catch(e) {
       console.error('fetchTopics error:', e);
       setTopics([]);
+      setGroups([]);
     }
     setLoading(false);
   };
@@ -168,6 +172,20 @@ function TrainingGroundsFlow({ onStart }) {
         ? prev.filter(t => t.id !== topic.id)
         : [...prev, topic]
     );
+  };
+
+  // Group header click: select all non-empty members, or deselect all if already complete
+  const toggleGroup = (members) => {
+    const selectable = members.filter(t => t.questionCount > 0);
+    if (selectable.length === 0) return;
+    setSelectedTopics(prev => {
+      const allSelected = selectable.every(t => prev.find(s => s.id === t.id));
+      if (allSelected) {
+        const ids = new Set(selectable.map(t => t.id));
+        return prev.filter(s => !ids.has(s.id));
+      }
+      return [...prev, ...selectable.filter(t => !prev.find(s => s.id === t.id))];
+    });
   };
 
   const handleStart = () => {
@@ -182,6 +200,29 @@ function TrainingGroundsFlow({ onStart }) {
   };
 
   const canStart = selectedCategory && selectedDifficulty;
+
+  // Identical markup to the original topic card — reused for grouped + ungrouped rows
+  const renderTopicRow = (topic) => {
+    const isEmpty = topic.questionCount === 0;
+    const isSelected = selectedTopics.find(t => t.id === topic.id);
+    return (
+      <div
+        className={`tg-topic-card ${isSelected ? 'tg-topic-card--selected' : ''} ${isEmpty ? 'tg-topic-card--empty' : ''}`}
+        key={topic.id}
+        onClick={() => !isEmpty && toggleTopic(topic)}
+        style={{ cursor: isEmpty ? 'not-allowed' : 'pointer' }}
+      >
+        <span className="tg-topic-icon">📁</span>
+        <span className="tg-topic-name">{topic.name}</span>
+        <span className={`tg-topic-count ${isEmpty ? 'tg-topic-count--empty' : ''}`}>
+          {isEmpty ? 'No Qs' : `${topic.questionCount} Q`}
+        </span>
+        {!isEmpty && (isSelected
+          ? <span className="tg-topic-check">✓</span>
+          : <span className="tg-topic-plus">+</span>)}
+      </div>
+    );
+  };
 
   return (
     <div className="tg-flow">
@@ -210,6 +251,7 @@ function TrainingGroundsFlow({ onStart }) {
                   onClick={() => {
                     setSelectedCategory(cat);
                     setSelectedTopics([]);
+                    setGroups([]);
                     setOpenPanel(null);
                   }}
                 >
@@ -240,7 +282,7 @@ function TrainingGroundsFlow({ onStart }) {
           <div className="tg-dropdown tg-dropdown--difficulty">
             <div
               className={`tg-diff-option tg-diff-option--easy ${selectedDifficulty === 'easy' ? 'tg-diff-option--selected' : ''}`}
-              onClick={() => { setSelectedDifficulty('easy'); setSelectedTopics([]); setOpenPanel(null); }}
+              onClick={() => { setSelectedDifficulty('easy'); setSelectedTopics([]); setGroups([]); setOpenPanel(null); }}
             >
               <span>🟢</span>
               <div>
@@ -251,7 +293,7 @@ function TrainingGroundsFlow({ onStart }) {
             </div>
             <div
               className={`tg-diff-option tg-diff-option--hard ${selectedDifficulty === 'hard' ? 'tg-diff-option--selected' : ''}`}
-              onClick={() => { setSelectedDifficulty('hard'); setSelectedTopics([]); setOpenPanel(null); }}
+              onClick={() => { setSelectedDifficulty('hard'); setSelectedTopics([]); setGroups([]); setOpenPanel(null); }}
             >
               <span>🔴</span>
               <div>
@@ -293,27 +335,28 @@ function TrainingGroundsFlow({ onStart }) {
                 </div>
               )}
               <div className="tg-topics-list">
-                {topics.map(topic => {
-                  const isEmpty = topic.questionCount === 0;
-                  const isSelected = selectedTopics.find(t => t.id === topic.id);
+                {groups.map(group => {
+                  const members = topics.filter(t => t.group_id === group.id);
+                  if (members.length === 0) return null;
+                  const selectable = members.filter(t => t.questionCount > 0);
+                  const allSelected = selectable.length > 0 && selectable.every(t => selectedTopics.find(s => s.id === t.id));
                   return (
-                    <div
-                      className={`tg-topic-card ${isSelected ? 'tg-topic-card--selected' : ''} ${isEmpty ? 'tg-topic-card--empty' : ''}`}
-                      key={topic.id}
-                      onClick={() => !isEmpty && toggleTopic(topic)}
-                      style={{ cursor: isEmpty ? 'not-allowed' : 'pointer' }}
-                    >
-                      <span className="tg-topic-icon">📁</span>
-                      <span className="tg-topic-name">{topic.name}</span>
-                      <span className={`tg-topic-count ${isEmpty ? 'tg-topic-count--empty' : ''}`}>
-                        {isEmpty ? 'No Qs' : `${topic.questionCount} Q`}
-                      </span>
-                      {!isEmpty && (isSelected
-                        ? <span className="tg-topic-check">✓</span>
-                        : <span className="tg-topic-plus">+</span>)}
+                    <div className="tg-topic-group" key={group.id}>
+                      <div
+                        className={`tg-group-header ${allSelected ? 'tg-group-header--selected' : ''}`}
+                        onClick={() => toggleGroup(members)}
+                        style={{ cursor: selectable.length === 0 ? 'default' : 'pointer' }}
+                      >
+                        <span className="tg-group-icon">🗂️</span>
+                        <span className="tg-group-name">{group.name}</span>
+                        <span className="tg-group-count">{members.length} topic{members.length !== 1 ? 's' : ''}</span>
+                        {allSelected && <span className="tg-group-check">✓</span>}
+                      </div>
+                      {members.map(renderTopicRow)}
                     </div>
                   );
                 })}
+                {topics.filter(t => !t.group_id).map(renderTopicRow)}
                 {!loading && topics.length === 0 && <p className="tg-empty">No topics found.</p>}
               </div>
             </div>

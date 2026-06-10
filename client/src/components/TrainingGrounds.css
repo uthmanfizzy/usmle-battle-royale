@@ -273,6 +273,20 @@
   gap: 20px;
 }
 
+/* Topic group sections (display-only labels above their folders) */
+.tg-group-section {
+  margin-bottom: 24px;
+}
+.tg-group-label {
+  font-family: 'Cinzel', serif;
+  font-size: 15px;
+  font-weight: 700;
+  color: rgba(200, 163, 44, 0.85);
+  border-bottom: 1px solid rgba(180, 140, 40, 0.3);
+  padding-bottom: 6px;
+  margin-bottom: 14px;
+}
+
 .tg-folder-card {
   background: rgba(20, 30, 20, 0.8);
   border: 1px solid rgba(180, 140, 40, 0.5);
