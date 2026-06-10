@@ -99,4 +99,71 @@ function answerResultPayload({ isCorrect, q, extras = {} }) {
   };
 }
 
-module.exports = { fromDb, toDb, toPublicQuestion, answerResultPayload };
+/**
+ * Raw imported question (admin bulk import / Question Parser) -> internal
+ * shape. Collapses the alias swamp in one place:
+ *   options:  raw.options || raw.choices   (with "A." / "b)" prefix stripping)
+ *   correct:  raw.correct || raw.answer || raw.correct_letter
+ *             - single letter A–H: kept as the letter if within options range
+ *             - answer text: converted to its letter if it matches an option
+ *             - anything unresolvable defaults to 'A' (current behavior)
+ *   subject:  raw.category || raw.subject || defaultCategory || 'general'
+ *
+ * Verbatim lift of the bulk-import normalization. Caller is responsible for:
+ * skipping rows with no question text, generating question_id, and resolving
+ * topic_id (async DB lookup).
+ *
+ * NOTE (bug-compatible): text-form correct answers are uppercased before
+ * being compared to options, so text matching only succeeds for options
+ * stored in uppercase. Preserved as-is; fix separately if ever.
+ */
+function normalizeImport(raw, { defaultCategory, defaultDifficulty } = {}) {
+  // Normalize category - use provided, fall back to passed default, or use 'general'
+  let subject = raw.category || raw.subject || defaultCategory || 'general';
+  if (subject) subject = subject.toLowerCase().trim();
+
+  // Get options from either field name, accept any array length
+  const rawOptions = raw.options || raw.choices || [];
+  const options = Array.isArray(rawOptions) && rawOptions.length > 0
+    ? rawOptions.map(o => String(o).replace(/^[A-Za-z][.)]\s*/, '').trim())
+    : ['Option A', 'Option B', 'Option C', 'Option D']; // Default if no options
+
+  // Use provided difficulty or default; only 'easy' | 'hard' allowed
+  let difficulty = raw.difficulty || defaultDifficulty || 'easy';
+  difficulty = difficulty.toLowerCase().trim();
+  if (difficulty !== 'hard') difficulty = 'easy';
+
+  // Handle correct answer - resolve aliases, store as LETTER
+  const rawCorrect = String(raw.correct || raw.answer || raw.correct_letter || '').trim().toUpperCase();
+  let correct;
+  if (!rawCorrect) {
+    correct = 'A';
+  } else if (rawCorrect.length === 1 && rawCorrect >= 'A' && rawCorrect <= 'H') {
+    const letterIndex = rawCorrect.charCodeAt(0) - 65; // A=0, B=1, C=2, ...
+    correct = (letterIndex >= 0 && letterIndex < options.length) ? rawCorrect : 'A';
+  } else {
+    // Text format - convert to letter by finding which option matches
+    const matchIndex = options.findIndex(opt => opt === rawCorrect);
+    correct = matchIndex >= 0 ? String.fromCharCode(65 + matchIndex) : 'A';
+  }
+
+  const game_modes = Array.isArray(raw.game_modes) && raw.game_modes.length > 0
+    ? raw.game_modes
+    : ['battle_royale', 'speed_race', 'trivia_pursuit'];
+
+  return {
+    question: raw.question.trim(),
+    subject,
+    options,
+    correct,
+    difficulty,
+    explanation: raw.explanation || raw.rationale || '',
+    why_others_wrong: raw.why_others_wrong || raw.whyOthersWrong || raw.why_wrong || '',
+    game_modes,
+    image_url: raw.image_url || null,
+    tower_floor: (raw.tower_floor != null && !isNaN(parseInt(raw.tower_floor))) ? parseInt(raw.tower_floor) : null,
+    buzz_type: (raw.buzz_type && game_modes.includes('buzz_fun')) ? raw.buzz_type : null,
+  };
+}
+
+module.exports = { fromDb, toDb, toPublicQuestion, answerResultPayload, normalizeImport };

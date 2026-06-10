@@ -14,7 +14,7 @@ const path       = require('path');
 const multer     = require('multer');
 const AdmZip     = require('adm-zip');
 const os         = require('os');
-const { fromDb, toDb, toPublicQuestion, answerResultPayload } = require('./questionMapper');
+const { fromDb, toDb, toPublicQuestion, answerResultPayload, normalizeImport } = require('./questionMapper');
 
 // Use sql.js - pure JavaScript SQLite, no native compilation needed
 const initSqlJs = require('sql.js');
@@ -3920,80 +3920,26 @@ app.post('/admin/questions/bulk', adminAuth, async (req, res) => {
       continue;
     }
 
-    // Normalize category - use provided, fall back to passed default, or use 'general'
-    // Category is fully optional - if admin is importing into a specific folder, use that
-    let subject = raw.category || raw.subject || defaultCategory || 'general';
-    if (subject) subject = subject.toLowerCase().trim();
+    // Normalize all alias fields (options/choices, correct/answer/correct_letter,
+    // category/subject, difficulty, explanation, game_modes) in one place
+    const n = normalizeImport(raw, { defaultCategory, defaultDifficulty });
+    const { subject, options, difficulty, correct, explanation, why_others_wrong } = n;
+    const gameModes = n.game_modes;
 
-    // Get options from either field name, accept any array length
-    const rawOptions = raw.options || raw.choices || [];
-    const options = Array.isArray(rawOptions) && rawOptions.length > 0
-      ? rawOptions.map(o => String(o).replace(/^[A-Za-z][.)]\s*/, '').trim())
-      : ['Option A', 'Option B', 'Option C', 'Option D']; // Default if no options
-
-    // Use provided difficulty or default
-    let difficulty = raw.difficulty || defaultDifficulty || 'easy';
-    difficulty = difficulty.toLowerCase().trim();
-    // Normalize: convert medium/normal to easy, only allow easy or hard
-    if (difficulty !== 'hard') difficulty = 'easy';
-
-    // Handle correct answer - convert letter to actual answer text if needed
+    // DEBUG (remove in Phase B): trace correct-field resolution
     const rawCorrect = String(raw.correct || raw.answer || raw.correct_letter || '').trim().toUpperCase();
     console.log(`[bulk-import] Q${i + 1} Correct field resolution:`, {
       rawAnswer: raw.answer,
       rawCorrect: raw.correct,
       rawCorrectLetter: raw.correct_letter,
       resolved: rawCorrect,
-      isEmpty: !rawCorrect
+      isEmpty: !rawCorrect,
+      normalizedTo: correct,
+      optionsLength: options.length,
     });
-
-    let correct;
-    if (!rawCorrect) {
-      console.error(`[bulk-import] Q${i + 1} ERROR: No correct answer found! Defaulting to A.`);
-      correct = 'A';
-    } else if (rawCorrect.length === 1 && rawCorrect >= 'A' && rawCorrect <= 'H') {
-      // Single letter A-H: validate it's in range and store the LETTER
-      const letterIndex = rawCorrect.charCodeAt(0) - 65; // A=0, B=1, C=2, ...
-      console.log(`[bulk-import] Q${i + 1} Letter validation:`, {
-        correctLetter: rawCorrect,
-        letterIndex,
-        optionsLength: options.length,
-        isValid: letterIndex >= 0 && letterIndex < options.length
-      });
-
-      if (letterIndex >= 0 && letterIndex < options.length) {
-        // Store the LETTER, not the text
-        correct = rawCorrect;
-        console.log(`[bulk-import] Q${i + 1} ✓ Storing answer as letter: "${correct}"`);
-      } else {
-        console.error(`[bulk-import] Q${i + 1} ERROR: Letter ${rawCorrect} out of range for ${options.length} options! Defaulting to A.`);
-        correct = 'A';
-      }
-    } else {
-      // Text format - convert to letter by finding which option matches
-      const matchIndex = options.findIndex(opt => opt === rawCorrect);
-      if (matchIndex >= 0) {
-        correct = String.fromCharCode(65 + matchIndex);
-        console.log(`[bulk-import] Q${i + 1} Converted text to letter: "${rawCorrect.substring(0, 30)}..." → ${correct}`);
-      } else {
-        console.error(`[bulk-import] Q${i + 1} ERROR: Answer text doesn't match any option! Defaulting to A.`);
-        correct = 'A';
-      }
-    }
-
-    // Use provided explanation or empty string
-    const explanation = raw.explanation || raw.rationale || '';
-
-    // Use provided why_others_wrong or empty string
-    const why_others_wrong = raw.why_others_wrong || raw.whyOthersWrong || raw.why_wrong || '';
 
     // Generate question_id if not provided
     const questionId = raw.question_id || raw.id || nextQuestionId(subject);
-
-    // Game modes - use provided or defaults
-    const gameModes = Array.isArray(raw.game_modes) && raw.game_modes.length > 0
-      ? raw.game_modes
-      : ['battle_royale', 'speed_race', 'trivia_pursuit'];
 
     // Look up topic_id from topic name if provided, otherwise use passed topic_id from context
     // Topic is optional - admin selects folder/topic in UI before importing
@@ -4026,7 +3972,7 @@ app.post('/admin/questions/bulk', adminAuth, async (req, res) => {
     // Build record for Supabase
     const record = {
       question_id: questionId,
-      question: raw.question.trim(),
+      question: n.question,
       choices: options,
       correct: correct,
       explanation: explanation,
@@ -4034,9 +3980,9 @@ app.post('/admin/questions/bulk', adminAuth, async (req, res) => {
       category: subject,
       difficulty: difficulty,
       game_modes: gameModes,
-      image_url: raw.image_url || null,
-      tower_floor: (raw.tower_floor != null && !isNaN(parseInt(raw.tower_floor))) ? parseInt(raw.tower_floor) : null,
-      buzz_type: (raw.buzz_type && gameModes.includes('buzz_fun')) ? raw.buzz_type : null,
+      image_url: n.image_url,
+      tower_floor: n.tower_floor,
+      buzz_type: n.buzz_type,
       topic_id: resolvedTopicId,
     };
 
