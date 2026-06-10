@@ -18,11 +18,11 @@ function saveHi(subject, score) {
 export default function SoloGame({ subject, username, difficulty, onBack, onTryAgain, onChangeSubject, topicId }) {
   const { settings } = useGameSettings();
 
-  // HARDCODED: Hard mode uses 30s timer and 20s explanation, easy mode uses defaults
+  // Hard mode uses admin-configured timer and explanation time, easy mode uses defaults
   const isHardMode = difficulty === 'hard';
-  const defaultTimer = isHardMode ? 30 : (settings.timerDefault || 20);
+  const defaultTimer = isHardMode ? (settings.hardModeTimer || 30) : (settings.timerDefault || 20);
   const defaultLives = settings.battleRoyaleLives || 3;
-  const explanationTime = isHardMode ? 20 : (settings.explanationTime || 5);
+  const explanationTime = isHardMode ? (settings.hardModeExplanationTime || 20) : (settings.explanationTime || 5);
 
   const [questions, setQuestions] = useState([]);
   const [qIdx, setQIdx] = useState(0);
