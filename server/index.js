@@ -6524,6 +6524,33 @@ app.post('/api/rewards/claim/:userId', async (req, res) => {
   }
 });
 
+// TEMPORARY debug endpoint for image size audit — remove after measurement
+app.get('/api/debug/image-sizes', async (req, res) => {
+  try {
+    if (!supabase) return res.status(503).json({ error: 'supabase not configured' });
+    const { data: buckets, error: bErr } = await supabase.storage.listBuckets();
+    if (bErr) throw bErr;
+    const result = {};
+    for (const bucket of buckets) {
+      const { data, error } = await supabase.storage.from(bucket.name).list('', { limit: 200, sortBy: { column: 'created_at', order: 'desc' } });
+      if (error) { result[bucket.name] = { error: error.message }; continue; }
+      const files = (data || [])
+        .filter(f => f.id) // skip folder placeholders
+        .map(f => ({
+          name: f.name,
+          sizeKB: f.metadata?.size ? Math.round(f.metadata.size / 1024) : 'unknown',
+          sizeMB: f.metadata?.size ? (f.metadata.size / 1048576).toFixed(2) : 'unknown',
+          type: f.metadata?.mimetype,
+        }))
+        .sort((a, b) => (b.sizeKB || 0) - (a.sizeKB || 0));
+      result[bucket.name] = { totalFiles: files.length, files };
+    }
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.get('/health', (req, res) => res.json({
   status: 'ok',
   supabase: !!supabase,
