@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { supabase } from '../supabaseClient';
 
 const SERVER_URL = 'https://usmle-battle-royale-production.up.railway.app';
 
@@ -34,6 +33,7 @@ export default function ClanSettingsModal({ clan, user, onClose, onUpdated }) {
   };
 
   const uploadImage = async (file, fileName) => {
+    const { supabase } = await import('../supabaseClient');
     const { error } = await supabase.storage
       .from('images')
       .upload(fileName, file, { upsert: true });
