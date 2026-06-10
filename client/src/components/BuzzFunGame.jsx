@@ -140,6 +140,11 @@ export default function BuzzFunGame({
           {buzzType.label}
         </div>
 
+        {question?.image_url && (
+          <div className="game-question-image">
+            <img src={question.image_url} alt="Question" style={{maxWidth:'100%', maxHeight:'300px', borderRadius:'8px', margin:'12px auto', display:'block'}} onError={e => { e.target.style.display = 'none'; }} />
+          </div>
+        )}
         <div className="bf-term">{question.question}</div>
 
         {/* Calculator button - appears below question */}
