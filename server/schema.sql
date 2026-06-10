@@ -128,6 +128,25 @@ ALTER TABLE topics ENABLE ROW LEVEL SECURITY;
 CREATE POLICY IF NOT EXISTS "server_full_access_topics"
   ON topics FOR ALL USING (true) WITH CHECK (true);
 
+-- ── topic_groups ──────────────────────────────────────────────────────────────
+-- One-level grouping of topics. topics.group_id NULL = ungrouped (legacy behavior).
+
+CREATE TABLE IF NOT EXISTS topic_groups (
+  id         UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  name       TEXT        NOT NULL,
+  category   TEXT        NOT NULL,
+  difficulty TEXT        NOT NULL DEFAULT 'easy',
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Add group_id to existing topics tables (safe to run on existing databases)
+ALTER TABLE topics ADD COLUMN IF NOT EXISTS group_id UUID REFERENCES topic_groups(id) ON DELETE SET NULL;
+
+ALTER TABLE topic_groups ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY IF NOT EXISTS "server_full_access_topic_groups"
+  ON topic_groups FOR ALL USING (true) WITH CHECK (true);
+
 -- ── Indexes ────────────────────────────────────────────────────────────────────
 
 CREATE INDEX IF NOT EXISTS idx_users_google_id     ON users(google_id);

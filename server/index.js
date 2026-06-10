@@ -5046,7 +5046,7 @@ app.post('/api/admin/import-anki', ankiUpload.single('apkg'), async (req, res) =
 // ── Topics API ─────────────────────────────────────────────────────────────────
 
 app.get('/admin/topics', adminAuth, async (req, res) => {
-  if (!supabase) return res.json({ topics: [] });
+  if (!supabase) return res.json({ topics: [], groups: [] });
   const { category, difficulty } = req.query;
   try {
     // Fetch all topics for the category — never filter by difficulty in DB
@@ -5066,7 +5066,20 @@ app.get('/admin/topics', adminAuth, async (req, res) => {
       topics = topics.filter(t => t.difficulty === difficulty);
     }
     console.log(`[topics] returning ${topics.length} topic(s) after difficulty filter (difficulty=${difficulty || 'none'})`);
-    res.json({ topics });
+    // Groups are additive — fall back to [] if topic_groups doesn't exist yet
+    let groups = [];
+    try {
+      let gq = supabase.from('topic_groups').select('*').order('name');
+      if (category) gq = gq.eq('category', category);
+      const { data: gData, error: gErr } = await gq;
+      if (gErr) throw gErr;
+      groups = (gData || []).map(g => ({ ...g, difficulty: g.difficulty || 'easy' }));
+      if (difficulty) groups = groups.filter(g => g.difficulty === difficulty);
+    } catch (e) {
+      console.warn('[topics] topic_groups unavailable, returning groups: [] —', e.message);
+      groups = [];
+    }
+    res.json({ topics, groups });
   } catch (err) {
     console.error('[topics] error:', err.message);
     res.status(500).json({ error: err.message });
@@ -5091,11 +5104,18 @@ app.post('/admin/topics', adminAuth, async (req, res) => {
 app.put('/admin/topics/:id', adminAuth, async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
   const { name } = req.body;
-  if (!name?.trim()) return res.status(400).json({ error: 'name required' });
+  const updates = {};
+  if (name !== undefined) {
+    if (!name?.trim()) return res.status(400).json({ error: 'name required' });
+    updates.name = name.trim();
+  }
+  // 'in' check so an explicit group_id: null (ungroup) is distinguishable from "not provided"
+  if ('group_id' in req.body) updates.group_id = req.body.group_id;
+  if (Object.keys(updates).length === 0) return res.status(400).json({ error: 'name or group_id required' });
   try {
     const { data, error } = await supabase
       .from('topics')
-      .update({ name: name.trim() })
+      .update(updates)
       .eq('id', req.params.id)
       .select()
       .single();
@@ -5112,6 +5132,64 @@ app.delete('/admin/topics/:id', adminAuth, async (req, res) => {
   if (count > 0) return res.status(400).json({ error: `Cannot delete — ${count} question(s) still assigned. Move or unassign them first.` });
   try {
     const { error } = await supabase.from('topics').delete().eq('id', id);
+    if (error) throw error;
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── Topic groups (one-level grouping of topics) ───────────────────────────────
+
+app.get('/admin/topic-groups', adminAuth, async (req, res) => {
+  if (!supabase) return res.json({ groups: [] });
+  const { category, difficulty } = req.query;
+  try {
+    let query = supabase.from('topic_groups').select('*').order('name');
+    if (category) query = query.eq('category', category);
+    const { data, error } = await query;
+    if (error) throw error;
+    // Filter difficulty in JS so NULL/missing values default to 'easy' (same as topics)
+    let groups = (data || []).map(g => ({ ...g, difficulty: g.difficulty || 'easy' }));
+    if (difficulty) groups = groups.filter(g => g.difficulty === difficulty);
+    res.json({ groups });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/admin/topic-groups', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  const { name, category, difficulty } = req.body;
+  if (!name?.trim() || !category) return res.status(400).json({ error: 'name and category required' });
+  try {
+    const { data, error } = await supabase
+      .from('topic_groups')
+      .insert({ name: name.trim(), category, difficulty: difficulty || 'easy' })
+      .select()
+      .single();
+    if (error) throw error;
+    res.json(data);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.put('/admin/topic-groups/:id', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  const { name } = req.body;
+  if (!name?.trim()) return res.status(400).json({ error: 'name required' });
+  try {
+    const { data, error } = await supabase
+      .from('topic_groups')
+      .update({ name: name.trim() })
+      .eq('id', req.params.id)
+      .select()
+      .single();
+    if (error) throw error;
+    res.json(data);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.delete('/admin/topic-groups/:id', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  try {
+    // topics.group_id has ON DELETE SET NULL, so member topics become ungrouped
+    const { error } = await supabase.from('topic_groups').delete().eq('id', req.params.id);
     if (error) throw error;
     res.json({ ok: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -5434,7 +5512,7 @@ app.put('/admin/subjects/:id', adminAuth, async (req, res) => {
 // ── Topics API (Public) ──────────────────────────────────────────────────────
 
 app.get('/api/topics', async (req, res) => {
-  if (!supabase) return res.json({ topics: [] });
+  if (!supabase) return res.json({ topics: [], groups: [] });
   const { category } = req.query;
   try {
     let query = supabase.from('topics').select('*').order('name');
@@ -5449,7 +5527,20 @@ app.get('/api/topics', async (req, res) => {
       question_count: questionBank.filter(q => q.topic_id === t.id).length,
     }));
 
-    res.json({ topics });
+    // Groups are additive — fall back to [] if topic_groups doesn't exist yet
+    let groups = [];
+    try {
+      let gq = supabase.from('topic_groups').select('*').order('name');
+      if (category) gq = gq.eq('category', category);
+      const { data: gData, error: gErr } = await gq;
+      if (gErr) throw gErr;
+      groups = (gData || []).map(g => ({ ...g, difficulty: g.difficulty || 'easy' }));
+    } catch (e) {
+      console.warn('[/api/topics] topic_groups unavailable, returning groups: [] —', e.message);
+      groups = [];
+    }
+
+    res.json({ topics, groups });
   } catch (err) {
     console.error('[/api/topics] error:', err.message);
     res.status(500).json({ error: err.message, topics: [] });
