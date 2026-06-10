@@ -11,7 +11,7 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
-    cssCodeSplit: false,
+    cssCodeSplit: true,
     rollupOptions: {
       output: {
         manualChunks: {
@@ -19,13 +19,6 @@ export default defineConfig({
           'router': ['react-router-dom'],
           'socket': ['socket.io-client'],
         }
-      },
-      onwarn(warning, warn) {
-        // Suppress CSS unbalanced brace warnings
-        if (warning.code === 'UNRESOLVED_IMPORT') return;
-        if (warning.message && warning.message.includes('unbalanced')) return;
-        if (warning.message && warning.message.includes('css-syntax-error')) return;
-        warn(warning);
       }
     },
     chunkSizeWarningLimit: 600,
