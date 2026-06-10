@@ -693,6 +693,53 @@ function TopicModal({ topic, onSave, onClose, error }) {
   );
 }
 
+// ── Group Modal ────────────────────────────────────────────────────────────────
+
+function GroupModal({ group, onSave, onClose, error }) {
+  const isEdit = !!group;
+  const [name,   setName]   = useState(group?.name || '');
+  const [saving, setSaving] = useState(false);
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    if (!name.trim()) return;
+    setSaving(true);
+    await onSave(name.trim());
+    setSaving(false);
+  }
+
+  return (
+    <div className="ap-backdrop" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="ap-confirm ap-topic-modal">
+        <div className="ap-modal-head">
+          <h2>{isEdit ? '✏️ Rename Group' : '🗂️ Create New Group'}</h2>
+          <button className="ap-modal-x" onClick={onClose}>✕</button>
+        </div>
+        <form onSubmit={handleSubmit} className="ap-qform">
+          <div className="ap-field">
+            <label>Group Name</label>
+            <input
+              type="text"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              placeholder="e.g. Cardiology, Renal & Endocrine…"
+              maxLength={100}
+              autoFocus
+            />
+          </div>
+          {error && <div className="ap-error">{error}</div>}
+          <div className="ap-modal-foot">
+            <button type="button" className="ap-btn-sec" onClick={onClose}>Cancel</button>
+            <button type="submit" className="ap-btn-pri" disabled={saving || !name.trim()}>
+              {saving ? 'Saving…' : isEdit ? 'Rename' : 'Create Group'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 // ── Bulk Import Modal ──────────────────────────────────────────────────────────
 
 function BulkImportModal({ activeFolder, selectedTopic, selectedDifficulty, onImport, onClose }) {
@@ -894,6 +941,13 @@ function QuestionsPanel({ subjects = [] }) {
   const [delTopic,      setDelTopic]      = useState(null);
   const [topicErr,      setTopicErr]      = useState('');
 
+  // ─── Topic groups ────────────────────────────────────────────────────────────
+  const [groups,      setGroups]      = useState([]);
+  const [groupModal,  setGroupModal]  = useState(null);  // null | 'create' | group obj
+  const [delGroup,    setDelGroup]    = useState(null);
+  const [dragTopicId, setDragTopicId] = useState(null);
+  const [dropTarget,  setDropTarget]  = useState(null);  // group id | 'ungrouped' | null
+
   // ─── Question UI ─────────────────────────────────────────────────────────────
   const [modal,          setModal]          = useState(null);
   const [deleteId,       setDeleteId]       = useState(null);
@@ -933,11 +987,13 @@ function QuestionsPanel({ subjects = [] }) {
       setSelectedDifficulty(null);
       setSelectedTopic(null);
       setTopics([]);
+      setGroups([]);
     } else {
       setView('questions');
       setSelectedDifficulty(null);
       setSelectedTopic(null);
       setTopics([]);
+      setGroups([]);
     }
     setSearch('');
     setGameModeFilter('all');
@@ -971,6 +1027,7 @@ function QuestionsPanel({ subjects = [] }) {
       const res  = await apiCall(url);
       const data = await res.json();
       setTopics(data.topics || []);
+      setGroups(data.groups || []);
     } finally { setTopicsLoading(false); }
   }
 
@@ -1006,6 +1063,103 @@ function QuestionsPanel({ subjects = [] }) {
       setDelTopic(null);
     } catch (err) { setTopicErr(err.message); setDelTopic(null); }
   }
+
+  // ─── Topic group CRUD ─────────────────────────────────────────────────────────
+  async function handleSaveGroup(name) {
+    setTopicErr('');
+    const isEdit = groupModal && groupModal !== 'create';
+    try {
+      const res  = isEdit
+        ? await apiCall(`/admin/topic-groups/${groupModal.id}`, { method: 'PUT', body: JSON.stringify({ name }) })
+        : await apiCall('/admin/topic-groups', { method: 'POST', body: JSON.stringify({ name, category: activeFolder, difficulty: selectedDifficulty || 'easy' }) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to save group');
+      if (isEdit) {
+        setGroups(gs => gs.map(g => g.id === groupModal.id ? { ...g, ...data } : g));
+      } else {
+        setGroups(gs => [...gs, data].sort((a, b) => a.name.localeCompare(b.name)));
+      }
+      setGroupModal(null);
+    } catch (err) { setTopicErr(err.message); }
+  }
+
+  async function handleDeleteGroup() {
+    setTopicErr('');
+    try {
+      const res  = await apiCall(`/admin/topic-groups/${delGroup.id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to delete group');
+      // Server releases members via ON DELETE SET NULL — mirror that locally
+      setTopics(ts => ts.map(t => t.group_id === delGroup.id ? { ...t, group_id: null } : t));
+      setGroups(gs => gs.filter(g => g.id !== delGroup.id));
+      setDelGroup(null);
+    } catch (err) { setTopicErr(err.message); setDelGroup(null); }
+  }
+
+  // ─── Drag-and-drop: assign topic to group (groupId null = ungroup) ───────────
+  async function handleMoveTopic(topicId, groupId) {
+    const topic = topics.find(t => t.id === topicId);
+    if (!topic || (topic.group_id || null) === (groupId || null)) return;
+    setTopicErr('');
+    const prevGroupId = topic.group_id || null;
+    setTopics(ts => ts.map(t => t.id === topicId ? { ...t, group_id: groupId } : t));
+    try {
+      const res  = await apiCall(`/admin/topics/${topicId}`, { method: 'PUT', body: JSON.stringify({ group_id: groupId }) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to move topic');
+    } catch (err) {
+      setTopics(ts => ts.map(t => t.id === topicId ? { ...t, group_id: prevGroupId } : t));
+      setTopicErr(err.message);
+    }
+  }
+
+  function dropZoneProps(targetId) {
+    const groupId = targetId === 'ungrouped' ? null : targetId;
+    return {
+      onDragOver:  e => { e.preventDefault(); setDropTarget(targetId); },
+      onDragLeave: e => { if (!e.currentTarget.contains(e.relatedTarget)) setDropTarget(cur => cur === targetId ? null : cur); },
+      onDrop:      e => {
+        e.preventDefault();
+        const topicId = e.dataTransfer.getData('text/plain');
+        if (topicId) handleMoveTopic(topicId, groupId);
+        setDropTarget(null);
+        setDragTopicId(null);
+      },
+    };
+  }
+
+  // Identical markup/handlers to the original topic card — only drag attributes added
+  const renderTopicCard = (t) => (
+    <div
+      key={t.id}
+      className={`ap-topic-card ap-tc-${activeFolder} ${dragTopicId === t.id ? 'ap-card-dragging' : ''}`}
+      draggable
+      onDragStart={e => { e.dataTransfer.setData('text/plain', t.id); e.dataTransfer.effectAllowed = 'move'; setDragTopicId(t.id); }}
+      onDragEnd={() => { setDragTopicId(null); setDropTarget(null); }}
+    >
+      <button
+        className="ap-topic-card-body"
+        onClick={() => { setSelectedTopic(t); setView('questions'); setSearch(''); setGameModeFilter('all'); }}
+      >
+        <span className="ap-topic-card-icon">📁</span>
+        <span className="ap-topic-card-name">{t.name}</span>
+        <span className="ap-topic-card-count">{t.question_count} question{t.question_count !== 1 ? 's' : ''}</span>
+      </button>
+      <div className="ap-topic-card-actions">
+        <button
+          className="ap-topic-edit-btn"
+          onClick={() => { setTopicErr(''); setTopicModal(t); }}
+          title="Rename"
+        >✏️</button>
+        <button
+          className="ap-topic-del-btn"
+          onClick={() => t.question_count === 0 && setDelTopic(t)}
+          title={t.question_count > 0 ? `${t.question_count} question(s) assigned — move them first` : 'Delete'}
+          disabled={t.question_count > 0}
+        >🗑️</button>
+      </div>
+    </div>
+  );
 
   // ─── Question CRUD ────────────────────────────────────────────────────────────
   async function handleDelete() {
@@ -1494,7 +1648,7 @@ function QuestionsPanel({ subjects = [] }) {
                 <span className="ap-bc-sep">›</span>
                 <span
                   className="ap-bc-item ap-bc-link"
-                  onClick={() => { setView('difficulty'); setSelectedDifficulty(null); setSelectedTopic(null); setTopics([]); setTopicErr(''); setSearch(''); setGameModeFilter('all'); }}
+                  onClick={() => { setView('difficulty'); setSelectedDifficulty(null); setSelectedTopic(null); setTopics([]); setGroups([]); setTopicErr(''); setSearch(''); setGameModeFilter('all'); }}
                 >{curFolder?.icon} {curFolder?.label}</span>
                 <span className="ap-bc-sep">›</span>
                 <span className="ap-bc-item ap-bc-cur">
@@ -1504,7 +1658,7 @@ function QuestionsPanel({ subjects = [] }) {
 
               <div className="ap-toolbar">
                 <div className="ap-toolbar-left">
-                  <button className="ap-btn-back" onClick={() => { setView('difficulty'); setSelectedDifficulty(null); setSelectedTopic(null); setTopics([]); setTopicErr(''); setSearch(''); setGameModeFilter('all'); }}>
+                  <button className="ap-btn-back" onClick={() => { setView('difficulty'); setSelectedDifficulty(null); setSelectedTopic(null); setTopics([]); setGroups([]); setTopicErr(''); setSearch(''); setGameModeFilter('all'); }}>
                     ← Back
                   </button>
                   <div className="ap-folder-heading">
@@ -1517,6 +1671,9 @@ function QuestionsPanel({ subjects = [] }) {
                 </div>
                 <div className="ap-toolbar-right">
                   {topicErr && <span className="ap-bulk-msg err">{topicErr}</span>}
+                  <button className="ap-btn-sec" onClick={() => { setTopicErr(''); setGroupModal('create'); }}>
+                    🗂️ New Group
+                  </button>
                   <button className="ap-btn-pri" onClick={() => { setTopicErr(''); setTopicModal('create'); }}>
                     📁 New Topic
                   </button>
@@ -1525,7 +1682,7 @@ function QuestionsPanel({ subjects = [] }) {
 
               {topicsLoading ? (
                 <div className="ap-loading">Loading topics…</div>
-              ) : topics.length === 0 ? (
+              ) : topics.length === 0 && groups.length === 0 ? (
                 <div className="ap-topic-empty">
                   <div className="ap-topic-empty-icon">📁</div>
                   <p>No topics yet for {curFolder?.label} {selectedDifficulty === 'hard' ? 'Hard Mode' : 'Easy Mode'}. Create one to get started.</p>
@@ -1534,33 +1691,56 @@ function QuestionsPanel({ subjects = [] }) {
                   </button>
                 </div>
               ) : (
-                <div className="ap-topic-grid">
-                  {topics.map(t => (
-                    <div key={t.id} className={`ap-topic-card ap-tc-${activeFolder}`}>
-                      <button
-                        className="ap-topic-card-body"
-                        onClick={() => { setSelectedTopic(t); setView('questions'); setSearch(''); setGameModeFilter('all'); }}
+                <>
+                  {groups.map(g => {
+                    const members = topics.filter(t => t.group_id === g.id);
+                    const qCount  = members.reduce((sum, t) => sum + (t.question_count || 0), 0);
+                    return (
+                      <div
+                        key={g.id}
+                        className={`ap-group-section ${dropTarget === g.id ? 'ap-drop-active' : ''}`}
+                        {...dropZoneProps(g.id)}
                       >
-                        <span className="ap-topic-card-icon">📁</span>
-                        <span className="ap-topic-card-name">{t.name}</span>
-                        <span className="ap-topic-card-count">{t.question_count} question{t.question_count !== 1 ? 's' : ''}</span>
-                      </button>
-                      <div className="ap-topic-card-actions">
-                        <button
-                          className="ap-topic-edit-btn"
-                          onClick={() => { setTopicErr(''); setTopicModal(t); }}
-                          title="Rename"
-                        >✏️</button>
-                        <button
-                          className="ap-topic-del-btn"
-                          onClick={() => t.question_count === 0 && setDelTopic(t)}
-                          title={t.question_count > 0 ? `${t.question_count} question(s) assigned — move them first` : 'Delete'}
-                          disabled={t.question_count > 0}
-                        >🗑️</button>
+                        <div className="ap-group-header">
+                          <span className="ap-group-icon">🗂️</span>
+                          <span className="ap-group-name">{g.name}</span>
+                          <span className="ap-group-count">
+                            {members.length} topic{members.length !== 1 ? 's' : ''} · {qCount} question{qCount !== 1 ? 's' : ''}
+                          </span>
+                          <div className="ap-group-actions">
+                            <button
+                              className="ap-topic-edit-btn"
+                              onClick={() => { setTopicErr(''); setGroupModal(g); }}
+                              title="Rename group"
+                            >✏️</button>
+                            <button
+                              className="ap-topic-del-btn"
+                              onClick={() => setDelGroup(g)}
+                              title="Delete group (topics become ungrouped)"
+                            >🗑️</button>
+                          </div>
+                        </div>
+                        {members.length === 0 ? (
+                          <div className="ap-group-empty-hint">Drag topics here</div>
+                        ) : (
+                          <div className="ap-topic-grid">
+                            {members.map(renderTopicCard)}
+                          </div>
+                        )}
                       </div>
+                    );
+                  })}
+
+                  <div
+                    className={`ap-ungrouped-zone ${dropTarget === 'ungrouped' ? 'ap-drop-active' : ''}`}
+                    {...dropZoneProps('ungrouped')}
+                  >
+                    {groups.length > 0 && <div className="ap-ungrouped-label">Ungrouped topics</div>}
+                    <div className="ap-topic-grid">
+                      {topics.filter(t => !t.group_id).map(renderTopicCard)}
                     </div>
-                  ))}
-                </div>
+                  </div>
+                </>
               )}
 
               <div className="ap-unassigned-row">
@@ -1586,7 +1766,7 @@ function QuestionsPanel({ subjects = [] }) {
                   <span className="ap-bc-sep">›</span>
                   <span
                     className="ap-bc-item ap-bc-link"
-                    onClick={() => { setView('difficulty'); setSelectedDifficulty(null); setSelectedTopic(null); setTopics([]); setSearch(''); setGameModeFilter('all'); }}
+                    onClick={() => { setView('difficulty'); setSelectedDifficulty(null); setSelectedTopic(null); setTopics([]); setGroups([]); setSearch(''); setGameModeFilter('all'); }}
                   >{curFolder?.icon} {curFolder?.label}</span>
                   <span className="ap-bc-sep">›</span>
                   <span
@@ -1991,6 +2171,29 @@ function QuestionsPanel({ subjects = [] }) {
             <div className="ap-modal-foot">
               <button className="ap-btn-sec" onClick={() => setDelTopic(null)}>Cancel</button>
               <button className="ap-btn-danger" onClick={handleDeleteTopic}>Delete Topic</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {groupModal && (
+        <GroupModal
+          group={groupModal === 'create' ? null : groupModal}
+          onSave={handleSaveGroup}
+          onClose={() => { setGroupModal(null); setTopicErr(''); }}
+          error={topicErr}
+        />
+      )}
+
+      {delGroup && (
+        <div className="ap-backdrop" onClick={() => setDelGroup(null)}>
+          <div className="ap-confirm" onClick={e => e.stopPropagation()}>
+            <div className="ap-confirm-icon">🗂️</div>
+            <h3>Delete "{delGroup.name}"?</h3>
+            <p>Topics inside will become ungrouped (not deleted).</p>
+            <div className="ap-modal-foot">
+              <button className="ap-btn-sec" onClick={() => setDelGroup(null)}>Cancel</button>
+              <button className="ap-btn-danger" onClick={handleDeleteGroup}>Delete Group</button>
             </div>
           </div>
         </div>

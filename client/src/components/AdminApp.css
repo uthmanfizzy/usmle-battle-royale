@@ -2642,6 +2642,67 @@
 }
 .ap-unassigned-arrow { color: var(--text-dim); font-size: 16px; }
 
+/* Topic groups */
+.ap-group-section {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 14px 0;
+  margin-bottom: 16px;
+  background: var(--surface);
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+}
+.ap-group-section .ap-topic-grid { margin-bottom: 12px; }
+
+.ap-group-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 10px;
+}
+.ap-group-icon  { font-size: 16px; }
+.ap-group-name  { font-size: 14px; font-weight: 700; }
+.ap-group-count {
+  background: var(--card-hi);
+  color: var(--text-dim);
+  border-radius: 20px;
+  padding: 1px 8px;
+  font-size: 12px;
+}
+.ap-group-actions { margin-left: auto; display: flex; gap: 4px; }
+
+.ap-group-empty-hint {
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  padding: 18px;
+  margin-bottom: 12px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+/* Ungrouped zone — visually neutral unless groups exist or a drag is over it */
+.ap-ungrouped-zone {
+  border-radius: 12px;
+  transition: background 0.15s, box-shadow 0.15s;
+}
+.ap-ungrouped-label {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-dim);
+  margin-bottom: 8px;
+}
+
+/* Drag states — modeled on .bim-dropzone.dragging */
+.ap-drop-active {
+  border-color: var(--gold);
+  background: rgba(241,196,15,0.08);
+  box-shadow: 0 0 0 3px rgba(241,196,15,0.2);
+}
+.ap-card-dragging { opacity: 0.4; }
+.ap-topic-card[draggable="true"] { cursor: grab; }
+
 /* Bulk assign bar */
 .ap-bulk-assign-bar {
   display: flex;
