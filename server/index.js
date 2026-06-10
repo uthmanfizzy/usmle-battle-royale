@@ -3332,49 +3332,6 @@ const checkWeeklyReset = () => {
 };
 setInterval(checkWeeklyReset, 60 * 60 * 1000); // Check every hour
 
-// ── Debug Endpoints ────────────────────────────────────────────────────────────
-
-app.get('/api/debug/question-audit', async (req, res) => {
-  if (!supabase) return res.status(503).json({ error: 'Database not configured' });
-  try {
-    const { data } = await supabase
-      .from('questions')
-      .select('id, question_id, category, difficulty, topic_id')
-      .order('category');
-
-    const audit = {
-      total: data?.length || 0,
-      byCategory: {},
-      nullDifficulty: data?.filter(q => !q.difficulty).length || 0,
-      byDifficulty: {
-        easy: data?.filter(q => q.difficulty === 'easy').length || 0,
-        hard: data?.filter(q => q.difficulty === 'hard').length || 0,
-        null: data?.filter(q => !q.difficulty).length || 0
-      }
-    };
-
-    data?.forEach(q => {
-      const cat = q.category || 'unknown';
-      if (!audit.byCategory[cat]) {
-        audit.byCategory[cat] = { easy: 0, hard: 0, null: 0, total: 0 };
-      }
-      audit.byCategory[cat].total++;
-      if (q.difficulty === 'easy') {
-        audit.byCategory[cat].easy++;
-      } else if (q.difficulty === 'hard') {
-        audit.byCategory[cat].hard++;
-      } else {
-        audit.byCategory[cat].null++;
-      }
-    });
-
-    res.json(audit);
-  } catch(e) {
-    console.error('[debug/question-audit] Error:', e.message);
-    res.status(500).json({ error: e.message });
-  }
-});
-
 // ── Leaderboard API ────────────────────────────────────────────────────────────
 
 app.get('/api/username/check', async (req, res) => {
@@ -6416,30 +6373,6 @@ app.post('/api/quest-progress/update', requireAuth, async (req, res) => {
   }
 });
 
-app.get('/api/debug/questions', async (req, res) => {
-  if (!supabase) return res.json({ error: 'Supabase not configured', total: 0, sample: [] });
-  try {
-    const { data, count } = await supabase
-      .from('questions')
-      .select('id, question_id, question, category, topic_id, difficulty, game_modes', { count: 'exact' })
-      .order('created_at', { ascending: false })
-      .limit(10);
-    res.json({ total: count, sample: data });
-  } catch (err) {
-    res.json({ error: err.message, total: 0, sample: [] });
-  }
-});
-
-app.get('/api/debug/topics', async (req, res) => {
-  if (!supabase) return res.json({ error: 'Supabase not configured', topics: [] });
-  try {
-    const { data } = await supabase.from('topics').select('*').order('name');
-    res.json({ topics: data || [] });
-  } catch (err) {
-    res.json({ error: err.message, topics: [] });
-  }
-});
-
 // ── Reward Chest Endpoints ─────────────────────────────────────────────────
 
 app.get('/api/rewards/chest/:userId', async (req, res) => {
@@ -6521,33 +6454,6 @@ app.post('/api/rewards/claim/:userId', async (req, res) => {
     res.json({ success: true, coins: coinsReward, gems: gemsReward });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-// TEMPORARY debug endpoint for image size audit — remove after measurement
-app.get('/api/debug/image-sizes', async (req, res) => {
-  try {
-    if (!supabase) return res.status(503).json({ error: 'supabase not configured' });
-    const { data: buckets, error: bErr } = await supabase.storage.listBuckets();
-    if (bErr) throw bErr;
-    const result = {};
-    for (const bucket of buckets) {
-      const { data, error } = await supabase.storage.from(bucket.name).list('', { limit: 200, sortBy: { column: 'created_at', order: 'desc' } });
-      if (error) { result[bucket.name] = { error: error.message }; continue; }
-      const files = (data || [])
-        .filter(f => f.id) // skip folder placeholders
-        .map(f => ({
-          name: f.name,
-          sizeKB: f.metadata?.size ? Math.round(f.metadata.size / 1024) : 'unknown',
-          sizeMB: f.metadata?.size ? (f.metadata.size / 1048576).toFixed(2) : 'unknown',
-          type: f.metadata?.mimetype,
-        }))
-        .sort((a, b) => (b.sizeKB || 0) - (a.sizeKB || 0));
-      result[bucket.name] = { totalFiles: files.length, files };
-    }
-    res.json(result);
-  } catch (e) {
-    res.status(500).json({ error: e.message });
   }
 });
 
