@@ -313,12 +313,12 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
         )}
 
         <div className="question-card">
+          <p className="question-text">{q.question}</p>
           {q?.image_url && (
             <div className="game-question-image">
               <img src={q.image_url} alt="Question" style={{maxWidth:'100%', maxHeight:'300px', borderRadius:'8px', margin:'12px auto', display:'block'}} onError={e => { e.target.style.display = 'none'; }} />
             </div>
           )}
-          <p className="question-text">{q.question}</p>
 
           {/* Calculator button - appears below question */}
           <button

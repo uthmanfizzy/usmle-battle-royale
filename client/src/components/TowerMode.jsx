@@ -788,10 +788,10 @@ export default function TowerMode({ username, onBack }) {
         <div className="tw-q-wrap">
           {q ? (
             <>
+              <div className="tw-q-text">{q.question}</div>
               {q.image_url && (
                 <img src={q.image_url} alt="" className="tw-q-img" />
               )}
-              <div className="tw-q-text">{q.question}</div>
               <div className="tw-options">
                 {q.options.map((opt, i) => {
                   const label   = LABELS[i];

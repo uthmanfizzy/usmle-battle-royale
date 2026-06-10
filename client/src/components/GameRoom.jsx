@@ -167,6 +167,7 @@ export default function GameRoom({
           )}
 
           <div className="question-card">
+            <p className="question-text">{question.question}</p>
             {question.image_url && (
               <div className="question-image-wrap">
                 <img
@@ -177,7 +178,6 @@ export default function GameRoom({
                 />
               </div>
             )}
-            <p className="question-text">{question.question}</p>
 
             {/* Calculator button - appears below question */}
             <button
