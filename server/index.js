@@ -827,7 +827,6 @@ function nextQuestion(lobby) {
     ...toPublicQuestion(q),
     round: lobby.round, timeLimit, alivePlayers: alive.length,
     suddenDeath: lobby.suddenDeath || false,
-    image_url: q.image_url || null,
   });
 
   lobby.timerEnd = Date.now() + timeLimit * 1000;

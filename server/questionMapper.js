@@ -66,9 +66,9 @@ function toDb(question) {
 /**
  * Internal question -> the safe pre-answer shape sent to clients.
  *
- * This is the exact common core of all five question-emit sites:
- * `{ id, question, options }`. Mode-specific extras (round, timeLimit,
- * image_url, buzz_type, suddenDeath, trivia context, ...) differ per site and
+ * This is the common core of all five question-emit sites:
+ * `{ id, question, options, image_url }`. Mode-specific extras (round,
+ * timeLimit, buzz_type, suddenDeath, trivia context, ...) differ per site and
  * stay at the call site, spread alongside this:
  *
  *   io.to(lobby.id).emit('new_question', {
@@ -80,7 +80,7 @@ function toDb(question) {
  * pre-answer through this function.
  */
 function toPublicQuestion(q) {
-  return { id: q.id, question: q.question, options: q.options };
+  return { id: q.id, question: q.question, options: q.options, image_url: q.image_url || null };
 }
 
 /**
