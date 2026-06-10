@@ -8,6 +8,7 @@ import DifficultySelect from './components/DifficultySelect';
 import LobbySelect from './components/LobbySelect';
 import JoinLobbyInput from './components/JoinLobbyInput';
 import SubjectSelect from './components/SubjectSelect';
+import RouteErrorBoundary from './components/RouteErrorBoundary';
 
 // Lazy load heavy components for better initial load performance
 const Lobby = lazy(() => import('./components/Lobby'));
@@ -719,7 +720,7 @@ export default function App() {
       )}
 
       {phase === 'landing' && (
-        <LandingPage onSignIn={handleGoogleLogin} />
+        <RouteErrorBoundary name="LandingPage"><LandingPage onSignIn={handleGoogleLogin} /></RouteErrorBoundary>
       )}
 
       {phase === 'loading' && (
@@ -752,6 +753,7 @@ export default function App() {
       )}
 
       {phase === 'play_page' && (
+        <RouteErrorBoundary name="PlayPage">
         <PlayPage
           user={user}
           username={username}
@@ -777,6 +779,7 @@ export default function App() {
             setError('');
           }}
         />
+        </RouteErrorBoundary>
       )}
 
       {phase === 'lobby_select' && (
@@ -816,6 +819,7 @@ export default function App() {
       )}
 
       {phase === 'lobby' && (
+        <RouteErrorBoundary name="Lobby">
         <Lobby
           lobbyId={lobbyId}
           subject={subject}
@@ -829,9 +833,11 @@ export default function App() {
           onToggleQuickJoin={handleToggleQuickJoin}
           error={error}
         />
+        </RouteErrorBoundary>
       )}
 
       {phase === 'game' && (gameMode === 'battle_royale' || gameMode === 'scan_master') && (
+        <RouteErrorBoundary name="GameRoom">
         <GameRoom
           question={question}
           round={round}
@@ -863,9 +869,11 @@ export default function App() {
           socketId={socket.id}
           gameMode={gameMode}
         />
+        </RouteErrorBoundary>
       )}
 
       {phase === 'game' && gameMode === 'trivia_pursuit' && (
+        <RouteErrorBoundary name="TriviaGame">
         <TriviaGame
           triviaState={triviaState}
           triviaResult={triviaResult}
@@ -879,9 +887,11 @@ export default function App() {
           myAnswer={myAnswer}
           streaks={streaks}
         />
+        </RouteErrorBoundary>
       )}
 
       {phase === 'game' && gameMode === 'speed_race' && (
+        <RouteErrorBoundary name="SpeedRaceGame">
         <SpeedRaceGame
           question={question}
           round={round}
@@ -904,9 +914,11 @@ export default function App() {
           showPowerupIntro={showPowerupIntro}
           socketId={socket.id}
         />
+        </RouteErrorBoundary>
       )}
 
       {phase === 'game' && gameMode === 'buzz_fun' && (
+        <RouteErrorBoundary name="BuzzFunGame">
         <BuzzFunGame
           question={question}
           round={round}
@@ -924,9 +936,11 @@ export default function App() {
           username={username}
           onTick={audio.playTick}
         />
+        </RouteErrorBoundary>
       )}
 
       {phase === 'game_over' && (
+        <RouteErrorBoundary name="Leaderboard">
         <Leaderboard
           gameResult={gameResult}
           username={username}
@@ -935,6 +949,7 @@ export default function App() {
           isGuest={!user}
           onSignIn={handleGoogleLogin}
         />
+        </RouteErrorBoundary>
       )}
 
       {phase === 'solo_subject' && (
@@ -954,6 +969,7 @@ export default function App() {
       )}
 
       {phase === 'solo_game' && (
+        <RouteErrorBoundary name="SoloGame">
         <SoloGame
           key={soloKey}
           subject={soloSubject}
@@ -964,21 +980,26 @@ export default function App() {
           onChangeSubject={() => setPhase('solo_subject')}
           topicId={trainingTopic?.topicId}
         />
+        </RouteErrorBoundary>
       )}
 
       {phase === 'tower' && (
+        <RouteErrorBoundary name="TowerMode">
         <TowerMode
           username={username}
           onBack={() => setPhase('play_page')}
         />
+        </RouteErrorBoundary>
       )}
 
       {phase === 'training_grounds' && (
+        <RouteErrorBoundary name="TrainingGrounds">
         <TrainingGrounds
           user={user}
           onBack={() => setPhase('play_page')}
           onStartPractice={handleStartTrainingPractice}
         />
+        </RouteErrorBoundary>
       )}
       </div>
     </Suspense>

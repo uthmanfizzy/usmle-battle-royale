@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import App from './App';
 import { ThemeProvider } from './theme';
 import { GameSettingsProvider } from './contexts/GameSettingsContext';
+import RouteErrorBoundary from './components/RouteErrorBoundary';
 import './App.css';
 import './themes.css';
 
@@ -101,7 +102,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
                 <Route path="/admin/*"        element={<AdminApp />} />
                 <Route path="/auth/callback"  element={<AuthCallback />} />
                 <Route path="/dashboard"      element={<DashboardPage />} />
-                <Route path="/stats"          element={<StatsPage />} />
+                <Route path="/stats"          element={<RouteErrorBoundary name="StatsPage"><StatsPage /></RouteErrorBoundary>} />
                 <Route path="/username-setup" element={<UsernameSetupPage />} />
                 <Route path="/*"              element={<App />} />
               </Routes>
