@@ -381,6 +381,236 @@
   color: rgba(255, 255, 255, 0.4) !important;
 }
 
+/* Breadcrumb crumbs */
+.tg-crumb-sep { color: rgba(200, 163, 44, 0.4); }
+.tg-crumb--link {
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: rgba(200, 163, 44, 0.3);
+  transition: color 0.15s;
+}
+.tg-crumb--link:hover { color: #c8a32c; }
+
+/* Action screen: Start Questions / Watch Videos */
+.tg-action-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 24px;
+  max-width: 760px;
+  margin: 50px auto 0;
+}
+
+.tg-action-card {
+  background: rgba(20, 30, 20, 0.8);
+  border: 2px solid rgba(180, 140, 40, 0.5);
+  border-radius: 16px;
+  padding: 40px 28px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-align: center;
+  font-family: 'Cinzel', serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+.tg-action-card:hover:not(:disabled) {
+  transform: translateY(-8px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+}
+
+.tg-action-card--questions { border-color: rgba(200, 163, 44, 0.6); }
+.tg-action-card--questions:hover {
+  background: rgba(60, 50, 15, 0.5);
+  border-color: rgba(241, 196, 15, 0.9);
+  box-shadow: 0 12px 32px rgba(200, 163, 44, 0.35);
+}
+
+.tg-action-card--videos { border-color: rgba(220, 60, 60, 0.5); }
+.tg-action-card--videos:hover:not(:disabled) {
+  background: rgba(100, 30, 30, 0.4);
+  border-color: rgba(220, 80, 80, 0.9);
+  box-shadow: 0 12px 32px rgba(220, 60, 60, 0.3);
+}
+
+.tg-action-card--disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.tg-action-card-icon { font-size: 56px; line-height: 1; }
+.tg-action-card-title {
+  font-weight: 700;
+  font-size: 22px;
+  color: #ffffff;
+  letter-spacing: 0.06em;
+}
+.tg-action-card-sub {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.6);
+  line-height: 1.5;
+}
+
+/* Videos view */
+.tg-videos-wrap { margin-top: 10px; }
+
+.tg-videos-section { margin-bottom: 36px; }
+.tg-videos-section-head {
+  font-family: 'Cinzel', serif;
+  font-size: 17px;
+  font-weight: 700;
+  color: rgba(200, 163, 44, 0.9);
+  border-bottom: 1px solid rgba(180, 140, 40, 0.3);
+  padding-bottom: 8px;
+  margin: 0 0 18px;
+}
+
+.tg-videos-note {
+  font-family: 'Cinzel', serif;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.55);
+  margin: 0 0 18px;
+}
+
+.tg-video-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.tg-video-card {
+  background: rgba(20, 30, 20, 0.8);
+  border: 1px solid rgba(180, 140, 40, 0.4);
+  border-radius: 12px;
+  overflow: hidden;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.tg-video-card:hover {
+  border-color: rgba(180, 140, 40, 0.8);
+  box-shadow: 0 6px 18px rgba(200, 163, 44, 0.2);
+}
+
+.tg-video-frame {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  background: #000;
+}
+.tg-video-frame iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.tg-video-thumb-btn {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+.tg-video-thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.tg-video-thumb--vimeo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 48px;
+  background: rgba(10, 16, 10, 0.95);
+}
+
+.tg-video-play {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.65);
+  border: 2px solid rgba(200, 163, 44, 0.9);
+  color: #c8a32c;
+  font-size: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-left: 4px;
+  transition: transform 0.2s, background 0.2s;
+}
+.tg-video-thumb-btn:hover .tg-video-play {
+  transform: translate(-50%, -50%) scale(1.12);
+  background: rgba(0, 0, 0, 0.85);
+}
+
+.tg-video-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+}
+.tg-video-title {
+  font-family: 'Cinzel', serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: #ffffff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tg-video-badges {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.tg-video-general {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: rgba(220, 190, 80, 0.95);
+  background: rgba(55, 70, 20, 0.85);
+  border: 1px solid rgba(200, 165, 60, 0.45);
+  border-radius: 999px;
+  padding: 2px 7px;
+}
+.tg-video-source {
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+.tg-video-source--youtube { background: rgba(231, 76, 60, 0.18);  color: #e89c92; }
+.tg-video-source--vimeo   { background: rgba(52, 152, 219, 0.18); color: #8fc4e8; }
+
+.tg-start-instead-btn {
+  margin-top: 18px;
+  background: rgba(20, 30, 20, 0.8);
+  border: 2px solid rgba(200, 163, 44, 0.6);
+  color: #c8a32c;
+  padding: 12px 28px;
+  border-radius: 10px;
+  font-family: 'Cinzel', serif;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.tg-start-instead-btn:hover {
+  background: rgba(60, 50, 15, 0.5);
+  border-color: rgba(241, 196, 15, 0.9);
+  transform: translateY(-2px);
+}
+
 /* Spinner Animation */
 @keyframes spin {
   to {
@@ -412,5 +642,19 @@
   .tg-back-btn {
     font-size: 12px;
     padding: 8px 16px;
+  }
+
+  .tg-action-cards {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    margin-top: 30px;
+  }
+
+  .tg-action-card {
+    padding: 28px 20px;
+  }
+
+  .tg-video-grid {
+    grid-template-columns: 1fr;
   }
 }
