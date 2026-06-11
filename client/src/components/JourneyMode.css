@@ -1,8 +1,29 @@
-@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=IM+Fell+English:ital@0;1&display=swap');
 
-/* ── Screen: same dark vignette family as ModeSplit ────────────────────────── */
+/* ════════════════════════════════════════════════════════════════════════════
+   FIRST AID JOURNEY — aged-parchment fantasy adventure map
+   Tolkien-map cartography with medical accents. Warm, colourful, hand-drawn.
+   ════════════════════════════════════════════════════════════════════════════ */
 
 .jm-screen {
+  /* palette */
+  --parchment-hi:  #f7ecd2;
+  --parchment:     #efdfb6;
+  --parchment-lo:  #dfc795;
+  --ink:           #4a3520;
+  --ink-soft:      rgba(74, 53, 32, 0.65);
+  --sepia:         #8b5e34;
+  --trail:         #7a4f28;
+  --gold:          #c9971c;
+  --gold-hi:       #f1c40f;
+  --map-green:     #3f6d3a;
+  --map-green-lo:  #2c4d28;
+  --ember:         #a8462a;
+  --ember-lo:      #6e2a17;
+  --royal:         #2e4a8b;
+  --violet:        #4a3a78;
+  --wax:           #9c2b23;
+
   position: fixed;
   inset: 0;
   z-index: 1000;
@@ -12,100 +33,182 @@
   justify-content: center;
   padding: 40px 20px;
   overflow-y: auto;
+  color: var(--ink);
   background:
-    radial-gradient(ellipse at center, rgba(15, 22, 12, 0.92) 0%, rgba(0, 0, 0, 0.97) 75%);
-  animation: jm-backdrop-in 0.3s ease both;
+    radial-gradient(ellipse at 18% 8%,  rgba(255, 250, 235, 0.85), transparent 50%),
+    radial-gradient(ellipse at 85% 95%, rgba(201, 168, 110, 0.55), transparent 55%),
+    radial-gradient(ellipse at 70% 20%, rgba(228, 205, 152, 0.5),  transparent 45%),
+    linear-gradient(160deg, var(--parchment-hi) 0%, var(--parchment) 55%, var(--parchment-lo) 100%);
+  animation: jm-fade-in 0.35s ease both;
 }
 
-@keyframes jm-backdrop-in {
+/* Paper grain (SVG turbulence) + burnt-edge vignette, on every journey screen */
+.jm-screen::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.5;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.42 0 0 0 0 0.31 0 0 0 0 0.16 0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.jm-screen::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  box-shadow:
+    inset 0 0 70px rgba(101, 67, 33, 0.4),
+    inset 0 0 160px rgba(101, 67, 33, 0.22);
+}
+
+.jm-screen > * { position: relative; z-index: 1; }
+
+@keyframes jm-fade-in {
   from { opacity: 0; }
   to   { opacity: 1; }
 }
 
-/* Self-sufficient back button (same look as ms-back-btn, no load-order dependency) */
+/* ── Back button: aged leather tab ─────────────────────────────────────────── */
+
 .jm-back-btn {
   position: absolute;
   top: 20px;
   left: 20px;
-  background: rgba(20, 30, 20, 0.8);
-  border: 1px solid rgba(180, 140, 40, 0.5);
-  color: #c8a32c;
-  padding: 10px 20px;
+  background: linear-gradient(180deg, #6b4a2b, #523722);
+  border: 2px solid #3d2917;
+  box-shadow: 0 3px 8px rgba(74, 53, 32, 0.35), inset 0 1px 0 rgba(247, 236, 210, 0.25);
+  color: var(--parchment-hi);
+  padding: 9px 18px;
   border-radius: 8px;
-  font-family: 'Cinzel', serif;
-  font-size: 13px;
+  font-family: 'IM Fell English SC', serif;
+  font-size: 15px;
+  letter-spacing: 0.06em;
   cursor: pointer;
   transition: all 0.2s ease;
   z-index: 5;
 }
 
 .jm-back-btn:hover {
-  background: rgba(30, 40, 30, 0.9);
-  border-color: rgba(180, 140, 40, 0.8);
+  background: linear-gradient(180deg, #7d5733, #5f4128);
   transform: translateX(-2px);
 }
 
-/* ── Gate / error / empty cards ────────────────────────────────────────────── */
+/* ── Scroll cards (guest gate / error / empty path): a quest parchment ─────── */
 
-.jm-gate-card {
+.jm-scroll-card {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 14px;
-  max-width: 420px;
-  padding: 44px 36px;
-  border-radius: 18px;
+  max-width: 430px;
+  padding: 48px 40px;
+  border-radius: 8px;
   text-align: center;
-  background: linear-gradient(160deg, rgba(18, 30, 16, 0.92), rgba(8, 14, 8, 0.96));
-  border: 2px solid rgba(200, 163, 44, 0.55);
-  font-family: 'Cinzel', serif;
+  font-family: 'IM Fell English', serif;
+  color: var(--ink);
+  background:
+    linear-gradient(170deg, rgba(255, 250, 238, 0.75), rgba(233, 211, 160, 0.6)),
+    var(--parchment);
+  border: 2px solid var(--sepia);
+  outline: 1px solid rgba(122, 79, 40, 0.45);
+  outline-offset: 5px;
+  box-shadow: 0 12px 34px rgba(74, 53, 32, 0.35);
 }
 
-.jm-gate-icon { font-size: 56px; line-height: 1; filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.6)); }
+.jm-scroll-icon { font-size: 54px; line-height: 1; filter: drop-shadow(0 3px 6px rgba(74, 53, 32, 0.35)); }
 
-.jm-gate-card h2 {
+.jm-scroll-card h2 {
   margin: 0;
-  font-size: 22px;
-  letter-spacing: 0.1em;
-  color: #e8d48a;
+  font-family: 'IM Fell English SC', serif;
+  font-size: 26px;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  color: var(--ink);
 }
 
-.jm-gate-card p {
+.jm-scroll-card p {
   margin: 0 0 8px;
-  font-size: 14px;
-  color: rgba(255, 255, 255, 0.65);
+  font-size: 16px;
+  font-style: italic;
+  color: var(--ink-soft);
   line-height: 1.6;
 }
 
-/* ── Subject select ────────────────────────────────────────────────────────── */
+.jm-scroll-card .error-msg { color: var(--ember); }
+
+/* Journey-scoped looks for the shared buttons */
+.jm-screen .btn-start {
+  background: linear-gradient(180deg, var(--map-green), var(--map-green-lo));
+  border: 2px solid #21391e;
+  color: var(--parchment-hi);
+  font-family: 'IM Fell English SC', serif;
+  letter-spacing: 0.08em;
+  box-shadow: 0 4px 10px rgba(44, 77, 40, 0.4), inset 0 1px 0 rgba(247, 236, 210, 0.3);
+  text-shadow: none;
+}
+
+.jm-screen .btn-start:not(:disabled):hover {
+  background: linear-gradient(180deg, #4b7f45, #355c30);
+  transform: translateY(-1px);
+}
+
+.jm-screen .btn-secondary {
+  background: transparent;
+  border: 2px solid var(--sepia);
+  color: var(--sepia);
+  font-family: 'IM Fell English SC', serif;
+  letter-spacing: 0.06em;
+}
+
+.jm-screen .btn-secondary:hover { background: rgba(139, 94, 52, 0.12); }
+
+.jm-screen .waiting-screen p {
+  color: var(--ink);
+  font-family: 'IM Fell English SC', serif;
+  font-size: 18px;
+}
+
+/* ── Subject select: the atlas page ────────────────────────────────────────── */
 
 .jm-banner {
   text-align: center;
-  margin: 40px 0 28px;
-  animation: jm-banner-drop 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+  margin: 44px 0 26px;
+  animation: jm-banner-drop 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 @keyframes jm-banner-drop {
-  from { opacity: 0; transform: translateY(-28px); }
+  from { opacity: 0; transform: translateY(-24px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
+.jm-banner-flourish {
+  display: block;
+  font-size: 13px;
+  letter-spacing: 0.3em;
+  color: var(--sepia);
+  opacity: 0.8;
+  margin-bottom: 6px;
+}
+
 .jm-title {
-  font-family: 'Cinzel', serif;
-  font-weight: 700;
-  font-size: 32px;
-  letter-spacing: 0.16em;
-  color: #c8a32c;
-  margin: 0 0 8px;
-  text-shadow: 0 2px 14px rgba(200, 163, 44, 0.5);
+  font-family: 'IM Fell English SC', serif;
+  font-weight: 400;
+  font-size: 44px;
+  letter-spacing: 0.08em;
+  color: var(--ink);
+  margin: 0 0 6px;
+  text-shadow: 1px 1px 0 rgba(247, 236, 210, 0.8), 0 3px 12px rgba(122, 79, 40, 0.3);
 }
 
 .jm-tagline {
   margin: 0;
-  font-family: 'Cinzel', serif;
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.55);
-  letter-spacing: 0.06em;
+  font-family: 'IM Fell English', serif;
+  font-style: italic;
+  font-size: 16px;
+  color: var(--ink-soft);
 }
 
 .jm-subject-grid {
@@ -113,33 +216,48 @@
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   gap: 14px;
   width: 100%;
-  max-width: 720px;
+  max-width: 740px;
   margin: 0 auto;
-  padding-bottom: 40px;
+  padding-bottom: 44px;
 }
 
+/* Cartouche cards, staggered rise on load */
 .jm-subject-card {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 10px;
   padding: 20px 12px;
-  border-radius: 14px;
+  border-radius: 10px;
   cursor: pointer;
-  font-family: 'Cinzel', serif;
-  background: linear-gradient(160deg, rgba(18, 30, 16, 0.92), rgba(8, 14, 8, 0.96));
-  border: 2px solid rgba(200, 163, 44, 0.35);
+  font-family: 'IM Fell English SC', serif;
+  color: var(--ink);
+  background: linear-gradient(170deg, rgba(255, 250, 238, 0.85), rgba(233, 211, 160, 0.55));
+  border: 2px solid var(--sepia);
+  outline: 1px solid rgba(122, 79, 40, 0.35);
+  outline-offset: 3px;
+  box-shadow: 0 4px 12px rgba(74, 53, 32, 0.22);
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  animation: jm-card-rise 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.jm-subject-card:nth-child(3n+1) { animation-delay: 0.05s; }
+.jm-subject-card:nth-child(3n+2) { animation-delay: 0.12s; }
+.jm-subject-card:nth-child(3n)   { animation-delay: 0.19s; }
+
+@keyframes jm-card-rise {
+  from { opacity: 0; transform: translateY(22px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 .jm-subject-card:hover {
   transform: translateY(-4px);
-  border-color: rgba(241, 196, 15, 0.85);
-  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.5), 0 0 18px rgba(200, 163, 44, 0.25);
+  border-color: var(--gold);
+  box-shadow: 0 10px 24px rgba(74, 53, 32, 0.35), 0 0 16px rgba(201, 151, 28, 0.35);
 }
 
-.jm-subject-icon  { font-size: 34px; line-height: 1; }
-.jm-subject-label { font-size: 13px; font-weight: 600; color: #e8d48a; letter-spacing: 0.06em; }
+.jm-subject-icon  { font-size: 34px; line-height: 1; filter: drop-shadow(0 2px 4px rgba(74, 53, 32, 0.3)); }
+.jm-subject-label { font-size: 15px; letter-spacing: 0.04em; }
 
 /* ── Path screen frame ─────────────────────────────────────────────────────── */
 
@@ -149,6 +267,7 @@
   overflow: hidden;
 }
 
+/* Header: a leather-and-brass strip above the map */
 .jm-path-header {
   position: relative;
   width: 100%;
@@ -156,10 +275,11 @@
   align-items: center;
   justify-content: center;
   gap: 16px;
-  padding: 18px 20px;
-  background: rgba(8, 12, 8, 0.92);
-  border-bottom: 1px solid rgba(200, 163, 44, 0.35);
-  font-family: 'Cinzel', serif;
+  padding: 16px 20px;
+  background: linear-gradient(180deg, #5d3f24, #46301b);
+  border-bottom: 3px solid var(--gold);
+  box-shadow: 0 4px 14px rgba(74, 53, 32, 0.45);
+  font-family: 'IM Fell English SC', serif;
   flex-shrink: 0;
 }
 
@@ -167,52 +287,76 @@
 .jm-path-header .jm-back-btn:hover { transform: translateY(-50%) translateX(-2px); }
 
 .jm-path-subject {
-  font-size: 18px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  color: #e8d48a;
+  font-size: 21px;
+  letter-spacing: 0.08em;
+  color: var(--parchment-hi);
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
 }
 
+/* Progress badge: a little wax seal */
 .jm-path-progress {
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.55);
-  border: 1px solid rgba(200, 163, 44, 0.4);
+  font-size: 14px;
+  color: var(--parchment-hi);
+  background: radial-gradient(circle at 35% 30%, #b8392e, var(--wax) 70%);
+  border: 2px solid #6e1d17;
   border-radius: 999px;
-  padding: 4px 12px;
+  padding: 4px 13px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
 .jm-path-scroll {
   flex: 1;
   width: 100%;
   overflow-y: auto;
+  padding: 18px 12px 28px;
 }
 
-/* ── The winding road: center spine + alternating nodes ────────────────────── */
-
-.jm-path {
+/* The map sheet: framed parchment with contour lines and a compass */
+.jm-map {
   position: relative;
-  max-width: 560px;
+  max-width: 600px;
   margin: 0 auto;
-  padding: 30px 16px 60px;
+  padding: 34px 18px 50px;
+  border: 3px solid var(--sepia);
+  outline: 1px solid rgba(122, 79, 40, 0.5);
+  outline-offset: 6px;
+  border-radius: 6px;
+  background-image:
+    repeating-radial-gradient(circle at 108% -6%,  transparent 0 24px, rgba(122, 79, 40, 0.07) 24px 25px),
+    repeating-radial-gradient(circle at -12% 108%, transparent 0 30px, rgba(122, 79, 40, 0.06) 30px 31px),
+    repeating-radial-gradient(circle at 50% 160%,  transparent 0 40px, rgba(63, 109, 58, 0.05) 40px 41px);
+  box-shadow: 0 10px 30px rgba(74, 53, 32, 0.28);
 }
 
-.jm-spine {
+/* Corner ornaments on the map frame */
+.jm-map::before,
+.jm-map::after {
+  content: '✦';
   position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 50%;
-  width: 4px;
-  transform: translateX(-50%);
-  background: repeating-linear-gradient(
-    180deg,
-    rgba(200, 163, 44, 0.55) 0px,
-    rgba(200, 163, 44, 0.55) 14px,
-    transparent 14px,
-    transparent 26px
-  );
+  font-size: 15px;
+  color: var(--sepia);
+  opacity: 0.7;
 }
+.jm-map::before { top: 6px; left: 10px; }
+.jm-map::after  { bottom: 6px; right: 10px; }
+
+.jm-compass {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 76px;
+  height: 76px;
+  color: var(--sepia);
+  opacity: 0.55;
+  font-family: 'IM Fell English SC', serif;
+  pointer-events: none;
+}
+
+.jm-path { position: relative; }
 
 .jm-chapter { position: relative; }
+
+/* ── Chapter banners: region labels on a forked ribbon ─────────────────────── */
 
 .jm-chapter-banner {
   position: relative;
@@ -221,32 +365,51 @@
   flex-direction: column;
   align-items: center;
   gap: 2px;
-  margin: 26px auto 22px;
-  padding: 12px 24px;
-  max-width: 360px;
+  margin: 30px auto 24px;
+  padding: 12px 40px;
+  max-width: 380px;
   text-align: center;
-  font-family: 'Cinzel', serif;
-  background: linear-gradient(160deg, rgba(28, 40, 22, 0.96), rgba(10, 16, 10, 0.98));
-  border: 2px solid rgba(200, 163, 44, 0.6);
-  border-radius: 12px;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+  color: var(--parchment-hi);
+  background: linear-gradient(180deg, #4b7a45, var(--map-green-lo));
+  border-top: 2px solid rgba(247, 236, 210, 0.35);
+  border-bottom: 3px solid #1d3319;
+  clip-path: polygon(4% 0, 96% 0, 100% 50%, 96% 100%, 4% 100%, 0 50%);
+  box-shadow: 0 6px 16px rgba(44, 77, 40, 0.35);
+  filter: drop-shadow(0 4px 8px rgba(74, 53, 32, 0.3));
 }
 
 .jm-chapter-num {
-  font-size: 11px;
+  font-family: 'IM Fell English', serif;
+  font-style: italic;
+  font-size: 12px;
   letter-spacing: 0.22em;
-  color: rgba(200, 163, 44, 0.85);
+  color: rgba(247, 236, 210, 0.8);
   text-transform: uppercase;
 }
 
 .jm-chapter-name {
-  font-size: 17px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  color: #e8d48a;
+  font-family: 'IM Fell English SC', serif;
+  font-size: 20px;
+  letter-spacing: 0.06em;
 }
 
-/* Node rows: offset left/right of the spine */
+/* ── The trail: hand-drawn dashed segments winding between destinations ────── */
+
+.jm-trail-seg {
+  position: relative;
+  z-index: 0;
+  width: 38%;
+  height: 0;
+  border-top: 4px dashed var(--trail);
+  opacity: 0.7;
+  margin: -8px auto;
+}
+
+.jm-trail-seg--right  { transform: rotate(16deg); }
+.jm-trail-seg--left   { transform: rotate(-16deg); }
+.jm-trail-seg--center { width: 22%; transform: rotate(8deg); }
+
+/* ── Node rows: destinations off the trail ─────────────────────────────────── */
 
 .jm-node-row {
   position: relative;
@@ -255,165 +418,179 @@
   flex-direction: column;
   align-items: center;
   width: 46%;
-  margin: 18px 0;
+  margin: 26px 0;
 }
 
 .jm-node-row--left   { margin-right: auto; }
 .jm-node-row--right  { margin-left: auto; }
 .jm-node-row--center { margin-left: auto; margin-right: auto; }
 
-/* Short connector stub from node toward the spine */
-.jm-node-row--left::after,
-.jm-node-row--right::after {
-  content: '';
-  position: absolute;
-  top: 36px;
-  width: 24%;
-  height: 3px;
-  background: rgba(200, 163, 44, 0.35);
-  z-index: -1;
-}
-.jm-node-row--left::after  { right: -24%; }
-.jm-node-row--right::after { left: -24%; }
-
-/* ── Nodes ─────────────────────────────────────────────────────────────────── */
+/* ── Nodes: map destinations ───────────────────────────────────────────────── */
 
 .jm-node {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 72px;
-  height: 72px;
+  width: 74px;
+  height: 74px;
   border-radius: 50%;
   cursor: pointer;
-  background: radial-gradient(circle at 32% 28%, rgba(60, 86, 46, 0.95), rgba(20, 30, 16, 0.98));
-  border: 3px solid rgba(200, 163, 44, 0.7);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.55);
+  background: radial-gradient(circle at 32% 28%, #fdf4da, #ecd49a 70%);
+  border: 4px solid var(--royal);
+  box-shadow:
+    0 5px 14px rgba(74, 53, 32, 0.35),
+    inset 0 2px 4px rgba(255, 255, 255, 0.5);
   transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
 }
 
 .jm-node:not(:disabled):hover {
-  transform: scale(1.08);
-  border-color: rgba(241, 196, 15, 0.95);
-  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.6), 0 0 20px rgba(200, 163, 44, 0.35);
+  transform: scale(1.09);
+  border-color: var(--gold-hi);
+  box-shadow: 0 8px 20px rgba(74, 53, 32, 0.4), 0 0 20px rgba(201, 151, 28, 0.45);
 }
 
 .jm-node-face {
-  font-size: 26px;
+  font-size: 28px;
   line-height: 1;
-  color: #e8d48a;
-  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.6));
+  color: var(--royal);
+  filter: drop-shadow(0 2px 3px rgba(74, 53, 32, 0.3));
 }
 
-/* Locked: dark, desaturated, inert */
+/* Locked: a weathered, sealed location */
 .jm-node--locked {
   cursor: default;
-  background: radial-gradient(circle at 32% 28%, rgba(40, 44, 40, 0.9), rgba(14, 16, 14, 0.98));
-  border-color: rgba(120, 120, 120, 0.4);
+  background: radial-gradient(circle at 32% 28%, #e3d6b5, #cdbb92 70%);
+  border-color: #9a8a68;
+  border-style: dashed;
+  opacity: 0.8;
 }
-.jm-node--locked .jm-node-face { opacity: 0.5; filter: grayscale(1); }
+.jm-node--locked .jm-node-face { opacity: 0.55; filter: grayscale(0.8) sepia(0.4); }
 
-/* Completed: lit, check + stars */
+/* Completed: a gold medallion seal */
 .jm-node--done {
-  background: radial-gradient(circle at 32% 28%, rgba(76, 116, 48, 0.95), rgba(26, 44, 18, 0.98));
-  border-color: rgba(160, 210, 90, 0.75);
+  background: radial-gradient(circle at 32% 28%, #f9dd80, var(--gold) 75%);
+  border-color: #8c6a14;
+  border-style: solid;
 }
-.jm-node--done .jm-node-face { color: #c8e89a; }
+.jm-node--done .jm-node-face { color: #5c450c; font-weight: 700; }
 
-/* Frontier: pulsing call-to-action */
+/* Frontier: the glowing "go here next" destination */
 .jm-node--frontier {
-  border-color: rgba(241, 196, 15, 0.95);
-  animation: jm-pulse 1.8s ease-in-out infinite;
+  border-color: var(--gold-hi);
+  background: radial-gradient(circle at 32% 28%, #fdf7df, #f4e2a4 70%);
+  animation: jm-pulse 1.9s ease-in-out infinite;
 }
 
 @keyframes jm-pulse {
-  0%, 100% { box-shadow: 0 6px 16px rgba(0, 0, 0, 0.55), 0 0 0 0 rgba(241, 196, 15, 0.45); }
-  50%      { box-shadow: 0 6px 16px rgba(0, 0, 0, 0.55), 0 0 0 14px rgba(241, 196, 15, 0); }
+  0%, 100% { box-shadow: 0 5px 14px rgba(74, 53, 32, 0.35), 0 0 0 0 rgba(241, 196, 15, 0.55); }
+  50%      { box-shadow: 0 5px 14px rgba(74, 53, 32, 0.35), 0 0 0 16px rgba(241, 196, 15, 0); }
 }
 
-/* Level with no authored questions: visible but inert */
+/* Uncharted level (no authored questions): faded sketch */
 .jm-node--empty {
   cursor: default;
   opacity: 0.45;
+  border-style: dotted;
 }
 
-/* Chapter boss: bigger, ember accent */
+/* Chapter boss: an ominous keep off the trail */
 .jm-node--boss {
-  width: 96px;
-  height: 96px;
-  background: radial-gradient(circle at 32% 28%, rgba(86, 36, 26, 0.95), rgba(28, 12, 8, 0.98));
-  border-color: rgba(220, 90, 60, 0.75);
+  width: 98px;
+  height: 98px;
+  border-radius: 46% 46% 42% 42% / 52% 52% 40% 40%;
+  background: radial-gradient(circle at 32% 26%, #d98e6a, var(--ember) 65%, var(--ember-lo));
+  border: 4px solid var(--ember-lo);
 }
-.jm-node--boss .jm-node-face { font-size: 36px; }
+.jm-node--boss .jm-node-face { font-size: 38px; color: #fff0dd; }
 .jm-node--boss:not(:disabled):hover {
-  border-color: rgba(255, 120, 80, 0.95);
-  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.6), 0 0 22px rgba(220, 90, 60, 0.4);
+  border-color: #ff8a5c;
+  box-shadow: 0 8px 22px rgba(110, 42, 23, 0.45), 0 0 22px rgba(168, 70, 42, 0.5);
+}
+.jm-node--boss.jm-node--locked {
+  background: radial-gradient(circle at 32% 26%, #d6c5a2, #b3a07c 70%);
+  border-color: #9a8a68;
 }
 .jm-node--boss.jm-node--done {
-  background: radial-gradient(circle at 32% 28%, rgba(76, 116, 48, 0.95), rgba(26, 44, 18, 0.98));
-  border-color: rgba(160, 210, 90, 0.75);
+  background: radial-gradient(circle at 32% 28%, #f9dd80, var(--gold) 75%);
+  border-color: #8c6a14;
 }
+.jm-node--boss.jm-node--done .jm-node-face { color: #5c450c; }
 
-/* Auto-skipped boss: ghosted */
+/* Auto-skipped boss: bypassed on the route */
 .jm-node--skipped {
   cursor: default;
   opacity: 0.35;
   border-style: dashed;
 }
 
-/* Ultimate boss: the summit */
+/* Ultimate boss: the dark tower at the map's end */
 .jm-node--ultimate {
-  width: 120px;
-  height: 120px;
-  background: radial-gradient(circle at 32% 28%, rgba(96, 70, 20, 0.95), rgba(40, 24, 6, 0.98));
-  border: 4px solid rgba(241, 196, 15, 0.85);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), 0 0 26px rgba(241, 196, 15, 0.25);
+  width: 124px;
+  height: 124px;
+  border-radius: 44% 44% 46% 46% / 56% 56% 38% 38%;
+  background: radial-gradient(circle at 32% 24%, #8a76c4, var(--violet) 60%, #2c2248);
+  border: 5px solid var(--gold);
+  box-shadow: 0 8px 24px rgba(44, 34, 72, 0.5), 0 0 28px rgba(201, 151, 28, 0.3);
 }
-.jm-node--ultimate .jm-node-face { font-size: 48px; }
+.jm-node--ultimate .jm-node-face { font-size: 52px; }
 .jm-node--ultimate.jm-node--locked {
-  background: radial-gradient(circle at 32% 28%, rgba(40, 44, 40, 0.9), rgba(14, 16, 14, 0.98));
-  border-color: rgba(120, 120, 120, 0.4);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.55);
+  background: radial-gradient(circle at 32% 24%, #d6c5a2, #b3a07c 70%);
+  border-color: #9a8a68;
+  box-shadow: 0 5px 14px rgba(74, 53, 32, 0.35);
 }
+.jm-node--ultimate.jm-node--done {
+  background: radial-gradient(circle at 32% 28%, #f9dd80, var(--gold) 75%);
+  border-color: #8c6a14;
+}
+.jm-node--ultimate.jm-node--done .jm-node-face { color: #5c450c; }
 
-/* Captions under nodes */
+/* ── Captions: ink labels + star banner ────────────────────────────────────── */
 
 .jm-node-caption {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: 3px;
   margin-top: 8px;
   text-align: center;
-  font-family: 'Cinzel', serif;
 }
 
 .jm-node-name {
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  color: rgba(255, 255, 255, 0.78);
-  max-width: 150px;
+  font-family: 'IM Fell English SC', serif;
+  font-size: 15px;
+  letter-spacing: 0.03em;
+  color: var(--ink);
+  max-width: 160px;
+  line-height: 1.25;
+  text-shadow: 1px 1px 0 rgba(247, 236, 210, 0.7);
 }
 
+/* Star rating on a little gold banner */
 .jm-node-stars {
   font-size: 13px;
-  letter-spacing: 0.18em;
-  color: #f1c40f;
-  text-shadow: 0 1px 6px rgba(241, 196, 15, 0.5);
+  letter-spacing: 0.16em;
+  color: #5c450c;
+  background: linear-gradient(180deg, var(--gold-hi), var(--gold));
+  border: 1px solid #8c6a14;
+  padding: 1px 10px;
+  clip-path: polygon(6% 0, 94% 0, 100% 50%, 94% 100%, 6% 100%, 0 50%);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35);
 }
 
 .jm-node-tag {
-  font-size: 10px;
-  letter-spacing: 0.1em;
+  font-family: 'IM Fell English', serif;
+  font-style: italic;
+  font-size: 11px;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.4);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: var(--ink-soft);
+  border: 1px dashed var(--sepia);
   border-radius: 999px;
-  padding: 2px 8px;
+  padding: 2px 9px;
+  background: rgba(247, 236, 210, 0.5);
 }
 
-/* ── Full Mastery banner ───────────────────────────────────────────────────── */
+/* ── Full Mastery: the treasure at trail's end ─────────────────────────────── */
 
 .jm-mastery {
   position: relative;
@@ -422,37 +599,52 @@
   flex-direction: column;
   align-items: center;
   gap: 6px;
-  margin: 36px auto 0;
-  padding: 24px 32px;
-  max-width: 340px;
+  margin: 40px auto 0;
+  padding: 26px 36px;
+  max-width: 350px;
   text-align: center;
-  font-family: 'Cinzel', serif;
-  background: linear-gradient(160deg, rgba(24, 28, 22, 0.96), rgba(10, 12, 10, 0.98));
-  border: 2px solid rgba(140, 140, 140, 0.35);
-  border-radius: 14px;
-  filter: grayscale(1);
-  opacity: 0.7;
+  border-radius: 10px;
+  background: linear-gradient(170deg, rgba(255, 250, 238, 0.7), rgba(233, 211, 160, 0.5));
+  border: 2px dashed var(--sepia);
+  filter: grayscale(0.9);
+  opacity: 0.65;
 }
 
 .jm-mastery--earned {
   filter: none;
   opacity: 1;
-  border-color: rgba(241, 196, 15, 0.85);
-  background: linear-gradient(160deg, rgba(50, 40, 12, 0.96), rgba(20, 16, 6, 0.98));
-  box-shadow: 0 0 32px rgba(241, 196, 15, 0.3);
+  border: 3px solid var(--gold);
+  outline: 1px solid rgba(140, 106, 20, 0.5);
+  outline-offset: 4px;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(241, 196, 15, 0.35), transparent 70%),
+    linear-gradient(170deg, #fbeec7, #f0d896);
+  box-shadow: 0 0 34px rgba(241, 196, 15, 0.4);
   animation: jm-mastery-glow 2.4s ease-in-out infinite;
 }
 
 @keyframes jm-mastery-glow {
-  0%, 100% { box-shadow: 0 0 22px rgba(241, 196, 15, 0.25); }
-  50%      { box-shadow: 0 0 40px rgba(241, 196, 15, 0.45); }
+  0%, 100% { box-shadow: 0 0 22px rgba(241, 196, 15, 0.3); }
+  50%      { box-shadow: 0 0 44px rgba(241, 196, 15, 0.55); }
 }
 
-.jm-mastery-icon { font-size: 44px; line-height: 1; }
-.jm-mastery-text { font-size: 18px; font-weight: 700; letter-spacing: 0.2em; color: #e8d48a; }
-.jm-mastery-sub  { font-size: 12px; color: rgba(255, 255, 255, 0.55); }
+.jm-mastery-icon { font-size: 46px; line-height: 1; filter: drop-shadow(0 3px 6px rgba(74, 53, 32, 0.35)); }
 
-/* ── Confirm card overlay ──────────────────────────────────────────────────── */
+.jm-mastery-text {
+  font-family: 'IM Fell English SC', serif;
+  font-size: 21px;
+  letter-spacing: 0.18em;
+  color: var(--ink);
+}
+
+.jm-mastery-sub {
+  font-family: 'IM Fell English', serif;
+  font-style: italic;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+/* ── Confirm card: a quest scroll with a wax seal ──────────────────────────── */
 
 .jm-confirm-overlay {
   position: fixed;
@@ -462,83 +654,119 @@
   align-items: center;
   justify-content: center;
   padding: 20px;
-  background: rgba(0, 0, 0, 0.72);
-  animation: jm-backdrop-in 0.2s ease both;
+  background: rgba(58, 41, 22, 0.55);
+  animation: jm-fade-in 0.2s ease both;
 }
 
 .jm-confirm-card {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 10px;
-  width: 340px;
+  width: 350px;
   max-width: 92vw;
-  padding: 30px 26px;
-  border-radius: 16px;
+  padding: 34px 28px 28px;
+  border-radius: 8px;
   text-align: center;
-  font-family: 'Cinzel', serif;
-  background: linear-gradient(160deg, rgba(22, 34, 18, 0.98), rgba(8, 14, 8, 0.99));
-  border: 2px solid rgba(200, 163, 44, 0.7);
-  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.7);
+  color: var(--ink);
+  background:
+    linear-gradient(170deg, rgba(255, 250, 238, 0.92), rgba(233, 211, 160, 0.85)),
+    var(--parchment);
+  border: 2px solid var(--sepia);
+  outline: 1px solid rgba(122, 79, 40, 0.5);
+  outline-offset: 5px;
+  box-shadow: 0 18px 48px rgba(58, 41, 22, 0.5);
+  animation: jm-card-rise 0.25s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Wax seal in the corner */
+.jm-confirm-seal {
+  position: absolute;
+  top: -16px;
+  right: -14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  font-size: 22px;
+  color: var(--parchment-hi);
+  background: radial-gradient(circle at 35% 30%, #c04437, var(--wax) 70%);
+  border: 2px solid #6e1d17;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.35);
+  transform: rotate(12deg);
 }
 
 .jm-confirm-kind {
-  font-size: 12px;
-  letter-spacing: 0.18em;
+  font-family: 'IM Fell English', serif;
+  font-style: italic;
+  font-size: 13px;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: rgba(200, 163, 44, 0.85);
+  color: var(--sepia);
 }
 
 .jm-confirm-name {
   margin: 0;
-  font-size: 20px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  color: #e8d48a;
+  font-family: 'IM Fell English SC', serif;
+  font-size: 24px;
+  font-weight: 400;
+  letter-spacing: 0.03em;
+  color: var(--ink);
 }
 
 .jm-confirm-stats {
   display: flex;
   gap: 14px;
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.7);
+  font-family: 'IM Fell English', serif;
+  font-size: 15px;
+  color: var(--ink-soft);
 }
 
 .jm-confirm-threshold {
   margin: 2px 0 8px;
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.5);
+  font-family: 'IM Fell English', serif;
+  font-style: italic;
+  font-size: 13px;
+  color: var(--ink-soft);
   line-height: 1.5;
 }
 
 .jm-confirm-play { min-width: 180px; }
-.jm-confirm-play:disabled { opacity: 0.5; cursor: default; }
+.jm-confirm-play:disabled { opacity: 0.55; cursor: default; }
 
 .jm-confirm-soon {
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  color: rgba(200, 163, 44, 0.7);
+  font-family: 'IM Fell English', serif;
+  font-style: italic;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  color: var(--sepia);
   margin-bottom: 6px;
 }
 
 /* ── Reduced motion / responsive ───────────────────────────────────────────── */
 
 @media (prefers-reduced-motion: reduce) {
-  .jm-banner { animation: jm-backdrop-in 0.3s ease both; }
+  .jm-banner, .jm-subject-card, .jm-confirm-card { animation: jm-fade-in 0.3s ease both; }
   .jm-node--frontier { animation: none; }
   .jm-mastery--earned { animation: none; }
   .jm-subject-card:hover, .jm-node:not(:disabled):hover { transform: none; }
 }
 
 @media (max-width: 560px) {
-  .jm-title { font-size: 24px; }
-  .jm-node { width: 60px; height: 60px; }
-  .jm-node-face { font-size: 22px; }
-  .jm-node--boss { width: 80px; height: 80px; }
-  .jm-node--boss .jm-node-face { font-size: 30px; }
-  .jm-node--ultimate { width: 100px; height: 100px; }
-  .jm-node--ultimate .jm-node-face { font-size: 40px; }
-  .jm-path-subject { font-size: 14px; }
+  .jm-title { font-size: 30px; }
+  .jm-node { width: 62px; height: 62px; }
+  .jm-node-face { font-size: 23px; }
+  .jm-node--boss { width: 82px; height: 82px; }
+  .jm-node--boss .jm-node-face { font-size: 31px; }
+  .jm-node--ultimate { width: 104px; height: 104px; }
+  .jm-node--ultimate .jm-node-face { font-size: 42px; }
+  .jm-path-subject { font-size: 16px; }
   .jm-path-header { justify-content: flex-end; }
   .jm-node-row { width: 48%; }
+  .jm-trail-seg { width: 42%; margin: -4px auto; }
+  .jm-compass { width: 56px; height: 56px; top: 10px; right: 10px; }
+  .jm-map { padding: 28px 10px 40px; }
 }
