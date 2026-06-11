@@ -765,6 +765,43 @@
   max-height: 100%;
 }
 
+/* Training Grounds entry card (themed like home-widget) */
+.dash-training-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(10, 15, 8, 0.75);
+  border: 1px solid rgba(180, 140, 40, 0.25);
+  border-radius: 12px;
+  padding: 16px 18px;
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+  text-align: left;
+}
+.dash-training-card:hover {
+  border-color: rgba(200, 163, 44, 0.7);
+  box-shadow: 0 6px 18px rgba(200, 163, 44, 0.2);
+  transform: translateY(-2px);
+}
+.dash-training-icon { font-size: 28px; flex-shrink: 0; }
+.dash-training-text { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0; }
+.dash-training-title {
+  font-family: 'Cinzel', serif;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  color: #c8a32c;
+}
+.dash-training-sub {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.55);
+}
+.dash-training-arrow {
+  font-size: 18px;
+  color: rgba(200, 163, 44, 0.7);
+  flex-shrink: 0;
+}
+
 /* ── Daily Quests Panel ───────────────────────────────────────────────────── */
 .quests-panel {
   max-height: 450px;

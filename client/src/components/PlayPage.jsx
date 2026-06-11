@@ -55,14 +55,6 @@ const GAME_MODES = [
     supportsSolo: true,
   },
   {
-    id: 'training_grounds',
-    name: 'TRAINING GROUNDS',
-    icon: '📚',
-    shortDesc: 'Study by subject and topic',
-    longDescription: 'Choose a medical subject, select your difficulty, then pick a specific topic folder. Practice questions at your own pace with detailed explanations.',
-    supportsSolo: true,
-  },
-  {
     id: 'anking',
     name: 'ANKING',
     icon: '🃏',
@@ -71,314 +63,6 @@ const GAME_MODES = [
     supportsSolo: true,
   },
 ];
-
-// Subject categories for Training Grounds
-const SUBJECTS = [
-  { id: 'cardiology', label: 'Cardiology', icon: '❤️' },
-  { id: 'neurology', label: 'Neurology', icon: '🧠' },
-  { id: 'pharmacology', label: 'Pharmacology', icon: '💊' },
-  { id: 'microbiology', label: 'Microbiology', icon: '🦠' },
-  { id: 'biochemistry', label: 'Biochemistry', icon: '⚗️' },
-  { id: 'biostatistics', label: 'Biostatistics', icon: '📊' },
-  { id: 'pathology', label: 'Pathology', icon: '🔬' },
-  { id: 'pulmonology', label: 'Pulmonology', icon: '🫁' },
-  { id: 'nephrology', label: 'Nephrology', icon: '💧' },
-  { id: 'gastroenterology', label: 'Gastroenterology', icon: '🫃' },
-  { id: 'endocrinology', label: 'Endocrinology', icon: '🦋' },
-  { id: 'haematology', label: 'Haematology', icon: '🩸' },
-  { id: 'immunology', label: 'Immunology', icon: '🛡️' },
-  { id: 'musculoskeletal', label: 'Musculoskeletal', icon: '🦴' },
-  { id: 'dermatology', label: 'Dermatology', icon: '🩹' },
-  { id: 'reproductive', label: 'Reproductive', icon: '👶' },
-  { id: 'psychiatry', label: 'Psychiatry', icon: '🧠' },
-  { id: 'ophthalmology', label: 'Ophthalmology', icon: '👁️' },
-  { id: 'ent', label: 'ENT', icon: '👂' },
-  { id: 'genetics', label: 'Genetics', icon: '🧬' },
-  { id: 'anatomy', label: 'Anatomy', icon: '🫀' },
-];
-
-// Training Grounds Flow Component
-function TrainingGroundsFlow({ onStart }) {
-  const [categories, setCategories] = useState([]);
-  const [topics, setTopics] = useState([]);
-  const [groups, setGroups] = useState([]);
-  const [selectedCategory, setSelectedCategory] = useState(null);
-  const [selectedDifficulty, setSelectedDifficulty] = useState(null);
-  const [selectedTopics, setSelectedTopics] = useState([]);
-  const [openPanel, setOpenPanel] = useState(null); // 'category' | 'difficulty' | null
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => { fetchCategories(); }, []);
-
-  useEffect(() => {
-    if (selectedCategory && selectedDifficulty) fetchTopics();
-  }, [selectedCategory, selectedDifficulty]);
-
-  const fetchCategories = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch(`${SERVER_URL}/api/topics`);
-      const data = await res.json();
-      console.log('Topics API response:', data);
-
-      // Extract unique categories from topics array
-      const topicsArray = data.topics || [];
-      const unique = [...new Set(topicsArray.map(t => t.category).filter(Boolean))];
-      setCategories(unique);
-    } catch(e) {
-      console.error('fetchCategories error:', e);
-    }
-    setLoading(false);
-  };
-
-  const fetchTopics = async () => {
-    if (!selectedCategory || !selectedDifficulty) return;
-    setLoading(true);
-    try {
-      // Fetch topics
-      const topicsRes = await fetch(`${SERVER_URL}/api/topics?category=${encodeURIComponent(selectedCategory)}`);
-      const topicsData = await topicsRes.json();
-      console.log('Topics for category:', topicsData);
-
-      // Filter by difficulty on client side (API returns all topics for the category)
-      const topicsArray = topicsData.topics || [];
-      const filtered = topicsArray.filter(t => (t.difficulty || 'easy') === selectedDifficulty);
-
-      // Fetch question counts filtered by subject and difficulty
-      const countsRes = await fetch(`${SERVER_URL}/api/questions/counts?subject=${encodeURIComponent(selectedCategory)}&difficulty=${selectedDifficulty}`);
-      const counts = await countsRes.json();
-      console.log('Question counts:', counts);
-
-      // Merge counts into topics
-      const topicsWithCounts = filtered.map(t => ({
-        ...t,
-        questionCount: counts[t.id] || 0
-      }));
-
-      setTopics(topicsWithCounts);
-      // Groups are display/selection only — filter by difficulty like topics above
-      setGroups((topicsData.groups || []).filter(g => (g.difficulty || 'easy') === selectedDifficulty));
-    } catch(e) {
-      console.error('fetchTopics error:', e);
-      setTopics([]);
-      setGroups([]);
-    }
-    setLoading(false);
-  };
-
-  const toggleTopic = (topic) => {
-    setSelectedTopics(prev =>
-      prev.find(t => t.id === topic.id)
-        ? prev.filter(t => t.id !== topic.id)
-        : [...prev, topic]
-    );
-  };
-
-  // Group header click: select all non-empty members, or deselect all if already complete
-  const toggleGroup = (members) => {
-    const selectable = members.filter(t => t.questionCount > 0);
-    if (selectable.length === 0) return;
-    setSelectedTopics(prev => {
-      const allSelected = selectable.every(t => prev.find(s => s.id === t.id));
-      if (allSelected) {
-        const ids = new Set(selectable.map(t => t.id));
-        return prev.filter(s => !ids.has(s.id));
-      }
-      return [...prev, ...selectable.filter(t => !prev.find(s => s.id === t.id))];
-    });
-  };
-
-  const handleStart = () => {
-    if (!selectedCategory || !selectedDifficulty) return;
-    onStart({
-      category: selectedCategory,
-      difficulty: selectedDifficulty,
-      topicIds: selectedTopics.map(t => t.id),
-      topicNames: selectedTopics.map(t => t.name),
-      mode: selectedTopics.length === 0 ? 'all' : 'multi'
-    });
-  };
-
-  const canStart = selectedCategory && selectedDifficulty;
-
-  // Identical markup to the original topic card — reused for grouped + ungrouped rows
-  const renderTopicRow = (topic) => {
-    const isEmpty = topic.questionCount === 0;
-    const isSelected = selectedTopics.find(t => t.id === topic.id);
-    return (
-      <div
-        className={`tg-topic-card ${isSelected ? 'tg-topic-card--selected' : ''} ${isEmpty ? 'tg-topic-card--empty' : ''}`}
-        key={topic.id}
-        onClick={() => !isEmpty && toggleTopic(topic)}
-        style={{ cursor: isEmpty ? 'not-allowed' : 'pointer' }}
-      >
-        <span className="tg-topic-icon">📁</span>
-        <span className="tg-topic-name">{topic.name}</span>
-        <span className={`tg-topic-count ${isEmpty ? 'tg-topic-count--empty' : ''}`}>
-          {isEmpty ? 'No Qs' : `${topic.questionCount} Q`}
-        </span>
-        {!isEmpty && (isSelected
-          ? <span className="tg-topic-check">✓</span>
-          : <span className="tg-topic-plus">+</span>)}
-      </div>
-    );
-  };
-
-  return (
-    <div className="tg-flow">
-
-      {/* BUTTON 1 - Choose Category */}
-      <div className="tg-selector">
-        <button
-          className={`tg-selector-btn ${selectedCategory ? 'tg-selector-btn--selected' : ''} ${openPanel === 'category' ? 'tg-selector-btn--open' : ''}`}
-          onClick={() => setOpenPanel(openPanel === 'category' ? null : 'category')}
-        >
-          <span className="tg-selector-icon">📚</span>
-          <span className="tg-selector-label">
-            {selectedCategory || 'Choose Category'}
-          </span>
-          <span className="tg-selector-arrow">{openPanel === 'category' ? '▴' : '▾'}</span>
-        </button>
-
-        {openPanel === 'category' && (
-          <div className="tg-dropdown">
-            {loading && <p className="tg-loading">Loading...</p>}
-            <div className="tg-category-chips">
-              {categories.map(cat => (
-                <div
-                  className={`tg-category-chip ${selectedCategory === cat ? 'tg-category-chip--selected' : ''}`}
-                  key={cat}
-                  onClick={() => {
-                    setSelectedCategory(cat);
-                    setSelectedTopics([]);
-                    setGroups([]);
-                    setOpenPanel(null);
-                  }}
-                >
-                  {cat}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* BUTTON 2 - Choose Difficulty */}
-      <div className="tg-selector">
-        <button
-          className={`tg-selector-btn ${selectedDifficulty ? 'tg-selector-btn--selected' : ''} ${openPanel === 'difficulty' ? 'tg-selector-btn--open' : ''}`}
-          onClick={() => setOpenPanel(openPanel === 'difficulty' ? null : 'difficulty')}
-        >
-          <span className="tg-selector-icon">
-            {selectedDifficulty === 'easy' ? '🟢' : selectedDifficulty === 'hard' ? '🔴' : '⚔️'}
-          </span>
-          <span className="tg-selector-label">
-            {selectedDifficulty ? (selectedDifficulty === 'easy' ? 'Easy Mode' : 'Hard Mode') : 'Choose Difficulty'}
-          </span>
-          <span className="tg-selector-arrow">{openPanel === 'difficulty' ? '▴' : '▾'}</span>
-        </button>
-
-        {openPanel === 'difficulty' && (
-          <div className="tg-dropdown tg-dropdown--difficulty">
-            <div
-              className={`tg-diff-option tg-diff-option--easy ${selectedDifficulty === 'easy' ? 'tg-diff-option--selected' : ''}`}
-              onClick={() => { setSelectedDifficulty('easy'); setSelectedTopics([]); setGroups([]); setOpenPanel(null); }}
-            >
-              <span>🟢</span>
-              <div>
-                <p className="tg-diff-name">Easy Mode</p>
-                <p className="tg-diff-desc">Standard foundational questions</p>
-              </div>
-              {selectedDifficulty === 'easy' && <span className="tg-check">✓</span>}
-            </div>
-            <div
-              className={`tg-diff-option tg-diff-option--hard ${selectedDifficulty === 'hard' ? 'tg-diff-option--selected' : ''}`}
-              onClick={() => { setSelectedDifficulty('hard'); setSelectedTopics([]); setGroups([]); setOpenPanel(null); }}
-            >
-              <span>🔴</span>
-              <div>
-                <p className="tg-diff-name">Hard Mode</p>
-                <p className="tg-diff-desc">Advanced clinical questions</p>
-              </div>
-              {selectedDifficulty === 'hard' && <span className="tg-check">✓</span>}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* OPTIONAL - Choose Topics (only shown after category + difficulty selected) */}
-      {canStart && (
-        <div className="tg-selector">
-          <button
-            className={`tg-selector-btn ${selectedTopics.length > 0 ? 'tg-selector-btn--selected' : ''} ${openPanel === 'topics' ? 'tg-selector-btn--open' : ''}`}
-            onClick={() => setOpenPanel(openPanel === 'topics' ? null : 'topics')}
-          >
-            <span className="tg-selector-icon">📁</span>
-            <span className="tg-selector-label">
-              {selectedTopics.length === 0 ? 'Choose Topics (Optional)' : `${selectedTopics.length} topic${selectedTopics.length > 1 ? 's' : ''} selected`}
-            </span>
-            <span className="tg-selector-arrow">{openPanel === 'topics' ? '▴' : '▾'}</span>
-          </button>
-
-          {openPanel === 'topics' && (
-            <div className="tg-dropdown tg-dropdown--topics">
-              {loading && <p className="tg-loading">Loading topics...</p>}
-              {selectedTopics.length > 0 && (
-                <div className="tg-selected-chips">
-                  {selectedTopics.map(t => (
-                    <span className="tg-selected-chip" key={t.id}>
-                      {t.name}
-                      <button onClick={(e) => { e.stopPropagation(); toggleTopic(t); }}>✕</button>
-                    </span>
-                  ))}
-                  <button className="tg-clear-all" onClick={() => setSelectedTopics([])}>Clear all</button>
-                </div>
-              )}
-              <div className="tg-topics-list">
-                {groups.map(group => {
-                  const members = topics.filter(t => t.group_id === group.id);
-                  if (members.length === 0) return null;
-                  const selectable = members.filter(t => t.questionCount > 0);
-                  const allSelected = selectable.length > 0 && selectable.every(t => selectedTopics.find(s => s.id === t.id));
-                  return (
-                    <div className="tg-topic-group" key={group.id}>
-                      <div
-                        className={`tg-group-header ${allSelected ? 'tg-group-header--selected' : ''}`}
-                        onClick={() => toggleGroup(members)}
-                        style={{ cursor: selectable.length === 0 ? 'default' : 'pointer' }}
-                      >
-                        <span className="tg-group-icon">🗂️</span>
-                        <span className="tg-group-name">{group.name}</span>
-                        <span className="tg-group-count">{members.length} topic{members.length !== 1 ? 's' : ''}</span>
-                        {allSelected && <span className="tg-group-check">✓</span>}
-                      </div>
-                      {members.map(renderTopicRow)}
-                    </div>
-                  );
-                })}
-                {topics.filter(t => !t.group_id).map(renderTopicRow)}
-                {!loading && topics.length === 0 && <p className="tg-empty">No topics found.</p>}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* START BUTTON */}
-      <button
-        className={`tg-start-btn ${!canStart ? 'tg-start-btn--disabled' : ''}`}
-        onClick={handleStart}
-        disabled={!canStart}
-      >
-        {!selectedCategory ? '← Select a category first' :
-         !selectedDifficulty ? '← Select difficulty' :
-         selectedTopics.length === 0 ? '▶ Start — All Topics' :
-         `▶ Start — ${selectedTopics.length} Topic${selectedTopics.length > 1 ? 's' : ''}`}
-      </button>
-
-    </div>
-  );
-}
 
 export default function PlayPage({
   user, username, onModeSelect, onBack, error, onClearError,
@@ -577,20 +261,6 @@ export default function PlayPage({
     } catch(e) { console.error(e); }
   };
 
-  function handleStartTraining(config) {
-    console.log('handleStartTraining called with:', config);
-    const { mode: studyMode, ...rest } = config; // rename 'mode' from config to 'studyMode'
-    // Navigate to solo practice / training game with the config
-    onModeSelect({
-      mode: 'training_grounds',
-      action: 'start_training',
-      studyMode,  // 'all', 'specific', or 'multi'
-      ...rest,
-      exam: selectedExam,
-      step: selectedStep,
-    });
-  }
-
   return (
     <div
       className="play-page-wrapper"
@@ -722,9 +392,7 @@ export default function PlayPage({
               {selectedModeData.name}
             </h2>
 
-            {/* Hide image and description for training_grounds */}
-            {selectedMode !== 'training_grounds' && (
-              <>
+            <>
                 <div className="mode-detail-image">
                   {(() => {
                     const modeImage = gameModesConfig[selectedMode]?.image;
@@ -755,8 +423,7 @@ export default function PlayPage({
                 </div>
 
                 <p className="mode-detail-desc">{selectedModeData.longDescription}</p>
-              </>
-            )}
+            </>
 
             {!selectedModeData.supportsSolo && (
               <>
@@ -814,35 +481,6 @@ export default function PlayPage({
                   onComplete={(results) => console.log('AnKing session complete:', results)}
                 />
               </div>
-            ) : selectedMode === 'training_grounds' ? (
-              <>
-                {/* Training Grounds Image */}
-                <div className="mode-detail-image" style={{flexShrink: 0, height: '100px'}}>
-                  {(() => {
-                    const modeImage = gameModesConfig['training_grounds']?.image;
-                    if (modeImage) {
-                      return (
-                        <img
-                          loading="lazy"
-                          src={modeImage}
-                          alt="Training Grounds"
-                          style={{width:'100%', height:'100%', objectFit:'cover', borderRadius:'8px'}}
-                          onError={(e) => {
-                            e.target.style.display = 'none';
-                          }}
-                        />
-                      );
-                    }
-                    return (
-                      <div className="mode-image-placeholder" style={{height:'100%', display:'flex', alignItems:'center', justifyContent:'center'}}>
-                        <span style={{fontSize:'40px'}}>📚</span>
-                      </div>
-                    );
-                  })()}
-                </div>
-
-                <TrainingGroundsFlow onStart={handleStartTraining} />
-              </>
             ) : (
               <>
                 <div className="lobby-actions">
@@ -956,6 +594,18 @@ export default function PlayPage({
               ))
             )}
           </div>
+
+          <button
+            className="training-entry-card"
+            onClick={() => onModeSelect({ mode: 'training_grounds' })}
+          >
+            <span className="training-entry-icon">📚</span>
+            <span className="training-entry-text">
+              <span className="training-entry-title">TRAINING GROUNDS</span>
+              <span className="training-entry-sub">Practice & videos</span>
+            </span>
+            <span className="training-entry-arrow">→</span>
+          </button>
 
         </div>
 

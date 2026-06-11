@@ -90,6 +90,7 @@ export default function App() {
     const params    = new URLSearchParams(window.location.search);
     const authError = params.get('auth_error');
     const autoPlay  = params.get('play') === '1';
+    const autoTraining = params.get('training') === '1';
 
     if (authError) {
       window.history.replaceState({}, '', '/');
@@ -113,6 +114,25 @@ export default function App() {
       } else {
         fetchMe().then(me => {
           if (me) { setUser(me); setUsername(me.username); connectSocket(); setPhase('play_page'); }
+          else { setPhase('entry'); }
+        });
+      }
+      return;
+    }
+
+    if (autoTraining) {
+      // Arrived from /dashboard Training Grounds button → go directly to training grounds
+      window.history.replaceState({}, '', '/');
+      if (!token) { setPhase('entry'); return; }
+      const cached = getCachedUser();
+      if (cached) {
+        setUser(cached);
+        setUsername(cached.username);
+        connectSocket();
+        setPhase('training_grounds');
+      } else {
+        fetchMe().then(me => {
+          if (me) { setUser(me); setUsername(me.username); connectSocket(); setPhase('training_grounds'); }
           else { setPhase('entry'); }
         });
       }
@@ -470,22 +490,7 @@ export default function App() {
     if (mode === 'tower') {
       setPhase('tower');
     } else if (mode === 'training_grounds') {
-      // Handle start_training action
-      if (action === 'start_training') {
-        console.log('Starting training with config:', modeOrOptions);
-        handleStartTrainingPractice({
-          category: modeOrOptions.category,
-          difficulty: modeOrOptions.difficulty,
-          topicId: modeOrOptions.topicIds?.[0] || null,
-          topicIds: modeOrOptions.topicIds || [],
-          topicName: modeOrOptions.topicNames?.[0] || null,
-          topicNames: modeOrOptions.topicNames || [],
-          subjectName: modeOrOptions.category,
-          studyMode: modeOrOptions.studyMode || 'all'  // Use studyMode instead of mode
-        });
-      } else {
-        setPhase('training_grounds');
-      }
+      setPhase('training_grounds');
     } else {
       // For multiplayer modes, handle based on action
       if (action === 'create') {

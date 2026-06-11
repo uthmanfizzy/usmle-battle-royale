@@ -524,6 +524,17 @@ function HomeSection({ user, bgUrl, onUserUpdate, homeImages }) {
 
       {/* Right Column */}
       <div className="dash-right-col">
+        <button
+          className="dash-training-card"
+          onClick={() => { window.location.href = '/?training=1'; }}
+        >
+          <span className="dash-training-icon">⚔️</span>
+          <span className="dash-training-text">
+            <span className="dash-training-title">TRAINING GROUNDS</span>
+            <span className="dash-training-sub">Study by topic · Watch videos</span>
+          </span>
+          <span className="dash-training-arrow">→</span>
+        </button>
       </div>
 
       {showUsernameModal && (
