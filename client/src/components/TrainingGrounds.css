@@ -636,11 +636,26 @@
 
   .tg-rail-list { grid-template-columns: 1fr; }
 
-  /* CTA stays visible while scrolling the topic grid */
+  /* CTA pinned to the viewport bottom — always reachable on long topic lists.
+     Only renders when a topic is selected, so it never covers idle content. */
   .tg-start-bar {
-    position: sticky;
-    bottom: 12px;
-    z-index: 5;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: auto;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+    border-bottom: none;
+    margin-bottom: 0;
+    z-index: 50;
+    padding: 14px 18px;
+    padding-bottom: calc(14px + env(safe-area-inset-bottom));
     box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.6);
   }
+  .tg-start-bar:hover { transform: none; }
+
+  /* Reserve space at the bottom so the fixed bar doesn't cover the last card */
+  .training-overlay.tg-has-cta { padding-bottom: 120px; }
 }

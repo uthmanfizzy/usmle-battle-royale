@@ -244,7 +244,7 @@ export default function TrainingGrounds({ user, onBack, onStartPractice }) {
 
   return (
     <div className="training-grounds">
-      <div className="training-overlay tg-overlay-wide">
+      <div className={`training-overlay tg-overlay-wide ${selectedTopic ? 'tg-has-cta' : ''}`}>
 
         {/* ── TOP BAR: back + title + breadcrumb ──────────────────── */}
         <div className="tg-topbar">
