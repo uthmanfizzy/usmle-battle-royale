@@ -28,9 +28,8 @@ export default function ModeSplit({ onStory, onOnline, onBack }) {
   );
 }
 
-// Minimal stub for this commit — the full story menu
-// (First Aid Journey / The Tower / AnKing tiles) lands in the next commit.
-export function StoryMenuStub({ onBack }) {
+// Story menu: First Aid Journey (coming soon) / The Tower / AnKing
+export function StoryMenu({ onBack, onTower, onAnKing }) {
   return (
     <div className="ms-screen">
       <button className="ms-back-btn" onClick={onBack}>← Back</button>
@@ -40,7 +39,27 @@ export function StoryMenuStub({ onBack }) {
         <div className="ms-title-rule" />
       </div>
 
-      <p className="ms-stub-note">Choose your campaign — coming in the next update.</p>
+      <div className="ms-cards ms-cards--story">
+        {/* Placeholder for the future First Aid Journey feature — display only */}
+        <div className="ms-card ms-card--story ms-card--disabled">
+          <span className="ms-ribbon">COMING SOON</span>
+          <span className="ms-card-icon">🚑</span>
+          <span className="ms-card-name">FIRST AID JOURNEY</span>
+          <span className="ms-card-sub">March through First Aid, chapter by chapter</span>
+        </div>
+
+        <button className="ms-card ms-card--story" onClick={onTower}>
+          <span className="ms-card-icon">🏰</span>
+          <span className="ms-card-name">THE TOWER</span>
+          <span className="ms-card-sub">Climb 100 floors of knowledge</span>
+        </button>
+
+        <button className="ms-card ms-card--story" onClick={onAnKing}>
+          <span className="ms-card-icon">🃏</span>
+          <span className="ms-card-name">ANKING</span>
+          <span className="ms-card-sub">Master AnKing flashcards</span>
+        </button>
+      </div>
     </div>
   );
 }

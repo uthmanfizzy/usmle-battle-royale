@@ -23,7 +23,7 @@ const LandingPage = lazy(() => import('./components/LandingPage'));
 const TrainingGrounds = lazy(() => import('./components/TrainingGrounds'));
 const PlayPage = lazy(() => import('./components/PlayPage'));
 const ModeSplit = lazy(() => import('./components/ModeSplit'));
-const StoryMenuStub = lazy(() => import('./components/ModeSplit').then(m => ({ default: m.StoryMenuStub })));
+const StoryMenu = lazy(() => import('./components/ModeSplit').then(m => ({ default: m.StoryMenu })));
 
 // phases: 'loading' | 'entry' | 'exam_select' | 'difficulty_select' | 'mode_split' | 'story_menu' | 'play_page' |
 //         'how_to_play' | 'lobby_select' | 'subject_select' | 'lobby_difficulty' | 'join_input' | 'lobby' | 'game' |
@@ -44,6 +44,7 @@ export default function App() {
   const [soloSubject, setSoloSubject] = useState('all');
   const [soloKey,  setSoloKey]  = useState(0);
   const [trainingTopic, setTrainingTopic] = useState(null);
+  const [playInitialMode, setPlayInitialMode] = useState(null); // Story→AnKing passes 'anking'; Online leaves null
 
   const [raceProgress, setRaceProgress] = useState([]);
   const [openToQuickJoin, setOpenToQuickJoin] = useState(true);
@@ -487,6 +488,9 @@ export default function App() {
     console.log('handlePlayPageModeSelect received:', { mode, action, modeOrOptions });
 
     setGameMode(mode);
+    // Launching anything from the play page clears the Story→AnKing initial mode,
+    // so returning from a game lands on the normal play page, not AnKing
+    setPlayInitialMode(null);
 
     // For solo modes, go directly
     if (mode === 'tower') {
@@ -763,7 +767,7 @@ export default function App() {
         <RouteErrorBoundary name="ModeSplit">
         <ModeSplit
           onStory={() => setPhase('story_menu')}
-          onOnline={() => setPhase('play_page')}
+          onOnline={() => { setPlayInitialMode(null); setPhase('play_page'); }}
           onBack={() => window.location.href = '/dashboard'}
         />
         </RouteErrorBoundary>
@@ -771,8 +775,10 @@ export default function App() {
 
       {phase === 'story_menu' && (
         <RouteErrorBoundary name="StoryMenu">
-        <StoryMenuStub
+        <StoryMenu
           onBack={() => setPhase('mode_split')}
+          onTower={() => { setGameMode('tower'); setPhase('tower'); }}
+          onAnKing={() => { setPlayInitialMode('anking'); setPhase('play_page'); }}
         />
         </RouteErrorBoundary>
       )}
@@ -782,6 +788,7 @@ export default function App() {
         <PlayPage
           user={user}
           username={username}
+          initialMode={playInitialMode}
           onModeSelect={handlePlayPageModeSelect}
           onBack={() => window.location.href = '/dashboard'}
           error={error}

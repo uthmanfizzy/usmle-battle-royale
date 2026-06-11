@@ -162,14 +162,50 @@
   max-width: 260px;
 }
 
-/* ── Story menu stub note ──────────────────────────────────────────────────── */
+/* ── Story menu tiles: rise in with a stagger ──────────────────────────────── */
 
-.ms-stub-note {
-  font-family: 'Cinzel', serif;
-  font-size: 15px;
-  color: rgba(255, 255, 255, 0.55);
-  text-align: center;
-  animation: ms-banner-drop 0.45s 0.15s cubic-bezier(0.22, 1, 0.36, 1) both;
+.ms-cards--story .ms-card {
+  width: 300px;
+  min-height: 300px;
+  padding: 32px 24px;
+  animation: ms-card-up 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.ms-cards--story .ms-card:nth-child(1) { animation-delay: 0.10s; }
+.ms-cards--story .ms-card:nth-child(2) { animation-delay: 0.22s; }
+.ms-cards--story .ms-card:nth-child(3) { animation-delay: 0.34s; }
+
+@keyframes ms-card-up {
+  from { opacity: 0; transform: translateY(40px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Coming Soon tile: dimmed, no interaction, diagonal gold ribbon */
+.ms-card--disabled {
+  position: relative;
+  overflow: hidden;
+  cursor: default;
+  opacity: 0.55;
+}
+
+.ms-card--disabled:hover {
+  transform: none;
+  box-shadow: none;
+  border-color: rgba(200, 163, 44, 0.55);
+}
+
+.ms-ribbon {
+  position: absolute;
+  top: 22px;
+  right: -42px;
+  transform: rotate(45deg);
+  background: linear-gradient(90deg, rgba(200, 163, 44, 0.95), rgba(241, 196, 15, 0.95));
+  color: #1a1408;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  padding: 5px 48px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
 }
 
 /* ── Reduced motion: opacity-only, no slides/drops ─────────────────────────── */
@@ -179,7 +215,7 @@
   .ms-title-rule,
   .ms-card--story,
   .ms-card--online,
-  .ms-stub-note {
+  .ms-cards--story .ms-card {
     animation: ms-backdrop-in 0.3s ease both;
   }
 

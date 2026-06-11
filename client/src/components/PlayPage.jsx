@@ -46,14 +46,11 @@ const GAME_MODES = [
     longDescription: 'Fast-paced flash cards of buzzwords, triads, side effects and classic high-yield associations. 8 seconds each — fast answers earn bonus points!',
     supportsSolo: false,
   },
-  {
-    id: 'tower',
-    name: 'THE TOWER',
-    icon: '🏰',
-    shortDesc: 'Climb 100 floors of knowledge',
-    longDescription: 'Solo story mode. Ascend 10 zones across 100 floors. Face normal, challenge, and boss floors. How far can you climb through the medical tower?',
-    supportsSolo: true,
-  },
+];
+
+// Launched from Story Mode (via the initialMode prop), not listed as Online tiles.
+// Kept here so selectedModeData still resolves their detail header/description.
+const STORY_MODES = [
   {
     id: 'anking',
     name: 'ANKING',
@@ -67,9 +64,11 @@ const GAME_MODES = [
 export default function PlayPage({
   user, username, onModeSelect, onBack, error, onClearError,
   lobbyId, lobbyPlayers, isHost, lobbySubject, lobbyGameMode, openToQuickJoin,
-  onStartGame, onAddBot, onRemoveBot, onToggleQuickJoin, onLeaveLobby
+  onStartGame, onAddBot, onRemoveBot, onToggleQuickJoin, onLeaveLobby,
+  initialMode
 }) {
-  const [selectedMode, setSelectedMode] = useState('battle_royale');
+  // Default preserves the existing behavior exactly (Online passes no initialMode)
+  const [selectedMode, setSelectedMode] = useState(initialMode || 'battle_royale');
   const [squadSize, setSquadSize] = useState('solo');
   const [fillTeam, setFillTeam] = useState(false);
   const [dailyChallenges, setDailyChallenges] = useState([]);
@@ -88,7 +87,9 @@ export default function PlayPage({
   const [loadingInvites, setLoadingInvites] = useState(false);
   const [inviteSent, setInviteSent] = useState({});
 
-  const selectedModeData = GAME_MODES.find(m => m.id === selectedMode) || GAME_MODES[0];
+  const selectedModeData = GAME_MODES.find(m => m.id === selectedMode)
+    || STORY_MODES.find(m => m.id === selectedMode)
+    || GAME_MODES[0];
 
   // Fetch game modes, exam boards configs, and background image
   useEffect(() => {
