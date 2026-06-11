@@ -15,7 +15,7 @@ function saveHi(subject, score) {
   try { localStorage.setItem(`usmle-hs-${subject}`, String(score)); } catch {}
 }
 
-export default function SoloGame({ subject, username, difficulty, onBack, onTryAgain, onChangeSubject, topicId }) {
+export default function SoloGame({ subject, username, difficulty, onBack, onTryAgain, onChangeSubject, topicId, questionsUrl, onComplete, levelLabel }) {
   const { settings } = useGameSettings();
 
   // Hard mode uses admin-configured timer and explanation time, easy mode uses defaults
@@ -55,6 +55,9 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   const questionsRef  = useRef([]);
   const skipTimerRef  = useRef(null);
   const skipActionRef = useRef(null);
+  const correctCountRef    = useRef(0);
+  const completionFiredRef = useRef(false);
+  const onCompleteRef      = useRef(onComplete);
 
   revealedRef.current = revealed;
   livesRef.current = lives;
@@ -63,6 +66,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   bestStreakRef.current = bestStreak;
   qIdxRef.current = qIdx;
   questionsRef.current = questions;
+  onCompleteRef.current = onComplete;
 
   // Start / stop game music with this component's lifetime
   useEffect(() => {
@@ -72,12 +76,12 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   }, []);
 
   useEffect(() => {
-    let url = topicId
+    let url = questionsUrl || (topicId
       ? `${SERVER_URL}/api/questions?topic_id=${topicId}`
-      : `${SERVER_URL}/api/questions?subject=${subject}`;
+      : `${SERVER_URL}/api/questions?subject=${subject}`);
 
     // Add difficulty filter to ensure strict filtering
-    if (difficulty) {
+    if (difficulty && !questionsUrl) {
       url += `&difficulty=${difficulty}`;
     }
 
@@ -115,7 +119,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
         setFetchError('Failed to load questions. Check your connection.');
         setLoading(false);
       });
-  }, [subject, topicId, difficulty]);
+  }, [subject, topicId, difficulty, questionsUrl]);
 
   const processAnswerRef = useRef(null);
 
@@ -145,6 +149,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
     let bonus = 0;
 
     if (correct) {
+      correctCountRef.current += 1;
       bonus = Math.floor(tl * 5);
       newScore += 100 + bonus;
       newStreak += 1;
@@ -178,6 +183,12 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
         setFinalBestStreak(newBest);
         setIsNewHi(newHi);
         setGameOver(true);
+        if (onCompleteRef.current && !completionFiredRef.current) {
+          completionFiredRef.current = true;
+          const total = questionsRef.current.length;
+          const c = correctCountRef.current;
+          onCompleteRef.current({ correct: c, total, pct: total ? Math.round((c / total) * 100) : 0 });
+        }
       } else {
         revealedRef.current = false;
         setRevealed(false);
@@ -257,6 +268,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
       <div className="screen solo-screen">
         <div className="solo-gameover">
           <h2>Game Over</h2>
+          {levelLabel && <p className="sgo-level-label">{levelLabel}</p>}
           {isNewHi && <div className="new-hi-badge">🏆 New High Score!</div>}
           <div className="sgo-stats">
             <div className="sgo-stat">
@@ -289,6 +301,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   return (
     <div className="screen solo-screen">
       <div className="solo-topbar">
+        {levelLabel && <span className="topbar-level-label">{levelLabel}</span>}
         <span className="topbar-round">Q {qIdx + 1}</span>
         <span className="topbar-score">🏅 {score} pts</span>
         <div className="lives-bar">
