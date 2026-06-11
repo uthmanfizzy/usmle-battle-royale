@@ -172,6 +172,58 @@ DROP POLICY IF EXISTS "server_full_access_videos" ON videos;
 CREATE POLICY "server_full_access_videos"
   ON videos FOR ALL USING (true) WITH CHECK (true);
 
+-- ── journey_progress ──────────────────────────────────────────────────────────
+-- First Aid Journey per-user level state. level_key is a topic UUID (as text),
+-- 'boss:{group_id}' for chapter bosses, or 'boss:ultimate'.
+-- Completion is derived from completed_at — status is never stored separately.
+
+CREATE TABLE IF NOT EXISTS journey_progress (
+  id             UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id        UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  subject        TEXT        NOT NULL,
+  difficulty     TEXT        NOT NULL DEFAULT 'easy',
+  level_key      TEXT        NOT NULL,
+  best_score_pct INT         NOT NULL DEFAULT 0,
+  completed_at   TIMESTAMPTZ,
+  created_at     TIMESTAMPTZ DEFAULT now(),
+  UNIQUE (user_id, subject, difficulty, level_key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_journey_progress_user_subject ON journey_progress(user_id, subject);
+
+ALTER TABLE journey_progress ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "server_full_access_journey_progress" ON journey_progress;
+CREATE POLICY "server_full_access_journey_progress"
+  ON journey_progress FOR ALL USING (true) WITH CHECK (true);
+
+-- ── boss_questions ────────────────────────────────────────────────────────────
+-- First Aid Journey boss questions. boss_key: 'chapter:{group_id}' | 'ultimate'.
+-- Shape mirrors the solo wire format (options JSONB array, correct = letter).
+
+CREATE TABLE IF NOT EXISTS boss_questions (
+  id               UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  subject          TEXT        NOT NULL,
+  difficulty       TEXT        NOT NULL DEFAULT 'easy',
+  boss_key         TEXT        NOT NULL,
+  question         TEXT        NOT NULL,
+  options          JSONB       NOT NULL,
+  correct          TEXT        NOT NULL,
+  explanation      TEXT,
+  why_others_wrong JSONB,
+  image_url        TEXT,
+  sort_order       INT         NOT NULL DEFAULT 0,
+  created_at       TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_boss_questions_key ON boss_questions(subject, difficulty, boss_key);
+
+ALTER TABLE boss_questions ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "server_full_access_boss_questions" ON boss_questions;
+CREATE POLICY "server_full_access_boss_questions"
+  ON boss_questions FOR ALL USING (true) WITH CHECK (true);
+
 -- ── Indexes ────────────────────────────────────────────────────────────────────
 
 CREATE INDEX IF NOT EXISTS idx_users_google_id     ON users(google_id);
