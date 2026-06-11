@@ -3406,6 +3406,7 @@ function JourneyPanel() {
   const [levelQs,  setLevelQs]  = useState([]);   // questions for the selected level
   const [editing,  setEditing]  = useState(null);
   const [saving,   setSaving]   = useState(false);
+  const [showParser, setShowParser] = useState(false);
   const [form,     setForm]     = useState(BOSS_EMPTY_FORM);
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
@@ -3579,6 +3580,45 @@ function JourneyPanel() {
   const bossKeyFor = (sel) => sel.kind === 'ultimate' ? 'ultimate' : `chapter:${sel.chapter.id}`;
   const editorQuestions = !selected ? [] :
     selected.kind === 'level' ? levelQs : bossQs.filter(q => q.boss_key === bossKeyFor(selected));
+
+  // Paste & Parse bulk import: sequential POSTs to the selected target.
+  // Never aborts on failure — collects errors and reports an honest summary.
+  async function importParsed(parsedQuestions) {
+    const isLevel  = selected.kind === 'level';
+    const base     = isLevel ? '/admin/journey-questions' : '/admin/boss-questions';
+    const idFields = isLevel
+      ? { level_id: selected.level.id }
+      : { subject, boss_key: bossKeyFor(selected) };
+    const existingCount = editorQuestions.length;
+    let imported = 0;
+    const errors = [];
+    for (let i = 0; i < parsedQuestions.length; i++) {
+      const q = parsedQuestions[i];
+      try {
+        const res = await apiCall(base, {
+          method: 'POST',
+          body: JSON.stringify({
+            ...idFields,
+            question: q.question,
+            options: q.choices,             // parser emits letter-prefixed choices
+            correct: q.correct,
+            explanation: q.explanation || null,
+            why_others_wrong: q.why_others_wrong || null,
+            image_url: q.image_url || null,
+            sort_order: existingCount + i,  // preserve paste order
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Import failed');
+        if (isLevel) setLevelQs(qs => [...qs, data]);
+        else setBossQs(qs => [...qs, data]);
+        imported++;
+      } catch (err) {
+        errors.push(`Q${i + 1} ("${q.question.slice(0, 40)}…"): ${err.message}`);
+      }
+    }
+    return { imported, failed: errors.length, errors };
+  }
 
   function startEdit(q) {
     setError('');
@@ -3812,6 +3852,9 @@ function JourneyPanel() {
             <span className="ap-journey-editor-title">
               {folder?.icon} {folder?.label} › {editorTitle}
             </span>
+            <button className="ap-btn-sec ap-journey-parse-btn" onClick={() => setShowParser(true)}>
+              📋 Paste &amp; Parse
+            </button>
           </div>
 
           <form onSubmit={handleSave} className="ap-qform ap-video-form">
@@ -3946,6 +3989,17 @@ function JourneyPanel() {
             </div>
           </div>
         </div>
+      )}
+
+      {showParser && selected && (
+        <QuestionParser
+          activeFolder={subject}
+          selectedTopic={null}
+          selectedDifficulty="easy"
+          customImport={importParsed}
+          onImport={() => {}}
+          onClose={() => setShowParser(false)}
+        />
       )}
     </div>
   );

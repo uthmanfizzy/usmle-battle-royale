@@ -22,12 +22,16 @@ C. Thalassaemia trait - Ferritin is normal. Red cell count is often elevated and
 D. Sideroblastic anaemia - Ferritin is elevated. Blood film shows ring sideroblasts on Prussian blue staining.
 E. Vitamin B12 deficiency - Causes macrocytic megaloblastic anaemia, not microcytic. Shows hypersegmented neutrophils.`;
 
-export default function QuestionParser({ activeFolder, selectedTopic, selectedDifficulty, onImport, onClose }) {
+// customImport (optional): async (parsedQuestions) => ({ imported, failed, errors }).
+// When provided, it replaces the built-in /admin/questions/bulk import entirely;
+// when absent, behavior is unchanged.
+export default function QuestionParser({ activeFolder, selectedTopic, selectedDifficulty, onImport, onClose, customImport }) {
   const [rawText, setRawText] = useState('');
   const [parsed, setParsed] = useState([]);
   const [errors, setErrors] = useState([]);
   const [step, setStep] = useState('input'); // 'input' | 'preview' | 'done'
   const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState(null); // customImport's { imported, failed, errors }
   const [difficulty, setDifficulty] = useState(selectedDifficulty || 'easy');
   const [gameModes, setGameModes] = useState(['battle_royale', 'speed_race', 'trivia_pursuit']);
   const [copied, setCopied] = useState(false);
@@ -196,6 +200,19 @@ export default function QuestionParser({ activeFolder, selectedTopic, selectedDi
   const handleImport = async () => {
     setImporting(true);
     try {
+      if (customImport) {
+        const result = await customImport(parsed);
+        setImportResult(result);
+        setStep('done');
+        // Leave failure summaries on screen longer; the Close button works regardless
+        setTimeout(() => {
+          onImport(result, selectedTopic);
+          onClose();
+        }, result.failed > 0 ? 4000 : 1500);
+        setImporting(false);
+        return;
+      }
+
       // Extract topic_id from selectedTopic (can be object with .id or 'unassigned' string)
       const topicId = selectedTopic && typeof selectedTopic === 'object' ? selectedTopic.id : null;
 
@@ -497,9 +514,23 @@ export default function QuestionParser({ activeFolder, selectedTopic, selectedDi
 
         {step === 'done' && (
           <div className="qp-body qp-done">
-            <div className="qp-done-icon">✅</div>
-            <h3>Import Complete!</h3>
-            <p>{parsed.length} questions imported successfully.</p>
+            <div className="qp-done-icon">{importResult?.failed > 0 ? '⚠️' : '✅'}</div>
+            <h3>{importResult?.failed > 0 ? 'Import Finished With Errors' : 'Import Complete!'}</h3>
+            {importResult ? (
+              <>
+                <p>
+                  Imported {importResult.imported}
+                  {importResult.failed > 0 ? `, ${importResult.failed} failed.` : ' questions successfully.'}
+                </p>
+                {importResult.failed > 0 && (
+                  <div className="qp-errors">
+                    {importResult.errors.map((e, i) => <p key={i}>⚠️ {e}</p>)}
+                  </div>
+                )}
+              </>
+            ) : (
+              <p>{parsed.length} questions imported successfully.</p>
+            )}
             <button className="qp-import-btn" onClick={onClose}>Close</button>
           </div>
         )}

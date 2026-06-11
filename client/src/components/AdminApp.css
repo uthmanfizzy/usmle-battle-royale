@@ -2873,6 +2873,7 @@
   margin-bottom: 14px;
 }
 .ap-journey-editor-title { font-size: 14px; font-weight: 700; }
+.ap-journey-parse-btn { margin-left: auto; }
 
 .ap-journey-q-list { margin-top: 18px; }
 .ap-journey-q-caption {
