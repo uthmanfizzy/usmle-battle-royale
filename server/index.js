@@ -5336,14 +5336,13 @@ function bossQuestionError({ question, options, correct }) {
 
 app.get('/admin/boss-questions', adminAuth, async (req, res) => {
   if (!supabase) return res.json({ questions: [] });
-  const { subject, difficulty, boss_key } = req.query;
+  const { subject, boss_key } = req.query;
   try {
     let query = supabase.from('boss_questions').select('*')
       .order('sort_order', { ascending: true })
       .order('created_at', { ascending: true });
-    if (subject)    query = query.eq('subject', subject);
-    if (difficulty) query = query.eq('difficulty', difficulty);
-    if (boss_key)   query = query.eq('boss_key', boss_key);
+    if (subject)  query = query.eq('subject', subject);
+    if (boss_key) query = query.eq('boss_key', boss_key);
     const { data, error } = await query;
     if (error) throw error;
     res.json({ questions: data || [] });
@@ -5356,7 +5355,7 @@ app.get('/admin/boss-questions', adminAuth, async (req, res) => {
 
 app.post('/admin/boss-questions', adminAuth, async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
-  const { subject, difficulty, boss_key, question, options, correct, explanation, why_others_wrong, image_url, sort_order } = req.body;
+  const { subject, boss_key, question, options, correct, explanation, why_others_wrong, image_url, sort_order } = req.body;
   if (!subject || !boss_key) return res.status(400).json({ error: 'subject and boss_key required' });
   const invalid = bossQuestionError({ question, options, correct });
   if (invalid) return res.status(400).json({ error: invalid });
@@ -5365,7 +5364,6 @@ app.post('/admin/boss-questions', adminAuth, async (req, res) => {
       .from('boss_questions')
       .insert({
         subject,
-        difficulty: difficulty || 'easy',
         boss_key,
         question: question.trim(),
         options,
@@ -5390,7 +5388,7 @@ app.put('/admin/boss-questions/:id', adminAuth, async (req, res) => {
     if (getErr || !existing) return res.status(404).json({ error: 'Boss question not found' });
 
     const updates = {};
-    for (const k of ['subject', 'difficulty', 'boss_key', 'question', 'options', 'correct', 'explanation', 'why_others_wrong', 'image_url']) {
+    for (const k of ['subject', 'boss_key', 'question', 'options', 'correct', 'explanation', 'why_others_wrong', 'image_url']) {
       if (k in req.body) updates[k] = req.body[k];
     }
     if (Number.isFinite(req.body.sort_order)) updates.sort_order = req.body.sort_order;
@@ -5418,6 +5416,232 @@ app.delete('/admin/boss-questions/:id', adminAuth, async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
   try {
     const { error } = await supabase.from('boss_questions').delete().eq('id', req.params.id);
+    if (error) throw error;
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── First Aid Journey: chapters (admin) ───────────────────────────────────────
+
+app.get('/admin/journey-chapters', adminAuth, async (req, res) => {
+  if (!supabase) return res.json({ chapters: [] });
+  const { subject } = req.query;
+  try {
+    let query = supabase.from('journey_chapters').select('*')
+      .order('sort_order', { ascending: true })
+      .order('name', { ascending: true });
+    if (subject) query = query.eq('subject', subject);
+    const { data, error } = await query;
+    if (error) throw error;
+    res.json({ chapters: data || [] });
+  } catch (err) {
+    // Table may not exist yet (manual migration) — degrade to empty list
+    console.warn('[/admin/journey-chapters] unavailable, returning chapters: [] —', err.message);
+    res.json({ chapters: [] });
+  }
+});
+
+app.post('/admin/journey-chapters', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  const { subject, name, sort_order } = req.body;
+  if (!subject || !name?.trim()) return res.status(400).json({ error: 'subject and name required' });
+  try {
+    const { data, error } = await supabase
+      .from('journey_chapters')
+      .insert({
+        subject,
+        name: name.trim(),
+        sort_order: Number.isFinite(sort_order) ? sort_order : 0,
+      })
+      .select()
+      .single();
+    if (error) throw error;
+    res.json(data);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.put('/admin/journey-chapters/:id', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  const updates = {};
+  if ('name' in req.body) {
+    if (!req.body.name?.trim()) return res.status(400).json({ error: 'name required' });
+    updates.name = req.body.name.trim();
+  }
+  if (Number.isFinite(req.body.sort_order)) updates.sort_order = req.body.sort_order;
+  if (Object.keys(updates).length === 0) return res.status(400).json({ error: 'nothing to update' });
+  try {
+    const { data, error } = await supabase
+      .from('journey_chapters')
+      .update(updates)
+      .eq('id', req.params.id)
+      .select()
+      .single();
+    if (error) throw error;
+    res.json(data);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.delete('/admin/journey-chapters/:id', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  try {
+    // boss_questions are linked by text key, not FK — clean them up here.
+    // Levels and their questions cascade via FKs.
+    await supabase.from('boss_questions').delete().eq('boss_key', `chapter:${req.params.id}`);
+    const { error } = await supabase.from('journey_chapters').delete().eq('id', req.params.id);
+    if (error) throw error;
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── First Aid Journey: levels (admin) ─────────────────────────────────────────
+
+app.get('/admin/journey-levels', adminAuth, async (req, res) => {
+  if (!supabase) return res.json({ levels: [] });
+  const { chapter_id } = req.query;
+  try {
+    let query = supabase.from('journey_levels').select('*')
+      .order('sort_order', { ascending: true })
+      .order('name', { ascending: true });
+    if (chapter_id) query = query.eq('chapter_id', chapter_id);
+    const { data, error } = await query;
+    if (error) throw error;
+    res.json({ levels: data || [] });
+  } catch (err) {
+    console.warn('[/admin/journey-levels] unavailable, returning levels: [] —', err.message);
+    res.json({ levels: [] });
+  }
+});
+
+app.post('/admin/journey-levels', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  const { chapter_id, name, sort_order } = req.body;
+  if (!chapter_id || !name?.trim()) return res.status(400).json({ error: 'chapter_id and name required' });
+  try {
+    const { data, error } = await supabase
+      .from('journey_levels')
+      .insert({
+        chapter_id,
+        name: name.trim(),
+        sort_order: Number.isFinite(sort_order) ? sort_order : 0,
+      })
+      .select()
+      .single();
+    if (error) throw error;
+    res.json(data);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.put('/admin/journey-levels/:id', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  const updates = {};
+  if ('name' in req.body) {
+    if (!req.body.name?.trim()) return res.status(400).json({ error: 'name required' });
+    updates.name = req.body.name.trim();
+  }
+  if (Number.isFinite(req.body.sort_order)) updates.sort_order = req.body.sort_order;
+  if (Object.keys(updates).length === 0) return res.status(400).json({ error: 'nothing to update' });
+  try {
+    const { data, error } = await supabase
+      .from('journey_levels')
+      .update(updates)
+      .eq('id', req.params.id)
+      .select()
+      .single();
+    if (error) throw error;
+    res.json(data);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.delete('/admin/journey-levels/:id', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  try {
+    const { error } = await supabase.from('journey_levels').delete().eq('id', req.params.id);
+    if (error) throw error;
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── First Aid Journey: level questions (admin) ────────────────────────────────
+
+app.get('/admin/journey-questions', adminAuth, async (req, res) => {
+  if (!supabase) return res.json({ questions: [] });
+  const { level_id } = req.query;
+  try {
+    let query = supabase.from('journey_questions').select('*')
+      .order('sort_order', { ascending: true })
+      .order('created_at', { ascending: true });
+    if (level_id) query = query.eq('level_id', level_id);
+    const { data, error } = await query;
+    if (error) throw error;
+    res.json({ questions: data || [] });
+  } catch (err) {
+    console.warn('[/admin/journey-questions] unavailable, returning questions: [] —', err.message);
+    res.json({ questions: [] });
+  }
+});
+
+app.post('/admin/journey-questions', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  const { level_id, question, options, correct, explanation, why_others_wrong, image_url, sort_order } = req.body;
+  if (!level_id) return res.status(400).json({ error: 'level_id required' });
+  const invalid = bossQuestionError({ question, options, correct });
+  if (invalid) return res.status(400).json({ error: invalid });
+  try {
+    const { data, error } = await supabase
+      .from('journey_questions')
+      .insert({
+        level_id,
+        question: question.trim(),
+        options,
+        correct: String(correct).trim().toUpperCase(),
+        explanation: explanation || null,
+        why_others_wrong: why_others_wrong || null,
+        image_url: image_url || null,
+        sort_order: Number.isFinite(sort_order) ? sort_order : 0,
+      })
+      .select()
+      .single();
+    if (error) throw error;
+    res.json(data);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.put('/admin/journey-questions/:id', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  try {
+    const { data: existing, error: getErr } = await supabase
+      .from('journey_questions').select('*').eq('id', req.params.id).single();
+    if (getErr || !existing) return res.status(404).json({ error: 'Journey question not found' });
+
+    const updates = {};
+    for (const k of ['level_id', 'question', 'options', 'correct', 'explanation', 'why_others_wrong', 'image_url']) {
+      if (k in req.body) updates[k] = req.body[k];
+    }
+    if (Number.isFinite(req.body.sort_order)) updates.sort_order = req.body.sort_order;
+    if (Object.keys(updates).length === 0) return res.status(400).json({ error: 'nothing to update' });
+
+    // Validate the merged row so partial updates can't corrupt a question
+    const merged = { ...existing, ...updates };
+    const invalid = bossQuestionError(merged);
+    if (invalid) return res.status(400).json({ error: invalid });
+    if (updates.question) updates.question = updates.question.trim();
+    if (updates.correct)  updates.correct  = String(updates.correct).trim().toUpperCase();
+
+    const { data, error } = await supabase
+      .from('journey_questions')
+      .update(updates)
+      .eq('id', req.params.id)
+      .select()
+      .single();
+    if (error) throw error;
+    res.json(data);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.delete('/admin/journey-questions/:id', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  try {
+    const { error } = await supabase.from('journey_questions').delete().eq('id', req.params.id);
     if (error) throw error;
     res.json({ ok: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -5799,13 +6023,13 @@ app.get('/api/videos', async (req, res) => {
 
 // ── First Aid Journey (public, Bearer-authenticated) ──────────────────────────
 
-// Build the ordered journey path for one user: chapters = topic groups (name
-// order) of grouped topics (name order; ungrouped topics are EXCLUDED), each
-// chapter ending in a boss, then the ultimate boss.
+// Build the ordered journey path for one user: chapters and levels are
+// first-class journey entities (journey_chapters / journey_levels, ordered by
+// sort_order then name), each chapter ending in a boss, then the ultimate boss.
 //
-// Keys: topic levels report progress under the topic UUID; bosses report under
-// level_key 'boss:{group_id}' / 'boss:ultimate' and fetch their questions with
-// boss_key 'chapter:{group_id}' / 'ultimate'.
+// Keys: levels report progress under their journey_levels.id; bosses report
+// under level_key 'boss:{chapter_id}' / 'boss:ultimate' and fetch their
+// questions with boss_key 'chapter:{chapter_id}' / 'ultimate'.
 //
 // Unlock chain (computed here, never stored):
 //   chapter 1 level 1 unlocked; level N needs level N-1 completed;
@@ -5813,25 +6037,44 @@ app.get('/api/videos', async (req, res) => {
 //   needs the previous chapter's boss; ultimate needs all chapter bosses.
 // AUTO-SKIP: a boss with zero authored questions counts as satisfied once its
 // prerequisites are met, so unauthored content never dead-ends players.
-async function buildJourneyPath(userId, subject, difficulty) {
-  const [topicsRes, groupsRes, progressRes, bossRes] = await Promise.all([
-    supabase.from('topics').select('*').eq('category', subject).order('name'),
-    supabase.from('topic_groups').select('*').eq('category', subject).order('name'),
+async function buildJourneyPath(userId, subject) {
+  const [chaptersRes, progressRes, bossRes] = await Promise.all([
+    supabase.from('journey_chapters').select('*').eq('subject', subject)
+      .order('sort_order', { ascending: true }).order('name', { ascending: true }),
     supabase.from('journey_progress').select('*')
-      .eq('user_id', userId).eq('subject', subject).eq('difficulty', difficulty),
-    supabase.from('boss_questions').select('boss_key')
-      .eq('subject', subject).eq('difficulty', difficulty),
+      .eq('user_id', userId).eq('subject', subject),
+    supabase.from('boss_questions').select('boss_key').eq('subject', subject),
   ]);
-  if (topicsRes.error) throw topicsRes.error;
-  if (groupsRes.error) throw groupsRes.error;
-
-  const topics = (topicsRes.data || []).filter(t => (t.difficulty || 'easy') === difficulty);
-  const groups = (groupsRes.data || []).filter(g => (g.difficulty || 'easy') === difficulty);
-  // journey_progress / boss_questions may not be migrated yet — degrade gracefully
-  const progress   = progressRes.error ? [] : (progressRes.data || []);
-  const bossCounts = {};
+  // Journey tables may not be migrated yet — degrade to an empty path
+  if (chaptersRes.error) {
+    console.warn('[journey] journey_chapters unavailable —', chaptersRes.error.message);
+  }
+  const chapterRows = chaptersRes.error ? [] : (chaptersRes.data || []);
+  const progress    = progressRes.error ? [] : (progressRes.data || []);
+  const bossCounts  = {};
   if (!bossRes.error) {
     for (const b of (bossRes.data || [])) bossCounts[b.boss_key] = (bossCounts[b.boss_key] || 0) + 1;
+  }
+
+  // Levels for all chapters, then per-level question counts
+  let levelRows = [];
+  const levelQCounts = {};
+  if (chapterRows.length > 0) {
+    const { data: lvData, error: lvErr } = await supabase.from('journey_levels').select('*')
+      .in('chapter_id', chapterRows.map(c => c.id))
+      .order('sort_order', { ascending: true }).order('name', { ascending: true });
+    if (lvErr) {
+      console.warn('[journey] journey_levels unavailable —', lvErr.message);
+    } else {
+      levelRows = lvData || [];
+    }
+    if (levelRows.length > 0) {
+      const { data: qData, error: qErr } = await supabase.from('journey_questions')
+        .select('level_id').in('level_id', levelRows.map(l => l.id));
+      if (!qErr) {
+        for (const q of (qData || [])) levelQCounts[q.level_id] = (levelQCounts[q.level_id] || 0) + 1;
+      }
+    }
   }
 
   const progByKey = new Map(progress.map(p => [p.level_key, p]));
@@ -5842,34 +6085,34 @@ async function buildJourneyPath(userId, subject, difficulty) {
   const chapters = [];
   let allBossesSatisfied = true;
 
-  for (const g of groups) {
-    const members = topics.filter(t => t.group_id === g.id);
+  for (const ch of chapterRows) {
+    const members = levelRows.filter(l => l.chapter_id === ch.id);
     if (members.length === 0) continue; // empty chapters don't appear on the path
 
-    const levels = members.map(t => {
-      const completed = isDone(t.id);
+    const levels = members.map(l => {
+      const completed = isDone(l.id);
       const unlocked  = prevSatisfied || completed;
       prevSatisfied   = completed;
       return {
-        level_key: t.id,
-        name: t.name,
-        question_count: questionBank.filter(q => q.topic_id === t.id).length,
+        level_key: l.id,
+        name: l.name,
+        question_count: levelQCounts[l.id] || 0,
         completed,
-        best_score_pct: best(t.id),
+        best_score_pct: best(l.id),
         unlocked,
       };
     });
 
     const allLevelsDone = levels.every(l => l.completed);
-    const bossKey       = `chapter:${g.id}`;
-    const levelKey      = `boss:${g.id}`;
+    const bossKey       = `chapter:${ch.id}`;
+    const levelKey      = `boss:${ch.id}`;
     const qCount        = bossCounts[bossKey] || 0;
     const completed     = isDone(levelKey);
     const autoSkipped   = qCount === 0 && allLevelsDone;
     const satisfied     = autoSkipped || completed;
 
     chapters.push({
-      group: { id: g.id, name: g.name },
+      chapter: { id: ch.id, name: ch.name },
       levels,
       boss: {
         boss_key: bossKey,
@@ -5903,7 +6146,6 @@ async function buildJourneyPath(userId, subject, difficulty) {
 
   return {
     subject,
-    difficulty,
     threshold: Number(gameSettings.journeyThreshold) || 80,
     chapters,
     ultimate,
@@ -5912,9 +6154,9 @@ async function buildJourneyPath(userId, subject, difficulty) {
 }
 
 app.get('/api/journey/:subject', requireAuth, async (req, res) => {
-  if (!supabase) return res.json({ subject: req.params.subject, difficulty: req.query.difficulty || 'easy', threshold: 80, chapters: [], ultimate: null, mastery: false });
+  if (!supabase) return res.json({ subject: req.params.subject, threshold: 80, chapters: [], ultimate: null, mastery: false });
   try {
-    const path = await buildJourneyPath(req.userId, req.params.subject, req.query.difficulty || 'easy');
+    const path = await buildJourneyPath(req.userId, req.params.subject);
     res.json(path);
   } catch (err) {
     console.error('[/api/journey] error:', err.message);
@@ -5924,29 +6166,26 @@ app.get('/api/journey/:subject', requireAuth, async (req, res) => {
 
 app.post('/api/journey/complete', requireAuth, async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
-  const { subject, difficulty, level_key, score_pct } = req.body;
+  const { subject, level_key, score_pct } = req.body;
   if (!subject || !level_key || !Number.isFinite(score_pct)) {
     return res.status(400).json({ error: 'subject, level_key and numeric score_pct required' });
   }
-  const diff      = difficulty || 'easy';
   const pct       = Math.max(0, Math.min(100, Math.round(score_pct)));
   const threshold = Number(gameSettings.journeyThreshold) || 80;
   try {
     const { data: existing } = await supabase.from('journey_progress').select('*')
-      .eq('user_id', req.userId).eq('subject', subject)
-      .eq('difficulty', diff).eq('level_key', level_key)
+      .eq('user_id', req.userId).eq('subject', subject).eq('level_key', level_key)
       .maybeSingle();
     // Idempotent: best score only ever rises; completed_at sticks once earned
     const { error } = await supabase.from('journey_progress').upsert({
       user_id: req.userId,
       subject,
-      difficulty: diff,
       level_key,
       best_score_pct: Math.max(existing?.best_score_pct || 0, pct),
       completed_at: existing?.completed_at || (pct >= threshold ? new Date().toISOString() : null),
-    }, { onConflict: 'user_id,subject,difficulty,level_key' });
+    }, { onConflict: 'user_id,subject,level_key' });
     if (error) throw error;
-    const path = await buildJourneyPath(req.userId, subject, diff);
+    const path = await buildJourneyPath(req.userId, subject);
     res.json({ passed: pct >= threshold, score_pct: pct, ...path });
   } catch (err) {
     console.error('[/api/journey/complete] error:', err.message);
@@ -5954,15 +6193,45 @@ app.post('/api/journey/complete', requireAuth, async (req, res) => {
   }
 });
 
+// Public level questions in the exact solo wire shape (client-judged)
+app.get('/api/journey-questions', async (req, res) => {
+  if (!supabase) return res.json({ questions: [] });
+  const { level_id } = req.query;
+  if (!level_id) return res.status(400).json({ error: 'level_id required', questions: [] });
+  try {
+    const { data, error } = await supabase.from('journey_questions').select('*')
+      .eq('level_id', level_id)
+      .order('sort_order', { ascending: true })
+      .order('created_at', { ascending: true });
+    if (error) throw error;
+    const questions = (data || []).map(q => ({
+      id: q.id,
+      question: q.question,
+      options: q.options,
+      correct: q.correct,
+      explanation: q.explanation || '',
+      why_others_wrong: q.why_others_wrong || null,
+      image_url: q.image_url || null,
+    }));
+    if (questions.length === 0) {
+      return res.json({ questions: [], empty: true, message: 'No questions authored for this level yet.' });
+    }
+    res.json({ questions, empty: false });
+  } catch (err) {
+    // Table may not exist yet (manual migration) — degrade to empty list
+    console.warn('[/api/journey-questions] unavailable, returning questions: [] —', err.message);
+    res.json({ questions: [] });
+  }
+});
+
 // Public boss questions in the exact solo wire shape (client-judged, like /api/questions)
 app.get('/api/boss-questions', async (req, res) => {
   if (!supabase) return res.json({ questions: [] });
-  const { subject, difficulty, boss_key } = req.query;
+  const { subject, boss_key } = req.query;
   if (!subject || !boss_key) return res.status(400).json({ error: 'subject and boss_key required', questions: [] });
   try {
     const { data, error } = await supabase.from('boss_questions').select('*')
       .eq('subject', subject)
-      .eq('difficulty', difficulty || 'easy')
       .eq('boss_key', boss_key)
       .order('sort_order', { ascending: true })
       .order('created_at', { ascending: true });

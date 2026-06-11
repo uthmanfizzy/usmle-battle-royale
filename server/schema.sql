@@ -172,22 +172,90 @@ DROP POLICY IF EXISTS "server_full_access_videos" ON videos;
 CREATE POLICY "server_full_access_videos"
   ON videos FOR ALL USING (true) WITH CHECK (true);
 
+-- ── journey_chapters ──────────────────────────────────────────────────────────
+-- First Aid Journey chapters: first-class journey entities authored in the
+-- Journey admin (NOT derived from topic groups). Ordered by sort_order.
+
+CREATE TABLE IF NOT EXISTS journey_chapters (
+  id         UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  subject    TEXT        NOT NULL,
+  name       TEXT        NOT NULL,
+  sort_order INT         NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_journey_chapters_subject ON journey_chapters(subject);
+
+ALTER TABLE journey_chapters ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "server_full_access_journey_chapters" ON journey_chapters;
+CREATE POLICY "server_full_access_journey_chapters"
+  ON journey_chapters FOR ALL USING (true) WITH CHECK (true);
+
+-- ── journey_levels ────────────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS journey_levels (
+  id         UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  chapter_id UUID        NOT NULL REFERENCES journey_chapters(id) ON DELETE CASCADE,
+  name       TEXT        NOT NULL,
+  sort_order INT         NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_journey_levels_chapter ON journey_levels(chapter_id);
+
+ALTER TABLE journey_levels ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "server_full_access_journey_levels" ON journey_levels;
+CREATE POLICY "server_full_access_journey_levels"
+  ON journey_levels FOR ALL USING (true) WITH CHECK (true);
+
+-- ── journey_questions ─────────────────────────────────────────────────────────
+-- Per-level authored questions. Shape mirrors the solo wire format.
+
+CREATE TABLE IF NOT EXISTS journey_questions (
+  id               UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  level_id         UUID        NOT NULL REFERENCES journey_levels(id) ON DELETE CASCADE,
+  question         TEXT        NOT NULL,
+  options          JSONB       NOT NULL,
+  correct          TEXT        NOT NULL,
+  explanation      TEXT,
+  why_others_wrong JSONB,
+  image_url        TEXT,
+  sort_order       INT         NOT NULL DEFAULT 0,
+  created_at       TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_journey_questions_level ON journey_questions(level_id);
+
+ALTER TABLE journey_questions ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "server_full_access_journey_questions" ON journey_questions;
+CREATE POLICY "server_full_access_journey_questions"
+  ON journey_questions FOR ALL USING (true) WITH CHECK (true);
+
 -- ── journey_progress ──────────────────────────────────────────────────────────
--- First Aid Journey per-user level state. level_key is a topic UUID (as text),
--- 'boss:{group_id}' for chapter bosses, or 'boss:ultimate'.
+-- First Aid Journey per-user level state. level_key is a journey_levels.id (as
+-- text), 'boss:{chapter_id}' for chapter bosses, or 'boss:ultimate'.
 -- Completion is derived from completed_at — status is never stored separately.
+-- The UNIQUE constraint is added by name below (not inline) so fresh and
+-- migrated databases end up with exactly one identical constraint.
 
 CREATE TABLE IF NOT EXISTS journey_progress (
   id             UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id        UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   subject        TEXT        NOT NULL,
-  difficulty     TEXT        NOT NULL DEFAULT 'easy',
   level_key      TEXT        NOT NULL,
   best_score_pct INT         NOT NULL DEFAULT 0,
   completed_at   TIMESTAMPTZ,
-  created_at     TIMESTAMPTZ DEFAULT now(),
-  UNIQUE (user_id, subject, difficulty, level_key)
+  created_at     TIMESTAMPTZ DEFAULT now()
 );
+
+-- MIGRATION (no-difficulty revision — safe to re-run on any database)
+ALTER TABLE journey_progress DROP COLUMN IF EXISTS difficulty;
+ALTER TABLE journey_progress DROP CONSTRAINT IF EXISTS journey_progress_user_id_subject_difficulty_level_key_key;
+ALTER TABLE journey_progress DROP CONSTRAINT IF EXISTS journey_progress_user_subject_level;
+ALTER TABLE journey_progress ADD CONSTRAINT journey_progress_user_subject_level UNIQUE (user_id, subject, level_key);
 
 CREATE INDEX IF NOT EXISTS idx_journey_progress_user_subject ON journey_progress(user_id, subject);
 
@@ -198,13 +266,12 @@ CREATE POLICY "server_full_access_journey_progress"
   ON journey_progress FOR ALL USING (true) WITH CHECK (true);
 
 -- ── boss_questions ────────────────────────────────────────────────────────────
--- First Aid Journey boss questions. boss_key: 'chapter:{group_id}' | 'ultimate'.
--- Shape mirrors the solo wire format (options JSONB array, correct = letter).
+-- First Aid Journey boss questions. boss_key: 'chapter:{journey_chapter_id}'
+-- | 'ultimate'. Shape mirrors the solo wire format.
 
 CREATE TABLE IF NOT EXISTS boss_questions (
   id               UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
   subject          TEXT        NOT NULL,
-  difficulty       TEXT        NOT NULL DEFAULT 'easy',
   boss_key         TEXT        NOT NULL,
   question         TEXT        NOT NULL,
   options          JSONB       NOT NULL,
@@ -216,7 +283,10 @@ CREATE TABLE IF NOT EXISTS boss_questions (
   created_at       TIMESTAMPTZ DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS idx_boss_questions_key ON boss_questions(subject, difficulty, boss_key);
+-- MIGRATION (no-difficulty revision — safe to re-run on any database)
+ALTER TABLE boss_questions DROP COLUMN IF EXISTS difficulty;
+DROP INDEX IF EXISTS idx_boss_questions_key;
+CREATE INDEX IF NOT EXISTS idx_boss_questions_key ON boss_questions(subject, boss_key);
 
 ALTER TABLE boss_questions ENABLE ROW LEVEL SECURITY;
 
