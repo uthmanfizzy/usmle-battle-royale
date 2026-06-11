@@ -3380,6 +3380,341 @@ function VideosPanel() {
   );
 }
 
+// ── First Aid Journey Panel ─────────────────────────────────────────────────────
+
+const BOSS_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F'];
+const BOSS_EMPTY_FORM = {
+  question: '', optionA: '', optionB: '', optionC: '', optionD: '', optionE: '', optionF: '',
+  correct: 'A', explanation: '', why_others_wrong: '',
+};
+
+function JourneyPanel() {
+  const [subject,    setSubject]    = useState(VIDEO_CATEGORIES[0]?.id || '');
+  const [difficulty, setDifficulty] = useState('easy');
+  const [chapters,   setChapters]   = useState([]);   // groups + topicCount
+  const [bossQs,     setBossQs]     = useState([]);   // all boss questions in scope
+  const [loading,    setLoading]    = useState(true);
+  const [error,      setError]      = useState('');
+  const [selected,   setSelected]   = useState(null); // null | { boss_key, label, icon }
+  const [editing,    setEditing]    = useState(null); // null | question row
+  const [deleteQ,    setDeleteQ]    = useState(null);
+  const [saving,     setSaving]     = useState(false);
+  const [form,       setForm]       = useState(BOSS_EMPTY_FORM);
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  useEffect(() => { loadScope(); }, [subject, difficulty]);
+
+  async function loadScope() {
+    setLoading(true);
+    setError('');
+    setSelected(null);
+    setEditing(null);
+    setForm(BOSS_EMPTY_FORM);
+    try {
+      const [topicsRes, bossRes] = await Promise.all([
+        apiCall(`/admin/topics?category=${encodeURIComponent(subject)}`),
+        apiCall(`/admin/boss-questions?subject=${encodeURIComponent(subject)}&difficulty=${difficulty}`),
+      ]);
+      const topicsData = await topicsRes.json();
+      const bossData   = await bossRes.json();
+      if (!topicsRes.ok) throw new Error(topicsData.error || 'Failed to load chapters');
+      const topics = (topicsData.topics || []).filter(t => (t.difficulty || 'easy') === difficulty);
+      const groups = (topicsData.groups || []).filter(g => (g.difficulty || 'easy') === difficulty);
+      setChapters(groups.map(g => ({ ...g, topicCount: topics.filter(t => t.group_id === g.id).length })));
+      setBossQs(bossData.questions || []);
+    } catch (err) {
+      setError(err.message);
+      setChapters([]);
+      setBossQs([]);
+    }
+    setLoading(false);
+  }
+
+  const questionsFor = (bossKey) => bossQs.filter(q => q.boss_key === bossKey);
+
+  function resetForm() {
+    setEditing(null);
+    setForm(BOSS_EMPTY_FORM);
+  }
+
+  function startEdit(q) {
+    setError('');
+    setEditing(q);
+    setForm({
+      question: q.question,
+      optionA: q.options[0] || '',
+      optionB: q.options[1] || '',
+      optionC: q.options[2] || '',
+      optionD: q.options[3] || '',
+      optionE: q.options[4] || '',
+      optionF: q.options[5] || '',
+      correct: q.correct || 'A',
+      explanation: q.explanation || '',
+      why_others_wrong: typeof q.why_others_wrong === 'string' ? q.why_others_wrong : '',
+    });
+  }
+
+  // Letters offered by the correct-select: A-D always, E/F once filled
+  const offeredLetters = BOSS_LETTERS.filter((l, i) => i < 4 || form[`option${l}`].trim() !== '');
+  const assembledOptions = BOSS_LETTERS.map(l => form[`option${l}`].trim()).filter(o => o !== '');
+  const canSave = !saving && form.question.trim() && assembledOptions.length >= 2 && offeredLetters.includes(form.correct);
+
+  async function handleSave(e) {
+    e.preventDefault();
+    setError('');
+    setSaving(true);
+    try {
+      let res, data;
+      if (editing) {
+        // PUT changed fields only — server validates the merged row
+        const body = {};
+        if (form.question.trim() !== editing.question) body.question = form.question.trim();
+        if (JSON.stringify(assembledOptions) !== JSON.stringify(editing.options)) body.options = assembledOptions;
+        if (form.correct !== editing.correct) body.correct = form.correct;
+        if (form.explanation.trim() !== (editing.explanation || '')) body.explanation = form.explanation.trim() || null;
+        const prevWhy = typeof editing.why_others_wrong === 'string' ? editing.why_others_wrong : '';
+        if (form.why_others_wrong.trim() !== prevWhy) body.why_others_wrong = form.why_others_wrong.trim() || null;
+        if (Object.keys(body).length === 0) { resetForm(); setSaving(false); return; }
+        res  = await apiCall(`/admin/boss-questions/${editing.id}`, { method: 'PUT', body: JSON.stringify(body) });
+        data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to save question');
+        setBossQs(qs => qs.map(q => q.id === editing.id ? data : q));
+      } else {
+        const body = {
+          subject,
+          difficulty,
+          boss_key: selected.boss_key,
+          question: form.question.trim(),
+          options: assembledOptions,
+          correct: form.correct,
+          explanation: form.explanation.trim() || null,
+          why_others_wrong: form.why_others_wrong.trim() || null,
+        };
+        res  = await apiCall('/admin/boss-questions', { method: 'POST', body: JSON.stringify(body) });
+        data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to add question');
+        setBossQs(qs => [...qs, data]);
+      }
+      resetForm();
+    } catch (err) { setError(err.message); }
+    setSaving(false);
+  }
+
+  async function handleDelete() {
+    setError('');
+    try {
+      const res  = await apiCall(`/admin/boss-questions/${deleteQ.id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to delete question');
+      setBossQs(qs => qs.filter(q => q.id !== deleteQ.id));
+      if (editing?.id === deleteQ.id) resetForm();
+      setDeleteQ(null);
+    } catch (err) { setError(err.message); setDeleteQ(null); }
+  }
+
+  const folder = FOLDERS.find(f => f.id === subject);
+  const diffLabel = difficulty === 'hard' ? '💀 Hard' : '😊 Easy';
+  const selectedQuestions = selected ? questionsFor(selected.boss_key) : [];
+
+  if (loading) return <div className="ap-loading"><div className="ap-spinner" /></div>;
+
+  return (
+    <div className="ap-panel">
+      <div className="ap-panel-head">
+        <h2>🚑 First Aid Journey — Boss Questions</h2>
+      </div>
+
+      {/* Scope bar */}
+      <div className="ap-journey-scope">
+        <div className="ap-field">
+          <label>Subject</label>
+          <select value={subject} onChange={e => setSubject(e.target.value)}>
+            {VIDEO_CATEGORIES.map(f => <option key={f.id} value={f.id}>{f.icon} {f.label}</option>)}
+          </select>
+        </div>
+        <div className="ap-field">
+          <label>Difficulty</label>
+          <div className="ap-attach-toggle">
+            <button type="button" className={difficulty === 'easy' ? 'active' : ''} onClick={() => setDifficulty('easy')}>😊 Easy</button>
+            <button type="button" className={difficulty === 'hard' ? 'active' : ''} onClick={() => setDifficulty('hard')}>💀 Hard</button>
+          </div>
+        </div>
+      </div>
+
+      {error && <div className="ap-error">{error}</div>}
+
+      {!selected ? (
+        /* ── Boss list: chapter cards + ultimate ─────────────────── */
+        chapters.length === 0 ? (
+          <div className="ap-topic-empty">
+            <div className="ap-topic-empty-icon">🗂️</div>
+            <p>No chapters yet — create topic groups in Question Manager first.</p>
+          </div>
+        ) : (
+          <div className="ap-journey-boss-grid">
+            {chapters.map(g => {
+              const count = questionsFor(`chapter:${g.id}`).length;
+              return (
+                <button
+                  key={g.id}
+                  className="ap-journey-boss-card"
+                  onClick={() => { setError(''); resetForm(); setSelected({ boss_key: `chapter:${g.id}`, label: `${g.name} Boss`, icon: '🗂️' }); }}
+                >
+                  <span className="ap-journey-boss-icon">🗂️</span>
+                  <span className="ap-journey-boss-name">{g.name}</span>
+                  <span className="ap-journey-boss-meta">
+                    {g.topicCount} topic{g.topicCount !== 1 ? 's' : ''} · {count} boss question{count !== 1 ? 's' : ''}
+                  </span>
+                  {count === 0 && <span className="ap-journey-boss-hint">auto-skips in game until questions are added</span>}
+                </button>
+              );
+            })}
+            <button
+              className="ap-journey-boss-card ap-journey-boss-card--ultimate"
+              onClick={() => { setError(''); resetForm(); setSelected({ boss_key: 'ultimate', label: 'Ultimate Boss', icon: '👑' }); }}
+            >
+              <span className="ap-journey-boss-icon">👑</span>
+              <span className="ap-journey-boss-name">Ultimate Boss</span>
+              <span className="ap-journey-boss-meta">
+                {questionsFor('ultimate').length} boss question{questionsFor('ultimate').length !== 1 ? 's' : ''}
+              </span>
+              {questionsFor('ultimate').length === 0 && <span className="ap-journey-boss-hint">auto-skips in game until questions are added</span>}
+            </button>
+          </div>
+        )
+      ) : (
+        /* ── Boss editor: header + form + question list ───────────── */
+        <>
+          <div className="ap-journey-editor-head">
+            <button className="ap-btn-back" onClick={() => { setError(''); resetForm(); setSelected(null); }}>← Back</button>
+            <span className="ap-journey-editor-title">
+              {folder?.icon} {folder?.label} › {diffLabel} › {selected.icon} {selected.label}
+            </span>
+          </div>
+
+          <form onSubmit={handleSave} className="ap-qform ap-video-form">
+            <h3 className="ap-video-form-title">{editing ? '✏️ Edit Boss Question' : '➕ Add Boss Question'}</h3>
+
+            <div className="ap-field">
+              <label>Question</label>
+              <textarea
+                value={form.question}
+                onChange={e => set('question', e.target.value)}
+                placeholder="Boss question text…"
+                rows={3}
+              />
+            </div>
+
+            <div className="ap-options-grid">
+              {BOSS_LETTERS.map((l, idx) => {
+                const isRequired = idx < 4;
+                const hasValue = form[`option${l}`].trim() !== '';
+                const showField = isRequired || hasValue || (idx > 0 && form[`option${BOSS_LETTERS[idx - 1]}`].trim() !== '');
+                if (!showField) return null;
+                return (
+                  <div key={l} className="ap-field">
+                    <label>
+                      <span className={`ap-letter ${l === form.correct ? 'ap-letter-correct' : 'ap-letter-plain'}`}>{l}</span>
+                      {' '}Answer {l}
+                      {!isRequired && <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '11px' }}> (optional)</span>}
+                    </label>
+                    <input
+                      type="text"
+                      value={form[`option${l}`]}
+                      onChange={e => set(`option${l}`, e.target.value)}
+                      placeholder={`Answer choice ${l}`}
+                      required={isRequired}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="ap-field">
+              <label>Correct Answer</label>
+              <select value={form.correct} onChange={e => set('correct', e.target.value)}>
+                {offeredLetters.map(l => <option key={l} value={l}>{l}</option>)}
+              </select>
+            </div>
+
+            <div className="ap-field">
+              <label>Explanation</label>
+              <textarea
+                value={form.explanation}
+                onChange={e => set('explanation', e.target.value)}
+                placeholder="Explain why the correct answer is correct…"
+                rows={3}
+              />
+            </div>
+
+            <div className="ap-field">
+              <label>Why Others Are Wrong <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '11px' }}>(optional)</span></label>
+              <textarea
+                value={form.why_others_wrong}
+                onChange={e => set('why_others_wrong', e.target.value)}
+                placeholder="Explain why each incorrect option is wrong..."
+                rows={3}
+              />
+              {form.why_others_wrong && (
+                <div className="explanation-preview">
+                  <p className="explanation-preview-label">Preview:</p>
+                  <div className="explanation-rich explanation-preview-box">
+                    {parseRichText(form.why_others_wrong)}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="ap-video-form-actions">
+              {editing && <button type="button" className="ap-btn-sec" onClick={() => { setError(''); resetForm(); }}>Cancel</button>}
+              <button type="submit" className="ap-btn-pri" disabled={!canSave}>
+                {saving ? 'Saving…' : editing ? 'Save Changes' : 'Add Question'}
+              </button>
+            </div>
+          </form>
+
+          {selectedQuestions.length === 0 ? (
+            <div className="ap-topic-empty">
+              <div className="ap-topic-empty-icon">{selected.icon}</div>
+              <p>No questions for this boss yet — it auto-skips in game until you add some.</p>
+            </div>
+          ) : (
+            <div className="ap-journey-q-list">
+              <p className="ap-journey-q-caption">
+                {selectedQuestions.length} question{selectedQuestions.length !== 1 ? 's' : ''} · players face these after completing {selected.boss_key === 'ultimate' ? 'every chapter' : 'the chapter'}
+              </p>
+              {selectedQuestions.map(q => (
+                <div className="ap-journey-q-row" key={q.id}>
+                  <span className="ap-journey-q-correct">{q.correct}</span>
+                  <span className="ap-journey-q-text">{q.question}</span>
+                  <div className="ap-video-row-actions">
+                    <button className="ap-topic-edit-btn" onClick={() => startEdit(q)} title="Edit">✏️</button>
+                    <button className="ap-topic-del-btn" onClick={() => setDeleteQ(q)} title="Delete">🗑️</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+
+      {deleteQ && (
+        <div className="ap-backdrop" onClick={() => setDeleteQ(null)}>
+          <div className="ap-confirm" onClick={e => e.stopPropagation()}>
+            <div className="ap-confirm-icon">{selected?.icon || '🚑'}</div>
+            <h3>Delete this boss question?</h3>
+            <p>"{deleteQ.question.slice(0, 80)}{deleteQ.question.length > 80 ? '…' : ''}"</p>
+            <div className="ap-modal-foot">
+              <button className="ap-btn-sec" onClick={() => setDeleteQ(null)}>Cancel</button>
+              <button className="ap-btn-danger" onClick={handleDelete}>Delete Question</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Tower Editor ──────────────────────────────────────────────────────────────
 
 const TE_ZONES = [
@@ -3809,6 +4144,7 @@ function withDefaults(raw) {
     suddenDeathTimer:         raw.suddenDeathTimer        ?? 5,
     towerFloorLives:          raw.towerFloorLives         ?? 3,
     bossTolerance:            raw.bossTolerance           ?? 0,
+    journeyThreshold:         raw.journeyThreshold        ?? 80,
     // Section 3: Lobby
     maxPlayersPerLobby:       raw.maxPlayersPerLobby      ?? 10,
     minPlayersToStart:        raw.minPlayersToStart       ?? 2,
@@ -4544,6 +4880,12 @@ function SettingsPanel() {
               </div>
             </div>
           </div>
+
+          <SliderRow label="Journey Unlock Threshold"
+            desc="First Aid Journey: % score needed to complete a level and unlock the next"
+            min={50} max={100} step={5} unit="%"
+            value={settings.journeyThreshold}
+            onChange={v => upd('journeyThreshold', v)} />
         </div>
 
         <SectionSaveBtn saving={saving.lives} saved={saved.lives} error={saveErr.lives} onSave={() => saveSection('lives')} />
@@ -5679,6 +6021,9 @@ export default function AdminApp() {
         <button className={`ap-nav-btn ${tab === 'videos'        ? 'active' : ''}`} onClick={() => setTab('videos')}>
           🎬 Videos
         </button>
+        <button className={`ap-nav-btn ${tab === 'journey'       ? 'active' : ''}`} onClick={() => setTab('journey')}>
+          🚑 First Aid Journey
+        </button>
         <button className={`ap-nav-btn ${tab === 'announcements' ? 'active' : ''}`} onClick={() => setTab('announcements')}>
           📣 Announcements
         </button>
@@ -5710,6 +6055,7 @@ export default function AdminApp() {
         {tab === 'tower'         && <TowerEditorPanel />}
         {tab === 'quests'        && <QuestsPanel />}
         {tab === 'videos'        && <VideosPanel />}
+        {tab === 'journey'       && <JourneyPanel />}
         {tab === 'announcements' && <AnnouncementsPanel />}
         {tab === 'landing'       && <LandingImagesPanel />}
         {tab === 'playpage'      && <PlayPageAdmin />}

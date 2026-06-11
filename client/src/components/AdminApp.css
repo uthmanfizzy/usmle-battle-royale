@@ -2816,6 +2816,103 @@
 .ap-video-row-attach { font-size: 12px; color: var(--text-dim); }
 .ap-video-row-actions { display: flex; gap: 4px; flex-shrink: 0; }
 
+/* First Aid Journey panel */
+.ap-journey-scope {
+  display: flex;
+  gap: 16px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+.ap-journey-scope .ap-field { min-width: 220px; }
+
+.ap-journey-boss-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 14px;
+}
+
+.ap-journey-boss-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.ap-journey-boss-card:hover {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 1px rgba(241, 196, 15, 0.2);
+}
+.ap-journey-boss-card--ultimate {
+  border-color: rgba(231, 76, 60, 0.5);
+}
+.ap-journey-boss-card--ultimate:hover {
+  border-color: #e74c3c;
+  box-shadow: 0 0 0 1px rgba(231, 76, 60, 0.25);
+}
+
+.ap-journey-boss-icon { font-size: 24px; }
+.ap-journey-boss-name { font-size: 15px; font-weight: 700; }
+.ap-journey-boss-meta { font-size: 12px; color: var(--text-dim); }
+.ap-journey-boss-hint {
+  font-size: 11px;
+  color: rgba(230, 126, 34, 0.85);
+  font-style: italic;
+}
+
+.ap-journey-editor-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.ap-journey-editor-title { font-size: 14px; font-weight: 700; }
+
+.ap-journey-q-list { margin-top: 18px; }
+.ap-journey-q-caption {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin: 0 0 10px;
+}
+
+.ap-journey-q-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+.ap-journey-q-correct {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(46, 204, 113, 0.15);
+  color: #2ecc71;
+  font-size: 13px;
+  font-weight: 700;
+}
+.ap-journey-q-text {
+  flex: 1;
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
 /* Bulk assign bar */
 .ap-bulk-assign-bar {
   display: flex;
