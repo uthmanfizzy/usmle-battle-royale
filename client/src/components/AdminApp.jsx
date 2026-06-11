@@ -3049,6 +3049,337 @@ function SubjectsPanel({ subjects, setSubjects }) {
   );
 }
 
+// ── Videos Panel ───────────────────────────────────────────────────────────────
+
+// Client-side copy of the server's parseVideoUrl — live preview only.
+// The server re-validates authoritatively on POST/PUT.
+function parseVideoUrlClient(url) {
+  if (typeof url !== 'string') return null;
+  const s = url.trim();
+  let m = s.match(/(?:youtube\.com\/watch\?(?:.*&)?v=|youtube\.com\/shorts\/|youtube\.com\/embed\/|youtu\.be\/)([\w-]{11})/i);
+  if (m) return { video_type: 'youtube', embed_id: m[1] };
+  m = s.match(/vimeo\.com\/(?:video\/)?(\d{6,12})/i);
+  if (m) return { video_type: 'vimeo', embed_id: m[1] };
+  return null;
+}
+
+const VIDEO_CATEGORIES = FOLDERS.filter(f => !f.special && !f.separator && f.id !== 'all');
+
+function VideosPanel() {
+  const [videos,   setVideos]   = useState([]);
+  const [loading,  setLoading]  = useState(true);
+  const [error,    setError]    = useState('');
+  const [deleteVid, setDeleteVid] = useState(null); // video object
+  const [editing,  setEditing]  = useState(null);   // null | video object
+  const [saving,   setSaving]   = useState(false);
+
+  // form fields
+  const [title,      setTitle]      = useState('');
+  const [url,        setUrl]        = useState('');
+  const [attachMode, setAttachMode] = useState('category'); // 'category' | 'topic'
+  const [category,   setCategory]   = useState(VIDEO_CATEGORIES[0]?.id || '');
+  const [difficulty, setDifficulty] = useState('easy');
+  const [topicId,    setTopicId]    = useState('');
+  const [formTopics, setFormTopics] = useState([]);
+
+  // One cached fetch per category, shared by the form's topic dropdown and the
+  // list's topic-name labels. The promise is cached immediately so concurrent
+  // callers never duplicate a request for the same category.
+  const topicsCacheRef = useRef(new Map()); // category -> Promise<topics[]> | topics[]
+  const [topicNameById, setTopicNameById] = useState(new Map());
+
+  async function getTopicsForCategory(cat) {
+    const cache = topicsCacheRef.current;
+    if (cache.has(cat)) return cache.get(cat);
+    const promise = (async () => {
+      const res  = await apiCall(`/admin/topics?category=${encodeURIComponent(cat)}`);
+      const data = await res.json();
+      const topics = data.topics || [];
+      setTopicNameById(prev => {
+        const next = new Map(prev);
+        topics.forEach(t => next.set(t.id, t.name));
+        return next;
+      });
+      return topics;
+    })();
+    cache.set(cat, promise);
+    return promise;
+  }
+
+  useEffect(() => { loadVideos(); }, []);
+
+  async function loadVideos() {
+    setLoading(true);
+    try {
+      const res = await apiCall('/admin/videos');
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to load videos');
+      setVideos(data.videos || []);
+    } catch (err) {
+      setError(err.message);
+    }
+    setLoading(false);
+  }
+
+  // Resolve topic names for topic-attached videos in the list (cache dedupes)
+  useEffect(() => {
+    const cats = [...new Set(videos.filter(v => v.topic_id && v.category).map(v => v.category))];
+    cats.forEach(c => { getTopicsForCategory(c).catch(() => {}); });
+  }, [videos]);
+
+  // Populate the form's topic dropdown when in topic mode
+  useEffect(() => {
+    if (attachMode !== 'topic' || !category) { setFormTopics([]); return; }
+    let stale = false;
+    getTopicsForCategory(category)
+      .then(ts => {
+        if (stale) return;
+        const filtered = ts.filter(t => (t.difficulty || 'easy') === difficulty);
+        setFormTopics(filtered);
+        setTopicId(cur => filtered.some(t => t.id === cur) ? cur : '');
+      })
+      .catch(() => { if (!stale) setFormTopics([]); });
+    return () => { stale = true; };
+  }, [attachMode, category, difficulty]);
+
+  function resetForm() {
+    setEditing(null);
+    setTitle('');
+    setUrl('');
+    setTopicId('');
+  }
+
+  function startEdit(v) {
+    setError('');
+    setEditing(v);
+    setTitle(v.title);
+    setUrl(v.url);
+    if (v.topic_id) {
+      setAttachMode('topic');
+      setCategory(v.category || VIDEO_CATEGORIES[0]?.id || '');
+      setDifficulty(v.difficulty || 'easy');
+      setTopicId(v.topic_id);
+    } else {
+      setAttachMode('category');
+      setCategory(v.category || VIDEO_CATEGORIES[0]?.id || '');
+      setDifficulty(v.difficulty || 'easy');
+      setTopicId('');
+    }
+  }
+
+  async function handleSave(e) {
+    e.preventDefault();
+    setError('');
+    setSaving(true);
+    try {
+      let res, data;
+      if (editing) {
+        // PUT changed fields only — url triggers server-side re-parse,
+        // attachment fields only when the attachment was actually touched
+        const body = {};
+        if (title.trim() !== editing.title) body.title = title.trim();
+        if (url.trim()   !== editing.url)   body.url   = url.trim();
+        if (attachMode === 'topic') {
+          if (topicId !== (editing.topic_id || '')) body.topic_id = topicId;
+        } else if (editing.topic_id || category !== editing.category || difficulty !== editing.difficulty) {
+          body.topic_id   = null;
+          body.category   = category;
+          body.difficulty = difficulty;
+        }
+        if (Object.keys(body).length === 0) { resetForm(); setSaving(false); return; }
+        res  = await apiCall(`/admin/videos/${editing.id}`, { method: 'PUT', body: JSON.stringify(body) });
+        data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to save video');
+        setVideos(vs => vs.map(v => v.id === editing.id ? data : v));
+      } else {
+        const body = attachMode === 'topic'
+          ? { title: title.trim(), url: url.trim(), topic_id: topicId }
+          : { title: title.trim(), url: url.trim(), category, difficulty };
+        res  = await apiCall('/admin/videos', { method: 'POST', body: JSON.stringify(body) });
+        data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to add video');
+        setVideos(vs => [...vs, data]);
+      }
+      resetForm();
+    } catch (err) { setError(err.message); }
+    setSaving(false);
+  }
+
+  async function handleDelete() {
+    setError('');
+    try {
+      const res  = await apiCall(`/admin/videos/${deleteVid.id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to delete video');
+      setVideos(vs => vs.filter(v => v.id !== deleteVid.id));
+      setDeleteVid(null);
+    } catch (err) { setError(err.message); setDeleteVid(null); }
+  }
+
+  const parsed = parseVideoUrlClient(url);
+  const canSave = !saving && title.trim() && parsed && (attachMode === 'category' || topicId);
+  const capDiff = (d) => d === 'hard' ? 'Hard' : 'Easy';
+  const folderFor = (id) => FOLDERS.find(f => f.id === id);
+
+  // Group list by category
+  const byCategory = videos.reduce((acc, v) => {
+    const key = v.category || 'uncategorized';
+    (acc[key] = acc[key] || []).push(v);
+    return acc;
+  }, {});
+
+  if (loading) return <div className="ap-loading"><div className="ap-spinner" /></div>;
+
+  return (
+    <div className="ap-panel">
+      <div className="ap-panel-head">
+        <h2>🎬 Training Grounds Videos</h2>
+      </div>
+
+      {error && <div className="ap-error">{error}</div>}
+
+      {/* Add / edit form */}
+      <form onSubmit={handleSave} className="ap-qform ap-video-form">
+        <h3 className="ap-video-form-title">{editing ? `✏️ Edit "${editing.title}"` : '➕ Add Video'}</h3>
+        <div className="ap-field">
+          <label>Title</label>
+          <input
+            type="text"
+            value={title}
+            onChange={e => setTitle(e.target.value)}
+            placeholder="e.g. P-Values Explained"
+            maxLength={200}
+          />
+        </div>
+        <div className="ap-field">
+          <label>Video URL (YouTube or Vimeo)</label>
+          <input
+            type="text"
+            value={url}
+            onChange={e => setUrl(e.target.value)}
+            placeholder="https://www.youtube.com/watch?v=…"
+          />
+        </div>
+
+        {/* Live parse preview */}
+        {url.trim() && (parsed ? (
+          <div className="ap-video-preview">
+            {parsed.video_type === 'youtube' ? (
+              <img className="ap-video-thumb" src={`https://img.youtube.com/vi/${parsed.embed_id}/mqdefault.jpg`} alt="" />
+            ) : (
+              <div className="ap-video-thumb ap-video-thumb--placeholder">🎬</div>
+            )}
+            <span className={`ap-video-badge ap-video-badge--${parsed.video_type}`}>
+              {parsed.video_type === 'youtube' ? '▶ YouTube' : '🎬 Vimeo'} · {parsed.embed_id}
+            </span>
+          </div>
+        ) : (
+          <div className="ap-video-invalid">⚠ Unrecognized link — only YouTube and Vimeo are supported</div>
+        ))}
+
+        {/* Attachment picker */}
+        <div className="ap-field">
+          <label>Attach to</label>
+          <div className="ap-attach-toggle">
+            <button type="button" className={attachMode === 'category' ? 'active' : ''} onClick={() => setAttachMode('category')}>
+              📚 Whole category
+            </button>
+            <button type="button" className={attachMode === 'topic' ? 'active' : ''} onClick={() => setAttachMode('topic')}>
+              📁 Specific topic
+            </button>
+          </div>
+        </div>
+        <div className="ap-video-attach-row">
+          <div className="ap-field">
+            <label>Category</label>
+            <select value={category} onChange={e => setCategory(e.target.value)}>
+              {VIDEO_CATEGORIES.map(f => <option key={f.id} value={f.id}>{f.icon} {f.label}</option>)}
+            </select>
+          </div>
+          <div className="ap-field">
+            <label>Difficulty</label>
+            <select value={difficulty} onChange={e => setDifficulty(e.target.value)}>
+              <option value="easy">😊 Easy</option>
+              <option value="hard">💀 Hard</option>
+            </select>
+          </div>
+          {attachMode === 'topic' && (
+            <div className="ap-field">
+              <label>Topic</label>
+              <select value={topicId} onChange={e => setTopicId(e.target.value)} disabled={formTopics.length === 0}>
+                <option value="">{formTopics.length === 0 ? 'No topics for this category/difficulty' : '— Select topic —'}</option>
+                {formTopics.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+              </select>
+            </div>
+          )}
+        </div>
+
+        <div className="ap-video-form-actions">
+          {editing && <button type="button" className="ap-btn-sec" onClick={() => { setError(''); resetForm(); }}>Cancel</button>}
+          <button type="submit" className="ap-btn-pri" disabled={!canSave}>
+            {saving ? 'Saving…' : editing ? 'Save Changes' : 'Add Video'}
+          </button>
+        </div>
+      </form>
+
+      {/* Videos list grouped by category */}
+      {videos.length === 0 ? (
+        <div className="ap-topic-empty">
+          <div className="ap-topic-empty-icon">🎬</div>
+          <p>No videos yet. Paste a YouTube or Vimeo link above to add the first one.</p>
+        </div>
+      ) : (
+        Object.keys(byCategory).sort().map(cat => {
+          const folder = folderFor(cat);
+          return (
+            <div className="ap-video-group" key={cat}>
+              <h3 className="ap-video-group-head">{folder?.icon || '📂'} {folder?.label || cat}</h3>
+              {byCategory[cat].map(v => (
+                <div className="ap-video-row" key={v.id}>
+                  {v.video_type === 'youtube' ? (
+                    <img className="ap-video-thumb" src={`https://img.youtube.com/vi/${v.embed_id}/mqdefault.jpg`} alt="" />
+                  ) : (
+                    <div className="ap-video-thumb ap-video-thumb--placeholder">🎬</div>
+                  )}
+                  <div className="ap-video-row-info">
+                    <span className="ap-video-row-title">{v.title}</span>
+                    <span className="ap-video-row-attach">
+                      {v.topic_id
+                        ? `📁 ${topicNameById.get(v.topic_id) || 'topic'} · ${capDiff(v.difficulty)}`
+                        : `📚 Category · ${capDiff(v.difficulty)}`}
+                    </span>
+                  </div>
+                  <span className={`ap-video-badge ap-video-badge--${v.video_type}`}>
+                    {v.video_type === 'youtube' ? '▶ YouTube' : '🎬 Vimeo'}
+                  </span>
+                  <div className="ap-video-row-actions">
+                    <button className="ap-topic-edit-btn" onClick={() => startEdit(v)} title="Edit">✏️</button>
+                    <button className="ap-topic-del-btn" onClick={() => setDeleteVid(v)} title="Delete">🗑️</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          );
+        })
+      )}
+
+      {deleteVid && (
+        <div className="ap-backdrop" onClick={() => setDeleteVid(null)}>
+          <div className="ap-confirm" onClick={e => e.stopPropagation()}>
+            <div className="ap-confirm-icon">🎬</div>
+            <h3>Delete "{deleteVid.title}"?</h3>
+            <p>The video link will be removed. Nothing happens to the topic or its questions.</p>
+            <div className="ap-modal-foot">
+              <button className="ap-btn-sec" onClick={() => setDeleteVid(null)}>Cancel</button>
+              <button className="ap-btn-danger" onClick={handleDelete}>Delete Video</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Tower Editor ──────────────────────────────────────────────────────────────
 
 const TE_ZONES = [
@@ -5345,6 +5676,9 @@ export default function AdminApp() {
         <button className={`ap-nav-btn ${tab === 'quests'        ? 'active' : ''}`} onClick={() => setTab('quests')}>
           📅 Daily Quests
         </button>
+        <button className={`ap-nav-btn ${tab === 'videos'        ? 'active' : ''}`} onClick={() => setTab('videos')}>
+          🎬 Videos
+        </button>
         <button className={`ap-nav-btn ${tab === 'announcements' ? 'active' : ''}`} onClick={() => setTab('announcements')}>
           📣 Announcements
         </button>
@@ -5375,6 +5709,7 @@ export default function AdminApp() {
         {tab === 'subjects'      && <SubjectsPanel subjects={sharedSubjects} setSubjects={setSharedSubjects} />}
         {tab === 'tower'         && <TowerEditorPanel />}
         {tab === 'quests'        && <QuestsPanel />}
+        {tab === 'videos'        && <VideosPanel />}
         {tab === 'announcements' && <AnnouncementsPanel />}
         {tab === 'landing'       && <LandingImagesPanel />}
         {tab === 'playpage'      && <PlayPageAdmin />}
