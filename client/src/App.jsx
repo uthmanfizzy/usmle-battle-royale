@@ -24,10 +24,11 @@ const TrainingGrounds = lazy(() => import('./components/TrainingGrounds'));
 const PlayPage = lazy(() => import('./components/PlayPage'));
 const ModeSplit = lazy(() => import('./components/ModeSplit'));
 const StoryMenu = lazy(() => import('./components/ModeSplit').then(m => ({ default: m.StoryMenu })));
+const JourneyMode = lazy(() => import('./components/JourneyMode'));
 
 // phases: 'loading' | 'entry' | 'exam_select' | 'difficulty_select' | 'mode_split' | 'story_menu' | 'play_page' |
 //         'how_to_play' | 'lobby_select' | 'subject_select' | 'lobby_difficulty' | 'join_input' | 'lobby' | 'game' |
-//         'game_over' | 'solo_subject' | 'solo_difficulty' | 'solo_game' | 'tower' | 'training_grounds'
+//         'game_over' | 'solo_subject' | 'solo_difficulty' | 'solo_game' | 'tower' | 'training_grounds' | 'journey'
 
 export default function App() {
   const [phase,    setPhase]    = useState('loading');
@@ -777,6 +778,7 @@ export default function App() {
         <RouteErrorBoundary name="StoryMenu">
         <StoryMenu
           onBack={() => setPhase('mode_split')}
+          onJourney={() => setPhase('journey')}
           onTower={() => { setGameMode('tower'); setPhase('tower'); }}
           onAnKing={() => { setPlayInitialMode('anking'); setPhase('play_page'); }}
         />
@@ -1011,6 +1013,15 @@ export default function App() {
           onTryAgain={handleSoloTryAgain}
           onChangeSubject={() => setPhase('solo_subject')}
           topicId={trainingTopic?.topicId}
+        />
+        </RouteErrorBoundary>
+      )}
+
+      {phase === 'journey' && (
+        <RouteErrorBoundary name="JourneyMode">
+        <JourneyMode
+          username={username}
+          onBack={() => setPhase('story_menu')}
         />
         </RouteErrorBoundary>
       )}

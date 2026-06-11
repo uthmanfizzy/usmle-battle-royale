@@ -1,0 +1,544 @@
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&display=swap');
+
+/* ── Screen: same dark vignette family as ModeSplit ────────────────────────── */
+
+.jm-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  overflow-y: auto;
+  background:
+    radial-gradient(ellipse at center, rgba(15, 22, 12, 0.92) 0%, rgba(0, 0, 0, 0.97) 75%);
+  animation: jm-backdrop-in 0.3s ease both;
+}
+
+@keyframes jm-backdrop-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* Self-sufficient back button (same look as ms-back-btn, no load-order dependency) */
+.jm-back-btn {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  background: rgba(20, 30, 20, 0.8);
+  border: 1px solid rgba(180, 140, 40, 0.5);
+  color: #c8a32c;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-family: 'Cinzel', serif;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 5;
+}
+
+.jm-back-btn:hover {
+  background: rgba(30, 40, 30, 0.9);
+  border-color: rgba(180, 140, 40, 0.8);
+  transform: translateX(-2px);
+}
+
+/* ── Gate / error / empty cards ────────────────────────────────────────────── */
+
+.jm-gate-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  max-width: 420px;
+  padding: 44px 36px;
+  border-radius: 18px;
+  text-align: center;
+  background: linear-gradient(160deg, rgba(18, 30, 16, 0.92), rgba(8, 14, 8, 0.96));
+  border: 2px solid rgba(200, 163, 44, 0.55);
+  font-family: 'Cinzel', serif;
+}
+
+.jm-gate-icon { font-size: 56px; line-height: 1; filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.6)); }
+
+.jm-gate-card h2 {
+  margin: 0;
+  font-size: 22px;
+  letter-spacing: 0.1em;
+  color: #e8d48a;
+}
+
+.jm-gate-card p {
+  margin: 0 0 8px;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.65);
+  line-height: 1.6;
+}
+
+/* ── Subject select ────────────────────────────────────────────────────────── */
+
+.jm-banner {
+  text-align: center;
+  margin: 40px 0 28px;
+  animation: jm-banner-drop 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes jm-banner-drop {
+  from { opacity: 0; transform: translateY(-28px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.jm-title {
+  font-family: 'Cinzel', serif;
+  font-weight: 700;
+  font-size: 32px;
+  letter-spacing: 0.16em;
+  color: #c8a32c;
+  margin: 0 0 8px;
+  text-shadow: 0 2px 14px rgba(200, 163, 44, 0.5);
+}
+
+.jm-tagline {
+  margin: 0;
+  font-family: 'Cinzel', serif;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.55);
+  letter-spacing: 0.06em;
+}
+
+.jm-subject-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 14px;
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  padding-bottom: 40px;
+}
+
+.jm-subject-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 20px 12px;
+  border-radius: 14px;
+  cursor: pointer;
+  font-family: 'Cinzel', serif;
+  background: linear-gradient(160deg, rgba(18, 30, 16, 0.92), rgba(8, 14, 8, 0.96));
+  border: 2px solid rgba(200, 163, 44, 0.35);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.jm-subject-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(241, 196, 15, 0.85);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.5), 0 0 18px rgba(200, 163, 44, 0.25);
+}
+
+.jm-subject-icon  { font-size: 34px; line-height: 1; }
+.jm-subject-label { font-size: 13px; font-weight: 600; color: #e8d48a; letter-spacing: 0.06em; }
+
+/* ── Path screen frame ─────────────────────────────────────────────────────── */
+
+.jm-screen--path {
+  justify-content: flex-start;
+  padding: 0;
+  overflow: hidden;
+}
+
+.jm-path-header {
+  position: relative;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 18px 20px;
+  background: rgba(8, 12, 8, 0.92);
+  border-bottom: 1px solid rgba(200, 163, 44, 0.35);
+  font-family: 'Cinzel', serif;
+  flex-shrink: 0;
+}
+
+.jm-path-header .jm-back-btn { position: absolute; top: 50%; transform: translateY(-50%); }
+.jm-path-header .jm-back-btn:hover { transform: translateY(-50%) translateX(-2px); }
+
+.jm-path-subject {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: #e8d48a;
+}
+
+.jm-path-progress {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(200, 163, 44, 0.4);
+  border-radius: 999px;
+  padding: 4px 12px;
+}
+
+.jm-path-scroll {
+  flex: 1;
+  width: 100%;
+  overflow-y: auto;
+}
+
+/* ── The winding road: center spine + alternating nodes ────────────────────── */
+
+.jm-path {
+  position: relative;
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 30px 16px 60px;
+}
+
+.jm-spine {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 4px;
+  transform: translateX(-50%);
+  background: repeating-linear-gradient(
+    180deg,
+    rgba(200, 163, 44, 0.55) 0px,
+    rgba(200, 163, 44, 0.55) 14px,
+    transparent 14px,
+    transparent 26px
+  );
+}
+
+.jm-chapter { position: relative; }
+
+.jm-chapter-banner {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  margin: 26px auto 22px;
+  padding: 12px 24px;
+  max-width: 360px;
+  text-align: center;
+  font-family: 'Cinzel', serif;
+  background: linear-gradient(160deg, rgba(28, 40, 22, 0.96), rgba(10, 16, 10, 0.98));
+  border: 2px solid rgba(200, 163, 44, 0.6);
+  border-radius: 12px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+}
+
+.jm-chapter-num {
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  color: rgba(200, 163, 44, 0.85);
+  text-transform: uppercase;
+}
+
+.jm-chapter-name {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #e8d48a;
+}
+
+/* Node rows: offset left/right of the spine */
+
+.jm-node-row {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 46%;
+  margin: 18px 0;
+}
+
+.jm-node-row--left   { margin-right: auto; }
+.jm-node-row--right  { margin-left: auto; }
+.jm-node-row--center { margin-left: auto; margin-right: auto; }
+
+/* Short connector stub from node toward the spine */
+.jm-node-row--left::after,
+.jm-node-row--right::after {
+  content: '';
+  position: absolute;
+  top: 36px;
+  width: 24%;
+  height: 3px;
+  background: rgba(200, 163, 44, 0.35);
+  z-index: -1;
+}
+.jm-node-row--left::after  { right: -24%; }
+.jm-node-row--right::after { left: -24%; }
+
+/* ── Nodes ─────────────────────────────────────────────────────────────────── */
+
+.jm-node {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  cursor: pointer;
+  background: radial-gradient(circle at 32% 28%, rgba(60, 86, 46, 0.95), rgba(20, 30, 16, 0.98));
+  border: 3px solid rgba(200, 163, 44, 0.7);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.55);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.jm-node:not(:disabled):hover {
+  transform: scale(1.08);
+  border-color: rgba(241, 196, 15, 0.95);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.6), 0 0 20px rgba(200, 163, 44, 0.35);
+}
+
+.jm-node-face {
+  font-size: 26px;
+  line-height: 1;
+  color: #e8d48a;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.6));
+}
+
+/* Locked: dark, desaturated, inert */
+.jm-node--locked {
+  cursor: default;
+  background: radial-gradient(circle at 32% 28%, rgba(40, 44, 40, 0.9), rgba(14, 16, 14, 0.98));
+  border-color: rgba(120, 120, 120, 0.4);
+}
+.jm-node--locked .jm-node-face { opacity: 0.5; filter: grayscale(1); }
+
+/* Completed: lit, check + stars */
+.jm-node--done {
+  background: radial-gradient(circle at 32% 28%, rgba(76, 116, 48, 0.95), rgba(26, 44, 18, 0.98));
+  border-color: rgba(160, 210, 90, 0.75);
+}
+.jm-node--done .jm-node-face { color: #c8e89a; }
+
+/* Frontier: pulsing call-to-action */
+.jm-node--frontier {
+  border-color: rgba(241, 196, 15, 0.95);
+  animation: jm-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes jm-pulse {
+  0%, 100% { box-shadow: 0 6px 16px rgba(0, 0, 0, 0.55), 0 0 0 0 rgba(241, 196, 15, 0.45); }
+  50%      { box-shadow: 0 6px 16px rgba(0, 0, 0, 0.55), 0 0 0 14px rgba(241, 196, 15, 0); }
+}
+
+/* Level with no authored questions: visible but inert */
+.jm-node--empty {
+  cursor: default;
+  opacity: 0.45;
+}
+
+/* Chapter boss: bigger, ember accent */
+.jm-node--boss {
+  width: 96px;
+  height: 96px;
+  background: radial-gradient(circle at 32% 28%, rgba(86, 36, 26, 0.95), rgba(28, 12, 8, 0.98));
+  border-color: rgba(220, 90, 60, 0.75);
+}
+.jm-node--boss .jm-node-face { font-size: 36px; }
+.jm-node--boss:not(:disabled):hover {
+  border-color: rgba(255, 120, 80, 0.95);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.6), 0 0 22px rgba(220, 90, 60, 0.4);
+}
+.jm-node--boss.jm-node--done {
+  background: radial-gradient(circle at 32% 28%, rgba(76, 116, 48, 0.95), rgba(26, 44, 18, 0.98));
+  border-color: rgba(160, 210, 90, 0.75);
+}
+
+/* Auto-skipped boss: ghosted */
+.jm-node--skipped {
+  cursor: default;
+  opacity: 0.35;
+  border-style: dashed;
+}
+
+/* Ultimate boss: the summit */
+.jm-node--ultimate {
+  width: 120px;
+  height: 120px;
+  background: radial-gradient(circle at 32% 28%, rgba(96, 70, 20, 0.95), rgba(40, 24, 6, 0.98));
+  border: 4px solid rgba(241, 196, 15, 0.85);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), 0 0 26px rgba(241, 196, 15, 0.25);
+}
+.jm-node--ultimate .jm-node-face { font-size: 48px; }
+.jm-node--ultimate.jm-node--locked {
+  background: radial-gradient(circle at 32% 28%, rgba(40, 44, 40, 0.9), rgba(14, 16, 14, 0.98));
+  border-color: rgba(120, 120, 120, 0.4);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.55);
+}
+
+/* Captions under nodes */
+
+.jm-node-caption {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  margin-top: 8px;
+  text-align: center;
+  font-family: 'Cinzel', serif;
+}
+
+.jm-node-name {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: rgba(255, 255, 255, 0.78);
+  max-width: 150px;
+}
+
+.jm-node-stars {
+  font-size: 13px;
+  letter-spacing: 0.18em;
+  color: #f1c40f;
+  text-shadow: 0 1px 6px rgba(241, 196, 15, 0.5);
+}
+
+.jm-node-tag {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+/* ── Full Mastery banner ───────────────────────────────────────────────────── */
+
+.jm-mastery {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin: 36px auto 0;
+  padding: 24px 32px;
+  max-width: 340px;
+  text-align: center;
+  font-family: 'Cinzel', serif;
+  background: linear-gradient(160deg, rgba(24, 28, 22, 0.96), rgba(10, 12, 10, 0.98));
+  border: 2px solid rgba(140, 140, 140, 0.35);
+  border-radius: 14px;
+  filter: grayscale(1);
+  opacity: 0.7;
+}
+
+.jm-mastery--earned {
+  filter: none;
+  opacity: 1;
+  border-color: rgba(241, 196, 15, 0.85);
+  background: linear-gradient(160deg, rgba(50, 40, 12, 0.96), rgba(20, 16, 6, 0.98));
+  box-shadow: 0 0 32px rgba(241, 196, 15, 0.3);
+  animation: jm-mastery-glow 2.4s ease-in-out infinite;
+}
+
+@keyframes jm-mastery-glow {
+  0%, 100% { box-shadow: 0 0 22px rgba(241, 196, 15, 0.25); }
+  50%      { box-shadow: 0 0 40px rgba(241, 196, 15, 0.45); }
+}
+
+.jm-mastery-icon { font-size: 44px; line-height: 1; }
+.jm-mastery-text { font-size: 18px; font-weight: 700; letter-spacing: 0.2em; color: #e8d48a; }
+.jm-mastery-sub  { font-size: 12px; color: rgba(255, 255, 255, 0.55); }
+
+/* ── Confirm card overlay ──────────────────────────────────────────────────── */
+
+.jm-confirm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.72);
+  animation: jm-backdrop-in 0.2s ease both;
+}
+
+.jm-confirm-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: 340px;
+  max-width: 92vw;
+  padding: 30px 26px;
+  border-radius: 16px;
+  text-align: center;
+  font-family: 'Cinzel', serif;
+  background: linear-gradient(160deg, rgba(22, 34, 18, 0.98), rgba(8, 14, 8, 0.99));
+  border: 2px solid rgba(200, 163, 44, 0.7);
+  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.7);
+}
+
+.jm-confirm-kind {
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(200, 163, 44, 0.85);
+}
+
+.jm-confirm-name {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #e8d48a;
+}
+
+.jm-confirm-stats {
+  display: flex;
+  gap: 14px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.jm-confirm-threshold {
+  margin: 2px 0 8px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+  line-height: 1.5;
+}
+
+.jm-confirm-play { min-width: 180px; }
+.jm-confirm-play:disabled { opacity: 0.5; cursor: default; }
+
+.jm-confirm-soon {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: rgba(200, 163, 44, 0.7);
+  margin-bottom: 6px;
+}
+
+/* ── Reduced motion / responsive ───────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .jm-banner { animation: jm-backdrop-in 0.3s ease both; }
+  .jm-node--frontier { animation: none; }
+  .jm-mastery--earned { animation: none; }
+  .jm-subject-card:hover, .jm-node:not(:disabled):hover { transform: none; }
+}
+
+@media (max-width: 560px) {
+  .jm-title { font-size: 24px; }
+  .jm-node { width: 60px; height: 60px; }
+  .jm-node-face { font-size: 22px; }
+  .jm-node--boss { width: 80px; height: 80px; }
+  .jm-node--boss .jm-node-face { font-size: 30px; }
+  .jm-node--ultimate { width: 100px; height: 100px; }
+  .jm-node--ultimate .jm-node-face { font-size: 40px; }
+  .jm-path-subject { font-size: 14px; }
+  .jm-path-header { justify-content: flex-end; }
+  .jm-node-row { width: 48%; }
+}

@@ -28,8 +28,8 @@ export default function ModeSplit({ onStory, onOnline, onBack }) {
   );
 }
 
-// Story menu: First Aid Journey (coming soon) / The Tower / AnKing
-export function StoryMenu({ onBack, onTower, onAnKing }) {
+// Story menu: First Aid Journey / The Tower / AnKing
+export function StoryMenu({ onBack, onJourney, onTower, onAnKing }) {
   return (
     <div className="ms-screen">
       <button className="ms-back-btn" onClick={onBack}>← Back</button>
@@ -40,13 +40,11 @@ export function StoryMenu({ onBack, onTower, onAnKing }) {
       </div>
 
       <div className="ms-cards ms-cards--story">
-        {/* Placeholder for the future First Aid Journey feature — display only */}
-        <div className="ms-card ms-card--story ms-card--disabled">
-          <span className="ms-ribbon">COMING SOON</span>
+        <button className="ms-card ms-card--story" onClick={onJourney}>
           <span className="ms-card-icon">🚑</span>
           <span className="ms-card-name">FIRST AID JOURNEY</span>
           <span className="ms-card-sub">March through First Aid, chapter by chapter</span>
-        </div>
+        </button>
 
         <button className="ms-card ms-card--story" onClick={onTower}>
           <span className="ms-card-icon">🏰</span>
