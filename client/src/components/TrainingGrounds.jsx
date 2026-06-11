@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import './TrainingGrounds.css';
 
 const SERVER = 'https://usmle-battle-royale-production.up.railway.app';
@@ -27,6 +27,32 @@ const SUBJECTS = [
   { id: 'genetics',         label: 'Genetics & Embryology',        icon: '🧬', desc: 'Genetics, inheritance, development'      },
   { id: 'anatomy',          label: 'Anatomy',                      icon: '🫀', desc: 'Structure, physiology, systems'          },
 ];
+
+// Fallback when /api/subjects is unreachable — the server's known-active defaults
+const DEFAULT_ACTIVE_IDS = new Set([
+  'cardiology', 'neurology', 'pharmacology', 'microbiology', 'biochemistry', 'biostatistics',
+]);
+
+// Placeholder per-subject progress ring. Driven by subjectProgress[s.id] ?? 0 —
+// real completion data drops in later by populating that map; no markup change.
+function ProgressRing({ percent }) {
+  const r = 16;
+  const c = 2 * Math.PI * r;
+  return (
+    <div className="tg-progress-ring" title={`${percent}% complete`}>
+      <svg width="40" height="40" viewBox="0 0 40 40">
+        <circle className="tg-ring-track" cx="20" cy="20" r={r} />
+        <circle
+          className="tg-ring-fill"
+          cx="20" cy="20" r={r}
+          strokeDasharray={`${(percent / 100) * c} ${c}`}
+          transform="rotate(-90 20 20)"
+        />
+      </svg>
+      <span className="tg-ring-label">{percent}%</span>
+    </div>
+  );
+}
 
 // Click-to-play video card: thumbnail until clicked, then the embedded player.
 function VideoCard({ video, general, playing, onPlay }) {
@@ -73,22 +99,41 @@ function VideoCard({ video, general, playing, onPlay }) {
 }
 
 export default function TrainingGrounds({ user, onBack, onStartPractice }) {
-  // screens: 'subject' | 'difficulty' | 'topic' | 'action' | 'videos'
+  // screens flattened: 'subject' | 'topics'
+  // (difficulty is a toggle inside 'topics'; topic click is a selection, not a screen)
   const [screen, setScreen] = useState('subject');
+  const [activeIds, setActiveIds] = useState(DEFAULT_ACTIVE_IDS);
   const [selectedSubject, setSelectedSubject] = useState(null);
-  const [selectedDifficulty, setSelectedDifficulty] = useState(null);
+  const [selectedDifficulty, setSelectedDifficulty] = useState('easy');
   const [selectedTopic, setSelectedTopic] = useState(null);
   const [allFolders, setAllFolders] = useState([]);
   const [allGroups, setAllGroups] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // Videos cached per category|difficulty — one fetch serves both the
-  // action-screen count and the videos grid
+  // PLACEHOLDER: per-subject completion. Real data lands later via one
+  // useEffect that fetches and setSubjectProgress({ [subjectId]: percent }).
+  const [subjectProgress] = useState({});
+
+  // Videos cached per category|difficulty — one fetch serves the whole rail
   const [videosCache, setVideosCache] = useState({});
   const [videosLoading, setVideosLoading] = useState(false);
   const [playingId, setPlayingId] = useState(null); // one player at a time
 
   const subject = SUBJECTS.find(s => s.id === selectedSubject);
+
+  // Active subjects from the admin-managed flag (mirrors SubjectSelect.jsx)
+  useEffect(() => {
+    fetch(`${SERVER}/api/subjects`)
+      .then(r => r.json())
+      .then(data => {
+        const ids = new Set();
+        (data.subjects || []).forEach(s => { if (s.active) ids.add(s.id); });
+        if (ids.size > 0) setActiveIds(ids);
+      })
+      .catch(() => {}); // keep defaults on network error
+  }, []);
+
+  const activeSubjects = SUBJECTS.filter(s => activeIds.has(s.id));
 
   // ── Data ─────────────────────────────────────────────────────────────────────
 
@@ -100,9 +145,10 @@ export default function TrainingGrounds({ user, onBack, onStartPractice }) {
       setAllFolders(data.topics || []);
       setAllGroups(data.groups || []);
       setSelectedSubject(subjectId);
-      setSelectedDifficulty(null);
+      setSelectedDifficulty('easy');
       setSelectedTopic(null);
-      setScreen('difficulty');
+      setPlayingId(null);
+      setScreen('topics');
     } catch (err) {
       console.error('Failed to load topics:', err);
       setAllFolders([]);
@@ -126,24 +172,29 @@ export default function TrainingGrounds({ user, onBack, onStartPractice }) {
     setVideosLoading(false);
   }
 
-  // ── Navigation ───────────────────────────────────────────────────────────────
+  // ── Interaction ──────────────────────────────────────────────────────────────
 
-  function goTo(target) {
-    setPlayingId(null);
-    setScreen(target);
-  }
-
-  function handleDifficultySelect(difficulty) {
+  function handleDifficultyToggle(difficulty) {
+    if (difficulty === selectedDifficulty) return;
     setSelectedDifficulty(difficulty);
     setSelectedTopic(null);
-    setScreen('topic');
+    setPlayingId(null);
   }
 
   function handleTopicClick(folder) {
-    setSelectedTopic(folder);
     setPlayingId(null);
-    setScreen('action');
+    if (selectedTopic?.id === folder.id) {
+      setSelectedTopic(null); // re-click deselects
+      return;
+    }
+    setSelectedTopic(folder);
     loadVideos(selectedSubject, selectedDifficulty);
+  }
+
+  function backToSubjects() {
+    setScreen('subject');
+    setSelectedTopic(null);
+    setPlayingId(null);
   }
 
   function startQuestions() {
@@ -164,6 +215,9 @@ export default function TrainingGrounds({ user, onBack, onStartPractice }) {
   const activeGroups     = allGroups.filter(g => (g.difficulty || 'easy') === selectedDifficulty);
   const ungroupedFolders = activeFolders.filter(f => !f.group_id);
 
+  const easyCount = allFolders.filter(f => !f.difficulty || f.difficulty === 'easy').length;
+  const hardCount = allFolders.filter(f => f.difficulty === 'hard').length;
+
   const videosKey     = `${selectedSubject}|${selectedDifficulty}`;
   const videos        = videosCache[videosKey]; // undefined = not fetched yet
   const topicVideos   = selectedTopic ? (videos || []).filter(v => v.topic_id === selectedTopic.id) : [];
@@ -172,50 +226,12 @@ export default function TrainingGrounds({ user, onBack, onStartPractice }) {
 
   const diffLabel = selectedDifficulty === 'hard' ? 'Hard Mode' : 'Easy Mode';
 
-  // ── Shared header: back button + clickable breadcrumb ────────────────────────
-
-  const BACK = {
-    subject:    { label: '← Back to Game Modes', go: onBack },
-    difficulty: { label: '← Subjects',           go: () => goTo('subject') },
-    topic:      { label: '← Difficulty',         go: () => goTo('difficulty') },
-    action:     { label: '← Topics',             go: () => goTo('topic') },
-    videos:     { label: '← Back',               go: () => goTo('action') },
-  }[screen];
-
-  const crumbs = [
-    { label: 'Training Grounds', target: 'subject', show: true },
-    { label: subject?.label, target: 'difficulty', show: !!subject && screen !== 'subject' },
-    { label: diffLabel, target: 'topic', show: !!selectedDifficulty && ['topic', 'action', 'videos'].includes(screen) },
-    { label: selectedTopic?.name, target: 'action', show: !!selectedTopic && ['action', 'videos'].includes(screen) },
-  ].filter(c => c.show);
-
-  function renderHeader(title, subtitle) {
-    return (
-      <div className="tg-header">
-        <div className="tg-breadcrumb">
-          {crumbs.map((c, i) => (
-            <span key={c.target}>
-              {i > 0 && <span className="tg-crumb-sep"> › </span>}
-              {i < crumbs.length - 1 ? (
-                <span className="tg-crumb tg-crumb--link" onClick={() => goTo(c.target)}>{c.label}</span>
-              ) : (
-                <span className="tg-crumb">{c.label}</span>
-              )}
-            </span>
-          ))}
-        </div>
-        <h1 className="tg-title">{title}</h1>
-        {subtitle && <p className="tg-subtitle">{subtitle}</p>}
-      </div>
-    );
-  }
-
   // ── Render pieces ────────────────────────────────────────────────────────────
 
   const renderFolderCard = (folder) => (
     <button
       key={folder.id}
-      className={`tg-folder-card tg-folder-card--${selectedDifficulty}`}
+      className={`tg-folder-card tg-folder-card--${selectedDifficulty} ${selectedTopic?.id === folder.id ? 'tg-folder-card--selected' : ''}`}
       onClick={() => handleTopicClick(folder)}
     >
       <div className="tg-folder-icon">📁</div>
@@ -228,162 +244,148 @@ export default function TrainingGrounds({ user, onBack, onStartPractice }) {
 
   return (
     <div className="training-grounds">
-      <div className="training-overlay">
-        <button className="tg-back-btn" onClick={BACK.go}>{BACK.label}</button>
+      <div className="training-overlay tg-overlay-wide">
 
-        {/* ── SCREEN: Subject ──────────────────────────────────────── */}
-        {screen === 'subject' && (
-          <>
-            {renderHeader('⚔️ Training Grounds', 'Choose a subject to begin your training')}
-            {loading ? (
-              <div className="tg-loading"><div className="spinner"></div><p>Loading...</p></div>
-            ) : (
-              <div className="tg-subject-grid">
-                {SUBJECTS.map(s => (
-                  <button key={s.id} className="tg-subject-card" onClick={() => fetchFolders(s.id)}>
-                    <div className="tg-subject-icon">{s.icon}</div>
-                    <div className="tg-subject-label">{s.label}</div>
-                    <div className="tg-subject-desc">{s.desc}</div>
-                  </button>
-                ))}
-              </div>
+        {/* ── TOP BAR: back + title + breadcrumb ──────────────────── */}
+        <div className="tg-topbar">
+          <button
+            className="tg-back-btn"
+            onClick={screen === 'subject' ? onBack : backToSubjects}
+          >
+            {screen === 'subject' ? '← Back to Game Modes' : '← Subjects'}
+          </button>
+          <div className="tg-topbar-text">
+            <h1 className="tg-topbar-title">⚔️ TRAINING GROUNDS</h1>
+            <div className="tg-breadcrumb">
+              {screen === 'subject' ? (
+                <span className="tg-crumb">Training Grounds</span>
+              ) : (
+                <>
+                  <span className="tg-crumb tg-crumb--link" onClick={backToSubjects}>Training Grounds</span>
+                  <span className="tg-crumb-sep"> › </span>
+                  <span className="tg-crumb">{subject?.label}</span>
+                  <span className="tg-crumb-sep"> › </span>
+                  <span className="tg-crumb">{diffLabel}</span>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* ── 3-ZONE LAYOUT: center selection + right video rail ──── */}
+        <div className="tg-layout">
+
+          <div className="tg-center">
+            {screen === 'subject' && (
+              loading ? (
+                <div className="tg-loading"><div className="spinner"></div><p>Loading...</p></div>
+              ) : (
+                <div className="tg-subject-grid">
+                  {activeSubjects.map(s => (
+                    <button key={s.id} className="tg-subject-card" onClick={() => fetchFolders(s.id)}>
+                      <ProgressRing percent={subjectProgress[s.id] ?? 0} />
+                      <div className="tg-subject-icon">{s.icon}</div>
+                      <div className="tg-subject-label">{s.label}</div>
+                      <div className="tg-subject-desc">{s.desc}</div>
+                    </button>
+                  ))}
+                </div>
+              )
             )}
-          </>
-        )}
 
-        {/* ── SCREEN: Difficulty ───────────────────────────────────── */}
-        {screen === 'difficulty' && (
-          <>
-            {renderHeader('Choose Difficulty', 'Select the challenge level for your training')}
-            <div className="tg-difficulty-grid">
-              <button className="tg-difficulty-card tg-difficulty-card--easy" onClick={() => handleDifficultySelect('easy')}>
-                <div className="tg-diff-icon">🟢</div>
-                <h3 className="tg-diff-title">Easy Mode</h3>
-                <p className="tg-diff-desc">
-                  Standard questions with straightforward presentations. Perfect for building foundational knowledge.
-                </p>
-                <div className="tg-diff-count">
-                  {allFolders.filter(f => !f.difficulty || f.difficulty === 'easy').length} topics available
+            {screen === 'topics' && (
+              <>
+                {/* Difficulty toggle (replaces the full-screen difficulty step) */}
+                <div className="tg-diff-toggle">
+                  <button
+                    className={`tg-diff-pill tg-diff-pill--easy ${selectedDifficulty === 'easy' ? 'active' : ''}`}
+                    onClick={() => handleDifficultyToggle('easy')}
+                  >
+                    🟢 Easy <span className="tg-diff-pill-count">{easyCount}</span>
+                  </button>
+                  <button
+                    className={`tg-diff-pill tg-diff-pill--hard ${selectedDifficulty === 'hard' ? 'active' : ''}`}
+                    onClick={() => handleDifficultyToggle('hard')}
+                  >
+                    🔴 Hard <span className="tg-diff-pill-count">{hardCount}</span>
+                  </button>
                 </div>
-              </button>
-              <button className="tg-difficulty-card tg-difficulty-card--hard" onClick={() => handleDifficultySelect('hard')}>
-                <div className="tg-diff-icon">🔴</div>
-                <h3 className="tg-diff-title">Hard Mode</h3>
-                <p className="tg-diff-desc">
-                  Complex clinical scenarios with tricky presentations. Test your deeper understanding.
-                </p>
-                <div className="tg-diff-count">
-                  {allFolders.filter(f => f.difficulty === 'hard').length} topics available
-                </div>
-              </button>
-            </div>
-          </>
-        )}
 
-        {/* ── SCREEN: Topic folders (keeps PR-3 group sections) ────── */}
-        {screen === 'topic' && (
-          <>
-            {renderHeader(`${subject?.icon || ''} ${subject?.label || ''}`, 'Select a topic to practice or watch videos')}
-            <div className="training-folders">
-              {activeGroups.map(group => {
-                const members = activeFolders.filter(f => f.group_id === group.id);
-                if (members.length === 0) return null;
-                return (
-                  <div className="tg-group-section" key={group.id}>
-                    <div className="tg-group-label">🗂️ {group.name}</div>
-                    <div className="tg-folder-grid">{members.map(renderFolderCard)}</div>
-                  </div>
-                );
-              })}
-              <div className="tg-folder-grid">
-                {ungroupedFolders.map(renderFolderCard)}
-                {activeFolders.length === 0 && (
-                  <div className="tg-empty">
-                    <p>No {selectedDifficulty} topics available for this subject yet.</p>
-                    <p className="tg-empty-sub">
-                      Try selecting {selectedDifficulty === 'easy' ? 'Hard' : 'Easy'} mode or check back soon!
-                    </p>
-                  </div>
+                {/* Start Questions CTA — appears once a topic is selected */}
+                {selectedTopic && (
+                  <button className="tg-start-bar" onClick={startQuestions}>
+                    <span className="tg-start-bar-play">▶</span>
+                    <span className="tg-start-bar-text">
+                      START QUESTIONS — {selectedTopic.name} · {selectedTopic.question_count || 0} question{(selectedTopic.question_count || 0) !== 1 ? 's' : ''}
+                    </span>
+                  </button>
                 )}
+
+                {/* Topic folder grid (keeps the group sections) */}
+                <div className="training-folders">
+                  {activeGroups.map(group => {
+                    const members = activeFolders.filter(f => f.group_id === group.id);
+                    if (members.length === 0) return null;
+                    return (
+                      <div className="tg-group-section" key={group.id}>
+                        <div className="tg-group-label">🗂️ {group.name}</div>
+                        <div className="tg-folder-grid">{members.map(renderFolderCard)}</div>
+                      </div>
+                    );
+                  })}
+                  <div className="tg-folder-grid">
+                    {ungroupedFolders.map(renderFolderCard)}
+                    {activeFolders.length === 0 && (
+                      <div className="tg-empty">
+                        <p>No {selectedDifficulty} topics available for this subject yet.</p>
+                        <p className="tg-empty-sub">
+                          Try selecting {selectedDifficulty === 'easy' ? 'Hard' : 'Easy'} mode or check back soon!
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* ── RIGHT RAIL: videos ──────────────────────────────────── */}
+          <aside className="tg-rail">
+            <h3 className="tg-rail-head">🎬 VIDEOS</h3>
+            {!selectedTopic ? (
+              <div className="tg-rail-ghost">
+                <span className="tg-rail-ghost-icon">🎬</span>
+                <p>Select a topic to see its videos</p>
               </div>
-            </div>
-          </>
-        )}
-
-        {/* ── SCREEN: Action (Start Questions / Watch Videos) ──────── */}
-        {screen === 'action' && selectedTopic && (
-          <>
-            {renderHeader(`📁 ${selectedTopic.name}`,
-              `${selectedTopic.question_count || 0} questions · ${subject?.label} · ${diffLabel}`)}
-            <div className="tg-action-cards">
-              <button className="tg-action-card tg-action-card--questions" onClick={startQuestions}>
-                <span className="tg-action-card-icon">▶</span>
-                <span className="tg-action-card-title">START QUESTIONS</span>
-                <span className="tg-action-card-sub">
-                  {selectedTopic.question_count || 0} question{(selectedTopic.question_count || 0) !== 1 ? 's' : ''} · practice at your own pace
-                </span>
-              </button>
-              <button
-                className={`tg-action-card tg-action-card--videos ${videos !== undefined && videoCount === 0 ? 'tg-action-card--disabled' : ''}`}
-                onClick={() => goTo('videos')}
-                disabled={videos !== undefined && videoCount === 0}
-              >
-                <span className="tg-action-card-icon">🎬</span>
-                <span className="tg-action-card-title">WATCH VIDEOS</span>
-                <span className="tg-action-card-sub">
-                  {videos === undefined
-                    ? (videosLoading ? 'Loading…' : '')
-                    : videoCount === 0
-                      ? 'No videos yet'
-                      : `${videoCount} video${videoCount !== 1 ? 's' : ''} for this topic & subject`}
-                </span>
-              </button>
-            </div>
-          </>
-        )}
-
-        {/* ── SCREEN: Videos ────────────────────────────────────────── */}
-        {screen === 'videos' && selectedTopic && (
-          <>
-            {renderHeader(`🎬 ${selectedTopic.name}`, 'Watch and learn — then test yourself')}
-            {videos === undefined ? (
-              <div className="tg-loading"><div className="spinner"></div><p>Loading videos...</p></div>
+            ) : videos === undefined ? (
+              <div className="tg-loading tg-rail-loading"><div className="spinner"></div><p>Loading videos...</p></div>
             ) : videoCount === 0 ? (
-              <div className="tg-empty">
-                <p>No videos for this topic yet — check back soon!</p>
-                <button className="tg-start-instead-btn" onClick={startQuestions}>▶ Start Questions instead</button>
+              <div className="tg-rail-empty">
+                <p>No videos for this topic yet — check back soon</p>
               </div>
             ) : (
-              <div className="tg-videos-wrap">
+              <div className="tg-rail-list">
                 {topicVideos.length > 0 && (
-                  <div className="tg-videos-section">
-                    <h3 className="tg-videos-section-head">📁 {selectedTopic.name}</h3>
-                    <div className="tg-video-grid">
-                      {topicVideos.map(v => (
-                        <VideoCard key={v.id} video={v} playing={playingId === v.id} onPlay={() => setPlayingId(v.id)} />
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {topicVideos.length === 0 && generalVideos.length > 0 && (
-                  <p className="tg-videos-note">
-                    No videos for this topic yet — here are the general {subject?.label} videos.
-                  </p>
+                  <>
+                    <div className="tg-rail-section">📁 {selectedTopic.name}</div>
+                    {topicVideos.map(v => (
+                      <VideoCard key={v.id} video={v} playing={playingId === v.id} onPlay={() => setPlayingId(v.id)} />
+                    ))}
+                  </>
                 )}
                 {generalVideos.length > 0 && (
-                  <div className="tg-videos-section">
-                    <h3 className="tg-videos-section-head">📚 General {subject?.label} videos</h3>
-                    <div className="tg-video-grid">
-                      {generalVideos.map(v => (
-                        <VideoCard key={v.id} video={v} general playing={playingId === v.id} onPlay={() => setPlayingId(v.id)} />
-                      ))}
-                    </div>
-                  </div>
+                  <>
+                    <div className="tg-rail-section">📚 GENERAL</div>
+                    {generalVideos.map(v => (
+                      <VideoCard key={v.id} video={v} general playing={playingId === v.id} onPlay={() => setPlayingId(v.id)} />
+                    ))}
+                  </>
                 )}
               </div>
             )}
-          </>
-        )}
+          </aside>
+
+        </div>
       </div>
     </div>
   );
