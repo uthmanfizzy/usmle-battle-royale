@@ -22,8 +22,10 @@ const BuzzFunGame = lazy(() => import('./components/BuzzFunGame'));
 const LandingPage = lazy(() => import('./components/LandingPage'));
 const TrainingGrounds = lazy(() => import('./components/TrainingGrounds'));
 const PlayPage = lazy(() => import('./components/PlayPage'));
+const ModeSplit = lazy(() => import('./components/ModeSplit'));
+const StoryMenuStub = lazy(() => import('./components/ModeSplit').then(m => ({ default: m.StoryMenuStub })));
 
-// phases: 'loading' | 'entry' | 'exam_select' | 'difficulty_select' | 'mode_select' | 'play_page' |
+// phases: 'loading' | 'entry' | 'exam_select' | 'difficulty_select' | 'mode_split' | 'story_menu' | 'play_page' |
 //         'how_to_play' | 'lobby_select' | 'subject_select' | 'lobby_difficulty' | 'join_input' | 'lobby' | 'game' |
 //         'game_over' | 'solo_subject' | 'solo_difficulty' | 'solo_game' | 'tower' | 'training_grounds'
 
@@ -102,7 +104,7 @@ export default function App() {
     const token = getToken();
 
     if (autoPlay) {
-      // Arrived from /dashboard Play Now button → go directly to play page
+      // Arrived from /dashboard Play Now button → show the Story/Online split
       window.history.replaceState({}, '', '/');
       if (!token) { setPhase('entry'); return; }
       const cached = getCachedUser();
@@ -110,10 +112,10 @@ export default function App() {
         setUser(cached);
         setUsername(cached.username);
         connectSocket();
-        setPhase('play_page');
+        setPhase('mode_split');
       } else {
         fetchMe().then(me => {
-          if (me) { setUser(me); setUsername(me.username); connectSocket(); setPhase('play_page'); }
+          if (me) { setUser(me); setUsername(me.username); connectSocket(); setPhase('mode_split'); }
           else { setPhase('entry'); }
         });
       }
@@ -437,22 +439,22 @@ export default function App() {
     setUsername(name);
     setError('');
     connectSocket();
-    setPhase('play_page');
+    setPhase('mode_split');
   }
 
   function handlePlayNow() {
     connectSocket();
-    setPhase('play_page');
+    setPhase('mode_split');
   }
 
   function handleSelectStep1() {
-    // Go directly to unified Play page
-    setPhase('play_page');
+    // Show the Story/Online split
+    setPhase('mode_split');
   }
 
   function handleSelectDifficulty(diff) {
     setDifficulty(diff);
-    setPhase('play_page');
+    setPhase('mode_split');
   }
 
   function handleSelectGameMode(mode) {
@@ -755,6 +757,24 @@ export default function App() {
           onSelectDifficulty={handleSelectDifficulty}
           onBack={() => window.location.href = '/dashboard'}
         />
+      )}
+
+      {phase === 'mode_split' && (
+        <RouteErrorBoundary name="ModeSplit">
+        <ModeSplit
+          onStory={() => setPhase('story_menu')}
+          onOnline={() => setPhase('play_page')}
+          onBack={() => window.location.href = '/dashboard'}
+        />
+        </RouteErrorBoundary>
+      )}
+
+      {phase === 'story_menu' && (
+        <RouteErrorBoundary name="StoryMenu">
+        <StoryMenuStub
+          onBack={() => setPhase('mode_split')}
+        />
+        </RouteErrorBoundary>
       )}
 
       {phase === 'play_page' && (

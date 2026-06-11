@@ -1,0 +1,204 @@
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&display=swap');
+
+/* ── Screen: dark vignette backdrop, fades in ──────────────────────────────── */
+
+.ms-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  overflow-y: auto;
+  background:
+    radial-gradient(ellipse at center, rgba(15, 22, 12, 0.92) 0%, rgba(0, 0, 0, 0.97) 75%);
+  animation: ms-backdrop-in 0.3s ease both;
+}
+
+@keyframes ms-backdrop-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.ms-back-btn {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  background: rgba(20, 30, 20, 0.8);
+  border: 1px solid rgba(180, 140, 40, 0.5);
+  color: #c8a32c;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-family: 'Cinzel', serif;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.ms-back-btn:hover {
+  background: rgba(30, 40, 30, 0.9);
+  border-color: rgba(180, 140, 40, 0.8);
+  transform: translateX(-2px);
+}
+
+/* ── Banner: drops from above, gold underline sweeps in ────────────────────── */
+
+.ms-banner {
+  text-align: center;
+  margin-bottom: 44px;
+  animation: ms-banner-drop 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes ms-banner-drop {
+  from { opacity: 0; transform: translateY(-28px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.ms-title {
+  font-family: 'Cinzel', serif;
+  font-weight: 700;
+  font-size: 38px;
+  letter-spacing: 0.18em;
+  color: #c8a32c;
+  margin: 0 0 12px;
+  text-shadow: 0 2px 14px rgba(200, 163, 44, 0.5);
+}
+
+.ms-title-rule {
+  height: 2px;
+  margin: 0 auto;
+  width: 260px;
+  background: linear-gradient(90deg, transparent, rgba(200, 163, 44, 0.9), transparent);
+  transform-origin: center;
+  animation: ms-rule-sweep 0.5s 0.25s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes ms-rule-sweep {
+  from { transform: scaleX(0); opacity: 0; }
+  to   { transform: scaleX(1); opacity: 1; }
+}
+
+/* ── The two choice cards: slide in from opposite edges, staggered ─────────── */
+
+.ms-cards {
+  display: flex;
+  gap: 28px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.ms-card {
+  width: 380px;
+  max-width: 92vw;
+  min-height: 340px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 40px 30px;
+  border-radius: 18px;
+  cursor: pointer;
+  font-family: 'Cinzel', serif;
+  text-align: center;
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+}
+
+/* Hover: lift + gold glow (tg-action-card DNA) */
+.ms-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.55), 0 0 28px rgba(200, 163, 44, 0.3);
+}
+
+.ms-card--story {
+  background: linear-gradient(160deg, rgba(18, 30, 16, 0.92), rgba(8, 14, 8, 0.96));
+  border: 2px solid rgba(200, 163, 44, 0.55);
+  animation: ms-card-left 0.45s 0.15s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.ms-card--story:hover { border-color: rgba(241, 196, 15, 0.95); }
+
+.ms-card--online {
+  background: linear-gradient(160deg, rgba(38, 16, 12, 0.92), rgba(14, 8, 6, 0.96));
+  border: 2px solid rgba(220, 90, 60, 0.55);
+  animation: ms-card-right 0.45s 0.27s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.ms-card--online:hover {
+  border-color: rgba(241, 196, 15, 0.95);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.55), 0 0 28px rgba(220, 90, 60, 0.35);
+}
+
+@keyframes ms-card-left {
+  from { opacity: 0; transform: translateX(-60px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes ms-card-right {
+  from { opacity: 0; transform: translateX(60px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.ms-card-icon {
+  font-size: 64px;
+  line-height: 1;
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.6));
+}
+
+.ms-card-name {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: #ffffff;
+}
+
+.ms-card--story  .ms-card-name { color: #e8d48a; }
+.ms-card--online .ms-card-name { color: #f0b9a0; }
+
+.ms-card-sub {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.6);
+  line-height: 1.6;
+  max-width: 260px;
+}
+
+/* ── Story menu stub note ──────────────────────────────────────────────────── */
+
+.ms-stub-note {
+  font-family: 'Cinzel', serif;
+  font-size: 15px;
+  color: rgba(255, 255, 255, 0.55);
+  text-align: center;
+  animation: ms-banner-drop 0.45s 0.15s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* ── Reduced motion: opacity-only, no slides/drops ─────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .ms-banner,
+  .ms-title-rule,
+  .ms-card--story,
+  .ms-card--online,
+  .ms-stub-note {
+    animation: ms-backdrop-in 0.3s ease both;
+  }
+
+  .ms-card:hover { transform: none; }
+}
+
+/* ── Responsive: cards stack ───────────────────────────────────────────────── */
+
+@media (max-width: 840px) {
+  .ms-title { font-size: 26px; }
+
+  .ms-cards {
+    flex-direction: column;
+    align-items: center;
+    gap: 18px;
+  }
+
+  .ms-card {
+    min-height: 0;
+    padding: 28px 24px;
+  }
+}
