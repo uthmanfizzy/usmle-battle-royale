@@ -3389,38 +3389,45 @@ const BOSS_EMPTY_FORM = {
 };
 
 function JourneyPanel() {
-  const [subject,    setSubject]    = useState(VIDEO_CATEGORIES[0]?.id || '');
-  const [difficulty, setDifficulty] = useState('easy');
-  const [chapters,   setChapters]   = useState([]);   // groups + topicCount
-  const [bossQs,     setBossQs]     = useState([]);   // all boss questions in scope
-  const [loading,    setLoading]    = useState(true);
-  const [error,      setError]      = useState('');
-  const [selected,   setSelected]   = useState(null); // null | { boss_key, label, icon }
-  const [editing,    setEditing]    = useState(null); // null | question row
-  const [deleteQ,    setDeleteQ]    = useState(null);
-  const [saving,     setSaving]     = useState(false);
-  const [form,       setForm]       = useState(BOSS_EMPTY_FORM);
+  const [subject,  setSubject]  = useState(VIDEO_CATEGORIES[0]?.id || '');
+  const [chapters, setChapters] = useState([]);
+  const [bossQs,   setBossQs]   = useState([]);   // subject-wide boss questions
+  const [levelsByChapter, setLevelsByChapter] = useState({}); // chapter_id -> levels[] (lazy)
+  const [expandedId, setExpandedId] = useState(null);
+  const [loading,  setLoading]  = useState(true);
+  const [error,    setError]    = useState('');
+
+  // Inline create/rename: { kind: 'chapter'|'level', id: null=new, chapterId?, value }
+  const [nameEdit,   setNameEdit]   = useState(null);
+  const [deleteItem, setDeleteItem] = useState(null); // { kind: 'chapter'|'level'|'question', row, chapterId? }
+
+  // Editor view: null | { kind: 'level', level, chapter } | { kind: 'boss', chapter } | { kind: 'ultimate' }
+  const [selected, setSelected] = useState(null);
+  const [levelQs,  setLevelQs]  = useState([]);   // questions for the selected level
+  const [editing,  setEditing]  = useState(null);
+  const [saving,   setSaving]   = useState(false);
+  const [form,     setForm]     = useState(BOSS_EMPTY_FORM);
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
-  useEffect(() => { loadScope(); }, [subject, difficulty]);
+  useEffect(() => { loadSubject(); }, [subject]);
 
-  async function loadScope() {
+  async function loadSubject() {
     setLoading(true);
     setError('');
     setSelected(null);
-    setEditing(null);
-    setForm(BOSS_EMPTY_FORM);
+    setExpandedId(null);
+    setLevelsByChapter({});
+    setNameEdit(null);
+    resetForm();
     try {
-      const [topicsRes, bossRes] = await Promise.all([
-        apiCall(`/admin/topics?category=${encodeURIComponent(subject)}`),
-        apiCall(`/admin/boss-questions?subject=${encodeURIComponent(subject)}&difficulty=${difficulty}`),
+      const [chRes, bossRes] = await Promise.all([
+        apiCall(`/admin/journey-chapters?subject=${encodeURIComponent(subject)}`),
+        apiCall(`/admin/boss-questions?subject=${encodeURIComponent(subject)}`),
       ]);
-      const topicsData = await topicsRes.json();
-      const bossData   = await bossRes.json();
-      if (!topicsRes.ok) throw new Error(topicsData.error || 'Failed to load chapters');
-      const topics = (topicsData.topics || []).filter(t => (t.difficulty || 'easy') === difficulty);
-      const groups = (topicsData.groups || []).filter(g => (g.difficulty || 'easy') === difficulty);
-      setChapters(groups.map(g => ({ ...g, topicCount: topics.filter(t => t.group_id === g.id).length })));
+      const chData   = await chRes.json();
+      const bossData = await bossRes.json();
+      if (!chRes.ok) throw new Error(chData.error || 'Failed to load chapters');
+      setChapters(chData.chapters || []);
       setBossQs(bossData.questions || []);
     } catch (err) {
       setError(err.message);
@@ -3430,12 +3437,148 @@ function JourneyPanel() {
     setLoading(false);
   }
 
-  const questionsFor = (bossKey) => bossQs.filter(q => q.boss_key === bossKey);
+  // Levels load lazily, once per chapter, on first expand
+  async function toggleChapter(chapterId) {
+    if (expandedId === chapterId) { setExpandedId(null); return; }
+    setExpandedId(chapterId);
+    if (!(chapterId in levelsByChapter)) {
+      try {
+        const res  = await apiCall(`/admin/journey-levels?chapter_id=${chapterId}`);
+        const data = await res.json();
+        setLevelsByChapter(prev => ({ ...prev, [chapterId]: data.levels || [] }));
+      } catch {
+        setLevelsByChapter(prev => ({ ...prev, [chapterId]: [] }));
+      }
+    }
+  }
+
+  // ── Chapter / level create + rename (inline rows) ─────────────────────────
+
+  async function saveName() {
+    const { kind, id, chapterId } = nameEdit;
+    const name = nameEdit.value.trim();
+    if (!name) return;
+    setError('');
+    try {
+      if (kind === 'chapter') {
+        if (id) {
+          const res  = await apiCall(`/admin/journey-chapters/${id}`, { method: 'PUT', body: JSON.stringify({ name }) });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Failed to rename chapter');
+          setChapters(cs => cs.map(c => c.id === id ? data : c));
+        } else {
+          const res  = await apiCall('/admin/journey-chapters', { method: 'POST', body: JSON.stringify({ subject, name, sort_order: chapters.length }) });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Failed to create chapter');
+          setChapters(cs => [...cs, data]);
+        }
+      } else {
+        if (id) {
+          const res  = await apiCall(`/admin/journey-levels/${id}`, { method: 'PUT', body: JSON.stringify({ name }) });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Failed to rename level');
+          setLevelsByChapter(prev => ({ ...prev, [chapterId]: (prev[chapterId] || []).map(l => l.id === id ? data : l) }));
+        } else {
+          const res  = await apiCall('/admin/journey-levels', { method: 'POST', body: JSON.stringify({ chapter_id: chapterId, name, sort_order: (levelsByChapter[chapterId] || []).length }) });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Failed to create level');
+          setLevelsByChapter(prev => ({ ...prev, [chapterId]: [...(prev[chapterId] || []), data] }));
+        }
+      }
+      setNameEdit(null);
+    } catch (err) { setError(err.message); }
+  }
+
+  // ── Reorder: normalize sort_order = index across the whole list ──────────
+  // (fresh rows all default to sort_order 0, so pairwise swaps alone could
+  // interleave wrongly — writing indices for every changed row is robust)
+
+  async function reorderRows(endpoint, list, index, dir, applyLocal) {
+    const j = index + dir;
+    if (j < 0 || j >= list.length) return;
+    const newList = [...list];
+    [newList[index], newList[j]] = [newList[j], newList[index]];
+    const normalized = newList.map((row, i) => ({ ...row, sort_order: i }));
+    const prevById = new Map(list.map(r => [r.id, r.sort_order]));
+    const changed  = normalized.filter(row => prevById.get(row.id) !== row.sort_order);
+    applyLocal(normalized); // optimistic
+    try {
+      await Promise.all(changed.map(async row => {
+        const res = await apiCall(`${endpoint}/${row.id}`, { method: 'PUT', body: JSON.stringify({ sort_order: row.sort_order }) });
+        if (!res.ok) {
+          const d = await res.json();
+          throw new Error(d.error || 'Reorder failed');
+        }
+      }));
+    } catch (err) {
+      setError(err.message);
+      applyLocal(list); // revert
+    }
+  }
+
+  const reorderChapters = (i, dir) =>
+    reorderRows('/admin/journey-chapters', chapters, i, dir, setChapters);
+  const reorderLevels = (chapterId, i, dir) =>
+    reorderRows('/admin/journey-levels', levelsByChapter[chapterId] || [], i, dir,
+      arr => setLevelsByChapter(prev => ({ ...prev, [chapterId]: arr })));
+
+  // ── Deletes (chapter / level / question share one confirm modal) ─────────
+
+  async function handleDeleteItem() {
+    const { kind, row, chapterId } = deleteItem;
+    setError('');
+    try {
+      if (kind === 'chapter') {
+        const res  = await apiCall(`/admin/journey-chapters/${row.id}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to delete chapter');
+        setChapters(cs => cs.filter(c => c.id !== row.id));
+        setBossQs(qs => qs.filter(q => q.boss_key !== `chapter:${row.id}`));
+        setLevelsByChapter(prev => { const next = { ...prev }; delete next[row.id]; return next; });
+        if (expandedId === row.id) setExpandedId(null);
+      } else if (kind === 'level') {
+        const res  = await apiCall(`/admin/journey-levels/${row.id}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to delete level');
+        setLevelsByChapter(prev => ({ ...prev, [chapterId]: (prev[chapterId] || []).filter(l => l.id !== row.id) }));
+      } else {
+        const base = selected?.kind === 'level' ? '/admin/journey-questions' : '/admin/boss-questions';
+        const res  = await apiCall(`${base}/${row.id}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to delete question');
+        if (selected?.kind === 'level') setLevelQs(qs => qs.filter(q => q.id !== row.id));
+        else setBossQs(qs => qs.filter(q => q.id !== row.id));
+        if (editing?.id === row.id) resetForm();
+      }
+      setDeleteItem(null);
+    } catch (err) { setError(err.message); setDeleteItem(null); }
+  }
+
+  // ── Editor open / question form (form mechanics reused from J2) ──────────
 
   function resetForm() {
     setEditing(null);
     setForm(BOSS_EMPTY_FORM);
   }
+
+  async function openLevel(level, chapter) {
+    setError('');
+    resetForm();
+    setSelected({ kind: 'level', level, chapter });
+    setLevelQs([]);
+    try {
+      const res  = await apiCall(`/admin/journey-questions?level_id=${level.id}`);
+      const data = await res.json();
+      setLevelQs(data.questions || []);
+    } catch { setLevelQs([]); }
+  }
+
+  function openBoss(chapter) { setError(''); resetForm(); setSelected({ kind: 'boss', chapter }); }
+  function openUltimate()    { setError(''); resetForm(); setSelected({ kind: 'ultimate' }); }
+
+  const bossKeyFor = (sel) => sel.kind === 'ultimate' ? 'ultimate' : `chapter:${sel.chapter.id}`;
+  const editorQuestions = !selected ? [] :
+    selected.kind === 'level' ? levelQs : bossQs.filter(q => q.boss_key === bossKeyFor(selected));
 
   function startEdit(q) {
     setError('');
@@ -3463,6 +3606,9 @@ function JourneyPanel() {
     e.preventDefault();
     setError('');
     setSaving(true);
+    const isLevel = selected.kind === 'level';
+    const base    = isLevel ? '/admin/journey-questions' : '/admin/boss-questions';
+    const applyQs = isLevel ? setLevelQs : setBossQs;
     try {
       let res, data;
       if (editing) {
@@ -3475,56 +3621,70 @@ function JourneyPanel() {
         const prevWhy = typeof editing.why_others_wrong === 'string' ? editing.why_others_wrong : '';
         if (form.why_others_wrong.trim() !== prevWhy) body.why_others_wrong = form.why_others_wrong.trim() || null;
         if (Object.keys(body).length === 0) { resetForm(); setSaving(false); return; }
-        res  = await apiCall(`/admin/boss-questions/${editing.id}`, { method: 'PUT', body: JSON.stringify(body) });
+        res  = await apiCall(`${base}/${editing.id}`, { method: 'PUT', body: JSON.stringify(body) });
         data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed to save question');
-        setBossQs(qs => qs.map(q => q.id === editing.id ? data : q));
+        applyQs(qs => qs.map(q => q.id === editing.id ? data : q));
       } else {
+        const idFields = isLevel
+          ? { level_id: selected.level.id }
+          : { subject, boss_key: bossKeyFor(selected) };
         const body = {
-          subject,
-          difficulty,
-          boss_key: selected.boss_key,
+          ...idFields,
           question: form.question.trim(),
           options: assembledOptions,
           correct: form.correct,
           explanation: form.explanation.trim() || null,
           why_others_wrong: form.why_others_wrong.trim() || null,
         };
-        res  = await apiCall('/admin/boss-questions', { method: 'POST', body: JSON.stringify(body) });
+        res  = await apiCall(base, { method: 'POST', body: JSON.stringify(body) });
         data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed to add question');
-        setBossQs(qs => [...qs, data]);
+        applyQs(qs => [...qs, data]);
       }
       resetForm();
     } catch (err) { setError(err.message); }
     setSaving(false);
   }
 
-  async function handleDelete() {
-    setError('');
-    try {
-      const res  = await apiCall(`/admin/boss-questions/${deleteQ.id}`, { method: 'DELETE' });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to delete question');
-      setBossQs(qs => qs.filter(q => q.id !== deleteQ.id));
-      if (editing?.id === deleteQ.id) resetForm();
-      setDeleteQ(null);
-    } catch (err) { setError(err.message); setDeleteQ(null); }
-  }
+  // ── Render ────────────────────────────────────────────────────────────────
 
   const folder = FOLDERS.find(f => f.id === subject);
-  const diffLabel = difficulty === 'hard' ? '💀 Hard' : '😊 Easy';
-  const selectedQuestions = selected ? questionsFor(selected.boss_key) : [];
+  const ultCount = bossQs.filter(q => q.boss_key === 'ultimate').length;
+
+  const renderNameInput = (placeholder) => (
+    <span className="ap-jtree-nameedit">
+      <input
+        autoFocus
+        value={nameEdit.value}
+        placeholder={placeholder}
+        onChange={e => setNameEdit(ne => ({ ...ne, value: e.target.value }))}
+        onKeyDown={e => {
+          if (e.key === 'Enter') { e.preventDefault(); saveName(); }
+          if (e.key === 'Escape') setNameEdit(null);
+        }}
+      />
+      <button className="ap-btn-pri" onClick={saveName} disabled={!nameEdit.value.trim()}>✓</button>
+      <button className="ap-btn-sec" onClick={() => setNameEdit(null)}>✕</button>
+    </span>
+  );
+
+  const editorTitle = !selected ? '' :
+    selected.kind === 'level'
+      ? `${selected.chapter.name} › 📄 ${selected.level.name}`
+      : selected.kind === 'boss'
+        ? `⚔ ${selected.chapter.name} Boss`
+        : '👑 Ultimate Boss';
 
   if (loading) return <div className="ap-loading"><div className="ap-spinner" /></div>;
 
   return (
     <div className="ap-panel">
       <div className="ap-panel-head">
-        <h2>🚑 First Aid Journey — Boss Questions</h2>
+        <h2>🚑 First Aid Journey</h2>
       </div>
 
-      {/* Scope bar */}
+      {/* Subject scope (no difficulty in the journey) */}
       <div className="ap-journey-scope">
         <div className="ap-field">
           <label>Subject</label>
@@ -3532,75 +3692,137 @@ function JourneyPanel() {
             {VIDEO_CATEGORIES.map(f => <option key={f.id} value={f.id}>{f.icon} {f.label}</option>)}
           </select>
         </div>
-        <div className="ap-field">
-          <label>Difficulty</label>
-          <div className="ap-attach-toggle">
-            <button type="button" className={difficulty === 'easy' ? 'active' : ''} onClick={() => setDifficulty('easy')}>😊 Easy</button>
-            <button type="button" className={difficulty === 'hard' ? 'active' : ''} onClick={() => setDifficulty('hard')}>💀 Hard</button>
-          </div>
-        </div>
       </div>
 
       {error && <div className="ap-error">{error}</div>}
 
       {!selected ? (
-        /* ── Boss list: chapter cards + ultimate ─────────────────── */
-        chapters.length === 0 ? (
-          <div className="ap-topic-empty">
-            <div className="ap-topic-empty-icon">🗂️</div>
-            <p>No chapters yet — create topic groups in Question Manager first.</p>
-          </div>
-        ) : (
-          <div className="ap-journey-boss-grid">
-            {chapters.map(g => {
-              const count = questionsFor(`chapter:${g.id}`).length;
-              return (
-                <button
-                  key={g.id}
-                  className="ap-journey-boss-card"
-                  onClick={() => { setError(''); resetForm(); setSelected({ boss_key: `chapter:${g.id}`, label: `${g.name} Boss`, icon: '🗂️' }); }}
-                >
-                  <span className="ap-journey-boss-icon">🗂️</span>
-                  <span className="ap-journey-boss-name">{g.name}</span>
-                  <span className="ap-journey-boss-meta">
-                    {g.topicCount} topic{g.topicCount !== 1 ? 's' : ''} · {count} boss question{count !== 1 ? 's' : ''}
-                  </span>
-                  {count === 0 && <span className="ap-journey-boss-hint">auto-skips in game until questions are added</span>}
-                </button>
-              );
-            })}
-            <button
-              className="ap-journey-boss-card ap-journey-boss-card--ultimate"
-              onClick={() => { setError(''); resetForm(); setSelected({ boss_key: 'ultimate', label: 'Ultimate Boss', icon: '👑' }); }}
-            >
-              <span className="ap-journey-boss-icon">👑</span>
-              <span className="ap-journey-boss-name">Ultimate Boss</span>
-              <span className="ap-journey-boss-meta">
-                {questionsFor('ultimate').length} boss question{questionsFor('ultimate').length !== 1 ? 's' : ''}
-              </span>
-              {questionsFor('ultimate').length === 0 && <span className="ap-journey-boss-hint">auto-skips in game until questions are added</span>}
-            </button>
-          </div>
-        )
+        /* ── TREE: chapters → levels + bosses ─────────────────────── */
+        <>
+          {chapters.length === 0 && !(nameEdit?.kind === 'chapter' && !nameEdit.id) ? (
+            <div className="ap-topic-empty">
+              <div className="ap-topic-empty-icon">🚑</div>
+              <p>No chapters yet for {folder?.label}. Create the first chapter to start building the journey.</p>
+              <button className="ap-btn-pri" onClick={() => setNameEdit({ kind: 'chapter', id: null, value: '' })}>
+                ➕ New Chapter
+              </button>
+            </div>
+          ) : (
+            <div className="ap-jtree">
+              {chapters.map((ch, i) => {
+                const expanded  = expandedId === ch.id;
+                const levels    = levelsByChapter[ch.id];
+                const bossCount = bossQs.filter(q => q.boss_key === `chapter:${ch.id}`).length;
+                return (
+                  <div className="ap-jtree-chapter" key={ch.id}>
+                    <div className="ap-jtree-chrow">
+                      <button className="ap-jtree-expand" onClick={() => toggleChapter(ch.id)}>{expanded ? '▾' : '▸'}</button>
+                      {nameEdit?.kind === 'chapter' && nameEdit.id === ch.id ? (
+                        renderNameInput('Chapter name')
+                      ) : (
+                        <span className="ap-jtree-chname" onClick={() => toggleChapter(ch.id)}>
+                          Chapter {i + 1}: {ch.name}
+                        </span>
+                      )}
+                      <div className="ap-jtree-actions">
+                        <button className="ap-jtree-btn" onClick={() => reorderChapters(i, -1)} disabled={i === 0} title="Move up">↑</button>
+                        <button className="ap-jtree-btn" onClick={() => reorderChapters(i, +1)} disabled={i === chapters.length - 1} title="Move down">↓</button>
+                        <button className="ap-topic-edit-btn" onClick={() => setNameEdit({ kind: 'chapter', id: ch.id, value: ch.name })} title="Rename">✏️</button>
+                        <button className="ap-topic-del-btn" onClick={() => setDeleteItem({ kind: 'chapter', row: ch })} title="Delete">🗑️</button>
+                      </div>
+                    </div>
+
+                    {expanded && (
+                      <div className="ap-jtree-body">
+                        {levels === undefined ? (
+                          <div className="ap-jtree-note">Loading levels…</div>
+                        ) : (
+                          <>
+                            {levels.map((lv, li) => (
+                              <div className="ap-jtree-lvrow" key={lv.id}>
+                                {nameEdit?.kind === 'level' && nameEdit.id === lv.id ? (
+                                  renderNameInput('Level name')
+                                ) : (
+                                  <button className="ap-jtree-lvname" onClick={() => openLevel(lv, ch)}>
+                                    📄 {li + 1}. {lv.name}
+                                  </button>
+                                )}
+                                <div className="ap-jtree-actions">
+                                  <button className="ap-jtree-btn" onClick={() => reorderLevels(ch.id, li, -1)} disabled={li === 0} title="Move up">↑</button>
+                                  <button className="ap-jtree-btn" onClick={() => reorderLevels(ch.id, li, +1)} disabled={li === levels.length - 1} title="Move down">↓</button>
+                                  <button className="ap-topic-edit-btn" onClick={() => setNameEdit({ kind: 'level', id: lv.id, chapterId: ch.id, value: lv.name })} title="Rename">✏️</button>
+                                  <button className="ap-topic-del-btn" onClick={() => setDeleteItem({ kind: 'level', row: lv, chapterId: ch.id })} title="Delete">🗑️</button>
+                                </div>
+                              </div>
+                            ))}
+                            {levels.length === 0 && !(nameEdit?.kind === 'level' && !nameEdit.id && nameEdit.chapterId === ch.id) && (
+                              <div className="ap-jtree-note">No levels yet — add the first one.</div>
+                            )}
+                            {nameEdit?.kind === 'level' && !nameEdit.id && nameEdit.chapterId === ch.id ? (
+                              <div className="ap-jtree-lvrow">{renderNameInput('New level name')}</div>
+                            ) : (
+                              <button className="ap-jtree-add" onClick={() => setNameEdit({ kind: 'level', id: null, chapterId: ch.id, value: '' })}>
+                                ➕ New Level
+                              </button>
+                            )}
+
+                            <button className="ap-jtree-bossrow" onClick={() => openBoss(ch)}>
+                              <span>⚔ Chapter Boss</span>
+                              {bossCount > 0
+                                ? <span className="ap-journey-boss-meta">{bossCount} question{bossCount !== 1 ? 's' : ''}</span>
+                                : <span className="ap-journey-boss-hint">auto-skips in game</span>}
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {chapters.length > 0 && (
+            nameEdit?.kind === 'chapter' && !nameEdit.id ? (
+              <div className="ap-jtree-chrow ap-jtree-newchapter">{renderNameInput('New chapter name')}</div>
+            ) : (
+              <button className="ap-jtree-add" onClick={() => setNameEdit({ kind: 'chapter', id: null, value: '' })}>
+                ➕ New Chapter
+              </button>
+            )
+          )}
+          {chapters.length === 0 && nameEdit?.kind === 'chapter' && !nameEdit.id && (
+            <div className="ap-jtree-chrow ap-jtree-newchapter">{renderNameInput('New chapter name')}</div>
+          )}
+
+          <button className="ap-journey-boss-card ap-journey-boss-card--ultimate ap-jtree-ultimate" onClick={openUltimate}>
+            <span className="ap-journey-boss-icon">👑</span>
+            <span className="ap-journey-boss-name">Ultimate Boss</span>
+            <span className="ap-journey-boss-meta">
+              {ultCount > 0 ? `${ultCount} question${ultCount !== 1 ? 's' : ''}` : ''}
+            </span>
+            {ultCount === 0 && <span className="ap-journey-boss-hint">auto-skips in game until questions are added</span>}
+          </button>
+        </>
       ) : (
-        /* ── Boss editor: header + form + question list ───────────── */
+        /* ── EDITOR: shared question form + list ──────────────────── */
         <>
           <div className="ap-journey-editor-head">
             <button className="ap-btn-back" onClick={() => { setError(''); resetForm(); setSelected(null); }}>← Back</button>
             <span className="ap-journey-editor-title">
-              {folder?.icon} {folder?.label} › {diffLabel} › {selected.icon} {selected.label}
+              {folder?.icon} {folder?.label} › {editorTitle}
             </span>
           </div>
 
           <form onSubmit={handleSave} className="ap-qform ap-video-form">
-            <h3 className="ap-video-form-title">{editing ? '✏️ Edit Boss Question' : '➕ Add Boss Question'}</h3>
+            <h3 className="ap-video-form-title">{editing ? '✏️ Edit Question' : '➕ Add Question'}</h3>
 
             <div className="ap-field">
               <label>Question</label>
               <textarea
                 value={form.question}
                 onChange={e => set('question', e.target.value)}
-                placeholder="Boss question text…"
+                placeholder="Question text…"
                 rows={3}
               />
             </div>
@@ -3673,23 +3895,27 @@ function JourneyPanel() {
             </div>
           </form>
 
-          {selectedQuestions.length === 0 ? (
+          {editorQuestions.length === 0 ? (
             <div className="ap-topic-empty">
-              <div className="ap-topic-empty-icon">{selected.icon}</div>
-              <p>No questions for this boss yet — it auto-skips in game until you add some.</p>
+              <div className="ap-topic-empty-icon">{selected.kind === 'level' ? '📄' : selected.kind === 'boss' ? '⚔' : '👑'}</div>
+              <p>
+                {selected.kind === 'level'
+                  ? "Players can't pass a level with no questions — add some."
+                  : 'No questions yet — this boss auto-skips in game until you add some.'}
+              </p>
             </div>
           ) : (
             <div className="ap-journey-q-list">
               <p className="ap-journey-q-caption">
-                {selectedQuestions.length} question{selectedQuestions.length !== 1 ? 's' : ''} · players face these after completing {selected.boss_key === 'ultimate' ? 'every chapter' : 'the chapter'}
+                {editorQuestions.length} question{editorQuestions.length !== 1 ? 's' : ''}
               </p>
-              {selectedQuestions.map(q => (
+              {editorQuestions.map(q => (
                 <div className="ap-journey-q-row" key={q.id}>
                   <span className="ap-journey-q-correct">{q.correct}</span>
                   <span className="ap-journey-q-text">{q.question}</span>
                   <div className="ap-video-row-actions">
                     <button className="ap-topic-edit-btn" onClick={() => startEdit(q)} title="Edit">✏️</button>
-                    <button className="ap-topic-del-btn" onClick={() => setDeleteQ(q)} title="Delete">🗑️</button>
+                    <button className="ap-topic-del-btn" onClick={() => setDeleteItem({ kind: 'question', row: q })} title="Delete">🗑️</button>
                   </div>
                 </div>
               ))}
@@ -3698,15 +3924,25 @@ function JourneyPanel() {
         </>
       )}
 
-      {deleteQ && (
-        <div className="ap-backdrop" onClick={() => setDeleteQ(null)}>
+      {deleteItem && (
+        <div className="ap-backdrop" onClick={() => setDeleteItem(null)}>
           <div className="ap-confirm" onClick={e => e.stopPropagation()}>
-            <div className="ap-confirm-icon">{selected?.icon || '🚑'}</div>
-            <h3>Delete this boss question?</h3>
-            <p>"{deleteQ.question.slice(0, 80)}{deleteQ.question.length > 80 ? '…' : ''}"</p>
+            <div className="ap-confirm-icon">{deleteItem.kind === 'chapter' ? '🗂️' : deleteItem.kind === 'level' ? '📄' : '🚑'}</div>
+            <h3>
+              {deleteItem.kind === 'chapter' ? `Delete chapter "${deleteItem.row.name}"?`
+                : deleteItem.kind === 'level' ? `Delete level "${deleteItem.row.name}"?`
+                : 'Delete this question?'}
+            </h3>
+            <p>
+              {deleteItem.kind === 'chapter'
+                ? 'Deletes this chapter, all its levels and their questions, and its boss questions.'
+                : deleteItem.kind === 'level'
+                  ? 'Deletes this level and all its questions.'
+                  : `"${deleteItem.row.question.slice(0, 80)}${deleteItem.row.question.length > 80 ? '…' : ''}"`}
+            </p>
             <div className="ap-modal-foot">
-              <button className="ap-btn-sec" onClick={() => setDeleteQ(null)}>Cancel</button>
-              <button className="ap-btn-danger" onClick={handleDelete}>Delete Question</button>
+              <button className="ap-btn-sec" onClick={() => setDeleteItem(null)}>Cancel</button>
+              <button className="ap-btn-danger" onClick={handleDeleteItem}>Delete</button>
             </div>
           </div>
         </div>
