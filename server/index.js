@@ -5195,6 +5195,130 @@ app.delete('/admin/topic-groups/:id', adminAuth, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// ── Training Grounds videos ───────────────────────────────────────────────────
+
+// Extract { video_type, embed_id } from a YouTube/Vimeo URL; null for anything else.
+// YouTube: watch?v=ID, youtu.be/ID, /shorts/ID, /embed/ID — IDs are 11 chars of [A-Za-z0-9_-]
+// Vimeo:   vimeo.com/ID or vimeo.com/video/ID — numeric IDs
+function parseVideoUrl(url) {
+  if (typeof url !== 'string') return null;
+  const s = url.trim();
+  let m = s.match(/(?:youtube\.com\/watch\?(?:.*&)?v=|youtube\.com\/shorts\/|youtube\.com\/embed\/|youtu\.be\/)([\w-]{11})/i);
+  if (m) return { video_type: 'youtube', embed_id: m[1] };
+  m = s.match(/vimeo\.com\/(?:video\/)?(\d{6,12})/i);
+  if (m) return { video_type: 'vimeo', embed_id: m[1] };
+  return null;
+}
+
+// Resolve a video's attachment: topic_id → denormalize category/difficulty from the
+// topic so the public category-filtered query also returns topic-attached videos.
+async function resolveVideoAttachment({ topic_id, category, difficulty }) {
+  if (topic_id) {
+    const { data: topic, error } = await supabase.from('topics').select('*').eq('id', topic_id).single();
+    if (error || !topic) throw new Error('Invalid topic_id — topic not found');
+    return { topic_id, category: topic.category, difficulty: topic.difficulty || 'easy' };
+  }
+  if (!category || !difficulty) throw new Error('topic_id or category+difficulty required');
+  return { topic_id: null, category, difficulty };
+}
+
+app.get('/admin/videos', adminAuth, async (req, res) => {
+  if (!supabase) return res.json({ videos: [] });
+  const { category, difficulty, topic_id } = req.query;
+  try {
+    let query = supabase.from('videos').select('*')
+      .order('sort_order', { ascending: true })
+      .order('created_at', { ascending: true });
+    if (category)   query = query.eq('category', category);
+    if (difficulty) query = query.eq('difficulty', difficulty);
+    if (topic_id)   query = query.eq('topic_id', topic_id);
+    const { data, error } = await query;
+    if (error) throw error;
+    res.json({ videos: data || [] });
+  } catch (err) {
+    // Table may not exist yet (manual migration) — degrade to empty list
+    console.warn('[/admin/videos] unavailable, returning videos: [] —', err.message);
+    res.json({ videos: [] });
+  }
+});
+
+app.post('/admin/videos', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  const { title, url, topic_id, category, difficulty, sort_order } = req.body;
+  if (!title?.trim() || !url?.trim()) return res.status(400).json({ error: 'title and url required' });
+  const parsed = parseVideoUrl(url);
+  if (!parsed) return res.status(400).json({ error: 'Only YouTube and Vimeo links are supported' });
+  try {
+    const attachment = await resolveVideoAttachment({ topic_id, category, difficulty });
+    const { data, error } = await supabase
+      .from('videos')
+      .insert({
+        title: title.trim(),
+        url: url.trim(),
+        video_type: parsed.video_type,
+        embed_id: parsed.embed_id,
+        sort_order: Number.isFinite(sort_order) ? sort_order : 0,
+        ...attachment,
+      })
+      .select()
+      .single();
+    if (error) throw error;
+    res.json(data);
+  } catch (err) {
+    const code = /required|not found/.test(err.message) ? 400 : 500;
+    res.status(code).json({ error: err.message });
+  }
+});
+
+app.put('/admin/videos/:id', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  const { title, url, sort_order } = req.body;
+  const updates = {};
+  try {
+    if (title !== undefined) {
+      if (!title?.trim()) return res.status(400).json({ error: 'title required' });
+      updates.title = title.trim();
+    }
+    if (url !== undefined) {
+      const parsed = parseVideoUrl(url);
+      if (!parsed) return res.status(400).json({ error: 'Only YouTube and Vimeo links are supported' });
+      updates.url        = url.trim();
+      updates.video_type = parsed.video_type;
+      updates.embed_id   = parsed.embed_id;
+    }
+    if (Number.isFinite(sort_order)) updates.sort_order = sort_order;
+    // 'in' check so re-attachment is explicit; topic_id null requires category+difficulty
+    if ('topic_id' in req.body || 'category' in req.body || 'difficulty' in req.body) {
+      Object.assign(updates, await resolveVideoAttachment({
+        topic_id:   req.body.topic_id,
+        category:   req.body.category,
+        difficulty: req.body.difficulty,
+      }));
+    }
+    if (Object.keys(updates).length === 0) return res.status(400).json({ error: 'nothing to update' });
+    const { data, error } = await supabase
+      .from('videos')
+      .update(updates)
+      .eq('id', req.params.id)
+      .select()
+      .single();
+    if (error) throw error;
+    res.json(data);
+  } catch (err) {
+    const code = /required|not found/.test(err.message) ? 400 : 500;
+    res.status(code).json({ error: err.message });
+  }
+});
+
+app.delete('/admin/videos/:id', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  try {
+    const { error } = await supabase.from('videos').delete().eq('id', req.params.id);
+    if (error) throw error;
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 app.post('/admin/questions/bulk-assign-topic', adminAuth, async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
 
@@ -5544,6 +5668,28 @@ app.get('/api/topics', async (req, res) => {
   } catch (err) {
     console.error('[/api/topics] error:', err.message);
     res.status(500).json({ error: err.message, topics: [] });
+  }
+});
+
+// Public: Training Grounds videos. Returns both category-attached and
+// topic-attached videos (topic rows carry denormalized category/difficulty),
+// each with topic_id so the client can group per topic.
+app.get('/api/videos', async (req, res) => {
+  if (!supabase) return res.json({ videos: [] });
+  const { category, difficulty } = req.query;
+  try {
+    let query = supabase.from('videos').select('*')
+      .order('sort_order', { ascending: true })
+      .order('created_at', { ascending: true });
+    if (category)   query = query.eq('category', category);
+    if (difficulty) query = query.eq('difficulty', difficulty);
+    const { data, error } = await query;
+    if (error) throw error;
+    res.json({ videos: data || [] });
+  } catch (err) {
+    // Table may not exist yet (manual migration) — degrade to empty list
+    console.warn('[/api/videos] unavailable, returning videos: [] —', err.message);
+    res.json({ videos: [] });
   }
 });
 

@@ -147,6 +147,31 @@ ALTER TABLE topic_groups ENABLE ROW LEVEL SECURITY;
 CREATE POLICY IF NOT EXISTS "server_full_access_topic_groups"
   ON topic_groups FOR ALL USING (true) WITH CHECK (true);
 
+-- ── videos ────────────────────────────────────────────────────────────────────
+-- Training Grounds videos (YouTube/Vimeo). Attachment: topic video has topic_id
+-- set; category video has category+difficulty set and topic_id NULL. Topic-attached
+-- rows also carry category/difficulty (denormalized from the topic at write time)
+-- so the public endpoint can filter both kinds with one query.
+
+CREATE TABLE IF NOT EXISTS videos (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  title      TEXT NOT NULL,
+  url        TEXT NOT NULL,
+  video_type TEXT NOT NULL DEFAULT 'youtube',
+  embed_id   TEXT NOT NULL,
+  topic_id   UUID REFERENCES topics(id) ON DELETE CASCADE,
+  category   TEXT,
+  difficulty TEXT,
+  sort_order INT NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE videos ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "server_full_access_videos" ON videos;
+CREATE POLICY "server_full_access_videos"
+  ON videos FOR ALL USING (true) WITH CHECK (true);
+
 -- ── Indexes ────────────────────────────────────────────────────────────────────
 
 CREATE INDEX IF NOT EXISTS idx_users_google_id     ON users(google_id);
