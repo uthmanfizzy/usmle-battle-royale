@@ -42,8 +42,22 @@ export default function JourneyMode({ username, onBack }) {
   const [error,       setError]       = useState('');
   const [authExpired, setAuthExpired] = useState(false);
   const [confirmNode, setConfirmNode] = useState(null);       // { kind, name, questionCount, bestPct, completed }
+  const [bgUrl,       setBgUrl]       = useState(null);       // admin-set backdrop (landing-images slot 'journey_bg')
 
   const frontierRef = useRef(null);
+
+  useEffect(() => {
+    fetch(`${SERVER}/api/landing-images`)
+      .then(r => r.json())
+      .then(d => setBgUrl(d.images?.journey_bg || null))
+      .catch(() => {}); // no backdrop → pure-parchment look
+  }, []);
+
+  // Vivid admin backdrop with the parchment floating on top; absent → unchanged look
+  const bgClass = bgUrl ? ' jm-screen--bg' : '';
+  const bgLayer = bgUrl
+    ? <div className="jm-bg" style={{ backgroundImage: `url(${bgUrl})` }} aria-hidden="true" />
+    : null;
 
   // Reusable so J3c can re-enter the path with fresh unlock state
   const loadPath = useCallback(async (subj) => {
@@ -75,7 +89,8 @@ export default function JourneyMode({ username, onBack }) {
   // ----- Guest gate: journey progress is per-account -----
   if (!getToken() || authExpired) {
     return (
-      <div className="screen jm-screen">
+      <div className={`screen jm-screen${bgClass}`}>
+        {bgLayer}
         <div className="jm-scroll-card">
           <span className="jm-scroll-icon">🚑</span>
           <h2>Sign in to begin your Journey</h2>
@@ -88,7 +103,8 @@ export default function JourneyMode({ username, onBack }) {
 
   if (loading) {
     return (
-      <div className="screen jm-screen">
+      <div className={`screen jm-screen${bgClass}`}>
+        {bgLayer}
         <div className="waiting-screen"><div className="spinner" /><p>Charting your journey…</p></div>
       </div>
     );
@@ -96,7 +112,8 @@ export default function JourneyMode({ username, onBack }) {
 
   if (error) {
     return (
-      <div className="screen jm-screen">
+      <div className={`screen jm-screen${bgClass}`}>
+        {bgLayer}
         <div className="jm-scroll-card">
           <span className="jm-scroll-icon">🗺️</span>
           <h2>Lost the trail</h2>
@@ -111,7 +128,8 @@ export default function JourneyMode({ username, onBack }) {
   // ----- Subject select -----
   if (view === 'subjects') {
     return (
-      <div className="screen jm-screen">
+      <div className={`screen jm-screen${bgClass}`}>
+        {bgLayer}
         <button className="jm-back-btn" onClick={onBack}>← Back</button>
         <div className="jm-banner">
           <span className="jm-banner-flourish">⚕ ─────── ⚕</span>
@@ -138,7 +156,8 @@ export default function JourneyMode({ username, onBack }) {
   // Empty path: no chapters authored (or journey tables not migrated) — friendly, not an error
   if (chapters.length === 0) {
     return (
-      <div className="screen jm-screen">
+      <div className={`screen jm-screen${bgClass}`}>
+        {bgLayer}
         <div className="jm-scroll-card">
           <span className="jm-scroll-icon">{subject?.icon || '🗺️'}</span>
           <h2>{subject?.label}</h2>
@@ -263,7 +282,8 @@ export default function JourneyMode({ username, onBack }) {
   };
 
   return (
-    <div className="screen jm-screen jm-screen--path">
+    <div className={`screen jm-screen jm-screen--path${bgClass}`}>
+      {bgLayer}
       <div className="jm-path-header">
         <button className="jm-back-btn" onClick={() => { setView('subjects'); setPath(null); setConfirmNode(null); }}>
           ← Subjects

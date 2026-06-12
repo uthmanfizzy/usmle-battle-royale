@@ -3410,6 +3410,63 @@ function JourneyPanel() {
   const [form,     setForm]     = useState(BOSS_EMPTY_FORM);
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
+  // Journey map background — stored via the landing-images slot system ('journey_bg')
+  const [bgUrl,   setBgUrl]   = useState(null);
+  const [bgBusy,  setBgBusy]  = useState(false);
+  const [bgError, setBgError] = useState('');
+
+  useEffect(() => { loadJourneyBg(); }, []);
+
+  async function loadJourneyBg() {
+    try {
+      const res = await apiCall('/admin/landing-images');
+      if (!res.ok) return;
+      const data = await res.json();
+      const row  = (data.images || []).find(img => img.slot_name === 'journey_bg');
+      setBgUrl(row?.image_url || null);
+    } catch { /* non-fatal: the panel works without the preview */ }
+  }
+
+  async function handleBgUpload(file) {
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { setBgError('Image must be under 5MB'); return; }
+    setBgBusy(true);
+    setBgError('');
+    try {
+      const base64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      const res  = await apiCall('/admin/landing-images', {
+        method: 'POST',
+        body: JSON.stringify({ slot_name: 'journey_bg', base64, filename: file.name, mimeType: file.type }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Upload failed');
+      setBgUrl(data.image_url);
+    } catch (err) {
+      setBgError(err.message);
+    }
+    setBgBusy(false);
+  }
+
+  async function handleBgRemove() {
+    if (!window.confirm('Remove the journey background? It will be deleted from storage.')) return;
+    setBgBusy(true);
+    setBgError('');
+    try {
+      const res  = await apiCall('/admin/landing-images/journey_bg', { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Delete failed');
+      setBgUrl(null);
+    } catch (err) {
+      setBgError(err.message);
+    }
+    setBgBusy(false);
+  }
+
   useEffect(() => { loadSubject(); }, [subject]);
 
   async function loadSubject() {
@@ -3722,6 +3779,46 @@ function JourneyPanel() {
     <div className="ap-panel">
       <div className="ap-panel-head">
         <h2>🚑 First Aid Journey</h2>
+      </div>
+
+      {/* Journey map background (landing-images slot 'journey_bg') */}
+      <div className="li-slot ap-journey-bg" style={{ maxWidth: 440, marginBottom: 18 }}>
+        <div className="li-slot-header">
+          <span className="li-slot-label">Journey Map Background</span>
+          <span className="li-slot-desc">Full backdrop behind the player's parchment map. JPG/PNG/WEBP, under 5MB.</span>
+        </div>
+
+        <div className="li-slot-preview">
+          {bgUrl ? (
+            <img src={bgUrl} alt="Journey background" className="li-slot-img" />
+          ) : (
+            <div className="li-slot-empty">
+              <span className="li-slot-empty-icon">🖼️</span>
+              <span>No image uploaded</span>
+            </div>
+          )}
+        </div>
+
+        {bgError && <div className="ap-error">{bgError}</div>}
+
+        <div className="li-slot-actions">
+          <label className={`li-upload-btn ${bgBusy ? 'uploading' : ''}`}>
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              onChange={e => { handleBgUpload(e.target.files?.[0]); e.target.value = ''; }}
+              disabled={bgBusy}
+              style={{ display: 'none' }}
+            />
+            {bgBusy ? 'Working…' : '📤 Upload Image'}
+          </label>
+
+          {bgUrl && (
+            <button className="li-remove-btn" onClick={handleBgRemove} disabled={bgBusy}>
+              🗑 Remove
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Subject scope (no difficulty in the journey) */}

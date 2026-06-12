@@ -746,6 +746,53 @@
   margin-bottom: 6px;
 }
 
+/* ── Admin-set vivid backdrop: the parchment floats over the image ─────────── */
+
+/* Underlay below the grain (::before, z 0), vignette (::after, z 0) and content (z 1).
+   Negative z paints above .jm-screen's own parchment gradient but under everything else. */
+.jm-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background-size: cover;
+  background-position: center;
+  pointer-events: none;
+}
+
+/* Soft parchment-tint scrim keeps the vivid image cohesive with the theme */
+.jm-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(239, 223, 182, 0.22);
+}
+
+/* The framed map becomes a translucent chart laid over the scene */
+.jm-screen--bg .jm-map {
+  background-color: rgba(247, 236, 210, 0.85);
+}
+
+/* Cards let a hint of the image through while staying readable (~0.9 effective) */
+.jm-screen--bg .jm-scroll-card,
+.jm-screen--bg .jm-confirm-card {
+  background:
+    linear-gradient(170deg, rgba(255, 250, 238, 0.78), rgba(233, 211, 160, 0.66)),
+    rgba(239, 223, 182, 0.55);
+}
+
+.jm-screen--bg .jm-subject-card {
+  background: linear-gradient(170deg, rgba(255, 250, 238, 0.84), rgba(233, 211, 160, 0.62));
+}
+
+/* Subject-select title floats on the image — give it a parchment ribbon */
+.jm-screen--bg .jm-banner {
+  background: rgba(247, 236, 210, 0.78);
+  border: 2px solid rgba(122, 79, 40, 0.5);
+  border-radius: 10px;
+  padding: 14px 28px;
+  box-shadow: 0 8px 22px rgba(74, 53, 32, 0.25);
+}
+
 /* ── Reduced motion / responsive ───────────────────────────────────────────── */
 
 @media (prefers-reduced-motion: reduce) {
