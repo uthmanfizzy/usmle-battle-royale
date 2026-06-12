@@ -1,12 +1,9 @@
 import { Fragment, useState, useEffect, useRef, useCallback } from 'react';
 import { getToken } from '../auth';
-import { SUBJECTS } from './SubjectSelect';
+import { JOURNEY_SUBJECTS, JOURNEY_SECTIONS } from '../journeySubjects';
 import './JourneyMode.css';
 
 const SERVER = 'https://usmle-battle-royale-production.up.railway.app';
-
-// Journey has no "all subjects" concept — ids match what admin authors chapters under
-const JOURNEY_SUBJECTS = SUBJECTS.filter(s => s.id !== 'all');
 
 function starsFor(pct, threshold) {
   if (pct >= 100) return 3;
@@ -43,6 +40,7 @@ export default function JourneyMode({ username, onBack }) {
   const [authExpired, setAuthExpired] = useState(false);
   const [confirmNode, setConfirmNode] = useState(null);       // { kind, name, questionCount, bestPct, completed }
   const [bgUrl,       setBgUrl]       = useState(null);       // admin-set backdrop (landing-images slot 'journey_bg')
+  const [activeIds,   setActiveIds]   = useState(null);       // Set of active subject ids; null = not loaded → show all
 
   const frontierRef = useRef(null);
 
@@ -51,7 +49,13 @@ export default function JourneyMode({ username, onBack }) {
       .then(r => r.json())
       .then(d => setBgUrl(d.images?.journey_bg || null))
       .catch(() => {}); // no backdrop → pure-parchment look
+    fetch(`${SERVER}/api/game-settings`)
+      .then(r => r.json())
+      .then(d => { if (Array.isArray(d.journeyActiveSubjects)) setActiveIds(new Set(d.journeyActiveSubjects)); })
+      .catch(() => {}); // on error every subject stays visible
   }, []);
+
+  const isActive = (id) => !activeIds || activeIds.has(id);
 
   // Vivid admin backdrop with the parchment floating on top; absent → unchanged look
   const bgClass = bgUrl ? ' jm-screen--bg' : '';
@@ -136,13 +140,30 @@ export default function JourneyMode({ username, onBack }) {
           <h1 className="jm-title">First Aid Journey</h1>
           <p className="jm-tagline">Choose a realm of medicine and chart your course</p>
         </div>
-        <div className="jm-subject-grid">
-          {JOURNEY_SUBJECTS.map(s => (
-            <button key={s.id} className="jm-subject-card" onClick={() => loadPath(s)}>
-              <span className="jm-subject-icon">{s.icon}</span>
-              <span className="jm-subject-label">{s.label}</span>
-            </button>
-          ))}
+        <div className="jm-atlas">
+          {JOURNEY_SECTIONS.map(sec => {
+            const subjects = JOURNEY_SUBJECTS.filter(s => s.section === sec.id && isActive(s.id));
+            if (subjects.length === 0) return null; // fully deactivated section vanishes
+            return (
+              <Fragment key={sec.id}>
+                <div className="jm-section-header">
+                  <span className="jm-section-fleur" aria-hidden="true">⚜</span>
+                  <span className="jm-section-rule" aria-hidden="true" />
+                  <h2 className="jm-section-title">{sec.label}</h2>
+                  <span className="jm-section-rule" aria-hidden="true" />
+                  <span className="jm-section-fleur" aria-hidden="true">⚜</span>
+                </div>
+                <div className="jm-subject-grid">
+                  {subjects.map(s => (
+                    <button key={s.id} className="jm-subject-card" onClick={() => loadPath(s)}>
+                      <span className="jm-subject-icon">{s.icon}</span>
+                      <span className="jm-subject-label">{s.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </Fragment>
+            );
+          })}
         </div>
       </div>
     );

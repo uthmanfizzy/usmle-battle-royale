@@ -218,14 +218,59 @@
   color: var(--ink-soft);
 }
 
+/* Sections wrapper — owns the centering auto-margin so the grids inside don't
+   each grab a share of the free space */
+.jm-atlas {
+  width: 100%;
+  max-width: 740px;
+  margin: 0 auto auto;
+  padding-bottom: 44px;
+}
+
+/* Section headers: ⚜ ── label ── ⚜ ink rules, kin to the chapter banners */
+.jm-section-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 30px 0 18px;
+}
+.jm-atlas .jm-section-header:first-child { margin-top: 0; }
+
+.jm-section-rule {
+  flex: 1;
+  border-top: 2px dashed rgba(122, 79, 40, 0.55);
+}
+
+.jm-section-fleur {
+  font-size: 15px;
+  color: var(--sepia);
+  opacity: 0.8;
+}
+
+.jm-section-title {
+  margin: 0;
+  font-family: 'IM Fell English SC', serif;
+  font-weight: 400;
+  font-size: 21px;
+  letter-spacing: 0.12em;
+  text-align: center;
+  color: var(--sepia);
+  text-shadow: 1px 1px 0 rgba(247, 236, 210, 0.7);
+}
+
+/* On a vivid backdrop the title gets the same parchment-ribbon treatment as the banner */
+.jm-screen--bg .jm-section-title {
+  background: rgba(247, 236, 210, 0.78);
+  border-radius: 8px;
+  padding: 4px 14px;
+}
+
 .jm-subject-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   gap: 14px;
   width: 100%;
-  max-width: 740px;
-  margin: 0 auto auto;
-  padding-bottom: 44px;
+  margin: 0 auto;
 }
 
 /* Cartouche cards, staggered rise on load */
@@ -264,7 +309,7 @@
 }
 
 .jm-subject-icon  { font-size: 34px; line-height: 1; filter: drop-shadow(0 2px 4px rgba(74, 53, 32, 0.3)); }
-.jm-subject-label { font-size: 15px; letter-spacing: 0.04em; }
+.jm-subject-label { font-size: 15px; letter-spacing: 0.04em; text-align: center; line-height: 1.35; }
 
 /* ── Path screen frame ─────────────────────────────────────────────────────── */
 
@@ -813,6 +858,7 @@
 
 @media (max-width: 560px) {
   .jm-title { font-size: 30px; }
+  .jm-section-title { font-size: 16px; padding-left: 8px; padding-right: 8px; }
   .jm-node { width: 62px; height: 62px; }
   .jm-node-face { font-size: 23px; }
   .jm-node--boss { width: 82px; height: 82px; }

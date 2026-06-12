@@ -248,6 +248,13 @@ let gameSettings = {
   towerFloorLives: 3,
   bossTolerance: 0,
   journeyThreshold: 80,  // First Aid Journey: % score needed to complete a level
+  // First Aid Journey: which of the 16 hardcoded journey subjects players see
+  // (ids mirror client/src/journeySubjects.js; default = all active)
+  journeyActiveSubjects: [
+    'biochemistry', 'immunology', 'microbiology', 'pathology', 'pharmacology', 'public_health',
+    'cardiovascular', 'endocrine', 'gastrointestinal', 'heme_onc', 'msk_skin', 'neuro_special',
+    'psychiatry', 'renal', 'reproductive', 'respiratory',
+  ],
   // Section 3: Lobby
   maxPlayersPerLobby: 10,
   minPlayersToStart: 2,
@@ -3763,6 +3770,10 @@ app.post('/admin/settings', adminAuth, async (req, res) => {
   // Play Page configs (stored as JSON)
   if (b.game_modes_config !== undefined) gameSettings.game_modes_config = b.game_modes_config;
   if (b.exam_boards_config !== undefined) gameSettings.exam_boards_config = b.exam_boards_config;
+  // First Aid Journey active subjects (array of journey subject ids)
+  if (Array.isArray(b.journeyActiveSubjects)) {
+    gameSettings.journeyActiveSubjects = b.journeyActiveSubjects.slice(0, 32).map(String);
+  }
   // Persist to Supabase so settings survive server restarts
   console.log('[admin/settings] Updated gameSettings, now persisting to DB...');
   const persistErr = await persistSettingsToDB();

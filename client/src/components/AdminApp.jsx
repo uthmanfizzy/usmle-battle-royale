@@ -4,6 +4,7 @@ import PlayPageAdmin from './admin/PlayPageAdmin';
 import AnKingAdmin from './admin/AnKingAdmin';
 import QuestionParser from './QuestionParser';
 import { parseRichText } from '../utils/parseRichText';
+import { JOURNEY_SUBJECTS, JOURNEY_SECTIONS } from '../journeySubjects';
 
 const API = 'https://usmle-battle-royale-production.up.railway.app';
 const AUTH_KEY = 'usmle_admin_session';
@@ -3389,7 +3390,7 @@ const BOSS_EMPTY_FORM = {
 };
 
 function JourneyPanel() {
-  const [subject,  setSubject]  = useState(VIDEO_CATEGORIES[0]?.id || '');
+  const [subject,  setSubject]  = useState(JOURNEY_SUBJECTS[0].id);
   const [chapters, setChapters] = useState([]);
   const [bossQs,   setBossQs]   = useState([]);   // subject-wide boss questions
   const [levelsByChapter, setLevelsByChapter] = useState({}); // chapter_id -> levels[] (lazy)
@@ -3415,7 +3416,49 @@ function JourneyPanel() {
   const [bgBusy,  setBgBusy]  = useState(false);
   const [bgError, setBgError] = useState('');
 
-  useEffect(() => { loadJourneyBg(); }, []);
+  // Journey-only activate/deactivate — gameSettings.journeyActiveSubjects (default all 16)
+  const [activeIds,  setActiveIds]  = useState(() => new Set(JOURNEY_SUBJECTS.map(s => s.id)));
+  const [actSaving,  setActSaving]  = useState(false);
+  const [actSaved,   setActSaved]   = useState(false);
+  const [actError,   setActError]   = useState('');
+
+  useEffect(() => { loadJourneyBg(); loadActiveSubjects(); }, []);
+
+  async function loadActiveSubjects() {
+    try {
+      const res = await apiCall('/admin/settings');
+      if (!res.ok) return;
+      const data = await res.json();
+      if (Array.isArray(data.journeyActiveSubjects)) {
+        setActiveIds(new Set(data.journeyActiveSubjects));
+      }
+    } catch { /* keep default all-active */ }
+  }
+
+  async function saveActiveSubjects() {
+    setActSaving(true); setActSaved(false); setActError('');
+    try {
+      const ids = JOURNEY_SUBJECTS.filter(s => activeIds.has(s.id)).map(s => s.id);
+      const res = await apiCall('/admin/settings', {
+        method: 'POST',
+        body: JSON.stringify({ journeyActiveSubjects: ids }),
+      });
+      if (!res.ok) throw new Error('Save failed');
+      setActSaved(true);
+      setTimeout(() => setActSaved(false), 2500);
+    } catch (err) {
+      setActError(err.message);
+    }
+    setActSaving(false);
+  }
+
+  function toggleSubjectActive(id, on) {
+    setActiveIds(prev => {
+      const next = new Set(prev);
+      if (on) next.add(id); else next.delete(id);
+      return next;
+    });
+  }
 
   async function loadJourneyBg() {
     try {
@@ -3746,7 +3789,7 @@ function JourneyPanel() {
 
   // ── Render ────────────────────────────────────────────────────────────────
 
-  const folder = FOLDERS.find(f => f.id === subject);
+  const folder = JOURNEY_SUBJECTS.find(s => s.id === subject);
   const ultCount = bossQs.filter(q => q.boss_key === 'ultimate').length;
 
   const renderNameInput = (placeholder) => (
@@ -3821,12 +3864,42 @@ function JourneyPanel() {
         </div>
       </div>
 
-      {/* Subject scope (no difficulty in the journey) */}
+      {/* Journey-only activate/deactivate (gameSettings.journeyActiveSubjects) */}
+      <div className="ap-settings-section" style={{ maxWidth: 640, marginBottom: 18 }}>
+        <div className="ap-section-hd">
+          <div className="ap-section-icon">🗺️</div>
+          <div>
+            <h2 className="ap-section-title-lg">Active Subjects</h2>
+            <p className="ap-section-subtitle">Players only see active subjects on the Journey page. Hidden subjects can still be authored below.</p>
+          </div>
+        </div>
+        {JOURNEY_SECTIONS.map(sec => (
+          <div key={sec.id} className="ap-settings-rows">
+            <h3 className="ap-journey-section-label">{sec.label}</h3>
+            {JOURNEY_SUBJECTS.filter(s => s.section === sec.id).map(s => (
+              <ToggleRow
+                key={s.id}
+                label={`${s.icon} ${s.label}`}
+                desc={activeIds.has(s.id) ? 'Visible on the player Journey page' : 'Hidden from players'}
+                checked={activeIds.has(s.id)}
+                onChange={on => toggleSubjectActive(s.id, on)}
+              />
+            ))}
+          </div>
+        ))}
+        <SectionSaveBtn saving={actSaving} saved={actSaved} error={actError} onSave={saveActiveSubjects} />
+      </div>
+
+      {/* Subject scope (no difficulty in the journey) — authoring works for hidden subjects too */}
       <div className="ap-journey-scope">
         <div className="ap-field">
           <label>Subject</label>
           <select value={subject} onChange={e => setSubject(e.target.value)}>
-            {VIDEO_CATEGORIES.map(f => <option key={f.id} value={f.id}>{f.icon} {f.label}</option>)}
+            {JOURNEY_SUBJECTS.map(s => (
+              <option key={s.id} value={s.id}>
+                {s.icon} {s.label}{activeIds.has(s.id) ? '' : ' (hidden)'}
+              </option>
+            ))}
           </select>
         </div>
       </div>
