@@ -948,6 +948,8 @@ function QuestionsPanel({ subjects = [] }) {
   const [delGroup,    setDelGroup]    = useState(null);
   const [dragTopicId, setDragTopicId] = useState(null);
   const [dropTarget,  setDropTarget]  = useState(null);  // group id | 'ungrouped' | null
+  const [collapsedGroups, setCollapsedGroups] = useState({});
+  const toggleGroup = (id) => setCollapsedGroups(c => ({ ...c, [id]: !c[id] }));
 
   // ─── Question UI ─────────────────────────────────────────────────────────────
   const [modal,          setModal]          = useState(null);
@@ -1703,6 +1705,11 @@ function QuestionsPanel({ subjects = [] }) {
                         {...dropZoneProps(g.id)}
                       >
                         <div className="ap-group-header">
+                          <button
+                            className="ap-group-chevron"
+                            onClick={() => toggleGroup(g.id)}
+                            title={collapsedGroups[g.id] ? 'Expand group' : 'Collapse group'}
+                          >{collapsedGroups[g.id] ? '▸' : '▾'}</button>
                           <span className="ap-group-icon">🗂️</span>
                           <span className="ap-group-name">{g.name}</span>
                           <span className="ap-group-count">
@@ -1721,12 +1728,14 @@ function QuestionsPanel({ subjects = [] }) {
                             >🗑️</button>
                           </div>
                         </div>
-                        {members.length === 0 ? (
-                          <div className="ap-group-empty-hint">Drag topics here</div>
-                        ) : (
-                          <div className="ap-topic-grid">
-                            {members.map(renderTopicCard)}
-                          </div>
+                        {!collapsedGroups[g.id] && (
+                          members.length === 0 ? (
+                            <div className="ap-group-empty-hint">Drag topics here</div>
+                          ) : (
+                            <div className="ap-topic-grid">
+                              {members.map(renderTopicCard)}
+                            </div>
+                          )
                         )}
                       </div>
                     );
