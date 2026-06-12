@@ -31,18 +31,22 @@ function CompassRose() {
   );
 }
 
-export default function JourneyMode({ username, onBack }) {
+export default function JourneyMode({ username, onBack, onPlayLevel, journeyReentry, onReentryConsumed }) {
   const [view,        setView]        = useState('subjects'); // 'subjects' | 'path'
   const [subject,     setSubject]     = useState(null);       // entry from JOURNEY_SUBJECTS
   const [path,        setPath]        = useState(null);       // GET /api/journey/:subject response
   const [loading,     setLoading]     = useState(false);
   const [error,       setError]       = useState('');
   const [authExpired, setAuthExpired] = useState(false);
-  const [confirmNode, setConfirmNode] = useState(null);       // { kind, name, questionCount, bestPct, completed }
+  const [confirmNode,  setConfirmNode]  = useState(null); // { kind, name, questionCount, bestPct, completed, levelKey, questionsUrl }
+  const [interstitial, setInterstitial] = useState(null); // null | { status: 'saving'|'complete'|'tryagain'|'save_failed', pct, threshold?, retryPayload? }
   const [bgUrl,       setBgUrl]       = useState(null);       // admin-set backdrop (landing-images slot 'journey_bg')
   const [activeIds,   setActiveIds]   = useState(null);       // Set of active subject ids; null = not loaded → show all
 
-  const frontierRef = useRef(null);
+  const frontierRef      = useRef(null);
+  const lastPlayedRef    = useRef(null); // { subject, levelKey, questionsUrl, levelLabel } — survives reentry for TRY AGAIN
+  const onReentryConsumedRef = useRef(onReentryConsumed);
+  onReentryConsumedRef.current = onReentryConsumed;
 
   useEffect(() => {
     fetch(`${SERVER}/api/landing-images`)
@@ -90,6 +94,66 @@ export default function JourneyMode({ username, onBack }) {
     }
   }, [view, path]);
 
+  // Re-entry after a journey game: POST completion, single source of truth for the refreshed path
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!journeyReentry) return;
+    const reentry = journeyReentry; // local snapshot — App clears it on consume
+    lastPlayedRef.current = {
+      subject:     reentry.subject,
+      levelKey:    reentry.levelKey,
+      questionsUrl: reentry.questionsUrl,
+      levelLabel:  reentry.levelLabel,
+    };
+    onReentryConsumedRef.current();
+    if (reentry.pct === null) {
+      // Quit mid-level: return to map, no POST
+      loadPath(reentry.subject);
+      return;
+    }
+    const pct = reentry.pct;
+    setSubject(reentry.subject);
+    setView('path');
+    setInterstitial({ status: 'saving', pct });
+    // POST is the single source of truth; loadPath only fires as fallback on POST failure
+    fetch(`${SERVER}/api/journey/complete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+      body: JSON.stringify({ subject: reentry.subject.id, level_key: reentry.levelKey, score_pct: pct }),
+    })
+      .then(r => r.ok ? r.json() : Promise.reject(r.status))
+      .then(data => {
+        setPath(data);
+        setInterstitial({ status: data.passed ? 'complete' : 'tryagain', pct, threshold: data.threshold || 80 });
+      })
+      .catch(() => {
+        // Save failed: reload last-known path so the map isn't blank, show retry banner
+        loadPath(reentry.subject);
+        setInterstitial({
+          status: 'save_failed',
+          pct,
+          retryPayload: { subject: reentry.subject.id, level_key: reentry.levelKey, score_pct: pct },
+        });
+      });
+  }, [journeyReentry]);
+
+  const handleRetryPost = (payload) => {
+    setInterstitial(prev => ({ ...prev, status: 'saving' }));
+    fetch(`${SERVER}/api/journey/complete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+      body: JSON.stringify(payload),
+    })
+      .then(r => r.ok ? r.json() : Promise.reject(r.status))
+      .then(data => {
+        setPath(data);
+        setInterstitial({ status: data.passed ? 'complete' : 'tryagain', pct: payload.score_pct, threshold: data.threshold || 80 });
+      })
+      .catch(() => {
+        setInterstitial(prev => ({ ...prev, status: 'save_failed' }));
+      });
+  };
+
   // ----- Guest gate: journey progress is per-account -----
   if (!getToken() || authExpired) {
     return (
@@ -105,7 +169,7 @@ export default function JourneyMode({ username, onBack }) {
     );
   }
 
-  if (loading) {
+  if (loading && !interstitial) {
     return (
       <div className={`screen jm-screen${bgClass}`}>
         {bgLayer}
@@ -175,14 +239,14 @@ export default function JourneyMode({ username, onBack }) {
   const ultimate  = path?.ultimate;
 
   // Empty path: no chapters authored (or journey tables not migrated) — friendly, not an error
-  if (chapters.length === 0) {
+  if (chapters.length === 0 && !interstitial) {
     return (
       <div className={`screen jm-screen${bgClass}`}>
         {bgLayer}
         <div className="jm-scroll-card">
           <span className="jm-scroll-icon">{subject?.icon || '🗺️'}</span>
           <h2>{subject?.label}</h2>
-          <p>This journey hasn’t been charted yet — check back soon.</p>
+          <p>This journey hasn't been charted yet — check back soon.</p>
           <button className="btn-start" onClick={() => setView('subjects')}>← Subjects</button>
         </div>
       </div>
@@ -246,6 +310,8 @@ export default function JourneyMode({ username, onBack }) {
             onClick={() => openConfirm({
               kind: 'level', name: l.name, questionCount: l.question_count,
               bestPct: l.best_score_pct, completed: l.completed,
+              levelKey: l.level_key,
+              questionsUrl: `${SERVER}/api/journey-questions?level_id=${l.level_key}`,
             })}
           >
             <span className="jm-node-face">
@@ -286,6 +352,8 @@ export default function JourneyMode({ username, onBack }) {
             onClick={() => openConfirm({
               kind: big ? 'ultimate' : 'boss', name: label, questionCount: boss.question_count,
               bestPct: boss.best_score_pct, completed: boss.completed,
+              levelKey: boss.level_key,
+              questionsUrl: `${SERVER}/api/boss-questions?subject=${subject?.id}&boss_key=${boss.boss_key}`,
             })}
           >
             <span className="jm-node-face">
@@ -330,10 +398,10 @@ export default function JourneyMode({ username, onBack }) {
 
             {ultimate && renderBossNode(ultimate, 'ULTIMATE BOSS', true)}
 
-            <div className={`jm-mastery ${path.mastery ? 'jm-mastery--earned' : ''}`}>
+            <div className={`jm-mastery ${path?.mastery ? 'jm-mastery--earned' : ''}`}>
               <span className="jm-mastery-icon">🏆</span>
               <span className="jm-mastery-text">FULL MASTERY</span>
-              <span className="jm-mastery-sub">{path.mastery ? `${subject?.label} conquered!` : 'Defeat the Ultimate Boss to claim it'}</span>
+              <span className="jm-mastery-sub">{path?.mastery ? `${subject?.label} conquered!` : 'Defeat the Ultimate Boss to claim it'}</span>
             </div>
           </div>
         </div>
@@ -352,10 +420,68 @@ export default function JourneyMode({ username, onBack }) {
               {confirmNode.bestPct > 0 && <span>Best: {confirmNode.bestPct}%</span>}
             </div>
             <p className="jm-confirm-threshold">Pass with ≥{threshold}% to unlock the next {confirmNode.kind === 'level' ? 'level' : 'stage'}</p>
-            {/* PLAY is wired to the solo engine in the next update (J3c) */}
-            <button className="btn-start jm-confirm-play" disabled>▶ PLAY</button>
-            <span className="jm-confirm-soon">Coming in the next update</span>
+            <button
+              className="btn-start jm-confirm-play"
+              onClick={() => {
+                onPlayLevel({
+                  subject,
+                  levelKey:    confirmNode.levelKey,
+                  questionsUrl: confirmNode.questionsUrl,
+                  levelLabel:  confirmNode.name,
+                });
+                setConfirmNode(null);
+              }}
+            >▶ PLAY</button>
             <button className="btn-secondary" onClick={() => setConfirmNode(null)}>Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {interstitial && (
+        <div className="jm-interstitial-overlay">
+          <div className="jm-interstitial-card">
+            {interstitial.status === 'saving' && (
+              <>
+                <div className="spinner" />
+                <p className="jm-interstitial-msg">Saving progress…</p>
+              </>
+            )}
+            {interstitial.status === 'complete' && (
+              <>
+                <span className="jm-interstitial-icon">⭐</span>
+                <h2 className="jm-interstitial-heading">Level Complete!</h2>
+                <p className="jm-interstitial-score">
+                  {interstitial.pct}%{' '}
+                  <span className="jm-interstitial-stars">
+                    {'★'.repeat(starsFor(interstitial.pct, interstitial.threshold))}
+                    {'☆'.repeat(Math.max(0, 3 - starsFor(interstitial.pct, interstitial.threshold)))}
+                  </span>
+                </p>
+                <button className="btn-start" onClick={() => setInterstitial(null)}>Continue</button>
+              </>
+            )}
+            {interstitial.status === 'tryagain' && (
+              <>
+                <span className="jm-interstitial-icon">⚔</span>
+                <h2 className="jm-interstitial-heading">Not quite…</h2>
+                <p className="jm-interstitial-score">{interstitial.pct}% — need {interstitial.threshold}% to pass</p>
+                <button
+                  className="btn-start"
+                  onClick={() => { setInterstitial(null); onPlayLevel(lastPlayedRef.current); }}
+                >Retry Level</button>
+                <button className="btn-secondary" onClick={() => setInterstitial(null)}>Back to Map</button>
+              </>
+            )}
+            {interstitial.status === 'save_failed' && (
+              <>
+                <span className="jm-interstitial-icon">⚠</span>
+                <h2 className="jm-interstitial-heading">Score not saved</h2>
+                <p className="jm-interstitial-score">{interstitial.pct}%</p>
+                <p className="jm-interstitial-msg">Check your connection and try again.</p>
+                <button className="btn-start" onClick={() => handleRetryPost(interstitial.retryPayload)}>Retry Save</button>
+                <button className="btn-secondary" onClick={() => setInterstitial(null)}>Dismiss</button>
+              </>
+            )}
           </div>
         </div>
       )}

@@ -798,6 +798,84 @@
   margin-bottom: 6px;
 }
 
+/* ── Interstitial: result card over the path after a game ──────────────────── */
+
+.jm-interstitial-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(20, 12, 5, 0.65);
+  animation: jm-fade-in 0.25s ease both;
+}
+
+.jm-interstitial-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: 320px;
+  max-width: 92vw;
+  padding: 36px 28px 28px;
+  border-radius: 10px;
+  text-align: center;
+  color: var(--ink);
+  background:
+    linear-gradient(170deg, rgba(255, 250, 238, 0.96), rgba(233, 211, 160, 0.88)),
+    var(--parchment);
+  border: 2px solid var(--sepia);
+  outline: 1px solid rgba(122, 79, 40, 0.5);
+  outline-offset: 5px;
+  box-shadow: 0 20px 52px rgba(20, 12, 5, 0.55);
+  animation: jm-card-rise 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.jm-interstitial-icon {
+  font-size: 48px;
+  line-height: 1;
+  filter: drop-shadow(0 3px 6px rgba(74, 53, 32, 0.3));
+}
+
+.jm-interstitial-heading {
+  margin: 0;
+  font-family: 'IM Fell English SC', serif;
+  font-size: 26px;
+  font-weight: 400;
+  letter-spacing: 0.05em;
+  color: var(--ink);
+}
+
+.jm-interstitial-score {
+  margin: 0;
+  font-family: 'IM Fell English', serif;
+  font-size: 20px;
+  color: var(--sepia);
+}
+
+.jm-interstitial-stars {
+  font-size: 18px;
+  letter-spacing: 0.14em;
+  color: var(--gold);
+}
+
+.jm-interstitial-msg {
+  margin: 0;
+  font-family: 'IM Fell English', serif;
+  font-style: italic;
+  font-size: 14px;
+  color: var(--ink-soft);
+}
+
+.jm-screen--bg .jm-interstitial-card {
+  background:
+    linear-gradient(170deg, rgba(255, 250, 238, 0.82), rgba(233, 211, 160, 0.74)),
+    rgba(239, 223, 182, 0.55);
+}
+
 /* ── Admin-set vivid backdrop: the parchment floats over the image ─────────── */
 
 /* Underlay below the grain (::before, z 0), vignette (::after, z 0) and content (z 1).

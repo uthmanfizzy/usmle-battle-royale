@@ -45,6 +45,8 @@ export default function App() {
   const [soloSubject, setSoloSubject] = useState('all');
   const [soloKey,  setSoloKey]  = useState(0);
   const [trainingTopic, setTrainingTopic] = useState(null);
+  const [journeyContext,  setJourneyContext]  = useState(null); // { subject, levelKey, questionsUrl, levelLabel }
+  const [journeyReentry,  setJourneyReentry]  = useState(null); // { pct, subject, levelKey?, questionsUrl?, levelLabel? }
   const [playInitialMode, setPlayInitialMode] = useState(null); // Story→AnKing passes 'anking'; Online leaves null
 
   const [raceProgress, setRaceProgress] = useState([]);
@@ -553,6 +555,23 @@ export default function App() {
     setPhase('solo_game');
   }
 
+  function handlePlayJourneyLevel({ subject, levelKey, questionsUrl, levelLabel }) {
+    setJourneyContext({ subject, levelKey, questionsUrl, levelLabel });
+    setPhase('solo_game');
+  }
+
+  function handleJourneyComplete({ pct }) {
+    setJourneyReentry({
+      pct,
+      subject:     journeyContext.subject,
+      levelKey:    journeyContext.levelKey,
+      questionsUrl: journeyContext.questionsUrl,
+      levelLabel:  journeyContext.levelLabel,
+    });
+    setJourneyContext(null);
+    setPhase('journey');
+  }
+
   function handleShowSubjectSelect() {
     setError('');
     // Scan Master has no subject selection — always uses image questions
@@ -1006,13 +1025,18 @@ export default function App() {
         <RouteErrorBoundary name="SoloGame">
         <SoloGame
           key={soloKey}
-          subject={soloSubject}
+          subject={journeyContext ? journeyContext.subject.id : soloSubject}
           username={username}
-          difficulty={difficulty}
-          onBack={handleReturnHome}
-          onTryAgain={handleSoloTryAgain}
-          onChangeSubject={() => setPhase('solo_subject')}
-          topicId={trainingTopic?.topicId}
+          difficulty={journeyContext ? undefined : difficulty}
+          onBack={journeyContext
+            ? () => { setJourneyReentry({ pct: null, subject: journeyContext.subject }); setJourneyContext(null); setPhase('journey'); }
+            : handleReturnHome}
+          onTryAgain={journeyContext       ? undefined : handleSoloTryAgain}
+          onChangeSubject={journeyContext  ? undefined : () => setPhase('solo_subject')}
+          topicId={journeyContext          ? undefined : trainingTopic?.topicId}
+          questionsUrl={journeyContext?.questionsUrl}
+          onComplete={journeyContext       ? handleJourneyComplete : undefined}
+          levelLabel={journeyContext?.levelLabel}
         />
         </RouteErrorBoundary>
       )}
@@ -1022,6 +1046,9 @@ export default function App() {
         <JourneyMode
           username={username}
           onBack={() => setPhase('story_menu')}
+          onPlayLevel={handlePlayJourneyLevel}
+          journeyReentry={journeyReentry}
+          onReentryConsumed={() => setJourneyReentry(null)}
         />
         </RouteErrorBoundary>
       )}

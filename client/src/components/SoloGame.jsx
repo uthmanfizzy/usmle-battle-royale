@@ -284,8 +284,8 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
               <span className="sgo-label">High Score</span>
             </div>
           </div>
-          <button className="btn-start" onClick={onTryAgain}>Try Again</button>
-          <button className="btn-secondary" onClick={onChangeSubject}>Change Subject</button>
+          {onTryAgain      && <button className="btn-start"    onClick={onTryAgain}>Try Again</button>}
+          {onChangeSubject && <button className="btn-secondary" onClick={onChangeSubject}>Change Subject</button>}
           <button className="btn-secondary" onClick={onBack}>Home</button>
         </div>
       </div>
