@@ -30,7 +30,10 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  /* flex-start + auto margins on children (not justify-content: center):
+     centered justification makes top overflow unreachable, clipping the title
+     on short windows */
+  justify-content: flex-start;
   padding: 40px 20px;
   overflow-y: auto;
   color: var(--ink);
@@ -103,6 +106,7 @@
   flex-direction: column;
   align-items: center;
   gap: 14px;
+  margin: auto 0; /* vertically centered when it fits, scrollable when not */
   max-width: 430px;
   padding: 48px 40px;
   border-radius: 8px;
@@ -138,6 +142,9 @@
 }
 
 .jm-scroll-card .error-msg { color: var(--ember); }
+
+/* Loading screen shares the flex-start container — keep its spinner centered */
+.jm-screen > .waiting-screen { margin: auto 0; }
 
 /* Journey-scoped looks for the shared buttons */
 .jm-screen .btn-start {
@@ -175,7 +182,7 @@
 
 .jm-banner {
   text-align: center;
-  margin: 44px 0 26px;
+  margin: auto 0 26px; /* auto top + grid's auto bottom = centered when it fits */
   animation: jm-banner-drop 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
@@ -217,7 +224,7 @@
   gap: 14px;
   width: 100%;
   max-width: 740px;
-  margin: 0 auto;
+  margin: 0 auto auto;
   padding-bottom: 44px;
 }
 
@@ -749,8 +756,9 @@
 /* ── Admin-set vivid backdrop: the parchment floats over the image ─────────── */
 
 /* Underlay below the grain (::before, z 0), vignette (::after, z 0) and content (z 1).
-   Negative z paints above .jm-screen's own parchment gradient but under everything else. */
-.jm-bg {
+   Negative z paints above .jm-screen's own parchment gradient but under everything else.
+   Scoped to .jm-screen--bg so it can never exist without an admin-set image. */
+.jm-screen--bg .jm-bg {
   position: fixed;
   inset: 0;
   z-index: -1;
@@ -759,12 +767,13 @@
   pointer-events: none;
 }
 
-/* Soft parchment-tint scrim keeps the vivid image cohesive with the theme */
-.jm-bg::after {
+/* Soft parchment-tint scrim keeps the vivid image cohesive with the theme.
+   Kept faint — anything stronger reads as a white sheet over the artwork. */
+.jm-screen--bg .jm-bg::after {
   content: '';
   position: absolute;
   inset: 0;
-  background: rgba(239, 223, 182, 0.22);
+  background: rgba(239, 223, 182, 0.12);
 }
 
 /* The framed map becomes a translucent chart laid over the scene */
