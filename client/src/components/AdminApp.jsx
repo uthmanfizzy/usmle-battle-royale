@@ -1552,6 +1552,15 @@ function QuestionsPanel({ subjects = [] }) {
             </button>
           ))}
 
+          {/* First Aid Journey — opens the existing JourneyPanel editor in the main pane */}
+          <button
+            className={`ap-folder-btn ap-folder-gamemode ${activeFolder === '__journey__' ? 'active' : ''}`}
+            onClick={() => setActiveFolder('__journey__')}
+          >
+            <span className="ap-folder-icon">🚑</span>
+            <span className="ap-folder-label">First Aid Journey</span>
+          </button>
+
           {/* Deactivated separator - renamed from Coming Soon */}
           <div className="ap-sidebar-separator">Deactivated</div>
 
@@ -1586,6 +1595,8 @@ function QuestionsPanel({ subjects = [] }) {
 
         {/* ── Main Content ─────────────────────────────────────────── */}
         <div className="ap-qm-main">
+          {/* First Aid Journey reuses the full JourneyPanel editor verbatim (same as the top tab) */}
+          {activeFolder === '__journey__' ? <JourneyPanel /> : (<>
 
           {/* ════ DIFFICULTY LEVEL ═══════════════════════════════════ */}
           {view === 'difficulty' && (
@@ -2160,6 +2171,7 @@ function QuestionsPanel({ subjects = [] }) {
               </div>
             </>
           )}
+          </>)}
         </div>
       </div>
 
