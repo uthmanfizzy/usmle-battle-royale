@@ -2576,6 +2576,12 @@ table.lb-table tr:last-child td { border-bottom: none; }
   align-items: center;
   justify-content: center;
   background: radial-gradient(ellipse at center, #1a1a4e 0%, #090914 100%);
+  /* Overflow-safe centering: full-height scroll container so a tall card stays
+     reachable (its title can never be clipped above the fold). */
+  min-height: 100dvh;
+  overflow-y: auto;
+  padding: 24px;
+  box-sizing: border-box;
 }
 
 .powerup-intro-card {
@@ -2586,6 +2592,12 @@ table.lb-table tr:last-child td { border-bottom: none; }
   text-align: center;
   box-shadow: 0 0 60px rgba(249,202,36,0.2);
   animation: puIntroIn 0.4s ease;
+  /* Centre when it fits; scroll (not clip) when it doesn't */
+  margin: auto;
+  max-width: 92vw;
+  max-height: calc(100dvh - 48px);
+  overflow-y: auto;
+  box-sizing: border-box;
 }
 
 @keyframes puIntroIn {
@@ -2611,6 +2623,7 @@ table.lb-table tr:last-child td { border-bottom: none; }
   display: flex;
   gap: 20px;
   justify-content: center;
+  flex-wrap: wrap;
 }
 
 .powerup-intro-item {

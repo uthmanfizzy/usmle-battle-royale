@@ -826,10 +826,13 @@ function nextQuestion(lobby) {
   if (lobby.frozenPlayers)   lobby.frozenPlayers.clear();
 
   const q         = lobby.questionQueue[lobby.questionIdx];
+  // Per-question difficulty timer (server-authoritative): each question uses the
+  // admin per-difficulty timer matching ITS OWN difficulty. This single value drives
+  // the new_question emit, lobby.timerEnd, the round-advance setTimeout, and bot
+  // scheduling below, so server/clients/bots all sync to the same duration.
   const timeLimit = lobby.suddenDeath ? gameSettings.suddenDeathTimer
     : lobby.gameMode === 'scan_master' ? gameSettings.timerScanMaster
-    : lobby.difficulty === 'hard' ? 30  // HARDCODED: 30 seconds for hard mode
-    : gameSettings.timerDefault;
+    : (q.difficulty === 'hard' ? gameSettings.hardModeTimer : gameSettings.easyModeTimer);
 
   io.to(lobby.id).emit('new_question', {
     ...toPublicQuestion(q),
