@@ -5504,6 +5504,58 @@ app.delete('/admin/journey-chapters/:id', adminAuth, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// Tree counts for the admin in one shot: levels-per-chapter, questions-per-level,
+// questions-per-boss-key. Grouped client-side from 3 id-only scans (one per table) —
+// NOT a per-row N+1. Degrades to empty maps if the journey tables aren't migrated.
+app.get('/admin/journey-counts', adminAuth, async (req, res) => {
+  if (!supabase) return res.json({ levels: {}, chapters: {}, bosses: {} });
+  const { subject } = req.query;
+  if (!subject) return res.status(400).json({ error: 'subject required' });
+  try {
+    // Chapters in this subject
+    const { data: chs, error: chErr } = await supabase
+      .from('journey_chapters').select('id').eq('subject', subject);
+    if (chErr) throw chErr;
+    const chapterIds = (chs || []).map(c => c.id);
+
+    // Levels in those chapters
+    let levelRows = [];
+    if (chapterIds.length > 0) {
+      const { data: lv, error: lvErr } = await supabase
+        .from('journey_levels').select('id, chapter_id').in('chapter_id', chapterIds);
+      if (lvErr) throw lvErr;
+      levelRows = lv || [];
+    }
+
+    // chapter_id -> level count (every chapter present, even with 0 levels)
+    const chapters = {};
+    for (const id of chapterIds) chapters[id] = 0;
+    for (const l of levelRows) chapters[l.chapter_id] = (chapters[l.chapter_id] || 0) + 1;
+
+    // level_id -> question count
+    const levels = {};
+    const levelIds = levelRows.map(l => l.id);
+    if (levelIds.length > 0) {
+      const { data: qs, error: qErr } = await supabase
+        .from('journey_questions').select('level_id').in('level_id', levelIds);
+      if (qErr) throw qErr;
+      for (const q of (qs || [])) levels[q.level_id] = (levels[q.level_id] || 0) + 1;
+    }
+
+    // boss_key -> question count (chapter bosses + ultimate)
+    const bosses = {};
+    const { data: bq, error: bErr } = await supabase
+      .from('boss_questions').select('boss_key').eq('subject', subject);
+    if (bErr) throw bErr;
+    for (const b of (bq || [])) bosses[b.boss_key] = (bosses[b.boss_key] || 0) + 1;
+
+    res.json({ levels, chapters, bosses });
+  } catch (err) {
+    console.warn('[/admin/journey-counts] unavailable, returning empty maps —', err.message);
+    res.json({ levels: {}, chapters: {}, bosses: {} });
+  }
+});
+
 // ── First Aid Journey: levels (admin) ─────────────────────────────────────────
 
 app.get('/admin/journey-levels', adminAuth, async (req, res) => {

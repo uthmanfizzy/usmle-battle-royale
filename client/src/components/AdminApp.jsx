@@ -3403,7 +3403,9 @@ function JourneyPanel() {
   const [chapters, setChapters] = useState([]);
   const [bossQs,   setBossQs]   = useState([]);   // subject-wide boss questions
   const [levelsByChapter, setLevelsByChapter] = useState({}); // chapter_id -> levels[] (lazy)
-  const [expandedId, setExpandedId] = useState(null);
+  const [expandedIds, setExpandedIds] = useState(() => new Set()); // chapter ids open (multi-expand)
+  const [counts, setCounts] = useState({ levels: {}, chapters: {}, bosses: {} }); // from /admin/journey-counts
+  const [settingsOpen, setSettingsOpen] = useState(false); // ⚙ Journey Settings disclosure (collapsed by default)
   const [loading,  setLoading]  = useState(true);
   const [error,    setError]    = useState('');
 
@@ -3525,33 +3527,46 @@ function JourneyPanel() {
     setLoading(true);
     setError('');
     setSelected(null);
-    setExpandedId(null);
+    setExpandedIds(new Set());
     setLevelsByChapter({});
     setNameEdit(null);
     resetForm();
     try {
-      const [chRes, bossRes] = await Promise.all([
+      const [chRes, bossRes, countRes] = await Promise.all([
         apiCall(`/admin/journey-chapters?subject=${encodeURIComponent(subject)}`),
         apiCall(`/admin/boss-questions?subject=${encodeURIComponent(subject)}`),
+        apiCall(`/admin/journey-counts?subject=${encodeURIComponent(subject)}`),
       ]);
-      const chData   = await chRes.json();
-      const bossData = await bossRes.json();
+      const chData    = await chRes.json();
+      const bossData  = await bossRes.json();
+      const countData = await countRes.json();
       if (!chRes.ok) throw new Error(chData.error || 'Failed to load chapters');
       setChapters(chData.chapters || []);
       setBossQs(bossData.questions || []);
+      setCounts({
+        levels:   countData.levels   || {},
+        chapters: countData.chapters || {},
+        bosses:   countData.bosses   || {},
+      });
     } catch (err) {
       setError(err.message);
       setChapters([]);
       setBossQs([]);
+      setCounts({ levels: {}, chapters: {}, bosses: {} });
     }
     setLoading(false);
   }
 
-  // Levels load lazily, once per chapter, on first expand
+  // Levels load lazily, once per chapter, on first expand. Multiple chapters
+  // can be open at once (expandedIds is a Set); the cache persists across toggles.
   async function toggleChapter(chapterId) {
-    if (expandedId === chapterId) { setExpandedId(null); return; }
-    setExpandedId(chapterId);
-    if (!(chapterId in levelsByChapter)) {
+    const isOpen = expandedIds.has(chapterId);
+    setExpandedIds(prev => {
+      const next = new Set(prev);
+      if (isOpen) next.delete(chapterId); else next.add(chapterId);
+      return next;
+    });
+    if (!isOpen && !(chapterId in levelsByChapter)) {
       try {
         const res  = await apiCall(`/admin/journey-levels?chapter_id=${chapterId}`);
         const data = await res.json();
@@ -3569,6 +3584,7 @@ function JourneyPanel() {
     const name = nameEdit.value.trim();
     if (!name) return;
     setError('');
+    const isCreate = !id;
     try {
       if (kind === 'chapter') {
         if (id) {
@@ -3581,6 +3597,7 @@ function JourneyPanel() {
           const data = await res.json();
           if (!res.ok) throw new Error(data.error || 'Failed to create chapter');
           setChapters(cs => [...cs, data]);
+          setCounts(c => ({ ...c, chapters: { ...c.chapters, [data.id]: 0 } }));
         }
       } else {
         if (id) {
@@ -3593,9 +3610,18 @@ function JourneyPanel() {
           const data = await res.json();
           if (!res.ok) throw new Error(data.error || 'Failed to create level');
           setLevelsByChapter(prev => ({ ...prev, [chapterId]: [...(prev[chapterId] || []), data] }));
+          setCounts(c => ({
+            ...c,
+            levels:   { ...c.levels, [data.id]: 0 },
+            chapters: { ...c.chapters, [chapterId]: (c.chapters[chapterId] || 0) + 1 },
+          }));
         }
       }
-      setNameEdit(null);
+      // Save-and-add-another: a create keeps the inline input open + cleared (it
+      // stays focused since it never unmounts) so the next name is just type+Enter.
+      // A rename closes the editor.
+      if (isCreate) setNameEdit(ne => ({ ...ne, value: '' }));
+      else setNameEdit(null);
     } catch (err) { setError(err.message); }
   }
 
@@ -3645,19 +3671,29 @@ function JourneyPanel() {
         setChapters(cs => cs.filter(c => c.id !== row.id));
         setBossQs(qs => qs.filter(q => q.boss_key !== `chapter:${row.id}`));
         setLevelsByChapter(prev => { const next = { ...prev }; delete next[row.id]; return next; });
-        if (expandedId === row.id) setExpandedId(null);
+        setCounts(c => { const chapters = { ...c.chapters }; delete chapters[row.id]; return { ...c, chapters }; });
+        setExpandedIds(prev => { const next = new Set(prev); next.delete(row.id); return next; });
       } else if (kind === 'level') {
         const res  = await apiCall(`/admin/journey-levels/${row.id}`, { method: 'DELETE' });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed to delete level');
         setLevelsByChapter(prev => ({ ...prev, [chapterId]: (prev[chapterId] || []).filter(l => l.id !== row.id) }));
+        setCounts(c => {
+          const levels = { ...c.levels }; delete levels[row.id];
+          return { ...c, levels, chapters: { ...c.chapters, [chapterId]: Math.max(0, (c.chapters[chapterId] || 0) - 1) } };
+        });
       } else {
         const base = selected?.kind === 'level' ? '/admin/journey-questions' : '/admin/boss-questions';
         const res  = await apiCall(`${base}/${row.id}`, { method: 'DELETE' });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed to delete question');
-        if (selected?.kind === 'level') setLevelQs(qs => qs.filter(q => q.id !== row.id));
-        else setBossQs(qs => qs.filter(q => q.id !== row.id));
+        if (selected?.kind === 'level') {
+          setLevelQs(qs => qs.filter(q => q.id !== row.id));
+          const lid = selected.level.id;
+          setCounts(c => ({ ...c, levels: { ...c.levels, [lid]: Math.max(0, (c.levels[lid] || 0) - 1) } }));
+        } else {
+          setBossQs(qs => qs.filter(q => q.id !== row.id));
+        }
         if (editing?.id === row.id) resetForm();
       }
       setDeleteItem(null);
@@ -3726,6 +3762,10 @@ function JourneyPanel() {
         errors.push(`Q${i + 1} ("${q.question.slice(0, 40)}…"): ${err.message}`);
       }
     }
+    if (isLevel && imported > 0) {
+      const lid = selected.level.id;
+      setCounts(c => ({ ...c, levels: { ...c.levels, [lid]: (c.levels[lid] || 0) + imported } }));
+    }
     return { imported, failed: errors.length, errors };
   }
 
@@ -3790,6 +3830,10 @@ function JourneyPanel() {
         data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed to add question');
         applyQs(qs => [...qs, data]);
+        if (isLevel) {
+          const lid = selected.level.id;
+          setCounts(c => ({ ...c, levels: { ...c.levels, [lid]: (c.levels[lid] || 0) + 1 } }));
+        }
       }
       resetForm();
     } catch (err) { setError(err.message); }
@@ -3833,73 +3877,8 @@ function JourneyPanel() {
         <h2>🚑 First Aid Journey</h2>
       </div>
 
-      {/* Journey map background (landing-images slot 'journey_bg') */}
-      <div className="li-slot ap-journey-bg" style={{ maxWidth: 440, marginBottom: 18 }}>
-        <div className="li-slot-header">
-          <span className="li-slot-label">Journey Map Background</span>
-          <span className="li-slot-desc">Full backdrop behind the player's parchment map. JPG/PNG/WEBP, under 5MB.</span>
-        </div>
-
-        <div className="li-slot-preview">
-          {bgUrl ? (
-            <img src={bgUrl} alt="Journey background" className="li-slot-img" />
-          ) : (
-            <div className="li-slot-empty">
-              <span className="li-slot-empty-icon">🖼️</span>
-              <span>No image uploaded</span>
-            </div>
-          )}
-        </div>
-
-        {bgError && <div className="ap-error">{bgError}</div>}
-
-        <div className="li-slot-actions">
-          <label className={`li-upload-btn ${bgBusy ? 'uploading' : ''}`}>
-            <input
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              onChange={e => { handleBgUpload(e.target.files?.[0]); e.target.value = ''; }}
-              disabled={bgBusy}
-              style={{ display: 'none' }}
-            />
-            {bgBusy ? 'Working…' : '📤 Upload Image'}
-          </label>
-
-          {bgUrl && (
-            <button className="li-remove-btn" onClick={handleBgRemove} disabled={bgBusy}>
-              🗑 Remove
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Journey-only activate/deactivate (gameSettings.journeyActiveSubjects) */}
-      <div className="ap-settings-section" style={{ maxWidth: 640, marginBottom: 18 }}>
-        <div className="ap-section-hd">
-          <div className="ap-section-icon">🗺️</div>
-          <div>
-            <h2 className="ap-section-title-lg">Active Subjects</h2>
-            <p className="ap-section-subtitle">Players only see active subjects on the Journey page. Hidden subjects can still be authored below.</p>
-          </div>
-        </div>
-        {JOURNEY_SECTIONS.map(sec => (
-          <div key={sec.id} className="ap-settings-rows">
-            <h3 className="ap-journey-section-label">{sec.label}</h3>
-            {JOURNEY_SUBJECTS.filter(s => s.section === sec.id).map(s => (
-              <ToggleRow
-                key={s.id}
-                label={`${s.icon} ${s.label}`}
-                desc={activeIds.has(s.id) ? 'Visible on the player Journey page' : 'Hidden from players'}
-                checked={activeIds.has(s.id)}
-                onChange={on => toggleSubjectActive(s.id, on)}
-              />
-            ))}
-          </div>
-        ))}
-        <SectionSaveBtn saving={actSaving} saved={actSaved} error={actError} onSave={saveActiveSubjects} />
-      </div>
-
-      {/* Subject scope (no difficulty in the journey) — authoring works for hidden subjects too */}
+      {/* Subject scope (no difficulty in the journey) — authoring works for hidden subjects too.
+          Kept at the top so the dropdown + chapter tree are immediately reachable. */}
       <div className="ap-journey-scope">
         <div className="ap-field">
           <label>Subject</label>
@@ -3911,6 +3890,89 @@ function JourneyPanel() {
             ))}
           </select>
         </div>
+      </div>
+
+      {/* ⚙ Journey Settings: map background + active subjects, tucked away (collapsed by default) */}
+      <div className="ap-journey-settings">
+        <button
+          type="button"
+          className="ap-journey-settings-toggle"
+          onClick={() => setSettingsOpen(o => !o)}
+          aria-expanded={settingsOpen}
+        >
+          <span>⚙ Journey Settings</span>
+          <span className="ap-journey-settings-chevron">{settingsOpen ? '▾' : '▸'}</span>
+        </button>
+
+        {settingsOpen && (
+          <div className="ap-journey-settings-body">
+            {/* Journey map background (landing-images slot 'journey_bg') */}
+            <div className="li-slot ap-journey-bg" style={{ maxWidth: 440, marginBottom: 18 }}>
+              <div className="li-slot-header">
+                <span className="li-slot-label">Journey Map Background</span>
+                <span className="li-slot-desc">Full backdrop behind the player's parchment map. JPG/PNG/WEBP, under 5MB.</span>
+              </div>
+
+              <div className="li-slot-preview">
+                {bgUrl ? (
+                  <img src={bgUrl} alt="Journey background" className="li-slot-img" />
+                ) : (
+                  <div className="li-slot-empty">
+                    <span className="li-slot-empty-icon">🖼️</span>
+                    <span>No image uploaded</span>
+                  </div>
+                )}
+              </div>
+
+              {bgError && <div className="ap-error">{bgError}</div>}
+
+              <div className="li-slot-actions">
+                <label className={`li-upload-btn ${bgBusy ? 'uploading' : ''}`}>
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    onChange={e => { handleBgUpload(e.target.files?.[0]); e.target.value = ''; }}
+                    disabled={bgBusy}
+                    style={{ display: 'none' }}
+                  />
+                  {bgBusy ? 'Working…' : '📤 Upload Image'}
+                </label>
+
+                {bgUrl && (
+                  <button className="li-remove-btn" onClick={handleBgRemove} disabled={bgBusy}>
+                    🗑 Remove
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Journey-only activate/deactivate (gameSettings.journeyActiveSubjects) */}
+            <div className="ap-settings-section" style={{ maxWidth: 640 }}>
+              <div className="ap-section-hd">
+                <div className="ap-section-icon">🗺️</div>
+                <div>
+                  <h2 className="ap-section-title-lg">Active Subjects</h2>
+                  <p className="ap-section-subtitle">Players only see active subjects on the Journey page. Hidden subjects can still be authored below.</p>
+                </div>
+              </div>
+              {JOURNEY_SECTIONS.map(sec => (
+                <div key={sec.id} className="ap-settings-rows">
+                  <h3 className="ap-journey-section-label">{sec.label}</h3>
+                  {JOURNEY_SUBJECTS.filter(s => s.section === sec.id).map(s => (
+                    <ToggleRow
+                      key={s.id}
+                      label={`${s.icon} ${s.label}`}
+                      desc={activeIds.has(s.id) ? 'Visible on the player Journey page' : 'Hidden from players'}
+                      checked={activeIds.has(s.id)}
+                      onChange={on => toggleSubjectActive(s.id, on)}
+                    />
+                  ))}
+                </div>
+              ))}
+              <SectionSaveBtn saving={actSaving} saved={actSaved} error={actError} onSave={saveActiveSubjects} />
+            </div>
+          </div>
+        )}
       </div>
 
       {error && <div className="ap-error">{error}</div>}
@@ -3929,9 +3991,11 @@ function JourneyPanel() {
           ) : (
             <div className="ap-jtree">
               {chapters.map((ch, i) => {
-                const expanded  = expandedId === ch.id;
-                const levels    = levelsByChapter[ch.id];
-                const bossCount = bossQs.filter(q => q.boss_key === `chapter:${ch.id}`).length;
+                const expanded   = expandedIds.has(ch.id);
+                const levels     = levelsByChapter[ch.id];
+                const bossCount  = bossQs.filter(q => q.boss_key === `chapter:${ch.id}`).length;
+                // Loaded level array is authoritative when open; counts map covers collapsed chapters
+                const levelCount = levels?.length ?? counts.chapters[ch.id] ?? 0;
                 return (
                   <div className="ap-jtree-chapter" key={ch.id}>
                     <div className="ap-jtree-chrow">
@@ -3941,6 +4005,7 @@ function JourneyPanel() {
                       ) : (
                         <span className="ap-jtree-chname" onClick={() => toggleChapter(ch.id)}>
                           Chapter {i + 1}: {ch.name}
+                          <span className="ap-jtree-count"> · {levelCount} level{levelCount !== 1 ? 's' : ''}</span>
                         </span>
                       )}
                       <div className="ap-jtree-actions">
@@ -3957,13 +4022,18 @@ function JourneyPanel() {
                           <div className="ap-jtree-note">Loading levels…</div>
                         ) : (
                           <>
-                            {levels.map((lv, li) => (
+                            {levels.map((lv, li) => {
+                              const qCount = counts.levels[lv.id] ?? 0;
+                              return (
                               <div className="ap-jtree-lvrow" key={lv.id}>
                                 {nameEdit?.kind === 'level' && nameEdit.id === lv.id ? (
                                   renderNameInput('Level name')
                                 ) : (
                                   <button className="ap-jtree-lvname" onClick={() => openLevel(lv, ch)}>
                                     📄 {li + 1}. {lv.name}
+                                    {qCount > 0
+                                      ? <span className="ap-jtree-count"> · {qCount} Q</span>
+                                      : <span className="ap-jtree-empty-badge">needs questions</span>}
                                   </button>
                                 )}
                                 <div className="ap-jtree-actions">
@@ -3973,7 +4043,8 @@ function JourneyPanel() {
                                   <button className="ap-topic-del-btn" onClick={() => setDeleteItem({ kind: 'level', row: lv, chapterId: ch.id })} title="Delete">🗑️</button>
                                 </div>
                               </div>
-                            ))}
+                              );
+                            })}
                             {levels.length === 0 && !(nameEdit?.kind === 'level' && !nameEdit.id && nameEdit.chapterId === ch.id) && (
                               <div className="ap-jtree-note">No levels yet — add the first one.</div>
                             )}
