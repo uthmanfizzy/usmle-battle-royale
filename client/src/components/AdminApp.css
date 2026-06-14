@@ -2893,6 +2893,94 @@
   white-space: nowrap;
 }
 
+/* ── JourneyEditor: clean inline journey editor (QM sidebar) ──────────────────── */
+.je-root { max-width: 860px; }
+.je-chapters { display: flex; flex-direction: column; gap: 12px; margin-bottom: 12px; }
+
+/* Chapter: a clearly delineated card */
+.je-chapter {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.je-chapter-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.02);
+}
+.je-expand {
+  background: none; border: none; color: var(--gold);
+  font-size: 15px; cursor: pointer; padding: 2px 6px; flex-shrink: 0;
+}
+.je-chapter-name {
+  flex: 1; font-size: 15px; font-weight: 700; cursor: pointer;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.je-chapter-body {
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  padding: 10px 14px 14px 30px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+
+/* Level: indented row that expands inline */
+.je-level {
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--card);
+  overflow: hidden;
+}
+.je-level-head { display: flex; align-items: center; gap: 8px; padding: 6px 10px; }
+.je-level-name {
+  flex: 1; display: flex; align-items: center; gap: 6px;
+  background: none; border: none; color: var(--text);
+  font-size: 13px; text-align: left; cursor: pointer;
+  padding: 4px 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.je-level-name:hover { color: var(--gold); }
+.je-level-nameedit { flex: 1; }
+.je-caret { color: var(--gold); font-size: 11px; flex-shrink: 0; }
+.je-level-body { padding-left: 22px; }
+
+.je-row-actions { display: flex; gap: 4px; align-items: center; flex-shrink: 0; }
+
+/* Expanded target body (level or boss): question list + form/actions */
+.je-target-body {
+  border-top: 1px dashed var(--border);
+  margin-top: 6px;
+  padding: 10px 4px 8px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.je-target-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.je-qlist { display: flex; flex-direction: column; gap: 6px; }
+.je-qform { margin: 0; }
+
+/* Inline name-edit row spacing */
+.je-nameedit-row { padding: 4px 0; }
+
+/* Boss blocks (chapter boss + ultimate) */
+.je-bossblock {
+  border-radius: 9px;
+  overflow: hidden;
+  border: 1px solid rgba(231, 76, 60, 0.35);
+  background: rgba(231, 76, 60, 0.06);
+}
+.je-boss.je-bossblock { margin-top: 4px; }
+.je-ultimate.je-bossblock {
+  margin-top: 14px;
+  border-color: rgba(241, 196, 15, 0.5);
+  background: rgba(241, 196, 15, 0.07);
+}
+.je-boss-head {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  background: none; border: none; color: var(--text);
+  font-size: 13px; font-weight: 700; cursor: pointer; padding: 9px 12px;
+}
+.je-boss-label { flex: 1; text-align: left; }
+
 .ap-journey-boss-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));

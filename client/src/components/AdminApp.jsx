@@ -1552,7 +1552,7 @@ function QuestionsPanel({ subjects = [] }) {
             </button>
           ))}
 
-          {/* First Aid Journey — opens the existing JourneyPanel editor in the main pane */}
+          {/* First Aid Journey — opens the new inline JourneyEditor in the main pane */}
           <button
             className={`ap-folder-btn ap-folder-gamemode ${activeFolder === '__journey__' ? 'active' : ''}`}
             onClick={() => setActiveFolder('__journey__')}
@@ -1595,8 +1595,8 @@ function QuestionsPanel({ subjects = [] }) {
 
         {/* ── Main Content ─────────────────────────────────────────── */}
         <div className="ap-qm-main">
-          {/* First Aid Journey reuses the full JourneyPanel editor verbatim (same as the top tab) */}
-          {activeFolder === '__journey__' ? <JourneyPanel /> : (<>
+          {/* First Aid Journey: the new clean inline editor (subject → chapters → levels → inline questions) */}
+          {activeFolder === '__journey__' ? <JourneyEditor /> : (<>
 
           {/* ════ DIFFICULTY LEVEL ═══════════════════════════════════ */}
           {view === 'difficulty' && (
@@ -4261,6 +4261,539 @@ function JourneyPanel() {
           customImport={importParsed}
           onImport={() => {}}
           onClose={() => setShowParser(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+// ── First Aid Journey: clean inline editor (Question Manager sidebar) ──────────
+// From-scratch, fully inline: subject -> chapters -> levels -> questions, all
+// expanding in place (no view-swapping). Reuses the existing journey endpoints,
+// the shared QuestionParser, and the standard question-form idioms.
+function JourneyEditor() {
+  const [subject,  setSubject]  = useState(JOURNEY_SUBJECTS[0].id);
+  const [chapters, setChapters] = useState([]);
+  const [bossQs,   setBossQs]   = useState([]);                       // all boss questions for the subject
+  const [counts,   setCounts]   = useState({ levels: {}, chapters: {}, bosses: {} });
+  const [levelsByChapter,   setLevelsByChapter]   = useState({});     // chapter_id -> levels[] (lazy)
+  const [questionsByLevel,  setQuestionsByLevel]  = useState({});     // level_id   -> questions[] (lazy)
+  const [expandedChapters,  setExpandedChapters]  = useState(() => new Set());
+  const [expandedTargets,   setExpandedTargets]   = useState(() => new Set()); // 'level:ID' | 'boss:KEY'
+  const [loading,  setLoading]  = useState(true);
+  const [error,    setError]    = useState('');
+
+  // Inline create/rename: { kind:'chapter'|'level', id, chapterId?, value }
+  const [nameEdit,   setNameEdit]   = useState(null);
+  const [deleteItem, setDeleteItem] = useState(null); // { kind, row, chapterId?, target? }
+
+  // One shared question form across targets (only one open at a time)
+  const [qEditor, setQEditor] = useState(null); // { targetKey, target, mode:'add'|'edit', id? }
+  const [form,    setForm]    = useState(BOSS_EMPTY_FORM);
+  const [qSaving, setQSaving] = useState(false);
+  const [parserTarget, setParserTarget] = useState(null);
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  useEffect(() => { loadSubject(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [subject]);
+
+  async function loadSubject() {
+    setLoading(true); setError('');
+    setExpandedChapters(new Set()); setExpandedTargets(new Set());
+    setLevelsByChapter({}); setQuestionsByLevel({});
+    setNameEdit(null); closeForm();
+    try {
+      const [chRes, bossRes, countRes] = await Promise.all([
+        apiCall(`/admin/journey-chapters?subject=${encodeURIComponent(subject)}`),
+        apiCall(`/admin/boss-questions?subject=${encodeURIComponent(subject)}`),
+        apiCall(`/admin/journey-counts?subject=${encodeURIComponent(subject)}`),
+      ]);
+      const chData    = await chRes.json();
+      const bossData  = await bossRes.json();
+      const countData = await countRes.json();
+      if (!chRes.ok) throw new Error(chData.error || 'Failed to load chapters');
+      setChapters(chData.chapters || []);
+      setBossQs(bossData.questions || []);
+      setCounts({ levels: countData.levels || {}, chapters: countData.chapters || {}, bosses: countData.bosses || {} });
+    } catch (err) {
+      setError(err.message); setChapters([]); setBossQs([]); setCounts({ levels: {}, chapters: {}, bosses: {} });
+    }
+    setLoading(false);
+  }
+
+  // ── Target helpers (a "target" is a level or a boss that owns questions) ──────
+  const targetKey       = (t) => t.kind === 'level' ? `level:${t.levelId}` : `boss:${t.bossKey}`;
+  const targetBase      = (t) => t.kind === 'level' ? '/admin/journey-questions' : '/admin/boss-questions';
+  const targetIdFields  = (t) => t.kind === 'level' ? { level_id: t.levelId } : { subject, boss_key: t.bossKey };
+  const targetQuestions = (t) => t.kind === 'level' ? (questionsByLevel[t.levelId] || []) : bossQs.filter(q => q.boss_key === t.bossKey);
+
+  // ── Expansion (lazy-load + cache) ─────────────────────────────────────────────
+  async function toggleChapter(id) {
+    const open = expandedChapters.has(id);
+    setExpandedChapters(prev => { const n = new Set(prev); if (open) n.delete(id); else n.add(id); return n; });
+    if (!open && !(id in levelsByChapter)) {
+      try {
+        const res  = await apiCall(`/admin/journey-levels?chapter_id=${id}`);
+        const data = await res.json();
+        setLevelsByChapter(prev => ({ ...prev, [id]: data.levels || [] }));
+      } catch { setLevelsByChapter(prev => ({ ...prev, [id]: [] })); }
+    }
+  }
+
+  async function toggleTarget(target) {
+    const key  = targetKey(target);
+    const open = expandedTargets.has(key);
+    setExpandedTargets(prev => { const n = new Set(prev); if (open) n.delete(key); else n.add(key); return n; });
+    if (!open && target.kind === 'level' && !(target.levelId in questionsByLevel)) {
+      try {
+        const res  = await apiCall(`/admin/journey-questions?level_id=${target.levelId}`);
+        const data = await res.json();
+        setQuestionsByLevel(prev => ({ ...prev, [target.levelId]: data.questions || [] }));
+      } catch { setQuestionsByLevel(prev => ({ ...prev, [target.levelId]: [] })); }
+    }
+  }
+
+  // ── Chapter / level create + rename (save-and-add-another on create) ──────────
+  async function saveName() {
+    const { kind, id, chapterId } = nameEdit;
+    const name = nameEdit.value.trim();
+    if (!name) return;
+    setError('');
+    const isCreate = !id;
+    try {
+      if (kind === 'chapter') {
+        if (id) {
+          const res  = await apiCall(`/admin/journey-chapters/${id}`, { method: 'PUT', body: JSON.stringify({ name }) });
+          const data = await res.json(); if (!res.ok) throw new Error(data.error || 'Rename failed');
+          setChapters(cs => cs.map(c => c.id === id ? data : c));
+        } else {
+          const res  = await apiCall('/admin/journey-chapters', { method: 'POST', body: JSON.stringify({ subject, name, sort_order: chapters.length }) });
+          const data = await res.json(); if (!res.ok) throw new Error(data.error || 'Create failed');
+          setChapters(cs => [...cs, data]);
+          setCounts(c => ({ ...c, chapters: { ...c.chapters, [data.id]: 0 } }));
+        }
+      } else {
+        if (id) {
+          const res  = await apiCall(`/admin/journey-levels/${id}`, { method: 'PUT', body: JSON.stringify({ name }) });
+          const data = await res.json(); if (!res.ok) throw new Error(data.error || 'Rename failed');
+          setLevelsByChapter(prev => ({ ...prev, [chapterId]: (prev[chapterId] || []).map(l => l.id === id ? data : l) }));
+        } else {
+          const res  = await apiCall('/admin/journey-levels', { method: 'POST', body: JSON.stringify({ chapter_id: chapterId, name, sort_order: (levelsByChapter[chapterId] || []).length }) });
+          const data = await res.json(); if (!res.ok) throw new Error(data.error || 'Create failed');
+          setLevelsByChapter(prev => ({ ...prev, [chapterId]: [...(prev[chapterId] || []), data] }));
+          setCounts(c => ({ ...c, levels: { ...c.levels, [data.id]: 0 }, chapters: { ...c.chapters, [chapterId]: (c.chapters[chapterId] || 0) + 1 } }));
+        }
+      }
+      // A create keeps the inline input open + cleared (stays focused) for rapid entry; a rename closes.
+      if (isCreate) setNameEdit(ne => ({ ...ne, value: '' })); else setNameEdit(null);
+    } catch (err) { setError(err.message); }
+  }
+
+  // ── Deletes (chapter / level / question share one confirm modal) ──────────────
+  async function handleDeleteItem() {
+    const { kind, row, chapterId, target } = deleteItem;
+    setError('');
+    try {
+      if (kind === 'chapter') {
+        const res  = await apiCall(`/admin/journey-chapters/${row.id}`, { method: 'DELETE' });
+        const data = await res.json(); if (!res.ok) throw new Error(data.error || 'Delete failed');
+        setChapters(cs => cs.filter(c => c.id !== row.id));
+        setBossQs(qs => qs.filter(q => q.boss_key !== `chapter:${row.id}`));
+        setLevelsByChapter(prev => { const n = { ...prev }; delete n[row.id]; return n; });
+        setCounts(c => { const ch = { ...c.chapters }; delete ch[row.id]; return { ...c, chapters: ch }; });
+        setExpandedChapters(prev => { const n = new Set(prev); n.delete(row.id); return n; });
+      } else if (kind === 'level') {
+        const res  = await apiCall(`/admin/journey-levels/${row.id}`, { method: 'DELETE' });
+        const data = await res.json(); if (!res.ok) throw new Error(data.error || 'Delete failed');
+        setLevelsByChapter(prev => ({ ...prev, [chapterId]: (prev[chapterId] || []).filter(l => l.id !== row.id) }));
+        setQuestionsByLevel(prev => { const n = { ...prev }; delete n[row.id]; return n; });
+        setCounts(c => {
+          const lv = { ...c.levels }; delete lv[row.id];
+          return { ...c, levels: lv, chapters: { ...c.chapters, [chapterId]: Math.max(0, (c.chapters[chapterId] || 0) - 1) } };
+        });
+        setExpandedTargets(prev => { const n = new Set(prev); n.delete(`level:${row.id}`); return n; });
+      } else { // question
+        const t    = target;
+        const res  = await apiCall(`${targetBase(t)}/${row.id}`, { method: 'DELETE' });
+        const data = await res.json(); if (!res.ok) throw new Error(data.error || 'Delete failed');
+        if (t.kind === 'level') {
+          setQuestionsByLevel(prev => ({ ...prev, [t.levelId]: (prev[t.levelId] || []).filter(q => q.id !== row.id) }));
+          setCounts(c => ({ ...c, levels: { ...c.levels, [t.levelId]: Math.max(0, (c.levels[t.levelId] || 0) - 1) } }));
+        } else {
+          setBossQs(qs => qs.filter(q => q.id !== row.id));
+        }
+        if (qEditor?.mode === 'edit' && qEditor.id === row.id) closeForm();
+      }
+      setDeleteItem(null);
+    } catch (err) { setError(err.message); setDeleteItem(null); }
+  }
+
+  // ── Question form ─────────────────────────────────────────────────────────────
+  function closeForm() { setQEditor(null); setForm(BOSS_EMPTY_FORM); }
+  function openAdd(target) { setError(''); setForm(BOSS_EMPTY_FORM); setQEditor({ targetKey: targetKey(target), target, mode: 'add' }); }
+  function openEdit(target, q) {
+    setError('');
+    setForm({
+      question: q.question,
+      optionA: q.options[0] || '', optionB: q.options[1] || '', optionC: q.options[2] || '',
+      optionD: q.options[3] || '', optionE: q.options[4] || '', optionF: q.options[5] || '',
+      correct: q.correct || 'A',
+      explanation: q.explanation || '',
+      why_others_wrong: typeof q.why_others_wrong === 'string' ? q.why_others_wrong : '',
+    });
+    setQEditor({ targetKey: targetKey(target), target, mode: 'edit', id: q.id });
+  }
+
+  const offeredLetters   = BOSS_LETTERS.filter((l, i) => i < 4 || form[`option${l}`].trim() !== '');
+  const assembledOptions = BOSS_LETTERS.map(l => form[`option${l}`].trim()).filter(o => o !== '');
+  const canSaveQ = !qSaving && form.question.trim() && assembledOptions.length >= 2 && offeredLetters.includes(form.correct);
+
+  async function saveQuestion(e) {
+    e.preventDefault();
+    if (!qEditor) return;
+    const t = qEditor.target;
+    setError(''); setQSaving(true);
+    const fields = {
+      question: form.question.trim(),
+      options: assembledOptions,
+      correct: form.correct,
+      explanation: form.explanation.trim() || null,
+      why_others_wrong: form.why_others_wrong.trim() || null,
+    };
+    try {
+      if (qEditor.mode === 'edit') {
+        const res  = await apiCall(`${targetBase(t)}/${qEditor.id}`, { method: 'PUT', body: JSON.stringify(fields) });
+        const data = await res.json(); if (!res.ok) throw new Error(data.error || 'Save failed');
+        if (t.kind === 'level') setQuestionsByLevel(prev => ({ ...prev, [t.levelId]: (prev[t.levelId] || []).map(q => q.id === data.id ? data : q) }));
+        else setBossQs(qs => qs.map(q => q.id === data.id ? data : q));
+      } else {
+        const res  = await apiCall(targetBase(t), { method: 'POST', body: JSON.stringify({ ...targetIdFields(t), ...fields }) });
+        const data = await res.json(); if (!res.ok) throw new Error(data.error || 'Add failed');
+        if (t.kind === 'level') {
+          setQuestionsByLevel(prev => ({ ...prev, [t.levelId]: [...(prev[t.levelId] || []), data] }));
+          setCounts(c => ({ ...c, levels: { ...c.levels, [t.levelId]: (c.levels[t.levelId] || 0) + 1 } }));
+        } else {
+          setBossQs(qs => [...qs, data]);
+        }
+      }
+      closeForm();
+    } catch (err) { setError(err.message); }
+    setQSaving(false);
+  }
+
+  // Paste & Parse: sequential POSTs to the parser's target; honest error summary
+  async function importParsed(parsed) {
+    if (!parserTarget) return { imported: 0, failed: 0, errors: [] };
+    const t = parserTarget;
+    const existing = targetQuestions(t).length;
+    let imported = 0;
+    const errors = [];
+    for (let i = 0; i < parsed.length; i++) {
+      const q = parsed[i];
+      try {
+        const res = await apiCall(targetBase(t), {
+          method: 'POST',
+          body: JSON.stringify({
+            ...targetIdFields(t),
+            question: q.question,
+            options: q.choices,
+            correct: q.correct,
+            explanation: q.explanation || null,
+            why_others_wrong: q.why_others_wrong || null,
+            image_url: q.image_url || null,
+            sort_order: existing + i,
+          }),
+        });
+        const data = await res.json(); if (!res.ok) throw new Error(data.error || 'Import failed');
+        if (t.kind === 'level') setQuestionsByLevel(prev => ({ ...prev, [t.levelId]: [...(prev[t.levelId] || []), data] }));
+        else setBossQs(qs => [...qs, data]);
+        imported++;
+      } catch (err) {
+        errors.push(`Q${i + 1} ("${q.question.slice(0, 40)}…"): ${err.message}`);
+      }
+    }
+    if (t.kind === 'level' && imported > 0) {
+      setCounts(c => ({ ...c, levels: { ...c.levels, [t.levelId]: (c.levels[t.levelId] || 0) + imported } }));
+    }
+    return { imported, failed: errors.length, errors };
+  }
+
+  // ── Render ────────────────────────────────────────────────────────────────────
+  const folder = JOURNEY_SUBJECTS.find(s => s.id === subject);
+
+  const renderNameInput = (placeholder) => (
+    <span className="ap-jtree-nameedit">
+      <input
+        autoFocus
+        value={nameEdit.value}
+        placeholder={placeholder}
+        onChange={e => setNameEdit(ne => ({ ...ne, value: e.target.value }))}
+        onKeyDown={e => {
+          if (e.key === 'Enter') { e.preventDefault(); saveName(); }
+          if (e.key === 'Escape') setNameEdit(null);
+        }}
+      />
+      <button className="ap-btn-pri" onClick={saveName} disabled={!nameEdit.value.trim()}>✓</button>
+      <button className="ap-btn-sec" onClick={() => setNameEdit(null)}>✕</button>
+    </span>
+  );
+
+  const renderQuestionForm = (target) => (
+    <form onSubmit={saveQuestion} className="ap-qform je-qform">
+      <h3 className="ap-video-form-title">{qEditor.mode === 'edit' ? '✏️ Edit Question' : '➕ Add Question'}</h3>
+      <div className="ap-field">
+        <label>Question</label>
+        <textarea value={form.question} onChange={e => set('question', e.target.value)} placeholder="Question text…" rows={3} />
+      </div>
+      <div className="ap-options-grid">
+        {BOSS_LETTERS.map((l, idx) => {
+          const isRequired = idx < 4;
+          const hasValue   = form[`option${l}`].trim() !== '';
+          const showField  = isRequired || hasValue || (idx > 0 && form[`option${BOSS_LETTERS[idx - 1]}`].trim() !== '');
+          if (!showField) return null;
+          return (
+            <div key={l} className="ap-field">
+              <label>
+                <span className={`ap-letter ${l === form.correct ? 'ap-letter-correct' : 'ap-letter-plain'}`}>{l}</span>
+                {' '}Answer {l}
+                {!isRequired && <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '11px' }}> (optional)</span>}
+              </label>
+              <input type="text" value={form[`option${l}`]} onChange={e => set(`option${l}`, e.target.value)} placeholder={`Answer choice ${l}`} required={isRequired} />
+            </div>
+          );
+        })}
+      </div>
+      <div className="ap-field">
+        <label>Correct Answer</label>
+        <select value={form.correct} onChange={e => set('correct', e.target.value)}>
+          {offeredLetters.map(l => <option key={l} value={l}>{l}</option>)}
+        </select>
+      </div>
+      <div className="ap-field">
+        <label>Explanation</label>
+        <textarea value={form.explanation} onChange={e => set('explanation', e.target.value)} placeholder="Explain why the correct answer is correct…" rows={3} />
+      </div>
+      <div className="ap-field">
+        <label>Why Others Are Wrong <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '11px' }}>(optional)</span></label>
+        <textarea value={form.why_others_wrong} onChange={e => set('why_others_wrong', e.target.value)} placeholder="Explain why each incorrect option is wrong..." rows={3} />
+        {form.why_others_wrong && (
+          <div className="explanation-preview">
+            <p className="explanation-preview-label">Preview:</p>
+            <div className="explanation-rich explanation-preview-box">{parseRichText(form.why_others_wrong)}</div>
+          </div>
+        )}
+      </div>
+      <div className="ap-video-form-actions">
+        <button type="button" className="ap-btn-sec" onClick={closeForm}>Cancel</button>
+        <button type="submit" className="ap-btn-pri" disabled={!canSaveQ}>{qSaving ? 'Saving…' : qEditor.mode === 'edit' ? 'Save Changes' : 'Add Question'}</button>
+      </div>
+    </form>
+  );
+
+  const renderTargetBody = (target) => {
+    if (target.kind === 'level' && !(target.levelId in questionsByLevel)) {
+      return <div className="ap-jtree-note">Loading questions…</div>;
+    }
+    const key      = targetKey(target);
+    const qs       = targetQuestions(target);
+    const formHere = qEditor && qEditor.targetKey === key;
+    return (
+      <>
+        {qs.length === 0 ? (
+          <div className="ap-jtree-note">No questions yet{target.kind === 'level' ? ' — players cannot pass an empty level.' : ' — this boss auto-skips in game until you add some.'}</div>
+        ) : (
+          <div className="je-qlist">
+            {qs.map(q => (
+              <div className="ap-journey-q-row" key={q.id}>
+                <span className="ap-journey-q-correct">{q.correct}</span>
+                <span className="ap-journey-q-text">{q.question}</span>
+                <div className="ap-video-row-actions">
+                  <button className="ap-topic-edit-btn" onClick={() => openEdit(target, q)} title="Edit">✏️</button>
+                  <button className="ap-topic-del-btn" onClick={() => setDeleteItem({ kind: 'question', row: q, target })} title="Delete">🗑️</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        {formHere ? renderQuestionForm(target) : (
+          <div className="je-target-actions">
+            <button className="ap-btn-pri" onClick={() => openAdd(target)}>➕ Add question</button>
+            <button className="ap-btn-sec" onClick={() => setParserTarget(target)}>📋 Paste &amp; Parse</button>
+          </div>
+        )}
+      </>
+    );
+  };
+
+  const renderBossBlock = (target, label, cls) => {
+    const open  = expandedTargets.has(targetKey(target));
+    const count = targetQuestions(target).length;
+    return (
+      <div className={`je-bossblock ${cls}`}>
+        <button className="je-boss-head" onClick={() => toggleTarget(target)}>
+          <span className="je-caret">{open ? '▾' : '▸'}</span>
+          <span className="je-boss-label">{label}</span>
+          {count > 0
+            ? <span className="ap-jtree-count">{count} question{count !== 1 ? 's' : ''}</span>
+            : <span className="ap-journey-boss-hint">auto-skips in game</span>}
+        </button>
+        {open && <div className="je-target-body">{renderTargetBody(target)}</div>}
+      </div>
+    );
+  };
+
+  const renderLevel = (ch, lv, li) => {
+    const target = { kind: 'level', levelId: lv.id, chapterId: ch.id };
+    const open   = expandedTargets.has(targetKey(target));
+    const qCount = counts.levels[lv.id] ?? 0;
+    return (
+      <div className="je-level" key={lv.id}>
+        <div className="je-level-head">
+          {nameEdit?.kind === 'level' && nameEdit.id === lv.id ? (
+            <span className="je-level-nameedit">{renderNameInput('Level name')}</span>
+          ) : (
+            <button className="je-level-name" onClick={() => toggleTarget(target)}>
+              <span className="je-caret">{open ? '▾' : '▸'}</span>
+              📄 {li + 1}. {lv.name}
+              {qCount > 0
+                ? <span className="ap-jtree-count"> · {qCount} question{qCount !== 1 ? 's' : ''}</span>
+                : <span className="ap-jtree-empty-badge">needs questions</span>}
+            </button>
+          )}
+          <div className="je-row-actions">
+            <button className="ap-topic-edit-btn" onClick={() => setNameEdit({ kind: 'level', id: lv.id, chapterId: ch.id, value: lv.name })} title="Rename">✏️</button>
+            <button className="ap-topic-del-btn" onClick={() => setDeleteItem({ kind: 'level', row: lv, chapterId: ch.id })} title="Delete">🗑️</button>
+          </div>
+        </div>
+        {open && <div className="je-target-body je-level-body">{renderTargetBody(target)}</div>}
+      </div>
+    );
+  };
+
+  const renderChapter = (ch, ci) => {
+    const open       = expandedChapters.has(ch.id);
+    const levels     = levelsByChapter[ch.id];
+    const levelCount = levels?.length ?? counts.chapters[ch.id] ?? 0;
+    return (
+      <div className="je-chapter" key={ch.id}>
+        <div className="je-chapter-head">
+          <button className="je-expand" onClick={() => toggleChapter(ch.id)}>{open ? '▾' : '▸'}</button>
+          {nameEdit?.kind === 'chapter' && nameEdit.id === ch.id ? (
+            renderNameInput('Chapter name')
+          ) : (
+            <span className="je-chapter-name" onClick={() => toggleChapter(ch.id)}>
+              Chapter {ci + 1}: {ch.name}
+              <span className="ap-jtree-count"> · {levelCount} level{levelCount !== 1 ? 's' : ''}</span>
+            </span>
+          )}
+          <div className="je-row-actions">
+            <button className="ap-topic-edit-btn" onClick={() => setNameEdit({ kind: 'chapter', id: ch.id, value: ch.name })} title="Rename">✏️</button>
+            <button className="ap-topic-del-btn" onClick={() => setDeleteItem({ kind: 'chapter', row: ch })} title="Delete">🗑️</button>
+          </div>
+        </div>
+        {open && (
+          <div className="je-chapter-body">
+            {levels === undefined ? (
+              <div className="ap-jtree-note">Loading levels…</div>
+            ) : (
+              <>
+                {levels.map((lv, li) => renderLevel(ch, lv, li))}
+                {levels.length === 0 && !(nameEdit?.kind === 'level' && !nameEdit.id && nameEdit.chapterId === ch.id) && (
+                  <div className="ap-jtree-note">No levels yet — add the first one.</div>
+                )}
+                {nameEdit?.kind === 'level' && !nameEdit.id && nameEdit.chapterId === ch.id ? (
+                  <div className="je-nameedit-row">{renderNameInput('New level name')}</div>
+                ) : (
+                  <button className="ap-jtree-add" onClick={() => setNameEdit({ kind: 'level', id: null, chapterId: ch.id, value: '' })}>➕ New Level</button>
+                )}
+                {renderBossBlock({ kind: 'boss', bossKey: `chapter:${ch.id}` }, '⚔ Chapter Boss', 'je-boss')}
+              </>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  if (loading) return <div className="ap-loading"><div className="ap-spinner" /></div>;
+
+  return (
+    <div className="je-root">
+      <div className="ap-panel-head">
+        <h2>🚑 First Aid Journey</h2>
+      </div>
+
+      <div className="ap-journey-scope">
+        <div className="ap-field">
+          <label>Subject</label>
+          <select value={subject} onChange={e => setSubject(e.target.value)}>
+            {JOURNEY_SECTIONS.map(sec => (
+              <optgroup key={sec.id} label={sec.label}>
+                {JOURNEY_SUBJECTS.filter(s => s.section === sec.id).map(s => (
+                  <option key={s.id} value={s.id}>{s.icon} {s.label}</option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {error && <div className="ap-error">{error}</div>}
+
+      {chapters.length === 0 && !(nameEdit?.kind === 'chapter' && !nameEdit.id) ? (
+        <div className="ap-topic-empty">
+          <div className="ap-topic-empty-icon">🚑</div>
+          <p>No chapters yet for {folder?.label}. Create the first chapter to start building the journey.</p>
+          <button className="ap-btn-pri" onClick={() => setNameEdit({ kind: 'chapter', id: null, value: '' })}>➕ New Chapter</button>
+        </div>
+      ) : (
+        <div className="je-chapters">
+          {chapters.map((ch, ci) => renderChapter(ch, ci))}
+        </div>
+      )}
+
+      {chapters.length > 0 && (
+        nameEdit?.kind === 'chapter' && !nameEdit.id
+          ? <div className="je-nameedit-row">{renderNameInput('New chapter name')}</div>
+          : <button className="ap-jtree-add" onClick={() => setNameEdit({ kind: 'chapter', id: null, value: '' })}>➕ New Chapter</button>
+      )}
+      {chapters.length === 0 && nameEdit?.kind === 'chapter' && !nameEdit.id && (
+        <div className="je-nameedit-row">{renderNameInput('New chapter name')}</div>
+      )}
+
+      {renderBossBlock({ kind: 'boss', bossKey: 'ultimate' }, '👑 Ultimate Boss', 'je-ultimate')}
+
+      {deleteItem && (
+        <div className="ap-backdrop" onClick={() => setDeleteItem(null)}>
+          <div className="ap-confirm" onClick={e => e.stopPropagation()}>
+            <div className="ap-confirm-icon">{deleteItem.kind === 'chapter' ? '🗂️' : deleteItem.kind === 'level' ? '📄' : '🚑'}</div>
+            <h3>
+              {deleteItem.kind === 'chapter' ? `Delete chapter "${deleteItem.row.name}"?`
+                : deleteItem.kind === 'level' ? `Delete level "${deleteItem.row.name}"?`
+                : 'Delete this question?'}
+            </h3>
+            <p>
+              {deleteItem.kind === 'chapter'
+                ? 'Deletes this chapter, all its levels and their questions, and its boss questions.'
+                : deleteItem.kind === 'level'
+                  ? 'Deletes this level and all its questions.'
+                  : `"${deleteItem.row.question.slice(0, 80)}${deleteItem.row.question.length > 80 ? '…' : ''}"`}
+            </p>
+            <div className="ap-modal-foot">
+              <button className="ap-btn-sec" onClick={() => setDeleteItem(null)}>Cancel</button>
+              <button className="ap-btn-danger" onClick={handleDeleteItem}>Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {parserTarget && (
+        <QuestionParser
+          activeFolder={subject}
+          selectedTopic={null}
+          selectedDifficulty="easy"
+          customImport={importParsed}
+          onImport={() => {}}
+          onClose={() => setParserTarget(null)}
         />
       )}
     </div>
