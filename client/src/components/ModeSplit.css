@@ -162,15 +162,18 @@
   max-width: 260px;
 }
 
-/* ── Training Grounds: wide rectangle below the two cards ───────────────────────
-   Width 408px = from the horizontal centre of the Story card to the centre of the
-   Online card (190 + 28 gap + 190), so it sits under the gap overlapping the inner
-   halves of both. As a third flex item in .ms-cards it wraps onto its own row and
-   centres beneath them. Rises in after the two cards (reduced-motion handled below). */
+/* ── Training Grounds: its OWN row below the two cards ──────────────────────────
+   A separate flex child of .ms-screen (which centres its children), so it sits on
+   its own row, centred beneath the pair. Width 408px = from the horizontal centre
+   of the Story card to the centre of the Online card (190 + 28 gap + 190), so its
+   left edge aligns with Story's centre and its right edge with Online's centre,
+   overlapping their inner halves. Short/landscape (icon left, text right). Rises in
+   after the two cards (reduced-motion handled below). */
 .ms-train {
   width: 408px;
   max-width: 92vw;
   min-height: 92px;
+  margin-top: 24px;
   display: flex;
   flex-direction: row;
   align-items: center;

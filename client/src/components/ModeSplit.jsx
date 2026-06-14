@@ -23,16 +23,16 @@ export default function ModeSplit({ onStory, onOnline, onTraining, onBack }) {
           <span className="ms-card-name">ONLINE</span>
           <span className="ms-card-sub">Battle other doctors live</span>
         </button>
-
-        {/* Wide rectangle below, spanning midpoint-to-midpoint of the two cards */}
-        <button className="ms-train" onClick={onTraining}>
-          <span className="ms-train-icon">🎯</span>
-          <span className="ms-train-text">
-            <span className="ms-train-name">TRAINING GROUNDS</span>
-            <span className="ms-train-sub">Study by topic · Watch videos</span>
-          </span>
-        </button>
       </div>
+
+      {/* Own row below: wide short rectangle, centred midpoint-to-midpoint of the two cards */}
+      <button className="ms-train" onClick={onTraining}>
+        <span className="ms-train-icon">🎯</span>
+        <span className="ms-train-text">
+          <span className="ms-train-name">TRAINING GROUNDS</span>
+          <span className="ms-train-sub">Study by topic · Watch videos</span>
+        </span>
+      </button>
     </div>
   );
 }
