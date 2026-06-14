@@ -3831,6 +3831,7 @@ app.get('/admin/questions', adminAuth, async (req, res) => {
           correct: q.correct,
           explanation: q.explanation || '',
           why_others_wrong: q.why_others_wrong || undefined,
+          explanation_image_url: q.explanation_image_url || undefined,
           game_modes: q.game_modes || ['battle_royale', 'speed_race', 'trivia_pursuit'],
           image_url: q.image_url || undefined,
           tower_floor: q.tower_floor || undefined,
@@ -4596,7 +4597,7 @@ app.post('/admin/game-mode-image', adminAuth, async (req, res) => {
 app.post('/admin/questions', adminAuth, async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Supabase not configured. Cannot save questions.' });
 
-  const { subject, difficulty, question, options, correct, explanation, why_others_wrong, image_url, game_modes, tower_floor, buzz_type, topic_id } = req.body;
+  const { subject, difficulty, question, options, correct, explanation, why_others_wrong, image_url, explanation_image_url, game_modes, tower_floor, buzz_type, topic_id } = req.body;
   if (!subject || !question || !Array.isArray(options) || options.length < 2 || options.length > 10 || !correct || !explanation)
     return res.status(400).json({ error: 'Missing required fields (options must be array of 2-10)' });
 
@@ -4610,6 +4611,7 @@ app.post('/admin/questions', adminAuth, async (req, res) => {
     correct,
     explanation,
     why_others_wrong: why_others_wrong || null,
+    explanation_image_url: explanation_image_url || null,
     category: subject,
     difficulty: difficulty || 'easy',
     game_modes: gameModes,
@@ -4633,6 +4635,7 @@ app.post('/admin/questions', adminAuth, async (req, res) => {
       correct,
       explanation,
       why_others_wrong: record.why_others_wrong || undefined,
+      explanation_image_url: record.explanation_image_url || undefined,
       game_modes: gameModes,
       image_url: record.image_url || undefined,
       tower_floor: record.tower_floor || undefined,
@@ -5366,7 +5369,7 @@ app.get('/admin/boss-questions', adminAuth, async (req, res) => {
 
 app.post('/admin/boss-questions', adminAuth, async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
-  const { subject, boss_key, question, options, correct, explanation, why_others_wrong, image_url, sort_order } = req.body;
+  const { subject, boss_key, question, options, correct, explanation, why_others_wrong, image_url, explanation_image_url, sort_order } = req.body;
   if (!subject || !boss_key) return res.status(400).json({ error: 'subject and boss_key required' });
   const invalid = bossQuestionError({ question, options, correct });
   if (invalid) return res.status(400).json({ error: invalid });
@@ -5382,6 +5385,7 @@ app.post('/admin/boss-questions', adminAuth, async (req, res) => {
         explanation: explanation || null,
         why_others_wrong: why_others_wrong || null,
         image_url: image_url || null,
+        explanation_image_url: explanation_image_url || null,
         sort_order: Number.isFinite(sort_order) ? sort_order : 0,
       })
       .select()
@@ -5399,7 +5403,7 @@ app.put('/admin/boss-questions/:id', adminAuth, async (req, res) => {
     if (getErr || !existing) return res.status(404).json({ error: 'Boss question not found' });
 
     const updates = {};
-    for (const k of ['subject', 'boss_key', 'question', 'options', 'correct', 'explanation', 'why_others_wrong', 'image_url']) {
+    for (const k of ['subject', 'boss_key', 'question', 'options', 'correct', 'explanation', 'why_others_wrong', 'image_url', 'explanation_image_url']) {
       if (k in req.body) updates[k] = req.body[k];
     }
     if (Number.isFinite(req.body.sort_order)) updates.sort_order = req.body.sort_order;
@@ -5645,7 +5649,7 @@ app.get('/admin/journey-questions', adminAuth, async (req, res) => {
 
 app.post('/admin/journey-questions', adminAuth, async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
-  const { level_id, question, options, correct, explanation, why_others_wrong, image_url, sort_order } = req.body;
+  const { level_id, question, options, correct, explanation, why_others_wrong, image_url, explanation_image_url, sort_order } = req.body;
   if (!level_id) return res.status(400).json({ error: 'level_id required' });
   const invalid = bossQuestionError({ question, options, correct });
   if (invalid) return res.status(400).json({ error: invalid });
@@ -5660,6 +5664,7 @@ app.post('/admin/journey-questions', adminAuth, async (req, res) => {
         explanation: explanation || null,
         why_others_wrong: why_others_wrong || null,
         image_url: image_url || null,
+        explanation_image_url: explanation_image_url || null,
         sort_order: Number.isFinite(sort_order) ? sort_order : 0,
       })
       .select()
@@ -5677,7 +5682,7 @@ app.put('/admin/journey-questions/:id', adminAuth, async (req, res) => {
     if (getErr || !existing) return res.status(404).json({ error: 'Journey question not found' });
 
     const updates = {};
-    for (const k of ['level_id', 'question', 'options', 'correct', 'explanation', 'why_others_wrong', 'image_url']) {
+    for (const k of ['level_id', 'question', 'options', 'correct', 'explanation', 'why_others_wrong', 'image_url', 'explanation_image_url']) {
       if (k in req.body) updates[k] = req.body[k];
     }
     if (Number.isFinite(req.body.sort_order)) updates.sort_order = req.body.sort_order;
@@ -6275,6 +6280,7 @@ app.get('/api/journey-questions', async (req, res) => {
       explanation: q.explanation || '',
       why_others_wrong: q.why_others_wrong || null,
       image_url: q.image_url || null,
+      explanation_image_url: q.explanation_image_url || null,
     }));
     if (questions.length === 0) {
       return res.json({ questions: [], empty: true, message: 'No questions authored for this level yet.' });
@@ -6307,6 +6313,7 @@ app.get('/api/boss-questions', async (req, res) => {
       explanation: q.explanation || '',
       why_others_wrong: q.why_others_wrong || null,
       image_url: q.image_url || null,
+      explanation_image_url: q.explanation_image_url || null,
     }));
     if (questions.length === 0) {
       return res.json({ questions: [], empty: true, message: 'No boss questions authored yet.' });

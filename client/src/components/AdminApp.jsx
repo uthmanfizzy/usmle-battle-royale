@@ -233,6 +233,7 @@ function QuestionModal({ question, defaultSubject = 'cardiology', onSave, onClos
     explanation:  question.explanation,
     why_others_wrong: question.why_others_wrong || '',
     image_url:    question.image_url || '',
+    explanation_image_url: question.explanation_image_url || '',
     questionType: question.image_url ? 'image' : 'text',
     game_modes:   question.game_modes || ['battle_royale', 'speed_race', 'trivia_pursuit'],
     tower_floor:  question.tower_floor || '',
@@ -254,6 +255,7 @@ function QuestionModal({ question, defaultSubject = 'cardiology', onSave, onClos
     explanation:  '',
     why_others_wrong: '',
     image_url:    '',
+    explanation_image_url: '',
     questionType: 'text',
     game_modes:   ['battle_royale', 'speed_race', 'trivia_pursuit'],
     tower_floor:  '',
@@ -265,23 +267,29 @@ function QuestionModal({ question, defaultSubject = 'cardiology', onSave, onClos
   const [error,        setError]        = useState('');
   const [uploading,    setUploading]    = useState(false);
   const [uploadError,  setUploadError]  = useState('');
+  // Explanation image upload uses its own busy/error state so the two controls
+  // never spin or error over each other.
+  const [expUploading,   setExpUploading]   = useState(false);
+  const [expUploadError, setExpUploadError] = useState('');
 
   function set(key, val) { setForm(f => ({ ...f, [key]: val })); }
 
-  async function handleImageFile(e) {
+  // Generalized: uploads to the shared question-image bucket and writes the URL
+  // into `field` (defaults to image_url so existing call sites are unchanged).
+  async function handleImageFile(e, field = 'image_url', setBusy = setUploading, setErr = setUploadError) {
     const file = e.target.files[0];
     if (!file) return;
     const allowed = ['image/jpeg', 'image/png', 'image/webp'];
     if (!allowed.includes(file.type)) {
-      setUploadError('Only JPG, PNG, and WEBP images are allowed.');
+      setErr('Only JPG, PNG, and WEBP images are allowed.');
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
-      setUploadError('Image must be under 5MB.');
+      setErr('Image must be under 5MB.');
       return;
     }
-    setUploadError('');
-    setUploading(true);
+    setErr('');
+    setBusy(true);
     try {
       const base64 = await new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -295,11 +303,11 @@ function QuestionModal({ question, defaultSubject = 'cardiology', onSave, onClos
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Upload failed');
-      set('image_url', data.url);
+      set(field, data.url);
     } catch (err) {
-      setUploadError(err.message);
+      setErr(err.message);
     }
-    setUploading(false);
+    setBusy(false);
     e.target.value = '';
   }
 
@@ -325,6 +333,7 @@ function QuestionModal({ question, defaultSubject = 'cardiology', onSave, onClos
       explanation: form.explanation.trim(),
       why_others_wrong: form.why_others_wrong ? form.why_others_wrong.trim() : null,
       image_url:   form.questionType === 'image' ? form.image_url : '',
+      explanation_image_url: form.explanation_image_url || null,
       game_modes:  form.game_modes,
       tower_floor: form.game_modes.includes('tower') && form.tower_floor !== '' ? parseInt(form.tower_floor) : null,
       buzz_type:   form.game_modes.includes('buzz_fun') ? form.buzz_type : undefined,
@@ -524,6 +533,45 @@ function QuestionModal({ question, defaultSubject = 'cardiology', onSave, onClos
                 <div className="explanation-rich explanation-preview-box">
                   {parseRichText(form.explanation)}
                 </div>
+              </div>
+            )}
+          </div>
+
+          {/* Explanation image (independent of question type) — shown at reveal time */}
+          <div className="ap-field ap-image-field">
+            <label>Explanation Image <span className="ap-field-opt">(optional · shown when the answer is revealed)</span></label>
+            {form.explanation_image_url ? (
+              <div className="ap-image-preview-wrap">
+                <img src={form.explanation_image_url} alt="Explanation preview" className="ap-image-preview" />
+                <div className="ap-image-preview-actions">
+                  <label className="ap-btn-sec ap-file-label">
+                    🔄 Replace Image
+                    <input type="file" accept="image/jpeg,image/png,image/webp" onChange={e => handleImageFile(e, 'explanation_image_url', setExpUploading, setExpUploadError)} style={{ display: 'none' }} />
+                  </label>
+                  <button type="button" className="ap-btn-danger ap-btn-sm" onClick={() => set('explanation_image_url', '')}>Remove</button>
+                </div>
+              </div>
+            ) : (
+              <label className={`ap-image-upload-zone ${expUploading ? 'uploading' : ''}`}>
+                <input type="file" accept="image/jpeg,image/png,image/webp" onChange={e => handleImageFile(e, 'explanation_image_url', setExpUploading, setExpUploadError)} style={{ display: 'none' }} disabled={expUploading} />
+                {expUploading ? (
+                  <><div className="ap-upload-spinner" /><span>Uploading…</span></>
+                ) : (
+                  <><span className="ap-upload-icon">📤</span><span>Click to upload explanation image</span><span className="ap-upload-hint">JPG, PNG, WEBP · max 5MB</span></>
+                )}
+              </label>
+            )}
+            {expUploadError && <div className="ap-error ap-upload-error">{expUploadError}</div>}
+            {!form.explanation_image_url && !expUploading && (
+              <div className="ap-image-url-alt">
+                <label style={{ marginBottom: 4 }}>Or paste image URL directly:</label>
+                <input
+                  type="url"
+                  value={form.explanation_image_url}
+                  onChange={e => set('explanation_image_url', e.target.value)}
+                  placeholder="https://…"
+                  className="ap-input-plain"
+                />
               </div>
             )}
           </div>
@@ -3407,8 +3455,69 @@ function VideosPanel() {
 const BOSS_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F'];
 const BOSS_EMPTY_FORM = {
   question: '', optionA: '', optionB: '', optionC: '', optionD: '', optionE: '', optionF: '',
-  correct: 'A', explanation: '', why_others_wrong: '',
+  correct: 'A', explanation: '', why_others_wrong: '', explanation_image_url: '',
 };
+
+// Shared explanation-image control (upload OR paste URL) for the journey/boss
+// question forms (JourneyPanel + JourneyEditor). Uploads to the same bucket as
+// question images via /admin/upload-image. Controlled: value + onChange(url).
+function ExplanationImageField({ value, onChange }) {
+  const [busy, setBusy] = useState(false);
+  const [err,  setErr]  = useState('');
+  async function onFile(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const allowed = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!allowed.includes(file.type)) { setErr('Only JPG, PNG, and WEBP images are allowed.'); return; }
+    if (file.size > 5 * 1024 * 1024) { setErr('Image must be under 5MB.'); return; }
+    setErr(''); setBusy(true);
+    try {
+      const base64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload  = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      const res  = await apiCall('/admin/upload-image', { method: 'POST', body: JSON.stringify({ base64, filename: file.name, mimeType: file.type }) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Upload failed');
+      onChange(data.url);
+    } catch (e2) { setErr(e2.message); }
+    setBusy(false);
+    e.target.value = '';
+  }
+  return (
+    <div className="ap-field ap-image-field">
+      <label>Explanation Image <span className="ap-field-opt">(optional · shown when the answer is revealed)</span></label>
+      {value ? (
+        <div className="ap-image-preview-wrap">
+          <img src={value} alt="Explanation preview" className="ap-image-preview" />
+          <div className="ap-image-preview-actions">
+            <label className="ap-btn-sec ap-file-label">
+              🔄 Replace Image
+              <input type="file" accept="image/jpeg,image/png,image/webp" onChange={onFile} style={{ display: 'none' }} />
+            </label>
+            <button type="button" className="ap-btn-danger ap-btn-sm" onClick={() => onChange('')}>Remove</button>
+          </div>
+        </div>
+      ) : (
+        <label className={`ap-image-upload-zone ${busy ? 'uploading' : ''}`}>
+          <input type="file" accept="image/jpeg,image/png,image/webp" onChange={onFile} style={{ display: 'none' }} disabled={busy} />
+          {busy
+            ? (<><div className="ap-upload-spinner" /><span>Uploading…</span></>)
+            : (<><span className="ap-upload-icon">📤</span><span>Click to upload explanation image</span><span className="ap-upload-hint">JPG, PNG, WEBP · max 5MB</span></>)}
+        </label>
+      )}
+      {err && <div className="ap-error ap-upload-error">{err}</div>}
+      {!value && !busy && (
+        <div className="ap-image-url-alt">
+          <label style={{ marginBottom: 4 }}>Or paste image URL directly:</label>
+          <input type="url" value={value} onChange={e => onChange(e.target.value)} placeholder="https://…" className="ap-input-plain" />
+        </div>
+      )}
+    </div>
+  );
+}
 
 function JourneyPanel() {
   const [subject,  setSubject]  = useState(JOURNEY_SUBJECTS[0].id);
@@ -3795,6 +3904,7 @@ function JourneyPanel() {
       correct: q.correct || 'A',
       explanation: q.explanation || '',
       why_others_wrong: typeof q.why_others_wrong === 'string' ? q.why_others_wrong : '',
+      explanation_image_url: q.explanation_image_url || '',
     });
   }
 
@@ -3821,6 +3931,7 @@ function JourneyPanel() {
         if (form.explanation.trim() !== (editing.explanation || '')) body.explanation = form.explanation.trim() || null;
         const prevWhy = typeof editing.why_others_wrong === 'string' ? editing.why_others_wrong : '';
         if (form.why_others_wrong.trim() !== prevWhy) body.why_others_wrong = form.why_others_wrong.trim() || null;
+        if ((form.explanation_image_url || '') !== (editing.explanation_image_url || '')) body.explanation_image_url = form.explanation_image_url || null;
         if (Object.keys(body).length === 0) { resetForm(); setSaving(false); return; }
         res  = await apiCall(`${base}/${editing.id}`, { method: 'PUT', body: JSON.stringify(body) });
         data = await res.json();
@@ -3837,6 +3948,7 @@ function JourneyPanel() {
           correct: form.correct,
           explanation: form.explanation.trim() || null,
           why_others_wrong: form.why_others_wrong.trim() || null,
+          explanation_image_url: form.explanation_image_url || null,
         };
         res  = await apiCall(base, { method: 'POST', body: JSON.stringify(body) });
         data = await res.json();
@@ -4192,6 +4304,8 @@ function JourneyPanel() {
               )}
             </div>
 
+            <ExplanationImageField value={form.explanation_image_url} onChange={url => set('explanation_image_url', url)} />
+
             <div className="ap-video-form-actions">
               {editing && <button type="button" className="ap-btn-sec" onClick={() => { setError(''); resetForm(); }}>Cancel</button>}
               <button type="submit" className="ap-btn-pri" disabled={!canSave}>
@@ -4439,6 +4553,7 @@ function JourneyEditor() {
       correct: q.correct || 'A',
       explanation: q.explanation || '',
       why_others_wrong: typeof q.why_others_wrong === 'string' ? q.why_others_wrong : '',
+      explanation_image_url: q.explanation_image_url || '',
     });
     setQEditor({ targetKey: targetKey(target), target, mode: 'edit', id: q.id });
   }
@@ -4458,6 +4573,7 @@ function JourneyEditor() {
       correct: form.correct,
       explanation: form.explanation.trim() || null,
       why_others_wrong: form.why_others_wrong.trim() || null,
+      explanation_image_url: form.explanation_image_url || null,
     };
     try {
       if (qEditor.mode === 'edit') {
@@ -4582,6 +4698,7 @@ function JourneyEditor() {
           </div>
         )}
       </div>
+      <ExplanationImageField value={form.explanation_image_url} onChange={url => set('explanation_image_url', url)} />
       <div className="ap-video-form-actions">
         <button type="button" className="ap-btn-sec" onClick={closeForm}>Cancel</button>
         <button type="submit" className="ap-btn-pri" disabled={!canSaveQ}>{qSaving ? 'Saving…' : qEditor.mode === 'edit' ? 'Save Changes' : 'Add Question'}</button>

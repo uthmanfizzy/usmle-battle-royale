@@ -382,6 +382,14 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
             <div className="rr-explanation">
               <strong>Correct answer: {q.correct}</strong>
               <ExplanationText text={q.explanation} />
+              {q.explanation_image_url && (
+                <img
+                  src={q.explanation_image_url}
+                  alt="Explanation"
+                  className="rr-explanation-img"
+                  onError={e => { e.target.style.display = 'none'; }}
+                />
+              )}
             </div>
             {q.why_others_wrong && (
               <div className="why-wrong-box">

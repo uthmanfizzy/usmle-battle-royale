@@ -222,6 +222,7 @@ CREATE TABLE IF NOT EXISTS journey_questions (
   explanation      TEXT,
   why_others_wrong JSONB,
   image_url        TEXT,
+  explanation_image_url TEXT,
   sort_order       INT         NOT NULL DEFAULT 0,
   created_at       TIMESTAMPTZ DEFAULT now()
 );
@@ -279,6 +280,7 @@ CREATE TABLE IF NOT EXISTS boss_questions (
   explanation      TEXT,
   why_others_wrong JSONB,
   image_url        TEXT,
+  explanation_image_url TEXT,
   sort_order       INT         NOT NULL DEFAULT 0,
   created_at       TIMESTAMPTZ DEFAULT now()
 );

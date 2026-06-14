@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS questions (
   topic_id UUID REFERENCES topics(id) ON DELETE SET NULL,
   tower_floor INTEGER,
   image_url TEXT,
+  explanation_image_url TEXT,
   question_type TEXT DEFAULT 'mcq',
   buzz_type TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),

@@ -597,6 +597,13 @@ button:active:not(:disabled) { transform: scale(0.97); }
 }
 .rr-explanation strong { color: var(--gold); display: block; margin-bottom: 6px; font-size: 15px; }
 .rr-explanation p { color: var(--text-dim); }
+.rr-explanation-img {
+  display: block;
+  max-width: 100%;
+  max-height: 280px;
+  border-radius: 8px;
+  margin: 12px auto 2px;
+}
 
 /* Explanation text component with sentence spacing */
 .explanation-text {
