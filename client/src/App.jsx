@@ -555,8 +555,8 @@ export default function App() {
     setPhase('solo_game');
   }
 
-  function handlePlayJourneyLevel({ subject, levelKey, questionsUrl, levelLabel }) {
-    setJourneyContext({ subject, levelKey, questionsUrl, levelLabel });
+  function handlePlayJourneyLevel({ subject, levelKey, questionsUrl, levelLabel, wasMastery }) {
+    setJourneyContext({ subject, levelKey, questionsUrl, levelLabel, wasMastery });
     setPhase('solo_game');
   }
 
@@ -567,6 +567,7 @@ export default function App() {
       levelKey:    journeyContext.levelKey,
       questionsUrl: journeyContext.questionsUrl,
       levelLabel:  journeyContext.levelLabel,
+      wasMastery:  journeyContext.wasMastery,
     });
     setJourneyContext(null);
     setPhase('journey');

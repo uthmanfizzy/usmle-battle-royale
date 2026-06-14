@@ -1,7 +1,29 @@
 import { useState, useEffect } from 'react';
+import { getToken } from '../auth';
+import { JOURNEY_SUBJECTS } from '../journeySubjects';
 import './TrainingGrounds.css';
 
 const SERVER = 'https://usmle-battle-royale-production.up.railway.app';
+
+// Training Grounds subject ids that have a matching First Aid Journey (same id).
+// Only these get a real progress ring; non-matching subjects stay at 0%.
+// (Most app subjects use different ids than the journey, e.g. cardiology↔cardiovascular,
+// so they can't be mapped and intentionally show no journey progress.)
+const JOURNEY_SUBJECT_IDS = new Set(JOURNEY_SUBJECTS.map(s => s.id));
+
+// Mirror of JourneyMode's progress counter: completed playable nodes / total
+// playable nodes. Auto-skipped bosses (no authored questions) are excluded so
+// the % matches what the journey map shows.
+function journeyPathPercent(path) {
+  let total = 0, done = 0;
+  for (const c of (path?.chapters || [])) {
+    total += c.levels.length;
+    done  += c.levels.filter(l => l.completed).length;
+    if (!c.boss.auto_skipped) { total += 1; if (c.boss.completed) done += 1; }
+  }
+  if (path?.ultimate && !path.ultimate.auto_skipped) { total += 1; if (path.ultimate.completed) done += 1; }
+  return total > 0 ? Math.round((done / total) * 100) : 0;
+}
 
 // Subject categories matching SubjectSelect
 const SUBJECTS = [
@@ -111,9 +133,9 @@ export default function TrainingGrounds({ user, onBack, onStartPractice }) {
   const [allGroups, setAllGroups] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // PLACEHOLDER: per-subject completion. Real data lands later via one
-  // useEffect that fetches and setSubjectProgress({ [subjectId]: percent }).
-  const [subjectProgress] = useState({});
+  // Per-subject completion % for the progress rings. Only populated for subjects
+  // that have a matching First Aid Journey (same id); others stay at 0% (no entry).
+  const [subjectProgress, setSubjectProgress] = useState({});
 
   // Videos cached per category|difficulty — one fetch serves the whole rail
   const [videosCache, setVideosCache] = useState({});
@@ -135,6 +157,25 @@ export default function TrainingGrounds({ user, onBack, onStartPractice }) {
   }, []);
 
   const activeSubjects = SUBJECTS.filter(s => activeIds.has(s.id));
+
+  // Real journey completion % for the rings — only for subjects whose id matches a
+  // journey subject. Guests (no token) and non-matching subjects keep the 0% ring.
+  useEffect(() => {
+    const token = getToken();
+    if (!token) return;
+    const ids = SUBJECTS.map(s => s.id).filter(id => JOURNEY_SUBJECT_IDS.has(id));
+    let cancelled = false;
+    Promise.all(ids.map(id =>
+      fetch(`${SERVER}/api/journey/${id}`, { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => r.ok ? r.json() : null)
+        .then(path => [id, path ? journeyPathPercent(path) : 0])
+        .catch(() => [id, 0])
+    )).then(entries => {
+      if (cancelled) return;
+      setSubjectProgress(Object.fromEntries(entries));
+    });
+    return () => { cancelled = true; };
+  }, []);
 
   // ── Data ─────────────────────────────────────────────────────────────────────
 

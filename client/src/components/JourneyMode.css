@@ -925,6 +925,175 @@
   box-shadow: 0 8px 22px rgba(74, 53, 32, 0.25);
 }
 
+/* ── Full Mastery celebration: full-screen fanfare over the path ───────────── */
+
+.jm-celebration-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  overflow: hidden;
+  background: radial-gradient(circle at 50% 38%, rgba(201, 151, 28, 0.32), rgba(20, 12, 5, 0.82) 70%);
+  animation: jm-fade-in 0.35s ease both;
+}
+
+/* Pulsing gold burst behind the card */
+.jm-celebration-glow {
+  position: absolute;
+  top: 38%;
+  left: 50%;
+  width: 620px;
+  height: 620px;
+  max-width: 140vw;
+  max-height: 140vw;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  background: radial-gradient(circle, rgba(201, 151, 28, 0.45) 0%, rgba(201, 151, 28, 0.16) 38%, transparent 66%);
+  animation: jm-celebration-pulse 2.6s ease-in-out infinite;
+}
+
+.jm-celebration-card {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: 380px;
+  max-width: 92vw;
+  padding: 40px 30px 30px;
+  border-radius: 12px;
+  text-align: center;
+  color: var(--ink);
+  background:
+    linear-gradient(170deg, rgba(255, 250, 238, 0.97), rgba(233, 211, 160, 0.9)),
+    var(--parchment);
+  border: 2px solid var(--gold);
+  outline: 1px solid rgba(122, 79, 40, 0.5);
+  outline-offset: 6px;
+  box-shadow: 0 24px 64px rgba(20, 12, 5, 0.6), 0 0 50px rgba(201, 151, 28, 0.35);
+  animation: jm-card-rise 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Slowly rotating sunburst rays behind the trophy */
+.jm-celebration-rays {
+  position: absolute;
+  top: 64px;
+  left: 50%;
+  width: 230px;
+  height: 230px;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  background: repeating-conic-gradient(
+    from 0deg,
+    rgba(201, 151, 28, 0.22) 0deg 9deg,
+    transparent 9deg 18deg
+  );
+  -webkit-mask-image: radial-gradient(circle, #000 30%, transparent 70%);
+          mask-image: radial-gradient(circle, #000 30%, transparent 70%);
+  animation: jm-rays-spin 14s linear infinite;
+}
+
+.jm-celebration-trophy {
+  position: relative;
+  z-index: 1;
+  font-size: 72px;
+  line-height: 1;
+  filter: drop-shadow(0 4px 10px rgba(74, 53, 32, 0.4));
+  animation: jm-trophy-pop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both 0.1s;
+}
+
+.jm-celebration-flourish {
+  margin: 0;
+  font-family: 'IM Fell English', serif;
+  font-size: 16px;
+  letter-spacing: 0.2em;
+  color: var(--sepia);
+}
+
+.jm-celebration-heading {
+  margin: 0;
+  font-family: 'IM Fell English SC', serif;
+  font-size: 30px;
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  line-height: 1.15;
+  color: var(--ink);
+  text-shadow: 0 1px 0 rgba(255, 250, 238, 0.6);
+}
+
+.jm-celebration-subject {
+  margin: 0;
+  font-family: 'IM Fell English SC', serif;
+  font-size: 21px;
+  color: var(--sepia);
+}
+
+.jm-celebration-score {
+  margin: 0 0 6px;
+  font-family: 'IM Fell English', serif;
+  font-style: italic;
+  font-size: 15px;
+  color: var(--ink-soft);
+}
+
+.jm-celebration-btn { margin-top: 4px; }
+
+/* Confetti: pieces fall from the top, staggered; pure CSS */
+.jm-confetti {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.jm-confetti-piece {
+  position: absolute;
+  top: -24px;
+  width: 9px;
+  height: 14px;
+  border-radius: 1px;
+  opacity: 0;
+  animation: jm-confetti-fall 2.8s linear infinite;
+}
+
+.jm-confetti-piece--0 { background: var(--gold); }
+.jm-confetti-piece--1 { background: var(--sepia); }
+.jm-confetti-piece--2 { background: #d9b14a; }
+.jm-confetti-piece--3 { background: #a9742f; }
+
+/* 28 pieces spread across the width with varied delay/duration for a natural shower */
+.jm-confetti-piece:nth-child(7n+1)  { left: 6%;  animation-delay: 0s;    animation-duration: 2.6s; }
+.jm-confetti-piece:nth-child(7n+2)  { left: 20%; animation-delay: 0.5s;  animation-duration: 3.1s; }
+.jm-confetti-piece:nth-child(7n+3)  { left: 34%; animation-delay: 0.2s;  animation-duration: 2.4s; }
+.jm-confetti-piece:nth-child(7n+4)  { left: 48%; animation-delay: 0.8s;  animation-duration: 3.3s; }
+.jm-confetti-piece:nth-child(7n+5)  { left: 63%; animation-delay: 0.35s; animation-duration: 2.7s; }
+.jm-confetti-piece:nth-child(7n+6)  { left: 78%; animation-delay: 0.65s; animation-duration: 3.0s; }
+.jm-confetti-piece:nth-child(7n)    { left: 91%; animation-delay: 0.15s; animation-duration: 2.9s; }
+
+@keyframes jm-confetti-fall {
+  0%   { transform: translateY(0) rotateZ(0deg);    opacity: 0; }
+  8%   { opacity: 1; }
+  100% { transform: translateY(102vh) rotateZ(540deg); opacity: 1; }
+}
+
+@keyframes jm-celebration-pulse {
+  0%, 100% { transform: translate(-50%, -50%) scale(0.9); opacity: 0.75; }
+  50%      { transform: translate(-50%, -50%) scale(1.08); opacity: 1; }
+}
+
+@keyframes jm-rays-spin {
+  to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+@keyframes jm-trophy-pop {
+  0%   { transform: scale(0.3); opacity: 0; }
+  100% { transform: scale(1);   opacity: 1; }
+}
+
 /* ── Reduced motion / responsive ───────────────────────────────────────────── */
 
 @media (prefers-reduced-motion: reduce) {
@@ -932,6 +1101,13 @@
   .jm-node--frontier { animation: none; }
   .jm-mastery--earned { animation: none; }
   .jm-subject-card:hover, .jm-node:not(:disabled):hover { transform: none; }
+  /* Full Mastery degrades to a calm fade — no motion, just the moment */
+  .jm-celebration-overlay { animation: jm-fade-in 0.4s ease both; }
+  .jm-celebration-card { animation: jm-fade-in 0.4s ease both; }
+  .jm-celebration-glow,
+  .jm-celebration-rays,
+  .jm-celebration-trophy { animation: none; }
+  .jm-confetti { display: none; }
 }
 
 @media (max-width: 560px) {

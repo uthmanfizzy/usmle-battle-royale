@@ -104,6 +104,7 @@ export default function JourneyMode({ username, onBack, onPlayLevel, journeyReen
       levelKey:    reentry.levelKey,
       questionsUrl: reentry.questionsUrl,
       levelLabel:  reentry.levelLabel,
+      wasMastery:  reentry.wasMastery,
     };
     onReentryConsumedRef.current();
     if (reentry.pct === null) {
@@ -123,8 +124,15 @@ export default function JourneyMode({ username, onBack, onPlayLevel, journeyReen
     })
       .then(r => r.ok ? r.json() : Promise.reject(r.status))
       .then(data => {
+        // Full Mastery fires only when the Ultimate Boss was just beaten AND mastery
+        // flipped false→true this run (wasMastery captured pre-play survives the unmount)
+        const justMastered = reentry.levelKey === 'boss:ultimate' && data.mastery && !reentry.wasMastery;
         setPath(data);
-        setInterstitial({ status: data.passed ? 'complete' : 'tryagain', pct, threshold: data.threshold || 80 });
+        setInterstitial({
+          status: justMastered ? 'mastery' : (data.passed ? 'complete' : 'tryagain'),
+          pct,
+          threshold: data.threshold || 80,
+        });
       })
       .catch(() => {
         // Save failed: reload last-known path so the map isn't blank, show retry banner
@@ -146,8 +154,13 @@ export default function JourneyMode({ username, onBack, onPlayLevel, journeyReen
     })
       .then(r => r.ok ? r.json() : Promise.reject(r.status))
       .then(data => {
+        const justMastered = payload.level_key === 'boss:ultimate' && data.mastery && !lastPlayedRef.current?.wasMastery;
         setPath(data);
-        setInterstitial({ status: data.passed ? 'complete' : 'tryagain', pct: payload.score_pct, threshold: data.threshold || 80 });
+        setInterstitial({
+          status: justMastered ? 'mastery' : (data.passed ? 'complete' : 'tryagain'),
+          pct: payload.score_pct,
+          threshold: data.threshold || 80,
+        });
       })
       .catch(() => {
         setInterstitial(prev => ({ ...prev, status: 'save_failed' }));
@@ -428,6 +441,7 @@ export default function JourneyMode({ username, onBack, onPlayLevel, journeyReen
                   levelKey:    confirmNode.levelKey,
                   questionsUrl: confirmNode.questionsUrl,
                   levelLabel:  confirmNode.name,
+                  wasMastery:  !!path?.mastery, // pre-play snapshot → drives Full Mastery flip
                 });
                 setConfirmNode(null);
               }}
@@ -482,6 +496,27 @@ export default function JourneyMode({ username, onBack, onPlayLevel, journeyReen
                 <button className="btn-secondary" onClick={() => setInterstitial(null)}>Dismiss</button>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Full Mastery: full-screen celebration when the Ultimate Boss is first conquered */}
+      {interstitial?.status === 'mastery' && (
+        <div className="jm-celebration-overlay" role="dialog" aria-label="Full Mastery achieved">
+          <div className="jm-confetti" aria-hidden="true">
+            {Array.from({ length: 28 }).map((_, i) => (
+              <span key={i} className={`jm-confetti-piece jm-confetti-piece--${i % 4}`} />
+            ))}
+          </div>
+          <span className="jm-celebration-glow" aria-hidden="true" />
+          <div className="jm-celebration-card">
+            <span className="jm-celebration-rays" aria-hidden="true" />
+            <span className="jm-celebration-trophy">🏆</span>
+            <p className="jm-celebration-flourish" aria-hidden="true">⚕ ─────── ⚕</p>
+            <h2 className="jm-celebration-heading">Full Mastery Achieved</h2>
+            <p className="jm-celebration-subject">{subject?.icon} {subject?.label}</p>
+            <p className="jm-celebration-score">Ultimate Boss defeated · {interstitial.pct}%</p>
+            <button className="btn-start jm-celebration-btn" onClick={() => setInterstitial(null)}>Continue</button>
           </div>
         </div>
       )}
