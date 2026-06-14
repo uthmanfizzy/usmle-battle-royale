@@ -162,6 +162,55 @@
   max-width: 260px;
 }
 
+/* ── Training Grounds: wide rectangle below the two cards ───────────────────────
+   Width 408px = from the horizontal centre of the Story card to the centre of the
+   Online card (190 + 28 gap + 190), so it sits under the gap overlapping the inner
+   halves of both. As a third flex item in .ms-cards it wraps onto its own row and
+   centres beneath them. Rises in after the two cards (reduced-motion handled below). */
+.ms-train {
+  width: 408px;
+  max-width: 92vw;
+  min-height: 92px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  padding: 20px 28px;
+  border-radius: 16px;
+  cursor: pointer;
+  font-family: 'Cinzel', serif;
+  text-align: left;
+  background: linear-gradient(150deg, rgba(20, 30, 16, 0.92), rgba(26, 22, 8, 0.96));
+  border: 2px solid rgba(200, 163, 44, 0.55);
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+  animation: ms-card-up 0.45s 0.39s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.ms-train:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.55), 0 0 28px rgba(200, 163, 44, 0.3);
+  border-color: rgba(241, 196, 15, 0.95);
+}
+
+.ms-train-icon {
+  font-size: 42px;
+  line-height: 1;
+  flex-shrink: 0;
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.6));
+}
+.ms-train-text { display: flex; flex-direction: column; gap: 4px; }
+.ms-train-name {
+  font-size: 21px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: #e8d48a;
+}
+.ms-train-sub {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+  line-height: 1.5;
+}
+
 /* ── Story menu tiles: rise in with a stagger ──────────────────────────────── */
 
 .ms-cards--story .ms-card {
@@ -215,11 +264,13 @@
   .ms-title-rule,
   .ms-card--story,
   .ms-card--online,
-  .ms-cards--story .ms-card {
+  .ms-cards--story .ms-card,
+  .ms-train {
     animation: ms-backdrop-in 0.3s ease both;
   }
 
-  .ms-card:hover { transform: none; }
+  .ms-card:hover,
+  .ms-train:hover { transform: none; }
 }
 
 /* ── Responsive: cards stack ───────────────────────────────────────────────── */
@@ -236,5 +287,10 @@
   .ms-card {
     min-height: 0;
     padding: 28px 24px;
+  }
+
+  /* Stack full-width below the two stacked cards, matching their width */
+  .ms-train {
+    width: 380px;
   }
 }

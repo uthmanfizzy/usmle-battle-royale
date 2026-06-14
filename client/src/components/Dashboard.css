@@ -777,6 +777,9 @@
   cursor: pointer;
   transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
   text-align: left;
+  /* Shorter button, flush against the right edge of its column */
+  width: 85%;
+  align-self: flex-end;
 }
 .dash-training-card:hover {
   border-color: rgba(200, 163, 44, 0.7);
