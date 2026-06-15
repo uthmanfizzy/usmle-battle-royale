@@ -394,6 +394,18 @@ html[data-study="on"] .solo-body .study-expl-placeholder::before {
 /* CORRECT/WRONG banner is now shown in the result strip — declutter pane */
 html[data-study="on"] .solo-body .round-result .rr-header { display: none; }
 
+/* Explanation body text: solid near-black for strong contrast on the light
+   pane (default body was var(--text-dim) #545a72; why-wrong was white). Only
+   the *default* colour is forced — explicit [color] spans keep their colour. */
+html[data-study="on"] .solo-body .rr-explanation,
+html[data-study="on"] .solo-body .rr-explanation p,
+html[data-study="on"] .solo-body .explanation-text,
+html[data-study="on"] .solo-body .explanation-sentence,
+html[data-study="on"] .solo-body .explanation-rich,
+html[data-study="on"] .solo-body .why-wrong-content {
+  color: #1c2030 !important;
+}
+
 /* ── Calm placeholder (white card, Explanation tab) ────────────────── */
 html[data-study="on"] .study-expl-placeholder {
   position: relative;
