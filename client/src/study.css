@@ -209,7 +209,7 @@ html[data-study="on"] .solo-body[data-expl-layout="right"] {
   grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
   grid-template-areas:
     "toolbar  toolbar"
-    "timer    expl"
+    "timer    ."
     "question expl"
     "strip    expl"
     "status   status";
