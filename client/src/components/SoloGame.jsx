@@ -314,50 +314,61 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
 
   return (
     <div className="screen solo-screen">
-      <div className="solo-topbar">
-        {levelLabel && <span className="topbar-level-label">{levelLabel}</span>}
-        <span className="topbar-round">Q {qIdx + 1}</span>
-        <span className="topbar-score">🏅 {score} pts</span>
-        <div className="lives-bar">
-          {[1, 2, 3].map(i => (
-            <span key={i} className={`heart-icon ${i > lives ? 'dead' : ''}`}>
-              {i <= lives ? '❤️' : '🖤'}
-            </span>
-          ))}
+      {!study && (
+        <div className="solo-topbar">
+          {levelLabel && <span className="topbar-level-label">{levelLabel}</span>}
+          <span className="topbar-round">Q {qIdx + 1}</span>
+          <span className="topbar-score">🏅 {score} pts</span>
+          <div className="lives-bar">
+            {[1, 2, 3].map(i => (
+              <span key={i} className={`heart-icon ${i > lives ? 'dead' : ''}`}>
+                {i <= lives ? '❤️' : '🖤'}
+              </span>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {streak >= 2 && <div className="streak-badge">🔥 {streak} streak!</div>}
 
       <div className="solo-body" data-expl-layout={study ? explLayout : undefined}>
         {study && (
-          <div className="study-toolbar">
-            <div className="stb-left">
+          <div className="study-header">
+            <div className="shd-left">
               <span className="stb-count">Item {qIdx + 1} of {questions.length}</span>
               {q.id != null && <span className="stb-id">Question Id: {q.id}</span>}
             </div>
-            <div className="stb-arrows">
-              <button className="stb-arrow" disabled title="Previous (not available)">←</button>
+            <div className="shd-center">
+              {!revealed && (
+                <div className="timer-wrap">
+                  <div className={`timer-number ${tier}`}>{timeLeft}s</div>
+                  <div className="timer-track">
+                    <div className={`timer-fill ${tier}`} style={{ width: `${pct}%` }} />
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="shd-right">
+              <span className="topbar-score">🏅 {score} pts</span>
+              <div className="lives-bar">
+                {[1, 2, 3].map(i => (
+                  <span key={i} className={`heart-icon ${i > lives ? 'dead' : ''}`}>
+                    {i <= lives ? '❤️' : '🖤'}
+                  </span>
+                ))}
+              </div>
               <button
-                className="stb-arrow stb-next"
-                onClick={handleSkip}
-                disabled={!revealed}
-                title="Next question"
+                className="stb-btn"
+                onClick={toggleExplLayout}
+                title="Toggle explanation layout"
               >
-                →
+                {explLayout === 'right' ? '◧ Right' : '▭ Below'}
               </button>
             </div>
-            <button
-              className="stb-btn"
-              onClick={toggleExplLayout}
-              title="Toggle explanation layout"
-            >
-              {explLayout === 'right' ? '◧ Right' : '▭ Below'}
-            </button>
           </div>
         )}
 
-        {!revealed && (
+        {!study && !revealed && (
           <div className="timer-wrap">
             <div className={`timer-number ${tier}`}>{timeLeft}s</div>
             <div className="timer-track">
@@ -463,6 +474,17 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
         {study && (
           <div className="study-statusbar">
             <span className="ssb-mode">{levelLabel || (isHardMode ? 'Hard Mode' : 'Study Mode')}</span>
+            <div className="ssb-arrows">
+              <button className="stb-arrow" disabled title="Previous (not available)">←</button>
+              <button
+                className="stb-arrow stb-next"
+                onClick={handleSkip}
+                disabled={!revealed}
+                title="Next question"
+              >
+                →
+              </button>
+            </div>
           </div>
         )}
       </div>
