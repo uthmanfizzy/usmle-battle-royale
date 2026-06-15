@@ -46,16 +46,25 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   const [noQuestionsFound, setNoQuestionsFound] = useState(false);
   const [noQuestionsMessage, setNoQuestionsMessage] = useState('');
 
-  // Layer 1 (study mode only): explanation pane layout + time-spent for the result strip
+  // Layer 1/2 (study mode only): explanation pane layout, time-spent, burger menu
   const [explLayout, setExplLayout] = useState(() => localStorage.getItem('mr_solo_expl_layout') || 'right');
   const [timeSpent, setTimeSpent] = useState(null);
-  function toggleExplLayout() {
-    setExplLayout(prev => {
-      const next = prev === 'right' ? 'below' : 'right';
-      localStorage.setItem('mr_solo_expl_layout', next);
-      return next;
-    });
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null);
+  function setLayout(value) {
+    setExplLayout(value);
+    localStorage.setItem('mr_solo_expl_layout', value);
+    setMenuOpen(false);
   }
+  // Close the burger dropdown on outside click (no-op unless menu is open → study only)
+  useEffect(() => {
+    if (!menuOpen) return;
+    function onDocClick(e) {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false);
+    }
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, [menuOpen]);
 
   const timerRef      = useRef(null);
   const timeLeftRef   = useRef(defaultTimer);
@@ -335,8 +344,37 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
         {study && (
           <div className="study-header">
             <div className="shd-left">
-              <span className="stb-count">Item {qIdx + 1} of {questions.length}</span>
-              {q.id != null && <span className="stb-id">Question Id: {q.id}</span>}
+              <div className="study-menu" ref={menuRef}>
+                <button
+                  className="shd-burger"
+                  onClick={() => setMenuOpen(o => !o)}
+                  title="Menu"
+                  aria-expanded={menuOpen}
+                >
+                  ☰
+                </button>
+                {menuOpen && (
+                  <div className="study-menu-panel">
+                    <div className="smp-title">Explanation</div>
+                    <button
+                      className={`smp-opt ${explLayout === 'right' ? 'smp-active' : ''}`}
+                      onClick={() => setLayout('right')}
+                    >
+                      Explanation: Right
+                    </button>
+                    <button
+                      className={`smp-opt ${explLayout === 'below' ? 'smp-active' : ''}`}
+                      onClick={() => setLayout('below')}
+                    >
+                      Explanation: Below
+                    </button>
+                  </div>
+                )}
+              </div>
+              <div className="shd-meta">
+                <span className="stb-count">Item {qIdx + 1} of {questions.length}</span>
+                {q.id != null && <span className="stb-id">Question Id: {q.id}</span>}
+              </div>
             </div>
             <div className="shd-center">
               {!revealed && (
@@ -349,7 +387,6 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
               )}
             </div>
             <div className="shd-right">
-              <span className="topbar-score">🏅 {score} pts</span>
               <div className="lives-bar">
                 {[1, 2, 3].map(i => (
                   <span key={i} className={`heart-icon ${i > lives ? 'dead' : ''}`}>
@@ -357,13 +394,6 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
                   </span>
                 ))}
               </div>
-              <button
-                className="stb-btn"
-                onClick={toggleExplLayout}
-                title="Toggle explanation layout"
-              >
-                {explLayout === 'right' ? '◧ Right' : '▭ Below'}
-              </button>
             </div>
           </div>
         )}
