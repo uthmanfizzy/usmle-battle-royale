@@ -332,23 +332,27 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
       <div className="solo-body" data-expl-layout={study ? explLayout : undefined}>
         {study && (
           <div className="study-toolbar">
-            <span className="stb-count">Q {qIdx + 1} of {questions.length}</span>
-            {q.id != null && <span className="stb-id">#{q.id}</span>}
-            <div className="stb-spacer" />
+            <div className="stb-left">
+              <span className="stb-count">Item {qIdx + 1} of {questions.length}</span>
+              {q.id != null && <span className="stb-id">Question Id: {q.id}</span>}
+            </div>
+            <div className="stb-arrows">
+              <button className="stb-arrow" disabled title="Previous (not available)">←</button>
+              <button
+                className="stb-arrow stb-next"
+                onClick={handleSkip}
+                disabled={!revealed}
+                title="Next question"
+              >
+                →
+              </button>
+            </div>
             <button
               className="stb-btn"
               onClick={toggleExplLayout}
               title="Toggle explanation layout"
             >
               {explLayout === 'right' ? '◧ Right' : '▭ Below'}
-            </button>
-            <button
-              className="stb-next"
-              onClick={handleSkip}
-              disabled={!revealed}
-              title="Next question"
-            >
-              →
             </button>
           </div>
         )}

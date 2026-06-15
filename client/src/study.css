@@ -246,96 +246,180 @@ html[data-study="on"] .solo-screen:has(.solo-body[data-expl-layout="below"]) .so
 /* Placeholder only makes sense in the right layout's empty right pane */
 html[data-study="on"] .solo-body[data-expl-layout="below"] .study-expl-placeholder { display: none; }
 
-/* ── Top toolbar ───────────────────────────────────────────────────── */
-html[data-study="on"] .study-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 8px 14px;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-dim);
+/* ═══ MOCKUP LOOK — colours: page #e9f1fa · chrome #dbe9f8/#c2d8ef ·
+   panes white · blue #4a9eff · green #22c55e · red #dc2626 ═══════════ */
+
+/* Soft light-blue page background (overrides the generic #f7f8fc above) */
+html[data-study="on"] .solo-screen { background: #e9f1fa; }
+
+/* White rounded panes with subtle shadow */
+html[data-study="on"] .solo-body .question-card,
+html[data-study="on"] .solo-body .round-result,
+html[data-study="on"] .solo-body .study-expl-placeholder {
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 14px;
+  box-shadow: 0 2px 10px rgba(40,60,100,0.07);
 }
-html[data-study="on"] .stb-count { color: var(--text); font-weight: 700; }
-html[data-study="on"] .stb-id    { color: var(--text-dim); font-weight: 600; }
-html[data-study="on"] .stb-spacer { flex: 1; }
+html[data-study="on"] .solo-body .question-text {
+  color: #1c2030;
+  font-family: Georgia, 'Times New Roman', serif;
+}
+
+/* ── Top toolbar: light-blue bar, stacked left cluster, centre arrows ─ */
+html[data-study="on"] .study-toolbar {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 12px;
+  background: #dbe9f8;
+  border: 1px solid #c2d8ef;
+  border-radius: 12px;
+  padding: 8px 14px;
+}
+html[data-study="on"] .stb-left { display: flex; flex-direction: column; line-height: 1.25; justify-self: start; }
+html[data-study="on"] .stb-count { color: #1c2030; font-weight: 700; font-size: 13px; }
+html[data-study="on"] .stb-id    { color: #545a72; font-weight: 600; font-size: 11px; }
+html[data-study="on"] .stb-arrows { display: flex; gap: 8px; justify-self: center; }
+html[data-study="on"] .stb-arrow {
+  width: 36px; height: 32px;
+  background: #ffffff;
+  border: 1px solid #c2d8ef;
+  border-radius: 8px;
+  color: #1c2030;
+  font-size: 16px; font-weight: 700;
+  display: inline-flex; align-items: center; justify-content: center;
+  box-shadow: 0 1px 2px rgba(40,60,100,0.08);
+}
+html[data-study="on"] .stb-arrow:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
+html[data-study="on"] .stb-arrow.stb-next:not(:disabled) { color: #2563eb; border-color: #4a9eff; }
 html[data-study="on"] .stb-btn {
-  background: transparent;
-  border: 1px solid var(--border);
+  justify-self: end;
+  background: #ffffff;
+  border: 1px solid #c2d8ef;
   border-radius: 8px;
   padding: 6px 12px;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text);
+  font-size: 12px; font-weight: 600; color: #1c2030;
 }
-html[data-study="on"] .stb-btn:hover { border-color: var(--color-primary-dark); color: var(--color-primary-dark); }
-html[data-study="on"] .stb-next {
-  background: var(--color-primary-dark);
-  color: #fff;
-  border: none;
-  border-radius: 8px;
-  width: 38px;
-  height: 34px;
-  font-size: 18px;
-  font-weight: 700;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-html[data-study="on"] .stb-next:disabled { opacity: 0.4; cursor: not-allowed; }
+html[data-study="on"] .stb-btn:hover { border-color: #4a9eff; color: #2563eb; }
 
-/* ── Bottom status-bar frame (mode label only for now) ─────────────── */
-html[data-study="on"] .study-statusbar {
+/* ── Option rows: radio circle → blue selected / green correct check ── */
+html[data-study="on"] .solo-body .option-btn {
+  align-items: center;
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 12px;
+}
+html[data-study="on"] .solo-body .option-btn::before {
+  content: '';
+  flex: 0 0 auto;
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  border: 2px solid #b8c2d4;
+  background: #fff;
+  box-sizing: border-box;
+  display: flex; align-items: center; justify-content: center;
+}
+html[data-study="on"] .solo-body .opt-label { color: #545a72; font-weight: 700; }
+html[data-study="on"] .solo-body .opt-label::after { content: '.'; }
+
+/* Selected (your pick) → blue filled radio + light-blue row */
+html[data-study="on"] .solo-body .option-btn.selected,
+html[data-study="on"] .solo-body .option-btn.wrong {
+  background: #e8f1fd !important;
+  border-color: #4a9eff !important;
+}
+html[data-study="on"] .solo-body .option-btn.selected::before,
+html[data-study="on"] .solo-body .option-btn.wrong::before {
+  border-color: #4a9eff;
+  background: #4a9eff;
+  box-shadow: inset 0 0 0 3px #fff;
+}
+/* Correct answer → green check + light-green row (wins over selected) */
+html[data-study="on"] .solo-body .option-btn.correct {
+  background: #eafaf0 !important;
+  border-color: #22c55e !important;
+}
+html[data-study="on"] .solo-body .option-btn.correct::before {
+  content: '✓';
+  border-color: #22c55e;
+  background: #22c55e;
+  color: #fff;
+  font-size: 12px; font-weight: 900; line-height: 1;
+  box-shadow: none;
+}
+
+/* ── Result strip: white rounded, ✓/✗ + time-spent with icon ───────── */
+html[data-study="on"] .study-result-strip {
   display: flex;
   align-items: center;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 8px 14px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-dim);
+  gap: 20px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 12px 16px;
+  font-size: 14px;
+  box-shadow: 0 1px 4px rgba(40,60,100,0.06);
+}
+html[data-study="on"] .srs-mark { font-weight: 800; }
+html[data-study="on"] .study-result-strip.is-correct .srs-mark { color: #16a34a; }
+html[data-study="on"] .study-result-strip.is-wrong   .srs-mark { color: #dc2626; }
+html[data-study="on"] .srs-time {
+  color: #545a72; font-weight: 600;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+html[data-study="on"] .srs-time::before { content: '\23F1'; font-size: 14px; }
+
+/* ── Explanation pane: white card with a blue "Explanation" tab ─────── */
+html[data-study="on"] .solo-body .round-result {
+  position: relative;
+  padding-top: 48px;
+}
+html[data-study="on"] .solo-body .round-result.correct-bg,
+html[data-study="on"] .solo-body .round-result.wrong-bg {
+  background: #ffffff !important;
+}
+html[data-study="on"] .solo-body .round-result::before,
+html[data-study="on"] .solo-body .study-expl-placeholder::before {
+  content: 'Explanation';
+  position: absolute;
+  top: 0; left: 0;
+  background: #4a9eff;
+  color: #fff;
+  font-size: 12px; font-weight: 700;
+  padding: 6px 16px;
+  border-radius: 14px 0 12px 0;
   letter-spacing: 0.02em;
 }
+/* CORRECT/WRONG banner is now shown in the result strip — declutter pane */
+html[data-study="on"] .solo-body .round-result .rr-header { display: none; }
 
-/* ── Calm placeholder in the right pane before answering ───────────── */
+/* ── Calm placeholder (white card, Explanation tab) ────────────────── */
 html[data-study="on"] .study-expl-placeholder {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
   text-align: center;
-  min-height: 180px;
-  border: 1px dashed var(--border);
-  border-radius: var(--radius);
-  color: var(--text-dim);
+  min-height: 220px;
+  padding: 60px 24px 24px;
+  color: #94a0b8;
   font-size: 15px;
-  padding: 24px;
 }
 
-/* ── Styled result strip (left column, below question) ─────────────── */
-html[data-study="on"] .study-result-strip {
+/* ── Bottom status-bar: light-blue rounded frame (mode label only) ──── */
+html[data-study="on"] .study-statusbar {
   display: flex;
   align-items: center;
-  gap: 16px;
-  border-radius: var(--radius);
-  padding: 12px 16px;
-  font-size: 14px;
-  font-weight: 700;
+  background: #dbe9f8;
+  border: 1px solid #c2d8ef;
+  border-radius: 12px;
+  padding: 8px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #545a72;
+  letter-spacing: 0.02em;
 }
-html[data-study="on"] .study-result-strip.is-correct {
-  background: rgba(21,128,61,0.10);
-  border: 1px solid var(--green);
-  color: var(--green);
-}
-html[data-study="on"] .study-result-strip.is-wrong {
-  background: rgba(220,38,38,0.08);
-  border: 1px solid var(--red);
-  color: var(--red);
-}
-html[data-study="on"] .srs-time { color: var(--text-dim); font-weight: 600; }
 
 /* ── Single-column safety on narrow screens (both layouts stack) ───── */
 @media (max-width: 820px) {
