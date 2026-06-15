@@ -196,6 +196,20 @@ html[data-study="on"] .solo-body .explanation-text {
   border-left: none;
   padding-left: 0;
 }
+/* Inter type scale — body/explanation 16px regular, comfortable line-height */
+html[data-study="on"] .solo-body .rr-explanation,
+html[data-study="on"] .solo-body .explanation-text,
+html[data-study="on"] .solo-body .explanation-sentence,
+html[data-study="on"] .solo-body .why-wrong-content {
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.6;
+}
+/* "Correct answer:" heading — larger semibold */
+html[data-study="on"] .solo-body .rr-explanation strong {
+  font-size: 22px;
+  font-weight: 600;
+}
 
 /* ═══════════════════════════════════════════════════════════════════
    LAYER 1 — UWorld-style two-pane SoloGame answer screen
@@ -252,10 +266,10 @@ html[data-study="on"] .solo-body[data-expl-layout="below"] .study-expl-placehold
 /* ═══ MOCKUP LOOK — colours: page #e9f1fa · chrome #dbe9f8/#c2d8ef ·
    panes white · blue #4a9eff · green #22c55e · red #dc2626 ═══════════ */
 
-/* Blue study page background + readable learning font (Atkinson Hyperlegible) */
+/* Blue study page background + readable learning font (Inter) */
 html[data-study="on"] .solo-screen {
   background: rgb(199, 224, 253);
-  font-family: 'Atkinson Hyperlegible', 'Inter', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
 /* ── Edge-to-edge: remove the centering / max-width so panes reach the
@@ -317,9 +331,10 @@ html[data-study="on"] .solo-body .study-expl-placeholder {
 }
 html[data-study="on"] .solo-body .question-text {
   color: #1c2030;
-  font-family: 'Atkinson Hyperlegible', 'Inter', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   font-size: 17px;
-  line-height: 1.7;
+  font-weight: 400;
+  line-height: 1.6;
   margin-bottom: 20px;
 }
 /* Readable font on options + explanation too (study only) */
@@ -330,7 +345,7 @@ html[data-study="on"] .solo-body .explanation-text,
 html[data-study="on"] .solo-body .explanation-sentence,
 html[data-study="on"] .solo-body .explanation-rich,
 html[data-study="on"] .solo-body .why-wrong-content {
-  font-family: 'Atkinson Hyperlegible', 'Inter', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
 /* ── Combined top header: Item/Id left · green timer centre · pts/hearts right ─ */
@@ -347,8 +362,8 @@ html[data-study="on"] .study-header {
 }
 html[data-study="on"] .shd-left { display: flex; flex-direction: row; align-items: center; gap: 12px; justify-self: start; }
 html[data-study="on"] .shd-meta { display: flex; flex-direction: column; line-height: 1.25; }
-html[data-study="on"] .stb-count { color: #1c2030; font-weight: 700; font-size: 13px; }
-html[data-study="on"] .stb-id    { color: #545a72; font-weight: 600; font-size: 11px; }
+html[data-study="on"] .stb-count { color: #1c2030; font-weight: 600; font-size: 14px; }
+html[data-study="on"] .stb-id    { color: #545a72; font-weight: 500; font-size: 13px; }
 
 /* Burger button + dropdown menu (study only) */
 html[data-study="on"] .study-menu { position: relative; }
@@ -389,7 +404,7 @@ html[data-study="on"] .smp-opt {
   border: 1px solid transparent;
   border-radius: 8px;
   padding: 8px 10px;
-  font-size: 13px; font-weight: 600; color: #1c2030;
+  font-size: 14px; font-weight: 500; color: #1c2030;
 }
 html[data-study="on"] .smp-opt:hover { background: #f3f7fc; }
 html[data-study="on"] .smp-opt.smp-active { background: #e3eefb; border-color: #4a9eff; color: #2563eb; }
@@ -437,10 +452,12 @@ html[data-study="on"] .solo-body .option-btn {
   border-bottom: 1px solid #eef2f7;
   border-radius: 8px;
   padding: 14px 14px;
-  font-weight: 400;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.55;
   transform: none !important;
 }
-html[data-study="on"] .solo-body .option-btn .opt-text { font-weight: 400; }
+html[data-study="on"] .solo-body .option-btn .opt-text { font-size: 16px; font-weight: 500; }
 html[data-study="on"] .solo-body .option-btn:hover:not(:disabled) {
   background: #f3f7fc;
   border-color: #eef2f7;
@@ -496,7 +513,7 @@ html[data-study="on"] .study-result-strip {
   font-size: 14px;
   box-shadow: 0 1px 4px rgba(40,60,100,0.06);
 }
-html[data-study="on"] .srs-mark { font-weight: 800; }
+html[data-study="on"] .srs-mark { font-weight: 600; }
 html[data-study="on"] .study-result-strip.is-correct .srs-mark { color: #16a34a; }
 html[data-study="on"] .study-result-strip.is-wrong   .srs-mark { color: #dc2626; }
 html[data-study="on"] .srs-time {
@@ -579,7 +596,7 @@ html[data-study="on"] .ssb-calc {
   border: 1px solid #c2d8ef;
   border-radius: 8px;
   padding: 7px 14px;
-  font-size: 13px; font-weight: 600; color: #1c2030;
+  font-size: 14px; font-weight: 500; color: #1c2030;
   display: inline-flex; align-items: center; gap: 6px;
   box-shadow: 0 1px 2px rgba(40,60,100,0.08);
 }
