@@ -246,8 +246,60 @@ html[data-study="on"] .solo-body[data-expl-layout="below"] .study-expl-placehold
 /* ═══ MOCKUP LOOK — colours: page #e9f1fa · chrome #dbe9f8/#c2d8ef ·
    panes white · blue #4a9eff · green #22c55e · red #dc2626 ═══════════ */
 
-/* Soft light-blue page background (overrides the generic #f7f8fc above) */
-html[data-study="on"] .solo-screen { background: #e9f1fa; }
+/* Blue study page background + readable learning font (Atkinson Hyperlegible) */
+html[data-study="on"] .solo-screen {
+  background: rgb(199, 224, 253);
+  font-family: 'Atkinson Hyperlegible', 'Inter', system-ui, sans-serif;
+}
+
+/* ── Edge-to-edge: remove the centering / max-width so panes reach the
+   page borders, and drop the screen's side padding ───────────────────── */
+html[data-study="on"] .solo-screen {
+  padding: 0 0 84px;          /* bottom offset so the fixed bottom bar can't cover content */
+  align-items: stretch;
+}
+html[data-study="on"] .solo-body[data-expl-layout="right"],
+html[data-study="on"] .solo-body[data-expl-layout="below"] {
+  max-width: none;
+  width: 100%;
+  column-gap: 0;
+  row-gap: 0;
+}
+/* Question pane flush to the LEFT edge, explanation pane flush to the RIGHT */
+html[data-study="on"] .solo-body[data-expl-layout="right"] .question-card,
+html[data-study="on"] .solo-body[data-expl-layout="right"] .study-result-strip {
+  border-radius: 0 !important;
+  border-left: none !important;
+}
+html[data-study="on"] .solo-body[data-expl-layout="right"] .round-result,
+html[data-study="on"] .solo-body[data-expl-layout="right"] .study-expl-placeholder {
+  border-radius: 0 !important;
+  border-right: none !important;
+}
+
+/* ── Full-width sticky TOP header (stays visible on scroll) ──────────── */
+html[data-study="on"] .study-header {
+  position: sticky;
+  top: 0;
+  z-index: 60;
+  border-radius: 0;
+  border-left: none;
+  border-right: none;
+  border-top: none;
+}
+
+/* ── Full-width FIXED bottom bar (stays visible on scroll) ───────────── */
+html[data-study="on"] .study-statusbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 60;
+  border-radius: 0;
+  border-left: none;
+  border-right: none;
+  border-bottom: none;
+}
 
 /* White rounded panes with subtle shadow */
 html[data-study="on"] .solo-body .question-card,
@@ -260,10 +312,20 @@ html[data-study="on"] .solo-body .study-expl-placeholder {
 }
 html[data-study="on"] .solo-body .question-text {
   color: #1c2030;
-  font-family: Georgia, 'Times New Roman', serif;
-  font-size: 16px;
-  line-height: 1.6;
+  font-family: 'Atkinson Hyperlegible', 'Inter', system-ui, sans-serif;
+  font-size: 17px;
+  line-height: 1.7;
   margin-bottom: 20px;
+}
+/* Readable font on options + explanation too (study only) */
+html[data-study="on"] .solo-body .option-btn,
+html[data-study="on"] .solo-body .opt-text,
+html[data-study="on"] .solo-body .rr-explanation,
+html[data-study="on"] .solo-body .explanation-text,
+html[data-study="on"] .solo-body .explanation-sentence,
+html[data-study="on"] .solo-body .explanation-rich,
+html[data-study="on"] .solo-body .why-wrong-content {
+  font-family: 'Atkinson Hyperlegible', 'Inter', system-ui, sans-serif;
 }
 
 /* ── Combined top header: Item/Id left · green timer centre · pts/hearts right ─ */
