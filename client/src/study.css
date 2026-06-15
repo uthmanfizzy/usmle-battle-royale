@@ -260,28 +260,27 @@ html[data-study="on"] .solo-screen {
 }
 html[data-study="on"] .solo-body[data-expl-layout="right"],
 html[data-study="on"] .solo-body[data-expl-layout="below"] {
+  --study-gutter: 24px;
   max-width: none;
   width: 100%;
-  column-gap: 0;
-  row-gap: 0;
+  box-sizing: border-box;
+  padding-inline: var(--study-gutter);   /* gentle gutters at the left & right page borders */
+  row-gap: 14px;
 }
-/* Question pane flush to the LEFT edge, explanation pane flush to the RIGHT */
-html[data-study="on"] .solo-body[data-expl-layout="right"] .question-card,
-html[data-study="on"] .solo-body[data-expl-layout="right"] .study-result-strip {
-  border-radius: 0 !important;
-  border-left: none !important;
+/* Gap BETWEEN the two panes (right/two-pane layout) */
+html[data-study="on"] .solo-body[data-expl-layout="right"] {
+  column-gap: 22px;
 }
-html[data-study="on"] .solo-body[data-expl-layout="right"] .round-result,
-html[data-study="on"] .solo-body[data-expl-layout="right"] .study-expl-placeholder {
-  border-radius: 0 !important;
-  border-right: none !important;
-}
+/* Panes keep their rounded card corners (base rule) — gutters give them room */
 
 /* ── Full-width sticky TOP header (stays visible on scroll) ──────────── */
+/* Negative inline margin cancels the solo-body gutter so the bar stays
+   edge-to-edge while the PANES get their gutters. */
 html[data-study="on"] .study-header {
   position: sticky;
   top: 0;
   z-index: 60;
+  margin-inline: calc(-1 * var(--study-gutter, 24px));
   border-radius: 0;
   border-left: none;
   border-right: none;
@@ -523,6 +522,7 @@ html[data-study="on"] .ssb-arrows { display: flex; gap: 10px; justify-self: cent
 /* ── Single-column safety on narrow screens (both layouts stack) ───── */
 @media (max-width: 820px) {
   html[data-study="on"] .solo-body[data-expl-layout="right"] {
+    --study-gutter: 16px;
     max-width: 760px;
     grid-template-columns: 1fr;
     grid-template-areas:
