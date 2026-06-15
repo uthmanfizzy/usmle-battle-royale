@@ -13,6 +13,7 @@
    reads var(--card)/var(--text)/… (SoloGame, GameRoom/MP, SpeedRace,
    Trivia) is re-skinned by this single block. */
 html[data-study="on"] .game-screen,
+html[data-study="on"] .solo-screen,
 html[data-study="on"] .trivia-screen,
 html[data-study="on"] .bf-screen {
   --bg:        #f7f8fc;
@@ -33,7 +34,8 @@ html[data-study="on"] .bf-screen {
 }
 
 /* Backgrounds set with hardcoded dark gradients (don't read --bg fully) */
-html[data-study="on"] .game-screen {
+html[data-study="on"] .game-screen,
+html[data-study="on"] .solo-screen {
   background: #f7f8fc;
 }
 html[data-study="on"] .speed-race-screen {
@@ -187,4 +189,166 @@ html[data-study="on"] .rr-explanation {
 html[data-study="on"] .rr-explanation strong {
   color: var(--color-primary-dark);
   font-size: 16px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   LAYER 1 — UWorld-style two-pane SoloGame answer screen
+   SoloGame only (.solo-screen / .solo-body). Everything gated behind
+   html[data-study="on"]; the two-pane grid additionally requires the
+   data-expl-layout attribute, which SoloGame only sets when study is on.
+   Study OFF → none of these rules match → byte-identical to today.
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── Two-pane grid: explanation on the RIGHT ───────────────────────── */
+html[data-study="on"] .solo-body[data-expl-layout="right"] {
+  display: grid;
+  max-width: 1100px;
+  align-items: start;
+  column-gap: 22px;
+  row-gap: 14px;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  grid-template-areas:
+    "toolbar  toolbar"
+    "timer    expl"
+    "question expl"
+    "strip    expl"
+    "status   status";
+}
+
+/* ── Stacked: explanation BELOW (still study-styled) ───────────────── */
+html[data-study="on"] .solo-body[data-expl-layout="below"] {
+  display: grid;
+  max-width: 760px;
+  row-gap: 14px;
+  grid-template-columns: 1fr;
+  grid-template-areas:
+    "toolbar"
+    "timer"
+    "question"
+    "strip"
+    "expl"
+    "status";
+}
+
+/* Place existing + new nodes into the named areas */
+html[data-study="on"] .solo-body[data-expl-layout] .study-toolbar         { grid-area: toolbar; }
+html[data-study="on"] .solo-body[data-expl-layout] .timer-wrap            { grid-area: timer; }
+html[data-study="on"] .solo-body[data-expl-layout] .question-card         { grid-area: question; }
+html[data-study="on"] .solo-body[data-expl-layout] .study-result-strip    { grid-area: strip; }
+html[data-study="on"] .solo-body[data-expl-layout] .study-expl-placeholder{ grid-area: expl; }
+html[data-study="on"] .solo-body[data-expl-layout] .round-result          { grid-area: expl; margin-top: 0; }
+html[data-study="on"] .solo-body[data-expl-layout] .study-statusbar       { grid-area: status; }
+
+/* Widen the existing top bar to match in the right (two-pane) layout */
+html[data-study="on"] .solo-screen:has(.solo-body[data-expl-layout="right"]) .solo-topbar { max-width: 1100px; }
+html[data-study="on"] .solo-screen:has(.solo-body[data-expl-layout="below"]) .solo-topbar { max-width: 760px; }
+
+/* Placeholder only makes sense in the right layout's empty right pane */
+html[data-study="on"] .solo-body[data-expl-layout="below"] .study-expl-placeholder { display: none; }
+
+/* ── Top toolbar ───────────────────────────────────────────────────── */
+html[data-study="on"] .study-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-dim);
+}
+html[data-study="on"] .stb-count { color: var(--text); font-weight: 700; }
+html[data-study="on"] .stb-id    { color: var(--text-dim); font-weight: 600; }
+html[data-study="on"] .stb-spacer { flex: 1; }
+html[data-study="on"] .stb-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+html[data-study="on"] .stb-btn:hover { border-color: var(--color-primary-dark); color: var(--color-primary-dark); }
+html[data-study="on"] .stb-next {
+  background: var(--color-primary-dark);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  width: 38px;
+  height: 34px;
+  font-size: 18px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+html[data-study="on"] .stb-next:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ── Bottom status-bar frame (mode label only for now) ─────────────── */
+html[data-study="on"] .study-statusbar {
+  display: flex;
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-dim);
+  letter-spacing: 0.02em;
+}
+
+/* ── Calm placeholder in the right pane before answering ───────────── */
+html[data-study="on"] .study-expl-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  min-height: 180px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  color: var(--text-dim);
+  font-size: 15px;
+  padding: 24px;
+}
+
+/* ── Styled result strip (left column, below question) ─────────────── */
+html[data-study="on"] .study-result-strip {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  font-size: 14px;
+  font-weight: 700;
+}
+html[data-study="on"] .study-result-strip.is-correct {
+  background: rgba(21,128,61,0.10);
+  border: 1px solid var(--green);
+  color: var(--green);
+}
+html[data-study="on"] .study-result-strip.is-wrong {
+  background: rgba(220,38,38,0.08);
+  border: 1px solid var(--red);
+  color: var(--red);
+}
+html[data-study="on"] .srs-time { color: var(--text-dim); font-weight: 600; }
+
+/* ── Single-column safety on narrow screens (both layouts stack) ───── */
+@media (max-width: 820px) {
+  html[data-study="on"] .solo-body[data-expl-layout="right"] {
+    max-width: 760px;
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "toolbar"
+      "timer"
+      "question"
+      "strip"
+      "expl"
+      "status";
+  }
+  html[data-study="on"] .solo-body[data-expl-layout="right"] .study-expl-placeholder { display: none; }
 }

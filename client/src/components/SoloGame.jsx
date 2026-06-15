@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useGameSettings } from '../contexts/GameSettingsContext';
+import { useTheme } from '../theme';
 import * as audio from '../audio';
 import ExplanationText from './ExplanationText';
 import { parseRichText } from '../utils/parseRichText';
@@ -17,6 +18,7 @@ function saveHi(subject, score) {
 
 export default function SoloGame({ subject, username, difficulty, onBack, onTryAgain, onChangeSubject, topicId, questionsUrl, onComplete, levelLabel }) {
   const { settings } = useGameSettings();
+  const { study } = useTheme();   // Layer 1 chrome renders only when study mode is on
 
   // Hard mode uses admin-configured timer and explanation time, easy mode uses defaults
   const isHardMode = difficulty === 'hard';
@@ -43,6 +45,17 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   const [showCalculator, setShowCalculator] = useState(false);
   const [noQuestionsFound, setNoQuestionsFound] = useState(false);
   const [noQuestionsMessage, setNoQuestionsMessage] = useState('');
+
+  // Layer 1 (study mode only): explanation pane layout + time-spent for the result strip
+  const [explLayout, setExplLayout] = useState(() => localStorage.getItem('mr_solo_expl_layout') || 'right');
+  const [timeSpent, setTimeSpent] = useState(null);
+  function toggleExplLayout() {
+    setExplLayout(prev => {
+      const next = prev === 'right' ? 'below' : 'right';
+      localStorage.setItem('mr_solo_expl_layout', next);
+      return next;
+    });
+  }
 
   const timerRef      = useRef(null);
   const timeLeftRef   = useRef(defaultTimer);
@@ -142,6 +155,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
     });
     const correct = label === q.correct;
     const tl = timeLeftRef.current;
+    setTimeSpent(defaultTimer - tl);   // Layer 1: additive only — no flow/timer/scoring change
     let newLives = livesRef.current;
     let newScore = scoreRef.current;
     let newStreak = streakRef.current;
@@ -315,7 +329,30 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
 
       {streak >= 2 && <div className="streak-badge">🔥 {streak} streak!</div>}
 
-      <div className="solo-body">
+      <div className="solo-body" data-expl-layout={study ? explLayout : undefined}>
+        {study && (
+          <div className="study-toolbar">
+            <span className="stb-count">Q {qIdx + 1} of {questions.length}</span>
+            {q.id != null && <span className="stb-id">#{q.id}</span>}
+            <div className="stb-spacer" />
+            <button
+              className="stb-btn"
+              onClick={toggleExplLayout}
+              title="Toggle explanation layout"
+            >
+              {explLayout === 'right' ? '◧ Right' : '▭ Below'}
+            </button>
+            <button
+              className="stb-next"
+              onClick={handleSkip}
+              disabled={!revealed}
+              title="Next question"
+            >
+              →
+            </button>
+          </div>
+        )}
+
         {!revealed && (
           <div className="timer-wrap">
             <div className={`timer-number ${tier}`}>{timeLeft}s</div>
@@ -367,6 +404,17 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
           </div>
         </div>
 
+        {study && revealed && (
+          <div className={`study-result-strip ${selected === q.correct ? 'is-correct' : 'is-wrong'}`}>
+            <span className="srs-mark">{selected === q.correct ? '✓ Correct' : '✗ Incorrect'}</span>
+            {timeSpent != null && <span className="srs-time">Time spent: {timeSpent}s</span>}
+          </div>
+        )}
+
+        {study && !revealed && (
+          <div className="study-expl-placeholder">Answer to reveal the explanation</div>
+        )}
+
         {revealed && (
           <div className={`round-result ${selected === q.correct ? 'correct-bg' : 'wrong-bg'}`}>
             <div className="rr-header">
@@ -405,6 +453,12 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
             <div className="rr-skip-row">
               <button className="rr-skip-btn" onClick={handleSkip}>Next Question →</button>
             </div>
+          </div>
+        )}
+
+        {study && (
+          <div className="study-statusbar">
+            <span className="ssb-mode">{levelLabel || (isHardMode ? 'Hard Mode' : 'Study Mode')}</span>
           </div>
         )}
       </div>
