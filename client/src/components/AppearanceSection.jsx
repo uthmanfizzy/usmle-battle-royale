@@ -75,15 +75,16 @@ export function PixelPreview({ color }) {
 // ── Main component ─────────────────────────────────────────────────────────────
 
 export default function AppearanceSection() {
-  const { theme, color, applyTheme } = useTheme();
+  const { theme, color, study, applyTheme } = useTheme();
   const [selTheme, setSelTheme] = useState(theme);
   const [selColor, setSelColor] = useState(color);
+  const [selStudy, setSelStudy] = useState(study);
   const [saved,    setSaved]    = useState(false);
 
-  const dirty = selTheme !== theme || selColor !== color;
+  const dirty = selTheme !== theme || selColor !== color || selStudy !== study;
 
   function handleApply() {
-    applyTheme(selTheme, selColor);
+    applyTheme(selTheme, selColor, selStudy);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   }
@@ -100,6 +101,11 @@ export default function AppearanceSection() {
     document.documentElement.style.setProperty('--color-primary-light', p.light);
     document.documentElement.style.setProperty('--color-primary-dark',  p.dark);
     document.documentElement.style.setProperty('--color-glow',          p.glow);
+  }
+  function previewStudy(s) {
+    setSelStudy(s);
+    if (s) document.documentElement.dataset.study = 'on';
+    else   delete document.documentElement.dataset.study;
   }
 
   return (
@@ -156,12 +162,26 @@ export default function AppearanceSection() {
         </div>
       </div>
 
+      {/* ── Study Mode ─── */}
+      <div className="dash-card ap-card">
+        <div className="card-title">Study Mode</div>
+        <div className="settings-row">
+          <span className="settings-row-label">Light, learning-focused answer screens</span>
+          <div
+            className={`settings-toggle ${selStudy ? 'settings-toggle--on' : 'settings-toggle--off'}`}
+            onClick={() => previewStudy(!selStudy)}
+          >
+            <div className="settings-toggle-knob" />
+          </div>
+        </div>
+      </div>
+
       {/* ── Save row ─── */}
       <div className="ap-save-row">
         {dirty && (
           <button
             className="btn-secondary ap-reset"
-            onClick={() => { previewTheme(theme); previewColor(color); }}
+            onClick={() => { previewTheme(theme); previewColor(color); previewStudy(study); }}
           >
             Reset
           </button>

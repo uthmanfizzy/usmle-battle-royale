@@ -18,6 +18,8 @@ export async function fetchMe() {
     if (!res.ok) { clearToken(); return null; }
     const user = await res.json();
     setCachedUser(user);
+    // Cross-device theme sync — ThemeProvider listens and adopts server prefs
+    try { window.dispatchEvent(new CustomEvent('mr-prefs-sync', { detail: user })); } catch {}
     return user;
   } catch {
     return null;

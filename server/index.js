@@ -2541,6 +2541,44 @@ app.put('/auth/username', requireAuth, async (req, res) => {
   }
 });
 
+// Save UI preferences (theme/accent colour/study mode). All fields optional —
+// only provided ones are updated. This is the endpoint the client best-effort
+// calls on every theme change; it also gives theme/colour cross-device sync.
+app.put('/auth/preferences', requireAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Database not configured.' });
+
+  const { study_mode, theme_pref, color_pref } = req.body || {};
+  const updateData = {};
+
+  if (study_mode !== undefined) {
+    if (typeof study_mode !== 'boolean')
+      return res.status(400).json({ error: 'study_mode must be a boolean.' });
+    updateData.study_mode = study_mode;
+  }
+  if (theme_pref !== undefined) {
+    if (typeof theme_pref !== 'string' || theme_pref.length > 32)
+      return res.status(400).json({ error: 'theme_pref must be a string (max 32 chars).' });
+    updateData.theme_pref = theme_pref;
+  }
+  if (color_pref !== undefined) {
+    if (typeof color_pref !== 'string' || color_pref.length > 32)
+      return res.status(400).json({ error: 'color_pref must be a string (max 32 chars).' });
+    updateData.color_pref = color_pref;
+  }
+
+  if (Object.keys(updateData).length === 0)
+    return res.status(400).json({ error: 'No valid preference fields provided.' });
+
+  try {
+    const { error: updateErr } = await supabase
+      .from('users').update(updateData).eq('id', req.userId);
+    if (updateErr) return res.status(500).json({ error: updateErr.message });
+    res.json({ ok: true, ...updateData });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── Clan API ───────────────────────────────────────────────────────────────────
 
 app.post('/api/clans', requireAuth, async (req, res) => {

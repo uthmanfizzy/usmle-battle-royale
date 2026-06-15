@@ -3,7 +3,7 @@ import { useTheme, PALETTE } from '../theme';
 import { DefaultPreview, PixelPreview } from './AppearanceSection';
 
 export default function SettingsDropdown({ user, onClose, onLogout }) {
-  const { theme, color, applyTheme } = useTheme();
+  const { theme, color, study, applyTheme } = useTheme();
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [musicEnabled, setMusicEnabled] = useState(true);
 
@@ -81,6 +81,8 @@ export default function SettingsDropdown({ user, onClose, onLogout }) {
               </button>
             ))}
           </div>
+
+          {settingToggle('Study Mode (light answers)', study, () => applyTheme(theme, color, !study))}
         </div>
 
         <div className="settings-section">

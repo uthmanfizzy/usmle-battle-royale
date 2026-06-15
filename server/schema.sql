@@ -34,11 +34,19 @@ CREATE TABLE IF NOT EXISTS users (
   best_streak           INTEGER     NOT NULL DEFAULT 0,
   clan_id               UUID        REFERENCES clans(id) ON DELETE SET NULL,
   created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  last_username_change  TIMESTAMPTZ
+  last_username_change  TIMESTAMPTZ,
+  study_mode            BOOLEAN     NOT NULL DEFAULT false,
+  theme_pref            TEXT        DEFAULT 'default',
+  color_pref            TEXT        DEFAULT 'purple'
 );
 
 -- Migration: add last_username_change if the table already exists without it
 ALTER TABLE users ADD COLUMN IF NOT EXISTS last_username_change TIMESTAMPTZ;
+
+-- Migration: UI preference columns (theme axis + accent colour + study mode)
+ALTER TABLE users ADD COLUMN IF NOT EXISTS study_mode BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS theme_pref TEXT DEFAULT 'default';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS color_pref TEXT DEFAULT 'purple';
 
 -- Add FK from clans.created_by → users now that users exists
 ALTER TABLE clans

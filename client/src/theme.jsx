@@ -39,10 +39,13 @@ function handlePixelClick(e) {
 
 // ── DOM applier ────────────────────────────────────────────────────────────────
 
-function applyToDOM(theme, colorId) {
+function applyToDOM(theme, colorId, study) {
   const root = document.documentElement;
   root.dataset.theme = theme;
   root.dataset.color = colorId;
+  // Orthogonal third axis — only set to "on" so dark/default stays byte-identical when off
+  if (study) root.dataset.study = 'on';
+  else delete root.dataset.study;
   const c = PALETTE.find(p => p.id === colorId) || PALETTE[0];
   root.style.setProperty('--color-primary',      c.hex);
   root.style.setProperty('--color-primary-light', c.light);
@@ -58,11 +61,32 @@ export const useTheme = () => useContext(ThemeCtx);
 export function ThemeProvider({ children }) {
   const [theme, setTheme] = useState(() => localStorage.getItem('mr_theme') || 'default');
   const [color, setColor] = useState(() => localStorage.getItem('mr_color') || 'purple');
+  const [study, setStudy] = useState(() => localStorage.getItem('mr_study') === 'true');
 
   // Apply on mount + whenever they change
   useEffect(() => {
-    applyToDOM(theme, color);
-  }, [theme, color]);
+    applyToDOM(theme, color, study);
+  }, [theme, color, study]);
+
+  // Cross-device sync: when /auth/me resolves, fetchMe() dispatches the user prefs.
+  // We adopt server values, falling back to localStorage when a field is absent
+  // (older deployments). State setters are no-ops when unchanged → no double-apply/flicker.
+  useEffect(() => {
+    function onSync(e) {
+      const u = e.detail || {};
+      const t = typeof u.theme_pref === 'string' ? u.theme_pref : (localStorage.getItem('mr_theme') || 'default');
+      const c = typeof u.color_pref === 'string' ? u.color_pref : (localStorage.getItem('mr_color') || 'purple');
+      const s = typeof u.study_mode === 'boolean' ? u.study_mode : (localStorage.getItem('mr_study') === 'true');
+      localStorage.setItem('mr_theme', t);
+      localStorage.setItem('mr_color', c);
+      localStorage.setItem('mr_study', String(s));
+      setTheme(prev => (prev !== t ? t : prev));
+      setColor(prev => (prev !== c ? c : prev));
+      setStudy(prev => (prev !== s ? s : prev));
+    }
+    window.addEventListener('mr-prefs-sync', onSync);
+    return () => window.removeEventListener('mr-prefs-sync', onSync);
+  }, []);
 
   // Pixel click sound listener
   useEffect(() => {
@@ -74,22 +98,25 @@ export function ThemeProvider({ children }) {
     return () => document.removeEventListener('click', handlePixelClick, true);
   }, [theme]);
 
-  function applyTheme(newTheme, newColor) {
+  // newStudy defaults to the current value so existing 2-arg callers keep study unchanged
+  function applyTheme(newTheme, newColor, newStudy = study) {
     setTheme(newTheme);
     setColor(newColor);
+    setStudy(newStudy);
     localStorage.setItem('mr_theme', newTheme);
     localStorage.setItem('mr_color', newColor);
-    // Best-effort server save — silently ignored if endpoint not yet live
+    localStorage.setItem('mr_study', String(newStudy));
+    // Best-effort server save — silently ignored if endpoint not reachable
     if (getToken()) {
       authFetch('/auth/preferences', {
         method: 'PUT',
-        body: JSON.stringify({ theme: newTheme, color: newColor }),
+        body: JSON.stringify({ theme_pref: newTheme, color_pref: newColor, study_mode: newStudy }),
       }).catch(() => {});
     }
   }
 
   return (
-    <ThemeCtx.Provider value={{ theme, color, applyTheme }}>
+    <ThemeCtx.Provider value={{ theme, color, study, applyTheme }}>
       {children}
     </ThemeCtx.Provider>
   );
