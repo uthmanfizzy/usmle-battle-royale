@@ -190,6 +190,12 @@ html[data-study="on"] .rr-explanation strong {
   color: var(--color-primary-dark);
   font-size: 16px;
 }
+/* Solo study: no purple left-accent vertical lines in the explanation */
+html[data-study="on"] .solo-body .rr-explanation,
+html[data-study="on"] .solo-body .explanation-text {
+  border-left: none;
+  padding-left: 0;
+}
 
 /* ═══════════════════════════════════════════════════════════════════
    LAYER 1 — UWorld-style two-pane SoloGame answer screen
@@ -502,22 +508,23 @@ html[data-study="on"] .srs-time::before { content: '\23F1'; font-size: 14px; }
 /* ── Explanation pane: white card with a blue "Explanation" tab ─────── */
 html[data-study="on"] .solo-body .round-result {
   position: relative;
-  padding-top: 48px;
+  padding-top: 56px;
 }
 html[data-study="on"] .solo-body .round-result.correct-bg,
 html[data-study="on"] .solo-body .round-result.wrong-bg {
   background: #ffffff !important;
 }
+/* Soft, inset pale-blue rounded "Explanation" tab (doesn't touch the corner) */
 html[data-study="on"] .solo-body .round-result::before,
 html[data-study="on"] .solo-body .study-expl-placeholder::before {
   content: 'Explanation';
   position: absolute;
-  top: 0; left: 0;
-  background: #4a9eff;
-  color: #fff;
+  top: 14px; left: 16px;
+  background: #dbe9f8;
+  color: #2563eb;
   font-size: 12px; font-weight: 700;
-  padding: 6px 16px;
-  border-radius: 14px 0 12px 0;
+  padding: 5px 14px;
+  border-radius: 999px;
   letter-spacing: 0.02em;
 }
 /* CORRECT/WRONG banner is now shown in the result strip — declutter pane */
@@ -563,8 +570,27 @@ html[data-study="on"] .study-statusbar {
   color: #545a72;
   letter-spacing: 0.02em;
 }
-html[data-study="on"] .ssb-mode { justify-self: start; }
 html[data-study="on"] .ssb-arrows { display: flex; gap: 10px; justify-self: center; }
+html[data-study="on"] .ssb-left  { justify-self: start; display: flex; align-items: center; }
+html[data-study="on"] .ssb-right { justify-self: end; display: flex; align-items: center; }
+html[data-study="on"] .ssb-home,
+html[data-study="on"] .ssb-calc {
+  background: #ffffff;
+  border: 1px solid #c2d8ef;
+  border-radius: 8px;
+  padding: 7px 14px;
+  font-size: 13px; font-weight: 600; color: #1c2030;
+  display: inline-flex; align-items: center; gap: 6px;
+  box-shadow: 0 1px 2px rgba(40,60,100,0.08);
+}
+html[data-study="on"] .ssb-home:hover,
+html[data-study="on"] .ssb-calc:hover { border-color: #4a9eff; color: #2563eb; }
+
+/* Study + solo only: hide the floating "Show Calculator" button (moved to footer) */
+html[data-study="on"] .solo-body .calculator-toggle-btn { display: none; }
+/* Study + solo only: hide the global top-left Home button (moved to footer-left).
+   Scoped via :has(.solo-screen) so it only hides during the solo game, not app-wide. */
+html[data-study="on"] body:has(.solo-screen) .home-btn { display: none; }
 
 /* ── Game over (study only): centre on the page + black text on light bg ── */
 html[data-study="on"] .solo-screen:has(.solo-gameover) {

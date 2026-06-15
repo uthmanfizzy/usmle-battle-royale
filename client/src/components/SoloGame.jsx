@@ -503,7 +503,9 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
 
         {study && (
           <div className="study-statusbar">
-            <span className="ssb-mode">{levelLabel || (isHardMode ? 'Hard Mode' : 'Study Mode')}</span>
+            <div className="ssb-left">
+              <button className="ssb-home" onClick={onBack} title="Home">⌂ Home</button>
+            </div>
             <div className="ssb-arrows">
               <button className="stb-arrow" disabled title="Previous (not available)">←</button>
               <button
@@ -513,6 +515,15 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
                 title="Next question"
               >
                 →
+              </button>
+            </div>
+            <div className="ssb-right">
+              <button
+                className="ssb-calc"
+                onClick={() => setShowCalculator(s => !s)}
+                title="Toggle Calculator"
+              >
+                🧮 Calculator
               </button>
             </div>
           </div>
