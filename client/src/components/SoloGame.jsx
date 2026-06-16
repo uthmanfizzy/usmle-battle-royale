@@ -16,7 +16,7 @@ function saveHi(subject, score) {
   try { localStorage.setItem(`usmle-hs-${subject}`, String(score)); } catch {}
 }
 
-export default function SoloGame({ subject, username, difficulty, onBack, onTryAgain, onChangeSubject, topicId, questionsUrl, onComplete, levelLabel }) {
+export default function SoloGame({ subject, username, difficulty, onBack, onTryAgain, onChangeSubject, onBackToTopics, topicId, questionsUrl, onComplete, levelLabel }) {
   const { settings } = useGameSettings();
   const { study } = useTheme();   // Layer 1 chrome renders only when study mode is on
 
@@ -308,7 +308,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
             </div>
           </div>
           {onTryAgain      && <button className="btn-start"    onClick={onTryAgain}>Try Again</button>}
-          {onChangeSubject && <button className="btn-secondary" onClick={onChangeSubject}>Change Subject</button>}
+          {onBackToTopics  && <button className="btn-secondary" onClick={onBackToTopics}>Back to Topics</button>}
           <button className="btn-secondary" onClick={onBack}>Home</button>
         </div>
       </div>

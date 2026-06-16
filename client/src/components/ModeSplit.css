@@ -184,15 +184,15 @@
   cursor: pointer;
   font-family: 'Cinzel', serif;
   text-align: left;
-  background: linear-gradient(150deg, rgba(20, 30, 16, 0.92), rgba(26, 22, 8, 0.96));
-  border: 2px solid rgba(200, 163, 44, 0.55);
+  background: linear-gradient(150deg, rgba(12, 34, 40, 0.94), rgba(8, 20, 30, 0.96));
+  border: 2px solid rgba(56, 178, 195, 0.55);
   transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
   animation: ms-card-up 0.45s 0.39s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 .ms-train:hover {
   transform: translateY(-6px);
-  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.55), 0 0 28px rgba(200, 163, 44, 0.3);
-  border-color: rgba(241, 196, 15, 0.95);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.55), 0 0 28px rgba(56, 178, 195, 0.4);
+  border-color: rgba(94, 220, 235, 0.95);
 }
 
 .ms-train-icon {
@@ -206,7 +206,7 @@
   font-size: 21px;
   font-weight: 700;
   letter-spacing: 0.14em;
-  color: #e8d48a;
+  color: #8fe3ee;
 }
 .ms-train-sub {
   font-size: 12px;

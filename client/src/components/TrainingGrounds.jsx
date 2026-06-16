@@ -121,7 +121,7 @@ function VideoCard({ video, general, playing, onPlay }) {
   );
 }
 
-export default function TrainingGrounds({ user, onBack, onStartPractice }) {
+export default function TrainingGrounds({ user, onBack, onStartPractice, initialSubject, onInitialConsumed }) {
   // screens flattened: 'subject' | 'topics'
   // (difficulty is a toggle inside 'topics'; topic click is a selection, not a screen)
   const [screen, setScreen] = useState('subject');
@@ -194,6 +194,15 @@ export default function TrainingGrounds({ user, onBack, onStartPractice }) {
       .then(data => { if (!cancelled) setCompletions(data || {}); })
       .catch(() => {}); // keep empty map on failure
     return () => { cancelled = true; };
+  }, []);
+
+  // Returning from a game via "Back to Topics": open the practiced subject's topic
+  // list directly (instead of the subject grid). Runs once; self-clears via callback.
+  useEffect(() => {
+    if (!initialSubject) return;
+    fetchFolders(initialSubject);
+    onInitialConsumed?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ── Data ─────────────────────────────────────────────────────────────────────
@@ -302,7 +311,7 @@ export default function TrainingGrounds({ user, onBack, onStartPractice }) {
           title={done ? 'Completed — scored 85%+ in a single run' : 'Not completed yet'}
           aria-label={done ? 'Completed' : 'Not completed'}
         >
-          {done ? '✓' : '○'}
+          {done ? '✓' : ''}
         </span>
         <div className="tg-folder-icon">📁</div>
         <div className="tg-folder-name">{folder.name}</div>

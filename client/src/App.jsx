@@ -45,6 +45,9 @@ export default function App() {
   const [soloSubject, setSoloSubject] = useState('all');
   const [soloKey,  setSoloKey]  = useState(0);
   const [trainingTopic, setTrainingTopic] = useState(null);
+  // When returning to Training Grounds via game-over "Back to Topics", auto-open the
+  // subject whose topic was just practiced (so we land on its topic list, not the grid).
+  const [tgInitialSubject, setTgInitialSubject] = useState(null);
   const [journeyContext,  setJourneyContext]  = useState(null); // { subject, levelKey, questionsUrl, levelLabel }
   const [journeyReentry,  setJourneyReentry]  = useState(null); // { pct, subject, levelKey?, questionsUrl?, levelLabel? }
   const [playInitialMode, setPlayInitialMode] = useState(null); // Story→AnKing passes 'anking'; Online leaves null
@@ -590,6 +593,13 @@ export default function App() {
     }).catch(() => {});
   }
 
+  // Game-over → back to the Training Grounds topic list of the practiced subject.
+  // Reuses the training_grounds phase; tgInitialSubject makes TG auto-open that subject.
+  function handleBackToTopics() {
+    setTgInitialSubject(trainingTopic?.category || null);
+    setPhase('training_grounds');
+  }
+
   function handleShowSubjectSelect() {
     setError('');
     // Scan Master has no subject selection — always uses image questions
@@ -1051,7 +1061,7 @@ export default function App() {
             ? () => { setJourneyReentry({ pct: null, subject: journeyContext.subject }); setJourneyContext(null); setPhase('journey'); }
             : handleReturnHome}
           onTryAgain={journeyContext       ? undefined : handleSoloTryAgain}
-          onChangeSubject={journeyContext  ? undefined : () => setPhase('solo_subject')}
+          onBackToTopics={(!journeyContext && trainingTopic) ? handleBackToTopics : undefined}
           topicId={journeyContext          ? undefined : trainingTopic?.topicId}
           questionsUrl={journeyContext?.questionsUrl}
           onComplete={journeyContext       ? handleJourneyComplete : (trainingTopic ? handleTrainingComplete : undefined)}
@@ -1087,6 +1097,8 @@ export default function App() {
           user={user}
           onBack={() => setPhase('play_page')}
           onStartPractice={handleStartTrainingPractice}
+          initialSubject={tgInitialSubject}
+          onInitialConsumed={() => setTgInitialSubject(null)}
         />
         </RouteErrorBoundary>
       )}

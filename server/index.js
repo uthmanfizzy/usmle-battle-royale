@@ -2607,23 +2607,33 @@ app.post('/api/training-complete', requireAuth, async (req, res) => {
     const prevBest = Number(existing?.best_pct) || 0;
     const bestPct  = Math.max(prevBest, pct);
 
-    const row = {
-      user_id:  req.userId,
-      category,
-      best_pct: bestPct,
-      updated_at: new Date().toISOString(),
-    };
-    // Stamp completed_at on the first qualifying run; never clear an existing one.
-    if (completed && !existing?.completed_at) {
-      row.completed_at = new Date().toISOString();
-    }
-
-    const { error: upErr } = await supabase
-      .from('tg_completions')
-      .upsert(row, { onConflict: 'user_id,category' });
-    if (upErr) {
-      console.warn('[/api/training-complete] upsert failed —', upErr.message);
-      return res.json({ completed, best_pct: bestPct });
+    // Explicit update-or-insert (no ON CONFLICT / updated_at dependency): the
+    // hand-created tg_completions table may lack the composite unique constraint
+    // or an updated_at column, which made the previous upsert fail silently —
+    // nothing was stored, so the tick never showed. Only touch guaranteed columns.
+    if (existing) {
+      const patch = { best_pct: bestPct };
+      // Stamp completed_at on the first qualifying run; never clear an existing one.
+      if (completed && !existing.completed_at) patch.completed_at = new Date().toISOString();
+      const { error: updErr } = await supabase
+        .from('tg_completions')
+        .update(patch)
+        .eq('user_id', req.userId)
+        .eq('category', category);
+      if (updErr) {
+        console.warn('[/api/training-complete] update failed —', updErr.message);
+        return res.json({ completed, best_pct: bestPct });
+      }
+    } else {
+      const insert = { user_id: req.userId, category, best_pct: bestPct };
+      if (completed) insert.completed_at = new Date().toISOString();
+      const { error: insErr } = await supabase
+        .from('tg_completions')
+        .insert(insert);
+      if (insErr) {
+        console.warn('[/api/training-complete] insert failed —', insErr.message);
+        return res.json({ completed, best_pct: bestPct });
+      }
     }
 
     res.json({ completed: bestPct >= 85, best_pct: bestPct });
