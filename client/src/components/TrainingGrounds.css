@@ -291,6 +291,7 @@
 }
 
 .tg-folder-card {
+  position: relative;
   background: rgba(20, 30, 20, 0.8);
   border: 1px solid rgba(180, 140, 40, 0.5);
   border-radius: 12px;
@@ -299,6 +300,35 @@
   transition: all 0.2s ease;
   text-align: center;
   font-family: 'Cinzel', serif;
+}
+
+/* Completion badge — green tick (>=85% in a single run) or neutral empty circle */
+.tg-folder-status {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  font-family: system-ui, sans-serif;
+}
+
+.tg-folder-status--done {
+  color: #0b2a12;
+  background: #2ecc71;
+  box-shadow: 0 0 0 2px rgba(46, 204, 113, 0.35), 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+.tg-folder-status--todo {
+  color: rgba(255, 255, 255, 0.45);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.25);
 }
 
 .tg-folder-card:hover {

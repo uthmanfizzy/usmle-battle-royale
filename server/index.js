@@ -2579,6 +2579,88 @@ app.put('/auth/preferences', requireAuth, async (req, res) => {
   }
 });
 
+// ── Training Grounds folder completion ──────────────────────────────────────────
+// A folder is "completed" when the user scores >=85% in a SINGLE run. We keep the
+// best % ever achieved (GREATEST) and stamp completed_at on the first >=85% run.
+// Degrades gracefully if the tg_completions table is missing (no 500).
+
+app.post('/api/training-complete', requireAuth, async (req, res) => {
+  if (!supabase) return res.json({ completed: false, best_pct: 0 });
+
+  const category = (req.body?.category ?? '').toString().trim();
+  let pct = Number(req.body?.pct);
+  if (!category) return res.status(400).json({ error: 'category required.' });
+  if (!Number.isFinite(pct)) return res.status(400).json({ error: 'pct must be a number.' });
+  pct = Math.max(0, Math.min(100, Math.round(pct)));
+
+  const completed = pct >= 85;
+
+  try {
+    // Read existing row to keep the GREATEST best_pct and preserve an earlier completed_at.
+    const { data: existing } = await supabase
+      .from('tg_completions')
+      .select('best_pct, completed_at')
+      .eq('user_id', req.userId)
+      .eq('category', category)
+      .maybeSingle();
+
+    const prevBest = Number(existing?.best_pct) || 0;
+    const bestPct  = Math.max(prevBest, pct);
+
+    const row = {
+      user_id:  req.userId,
+      category,
+      best_pct: bestPct,
+      updated_at: new Date().toISOString(),
+    };
+    // Stamp completed_at on the first qualifying run; never clear an existing one.
+    if (completed && !existing?.completed_at) {
+      row.completed_at = new Date().toISOString();
+    }
+
+    const { error: upErr } = await supabase
+      .from('tg_completions')
+      .upsert(row, { onConflict: 'user_id,category' });
+    if (upErr) {
+      console.warn('[/api/training-complete] upsert failed —', upErr.message);
+      return res.json({ completed, best_pct: bestPct });
+    }
+
+    res.json({ completed: bestPct >= 85, best_pct: bestPct });
+  } catch (err) {
+    console.warn('[/api/training-complete] unavailable —', err.message);
+    res.json({ completed, best_pct: pct });
+  }
+});
+
+app.get('/api/training-completions', requireAuth, async (req, res) => {
+  if (!supabase) return res.json({});
+
+  try {
+    const { data, error } = await supabase
+      .from('tg_completions')
+      .select('category, best_pct, completed_at')
+      .eq('user_id', req.userId);
+    if (error) {
+      console.warn('[/api/training-completions] unavailable —', error.message);
+      return res.json({});
+    }
+
+    const out = {};
+    for (const r of data || []) {
+      const best = Number(r.best_pct) || 0;
+      out[r.category] = {
+        completed: !!r.completed_at || best >= 85,
+        best_pct:  best,
+      };
+    }
+    res.json(out);
+  } catch (err) {
+    console.warn('[/api/training-completions] unavailable —', err.message);
+    res.json({});
+  }
+});
+
 // ── Clan API ───────────────────────────────────────────────────────────────────
 
 app.post('/api/clans', requireAuth, async (req, res) => {

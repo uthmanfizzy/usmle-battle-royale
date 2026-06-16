@@ -137,6 +137,11 @@ export default function TrainingGrounds({ user, onBack, onStartPractice }) {
   // that have a matching First Aid Journey (same id); others stay at 0% (no entry).
   const [subjectProgress, setSubjectProgress] = useState({});
 
+  // Per-folder completion status, keyed `${subject}/${topicId}` (matches the key
+  // App.jsx POSTs at game-over). { [key]: { completed, best_pct } }. Empty for
+  // guests or when the tg_completions table is missing — never errors.
+  const [completions, setCompletions] = useState({});
+
   // Videos cached per category|difficulty — one fetch serves the whole rail
   const [videosCache, setVideosCache] = useState({});
   const [videosLoading, setVideosLoading] = useState(false);
@@ -174,6 +179,20 @@ export default function TrainingGrounds({ user, onBack, onStartPractice }) {
       if (cancelled) return;
       setSubjectProgress(Object.fromEntries(entries));
     });
+    return () => { cancelled = true; };
+  }, []);
+
+  // Per-folder completion status (green tick at >=85% single-run). Fetched once on
+  // mount — Training Grounds remounts each time the user returns, so this naturally
+  // refreshes after a finished run. Guests / missing table → empty map, no error.
+  useEffect(() => {
+    const token = getToken();
+    if (!token) return;
+    let cancelled = false;
+    fetch(`${SERVER}/api/training-completions`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : {})
+      .then(data => { if (!cancelled) setCompletions(data || {}); })
+      .catch(() => {}); // keep empty map on failure
     return () => { cancelled = true; };
   }, []);
 
@@ -270,19 +289,29 @@ export default function TrainingGrounds({ user, onBack, onStartPractice }) {
 
   // ── Render pieces ────────────────────────────────────────────────────────────
 
-  const renderFolderCard = (folder) => (
-    <button
-      key={folder.id}
-      className={`tg-folder-card tg-folder-card--${selectedDifficulty} ${selectedTopic?.id === folder.id ? 'tg-folder-card--selected' : ''}`}
-      onClick={() => handleTopicClick(folder)}
-    >
-      <div className="tg-folder-icon">📁</div>
-      <div className="tg-folder-name">{folder.name}</div>
-      {folder.question_count > 0 && (
-        <div className="tg-folder-qcount">{folder.question_count} questions</div>
-      )}
-    </button>
-  );
+  const renderFolderCard = (folder) => {
+    const done = completions[`${selectedSubject}/${folder.id}`]?.completed;
+    return (
+      <button
+        key={folder.id}
+        className={`tg-folder-card tg-folder-card--${selectedDifficulty} ${selectedTopic?.id === folder.id ? 'tg-folder-card--selected' : ''}`}
+        onClick={() => handleTopicClick(folder)}
+      >
+        <span
+          className={`tg-folder-status ${done ? 'tg-folder-status--done' : 'tg-folder-status--todo'}`}
+          title={done ? 'Completed — scored 85%+ in a single run' : 'Not completed yet'}
+          aria-label={done ? 'Completed' : 'Not completed'}
+        >
+          {done ? '✓' : '○'}
+        </span>
+        <div className="tg-folder-icon">📁</div>
+        <div className="tg-folder-name">{folder.name}</div>
+        {folder.question_count > 0 && (
+          <div className="tg-folder-qcount">{folder.question_count} questions</div>
+        )}
+      </button>
+    );
+  };
 
   return (
     <div className="training-grounds">

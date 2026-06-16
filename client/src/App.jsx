@@ -573,6 +573,23 @@ export default function App() {
     setPhase('journey');
   }
 
+  // Training Grounds folder completion: fires at game-over for the trainingTopic path
+  // (reuses SoloGame's existing J3a onComplete — no SoloGame change). Pure side-effect:
+  // POSTs the folder key + pct so the server can record best % / >=85% completion.
+  // The category key uniquely identifies the folder (subject/topicId) so the matching
+  // folder card in Training Grounds shows the green tick.
+  function handleTrainingComplete({ pct }) {
+    if (!trainingTopic) return;
+    const token = getToken();
+    if (!token) return; // guests don't record completions
+    const category = `${trainingTopic.category}/${trainingTopic.topicId}`;
+    fetch('https://usmle-battle-royale-production.up.railway.app/api/training-complete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ category, pct }),
+    }).catch(() => {});
+  }
+
   function handleShowSubjectSelect() {
     setError('');
     // Scan Master has no subject selection — always uses image questions
@@ -675,7 +692,7 @@ export default function App() {
     socket.emit('submit_answer', { answer });
   }
 
-  function handleShowSoloMode()              { setError(''); setPhase('solo_subject'); }
+  function handleShowSoloMode()              { setError(''); setTrainingTopic(null); setPhase('solo_subject'); }
   function handleSoloSubjectSelect(s)        { setSoloSubject(s); setPhase('solo_difficulty'); }
   function handleSoloDifficultySelect(diff)  { setDifficulty(diff); setPhase('solo_game'); }
   function handleSoloTryAgain()              { setSoloKey(k => k + 1); setPhase('solo_game'); }
@@ -1037,7 +1054,7 @@ export default function App() {
           onChangeSubject={journeyContext  ? undefined : () => setPhase('solo_subject')}
           topicId={journeyContext          ? undefined : trainingTopic?.topicId}
           questionsUrl={journeyContext?.questionsUrl}
-          onComplete={journeyContext       ? handleJourneyComplete : undefined}
+          onComplete={journeyContext       ? handleJourneyComplete : (trainingTopic ? handleTrainingComplete : undefined)}
           levelLabel={journeyContext?.levelLabel}
         />
         </RouteErrorBoundary>
