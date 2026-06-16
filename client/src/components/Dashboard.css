@@ -1538,6 +1538,10 @@
   .dash-main {
     grid-template-columns: 1fr;
     max-width: 600px;
+    /* Stacked cards can exceed the viewport — let this region scroll instead of
+       clipping (base rule is overflow:hidden with a fixed height). */
+    overflow-y: auto;
+    overflow-x: hidden;
   }
 
   .dash-center-col {
@@ -1547,6 +1551,34 @@
   .dash-left-col,
   .dash-right-col {
     width: 100%;
+  }
+
+  /* ROOT CAUSE FIX: the home widgets (Daily Quests / Rewards / News) are
+     position:fixed for the desktop sidebar layout. That rule was never undone on
+     mobile, so they stayed pinned top-left out of flow while the in-flow Training
+     Grounds card (right column) rendered on top of them — the banner/News overlap.
+     Un-fix them so they sit in the normal vertical stack, full width. */
+  .dash-left-col {
+    padding-top: 0 !important;
+  }
+  .dash-left-col .home-widgets {
+    position: static !important;
+    left: auto !important;
+    top: auto !important;
+    width: 100% !important;
+    max-width: none !important;
+    z-index: auto !important;
+  }
+
+  /* Training Grounds card: its own full-width row below the widgets, with spacing. */
+  .dash-right-col {
+    overflow: visible;
+    max-height: none;
+    margin-top: 12px;
+  }
+  .dash-training-card {
+    width: 100% !important;
+    align-self: stretch !important;
   }
 }
 
