@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import './AdminApp.css';
 import PlayPageAdmin from './admin/PlayPageAdmin';
 import AnKingAdmin from './admin/AnKingAdmin';
+import JourneyMode from './JourneyMode';
 import QuestionParser from './QuestionParser';
 import { parseRichText } from '../utils/parseRichText';
 import { JOURNEY_SUBJECTS, JOURNEY_SECTIONS } from '../journeySubjects';
@@ -7170,6 +7171,37 @@ class ErrorBoundary extends React.Component {
 
 // ── Root Admin App ─────────────────────────────────────────────────────────────
 
+// ── Journey Page Editor: live preview of the player's Journey page with ───────
+// click-to-edit on UI text + chapter/level names. The preview is the real
+// JourneyMode component in editor mode (admin-only), so what you see is what
+// players get. UI text saves to ui_text_overrides; names reuse the journey
+// chapter/level endpoints. See JourneyMode.jsx for the editor wiring.
+function JourneyPageEditor() {
+  return (
+    <div className="jpe-panel">
+      <div className="jpe-head">
+        <h2 className="jpe-title">🗺️ Journey Page Editor</h2>
+        <p className="jpe-desc">
+          Live preview of the player's First Aid Journey page. Click any{' '}
+          <strong>highlighted</strong> text to edit it — UI labels save to the page instantly,
+          and chapter/level names update the journey content. Open a subject to edit the
+          chapter and level names on its map.
+        </p>
+      </div>
+      <div className="jpe-frame">
+        <JourneyMode
+          editorMode
+          username=""
+          onBack={() => {}}
+          onPlayLevel={() => {}}
+          journeyReentry={null}
+          onReentryConsumed={() => {}}
+        />
+      </div>
+    </div>
+  );
+}
+
 export default function AdminApp() {
   const [authed, setAuthed] = useState(() => !!localStorage.getItem(AUTH_KEY));
   const [tab, setTab] = useState('stats');
@@ -7226,6 +7258,9 @@ export default function AdminApp() {
         <button className={`ap-nav-btn ${tab === 'journey'       ? 'active' : ''}`} onClick={() => setTab('journey')}>
           🚑 First Aid Journey
         </button>
+        <button className={`ap-nav-btn ${tab === 'journeyeditor' ? 'active' : ''}`} onClick={() => setTab('journeyeditor')}>
+          🗺️ Journey Page Editor
+        </button>
         <button className={`ap-nav-btn ${tab === 'announcements' ? 'active' : ''}`} onClick={() => setTab('announcements')}>
           📣 Announcements
         </button>
@@ -7258,6 +7293,7 @@ export default function AdminApp() {
         {tab === 'quests'        && <QuestsPanel />}
         {tab === 'videos'        && <VideosPanel />}
         {tab === 'journey'       && <JourneyPanel />}
+        {tab === 'journeyeditor' && <JourneyPageEditor />}
         {tab === 'announcements' && <AnnouncementsPanel />}
         {tab === 'landing'       && <LandingImagesPanel />}
         {tab === 'playpage'      && <PlayPageAdmin />}

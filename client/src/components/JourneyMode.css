@@ -1126,3 +1126,114 @@
   .jm-compass { width: 56px; height: 56px; top: 10px; right: 10px; }
   .jm-map { padding: 28px 10px 40px; }
 }
+
+/* ── Journey Page Editor (admin only, editor mode) ──────────────────────────── */
+/* Editable spots get a dashed outline + hover highlight so the admin can see and
+   click them. These selectors only match under .jm-editor, so players never see them. */
+.jm-editor [data-edit-key],
+.jm-editor [data-edit-name] {
+  cursor: pointer;
+  outline: 1px dashed rgba(220, 190, 80, 0.55);
+  outline-offset: 3px;
+  border-radius: 4px;
+  transition: outline-color 0.15s ease, background 0.15s ease;
+}
+.jm-editor [data-edit-key]:hover,
+.jm-editor [data-edit-name]:hover {
+  outline: 1px solid #dcbe50;
+  background: rgba(220, 190, 80, 0.20);
+}
+
+.jm-edit-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 4000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.55);
+  padding: 16px;
+}
+.jm-edit-card {
+  width: 100%;
+  max-width: 440px;
+  background: #1b2417;
+  border: 1px solid rgba(220, 190, 80, 0.45);
+  border-radius: 14px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5);
+  padding: 18px;
+  color: #f4efe1;
+}
+.jm-edit-head {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #dcbe50;
+  margin-bottom: 10px;
+  word-break: break-word;
+}
+.jm-edit-input {
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  min-height: 44px;
+  font-size: 15px;
+  line-height: 1.4;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: #0f150c;
+  color: #fff;
+  font-family: inherit;
+}
+.jm-edit-input:focus {
+  outline: none;
+  border-color: #dcbe50;
+}
+.jm-edit-default {
+  margin-top: 8px;
+  font-size: 12px;
+  color: rgba(244, 239, 225, 0.6);
+  word-break: break-word;
+}
+.jm-edit-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+.jm-edit-actions button {
+  border: none;
+  border-radius: 8px;
+  padding: 9px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.jm-edit-actions button:disabled { opacity: 0.6; cursor: default; }
+.jm-edit-save   { background: #dcbe50; color: #1b2417; }
+.jm-edit-reset  { background: transparent; color: #dcbe50; border: 1px solid rgba(220,190,80,0.5) !important; }
+.jm-edit-cancel { background: rgba(255,255,255,0.10); color: #f4efe1; margin-left: auto; }
+
+/* ── Embedded preview frame (admin Journey Page Editor) ─────────────────────── */
+/* Scopes the normally full-screen .jm-screen into a contained preview box so it
+   sits inside the admin pane instead of covering the whole viewport. The inline
+   editor (.jm-edit-overlay) stays position:fixed so it still centres on screen. */
+.jpe-panel { color: #f4efe1; }
+.jpe-head { margin-bottom: 14px; }
+.jpe-title { margin: 0 0 6px; font-size: 22px; }
+.jpe-desc { margin: 0; font-size: 14px; line-height: 1.5; color: rgba(244, 239, 225, 0.75); max-width: 760px; }
+.jpe-frame {
+  position: relative;
+  height: 78vh;
+  min-height: 480px;
+  border: 1px solid rgba(220, 190, 80, 0.4);
+  border-radius: 14px;
+  overflow: hidden;
+}
+.jpe-frame .jm-screen,
+.jpe-frame .jm-screen::before,
+.jpe-frame .jm-screen::after,
+.jpe-frame .jm-bg {
+  position: absolute;
+}

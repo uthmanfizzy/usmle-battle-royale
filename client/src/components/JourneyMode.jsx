@@ -4,6 +4,19 @@ import { JOURNEY_SUBJECTS, JOURNEY_SECTIONS } from '../journeySubjects';
 import './JourneyMode.css';
 
 const SERVER = 'https://usmle-battle-royale-production.up.railway.app';
+const ADMIN_KEY = 'usmle_admin_session';
+
+// Admin-authenticated fetch — only ever used in editor mode (admin-only path).
+function adminApi(path, options = {}) {
+  return fetch(`${SERVER}${path}`, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      'x-admin-password': localStorage.getItem(ADMIN_KEY) || '',
+      ...(options.headers || {}),
+    },
+  });
+}
 
 function starsFor(pct, threshold) {
   if (pct >= 100) return 3;
@@ -31,7 +44,7 @@ function CompassRose() {
   );
 }
 
-export default function JourneyMode({ username, onBack, onPlayLevel, journeyReentry, onReentryConsumed }) {
+export default function JourneyMode({ username, onBack, onPlayLevel, journeyReentry, onReentryConsumed, editorMode = false }) {
   const [view,        setView]        = useState('subjects'); // 'subjects' | 'path'
   const [subject,     setSubject]     = useState(null);       // entry from JOURNEY_SUBJECTS
   const [path,        setPath]        = useState(null);       // GET /api/journey/:subject response
@@ -42,6 +55,26 @@ export default function JourneyMode({ username, onBack, onPlayLevel, journeyReen
   const [interstitial, setInterstitial] = useState(null); // null | { status: 'saving'|'complete'|'tryagain'|'save_failed', pct, threshold?, retryPayload? }
   const [bgUrl,       setBgUrl]       = useState(null);       // admin-set backdrop (landing-images slot 'journey_bg')
   const [activeIds,   setActiveIds]   = useState(null);       // Set of active subject ids; null = not loaded → show all
+
+  // Admin-overridable UI text: { text_key: value }. Empty → every t() returns its default,
+  // so with no overrides the page is byte-identical to the hardcoded version.
+  const [overrides,   setOverrides]   = useState({});
+  const [picker,      setPicker]      = useState(null);       // editor: inline editor target (text or chapter/level name)
+  const [pickerBusy,  setPickerBusy]  = useState(false);
+  const textDefaultsRef = useRef({});                         // text_key → default, recorded as t() renders
+  const overridesRef    = useRef({});
+  overridesRef.current  = overrides;
+
+  // t(key, default): returns the admin override if present, else the original string.
+  // Also records the default so the editor's "reset to default" can show/restore it.
+  function t(key, def) {
+    textDefaultsRef.current[key] = def;
+    return Object.prototype.hasOwnProperty.call(overrides, key) ? overrides[key] : def;
+  }
+  // Edit-target attributes — only emitted in editor mode (normal render stays byte-identical).
+  const ek = (key) => (editorMode ? { 'data-edit-key': key } : {});
+  const en = (kind, id, label) =>
+    (editorMode ? { 'data-edit-name': label, 'data-edit-kind': kind, 'data-edit-id': String(id) } : {});
 
   const frontierRef      = useRef(null);
   const lastPlayedRef    = useRef(null); // { subject, levelKey, questionsUrl, levelLabel } — survives reentry for TRY AGAIN
@@ -57,6 +90,10 @@ export default function JourneyMode({ username, onBack, onPlayLevel, journeyReen
       .then(r => r.json())
       .then(d => { if (Array.isArray(d.journeyActiveSubjects)) setActiveIds(new Set(d.journeyActiveSubjects)); })
       .catch(() => {}); // on error every subject stays visible
+    fetch(`${SERVER}/api/ui-text?page=journey`)
+      .then(r => r.json())
+      .then(d => setOverrides(d && typeof d === 'object' && !Array.isArray(d) ? d : {}))
+      .catch(() => {}); // no overrides → hardcoded defaults
   }, []);
 
   const isActive = (id) => !activeIds || activeIds.has(id);
@@ -72,6 +109,16 @@ export default function JourneyMode({ username, onBack, onPlayLevel, journeyReen
     setLoading(true);
     setError('');
     try {
+      // Editor mode has no player token — build a faithful preview path from the
+      // admin endpoints (same shape buildJourneyPath returns, minus progress).
+      if (editorMode) {
+        const data = await buildPreviewPath(subj.id);
+        setPath(data);
+        setSubject(subj);
+        setView('path');
+        setLoading(false);
+        return;
+      }
       const res = await fetch(`${SERVER}/api/journey/${subj.id}`, {
         headers: { Authorization: `Bearer ${getToken()}` },
       });
@@ -85,7 +132,187 @@ export default function JourneyMode({ username, onBack, onPlayLevel, journeyReen
       setError('Could not load the journey. Check your connection.');
     }
     setLoading(false);
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editorMode]);
+
+  // ----- Editor mode: preview-path builder + click-to-edit -----
+  // Mirrors buildJourneyPath's output from admin reads so the preview renders the
+  // real map (all nodes unlocked, no progress). Only called in editor mode.
+  async function buildPreviewPath(subjectId) {
+    const chRes  = await adminApi(`/admin/journey-chapters?subject=${encodeURIComponent(subjectId)}`);
+    const chData = await chRes.json();
+    const chapterRows = chData.chapters || [];
+
+    let counts = { levels: {}, chapters: {}, bosses: {} };
+    try {
+      const cRes = await adminApi(`/admin/journey-counts?subject=${encodeURIComponent(subjectId)}`);
+      if (cRes.ok) counts = await cRes.json();
+    } catch { /* counts are cosmetic in preview */ }
+
+    const chapters = [];
+    for (const ch of chapterRows) {
+      const lvRes  = await adminApi(`/admin/journey-levels?chapter_id=${ch.id}`);
+      const lvData = await lvRes.json();
+      const members = lvData.levels || [];
+      if (members.length === 0) continue; // empty chapters don't appear on the real path
+      const levels = members.map(l => ({
+        level_key: l.id,
+        name: l.name,
+        question_count: counts.levels?.[l.id] || 0,
+        completed: false,
+        best_score_pct: 0,
+        unlocked: true,
+      }));
+      const bossKey = `chapter:${ch.id}`;
+      chapters.push({
+        chapter: { id: ch.id, name: ch.name },
+        levels,
+        boss: {
+          boss_key: bossKey,
+          level_key: `boss:${ch.id}`,
+          question_count: counts.bosses?.[bossKey] || 0,
+          completed: false,
+          best_score_pct: 0,
+          unlocked: true,
+          auto_skipped: false,
+        },
+      });
+    }
+
+    return {
+      subject: subjectId,
+      threshold: 80,
+      chapters,
+      ultimate: {
+        boss_key: 'ultimate',
+        level_key: 'boss:ultimate',
+        question_count: counts.bosses?.['ultimate'] || 0,
+        completed: false,
+        best_score_pct: 0,
+        unlocked: true,
+        auto_skipped: false,
+      },
+      mastery: false,
+    };
+  }
+
+  // Delegated click handler on the editor root: routes a click on a tagged element
+  // to the right inline editor (UI-text key vs chapter/level name).
+  function handleEditorClick(e) {
+    const nameEl = e.target.closest('[data-edit-name]');
+    if (nameEl) {
+      e.preventDefault();
+      e.stopPropagation();
+      setPicker({
+        type:  'name',
+        kind:  nameEl.getAttribute('data-edit-kind'),
+        id:    nameEl.getAttribute('data-edit-id'),
+        label: nameEl.getAttribute('data-edit-name'),
+        value: nameEl.getAttribute('data-edit-name'),
+      });
+      return;
+    }
+    const keyEl = e.target.closest('[data-edit-key]');
+    if (keyEl) {
+      e.preventDefault();
+      e.stopPropagation();
+      const key = keyEl.getAttribute('data-edit-key');
+      const has = Object.prototype.hasOwnProperty.call(overridesRef.current, key);
+      setPicker({
+        type:    'text',
+        textKey: key,
+        value:   has ? overridesRef.current[key] : (textDefaultsRef.current[key] ?? keyEl.textContent),
+        def:     textDefaultsRef.current[key] ?? keyEl.textContent,
+        hasOverride: has,
+      });
+    }
+  }
+
+  async function savePicker() {
+    if (!picker) return;
+    setPickerBusy(true);
+    try {
+      if (picker.type === 'text') {
+        const res = await adminApi('/admin/ui-text', {
+          method: 'PUT',
+          body: JSON.stringify({ page: 'journey', text_key: picker.textKey, value: picker.value }),
+        });
+        if (!res.ok) throw new Error('save failed');
+        setOverrides(o => ({ ...o, [picker.textKey]: picker.value }));
+        setPicker(null);
+      } else {
+        const endpoint = picker.kind === 'chapter' ? 'journey-chapters' : 'journey-levels';
+        const res = await adminApi(`/admin/${endpoint}/${picker.id}`, {
+          method: 'PUT',
+          body: JSON.stringify({ name: picker.value }),
+        });
+        if (!res.ok) throw new Error('save failed');
+        setPicker(null);
+        if (subject) await loadPath(subject); // refresh names live
+      }
+    } catch {
+      alert('Save failed — check your admin session and try again.');
+    }
+    setPickerBusy(false);
+  }
+
+  async function resetPicker() {
+    if (!picker || picker.type !== 'text') return;
+    setPickerBusy(true);
+    try {
+      const res = await adminApi('/admin/ui-text', {
+        method: 'DELETE',
+        body: JSON.stringify({ page: 'journey', text_key: picker.textKey }),
+      });
+      if (!res.ok) throw new Error('reset failed');
+      setOverrides(o => { const n = { ...o }; delete n[picker.textKey]; return n; });
+      setPicker(null);
+    } catch {
+      alert('Reset failed — check your admin session and try again.');
+    }
+    setPickerBusy(false);
+  }
+
+  // Inline editor popover — rendered inside each editor-mode screen root.
+  function renderEditorPicker() {
+    if (!editorMode || !picker) return null;
+    return (
+      <div className="jm-edit-overlay" onClick={() => !pickerBusy && setPicker(null)}>
+        <div className="jm-edit-card" onClick={e => e.stopPropagation()}>
+          <div className="jm-edit-head">
+            {picker.type === 'name'
+              ? `Edit ${picker.kind} name`
+              : `Edit text · ${picker.textKey}`}
+          </div>
+          <textarea
+            className="jm-edit-input"
+            value={picker.value}
+            autoFocus
+            rows={2}
+            onChange={e => setPicker(p => ({ ...p, value: e.target.value }))}
+          />
+          {picker.type === 'text' && (
+            <div className="jm-edit-default">Default: “{picker.def}”</div>
+          )}
+          <div className="jm-edit-actions">
+            <button className="jm-edit-save" disabled={pickerBusy} onClick={savePicker}>
+              {pickerBusy ? 'Saving…' : 'Save'}
+            </button>
+            {picker.type === 'text' && picker.hasOverride && (
+              <button className="jm-edit-reset" disabled={pickerBusy} onClick={resetPicker}>
+                Reset to default
+              </button>
+            )}
+            <button className="jm-edit-cancel" disabled={pickerBusy} onClick={() => setPicker(null)}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const editorRootProps = editorMode ? { onClick: handleEditorClick } : {};
 
   // Auto-scroll to the frontier node (first unlocked, not-yet-completed) when a path renders
   useEffect(() => {
@@ -167,16 +394,16 @@ export default function JourneyMode({ username, onBack, onPlayLevel, journeyReen
       });
   };
 
-  // ----- Guest gate: journey progress is per-account -----
-  if (!getToken() || authExpired) {
+  // ----- Guest gate: journey progress is per-account (editor mode bypasses it) -----
+  if (!editorMode && (!getToken() || authExpired)) {
     return (
       <div className={`screen jm-screen${bgClass}`}>
         {bgLayer}
         <div className="jm-scroll-card">
           <span className="jm-scroll-icon">🚑</span>
-          <h2>Sign in to begin your Journey</h2>
-          <p>Your progress through First Aid is saved to your account.</p>
-          <button className="btn-start" onClick={onBack}>← Back</button>
+          <h2 {...ek('gate.title')}>{t('gate.title', 'Sign in to begin your Journey')}</h2>
+          <p {...ek('gate.subtitle')}>{t('gate.subtitle', 'Your progress through First Aid is saved to your account.')}</p>
+          <button className="btn-start" onClick={onBack} {...ek('gate.back')}>{t('gate.back', '← Back')}</button>
         </div>
       </div>
     );
@@ -186,7 +413,7 @@ export default function JourneyMode({ username, onBack, onPlayLevel, journeyReen
     return (
       <div className={`screen jm-screen${bgClass}`}>
         {bgLayer}
-        <div className="waiting-screen"><div className="spinner" /><p>Charting your journey…</p></div>
+        <div className="waiting-screen"><div className="spinner" /><p>{t('loading.text', 'Charting your journey…')}</p></div>
       </div>
     );
   }
@@ -197,10 +424,10 @@ export default function JourneyMode({ username, onBack, onPlayLevel, journeyReen
         {bgLayer}
         <div className="jm-scroll-card">
           <span className="jm-scroll-icon">🗺️</span>
-          <h2>Lost the trail</h2>
+          <h2 {...ek('error.title')}>{t('error.title', 'Lost the trail')}</h2>
           <p className="error-msg">{error}</p>
-          {subject && <button className="btn-start" onClick={() => loadPath(subject)}>Retry</button>}
-          <button className="btn-secondary" onClick={() => { setError(''); setView('subjects'); }}>← Subjects</button>
+          {subject && <button className="btn-start" onClick={() => loadPath(subject)} {...ek('error.retry')}>{t('error.retry', 'Retry')}</button>}
+          <button className="btn-secondary" onClick={() => { setError(''); setView('subjects'); }} {...ek('error.back')}>{t('error.back', '← Subjects')}</button>
         </div>
       </div>
     );
@@ -209,13 +436,13 @@ export default function JourneyMode({ username, onBack, onPlayLevel, journeyReen
   // ----- Subject select -----
   if (view === 'subjects') {
     return (
-      <div className={`screen jm-screen${bgClass}`}>
+      <div className={`screen jm-screen${bgClass}${editorMode ? ' jm-editor' : ''}`} {...editorRootProps}>
         {bgLayer}
-        <button className="jm-back-btn" onClick={onBack}>← Back</button>
+        <button className="jm-back-btn" onClick={onBack} {...ek('subjects.back')}>{t('subjects.back', '← Back')}</button>
         <div className="jm-banner">
           <span className="jm-banner-flourish">⚕ ─────── ⚕</span>
-          <h1 className="jm-title">First Aid Journey</h1>
-          <p className="jm-tagline">Choose a realm of medicine and chart your course</p>
+          <h1 className="jm-title" {...ek('subjects.title')}>{t('subjects.title', 'First Aid Journey')}</h1>
+          <p className="jm-tagline" {...ek('subjects.tagline')}>{t('subjects.tagline', 'Choose a realm of medicine and chart your course')}</p>
         </div>
         <div className="jm-atlas">
           {JOURNEY_SECTIONS.map(sec => {
@@ -226,7 +453,7 @@ export default function JourneyMode({ username, onBack, onPlayLevel, journeyReen
                 <div className="jm-section-header">
                   <span className="jm-section-fleur" aria-hidden="true">⚜</span>
                   <span className="jm-section-rule" aria-hidden="true" />
-                  <h2 className="jm-section-title">{sec.label}</h2>
+                  <h2 className="jm-section-title" {...ek(`section.${sec.id}`)}>{t(`section.${sec.id}`, sec.label)}</h2>
                   <span className="jm-section-rule" aria-hidden="true" />
                   <span className="jm-section-fleur" aria-hidden="true">⚜</span>
                 </div>
@@ -242,6 +469,7 @@ export default function JourneyMode({ username, onBack, onPlayLevel, journeyReen
             );
           })}
         </div>
+        {renderEditorPicker()}
       </div>
     );
   }
@@ -254,14 +482,15 @@ export default function JourneyMode({ username, onBack, onPlayLevel, journeyReen
   // Empty path: no chapters authored (or journey tables not migrated) — friendly, not an error
   if (chapters.length === 0 && !interstitial) {
     return (
-      <div className={`screen jm-screen${bgClass}`}>
+      <div className={`screen jm-screen${bgClass}${editorMode ? ' jm-editor' : ''}`} {...editorRootProps}>
         {bgLayer}
         <div className="jm-scroll-card">
           <span className="jm-scroll-icon">{subject?.icon || '🗺️'}</span>
           <h2>{subject?.label}</h2>
-          <p>This journey hasn't been charted yet — check back soon.</p>
-          <button className="btn-start" onClick={() => setView('subjects')}>← Subjects</button>
+          <p {...ek('empty.text')}>{t('empty.text', "This journey hasn't been charted yet — check back soon.")}</p>
+          <button className="btn-start" onClick={() => setView('subjects')} {...ek('empty.back')}>{t('empty.back', '← Subjects')}</button>
         </div>
+        {renderEditorPicker()}
       </div>
     );
   }
@@ -320,7 +549,7 @@ export default function JourneyMode({ username, onBack, onPlayLevel, journeyReen
           <button
             className={cls}
             disabled={!tappable}
-            onClick={() => openConfirm({
+            onClick={editorMode ? undefined : () => openConfirm({
               kind: 'level', name: l.name, questionCount: l.question_count,
               bestPct: l.best_score_pct, completed: l.completed,
               levelKey: l.level_key,
@@ -332,16 +561,16 @@ export default function JourneyMode({ username, onBack, onPlayLevel, journeyReen
             </span>
           </button>
           <div className="jm-node-caption">
-            <span className="jm-node-name">{l.name}</span>
+            <span className="jm-node-name" {...en('level', l.level_key, l.name)}>{l.name}</span>
             {l.completed && <span className="jm-node-stars">{'★'.repeat(stars)}{'☆'.repeat(Math.max(0, 3 - stars))}</span>}
-            {empty && <span className="jm-node-tag">Uncharted</span>}
+            {empty && <span className="jm-node-tag" {...ek('tag.uncharted')}>{t('tag.uncharted', 'Uncharted')}</span>}
           </div>
         </div>
       </Fragment>
     );
   };
 
-  const renderBossNode = (boss, label, big) => {
+  const renderBossNode = (boss, label, big, labelKey) => {
     const side       = big ? 'center' : takeSide();
     const showSeg    = nodeCount > 0;
     nodeCount += 1;
@@ -362,7 +591,7 @@ export default function JourneyMode({ username, onBack, onPlayLevel, journeyReen
           <button
             className={cls}
             disabled={!tappable}
-            onClick={() => openConfirm({
+            onClick={editorMode ? undefined : () => openConfirm({
               kind: big ? 'ultimate' : 'boss', name: label, questionCount: boss.question_count,
               bestPct: boss.best_score_pct, completed: boss.completed,
               levelKey: boss.level_key,
@@ -374,8 +603,8 @@ export default function JourneyMode({ username, onBack, onPlayLevel, journeyReen
             </span>
           </button>
           <div className="jm-node-caption">
-            <span className="jm-node-name">{label}</span>
-            {boss.auto_skipped && <span className="jm-node-tag">BYPASSED</span>}
+            <span className="jm-node-name" {...(labelKey ? ek(labelKey) : {})}>{label}</span>
+            {boss.auto_skipped && <span className="jm-node-tag" {...ek('tag.bypassed')}>{t('tag.bypassed', 'BYPASSED')}</span>}
             {boss.completed && <span className="jm-node-stars">{'★'.repeat(stars)}{'☆'.repeat(Math.max(0, 3 - stars))}</span>}
           </div>
         </div>
@@ -384,11 +613,11 @@ export default function JourneyMode({ username, onBack, onPlayLevel, journeyReen
   };
 
   return (
-    <div className={`screen jm-screen jm-screen--path${bgClass}`}>
+    <div className={`screen jm-screen jm-screen--path${bgClass}${editorMode ? ' jm-editor' : ''}`} {...editorRootProps}>
       {bgLayer}
       <div className="jm-path-header">
-        <button className="jm-back-btn" onClick={() => { setView('subjects'); setPath(null); setConfirmNode(null); }}>
-          ← Subjects
+        <button className="jm-back-btn" onClick={() => { setView('subjects'); setPath(null); setConfirmNode(null); }} {...ek('path.back')}>
+          {t('path.back', '← Subjects')}
         </button>
         <span className="jm-path-subject">{subject?.icon} {subject?.label}</span>
         <span className="jm-path-progress">{doneNodes}/{totalNodes}</span>
@@ -402,19 +631,19 @@ export default function JourneyMode({ username, onBack, onPlayLevel, journeyReen
               <section key={c.chapter.id} className="jm-chapter">
                 <header className="jm-chapter-banner">
                   <span className="jm-chapter-num">⚕ Chapter {ci + 1} ⚕</span>
-                  <span className="jm-chapter-name">{c.chapter.name}</span>
+                  <span className="jm-chapter-name" {...en('chapter', c.chapter.id, c.chapter.name)}>{c.chapter.name}</span>
                 </header>
                 {c.levels.map(renderLevelNode)}
-                {renderBossNode(c.boss, `${c.chapter.name} Boss`, false)}
+                {renderBossNode(c.boss, `${c.chapter.name} ${t('boss.suffix', 'Boss')}`, false)}
               </section>
             ))}
 
-            {ultimate && renderBossNode(ultimate, 'ULTIMATE BOSS', true)}
+            {ultimate && renderBossNode(ultimate, t('ultimate.label', 'ULTIMATE BOSS'), true, 'ultimate.label')}
 
             <div className={`jm-mastery ${path?.mastery ? 'jm-mastery--earned' : ''}`}>
               <span className="jm-mastery-icon">🏆</span>
-              <span className="jm-mastery-text">FULL MASTERY</span>
-              <span className="jm-mastery-sub">{path?.mastery ? `${subject?.label} conquered!` : 'Defeat the Ultimate Boss to claim it'}</span>
+              <span className="jm-mastery-text" {...ek('mastery.title')}>{t('mastery.title', 'FULL MASTERY')}</span>
+              <span className="jm-mastery-sub">{path?.mastery ? `${subject?.label} conquered!` : t('mastery.sub.locked', 'Defeat the Ultimate Boss to claim it')}</span>
             </div>
           </div>
         </div>
@@ -445,8 +674,9 @@ export default function JourneyMode({ username, onBack, onPlayLevel, journeyReen
                 });
                 setConfirmNode(null);
               }}
-            >▶ PLAY</button>
-            <button className="btn-secondary" onClick={() => setConfirmNode(null)}>Cancel</button>
+              {...ek('confirm.play')}
+            >{t('confirm.play', '▶ PLAY')}</button>
+            <button className="btn-secondary" onClick={() => setConfirmNode(null)} {...ek('confirm.cancel')}>{t('confirm.cancel', 'Cancel')}</button>
           </div>
         </div>
       )}
@@ -457,13 +687,13 @@ export default function JourneyMode({ username, onBack, onPlayLevel, journeyReen
             {interstitial.status === 'saving' && (
               <>
                 <div className="spinner" />
-                <p className="jm-interstitial-msg">Saving progress…</p>
+                <p className="jm-interstitial-msg">{t('inter.saving', 'Saving progress…')}</p>
               </>
             )}
             {interstitial.status === 'complete' && (
               <>
                 <span className="jm-interstitial-icon">⭐</span>
-                <h2 className="jm-interstitial-heading">Level Complete!</h2>
+                <h2 className="jm-interstitial-heading" {...ek('inter.complete.title')}>{t('inter.complete.title', 'Level Complete!')}</h2>
                 <p className="jm-interstitial-score">
                   {interstitial.pct}%{' '}
                   <span className="jm-interstitial-stars">
@@ -471,29 +701,30 @@ export default function JourneyMode({ username, onBack, onPlayLevel, journeyReen
                     {'☆'.repeat(Math.max(0, 3 - starsFor(interstitial.pct, interstitial.threshold)))}
                   </span>
                 </p>
-                <button className="btn-start" onClick={() => setInterstitial(null)}>Continue</button>
+                <button className="btn-start" onClick={() => setInterstitial(null)} {...ek('inter.continue')}>{t('inter.continue', 'Continue')}</button>
               </>
             )}
             {interstitial.status === 'tryagain' && (
               <>
                 <span className="jm-interstitial-icon">⚔</span>
-                <h2 className="jm-interstitial-heading">Not quite…</h2>
+                <h2 className="jm-interstitial-heading" {...ek('inter.tryagain.title')}>{t('inter.tryagain.title', 'Not quite…')}</h2>
                 <p className="jm-interstitial-score">{interstitial.pct}% — need {interstitial.threshold}% to pass</p>
                 <button
                   className="btn-start"
                   onClick={() => { setInterstitial(null); onPlayLevel(lastPlayedRef.current); }}
-                >Retry Level</button>
-                <button className="btn-secondary" onClick={() => setInterstitial(null)}>Back to Map</button>
+                  {...ek('inter.retry')}
+                >{t('inter.retry', 'Retry Level')}</button>
+                <button className="btn-secondary" onClick={() => setInterstitial(null)} {...ek('inter.backmap')}>{t('inter.backmap', 'Back to Map')}</button>
               </>
             )}
             {interstitial.status === 'save_failed' && (
               <>
                 <span className="jm-interstitial-icon">⚠</span>
-                <h2 className="jm-interstitial-heading">Score not saved</h2>
+                <h2 className="jm-interstitial-heading" {...ek('inter.savefail.title')}>{t('inter.savefail.title', 'Score not saved')}</h2>
                 <p className="jm-interstitial-score">{interstitial.pct}%</p>
-                <p className="jm-interstitial-msg">Check your connection and try again.</p>
-                <button className="btn-start" onClick={() => handleRetryPost(interstitial.retryPayload)}>Retry Save</button>
-                <button className="btn-secondary" onClick={() => setInterstitial(null)}>Dismiss</button>
+                <p className="jm-interstitial-msg" {...ek('inter.savefail.msg')}>{t('inter.savefail.msg', 'Check your connection and try again.')}</p>
+                <button className="btn-start" onClick={() => handleRetryPost(interstitial.retryPayload)} {...ek('inter.retrysave')}>{t('inter.retrysave', 'Retry Save')}</button>
+                <button className="btn-secondary" onClick={() => setInterstitial(null)} {...ek('inter.dismiss')}>{t('inter.dismiss', 'Dismiss')}</button>
               </>
             )}
           </div>
@@ -513,13 +744,15 @@ export default function JourneyMode({ username, onBack, onPlayLevel, journeyReen
             <span className="jm-celebration-rays" aria-hidden="true" />
             <span className="jm-celebration-trophy">🏆</span>
             <p className="jm-celebration-flourish" aria-hidden="true">⚕ ─────── ⚕</p>
-            <h2 className="jm-celebration-heading">Full Mastery Achieved</h2>
+            <h2 className="jm-celebration-heading" {...ek('celebrate.title')}>{t('celebrate.title', 'Full Mastery Achieved')}</h2>
             <p className="jm-celebration-subject">{subject?.icon} {subject?.label}</p>
             <p className="jm-celebration-score">Ultimate Boss defeated · {interstitial.pct}%</p>
-            <button className="btn-start jm-celebration-btn" onClick={() => setInterstitial(null)}>Continue</button>
+            <button className="btn-start jm-celebration-btn" onClick={() => setInterstitial(null)} {...ek('celebrate.continue')}>{t('celebrate.continue', 'Continue')}</button>
           </div>
         </div>
       )}
+
+      {renderEditorPicker()}
     </div>
   );
 }

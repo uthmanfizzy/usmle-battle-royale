@@ -5761,6 +5761,75 @@ app.delete('/admin/journey-levels/:id', adminAuth, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// ── UI text overrides: page-level editable strings (Journey Page Editor) ──────
+// One row per (page, text_key). Absent key = page uses its hardcoded default, so
+// the whole feature degrades to "no overrides" if the table isn't migrated.
+
+// Public read: pages (e.g. JourneyMode) fetch their overrides map on mount.
+app.get('/api/ui-text', async (req, res) => {
+  if (!supabase) return res.json({});
+  const { page } = req.query;
+  if (!page) return res.status(400).json({ error: 'page required' });
+  try {
+    const { data, error } = await supabase
+      .from('ui_text_overrides').select('text_key, value').eq('page', page);
+    if (error) throw error;
+    const map = {};
+    for (const row of (data || [])) map[row.text_key] = row.value;
+    res.json(map);
+  } catch (err) {
+    console.warn('[/api/ui-text] unavailable, returning {} —', err.message);
+    res.json({});
+  }
+});
+
+// Admin read: same map, gated (kept separate from the public route).
+app.get('/admin/ui-text', adminAuth, async (req, res) => {
+  if (!supabase) return res.json({});
+  const { page } = req.query;
+  if (!page) return res.status(400).json({ error: 'page required' });
+  try {
+    const { data, error } = await supabase
+      .from('ui_text_overrides').select('text_key, value').eq('page', page);
+    if (error) throw error;
+    const map = {};
+    for (const row of (data || [])) map[row.text_key] = row.value;
+    res.json(map);
+  } catch (err) {
+    console.warn('[/admin/ui-text] unavailable, returning {} —', err.message);
+    res.json({});
+  }
+});
+
+// Admin upsert: set an override for one key on a page.
+app.put('/admin/ui-text', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  const { page, text_key, value } = req.body || {};
+  if (!page || !text_key) return res.status(400).json({ error: 'page and text_key required' });
+  try {
+    const { data, error } = await supabase
+      .from('ui_text_overrides')
+      .upsert({ page, text_key, value: value ?? '' }, { onConflict: 'page,text_key' })
+      .select()
+      .single();
+    if (error) throw error;
+    res.json(data);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Admin delete: reset a key back to its hardcoded default.
+app.delete('/admin/ui-text', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  const { page, text_key } = req.body || {};
+  if (!page || !text_key) return res.status(400).json({ error: 'page and text_key required' });
+  try {
+    const { error } = await supabase
+      .from('ui_text_overrides').delete().eq('page', page).eq('text_key', text_key);
+    if (error) throw error;
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // ── First Aid Journey: level questions (admin) ────────────────────────────────
 
 app.get('/admin/journey-questions', adminAuth, async (req, res) => {
