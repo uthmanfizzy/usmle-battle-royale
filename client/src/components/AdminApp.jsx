@@ -7171,23 +7171,172 @@ class ErrorBoundary extends React.Component {
 
 // ── Root Admin App ─────────────────────────────────────────────────────────────
 
-// ── Journey Page Editor: live preview of the player's Journey page with ───────
-// click-to-edit on UI text + chapter/level names. The preview is the real
-// JourneyMode component in editor mode (admin-only), so what you see is what
-// players get. UI text saves to ui_text_overrides; names reuse the journey
-// chapter/level endpoints. See JourneyMode.jsx for the editor wiring.
+// ── Journey Page Editor: live preview of the player's Journey page ────────────
+// Two modes:
+//  • Page Text — click-to-edit UI text + chapter/level names (saves immediately).
+//  • Elements  — visual builder: add/drag/edit/delete free-placed text panels in a
+//    local DRAFT; nothing reaches players until Save. UI text saves to
+//    ui_text_overrides, names reuse the journey endpoints, panels use
+//    journey_custom_elements. See JourneyMode.jsx for the editor wiring.
+
+const ELEMENT_SCOPES = [
+  { id: 'all', label: 'All subjects (shown everywhere)' },
+  ...JOURNEY_SUBJECTS.map(s => ({ id: s.id, label: `${s.icon} ${s.label}` })),
+];
+
+// Identity-independent fingerprint of the draft, for the "unsaved changes" flag.
+function fingerprintElements(arr) {
+  return JSON.stringify(
+    (arr || []).map(e => ({ id: e.id || null, text: e.text, x: Number(e.pos_x), y: Number(e.pos_y) }))
+  );
+}
+
 function JourneyPageEditor() {
+  const [mode, setMode] = useState('text'); // 'text' | 'elements'
+
+  // Elements-mode state
+  const [scope,    setScope]    = useState('all');   // subject id or 'all' (→ global/null)
+  const [draft,    setDraft]    = useState([]);      // working copy
+  const [snapshot, setSnapshot] = useState([]);      // last-saved baseline
+  const [loading,  setLoading]  = useState(false);
+  const [saving,   setSaving]   = useState(false);
+  const [saveMsg,  setSaveMsg]  = useState('');
+
+  const dirty = fingerprintElements(draft) !== fingerprintElements(snapshot);
+  // First active journey subject — the map shown as backdrop when editing global panels.
+  const previewSubjectId = mode === 'elements'
+    ? (scope === 'all' ? JOURNEY_SUBJECTS[0]?.id : scope)
+    : null;
+
+  async function loadElements(forScope) {
+    setLoading(true);
+    setSaveMsg('');
+    try {
+      const res  = await apiCall(`/admin/journey-elements?subject=${encodeURIComponent(forScope)}`);
+      const data = await res.json();
+      const els  = (data.elements || []).map(e => ({ ...e }));
+      setDraft(els.map(e => ({ ...e })));
+      setSnapshot(els.map(e => ({ ...e })));
+    } catch {
+      setDraft([]); setSnapshot([]);
+    }
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    if (mode === 'elements') loadElements(scope);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, scope]);
+
+  function addPanel() {
+    setDraft(d => [
+      ...d,
+      {
+        _localId: `tmp_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        subject: scope === 'all' ? null : scope,
+        text: 'New panel',
+        pos_x: 40,
+        pos_y: 40,
+      },
+    ]);
+  }
+  const matchId = (e, id) => (e.id ?? e._localId) === id;
+  const moveElement = (id, x, y) => setDraft(d => d.map(e => matchId(e, id) ? { ...e, pos_x: x, pos_y: y } : e));
+  const editElement = (id, text) => setDraft(d => d.map(e => matchId(e, id) ? { ...e, text } : e));
+  const deleteElement = (id) => setDraft(d => d.filter(e => !matchId(e, id)));
+
+  async function save() {
+    setSaving(true);
+    setSaveMsg('');
+    try {
+      const draftIds = new Set(draft.filter(e => e.id).map(e => e.id));
+      const snapById = new Map(snapshot.map(e => [e.id, e]));
+      // Deletions: rows in the snapshot the draft no longer contains.
+      for (const e of snapshot) {
+        if (!draftIds.has(e.id)) {
+          const res = await apiCall(`/admin/journey-elements/${e.id}`, { method: 'DELETE' });
+          if (!res.ok) throw new Error('delete failed');
+        }
+      }
+      // Creates + updates.
+      for (const e of draft) {
+        const body = {
+          subject: scope === 'all' ? 'all' : scope,
+          text: e.text,
+          pos_x: e.pos_x,
+          pos_y: e.pos_y,
+        };
+        if (e.id) {
+          const orig = snapById.get(e.id);
+          const changed = !orig
+            || orig.text !== e.text
+            || Number(orig.pos_x) !== Number(e.pos_x)
+            || Number(orig.pos_y) !== Number(e.pos_y);
+          if (changed) {
+            const res = await apiCall(`/admin/journey-elements/${e.id}`, { method: 'PUT', body: JSON.stringify(body) });
+            if (!res.ok) throw new Error('update failed');
+          }
+        } else {
+          const res = await apiCall('/admin/journey-elements', { method: 'POST', body: JSON.stringify(body) });
+          if (!res.ok) throw new Error('create failed');
+        }
+      }
+      await loadElements(scope); // re-sync ids + baseline
+      setSaveMsg('success');
+      setTimeout(() => setSaveMsg(''), 3000);
+    } catch {
+      setSaveMsg('error');
+    }
+    setSaving(false);
+  }
+
   return (
     <div className="jpe-panel">
       <div className="jpe-head">
         <h2 className="jpe-title">🗺️ Journey Page Editor</h2>
-        <p className="jpe-desc">
-          Live preview of the player's First Aid Journey page. Click any{' '}
-          <strong>highlighted</strong> text to edit it — UI labels save to the page instantly,
-          and chapter/level names update the journey content. Open a subject to edit the
-          chapter and level names on its map.
-        </p>
+        <div className="jpe-modes">
+          <button
+            className={`jpe-modebtn ${mode === 'text' ? 'active' : ''}`}
+            onClick={() => setMode('text')}
+          >✏️ Page Text</button>
+          <button
+            className={`jpe-modebtn ${mode === 'elements' ? 'active' : ''}`}
+            onClick={() => setMode('elements')}
+          >🧩 Elements</button>
+        </div>
+        {mode === 'text' ? (
+          <p className="jpe-desc">
+            Click any <strong>highlighted</strong> text to edit it — UI labels save instantly,
+            chapter/level names update the journey content. Open a subject to edit its map names.
+          </p>
+        ) : (
+          <p className="jpe-desc">
+            Add free-placed text panels over the map. Drag by the top bar, click the text to edit,
+            × to delete. Changes are a <strong>draft</strong> — players only see them after you press
+            Save.
+          </p>
+        )}
       </div>
+
+      {mode === 'elements' && (
+        <div className="jpe-toolbar">
+          <label className="jpe-tool-label">
+            Subject:
+            <select className="jpe-select" value={scope} onChange={e => setScope(e.target.value)}>
+              {ELEMENT_SCOPES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
+            </select>
+          </label>
+          <button className="jpe-btn" onClick={addPanel} disabled={loading}>+ Add Panel</button>
+          <span className="jpe-spacer" />
+          {dirty && <span className="jpe-unsaved">● Unsaved changes</span>}
+          {saveMsg === 'success' && <span className="jpe-saved">✓ Saved — live for players</span>}
+          {saveMsg === 'error' && <span className="jpe-error">✗ Save failed</span>}
+          <button className="jpe-btn jpe-btn-primary" onClick={save} disabled={saving || !dirty}>
+            {saving ? 'Saving…' : '💾 Save'}
+          </button>
+        </div>
+      )}
+
       <div className="jpe-frame">
         <JourneyMode
           editorMode
@@ -7196,6 +7345,13 @@ function JourneyPageEditor() {
           onPlayLevel={() => {}}
           journeyReentry={null}
           onReentryConsumed={() => {}}
+          {...(mode === 'elements' ? {
+            editorElements: draft,
+            onElementMove: moveElement,
+            onElementText: editElement,
+            onElementDelete: deleteElement,
+            previewSubjectId,
+          } : {})}
         />
       </div>
     </div>

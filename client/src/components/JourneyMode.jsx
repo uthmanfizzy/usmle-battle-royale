@@ -44,7 +44,13 @@ function CompassRose() {
   );
 }
 
-export default function JourneyMode({ username, onBack, onPlayLevel, journeyReentry, onReentryConsumed, editorMode = false }) {
+export default function JourneyMode({
+  username, onBack, onPlayLevel, journeyReentry, onReentryConsumed,
+  editorMode = false,
+  // Visual builder (editor only): draft panels + drag/edit/delete callbacks.
+  editorElements = null, onElementMove, onElementText, onElementDelete,
+  previewSubjectId = null,
+}) {
   const [view,        setView]        = useState('subjects'); // 'subjects' | 'path'
   const [subject,     setSubject]     = useState(null);       // entry from JOURNEY_SUBJECTS
   const [path,        setPath]        = useState(null);       // GET /api/journey/:subject response
@@ -64,6 +70,14 @@ export default function JourneyMode({ username, onBack, onPlayLevel, journeyReen
   const textDefaultsRef = useRef({});                         // text_key → default, recorded as t() renders
   const overridesRef    = useRef({});
   overridesRef.current  = overrides;
+
+  // Custom panels: players fetch published ones; the editor passes its live draft.
+  const [playerElements, setPlayerElements] = useState([]);
+  const elements = editorMode ? (editorElements || []) : playerElements;
+  const elementsLayerRef  = useRef(null);
+  const dragRef           = useRef(null);
+  const onElementMoveRef  = useRef(onElementMove);
+  onElementMoveRef.current = onElementMove;
 
   // t(key, default): returns the admin override if present, else the original string.
   // Also records the default so the editor's "reset to default" can show/restore it.
@@ -314,12 +328,104 @@ export default function JourneyMode({ username, onBack, onPlayLevel, journeyReen
 
   const editorRootProps = editorMode ? { onClick: handleEditorClick } : {};
 
+  // ----- Custom panels: drag mechanics (editor only) -----
+  // Window-level listeners so a drag continues even if the pointer leaves the panel.
+  const onPanelPointerMove = useCallback((e) => {
+    const d = dragRef.current;
+    if (!d) return;
+    const dx = ((e.clientX - d.startX) / d.rect.width) * 100;
+    const dy = ((e.clientY - d.startY) / d.rect.height) * 100;
+    const x = Math.max(0, Math.min(100, d.startPosX + dx));
+    const y = Math.max(0, Math.min(100, d.startPosY + dy));
+    onElementMoveRef.current?.(d.id, x, y);
+  }, []);
+  const onPanelPointerUp = useCallback(() => {
+    dragRef.current = null;
+    window.removeEventListener('pointermove', onPanelPointerMove);
+    window.removeEventListener('pointerup', onPanelPointerUp);
+  }, [onPanelPointerMove]);
+  const startPanelDrag = (e, el) => {
+    const layer = elementsLayerRef.current;
+    if (!layer) return;
+    e.preventDefault();
+    dragRef.current = {
+      id: el.id ?? el._localId,
+      startX: e.clientX, startY: e.clientY,
+      startPosX: Number(el.pos_x) || 0, startPosY: Number(el.pos_y) || 0,
+      rect: layer.getBoundingClientRect(),
+    };
+    window.addEventListener('pointermove', onPanelPointerMove);
+    window.addEventListener('pointerup', onPanelPointerUp);
+  };
+
+  const renderPanel = (el) => {
+    const id = el.id ?? el._localId;
+    const style = { left: `${el.pos_x ?? 40}%`, top: `${el.pos_y ?? 40}%` };
+    if (!editorMode) {
+      return (
+        <div key={id} className="jm-panel" style={style}>
+          <div className="jm-panel-text">{el.text}</div>
+        </div>
+      );
+    }
+    return (
+      <div key={id} className="jm-panel jm-panel--edit" style={style}>
+        <div className="jm-panel-bar" onPointerDown={(e) => startPanelDrag(e, el)} title="Drag to move">
+          <span className="jm-panel-grip" aria-hidden="true">⠿</span>
+          <button
+            className="jm-panel-del"
+            title="Delete panel"
+            onClick={() => onElementDelete?.(id)}
+          >×</button>
+        </div>
+        <textarea
+          className="jm-panel-input"
+          value={el.text}
+          placeholder="Panel text…"
+          onChange={(e) => onElementText?.(id, e.target.value)}
+        />
+      </div>
+    );
+  };
+
+  const renderElementsLayer = () => {
+    // No layer at all when there's nothing to show and we're not editing →
+    // player render stays byte-identical when a subject has no panels.
+    if (!editorMode && elements.length === 0) return null;
+    return (
+      <div className={`jm-elements-layer${editorMode ? ' jm-elements-layer--edit' : ''}`} ref={elementsLayerRef}>
+        {elements.map(renderPanel)}
+      </div>
+    );
+  };
+
   // Auto-scroll to the frontier node (first unlocked, not-yet-completed) when a path renders
   useEffect(() => {
     if (view === 'path' && path && frontierRef.current) {
       frontierRef.current.scrollIntoView({ block: 'center' });
     }
   }, [view, path]);
+
+  // Editor: jump straight to the requested subject's map so panels can be placed on it.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!editorMode || !previewSubjectId) return;
+    if (subject && subject.id === previewSubjectId) return;
+    const subj = JOURNEY_SUBJECTS.find(s => s.id === previewSubjectId);
+    if (subj) loadPath(subj);
+  }, [editorMode, previewSubjectId]);
+
+  // Player: fetch published panels for the open subject. Editor uses its draft instead.
+  useEffect(() => {
+    if (editorMode) return;
+    if (view !== 'path' || !subject) { setPlayerElements([]); return; }
+    let cancelled = false;
+    fetch(`${SERVER}/api/journey-elements?subject=${encodeURIComponent(subject.id)}`)
+      .then(r => r.json())
+      .then(d => { if (!cancelled) setPlayerElements(Array.isArray(d.elements) ? d.elements : []); })
+      .catch(() => { if (!cancelled) setPlayerElements([]); });
+    return () => { cancelled = true; };
+  }, [editorMode, view, subject]);
 
   // Re-entry after a journey game: POST completion, single source of truth for the refreshed path
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -648,6 +754,8 @@ export default function JourneyMode({ username, onBack, onPlayLevel, journeyReen
           </div>
         </div>
       </div>
+
+      {renderElementsLayer()}
 
       {confirmNode && (
         <div className="jm-confirm-overlay" onClick={() => setConfirmNode(null)}>

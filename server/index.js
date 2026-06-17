@@ -5830,6 +5830,90 @@ app.delete('/admin/ui-text', adminAuth, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// ── Journey custom elements: free-placed text panels (visual builder layer 1) ──
+// Draft-then-publish: the admin editor holds working state and only writes here on
+// Save; players read the published rows. subject=null = shown on every subject.
+
+// Public read: panels for one subject + the all-subjects (null) ones.
+app.get('/api/journey-elements', async (req, res) => {
+  if (!supabase) return res.json({ elements: [] });
+  const { subject } = req.query;
+  try {
+    let query = supabase.from('journey_custom_elements').select('*')
+      .order('created_at', { ascending: true });
+    // subject panels OR global (null) panels; with no subject, just the globals
+    query = subject ? query.or(`subject.eq.${subject},subject.is.null`) : query.is('subject', null);
+    const { data, error } = await query;
+    if (error) throw error;
+    res.json({ elements: data || [] });
+  } catch (err) {
+    console.warn('[/api/journey-elements] unavailable, returning [] —', err.message);
+    res.json({ elements: [] });
+  }
+});
+
+// Admin read: the editor loads exactly one scope (a subject, or the null/global set).
+app.get('/admin/journey-elements', adminAuth, async (req, res) => {
+  if (!supabase) return res.json({ elements: [] });
+  const { subject } = req.query;
+  try {
+    let query = supabase.from('journey_custom_elements').select('*')
+      .order('created_at', { ascending: true });
+    query = (subject && subject !== 'all') ? query.eq('subject', subject) : query.is('subject', null);
+    const { data, error } = await query;
+    if (error) throw error;
+    res.json({ elements: data || [] });
+  } catch (err) {
+    console.warn('[/admin/journey-elements] unavailable, returning [] —', err.message);
+    res.json({ elements: [] });
+  }
+});
+
+function sanitizeElement(body) {
+  const out = {};
+  if ('subject' in body) out.subject = body.subject || null; // '' / 'all' → null (global)
+  if ('text' in body) out.text = String(body.text ?? '');
+  if ('pos_x' in body && Number.isFinite(Number(body.pos_x))) out.pos_x = Math.max(0, Math.min(100, Number(body.pos_x)));
+  if ('pos_y' in body && Number.isFinite(Number(body.pos_y))) out.pos_y = Math.max(0, Math.min(100, Number(body.pos_y)));
+  return out;
+}
+
+app.post('/admin/journey-elements', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  const row = sanitizeElement(req.body || {});
+  if (!('pos_x' in row)) row.pos_x = 40;
+  if (!('pos_y' in row)) row.pos_y = 40;
+  if (!('text' in row)) row.text = '';
+  if (!('subject' in row)) row.subject = req.body?.subject || null;
+  try {
+    const { data, error } = await supabase
+      .from('journey_custom_elements').insert(row).select().single();
+    if (error) throw error;
+    res.json(data);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.put('/admin/journey-elements/:id', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  const updates = sanitizeElement(req.body || {});
+  if (Object.keys(updates).length === 0) return res.status(400).json({ error: 'nothing to update' });
+  try {
+    const { data, error } = await supabase
+      .from('journey_custom_elements').update(updates).eq('id', req.params.id).select().single();
+    if (error) throw error;
+    res.json(data);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.delete('/admin/journey-elements/:id', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  try {
+    const { error } = await supabase.from('journey_custom_elements').delete().eq('id', req.params.id);
+    if (error) throw error;
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // ── First Aid Journey: level questions (admin) ────────────────────────────────
 
 app.get('/admin/journey-questions', adminAuth, async (req, res) => {

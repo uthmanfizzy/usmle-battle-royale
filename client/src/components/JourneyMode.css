@@ -1237,3 +1237,135 @@
 .jpe-frame .jm-bg {
   position: absolute;
 }
+
+/* ── Custom panels (visual builder layer 1) ─────────────────────────────────── */
+/* Overlay covering the path screen; positions are % of this layer so they stay
+   responsive. Layer ignores pointer events so the map underneath stays usable;
+   individual panels re-enable them. */
+.jm-elements-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  overflow: hidden;
+}
+.jm-elements-layer--edit { z-index: 30; }
+
+.jm-panel {
+  position: absolute;
+  pointer-events: none; /* players: decorative text, never blocks map taps */
+  max-width: 60%;
+  min-width: 120px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: linear-gradient(160deg, var(--parchment-hi, #f7ecd2), var(--parchment, #efdfb6));
+  border: 1px solid rgba(139, 94, 52, 0.55);
+  box-shadow: 0 6px 18px rgba(74, 53, 32, 0.28);
+  color: var(--ink, #4a3520);
+}
+.jm-panel-text {
+  font-size: 15px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* Editor affordances — only on .jm-panel--edit (players never get this class). */
+.jm-panel--edit {
+  pointer-events: auto; /* editor: draggable + editable */
+  padding: 0;
+  overflow: hidden;
+  box-shadow: 0 8px 22px rgba(74, 53, 32, 0.35);
+  outline: 1px dashed rgba(201, 151, 28, 0.8);
+}
+.jm-panel-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 6px 4px 8px;
+  background: rgba(139, 94, 52, 0.18);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+.jm-panel-bar:active { cursor: grabbing; }
+.jm-panel-grip { font-size: 14px; color: var(--sepia, #8b5e34); letter-spacing: 2px; }
+.jm-panel-del {
+  border: none;
+  background: rgba(156, 43, 35, 0.9);
+  color: #fff;
+  width: 20px;
+  height: 20px;
+  line-height: 18px;
+  border-radius: 50%;
+  font-size: 15px;
+  cursor: pointer;
+  padding: 0;
+}
+.jm-panel-del:hover { background: #9c2b23; }
+.jm-panel-input {
+  display: block;
+  width: 160px;
+  max-width: 60vw;
+  min-height: 54px;
+  resize: both;
+  border: none;
+  background: transparent;
+  padding: 10px 12px;
+  font-family: inherit;
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--ink, #4a3520);
+}
+.jm-panel-input:focus { outline: none; }
+
+/* ── Journey Page Editor: mode tabs + elements toolbar ──────────────────────── */
+.jpe-modes { display: flex; gap: 8px; margin: 10px 0 6px; }
+.jpe-modebtn {
+  border: 1px solid rgba(220, 190, 80, 0.4);
+  background: rgba(255, 255, 255, 0.05);
+  color: #f4efe1;
+  padding: 7px 14px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.jpe-modebtn.active { background: #dcbe50; color: #1b2417; border-color: #dcbe50; }
+
+.jpe-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(220, 190, 80, 0.3);
+  border-radius: 10px;
+}
+.jpe-tool-label { display: flex; align-items: center; gap: 8px; font-size: 14px; color: #f4efe1; }
+.jpe-select {
+  background: #0f150c;
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 7px;
+  padding: 7px 10px;
+  font-size: 14px;
+}
+.jpe-spacer { flex: 1; }
+.jpe-btn {
+  border: 1px solid rgba(220, 190, 80, 0.5);
+  background: rgba(255, 255, 255, 0.06);
+  color: #f4efe1;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.jpe-btn:disabled { opacity: 0.55; cursor: default; }
+.jpe-btn-primary { background: #dcbe50; color: #1b2417; border-color: #dcbe50; }
+.jpe-unsaved { color: #f0c040; font-size: 13px; font-weight: 600; }
+.jpe-saved { color: #7ed07e; font-size: 13px; font-weight: 600; }
+.jpe-error { color: #e88; font-size: 13px; font-weight: 600; }
