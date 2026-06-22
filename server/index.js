@@ -723,7 +723,7 @@ function processBuzzFunAnswers(lobby) {
     const sr = updateStreak(lobby, player.id, correct);
     results.push({ id: player.id, username: player.username, answered: answer !== undefined, correct, lives: 3, alive: true, streak: sr.streak });
 
-    const explanation = lobby.difficulty === 'hard' && gameSettings.hardModeHideExplanations
+    const explanation = (lobby.difficulty === 'hard' ? gameSettings.hardModeHideExplanations : gameSettings.easyModeHideExplanations)
       ? ''
       : (q.explanation || '');
     const sock = io.sockets.sockets.get(player.id);
@@ -742,7 +742,7 @@ function processBuzzFunAnswers(lobby) {
     streak: lobby.streaks?.get(p.id) || 0,
   }));
 
-  const explanation = lobby.difficulty === 'hard' && gameSettings.hardModeHideExplanations
+  const explanation = (lobby.difficulty === 'hard' ? gameSettings.hardModeHideExplanations : gameSettings.easyModeHideExplanations)
     ? ''
     : (q.explanation || '');
   io.to(lobby.id).emit('round_results', {
@@ -751,7 +751,7 @@ function processBuzzFunAnswers(lobby) {
 
   const explanationDelay = lobby.difficulty === 'hard'
     ? (gameSettings.hardModeHideExplanations ? 2500 : 22000)  // HARDCODED: 20s explanation + 2s buffer
-    : (gameSettings.explanationTime * 1000 + 2000);
+    : (gameSettings.easyModeHideExplanations ? 2500 : ((gameSettings.easyModeExplanationTime || gameSettings.explanationTime || 5) * 1000 + 2000));
   if (lobby.questionIdx >= lobby.questionQueue.length - 1) {
     setTimeout(() => endGame(lobby, 'questions_exhausted'), explanationDelay);
     return;
@@ -903,7 +903,7 @@ function processAnswers(lobby) {
 
     const sock = io.sockets.sockets.get(player.id);
     if (sock) {
-      const explanation = lobby.difficulty === 'hard' && gameSettings.hardModeHideExplanations
+      const explanation = (lobby.difficulty === 'hard' ? gameSettings.hardModeHideExplanations : gameSettings.easyModeHideExplanations)
         ? ''
         : (q.explanation || '');
       sock.emit('answer_result', answerResultPayload({
@@ -922,7 +922,7 @@ function processAnswers(lobby) {
     streak: lobby.streaks?.get(p.id) || 0,
   }));
 
-  const explanation = lobby.difficulty === 'hard' && gameSettings.hardModeHideExplanations
+  const explanation = (lobby.difficulty === 'hard' ? gameSettings.hardModeHideExplanations : gameSettings.easyModeHideExplanations)
     ? ''
     : (q.explanation || '');
   io.to(lobby.id).emit('round_results', {
@@ -934,7 +934,7 @@ function processAnswers(lobby) {
   if (alive.length <= 1) {
     const explanationDelay = lobby.difficulty === 'hard'
       ? (gameSettings.hardModeHideExplanations ? 3000 : 22000)  // HARDCODED: 20s explanation + 2s buffer
-      : (gameSettings.explanationTime * 1000 + 2000);
+      : (gameSettings.easyModeHideExplanations ? 2500 : ((gameSettings.easyModeExplanationTime || gameSettings.explanationTime || 5) * 1000 + 2000));
     setTimeout(() => endGame(lobby, 'last_standing'), explanationDelay);
     return;
   }
@@ -944,7 +944,7 @@ function processAnswers(lobby) {
     lobby.suddenDeath = true;
     const explanationDelay = lobby.difficulty === 'hard'
       ? (gameSettings.hardModeHideExplanations ? 3000 : 22000)  // HARDCODED: 20s explanation + 2s buffer
-      : (gameSettings.explanationTime * 1000 + 2000);
+      : (gameSettings.easyModeHideExplanations ? 2500 : ((gameSettings.easyModeExplanationTime || gameSettings.explanationTime || 5) * 1000 + 2000));
     // Emit announcement after round results have been shown, then give 3s for the screen
     setTimeout(() => io.to(lobby.id).emit('sudden_death'), explanationDelay);
     setTimeout(() => nextQuestion(lobby), explanationDelay + 3000);
@@ -953,7 +953,7 @@ function processAnswers(lobby) {
 
   const explanationDelay = lobby.difficulty === 'hard'
     ? (gameSettings.hardModeHideExplanations ? 2500 : 22000)  // HARDCODED: 20s explanation + 2s buffer
-    : (gameSettings.explanationTime * 1000 + 2000);
+    : (gameSettings.easyModeHideExplanations ? 2500 : ((gameSettings.easyModeExplanationTime || gameSettings.explanationTime || 5) * 1000 + 2000));
   setTimeout(() => nextQuestion(lobby), explanationDelay);
 }
 

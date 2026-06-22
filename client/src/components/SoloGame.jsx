@@ -20,11 +20,19 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   const { settings } = useGameSettings();
   const { study } = useTheme();   // Layer 1 chrome renders only when study mode is on
 
-  // Hard mode uses admin-configured timer and explanation time, easy mode uses defaults
+  // Hard mode and easy mode each use their own admin-configured timer / explanation
+  // time / hide-explanations setting (falling back to legacy generic keys, then literals)
   const isHardMode = difficulty === 'hard';
-  const defaultTimer = isHardMode ? (settings.hardModeTimer || 30) : (settings.timerDefault || 20);
+  const defaultTimer = isHardMode
+    ? (settings.hardModeTimer || 30)
+    : (settings.easyModeTimer || settings.timerDefault || 20);
   const defaultLives = settings.battleRoyaleLives || 3;
-  const explanationTime = isHardMode ? (settings.hardModeExplanationTime || 20) : (settings.explanationTime || 5);
+  const explanationTime = isHardMode
+    ? (settings.hardModeExplanationTime || 20)
+    : (settings.easyModeExplanationTime || settings.explanationTime || 5);
+  const hideExplanations = isHardMode
+    ? !!settings.hardModeHideExplanations
+    : !!settings.easyModeHideExplanations;
 
   const [questions, setQuestions] = useState([]);
   const [qIdx, setQIdx] = useState(0);
@@ -222,7 +230,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
     };
 
     skipActionRef.current = doAdvance;
-    // HARDCODED: Use explanationTime (20s for hard mode, 5s for easy) + 2.5s buffer
+    // Use admin-configured explanation display time (hard/easy mode specific) + 2.5s buffer
     const explanationDelay = explanationTime * 1000 + 2500;
     skipTimerRef.current  = setTimeout(doAdvance, explanationDelay);
   }, [subject, explanationTime]);
@@ -474,8 +482,8 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
             </div>
             <div className="rr-explanation">
               <strong>Correct answer: {q.correct}</strong>
-              <ExplanationText text={q.explanation} />
-              {q.explanation_image_url && (
+              {!hideExplanations && <ExplanationText text={q.explanation} />}
+              {!hideExplanations && q.explanation_image_url && (
                 <img
                   src={q.explanation_image_url}
                   alt="Explanation"
@@ -484,7 +492,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
                 />
               )}
             </div>
-            {q.why_others_wrong && (
+            {!hideExplanations && q.why_others_wrong && (
               <div className="why-wrong-box">
                 <div className="why-wrong-header">
                   <span className="why-wrong-icon">❌</span>
