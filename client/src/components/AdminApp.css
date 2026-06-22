@@ -2627,6 +2627,14 @@
   border-color: rgba(200, 163, 44, 0.85);
   transform: translateY(-1px);
 }
+/* On a topic card, the "+ Sub-folder" button fills the row so it's obvious; the
+   rename/delete icons sit to its right. */
+.ap-topic-subfolder-btn {
+  flex: 1;
+  justify-content: center;
+  font-size: 12px;
+  padding: 5px 8px;
+}
 
 /* Category-colored topic cards */
 .ap-tc-cardiology    { border-left: 3px solid #e74c3c; }
@@ -2745,6 +2753,7 @@
   font-size: 13px;
   color: var(--text-dim);
 }
+.ap-modal-note { color: var(--accent, #c8a32c); }
 
 /* Ungrouped zone — visually neutral unless groups exist or a drag is over it */
 .ap-ungrouped-zone {

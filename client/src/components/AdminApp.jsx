@@ -745,7 +745,7 @@ function TopicModal({ topic, onSave, onClose, error }) {
 
 // ── Group Modal ────────────────────────────────────────────────────────────────
 
-function GroupModal({ group, parentName, onSave, onClose, error }) {
+function GroupModal({ group, parentName, promote, onSave, onClose, error }) {
   const isEdit = !!group;
   const isSub  = !isEdit && !!parentName; // creating a sub-folder under parentName
   const [name,   setName]   = useState(group?.name || '');
@@ -770,7 +770,10 @@ function GroupModal({ group, parentName, onSave, onClose, error }) {
         </div>
         <form onSubmit={handleSubmit} className="ap-qform">
           {isSub && (
-            <p className="ap-modal-sub">Inside <strong>{parentName}</strong></p>
+            <p className="ap-modal-sub">
+              Inside <strong>{parentName}</strong>
+              {promote && <span className="ap-modal-note"> — “{parentName}” becomes a folder; its existing topic &amp; questions stay inside it.</span>}
+            </p>
           )}
           <div className="ap-field">
             <label>{isSub ? 'Sub-folder Name' : 'Group Name'}</label>
@@ -1123,23 +1126,48 @@ function QuestionsPanel({ subjects = [] }) {
   }
 
   // ─── Topic group CRUD ─────────────────────────────────────────────────────────
+  // groupModal shapes:
+  //   'create'                                  → new top-level group
+  //   { create, parentId }                      → new sub-folder under an existing group
+  //   { create, promoteTopicId, parentName }    → promote a topic into a same-named folder,
+  //                                                then create a sub-folder inside it
+  //   groupObj                                  → rename existing group
   async function handleSaveGroup(name) {
     setTopicErr('');
-    // groupModal: 'create' (top-level) | { create:true, parentId } (sub-folder) | groupObj (edit)
-    const isCreate = groupModal === 'create' || !!groupModal?.create;
+    const gm       = groupModal;
+    const isCreate = gm === 'create' || !!gm?.create;
     const isEdit   = !isCreate;
-    const parentId = groupModal?.create ? groupModal.parentId : null;
     try {
-      const res  = isEdit
-        ? await apiCall(`/admin/topic-groups/${groupModal.id}`, { method: 'PUT', body: JSON.stringify({ name }) })
-        : await apiCall('/admin/topic-groups', { method: 'POST', body: JSON.stringify({ name, category: activeFolder, difficulty: selectedDifficulty || 'easy', parent_group_id: parentId }) });
+      if (isEdit) {
+        const res  = await apiCall(`/admin/topic-groups/${gm.id}`, { method: 'PUT', body: JSON.stringify({ name }) });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to save group');
+        setGroups(gs => gs.map(g => g.id === gm.id ? { ...g, ...data } : g));
+        setGroupModal(null);
+        return;
+      }
+
+      let parentId = gm?.parentId || null;
+
+      // Promote a leaf topic into a same-named top-level folder first (non-destructive:
+      // the topic and all its questions simply move inside the new group).
+      if (gm?.promoteTopicId) {
+        const pRes  = await apiCall('/admin/topic-groups', { method: 'POST', body: JSON.stringify({ name: gm.parentName, category: activeFolder, difficulty: selectedDifficulty || 'easy' }) });
+        const pData = await pRes.json();
+        if (!pRes.ok) throw new Error(pData.error || 'Failed to create folder');
+        const mvRes  = await apiCall(`/admin/topics/${gm.promoteTopicId}`, { method: 'PUT', body: JSON.stringify({ group_id: pData.id }) });
+        const mvData = await mvRes.json();
+        if (!mvRes.ok) throw new Error(mvData.error || 'Failed to move topic into folder');
+        setGroups(gs => [...gs, pData].sort((a, b) => a.name.localeCompare(b.name)));
+        setTopics(ts => ts.map(t => t.id === gm.promoteTopicId ? { ...t, group_id: pData.id } : t));
+        parentId = pData.id;
+      }
+
+      // Create the (sub-)folder
+      const res  = await apiCall('/admin/topic-groups', { method: 'POST', body: JSON.stringify({ name, category: activeFolder, difficulty: selectedDifficulty || 'easy', parent_group_id: parentId }) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to save group');
-      if (isEdit) {
-        setGroups(gs => gs.map(g => g.id === groupModal.id ? { ...g, ...data } : g));
-      } else {
-        setGroups(gs => [...gs, data].sort((a, b) => a.name.localeCompare(b.name)));
-      }
+      setGroups(gs => [...gs, data].sort((a, b) => a.name.localeCompare(b.name)));
       setGroupModal(null);
     } catch (err) { setTopicErr(err.message); }
   }
@@ -1213,6 +1241,13 @@ function QuestionsPanel({ subjects = [] }) {
         <span className="ap-topic-card-count">{t.question_count} question{t.question_count !== 1 ? 's' : ''}</span>
       </button>
       <div className="ap-topic-card-actions">
+        {!t.group_id && (
+          <button
+            className="ap-add-subfolder-btn ap-topic-subfolder-btn"
+            onClick={() => { setTopicErr(''); setGroupModal({ create: true, promoteTopicId: t.id, parentName: t.name }); }}
+            title={`Turn "${t.name}" into a folder and add a sub-folder inside it`}
+          >📂 + Sub-folder</button>
+        )}
         <button
           className="ap-topic-edit-btn"
           onClick={() => { setTopicErr(''); setTopicModal(t); }}
@@ -2318,6 +2353,7 @@ function QuestionsPanel({ subjects = [] }) {
         <GroupModal
           group={(groupModal === 'create' || groupModal?.create) ? null : groupModal}
           parentName={groupModal?.parentName}
+          promote={!!groupModal?.promoteTopicId}
           onSave={handleSaveGroup}
           onClose={() => { setGroupModal(null); setTopicErr(''); }}
           error={topicErr}
