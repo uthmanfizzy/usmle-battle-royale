@@ -1,0 +1,11 @@
+# Dependencies
+node_modules/
+
+# Vite build cache
+.vite/
+
+# Build output
+dist/
+
+# Vercel
+.vercel
