@@ -1797,10 +1797,10 @@ function QuestionsPanel({ subjects = [] }) {
                           </span>
                           <div className="ap-group-actions">
                             <button
-                              className="ap-topic-edit-btn"
+                              className="ap-add-subfolder-btn"
                               onClick={() => { setTopicErr(''); setGroupModal({ create: true, parentId: g.id, parentName: g.name }); }}
-                              title="Add sub-folder"
-                            >📂＋</button>
+                              title={`Create a sub-folder inside ${g.name}`}
+                            >📂 + Sub-folder</button>
                             <button
                               className="ap-topic-edit-btn"
                               onClick={() => { setTopicErr(''); setGroupModal(g); }}

@@ -2604,6 +2604,30 @@
 .ap-topic-del-btn:hover:not(:disabled) { background: rgba(231,76,60,0.15); }
 .ap-topic-del-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 
+/* Labeled "+ Sub-folder" action — deliberately distinct from the icon buttons
+   so it's obvious how to create a sub-folder inside a top-level group. */
+.ap-add-subfolder-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(200, 163, 44, 0.16);
+  color: var(--accent, #c8a32c);
+  border: 1px solid rgba(200, 163, 44, 0.5);
+  border-radius: 8px;
+  padding: 5px 12px;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  line-height: 1;
+  transition: background 0.15s, border-color 0.15s, transform 0.1s;
+}
+.ap-add-subfolder-btn:hover {
+  background: rgba(200, 163, 44, 0.28);
+  border-color: rgba(200, 163, 44, 0.85);
+  transform: translateY(-1px);
+}
+
 /* Category-colored topic cards */
 .ap-tc-cardiology    { border-left: 3px solid #e74c3c; }
 .ap-tc-neurology     { border-left: 3px solid #9b59b6; }
