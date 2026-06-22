@@ -745,8 +745,9 @@ function TopicModal({ topic, onSave, onClose, error }) {
 
 // ── Group Modal ────────────────────────────────────────────────────────────────
 
-function GroupModal({ group, onSave, onClose, error }) {
+function GroupModal({ group, parentName, onSave, onClose, error }) {
   const isEdit = !!group;
+  const isSub  = !isEdit && !!parentName; // creating a sub-folder under parentName
   const [name,   setName]   = useState(group?.name || '');
   const [saving, setSaving] = useState(false);
 
@@ -758,16 +759,21 @@ function GroupModal({ group, onSave, onClose, error }) {
     setSaving(false);
   }
 
+  const heading = isEdit ? '✏️ Rename Group' : isSub ? '📂 New Sub-folder' : '🗂️ Create New Group';
+
   return (
     <div className="ap-backdrop" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="ap-confirm ap-topic-modal">
         <div className="ap-modal-head">
-          <h2>{isEdit ? '✏️ Rename Group' : '🗂️ Create New Group'}</h2>
+          <h2>{heading}</h2>
           <button className="ap-modal-x" onClick={onClose}>✕</button>
         </div>
         <form onSubmit={handleSubmit} className="ap-qform">
+          {isSub && (
+            <p className="ap-modal-sub">Inside <strong>{parentName}</strong></p>
+          )}
           <div className="ap-field">
-            <label>Group Name</label>
+            <label>{isSub ? 'Sub-folder Name' : 'Group Name'}</label>
             <input
               type="text"
               value={name}
@@ -781,7 +787,7 @@ function GroupModal({ group, onSave, onClose, error }) {
           <div className="ap-modal-foot">
             <button type="button" className="ap-btn-sec" onClick={onClose}>Cancel</button>
             <button type="submit" className="ap-btn-pri" disabled={saving || !name.trim()}>
-              {saving ? 'Saving…' : isEdit ? 'Rename' : 'Create Group'}
+              {saving ? 'Saving…' : isEdit ? 'Rename' : isSub ? 'Create Sub-folder' : 'Create Group'}
             </button>
           </div>
         </form>
@@ -1119,11 +1125,14 @@ function QuestionsPanel({ subjects = [] }) {
   // ─── Topic group CRUD ─────────────────────────────────────────────────────────
   async function handleSaveGroup(name) {
     setTopicErr('');
-    const isEdit = groupModal && groupModal !== 'create';
+    // groupModal: 'create' (top-level) | { create:true, parentId } (sub-folder) | groupObj (edit)
+    const isCreate = groupModal === 'create' || !!groupModal?.create;
+    const isEdit   = !isCreate;
+    const parentId = groupModal?.create ? groupModal.parentId : null;
     try {
       const res  = isEdit
         ? await apiCall(`/admin/topic-groups/${groupModal.id}`, { method: 'PUT', body: JSON.stringify({ name }) })
-        : await apiCall('/admin/topic-groups', { method: 'POST', body: JSON.stringify({ name, category: activeFolder, difficulty: selectedDifficulty || 'easy' }) });
+        : await apiCall('/admin/topic-groups', { method: 'POST', body: JSON.stringify({ name, category: activeFolder, difficulty: selectedDifficulty || 'easy', parent_group_id: parentId }) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to save group');
       if (isEdit) {
@@ -1143,7 +1152,10 @@ function QuestionsPanel({ subjects = [] }) {
       if (!res.ok) throw new Error(data.error || 'Failed to delete group');
       // Server releases members via ON DELETE SET NULL — mirror that locally
       setTopics(ts => ts.map(t => t.group_id === delGroup.id ? { ...t, group_id: null } : t));
-      setGroups(gs => gs.filter(g => g.id !== delGroup.id));
+      // Server promotes any sub-folders to top-level — mirror that so they don't vanish
+      setGroups(gs => gs
+        .filter(g => g.id !== delGroup.id)
+        .map(g => g.parent_group_id === delGroup.id ? { ...g, parent_group_id: null } : g));
       setDelGroup(null);
     } catch (err) { setTopicErr(err.message); setDelGroup(null); }
   }
@@ -1168,10 +1180,13 @@ function QuestionsPanel({ subjects = [] }) {
   function dropZoneProps(targetId) {
     const groupId = targetId === 'ungrouped' ? null : targetId;
     return {
-      onDragOver:  e => { e.preventDefault(); setDropTarget(targetId); },
+      // stopPropagation so a drop on a nested sub-folder zone doesn't also bubble up
+      // and re-assign the topic to the parent group.
+      onDragOver:  e => { e.preventDefault(); e.stopPropagation(); setDropTarget(targetId); },
       onDragLeave: e => { if (!e.currentTarget.contains(e.relatedTarget)) setDropTarget(cur => cur === targetId ? null : cur); },
       onDrop:      e => {
         e.preventDefault();
+        e.stopPropagation();
         const topicId = e.dataTransfer.getData('text/plain');
         if (topicId) handleMoveTopic(topicId, groupId);
         setDropTarget(null);
@@ -1755,9 +1770,12 @@ function QuestionsPanel({ subjects = [] }) {
                 </div>
               ) : (
                 <>
-                  {groups.map(g => {
-                    const members = topics.filter(t => t.group_id === g.id);
-                    const qCount  = members.reduce((sum, t) => sum + (t.question_count || 0), 0);
+                  {groups.filter(g => !g.parent_group_id).map(g => {
+                    const subGroups     = groups.filter(sg => sg.parent_group_id === g.id);
+                    const directMembers = topics.filter(t => t.group_id === g.id);
+                    const subMembers    = topics.filter(t => subGroups.some(sg => sg.id === t.group_id));
+                    const allMembers    = directMembers.length + subMembers.length;
+                    const qCount        = [...directMembers, ...subMembers].reduce((sum, t) => sum + (t.question_count || 0), 0);
                     return (
                       <div
                         key={g.id}
@@ -1773,9 +1791,16 @@ function QuestionsPanel({ subjects = [] }) {
                           <span className="ap-group-icon">🗂️</span>
                           <span className="ap-group-name">{g.name}</span>
                           <span className="ap-group-count">
-                            {members.length} topic{members.length !== 1 ? 's' : ''} · {qCount} question{qCount !== 1 ? 's' : ''}
+                            {allMembers} topic{allMembers !== 1 ? 's' : ''}
+                            {subGroups.length > 0 ? ` · ${subGroups.length} sub-folder${subGroups.length !== 1 ? 's' : ''}` : ''}
+                            {' · '}{qCount} question{qCount !== 1 ? 's' : ''}
                           </span>
                           <div className="ap-group-actions">
+                            <button
+                              className="ap-topic-edit-btn"
+                              onClick={() => { setTopicErr(''); setGroupModal({ create: true, parentId: g.id, parentName: g.name }); }}
+                              title="Add sub-folder"
+                            >📂＋</button>
                             <button
                               className="ap-topic-edit-btn"
                               onClick={() => { setTopicErr(''); setGroupModal(g); }}
@@ -1784,18 +1809,60 @@ function QuestionsPanel({ subjects = [] }) {
                             <button
                               className="ap-topic-del-btn"
                               onClick={() => setDelGroup(g)}
-                              title="Delete group (topics become ungrouped)"
+                              title="Delete group (topics become ungrouped, sub-folders promoted)"
                             >🗑️</button>
                           </div>
                         </div>
                         {!collapsedGroups[g.id] && (
-                          members.length === 0 ? (
-                            <div className="ap-group-empty-hint">Drag topics here</div>
-                          ) : (
-                            <div className="ap-topic-grid">
-                              {members.map(renderTopicCard)}
-                            </div>
-                          )
+                          <>
+                            {directMembers.length === 0 ? (
+                              <div className="ap-group-empty-hint">
+                                {subGroups.length === 0 ? 'Drag topics here' : 'Drag topics here, or into a sub-folder below'}
+                              </div>
+                            ) : (
+                              <div className="ap-topic-grid">
+                                {directMembers.map(renderTopicCard)}
+                              </div>
+                            )}
+                            {subGroups.map(sg => {
+                              const sgMembers = topics.filter(t => t.group_id === sg.id);
+                              const sgQ = sgMembers.reduce((sum, t) => sum + (t.question_count || 0), 0);
+                              return (
+                                <div
+                                  key={sg.id}
+                                  className={`ap-subgroup-section ${dropTarget === sg.id ? 'ap-drop-active' : ''}`}
+                                  {...dropZoneProps(sg.id)}
+                                >
+                                  <div className="ap-subgroup-header">
+                                    <span className="ap-subgroup-icon">↳ 📂</span>
+                                    <span className="ap-group-name">{sg.name}</span>
+                                    <span className="ap-group-count">
+                                      {sgMembers.length} topic{sgMembers.length !== 1 ? 's' : ''} · {sgQ} question{sgQ !== 1 ? 's' : ''}
+                                    </span>
+                                    <div className="ap-group-actions">
+                                      <button
+                                        className="ap-topic-edit-btn"
+                                        onClick={() => { setTopicErr(''); setGroupModal(sg); }}
+                                        title="Rename sub-folder"
+                                      >✏️</button>
+                                      <button
+                                        className="ap-topic-del-btn"
+                                        onClick={() => setDelGroup(sg)}
+                                        title="Delete sub-folder (topics become ungrouped)"
+                                      >🗑️</button>
+                                    </div>
+                                  </div>
+                                  {sgMembers.length === 0 ? (
+                                    <div className="ap-group-empty-hint">Drag topics here</div>
+                                  ) : (
+                                    <div className="ap-topic-grid">
+                                      {sgMembers.map(renderTopicCard)}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </>
                         )}
                       </div>
                     );
@@ -2249,7 +2316,8 @@ function QuestionsPanel({ subjects = [] }) {
 
       {groupModal && (
         <GroupModal
-          group={groupModal === 'create' ? null : groupModal}
+          group={(groupModal === 'create' || groupModal?.create) ? null : groupModal}
+          parentName={groupModal?.parentName}
           onSave={handleSaveGroup}
           onClose={() => { setGroupModal(null); setTopicErr(''); }}
           error={topicErr}

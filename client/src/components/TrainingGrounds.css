@@ -290,6 +290,55 @@
   margin-bottom: 14px;
 }
 
+/* Sub-folders (one level of nesting under a top-level folder) */
+.tg-subgroup-section {
+  margin: 12px 0 12px 18px;
+  padding-left: 14px;
+  border-left: 2px solid rgba(180, 140, 40, 0.25);
+}
+.tg-subgroup-label {
+  font-family: 'Cinzel', serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: rgba(200, 163, 44, 0.7);
+  margin-bottom: 10px;
+}
+
+/* "Study whole folder / sub-folder" selectable pill */
+.tg-study-whole {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  margin-bottom: 14px;
+  padding: 10px 14px;
+  background: rgba(30, 45, 30, 0.7);
+  border: 1px solid rgba(180, 140, 40, 0.5);
+  border-radius: 10px;
+  color: #e8e0c8;
+  font-family: 'Cinzel', serif;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, transform 0.1s;
+}
+.tg-study-whole:hover { background: rgba(40, 60, 40, 0.85); transform: translateY(-1px); }
+.tg-study-whole--selected {
+  border-color: rgba(220, 180, 60, 0.95);
+  box-shadow: 0 0 0 2px rgba(220, 180, 60, 0.35);
+  background: rgba(45, 65, 40, 0.95);
+}
+.tg-study-whole--sub { font-size: 12px; padding: 8px 12px; }
+.tg-study-whole-icon { color: rgba(220, 180, 60, 0.95); }
+.tg-study-whole-text { flex: 1; text-align: left; }
+.tg-study-whole-count {
+  background: rgba(180, 140, 40, 0.25);
+  border-radius: 999px;
+  padding: 2px 9px;
+  font-size: 12px;
+}
+
 .tg-folder-card {
   position: relative;
   background: rgba(20, 30, 20, 0.8);

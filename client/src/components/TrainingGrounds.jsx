@@ -251,13 +251,15 @@ export default function TrainingGrounds({ user, onBack, onStartPractice, initial
     setPlayingId(null);
   }
 
-  function handleTopicClick(folder) {
+  // A selection is normalised to { id, name, question_count, scope }, where scope is
+  // 'topic' (a single folder) or 'group' (a whole top-level folder or a sub-folder).
+  function handleSelect(item) {
     setPlayingId(null);
-    if (selectedTopic?.id === folder.id) {
+    if (selectedTopic?.scope === item.scope && selectedTopic?.id === item.id) {
       setSelectedTopic(null); // re-click deselects
       return;
     }
-    setSelectedTopic(folder);
+    setSelectedTopic(item);
     loadVideos(selectedSubject, selectedDifficulty);
   }
 
@@ -268,15 +270,29 @@ export default function TrainingGrounds({ user, onBack, onStartPractice, initial
   }
 
   function startQuestions() {
-    // Same payload shape as before, plus difficulty (App.jsx reads
-    // topicData.difficulty — it was previously missing from this page)
-    onStartPractice({
-      topicId: selectedTopic.id,
-      topicName: selectedTopic.name,
-      subjectName: subject?.label || selectedSubject,
-      category: selectedSubject,
-      difficulty: selectedDifficulty,
-    });
+    const sel = selectedTopic;
+    if (!sel) return;
+    if (sel.scope === 'group') {
+      // Whole folder / sub-folder: server gathers questions from the group's topics
+      // (and, for a top-level group, all its sub-folders' topics).
+      onStartPractice({
+        topicName: sel.name,
+        subjectName: subject?.label || selectedSubject,
+        category: selectedSubject,
+        difficulty: selectedDifficulty,
+        questionsUrl: `${SERVER}/api/questions?group_id=${sel.id}&difficulty=${selectedDifficulty}`,
+        completionKey: `${selectedSubject}/group:${sel.id}`,
+      });
+    } else {
+      // Single topic — same payload shape as before (App.jsx reads topicData.difficulty)
+      onStartPractice({
+        topicId: sel.id,
+        topicName: sel.name,
+        subjectName: subject?.label || selectedSubject,
+        category: selectedSubject,
+        difficulty: selectedDifficulty,
+      });
+    }
   }
 
   // ── Derived data ─────────────────────────────────────────────────────────────
@@ -284,6 +300,18 @@ export default function TrainingGrounds({ user, onBack, onStartPractice, initial
   const activeFolders    = allFolders.filter(f => (f.difficulty || 'easy') === selectedDifficulty);
   const activeGroups     = allGroups.filter(g => (g.difficulty || 'easy') === selectedDifficulty);
   const ungroupedFolders = activeFolders.filter(f => !f.group_id);
+
+  // 2-level grouping helpers (one level of nesting). A top-level group has no
+  // parent_group_id; its sub-groups point back to it via parent_group_id.
+  const topLevelGroups = activeGroups.filter(g => !g.parent_group_id);
+  const subGroupsOf    = (gid) => activeGroups.filter(g => g.parent_group_id === gid);
+  const topicsInGroup  = (gid) => activeFolders.filter(f => f.group_id === gid);
+  const sumCount       = (folders) => folders.reduce((s, f) => s + (f.question_count || 0), 0);
+  // Whole top-level folder = its own topics + all sub-folders' topics
+  const wholeFolderCount = (g) => {
+    const ids = new Set([g.id, ...subGroupsOf(g.id).map(s => s.id)]);
+    return sumCount(activeFolders.filter(f => ids.has(f.group_id)));
+  };
 
   const easyCount = allFolders.filter(f => !f.difficulty || f.difficulty === 'easy').length;
   const hardCount = allFolders.filter(f => f.difficulty === 'hard').length;
@@ -300,11 +328,12 @@ export default function TrainingGrounds({ user, onBack, onStartPractice, initial
 
   const renderFolderCard = (folder) => {
     const done = completions[`${selectedSubject}/${folder.id}`]?.completed;
+    const isSel = selectedTopic?.scope === 'topic' && selectedTopic?.id === folder.id;
     return (
       <button
         key={folder.id}
-        className={`tg-folder-card tg-folder-card--${selectedDifficulty} ${selectedTopic?.id === folder.id ? 'tg-folder-card--selected' : ''}`}
-        onClick={() => handleTopicClick(folder)}
+        className={`tg-folder-card tg-folder-card--${selectedDifficulty} ${isSel ? 'tg-folder-card--selected' : ''}`}
+        onClick={() => handleSelect({ id: folder.id, name: folder.name, question_count: folder.question_count, scope: 'topic' })}
       >
         <span
           className={`tg-folder-status ${done ? 'tg-folder-status--done' : 'tg-folder-status--todo'}`}
@@ -318,6 +347,27 @@ export default function TrainingGrounds({ user, onBack, onStartPractice, initial
         {folder.question_count > 0 && (
           <div className="tg-folder-qcount">{folder.question_count} questions</div>
         )}
+      </button>
+    );
+  };
+
+  // "Study whole folder" / "Study whole sub-folder" selectable pill. label is the
+  // group name; count is the combined question count for that scope.
+  const renderStudyWhole = (group, count, variant) => {
+    const done  = completions[`${selectedSubject}/group:${group.id}`]?.completed;
+    const isSel = selectedTopic?.scope === 'group' && selectedTopic?.id === group.id;
+    return (
+      <button
+        className={`tg-study-whole tg-study-whole--${variant} ${isSel ? 'tg-study-whole--selected' : ''}`}
+        onClick={() => handleSelect({ id: group.id, name: group.name, question_count: count, scope: 'group' })}
+        title={`Study all ${count} question${count !== 1 ? 's' : ''} in ${group.name}`}
+      >
+        <span className={`tg-folder-status ${done ? 'tg-folder-status--done' : 'tg-folder-status--todo'}`}>
+          {done ? '✓' : ''}
+        </span>
+        <span className="tg-study-whole-icon">▶</span>
+        <span className="tg-study-whole-text">Study whole {group.name}</span>
+        <span className="tg-study-whole-count">{count}</span>
       </button>
     );
   };
@@ -401,15 +451,33 @@ export default function TrainingGrounds({ user, onBack, onStartPractice, initial
                   </button>
                 )}
 
-                {/* Topic folder grid (keeps the group sections) */}
+                {/* Topic folder grid — 2-level: top-level folders → sub-folders + topics */}
                 <div className="training-folders">
-                  {activeGroups.map(group => {
-                    const members = activeFolders.filter(f => f.group_id === group.id);
-                    if (members.length === 0) return null;
+                  {topLevelGroups.map(group => {
+                    const directTopics = topicsInGroup(group.id);
+                    const subs         = subGroupsOf(group.id);
+                    // A flat group (no sub-folders) with no topics renders nothing, as before.
+                    if (directTopics.length === 0 && subs.length === 0) return null;
                     return (
                       <div className="tg-group-section" key={group.id}>
                         <div className="tg-group-label">🗂️ {group.name}</div>
-                        <div className="tg-folder-grid">{members.map(renderFolderCard)}</div>
+                        {/* Study the whole top-level folder (its topics + all sub-folders) */}
+                        {renderStudyWhole(group, wholeFolderCount(group), 'parent')}
+                        {directTopics.length > 0 && (
+                          <div className="tg-folder-grid">{directTopics.map(renderFolderCard)}</div>
+                        )}
+                        {subs.map(sub => {
+                          const subTopics = topicsInGroup(sub.id);
+                          return (
+                            <div className="tg-subgroup-section" key={sub.id}>
+                              <div className="tg-subgroup-label">↳ 📂 {sub.name}</div>
+                              {renderStudyWhole(sub, sumCount(subTopics), 'sub')}
+                              {subTopics.length > 0 && (
+                                <div className="tg-folder-grid">{subTopics.map(renderFolderCard)}</div>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     );
                   })}

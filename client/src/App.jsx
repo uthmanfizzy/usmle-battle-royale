@@ -585,7 +585,9 @@ export default function App() {
     if (!trainingTopic) return;
     const token = getToken();
     if (!token) return; // guests don't record completions
-    const category = `${trainingTopic.category}/${trainingTopic.topicId}`;
+    // Whole-folder / sub-folder runs carry an explicit completionKey (group:<id>);
+    // single-topic runs keep the original subject/topicId key (byte-identical).
+    const category = trainingTopic.completionKey || `${trainingTopic.category}/${trainingTopic.topicId}`;
     fetch('https://usmle-battle-royale-production.up.railway.app/api/training-complete', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -1063,7 +1065,7 @@ export default function App() {
           onTryAgain={journeyContext       ? undefined : handleSoloTryAgain}
           onBackToTopics={(!journeyContext && trainingTopic) ? handleBackToTopics : undefined}
           topicId={journeyContext          ? undefined : trainingTopic?.topicId}
-          questionsUrl={journeyContext?.questionsUrl}
+          questionsUrl={journeyContext?.questionsUrl || trainingTopic?.questionsUrl}
           onComplete={journeyContext       ? handleJourneyComplete : (trainingTopic ? handleTrainingComplete : undefined)}
           levelLabel={journeyContext?.levelLabel}
         />

@@ -2121,11 +2121,36 @@ app.get('/api/questions/counts', (req, res) => {
   }
 });
 
-app.get('/api/questions', (req, res) => {
+app.get('/api/questions', async (req, res) => {
   const subject    = (req.query.subject || 'all').toLowerCase();
   const difficulty = req.query.difficulty; // STRICT: never fall back to different difficulty
   const towerFloor = parseInt(req.query.tower_floor);
   const topicId    = req.query.topic_id;
+  const groupId    = req.query.group_id;
+
+  // Training Grounds "study whole folder": gather questions from every topic in the
+  // group AND — for a top-level group — all its one-level sub-groups' topics. Studying
+  // a sub-group (no children) naturally resolves to just its own topics. STRICT difficulty.
+  if (groupId) {
+    if (!supabase) return res.json({ questions: [], empty: true, message: 'Folders unavailable.' });
+    try {
+      const { data: childGroups } = await supabase
+        .from('topic_groups').select('id').eq('parent_group_id', groupId);
+      const groupIds = [groupId, ...((childGroups || []).map(g => g.id))];
+      const { data: topicRows } = await supabase
+        .from('topics').select('id').in('group_id', groupIds);
+      const topicIds = new Set((topicRows || []).map(t => t.id));
+      let pool = questionBank.filter(q => topicIds.has(q.topic_id));
+      if (difficulty) pool = pool.filter(q => q.difficulty === difficulty);
+      if (pool.length === 0) {
+        return res.json({ questions: [], empty: true, message: `No ${difficulty || 'any'} questions found for this folder.` });
+      }
+      return res.json({ questions: shuffle(pool), empty: false });
+    } catch (e) {
+      console.error('[/api/questions] group fetch error:', e.message);
+      return res.json({ questions: [], empty: true, message: 'Failed to load folder questions.' });
+    }
+  }
 
   // Training Grounds: filter by topic_id AND difficulty (STRICT - no fallback)
   if (topicId) {
@@ -5308,14 +5333,29 @@ app.get('/admin/topic-groups', adminAuth, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// Enforce ONE level of nesting: a chosen parent must itself be top-level
+// (parent_group_id IS NULL). Returns an error string if invalid, else null.
+async function validateParentGroup(parentId, selfId = null) {
+  if (!parentId) return null;
+  if (selfId && parentId === selfId) return 'A group cannot be its own parent.';
+  const { data: parent, error } = await supabase
+    .from('topic_groups').select('id, parent_group_id').eq('id', parentId).single();
+  if (error || !parent) return 'Parent group not found.';
+  if (parent.parent_group_id) return 'Cannot nest deeper than one level — choose a top-level group as the parent.';
+  return null;
+}
+
 app.post('/admin/topic-groups', adminAuth, async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
-  const { name, category, difficulty } = req.body;
+  const { name, category, difficulty, parent_group_id } = req.body;
   if (!name?.trim() || !category) return res.status(400).json({ error: 'name and category required' });
   try {
+    const parentId  = parent_group_id || null;
+    const parentErr = await validateParentGroup(parentId);
+    if (parentErr) return res.status(400).json({ error: parentErr });
     const { data, error } = await supabase
       .from('topic_groups')
-      .insert({ name: name.trim(), category, difficulty: difficulty || 'easy' })
+      .insert({ name: name.trim(), category, difficulty: difficulty || 'easy', parent_group_id: parentId })
       .select()
       .single();
     if (error) throw error;
@@ -5326,11 +5366,31 @@ app.post('/admin/topic-groups', adminAuth, async (req, res) => {
 app.put('/admin/topic-groups/:id', adminAuth, async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
   const { name } = req.body;
-  if (!name?.trim()) return res.status(400).json({ error: 'name required' });
+  const updates = {};
+  if (name !== undefined) {
+    if (!name?.trim()) return res.status(400).json({ error: 'name required' });
+    updates.name = name.trim();
+  }
+  // Optional re-parenting (move a group under a top-level group, or null to promote)
+  if ('parent_group_id' in req.body) {
+    const parentId  = req.body.parent_group_id || null;
+    const parentErr = await validateParentGroup(parentId, req.params.id);
+    if (parentErr) return res.status(400).json({ error: parentErr });
+    if (parentId) {
+      // The group being nested must not itself have sub-groups (would create 3 levels)
+      const { data: kids } = await supabase
+        .from('topic_groups').select('id').eq('parent_group_id', req.params.id).limit(1);
+      if (kids && kids.length > 0) {
+        return res.status(400).json({ error: 'This group has sub-folders — move or delete them before nesting it.' });
+      }
+    }
+    updates.parent_group_id = parentId;
+  }
+  if (Object.keys(updates).length === 0) return res.status(400).json({ error: 'name or parent_group_id required' });
   try {
     const { data, error } = await supabase
       .from('topic_groups')
-      .update({ name: name.trim() })
+      .update(updates)
       .eq('id', req.params.id)
       .select()
       .single();
@@ -5342,6 +5402,8 @@ app.put('/admin/topic-groups/:id', adminAuth, async (req, res) => {
 app.delete('/admin/topic-groups/:id', adminAuth, async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
   try {
+    // Promote any sub-groups back to top-level so they aren't orphaned (one-level model)
+    await supabase.from('topic_groups').update({ parent_group_id: null }).eq('parent_group_id', req.params.id);
     // topics.group_id has ON DELETE SET NULL, so member topics become ungrouped
     const { error } = await supabase.from('topic_groups').delete().eq('id', req.params.id);
     if (error) throw error;
