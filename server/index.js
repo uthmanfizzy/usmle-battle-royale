@@ -3872,6 +3872,7 @@ app.post('/admin/settings', adminAuth, async (req, res) => {
     'towerXpNormal','towerXpChallenge','towerXpBoss','towerXpPerfectBonus','towerXpZoneBonus',
     'towerTotalFloors','towerChallengeInterval','towerBossInterval',
     'hardModeTimer','hardModeExplanationTime',
+    'easyModeTimer','easyModeExplanationTime',
     'journeyThreshold',
   ];
   // Boolean fields
@@ -3883,6 +3884,7 @@ app.post('/admin/settings', adminAuth, async (req, res) => {
     'showGameLeaderboard','soundEffectsEnabled','backgroundMusicEnabled',
     'navbarBlurEnabled',
     'hardModeHideExplanations',
+    'easyModeHideExplanations',
   ];
   for (const k of numFields)  { if (b[k] !== undefined) gameSettings[k] = Number(b[k]); }
   for (const k of boolFields) { if (b[k] !== undefined) gameSettings[k] = Boolean(b[k]); }
@@ -3894,6 +3896,9 @@ app.post('/admin/settings', adminAuth, async (req, res) => {
   // Hard Mode strings
   if (b.hardModeDescription !== undefined) gameSettings.hardModeDescription = String(b.hardModeDescription).slice(0, 200);
   if (b.hardModeLabel !== undefined) gameSettings.hardModeLabel = String(b.hardModeLabel).slice(0, 30);
+  // Easy Mode strings
+  if (b.easyModeDescription !== undefined) gameSettings.easyModeDescription = String(b.easyModeDescription).slice(0, 200);
+  if (b.easyModeLabel !== undefined) gameSettings.easyModeLabel = String(b.easyModeLabel).slice(0, 30);
   // Zone names and descriptions
   for (let i = 1; i <= 10; i++) {
     const nk = `towerZone${i}Name`, dk = `towerZone${i}Desc`;
