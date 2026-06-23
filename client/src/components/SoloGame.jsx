@@ -268,7 +268,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
 
   if (loading) {
     return (
-      <div className="screen solo-screen">
+      <div className="screen solo-screen" data-journey={isJourney ? '1' : undefined}>
         <div className="waiting-screen"><div className="spinner" /><p>Loading questions…</p></div>
       </div>
     );
@@ -276,7 +276,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
 
   if (fetchError) {
     return (
-      <div className="screen solo-screen">
+      <div className="screen solo-screen" data-journey={isJourney ? '1' : undefined}>
         <div className="solo-card"><p className="error-msg">{fetchError}</p><button className="btn-start" onClick={onBack}>Back</button></div>
       </div>
     );
@@ -299,7 +299,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
 
   if (gameOver) {
     return (
-      <div className="screen solo-screen">
+      <div className="screen solo-screen" data-journey={isJourney ? '1' : undefined}>
         <div className="solo-gameover">
           <h2>Game Over</h2>
           {levelLabel && <p className="sgo-level-label">{levelLabel}</p>}
@@ -333,7 +333,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   const tier = timeLeft > 10 ? 'green' : timeLeft > 5 ? 'yellow' : 'red';
 
   return (
-    <div className="screen solo-screen">
+    <div className="screen solo-screen" data-journey={isJourney ? '1' : undefined}>
       {!study && (
         <div className="solo-topbar">
           {levelLabel && <span className="topbar-level-label">{levelLabel}</span>}
