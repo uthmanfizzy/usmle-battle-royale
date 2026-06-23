@@ -6638,7 +6638,8 @@ app.get('/api/journey-questions', async (req, res) => {
     if (questions.length === 0) {
       return res.json({ questions: [], empty: true, message: 'No questions authored for this level yet.' });
     }
-    res.json({ questions, empty: false });
+    // Journey-only: randomise question order each play (correct answer travels with q)
+    res.json({ questions: shuffle(questions), empty: false });
   } catch (err) {
     // Table may not exist yet (manual migration) — degrade to empty list
     console.warn('[/api/journey-questions] unavailable, returning questions: [] —', err.message);
@@ -6671,7 +6672,8 @@ app.get('/api/boss-questions', async (req, res) => {
     if (questions.length === 0) {
       return res.json({ questions: [], empty: true, message: 'No boss questions authored yet.' });
     }
-    res.json({ questions, empty: false });
+    // Journey-only: randomise question order each play (correct answer travels with q)
+    res.json({ questions: shuffle(questions), empty: false });
   } catch (err) {
     // Table may not exist yet (manual migration) — degrade to empty list
     console.warn('[/api/boss-questions] unavailable, returning questions: [] —', err.message);

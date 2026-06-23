@@ -16,9 +16,12 @@ function saveHi(subject, score) {
   try { localStorage.setItem(`usmle-hs-${subject}`, String(score)); } catch {}
 }
 
-export default function SoloGame({ subject, username, difficulty, onBack, onTryAgain, onChangeSubject, onBackToTopics, topicId, questionsUrl, onComplete, levelLabel }) {
+export default function SoloGame({ subject, username, difficulty, onBack, onTryAgain, onChangeSubject, onBackToTopics, topicId, questionsUrl, onComplete, levelLabel, isJourney }) {
   const { settings } = useGameSettings();
-  const { study } = useTheme();   // Layer 1 chrome renders only when study mode is on
+  const { study: studyPref } = useTheme();   // Layer 1 chrome renders only when study mode is on
+  // Journey always renders the plain (training-style) single-pane game screen,
+  // never the two-pane study chrome — even when study mode is globally enabled.
+  const study = isJourney ? false : studyPref;
 
   // Hard mode and easy mode each use their own admin-configured timer / explanation
   // time / hide-explanations setting (falling back to legacy generic keys, then literals)
@@ -26,7 +29,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   const defaultTimer = isHardMode
     ? (settings.hardModeTimer || 30)
     : (settings.easyModeTimer || settings.timerDefault || 20);
-  const defaultLives = settings.battleRoyaleLives || 3;
+  const defaultLives = isJourney ? 5 : (settings.battleRoyaleLives || 3);
   const explanationTime = isHardMode
     ? (settings.hardModeExplanationTime || 20)
     : (settings.easyModeExplanationTime || settings.explanationTime || 5);
@@ -381,7 +384,6 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
               </div>
               <div className="shd-meta">
                 <span className="stb-count">Item {qIdx + 1} of {questions.length}</span>
-                {q.id != null && <span className="stb-id">Question Id: {q.id}</span>}
               </div>
             </div>
             <div className="shd-center">

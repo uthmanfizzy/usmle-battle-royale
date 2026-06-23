@@ -1068,6 +1068,7 @@ export default function App() {
           questionsUrl={journeyContext?.questionsUrl || trainingTopic?.questionsUrl}
           onComplete={journeyContext       ? handleJourneyComplete : (trainingTopic ? handleTrainingComplete : undefined)}
           levelLabel={journeyContext?.levelLabel}
+          isJourney={!!journeyContext}
         />
         </RouteErrorBoundary>
       )}
