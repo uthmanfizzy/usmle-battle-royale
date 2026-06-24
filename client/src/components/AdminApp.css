@@ -136,6 +136,21 @@
   text-transform: uppercase;
 }
 
+.ap-header-right { display: flex; align-items: center; gap: 10px; }
+
+/* Light/dark theme toggle — uses theme vars so it adapts to both themes */
+.ap-theme-toggle {
+  background: var(--card-hi);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+.ap-theme-toggle:hover { border-color: var(--gold); color: var(--gold); }
+
 .ap-logout {
   background: rgba(255,68,85,.12);
   color: var(--red);
@@ -4520,4 +4535,41 @@
 .ap-q-row--selected {
   background: rgba(180,140,40,0.12) !important;
   outline: 1px solid rgba(200,165,60,0.4) !important;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   ADMIN LIGHT THEME
+   The admin consumes CSS variables (--bg, --surface, --card, --card-hi,
+   --border, --text, --text-dim, --gold, --shadow). Re-defining those on the
+   admin root re-skins every surface that reads them in one shot — top nav,
+   sidebar, content, cards, tables, inputs, buttons and modals all flip.
+   Scoped to .ap-root[data-admin-theme="light"] only, so:
+     • default (dark) admin is byte-identical (no override matches),
+     • the player app is untouched (this attribute exists only in the admin).
+   A few spots use hardcoded DARK values (not vars); those are patched below.
+   ════════════════════════════════════════════════════════════════════════ */
+.ap-root[data-admin-theme="light"] {
+  --bg:        #f6f7fb;   /* page background */
+  --surface:   #ffffff;   /* header / nav bars */
+  --card:      #ffffff;   /* cards / panels */
+  --card-hi:   #eef1fb;   /* active / highlighted rows */
+  --border:    #e2e5ee;   /* soft borders */
+  --gold:      #b45309;   /* accent — darkened so it's readable on white */
+  --gold-dim:  #92400e;
+  --text:      #1c2030;   /* primary text */
+  --text-dim:  #5b6178;   /* secondary text */
+  --shadow:    0 4px 16px rgba(40,50,90,0.10);
+}
+
+/* Patch the handful of hardcoded DARK values that don't read variables so
+   they don't show up as dark blobs on the light surface. */
+.ap-root[data-admin-theme="light"] .ap-btn-sec:hover,
+.ap-root[data-admin-theme="light"] .ap-stepper button:hover {
+  background: #e2e8f5;
+}
+
+/* Page chrome shadows are softer in light mode */
+.ap-root[data-admin-theme="light"] .ap-header,
+.ap-root[data-admin-theme="light"] .ap-nav {
+  box-shadow: 0 1px 0 rgba(40,50,90,0.06);
 }

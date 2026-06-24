@@ -7466,6 +7466,15 @@ export default function AdminApp() {
   const [authed, setAuthed] = useState(() => !!localStorage.getItem(AUTH_KEY));
   const [tab, setTab] = useState('stats');
   const [sharedSubjects, setSharedSubjects] = useState([]);
+  // Admin-only light/dark theme. Defaults to 'dark' so the current look is
+  // unchanged until the user toggles. Persisted in localStorage.
+  const [adminTheme, setAdminTheme] = useState(() => {
+    try { return localStorage.getItem('mr_admin_theme') === 'light' ? 'light' : 'dark'; }
+    catch { return 'dark'; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem('mr_admin_theme', adminTheme); } catch {}
+  }, [adminTheme]);
 
   useEffect(() => {
     if (authed) {
@@ -7486,14 +7495,23 @@ export default function AdminApp() {
   }
 
   return (
-    <div className="ap-root">
+    <div className="ap-root" data-admin-theme={adminTheme}>
       <header className="ap-header">
         <div className="ap-header-left">
           <span className="ap-header-logo">⚕️</span>
           <span className="ap-header-title">USMLE Battle Royale</span>
           <span className="ap-header-badge">Admin Panel</span>
         </div>
-        <button className="ap-logout" onClick={logout}>Logout</button>
+        <div className="ap-header-right">
+          <button
+            className="ap-theme-toggle"
+            onClick={() => setAdminTheme(t => (t === 'light' ? 'dark' : 'light'))}
+            title={`Switch to ${adminTheme === 'light' ? 'dark' : 'light'} theme`}
+          >
+            {adminTheme === 'light' ? '🌙 Dark' : '☀️ Light'}
+          </button>
+          <button className="ap-logout" onClick={logout}>Logout</button>
+        </div>
       </header>
 
       <nav className="ap-nav">
