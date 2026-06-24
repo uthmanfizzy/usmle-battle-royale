@@ -425,6 +425,27 @@ html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .shd-right { dis
 html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .shd-right .topbar-score { color: #b45309; font-weight: 700; font-size: 13px; }
 html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .shd-right .lives-bar { display: flex; gap: 3px; }
 html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .shd-right .heart-icon { font-size: 16px; }
+
+/* Compact streak pill — small rounded chip inside the header (replaces the
+   old full-width salmon bar, which is suppressed in study mode). */
+html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .study-streak-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 9px 3px 7px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  color: #9a3412;
+  background: linear-gradient(135deg, #ffedd5, #fed7aa);
+  border: 1px solid #fdba74;
+  box-shadow: 0 1px 2px rgba(154, 52, 18, 0.12);
+  white-space: nowrap;
+}
+html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .study-streak-pill .ssp-flame {
+  font-size: 12px;
+}
 html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .stb-btn {
   background: #ffffff;
   border: 1px solid #c2d8ef;

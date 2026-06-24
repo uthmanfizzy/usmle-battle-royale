@@ -351,7 +351,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
         </div>
       )}
 
-      {streak >= 2 && <div className="streak-badge">🔥 {streak} streak!</div>}
+      {!study && streak >= 2 && <div className="streak-badge">🔥 {streak} streak!</div>}
 
       <div className="solo-body" data-expl-layout={study ? explLayout : undefined}>
         {study && (
@@ -399,6 +399,11 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
               )}
             </div>
             <div className="shd-right">
+              {streak >= 2 && (
+                <span className="study-streak-pill" title={`${streak} in a row`}>
+                  <span className="ssp-flame">🔥</span>{streak}
+                </span>
+              )}
               <div className="lives-bar">
                 {[1, 2, 3].map(i => (
                   <span key={i} className={`heart-icon ${i > lives ? 'dead' : ''}`}>
