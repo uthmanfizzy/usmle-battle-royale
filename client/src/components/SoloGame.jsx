@@ -5,6 +5,7 @@ import * as audio from '../audio';
 import ExplanationText from './ExplanationText';
 import { parseRichText } from '../utils/parseRichText';
 import Calculator from './Calculator';
+import LabValues from './LabValues';
 
 const LABELS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
 const SERVER_URL = 'https://usmle-battle-royale-production.up.railway.app';
@@ -54,6 +55,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState('');
   const [showCalculator, setShowCalculator] = useState(false);
+  const [showLabValues, setShowLabValues] = useState(false);
   const [noQuestionsFound, setNoQuestionsFound] = useState(false);
   const [noQuestionsMessage, setNoQuestionsMessage] = useState('');
 
@@ -434,6 +436,15 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
             🧮 {showCalculator ? 'Hide' : 'Show'} Calculator
           </button>
 
+          {/* Lab Values button - sits alongside the calculator button */}
+          <button
+            className="lab-values-toggle-btn"
+            onClick={() => setShowLabValues(s => !s)}
+            title="Toggle Lab Values"
+          >
+            🧪 {showLabValues ? 'Hide' : 'Show'} Lab Values
+          </button>
+
           {/* Calculator inline - between question and answers on mobile */}
           {showCalculator && <Calculator onClose={() => setShowCalculator(false)} />}
 
@@ -535,9 +546,20 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
               >
                 🧮 Calculator
               </button>
+              <button
+                className="ssb-calc ssb-lab"
+                onClick={() => setShowLabValues(s => !s)}
+                title="Toggle Lab Values"
+              >
+                🧪 Lab Values
+              </button>
             </div>
           </div>
         )}
+
+        {/* Lab Values reference overlay — independent of game/timer/scoring,
+            available in all modes (solo / training / journey) */}
+        {showLabValues && <LabValues onClose={() => setShowLabValues(false)} />}
       </div>
     </div>
   );

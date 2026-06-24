@@ -594,7 +594,7 @@ html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .study-statusbar
 }
 html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .ssb-arrows { display: flex; gap: 10px; justify-self: center; }
 html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .ssb-left  { justify-self: start; display: flex; align-items: center; }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .ssb-right { justify-self: end; display: flex; align-items: center; }
+html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .ssb-right { justify-self: end; display: flex; align-items: center; gap: 8px; }
 html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .ssb-home,
 html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .ssb-calc {
   background: #ffffff;
@@ -608,8 +608,10 @@ html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .ssb-calc {
 html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .ssb-home:hover,
 html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .ssb-calc:hover { border-color: #4a9eff; color: #2563eb; }
 
-/* Study + solo only: hide the floating "Show Calculator" button (moved to footer) */
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-body .calculator-toggle-btn { display: none; }
+/* Study + solo only: hide the floating "Show Calculator" / "Show Lab Values"
+   buttons (both moved to the footer) */
+html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-body .calculator-toggle-btn,
+html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-body .lab-values-toggle-btn { display: none; }
 /* Study + solo only: hide the global top-left Home button (moved to footer-left).
    Scoped via :has(.solo-screen) so it only hides during the solo game, not app-wide. */
 html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) body:has(.solo-screen) .home-btn { display: none; }

@@ -459,6 +459,60 @@ button:active:not(:disabled) { transform: scale(0.97); }
   }
 }
 
+/* Lab Values floating button — sits alongside the calculator button */
+.lab-values-toggle-btn {
+  position: fixed;
+  bottom: 24px;
+  right: 92px; /* 56px button + 24px right + 12px gap from calculator */
+  width: 56px;
+  height: 56px;
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.15), rgba(255, 180, 0, 0.1));
+  border: 1px solid rgba(255, 215, 0, 0.3);
+  border-radius: 50%;
+  font-size: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s;
+  z-index: 9999;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(10px);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.lab-values-toggle-btn:hover {
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.25), rgba(255, 180, 0, 0.2));
+  border-color: rgba(255, 215, 0, 0.5);
+  box-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
+  transform: scale(1.05);
+}
+
+.lab-values-toggle-btn:active {
+  transform: scale(0.95);
+}
+
+@media (max-width: 768px) {
+  .lab-values-toggle-btn {
+    /* Inline button below question text, next to the calculator button */
+    position: relative;
+    bottom: auto;
+    right: auto;
+    width: auto;
+    height: auto;
+    padding: 10px 16px;
+    margin: 0 auto 16px auto;
+    display: flex;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.2), rgba(255, 180, 0, 0.15));
+    gap: 8px;
+    overflow: visible;
+  }
+}
+
 /* Layout */
 .game-layout {
   display: flex;
