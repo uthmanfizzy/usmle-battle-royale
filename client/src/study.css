@@ -282,6 +282,10 @@ html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-screen {
 html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-screen {
   padding: 0 0 100px;         /* bottom offset so the taller fixed bottom bar can't cover content */
   align-items: stretch;
+  /* Base .screen sets justify-content: center; with min-height:100vh and a single
+     short child this vertically centred the body, leaving a big blue gap above the
+     sticky header. Pin content to the top so the header sits flush at the top edge. */
+  justify-content: flex-start;
 }
 html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-body[data-expl-layout="right"],
 html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-body[data-expl-layout="below"] {
