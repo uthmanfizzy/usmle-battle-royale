@@ -601,8 +601,11 @@ button:active:not(:disabled) { transform: scale(0.97); }
   gap: 6px;
   padding: 2px 0;
 }
-.lab-name  { color: var(--text); font-weight: 600; white-space: pre-wrap; }
-.lab-value { color: var(--text); white-space: pre-wrap; }
+/* Scoped under .lab-values-box so these beat the reference-panel's bare
+   .lab-name rule (LabValues.css), which otherwise washed the labels out to a
+   light grey and forced width:50% (spreading name/value apart). */
+.lab-values-box .lab-name  { color: var(--text); font-weight: 600; width: auto; white-space: pre-wrap; }
+.lab-values-box .lab-value { color: var(--text); width: auto; white-space: pre-wrap; }
 
 .options { display: flex; flex-direction: column; gap: 10px; }
 
