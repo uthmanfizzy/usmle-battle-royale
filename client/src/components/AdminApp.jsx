@@ -3884,6 +3884,13 @@ function JourneyPanel() {
     reorderRows('/admin/journey-levels', levelsByChapter[chapterId] || [], i, dir,
       arr => setLevelsByChapter(prev => ({ ...prev, [chapterId]: arr })));
 
+  // "+ Add Level" from a chapter header: expand (lazy-loads levels) then open the
+  // inline new-level input inside that chapter's body.
+  function addLevelToChapter(chapterId) {
+    if (!expandedIds.has(chapterId)) toggleChapter(chapterId);
+    setNameEdit({ kind: 'level', id: null, chapterId, value: '' });
+  }
+
   // ── Deletes (chapter / level / question share one confirm modal) ─────────
 
   async function handleDeleteItem() {
@@ -4101,9 +4108,10 @@ function JourneyPanel() {
   if (loading) return <div className="ap-loading"><div className="ap-spinner" /></div>;
 
   return (
-    <div className="ap-panel">
-      <div className="ap-panel-head">
-        <h2>🚑 First Aid Journey</h2>
+    <div className="ap-panel ap-journey-admin">
+      <div className="ap-panel-head ap-journey-head">
+        <span className="ap-journey-head-icon">🚑</span>
+        <h2>First Aid Journey</h2>
       </div>
 
       {/* Subject scope (no difficulty in the journey) — authoring works for hidden subjects too.
@@ -4207,70 +4215,85 @@ function JourneyPanel() {
       {error && <div className="ap-error">{error}</div>}
 
       {!selected ? (
-        /* ── TREE: chapters → levels + bosses ─────────────────────── */
+        /* ── CHAPTER CARDS: chapters → levels + bosses ────────────── */
         <>
           {chapters.length === 0 && !(nameEdit?.kind === 'chapter' && !nameEdit.id) ? (
             <div className="ap-topic-empty">
               <div className="ap-topic-empty-icon">🚑</div>
               <p>No chapters yet for {folder?.label}. Create the first chapter to start building the journey.</p>
               <button className="ap-btn-pri" onClick={() => setNameEdit({ kind: 'chapter', id: null, value: '' })}>
-                ➕ New Chapter
+                ➕ Add Chapter
               </button>
             </div>
           ) : (
-            <div className="ap-jtree">
+            <div className="ap-jcards">
               {chapters.map((ch, i) => {
                 const expanded   = expandedIds.has(ch.id);
                 const levels     = levelsByChapter[ch.id];
                 const bossCount  = bossQs.filter(q => q.boss_key === `chapter:${ch.id}`).length;
                 // Loaded level array is authoritative when open; counts map covers collapsed chapters
                 const levelCount = levels?.length ?? counts.chapters[ch.id] ?? 0;
+                const renaming   = nameEdit?.kind === 'chapter' && nameEdit.id === ch.id;
                 return (
-                  <div className="ap-jtree-chapter" key={ch.id}>
-                    <div className="ap-jtree-chrow">
-                      <button className="ap-jtree-expand" onClick={() => toggleChapter(ch.id)}>{expanded ? '▾' : '▸'}</button>
-                      {nameEdit?.kind === 'chapter' && nameEdit.id === ch.id ? (
-                        renderNameInput('Chapter name')
+                  <div className={`ap-jcard${expanded ? ' is-open' : ''}`} key={ch.id}>
+                    <div className="ap-jcard-head">
+                      <span className="ap-jcard-icon">📖</span>
+                      {renaming ? (
+                        <div className="ap-jcard-rename">{renderNameInput('Chapter name')}</div>
                       ) : (
-                        <span className="ap-jtree-chname" onClick={() => toggleChapter(ch.id)}>
-                          Chapter {i + 1}: {ch.name}
-                          <span className="ap-jtree-count"> · {levelCount} level{levelCount !== 1 ? 's' : ''}</span>
-                        </span>
+                        <button className="ap-jcard-title" onClick={() => toggleChapter(ch.id)}>
+                          <span className="ap-jcard-name">Chapter {i + 1}: {ch.name}</span>
+                          <span className="ap-jcard-sub">{levelCount} level{levelCount !== 1 ? 's' : ''}</span>
+                        </button>
                       )}
-                      <div className="ap-jtree-actions">
-                        <button className="ap-jtree-btn" onClick={() => reorderChapters(i, -1)} disabled={i === 0} title="Move up">↑</button>
-                        <button className="ap-jtree-btn" onClick={() => reorderChapters(i, +1)} disabled={i === chapters.length - 1} title="Move down">↓</button>
-                        <button className="ap-topic-edit-btn" onClick={() => setNameEdit({ kind: 'chapter', id: ch.id, value: ch.name })} title="Rename">✏️</button>
-                        <button className="ap-topic-del-btn" onClick={() => setDeleteItem({ kind: 'chapter', row: ch })} title="Delete">🗑️</button>
-                      </div>
+                      {!renaming && (
+                        <div className="ap-jcard-actions">
+                          <button className="ap-jcard-addlevel" onClick={() => addLevelToChapter(ch.id)} title="Add a level to this chapter">
+                            + Add Level
+                          </button>
+                          <span className="ap-jreorder">
+                            <button className="ap-jicon" onClick={() => reorderChapters(i, -1)} disabled={i === 0} title="Move chapter up">↑</button>
+                            <button className="ap-jicon" onClick={() => reorderChapters(i, +1)} disabled={i === chapters.length - 1} title="Move chapter down">↓</button>
+                          </span>
+                          <button className="ap-jicon" onClick={() => setNameEdit({ kind: 'chapter', id: ch.id, value: ch.name })} title="Rename chapter">✏️</button>
+                          <button className="ap-jicon ap-jicon-del" onClick={() => setDeleteItem({ kind: 'chapter', row: ch })} title="Delete chapter">🗑️</button>
+                          <button className="ap-jicon ap-jcard-chevron" onClick={() => toggleChapter(ch.id)} title={expanded ? 'Collapse' : 'Expand'}>{expanded ? '▾' : '▸'}</button>
+                        </div>
+                      )}
                     </div>
 
                     {expanded && (
-                      <div className="ap-jtree-body">
+                      <div className="ap-jcard-body">
                         {levels === undefined ? (
                           <div className="ap-jtree-note">Loading levels…</div>
                         ) : (
                           <>
                             {levels.map((lv, li) => {
                               const qCount = counts.levels[lv.id] ?? 0;
+                              const lvRenaming = nameEdit?.kind === 'level' && nameEdit.id === lv.id;
                               return (
-                              <div className="ap-jtree-lvrow" key={lv.id}>
-                                {nameEdit?.kind === 'level' && nameEdit.id === lv.id ? (
-                                  renderNameInput('Level name')
+                              <div className="ap-jlevel" key={lv.id}>
+                                <span className="ap-jlevel-num">{li + 1}</span>
+                                {lvRenaming ? (
+                                  <div className="ap-jlevel-rename">{renderNameInput('Level name')}</div>
                                 ) : (
-                                  <button className="ap-jtree-lvname" onClick={() => openLevel(lv, ch)}>
-                                    📄 {li + 1}. {lv.name}
-                                    {qCount > 0
-                                      ? <span className="ap-jtree-count"> · {qCount} Q</span>
-                                      : <span className="ap-jtree-empty-badge">needs questions</span>}
+                                  <button className="ap-jlevel-name" onClick={() => openLevel(lv, ch)}>
+                                    Level {li + 1}: {lv.name}
                                   </button>
                                 )}
-                                <div className="ap-jtree-actions">
-                                  <button className="ap-jtree-btn" onClick={() => reorderLevels(ch.id, li, -1)} disabled={li === 0} title="Move up">↑</button>
-                                  <button className="ap-jtree-btn" onClick={() => reorderLevels(ch.id, li, +1)} disabled={li === levels.length - 1} title="Move down">↓</button>
-                                  <button className="ap-topic-edit-btn" onClick={() => setNameEdit({ kind: 'level', id: lv.id, chapterId: ch.id, value: lv.name })} title="Rename">✏️</button>
-                                  <button className="ap-topic-del-btn" onClick={() => setDeleteItem({ kind: 'level', row: lv, chapterId: ch.id })} title="Delete">🗑️</button>
-                                </div>
+                                {!lvRenaming && (
+                                  <div className="ap-jlevel-right">
+                                    {qCount > 0
+                                      ? <span className="ap-jpill">{qCount} question{qCount !== 1 ? 's' : ''}</span>
+                                      : <span className="ap-jpill ap-jpill--empty">needs questions</span>}
+                                    <span className="ap-jreorder">
+                                      <button className="ap-jicon" onClick={() => reorderLevels(ch.id, li, -1)} disabled={li === 0} title="Move level up">↑</button>
+                                      <button className="ap-jicon" onClick={() => reorderLevels(ch.id, li, +1)} disabled={li === levels.length - 1} title="Move level down">↓</button>
+                                    </span>
+                                    <button className="ap-jicon" onClick={() => setNameEdit({ kind: 'level', id: lv.id, chapterId: ch.id, value: lv.name })} title="Rename level">✏️</button>
+                                    <button className="ap-jicon ap-jicon-del" onClick={() => setDeleteItem({ kind: 'level', row: lv, chapterId: ch.id })} title="Delete level">🗑️</button>
+                                  </div>
+                                )}
                               </div>
                               );
                             })}
@@ -4278,18 +4301,18 @@ function JourneyPanel() {
                               <div className="ap-jtree-note">No levels yet — add the first one.</div>
                             )}
                             {nameEdit?.kind === 'level' && !nameEdit.id && nameEdit.chapterId === ch.id ? (
-                              <div className="ap-jtree-lvrow">{renderNameInput('New level name')}</div>
+                              <div className="ap-jlevel ap-jlevel--new">{renderNameInput('New level name')}</div>
                             ) : (
-                              <button className="ap-jtree-add" onClick={() => setNameEdit({ kind: 'level', id: null, chapterId: ch.id, value: '' })}>
-                                ➕ New Level
+                              <button className="ap-jadd" onClick={() => addLevelToChapter(ch.id)}>
+                                + Add Level
                               </button>
                             )}
 
-                            <button className="ap-jtree-bossrow" onClick={() => openBoss(ch)}>
-                              <span>⚔ Chapter Boss</span>
+                            <button className="ap-jboss" onClick={() => openBoss(ch)}>
+                              <span className="ap-jboss-label"><span className="ap-jboss-icon">⚔️</span> Chapter Boss</span>
                               {bossCount > 0
-                                ? <span className="ap-journey-boss-meta">{bossCount} question{bossCount !== 1 ? 's' : ''}</span>
-                                : <span className="ap-journey-boss-hint">auto-skips in game</span>}
+                                ? <span className="ap-jpill">{bossCount} question{bossCount !== 1 ? 's' : ''}</span>
+                                : <span className="ap-jboss-skip">⚡ Auto-skips in game</span>}
                             </button>
                           </>
                         )}
@@ -4303,24 +4326,26 @@ function JourneyPanel() {
 
           {chapters.length > 0 && (
             nameEdit?.kind === 'chapter' && !nameEdit.id ? (
-              <div className="ap-jtree-chrow ap-jtree-newchapter">{renderNameInput('New chapter name')}</div>
+              <div className="ap-jcard ap-jcard--new">{renderNameInput('New chapter name')}</div>
             ) : (
-              <button className="ap-jtree-add" onClick={() => setNameEdit({ kind: 'chapter', id: null, value: '' })}>
-                ➕ New Chapter
+              <button className="ap-jadd ap-jadd--chapter" onClick={() => setNameEdit({ kind: 'chapter', id: null, value: '' })}>
+                + Add Chapter
               </button>
             )
           )}
           {chapters.length === 0 && nameEdit?.kind === 'chapter' && !nameEdit.id && (
-            <div className="ap-jtree-chrow ap-jtree-newchapter">{renderNameInput('New chapter name')}</div>
+            <div className="ap-jcard ap-jcard--new">{renderNameInput('New chapter name')}</div>
           )}
 
-          <button className="ap-journey-boss-card ap-journey-boss-card--ultimate ap-jtree-ultimate" onClick={openUltimate}>
-            <span className="ap-journey-boss-icon">👑</span>
-            <span className="ap-journey-boss-name">Ultimate Boss</span>
-            <span className="ap-journey-boss-meta">
-              {ultCount > 0 ? `${ultCount} question${ultCount !== 1 ? 's' : ''}` : ''}
+          <button className="ap-jultimate" onClick={openUltimate}>
+            <span className="ap-jultimate-icon">👑</span>
+            <span className="ap-jultimate-text">
+              <span className="ap-jultimate-name">Ultimate Boss</span>
+              {ultCount > 0
+                ? <span className="ap-jultimate-meta">{ultCount} question{ultCount !== 1 ? 's' : ''}</span>
+                : <span className="ap-jultimate-skip">⚡ Auto-skips in game</span>}
             </span>
-            {ultCount === 0 && <span className="ap-journey-boss-hint">auto-skips in game until questions are added</span>}
+            <span className="ap-jultimate-chevron">›</span>
           </button>
         </>
       ) : (
