@@ -589,21 +589,20 @@ button:active:not(:disabled) { transform: scale(0.97); }
   border: 1px solid var(--border);
   border-left: 3px solid var(--gold, #f5c518);
   border-radius: 10px;
-  font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, 'Liberation Mono', monospace;
-  font-size: 14px;
-  line-height: 1.55;
+  font-family: inherit;            /* match the question font — not monospace */
+  font-size: 15px;
+  line-height: 1.6;
 }
+/* Name + value sit close together, left-aligned (not spread across the box) */
 .lab-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
-  justify-content: space-between;
-  gap: 18px;
-  padding: 3px 0;
-  border-bottom: 1px dashed var(--border);
+  gap: 6px;
+  padding: 2px 0;
 }
-.lab-row:last-child { border-bottom: none; }
-.lab-name  { color: var(--text-dim); white-space: pre-wrap; }
-.lab-value { color: var(--text); font-weight: 600; text-align: right; white-space: pre-wrap; }
+.lab-name  { color: var(--text); font-weight: 600; white-space: pre-wrap; }
+.lab-value { color: var(--text); white-space: pre-wrap; }
 
 .options { display: flex; flex-direction: column; gap: 10px; }
 

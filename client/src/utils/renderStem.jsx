@@ -56,7 +56,7 @@ export function renderStem(text) {
             const val  = ci >= 0 ? ln.slice(ci + 1).trim() : '';
             return (
               <div className="lab-row" key={li}>
-                <span className="lab-name">{name}</span>
+                <span className="lab-name">{val ? `${name}:` : name}</span>
                 {val && <span className="lab-value">{val}</span>}
               </div>
             );
