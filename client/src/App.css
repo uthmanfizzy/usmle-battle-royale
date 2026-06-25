@@ -578,6 +578,33 @@ button:active:not(:disabled) { transform: scale(0.97); }
   margin-bottom: 26px;
 }
 
+/* Lab-values panel inside a question stem. Reads theme vars so it renders as a
+   recessed bordered box in both normal (dark) and study (light) modes. Sits on
+   --surface (a touch darker/lighter than the --card stem behind it) with a gold
+   accent rail so it reads as a lab report set apart from the prose. */
+.lab-values-box {
+  margin: 0 0 22px;
+  padding: 12px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--gold, #f5c518);
+  border-radius: 10px;
+  font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, 'Liberation Mono', monospace;
+  font-size: 14px;
+  line-height: 1.55;
+}
+.lab-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 3px 0;
+  border-bottom: 1px dashed var(--border);
+}
+.lab-row:last-child { border-bottom: none; }
+.lab-name  { color: var(--text-dim); white-space: pre-wrap; }
+.lab-value { color: var(--text); font-weight: 600; text-align: right; white-space: pre-wrap; }
+
 .options { display: flex; flex-direction: column; gap: 10px; }
 
 .option-btn {

@@ -479,6 +479,9 @@
   color: rgba(255,255,255,0.85);
   margin: 0;
   line-height: 1.55;
+  /* keep parsed lab-value blocks line-separated in the preview instead of
+     collapsing the newlines into a run-on paragraph */
+  white-space: pre-wrap;
 }
 
 .qp-preview-choices {

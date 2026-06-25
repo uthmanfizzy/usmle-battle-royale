@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import PowerupBar from './PowerupBar';
 import ExplanationText from './ExplanationText';
 import { parseRichText } from '../utils/parseRichText';
+import { renderStem } from '../utils/renderStem';
 import Calculator from './Calculator';
 
 const LABELS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
@@ -167,7 +168,7 @@ export default function GameRoom({
           )}
 
           <div className="question-card">
-            <p className="question-text">{question.question}</p>
+            {renderStem(question.question)}
             {question.image_url && (
               <div className="question-image-wrap">
                 <img

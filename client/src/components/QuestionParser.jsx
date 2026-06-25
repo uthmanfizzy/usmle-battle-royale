@@ -1,6 +1,28 @@
 import { useState } from 'react';
 import './QuestionParser.css';
 import { supabase } from '../supabaseClient';
+import { isLabLine } from '../utils/renderStem';
+
+// Reassemble the stem from its collected lines: ordinary prose lines are joined
+// with spaces (so hard-wrapped paragraphs flow normally), but a RUN of 2+
+// consecutive lab-value lines is kept on its own lines (newline-separated) so the
+// display can render it as a styled lab-values box instead of a run-on paragraph.
+function assembleStem(lines) {
+  const parts = [];
+  let prose = [];
+  const flushProse = () => { if (prose.length) { parts.push(prose.join(' ')); prose = []; } };
+  for (let i = 0; i < lines.length; ) {
+    if (isLabLine(lines[i])) {
+      let j = i;
+      while (j < lines.length && isLabLine(lines[j])) j++;
+      if (j - i >= 2) { flushProse(); parts.push(lines.slice(i, j).join('\n')); i = j; continue; }
+    }
+    prose.push(lines[i]);
+    i++;
+  }
+  flushProse();
+  return parts.join('\n').trim();
+}
 
 const SERVER_URL = 'https://usmle-battle-royale-production.up.railway.app';
 
@@ -154,7 +176,7 @@ export default function QuestionParser({ activeFolder, selectedTopic, selectedDi
           }
         }
 
-        const questionText = questionLines.join(' ').trim();
+        const questionText = assembleStem(questionLines);
 
         // Validate
         if (!questionText) {
