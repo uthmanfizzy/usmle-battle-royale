@@ -37,11 +37,15 @@
   padding: 40px 20px;
   overflow-y: auto;
   color: var(--ink);
+  /* Atmospheric parchment: a bright glow lifts the centred content, warm corner
+     light + faint terrain tints (gold NE, forest SW) add depth without noise. */
   background:
-    radial-gradient(ellipse at 18% 8%,  rgba(255, 250, 235, 0.85), transparent 50%),
-    radial-gradient(ellipse at 85% 95%, rgba(201, 168, 110, 0.55), transparent 55%),
-    radial-gradient(ellipse at 70% 20%, rgba(228, 205, 152, 0.5),  transparent 45%),
-    linear-gradient(160deg, var(--parchment-hi) 0%, var(--parchment) 55%, var(--parchment-lo) 100%);
+    radial-gradient(ellipse 62% 52% at 50% 30%, rgba(255, 252, 242, 0.92), transparent 62%),
+    radial-gradient(ellipse at 16% 6%,  rgba(255, 250, 235, 0.7),  transparent 48%),
+    radial-gradient(ellipse at 92% 12%, rgba(201, 151, 28, 0.22),  transparent 46%),
+    radial-gradient(ellipse at 8% 96%,  rgba(63, 109, 58, 0.16),   transparent 52%),
+    radial-gradient(ellipse at 88% 95%, rgba(150, 110, 60, 0.4),   transparent 55%),
+    linear-gradient(160deg, var(--parchment-hi) 0%, var(--parchment) 52%, var(--parchment-lo) 100%);
   animation: jm-fade-in 0.35s ease both;
 }
 
@@ -62,9 +66,12 @@
   inset: 0;
   pointer-events: none;
   z-index: 0;
+  /* Burnt-edge vignette: radial corner darkening + inset glow frames the map and
+     deepens the scene so centred content reads with more contrast. */
+  background: radial-gradient(ellipse 100% 100% at 50% 48%, transparent 56%, rgba(46, 31, 16, 0.3) 100%);
   box-shadow:
-    inset 0 0 70px rgba(101, 67, 33, 0.4),
-    inset 0 0 160px rgba(101, 67, 33, 0.22);
+    inset 0 0 90px rgba(101, 67, 33, 0.45),
+    inset 0 0 200px rgba(74, 50, 24, 0.26);
 }
 
 .jm-screen > * { position: relative; z-index: 1; }
@@ -317,6 +324,15 @@
   justify-content: flex-start;
   padding: 0;
   overflow: hidden;
+  /* Deep "dusk map-table" backdrop: a warm hearth-glow behind the chart fades to
+     aged-leather and forest-dusk edges, so the bright parchment map sheet and its
+     nodes/ribbons pop with strong contrast and depth. The map sheet is opaque
+     (see .jm-map), so this dark surround never touches text readability. */
+  background:
+    radial-gradient(ellipse 70% 60% at 50% 34%, rgba(135, 92, 48, 0.5), transparent 60%),
+    radial-gradient(ellipse 120% 70% at 50% 2%,  rgba(96, 64, 34, 0.5),  transparent 58%),
+    radial-gradient(ellipse 100% 75% at 50% 118%, rgba(34, 58, 34, 0.55), transparent 62%),
+    linear-gradient(168deg, #2c1e12 0%, #21160d 46%, #181007 100%);
 }
 
 /* Header: a leather-and-brass strip above the map */
@@ -373,11 +389,19 @@
   outline: 1px solid rgba(122, 79, 40, 0.5);
   outline-offset: 6px;
   border-radius: 6px;
+  /* Self-contained parchment chart: an opaque parchment fill UNDER the contour
+     lines so the sheet stands on its own against a deep backdrop (no longer
+     relying on the screen background showing through). */
+  background-color: var(--parchment-hi);
   background-image:
     repeating-radial-gradient(circle at 108% -6%,  transparent 0 24px, rgba(122, 79, 40, 0.07) 24px 25px),
     repeating-radial-gradient(circle at -12% 108%, transparent 0 30px, rgba(122, 79, 40, 0.06) 30px 31px),
-    repeating-radial-gradient(circle at 50% 160%,  transparent 0 40px, rgba(63, 109, 58, 0.05) 40px 41px);
-  box-shadow: 0 10px 30px rgba(74, 53, 32, 0.28);
+    repeating-radial-gradient(circle at 50% 160%,  transparent 0 40px, rgba(63, 109, 58, 0.05) 40px 41px),
+    radial-gradient(ellipse at 28% 14%, var(--parchment-hi), transparent 58%),
+    linear-gradient(160deg, var(--parchment-hi) 0%, var(--parchment) 55%, var(--parchment-lo) 100%);
+  box-shadow:
+    0 16px 44px rgba(12, 8, 4, 0.5),
+    0 4px 14px rgba(12, 8, 4, 0.35);
 }
 
 /* Corner ornaments on the map frame */
@@ -890,18 +914,29 @@
   pointer-events: none;
 }
 
-/* Soft parchment-tint scrim keeps the vivid image cohesive with the theme.
-   Kept faint — anything stronger reads as a white sheet over the artwork. */
+/* Designed scrim over the admin image: a centre-clear vignette + top/bottom
+   gradients add depth and darken the edges so the map, nodes and header read
+   clearly, while a faint parchment tint keeps it cohesive with the theme.
+   Edges deepen; the artwork stays visible through the clear centre. */
 .jm-screen--bg .jm-bg::after {
   content: '';
   position: absolute;
   inset: 0;
-  background: rgba(239, 223, 182, 0.12);
+  background:
+    radial-gradient(ellipse 82% 72% at 50% 42%, transparent 44%, rgba(24, 16, 8, 0.5) 100%),
+    linear-gradient(180deg, rgba(24, 16, 8, 0.32), transparent 26%, transparent 68%, rgba(24, 16, 8, 0.42)),
+    rgba(239, 223, 182, 0.1);
 }
 
-/* The framed map becomes a translucent chart laid over the scene */
+/* The framed map becomes a translucent chart laid over the scene — drop the
+   opaque parchment fill from the base .jm-map so the admin image shows through
+   (contour lines only), keeping the translucent tint. */
 .jm-screen--bg .jm-map {
   background-color: rgba(247, 236, 210, 0.85);
+  background-image:
+    repeating-radial-gradient(circle at 108% -6%,  transparent 0 24px, rgba(122, 79, 40, 0.07) 24px 25px),
+    repeating-radial-gradient(circle at -12% 108%, transparent 0 30px, rgba(122, 79, 40, 0.06) 30px 31px),
+    repeating-radial-gradient(circle at 50% 160%,  transparent 0 40px, rgba(63, 109, 58, 0.05) 40px 41px);
 }
 
 /* Cards let a hint of the image through while staying readable (~0.9 effective) */

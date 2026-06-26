@@ -6518,7 +6518,6 @@ async function buildJourneyPath(userId, subject) {
   const isDone = (key) => !!progByKey.get(key)?.completed_at;
   const best   = (key) => progByKey.get(key)?.best_score_pct || 0;
 
-  let prevSatisfied = true; // chapter 1 level 1 starts unlocked
   const chapters = [];
   let allBossesSatisfied = true;
 
@@ -6526,6 +6525,11 @@ async function buildJourneyPath(userId, subject) {
     const members = levelRows.filter(l => l.chapter_id === ch.id);
     if (members.length === 0) continue; // empty chapters don't appear on the path
 
+    // Every chapter's FIRST level (lowest sort_order) is ALWAYS unlocked — any
+    // chapter can be started without completing prior chapters. Progression then
+    // chains WITHIN the chapter only, so we reset the "previous level satisfied"
+    // gate at each chapter boundary (it never carries across chapters).
+    let prevSatisfied = true;
     const levels = members.map(l => {
       const completed = isDone(l.id);
       const unlocked  = prevSatisfied || completed;
@@ -6562,7 +6566,8 @@ async function buildJourneyPath(userId, subject) {
       },
     });
 
-    prevSatisfied = satisfied;       // gates the next chapter's first level
+    // Chapter-boss satisfaction still feeds the ULTIMATE boss gate (cross-chapter),
+    // but no longer gates the next chapter's first level (each chapter's L1 is open).
     if (!satisfied) allBossesSatisfied = false;
   }
 
