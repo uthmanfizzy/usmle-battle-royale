@@ -87,7 +87,7 @@ export default function BuzzFunGame({
           <div className="bf-rr-header">
             <div className="bf-rr-answer">
               <span className="bf-rr-label">Correct answer:</span>
-              <span className="bf-rr-correct">{roundResults.correctAnswer}</span>
+              <span className="bf-rr-correct">{roundResults.correctAnswer}{question?.options?.[(roundResults.correctAnswer || 'A').charCodeAt(0) - 65] ? `. ${question.options[(roundResults.correctAnswer).charCodeAt(0) - 65]}` : ''}</span>
             </div>
             {roundResults.explanation && (
               <div className="bf-rr-explanation">
@@ -192,7 +192,7 @@ export default function BuzzFunGame({
           <div className={`bf-feedback ${answerResult.correct ? 'bf-fb-correct' : 'bf-fb-wrong'}`}>
             {answerResult.correct
               ? `✓ +${answerResult.pointsEarned || 100} pts`
-              : `✗ Wrong — correct: ${answerResult.correctAnswer}`}
+              : `✗ Wrong — correct: ${answerResult.correctAnswer}. ${question?.options?.[(answerResult.correctAnswer || 'A').charCodeAt(0) - 65] || ''}`}
           </div>
         )}
       </div>

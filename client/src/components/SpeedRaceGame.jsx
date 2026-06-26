@@ -193,7 +193,7 @@ export default function SpeedRaceGame({
               <div className={`answer-feedback ${answerResult.correct ? 'correct' : 'wrong'}`}>
                 {answerResult.correct
                   ? `✓ Correct! (${answerResult.score}/${GOAL})`
-                  : `✗ Wrong — Answer: ${answerResult.correctAnswer}`}
+                  : `✗ Wrong — Answer: ${answerResult.correctAnswer}. ${question.options[answerResult.correctAnswer.charCodeAt(0) - 65] || ''}`}
               </div>
             )}
           </>

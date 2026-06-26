@@ -3,6 +3,7 @@ import * as audio from '../audio';
 import { getToken } from '../auth';
 import './TowerMode.css';
 import ExplanationText from './ExplanationText';
+import { shuffleQuestionOptions } from '../utils/shuffleOptions';
 
 const SERVER = 'https://usmle-battle-royale-production.up.railway.app';
 const LABELS  = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
@@ -200,6 +201,10 @@ export default function TowerMode({ username, onBack }) {
   const correctRef        = useRef(0);
   const qIdxRef           = useRef(0);
   const questionsRef      = useRef([]);
+  // Shuffled clone of the current question, computed once per appearance (keyed by
+  // qIdx + base identity). processAnswer reads the SAME object so the check matches
+  // what was shown.
+  const shuffledQRef      = useRef({ qIdx: -1, base: null, q: null });
   const processRef        = useRef(null);
   const livesLostRef      = useRef(0);
   const activeFloorRef    = useRef(saved.floor || 1);
@@ -319,7 +324,11 @@ export default function TowerMode({ username, onBack }) {
     stopTimer();
 
     const qs = questionsRef.current;
-    const q  = qs[qIdxRef.current % Math.max(qs.length, 1)];
+    // Use the SAME shuffled clone render produced for this appearance.
+    const baseQ = qs[qIdxRef.current % Math.max(qs.length, 1)];
+    const q = (shuffledQRef.current && shuffledQRef.current.qIdx === qIdxRef.current && shuffledQRef.current.q)
+      ? shuffledQRef.current.q
+      : baseQ;
     if (!q) return;
 
     revealedRef.current = true;
@@ -447,7 +456,15 @@ export default function TowerMode({ username, onBack }) {
   const type   = floorType(activeFloor);
   const target = floorTarget(activeFloor);
   const tag    = typeTag(type);
-  const q      = questions.length > 0 ? questions[qIdx % questions.length] : null;
+  const baseQ  = questions.length > 0 ? questions[qIdx % questions.length] : null;
+  // Shuffle options + remap correct ONCE per appearance (keyed by qIdx + base
+  // identity); re-renders from the timer keep qIdx stable so there's no reshuffle
+  // mid-question. Drives both render and processAnswer (via shuffledQRef).
+  if (baseQ && (shuffledQRef.current.qIdx !== qIdx || shuffledQRef.current.base !== baseQ)) {
+    const { options, correct } = shuffleQuestionOptions(baseQ.options || [], baseQ.correct);
+    shuffledQRef.current = { qIdx, base: baseQ, q: { ...baseQ, options, correct } };
+  }
+  const q      = baseQ ? shuffledQRef.current.q : null;
 
   // ════════════════════════════════════════════════════════════════════════════
   // VIEW: MAP
@@ -827,7 +844,7 @@ export default function TowerMode({ username, onBack }) {
                     </span>
                   </div>
                   <div className="tw-rv-expl">
-                    <strong>Correct answer: {q.correct}</strong>
+                    <strong>Correct answer: {q.correct}. {q.options[q.correct.charCodeAt(0) - 65]}</strong>
                     <ExplanationText text={q.explanation} />
                   </div>
                   <div className="rr-skip-row">

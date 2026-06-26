@@ -7,6 +7,7 @@ import { parseRichText } from '../utils/parseRichText';
 import { renderStem } from '../utils/renderStem';
 import Calculator from './Calculator';
 import LabValues from './LabValues';
+import { shuffleQuestionOptions } from '../utils/shuffleOptions';
 
 const LABELS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
 const SERVER_URL = 'https://usmle-battle-royale-production.up.railway.app';
@@ -91,6 +92,10 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   const questionsRef  = useRef([]);
   const skipTimerRef  = useRef(null);
   const skipActionRef = useRef(null);
+  // Holds the shuffled clone of the current question. Computed once per appearance
+  // (keyed by qIdx + base identity) during render; processAnswer reads the SAME
+  // object so the answer-check and the displayed correct answer never disagree.
+  const shuffledQRef       = useRef({ qIdx: -1, base: null, q: null });
   const correctCountRef    = useRef(0);
   const completionFiredRef = useRef(false);
   const onCompleteRef      = useRef(onComplete);
@@ -163,7 +168,12 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
     if (revealedRef.current) return;
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
 
-    const q = questionsRef.current[qIdxRef.current];
+    // Use the SAME shuffled clone that render produced for this appearance, so the
+    // letter check matches what the player actually saw. Fall back to the raw
+    // question only if the ref is somehow out of sync.
+    const q = (shuffledQRef.current && shuffledQRef.current.qIdx === qIdxRef.current && shuffledQRef.current.q)
+      ? shuffledQRef.current.q
+      : questionsRef.current[qIdxRef.current];
     if (!q) return;
 
     revealedRef.current = true;
@@ -329,8 +339,18 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
     );
   }
 
-  const q = questions[qIdx];
-  if (!q) return null;
+  const baseQ = questions[qIdx];
+  if (!baseQ) return null;
+
+  // Shuffle options + remap correct ONCE per appearance (keyed by qIdx + base
+  // identity). Re-renders from the timer don't change qIdx, so the memo stays
+  // stable — no reshuffle mid-question. A fresh question (or refetch) gets a fresh
+  // order. This shuffled clone drives both render AND processAnswer (via the ref).
+  if (shuffledQRef.current.qIdx !== qIdx || shuffledQRef.current.base !== baseQ) {
+    const { options, correct } = shuffleQuestionOptions(baseQ.options || [], baseQ.correct);
+    shuffledQRef.current = { qIdx, base: baseQ, q: { ...baseQ, options, correct } };
+  }
+  const q = shuffledQRef.current.q;
 
   const pct = (timeLeft / defaultTimer) * 100;
   const tier = timeLeft > 10 ? 'green' : timeLeft > 5 ? 'yellow' : 'red';
@@ -500,7 +520,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
               </span>
             </div>
             <div className="rr-explanation">
-              <strong>Correct answer: {q.correct}</strong>
+              <strong>Correct answer: {q.correct}. {q.options[q.correct.charCodeAt(0) - 65]}</strong>
               {!hideExplanations && <ExplanationText text={q.explanation} />}
               {!hideExplanations && q.explanation_image_url && (
                 <img

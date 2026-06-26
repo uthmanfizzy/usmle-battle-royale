@@ -12,6 +12,28 @@ const AUTH_KEY = 'usmle_admin_session';
 
 const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
 
+// Answer options are now shuffled per game (anti-memorization), so explanations
+// that reference a fixed letter ("Option B", "answer is C", "(A)") will mismatch
+// the shuffled order. This detects such references so the editor can flag them.
+const LETTER_REF_RE = /\b(?:option|answer\s+is|choice|letter)\s+[A-H]\b|\([A-H]\)/i;
+function hasLetterReference(text) {
+  return typeof text === 'string' && LETTER_REF_RE.test(text);
+}
+// Small non-blocking inline warning (does not prevent saving).
+function LetterRefWarning({ text }) {
+  if (!hasLetterReference(text)) return null;
+  return (
+    <div style={{
+      marginTop: '6px', padding: '6px 10px', borderRadius: '6px',
+      background: 'rgba(245,197,24,0.12)', border: '1px solid rgba(245,197,24,0.4)',
+      color: '#f5c518', fontSize: '12px', lineHeight: 1.4,
+    }}>
+      ⚠ This text references an answer letter (e.g. “Option B”). Answers are now
+      shuffled per game — reference the answer by content instead so it stays correct.
+    </div>
+  );
+}
+
 const GAME_MODES = [
   { id: 'battle_royale',  label: 'Battle Royale',  icon: '⚔️', color: '#e74c3c' },
   { id: 'speed_race',     label: 'Speed Race',     icon: '⚡', color: '#3498db' },
@@ -4414,6 +4436,7 @@ function JourneyPanel() {
                 placeholder="Explain why the correct answer is correct…"
                 rows={3}
               />
+              <LetterRefWarning text={form.explanation} />
             </div>
 
             <div className="ap-field">
@@ -4424,6 +4447,7 @@ function JourneyPanel() {
                 placeholder="Explain why each incorrect option is wrong..."
                 rows={3}
               />
+              <LetterRefWarning text={form.why_others_wrong} />
               {form.why_others_wrong && (
                 <div className="explanation-preview">
                   <p className="explanation-preview-label">Preview:</p>
@@ -4817,10 +4841,12 @@ function JourneyEditor() {
       <div className="ap-field">
         <label>Explanation</label>
         <textarea value={form.explanation} onChange={e => set('explanation', e.target.value)} placeholder="Explain why the correct answer is correct…" rows={3} />
+        <LetterRefWarning text={form.explanation} />
       </div>
       <div className="ap-field">
         <label>Why Others Are Wrong <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '11px' }}>(optional)</span></label>
         <textarea value={form.why_others_wrong} onChange={e => set('why_others_wrong', e.target.value)} placeholder="Explain why each incorrect option is wrong..." rows={3} />
+        <LetterRefWarning text={form.why_others_wrong} />
         {form.why_others_wrong && (
           <div className="explanation-preview">
             <p className="explanation-preview-label">Preview:</p>

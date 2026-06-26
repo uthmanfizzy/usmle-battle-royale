@@ -241,7 +241,7 @@ export default function TriviaGame({
                   <div className="trf-main">
                     {triviaResult.correct
                       ? `✓ Correct!${triviaResult.earnedWedge ? ` ${currentUsername} earned the ${catMeta.label} wedge ${catMeta.icon}` : ''}`
-                      : `✗ Wrong — Answer was ${triviaResult.correctAnswer}`}
+                      : `✗ Wrong — Answer was ${triviaResult.correctAnswer}. ${question.options[triviaResult.correctAnswer.charCodeAt(0) - 65] || ''}`}
                   </div>
                   {triviaResult.explanation && (
                     <div className="trf-explanation">

@@ -255,6 +255,7 @@ export default function GameRoom({
               answerResult={answerResult}
               roundResults={roundResults}
               isAlive={isAlive}
+              question={question}
             />
           )}
         </div>
@@ -289,7 +290,10 @@ export default function GameRoom({
   );
 }
 
-function RoundResult({ answerResult, roundResults, isAlive }) {
+function RoundResult({ answerResult, roundResults, isAlive, question }) {
+  // The server emits options + correctAnswer from the SAME shuffled serve, so the
+  // option text for the correct letter is always the right answer by content.
+  const correctText = question?.options?.[(roundResults.correctAnswer || 'A').charCodeAt(0) - 65];
   const hasPersonalResult = answerResult !== null;
   const correct = hasPersonalResult && answerResult.correct;
 
@@ -320,7 +324,7 @@ function RoundResult({ answerResult, roundResults, isAlive }) {
       )}
 
       <div className="rr-explanation">
-        <strong>Correct answer: {roundResults.correctAnswer}</strong>
+        <strong>Correct answer: {roundResults.correctAnswer}{correctText ? `. ${correctText}` : ''}</strong>
         <ExplanationText text={roundResults.explanation} />
       </div>
 

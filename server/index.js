@@ -14,7 +14,7 @@ const path       = require('path');
 const multer     = require('multer');
 const AdmZip     = require('adm-zip');
 const os         = require('os');
-const { fromDb, toDb, toPublicQuestion, answerResultPayload, normalizeImport } = require('./questionMapper');
+const { fromDb, toDb, toPublicQuestion, answerResultPayload, normalizeImport, withShuffledOptions } = require('./questionMapper');
 
 // Use sql.js - pure JavaScript SQLite, no native compilation needed
 const initSqlJs = require('sql.js');
@@ -681,7 +681,9 @@ function nextBuzzFunQuestion(lobby) {
   lobby.buzzAnswerTimes   = new Map();
   lobby.buzzTimerStart    = Date.now();
 
-  const q         = lobby.questionQueue[lobby.questionIdx];
+  // Shuffle + remap once per serve on a clone in the queue slot; processBuzzFunAnswers
+  // re-reads the same slot, so emit, correct-check, and bots share one order.
+  const q         = lobby.questionQueue[lobby.questionIdx] = withShuffledOptions(lobby.questionQueue[lobby.questionIdx]);
   const timeLimit = 8;
 
   io.to(lobby.id).emit('new_question', {
@@ -825,7 +827,11 @@ function nextQuestion(lobby) {
   if (lobby.usedPowerupThisQ) lobby.usedPowerupThisQ.clear();
   if (lobby.frozenPlayers)   lobby.frozenPlayers.clear();
 
-  const q         = lobby.questionQueue[lobby.questionIdx];
+  // Shuffle options + remap correct ONCE per serve, on a clone stored back in the
+  // queue slot (canonical questionBank entry is never mutated). processAnswers
+  // re-reads this same slot, so emit, the correct-check, and bots all use the
+  // identical shuffled order. All players see one order.
+  const q         = lobby.questionQueue[lobby.questionIdx] = withShuffledOptions(lobby.questionQueue[lobby.questionIdx]);
   // Per-question difficulty timer (server-authoritative): each question uses the
   // admin per-difficulty timer matching ITS OWN difficulty. This single value drives
   // the new_question emit, lobby.timerEnd, the round-advance setTimeout, and bot
@@ -1178,7 +1184,11 @@ function sendSpeedQuestion(lobby, playerId) {
   const state  = lobby.speedPlayers?.get(playerId);
   if (!player || !state || state.finished) return;
 
-  const q         = lobby.questionQueue[state.idx % lobby.questionQueue.length];
+  // Per-player shuffle: store the shuffled clone on THIS player's state so
+  // advanceSpeedPlayer checks against the exact order this player saw. Don't write
+  // the shared queue slot — another player may be mid-question on the same index.
+  const q         = withShuffledOptions(lobby.questionQueue[state.idx % lobby.questionQueue.length]);
+  state.currentQ  = q;
   const timeLimit = gameSettings.timerSpeedRace;
 
   if (!player.isBot) {
@@ -1217,7 +1227,9 @@ function advanceSpeedPlayer(lobby, playerId, answer) {
   state.timer = null;
   state.botTimer = null;
 
-  const q      = lobby.questionQueue[state.idx % lobby.questionQueue.length];
+  // Check against the exact shuffled question this player was served (set in
+  // sendSpeedQuestion); fall back to the canonical slot only if missing.
+  const q      = state.currentQ || lobby.questionQueue[state.idx % lobby.questionQueue.length];
   const isSkip = answer === '__skip__';
   const isCorrectAnswer = !isSkip && answer !== null && isAnswerCorrect(answer, q);
   const correct = isCorrectAnswer;
@@ -1453,7 +1465,9 @@ function nextTriviaTurn(lobby) {
 
     setTimeout(() => {
       if (lobby.status !== 'trivia_question') return;
-      const q = questionBank[Math.floor(Math.random() * questionBank.length)];
+      // Shuffle + remap on a clone; processTriviaAnswer checks against
+      // lobby.triviaCurrentQuestion, the same shuffled object emitted + used by bots.
+      const q = withShuffledOptions(questionBank[Math.floor(Math.random() * questionBank.length)]);
       lobby.triviaCurrentQuestion = q;
       lobby.triviaCurrentCategory = q.subject;
       lobby.triviaCanEarnWedge    = false;
@@ -1528,9 +1542,11 @@ function handleTriviaRoll(lobby) {
     if (lobby.status !== 'trivia_question') return;
     const tpBank = questionBank.filter(q => (q.game_modes || ['trivia_pursuit']).includes('trivia_pursuit'));
     const pool = tpBank.filter(q => q.subject === space.category);
-    const q    = pool.length > 0
+    // Shuffle + remap on a clone; processTriviaAnswer checks against
+    // lobby.triviaCurrentQuestion, the same shuffled object emitted + used by bots.
+    const q    = withShuffledOptions(pool.length > 0
       ? pool[Math.floor(Math.random() * pool.length)]
-      : tpBank[Math.floor(Math.random() * tpBank.length)];
+      : tpBank[Math.floor(Math.random() * tpBank.length)]);
     lobby.triviaCurrentQuestion = q;
 
     io.to(lobby.id).emit('trivia_question', {
