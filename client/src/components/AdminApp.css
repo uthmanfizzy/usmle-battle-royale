@@ -3030,7 +3030,16 @@
   padding: 10px 4px 8px;
   display: flex; flex-direction: column; gap: 10px;
 }
-.je-target-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+/* Add Question + Paste & Parse sit side by side, each filling 50% of the row.
+   calc(50% - 5px) accounts for the 10px gap so exactly two fit per line; they
+   wrap (each full-width) only on very narrow panes. */
+.je-target-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.je-target-actions > button {
+  flex: 1 1 calc(50% - 5px);
+  min-width: 130px;
+  margin: 0;
+  text-align: center;
+}
 .je-qlist { display: flex; flex-direction: column; gap: 6px; }
 .je-qform { margin: 0; }
 

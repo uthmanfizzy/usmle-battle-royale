@@ -4889,7 +4889,7 @@ function JourneyEditor() {
         )}
         {formHere ? renderQuestionForm(target) : (
           <div className="je-target-actions">
-            <button className="ap-btn-pri" onClick={() => openAdd(target)}>➕ Add question</button>
+            <button className="ap-btn-pri" onClick={() => openAdd(target)}>➕ Add Question</button>
             <button className="ap-btn-sec" onClick={() => setParserTarget(target)}>📋 Paste &amp; Parse</button>
           </div>
         )}
