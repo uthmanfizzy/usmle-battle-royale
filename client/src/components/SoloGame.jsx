@@ -12,6 +12,13 @@ import { shuffleQuestionOptions } from '../utils/shuffleOptions';
 const LABELS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
 const SERVER_URL = 'https://usmle-battle-royale-production.up.railway.app';
 
+// Strip a single baked-in letter prefix ("A. ", "B) ", "C: " …) from stored
+// option text so the DISPLAY letter we prepend doesn't produce "B. C. text".
+// Display-only — never touches answer-check logic.
+function stripLetterPrefix(text) {
+  return String(text ?? '').replace(/^\s*[A-J][.):]\s+/, '');
+}
+
 function getHi(subject) {
   try { return parseInt(localStorage.getItem(`usmle-hs-${subject}`) || '0', 10); } catch { return 0; }
 }
@@ -33,6 +40,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
     ? (settings.hardModeTimer || 30)
     : (settings.easyModeTimer || settings.timerDefault || 20);
   const defaultLives = isJourney ? 5 : (settings.battleRoyaleLives || 3);
+  const maxLives = defaultLives;   // heart slots shown = max lives for this mode (5 in journey)
   const explanationTime = isHardMode
     ? (settings.hardModeExplanationTime || 20)
     : (settings.easyModeExplanationTime || settings.explanationTime || 5);
@@ -363,7 +371,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
           <span className="topbar-round">Q {qIdx + 1}</span>
           <span className="topbar-score">🏅 {score} pts</span>
           <div className="lives-bar">
-            {[1, 2, 3].map(i => (
+            {Array.from({ length: maxLives }, (_, k) => k + 1).map(i => (
               <span key={i} className={`heart-icon ${i > lives ? 'dead' : ''}`}>
                 {i <= lives ? '❤️' : '🖤'}
               </span>
@@ -426,7 +434,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
                 </span>
               )}
               <div className="lives-bar">
-                {[1, 2, 3].map(i => (
+                {Array.from({ length: maxLives }, (_, k) => k + 1).map(i => (
                   <span key={i} className={`heart-icon ${i > lives ? 'dead' : ''}`}>
                     {i <= lives ? '❤️' : '🖤'}
                   </span>
@@ -489,7 +497,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
                   disabled={revealed}
                 >
                   <span className="opt-label">{label}</span>
-                  <span className="opt-text">{opt}</span>
+                  <span className="opt-text">{stripLetterPrefix(opt)}</span>
                 </button>
               );
             })}
@@ -520,7 +528,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
               </span>
             </div>
             <div className="rr-explanation">
-              <strong>Correct answer: {q.correct}. {q.options[q.correct.charCodeAt(0) - 65]}</strong>
+              <strong>Correct answer: {q.correct}. {stripLetterPrefix(q.options[q.correct.charCodeAt(0) - 65])}</strong>
               {!hideExplanations && <ExplanationText text={q.explanation} />}
               {!hideExplanations && q.explanation_image_url && (
                 <img
