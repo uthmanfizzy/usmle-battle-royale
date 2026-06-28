@@ -4,11 +4,9 @@
    data-theme=default|pixel and data-color). EVERY rule here is gated
    behind html[data-study="on"], so with the attribute absent the
    cascade is untouched → dark/default stays byte-identical when off.
-   The :not(:has(.solo-screen[data-journey="1"])) guard on every anchor
-   makes the entire study skin sit out while a First Aid Journey game
-   screen is mounted, so Journey renders as the plain (training) screen
-   even when study mode is globally on. Only one game screen mounts at a
-   time, so this never affects training/solo/BR/trivia screens.
+   First Aid Journey respects study mode exactly like training/solo: the
+   study skin applies to Journey game screens too whenever study mode is
+   globally on.
    Scope is limited to the answer-screen subtrees so the rest of the
    app (dashboard, lobby, etc.) keeps its dark skin.
    ═══════════════════════════════════════════════════════════════════ */
@@ -17,10 +15,10 @@
 /* Custom properties inherit through the DOM, so every descendant that
    reads var(--card)/var(--text)/… (SoloGame, GameRoom/MP, SpeedRace,
    Trivia) is re-skinned by this single block. */
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .game-screen,
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-screen,
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .trivia-screen,
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .bf-screen {
+html[data-study="on"] .game-screen,
+html[data-study="on"] .solo-screen,
+html[data-study="on"] .trivia-screen,
+html[data-study="on"] .bf-screen {
   --bg:        #f7f8fc;
   --surface:   #ffffff;
   --card:      #ffffff;
@@ -39,179 +37,179 @@ html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .bf-screen {
 }
 
 /* Backgrounds set with hardcoded dark gradients (don't read --bg fully) */
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .game-screen,
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-screen {
+html[data-study="on"] .game-screen,
+html[data-study="on"] .solo-screen {
   background: #f7f8fc;
 }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .speed-race-screen {
+html[data-study="on"] .speed-race-screen {
   background: radial-gradient(ellipse at top, #eaf2fb 0%, #f7f8fc 70%);
 }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .trivia-screen {
+html[data-study="on"] .trivia-screen {
   background: radial-gradient(ellipse at top, #f1edfb 0%, #f7f8fc 70%);
 }
 
 /* Top bar reads var(--surface)/var(--border) → already light; just soften */
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .game-topbar {
+html[data-study="on"] .game-topbar {
   box-shadow: 0 1px 0 rgba(40,50,90,0.06);
 }
 
 /* ── (b) Patch hardcoded rules that don't read vars ────────────────── */
 
 /* Timer: hardcoded #ffaa00 yellow → study-appropriate amber */
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .timer-number.yellow { color: #b45309; }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .timer-fill.yellow   { background: #f59e0b; }
+html[data-study="on"] .timer-number.yellow { color: #b45309; }
+html[data-study="on"] .timer-fill.yellow   { background: #f59e0b; }
 
 /* Shared option states (App.css uses literal rgba + !important) */
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .option-btn.selected {
+html[data-study="on"] .option-btn.selected {
   border-color: var(--blue) !important;
   background: rgba(37,99,235,0.08) !important;
 }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .option-btn.correct {
+html[data-study="on"] .option-btn.correct {
   border-color: var(--green) !important;
   background: rgba(21,128,61,0.10) !important;
 }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .option-btn.wrong {
+html[data-study="on"] .option-btn.wrong {
   border-color: var(--red) !important;
   background: rgba(220,38,38,0.08) !important;
 }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .option-btn:hover:not(:disabled) {
+html[data-study="on"] .option-btn:hover:not(:disabled) {
   border-color: var(--color-primary-dark);
   background: rgba(40,50,90,0.04);
 }
 
 /* Round-result explanation: rgba(0,0,0,.3) is a muddy grey on white */
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .rr-explanation {
+html[data-study="on"] .rr-explanation {
   background: #f3f5fc;
 }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .rr-explanation p,
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .explanation-sentence {
+html[data-study="on"] .rr-explanation p,
+html[data-study="on"] .explanation-sentence {
   color: var(--text-dim);
 }
 
 /* ── Trivia bespoke classes (own card + feedback) ──────────────────── */
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .trivia-question-card {
+html[data-study="on"] .trivia-question-card {
   background: var(--card);
   border-color: var(--border);
 }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .trivia-result-feedback.correct {
+html[data-study="on"] .trivia-result-feedback.correct {
   background: rgba(21,128,61,0.10);
   border-color: var(--green);
 }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .trivia-result-feedback.wrong {
+html[data-study="on"] .trivia-result-feedback.wrong {
   background: rgba(220,38,38,0.08);
   border-color: var(--red);
 }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .trf-explanation { color: var(--text-dim); }
+html[data-study="on"] .trf-explanation { color: var(--text-dim); }
 
 /* ── BuzzFun bespoke classes (white-on-dark by default) ────────────── */
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .bf-screen {
+html[data-study="on"] .bf-screen {
   background: linear-gradient(160deg, #f7f8fc 0%, #f1edfb 50%, #f7f8fc 100%);
 }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .bf-card {
+html[data-study="on"] .bf-card {
   background: #ffffff;
   border-color: #d9dcea;
   box-shadow: 0 8px 28px rgba(40,50,90,0.10);
 }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .bf-card-correct {
+html[data-study="on"] .bf-card-correct {
   background: rgba(21,128,61,0.10) !important;
   border-color: rgba(21,128,61,0.5) !important;
   box-shadow: 0 0 30px rgba(21,128,61,0.15);
 }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .bf-card-wrong {
+html[data-study="on"] .bf-card-wrong {
   background: rgba(220,38,38,0.08) !important;
   border-color: rgba(220,38,38,0.5) !important;
   box-shadow: 0 0 30px rgba(220,38,38,0.12);
 }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .bf-term { color: #1c2030; text-shadow: none; }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .bf-opt {
+html[data-study="on"] .bf-term { color: #1c2030; text-shadow: none; }
+html[data-study="on"] .bf-opt {
   background: #f3f5fc;
   border-color: #d9dcea;
   color: #1c2030;
 }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .bf-opt-letter { background: #e2e7f5; color: #1c2030; }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .bf-opt-active:hover {
+html[data-study="on"] .bf-opt-letter { background: #e2e7f5; color: #1c2030; }
+html[data-study="on"] .bf-opt-active:hover {
   background: rgba(180,83,9,0.10);
   border-color: rgba(180,83,9,0.5);
 }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .bf-opt-selected {
+html[data-study="on"] .bf-opt-selected {
   background: rgba(180,83,9,0.14);
   border-color: rgba(180,83,9,0.6);
 }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .bf-opt-reveal-correct {
+html[data-study="on"] .bf-opt-reveal-correct {
   background: rgba(21,128,61,0.12) !important;
   border-color: rgba(21,128,61,0.7) !important;
 }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .bf-opt-reveal-wrong {
+html[data-study="on"] .bf-opt-reveal-wrong {
   background: rgba(220,38,38,0.10) !important;
   border-color: rgba(220,38,38,0.6) !important;
 }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .bf-rr-header {
+html[data-study="on"] .bf-rr-header {
   background: #f3f5fc;
   border-color: #d9dcea;
 }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .bf-rr-label  { color: #545a72; }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .bf-rr-row    { background: #f3f5fc; color: #1c2030; }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .bf-lb-row    { background: #f3f5fc; color: #545a72; }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .bf-rr-explanation { color: #545a72; }
+html[data-study="on"] .bf-rr-label  { color: #545a72; }
+html[data-study="on"] .bf-rr-row    { background: #f3f5fc; color: #1c2030; }
+html[data-study="on"] .bf-lb-row    { background: #f3f5fc; color: #545a72; }
+html[data-study="on"] .bf-rr-explanation { color: #545a72; }
 
 /* ── (c) Learning layout — calmer, bigger, explanation as focal point ─ */
 /* Applies in study scope only; dark layout is unchanged. */
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .game-center {
+html[data-study="on"] .game-center {
   padding: 36px 28px 56px;
   max-width: 780px;
 }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .question-card {
+html[data-study="on"] .question-card {
   padding: 34px 36px;
 }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .question-text,
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .trivia-question-card .question-text,
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .bf-term {
+html[data-study="on"] .question-text,
+html[data-study="on"] .trivia-question-card .question-text,
+html[data-study="on"] .bf-term {
   font-size: clamp(18px, 1.4vw, 20px);
   line-height: 1.85;
 }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .options { gap: 14px; }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .option-btn,
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .bf-opt {
+html[data-study="on"] .options { gap: 14px; }
+html[data-study="on"] .option-btn,
+html[data-study="on"] .bf-opt {
   padding: 18px 20px;
   font-size: 16px;
   line-height: 1.55;
 }
 
 /* Explanation block = the learning focal point */
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .rr-explanation,
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .trf-explanation,
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .bf-rr-explanation,
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .explanation-text {
+html[data-study="on"] .rr-explanation,
+html[data-study="on"] .trf-explanation,
+html[data-study="on"] .bf-rr-explanation,
+html[data-study="on"] .explanation-text {
   border-left: 4px solid var(--color-primary-dark);
   padding-left: 18px;
   font-size: 15px;
   line-height: 1.85;
 }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .rr-explanation {
+html[data-study="on"] .rr-explanation {
   padding: 18px 18px 18px 20px;
   border-radius: 0 12px 12px 0;
 }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .rr-explanation strong {
+html[data-study="on"] .rr-explanation strong {
   color: var(--color-primary-dark);
   font-size: 16px;
 }
 /* Solo study: no purple left-accent vertical lines in the explanation */
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-body .rr-explanation,
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-body .explanation-text {
+html[data-study="on"] .solo-body .rr-explanation,
+html[data-study="on"] .solo-body .explanation-text {
   border-left: none;
   padding-left: 0;
 }
 /* Inter type scale — body/explanation 16px regular, comfortable line-height */
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-body .rr-explanation,
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-body .explanation-text,
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-body .explanation-sentence,
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-body .why-wrong-content {
+html[data-study="on"] .solo-body .rr-explanation,
+html[data-study="on"] .solo-body .explanation-text,
+html[data-study="on"] .solo-body .explanation-sentence,
+html[data-study="on"] .solo-body .why-wrong-content {
   font-size: 16px;
   font-weight: 400;
   line-height: 1.6;
 }
 /* "Correct answer:" heading — larger semibold */
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-body .rr-explanation strong {
+html[data-study="on"] .solo-body .rr-explanation strong {
   font-size: 22px;
   font-weight: 600;
 }
@@ -225,7 +223,7 @@ html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-body .rr-e
    ═══════════════════════════════════════════════════════════════════ */
 
 /* ── Two-pane grid: explanation on the RIGHT ───────────────────────── */
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-body[data-expl-layout="right"] {
+html[data-study="on"] .solo-body[data-expl-layout="right"] {
   display: grid;
   max-width: 1100px;
   align-items: start;
@@ -240,7 +238,7 @@ html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-body[data-
 }
 
 /* ── Stacked: explanation BELOW (still study-styled) ───────────────── */
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-body[data-expl-layout="below"] {
+html[data-study="on"] .solo-body[data-expl-layout="below"] {
   display: grid;
   max-width: 760px;
   row-gap: 14px;
@@ -254,32 +252,32 @@ html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-body[data-
 }
 
 /* Place existing + new nodes into the named areas */
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-body[data-expl-layout] .study-header          { grid-area: header; }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-body[data-expl-layout] .question-card         { grid-area: question; }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-body[data-expl-layout] .study-result-strip    { grid-area: strip; }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-body[data-expl-layout] .study-expl-placeholder{ grid-area: expl; align-self: stretch; }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-body[data-expl-layout] .round-result          { grid-area: expl; margin-top: 0; align-self: stretch; }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-body[data-expl-layout] .study-statusbar       { grid-area: status; }
+html[data-study="on"] .solo-body[data-expl-layout] .study-header          { grid-area: header; }
+html[data-study="on"] .solo-body[data-expl-layout] .question-card         { grid-area: question; }
+html[data-study="on"] .solo-body[data-expl-layout] .study-result-strip    { grid-area: strip; }
+html[data-study="on"] .solo-body[data-expl-layout] .study-expl-placeholder{ grid-area: expl; align-self: stretch; }
+html[data-study="on"] .solo-body[data-expl-layout] .round-result          { grid-area: expl; margin-top: 0; align-self: stretch; }
+html[data-study="on"] .solo-body[data-expl-layout] .study-statusbar       { grid-area: status; }
 
 /* Widen the existing top bar to match in the right (two-pane) layout */
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-screen:has(.solo-body[data-expl-layout="right"]) .solo-topbar { max-width: 1100px; }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-screen:has(.solo-body[data-expl-layout="below"]) .solo-topbar { max-width: 760px; }
+html[data-study="on"] .solo-screen:has(.solo-body[data-expl-layout="right"]) .solo-topbar { max-width: 1100px; }
+html[data-study="on"] .solo-screen:has(.solo-body[data-expl-layout="below"]) .solo-topbar { max-width: 760px; }
 
 /* Placeholder only makes sense in the right layout's empty right pane */
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-body[data-expl-layout="below"] .study-expl-placeholder { display: none; }
+html[data-study="on"] .solo-body[data-expl-layout="below"] .study-expl-placeholder { display: none; }
 
 /* ═══ MOCKUP LOOK — colours: page #e9f1fa · chrome #dbe9f8/#c2d8ef ·
    panes white · blue #4a9eff · green #22c55e · red #dc2626 ═══════════ */
 
 /* Blue study page background + readable learning font (Inter) */
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-screen {
+html[data-study="on"] .solo-screen {
   background: rgb(199, 224, 253);
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
 /* ── Edge-to-edge: remove the centering / max-width so panes reach the
    page borders, and drop the screen's side padding ───────────────────── */
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-screen {
+html[data-study="on"] .solo-screen {
   padding: 0 0 100px;         /* bottom offset so the taller fixed bottom bar can't cover content */
   align-items: stretch;
   /* Base .screen sets justify-content: center; with min-height:100vh and a single
@@ -287,8 +285,8 @@ html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-screen {
      sticky header. Pin content to the top so the header sits flush at the top edge. */
   justify-content: flex-start;
 }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-body[data-expl-layout="right"],
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-body[data-expl-layout="below"] {
+html[data-study="on"] .solo-body[data-expl-layout="right"],
+html[data-study="on"] .solo-body[data-expl-layout="below"] {
   --study-gutter: 24px;
   max-width: none;
   width: 100%;
@@ -297,7 +295,7 @@ html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-body[data-
   row-gap: 14px;
 }
 /* Gap BETWEEN the two panes (right/two-pane layout) */
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-body[data-expl-layout="right"] {
+html[data-study="on"] .solo-body[data-expl-layout="right"] {
   column-gap: 22px;
 }
 /* Panes keep their rounded card corners (base rule) — gutters give them room */
@@ -305,7 +303,7 @@ html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-body[data-
 /* ── Full-width sticky TOP header (stays visible on scroll) ──────────── */
 /* Negative inline margin cancels the solo-body gutter so the bar stays
    edge-to-edge while the PANES get their gutters. */
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .study-header {
+html[data-study="on"] .study-header {
   position: sticky;
   top: 0;
   z-index: 60;
@@ -317,7 +315,7 @@ html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .study-header {
 }
 
 /* ── Full-width FIXED bottom bar (stays visible on scroll) ───────────── */
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .study-statusbar {
+html[data-study="on"] .study-statusbar {
   position: fixed;
   left: 0;
   right: 0;
@@ -330,15 +328,15 @@ html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .study-statusbar
 }
 
 /* White rounded panes with subtle shadow */
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-body .question-card,
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-body .round-result,
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-body .study-expl-placeholder {
+html[data-study="on"] .solo-body .question-card,
+html[data-study="on"] .solo-body .round-result,
+html[data-study="on"] .solo-body .study-expl-placeholder {
   background: #ffffff !important;
   border: 1px solid #e2e8f0 !important;
   border-radius: 14px;
   box-shadow: 0 2px 10px rgba(40,60,100,0.07);
 }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-body .question-text {
+html[data-study="on"] .solo-body .question-text {
   color: #1c2030;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   font-size: 17px;
@@ -347,18 +345,18 @@ html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-body .ques
   margin-bottom: 20px;
 }
 /* Readable font on options + explanation too (study only) */
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-body .option-btn,
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-body .opt-text,
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-body .rr-explanation,
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-body .explanation-text,
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-body .explanation-sentence,
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-body .explanation-rich,
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-body .why-wrong-content {
+html[data-study="on"] .solo-body .option-btn,
+html[data-study="on"] .solo-body .opt-text,
+html[data-study="on"] .solo-body .rr-explanation,
+html[data-study="on"] .solo-body .explanation-text,
+html[data-study="on"] .solo-body .explanation-sentence,
+html[data-study="on"] .solo-body .explanation-rich,
+html[data-study="on"] .solo-body .why-wrong-content {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
 /* ── Combined top header: Item/Id left · green timer centre · pts/hearts right ─ */
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .study-header {
+html[data-study="on"] .study-header {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
@@ -369,14 +367,14 @@ html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .study-header {
   padding: 14px 16px;
   min-height: 66px;
 }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .shd-left { display: flex; flex-direction: row; align-items: center; gap: 12px; justify-self: start; }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .shd-meta { display: flex; flex-direction: column; line-height: 1.25; }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .stb-count { color: #1c2030; font-weight: 600; font-size: 14px; }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .stb-id    { color: #545a72; font-weight: 500; font-size: 13px; }
+html[data-study="on"] .shd-left { display: flex; flex-direction: row; align-items: center; gap: 12px; justify-self: start; }
+html[data-study="on"] .shd-meta { display: flex; flex-direction: column; line-height: 1.25; }
+html[data-study="on"] .stb-count { color: #1c2030; font-weight: 600; font-size: 14px; }
+html[data-study="on"] .stb-id    { color: #545a72; font-weight: 500; font-size: 13px; }
 
 /* Burger button + dropdown menu (study only) */
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .study-menu { position: relative; }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .shd-burger {
+html[data-study="on"] .study-menu { position: relative; }
+html[data-study="on"] .shd-burger {
   width: 38px; height: 34px;
   background: #ffffff;
   border: 1px solid #c2d8ef;
@@ -386,8 +384,8 @@ html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .shd-burger {
   display: inline-flex; align-items: center; justify-content: center;
   box-shadow: 0 1px 2px rgba(40,60,100,0.08);
 }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .shd-burger:hover { border-color: #4a9eff; color: #2563eb; }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .study-menu-panel {
+html[data-study="on"] .shd-burger:hover { border-color: #4a9eff; color: #2563eb; }
+html[data-study="on"] .study-menu-panel {
   position: absolute;
   top: calc(100% + 8px);
   left: 0;
@@ -402,12 +400,12 @@ html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .study-menu-pane
   flex-direction: column;
   gap: 4px;
 }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .smp-title {
+html[data-study="on"] .smp-title {
   font-size: 11px; font-weight: 700; color: #545a72;
   text-transform: uppercase; letter-spacing: 0.04em;
   padding: 4px 8px 2px;
 }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .smp-opt {
+html[data-study="on"] .smp-opt {
   text-align: left;
   background: transparent;
   border: 1px solid transparent;
@@ -415,24 +413,24 @@ html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .smp-opt {
   padding: 8px 10px;
   font-size: 14px; font-weight: 500; color: #1c2030;
 }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .smp-opt:hover { background: #f3f7fc; }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .smp-opt.smp-active { background: #e3eefb; border-color: #4a9eff; color: #2563eb; }
+html[data-study="on"] .smp-opt:hover { background: #f3f7fc; }
+html[data-study="on"] .smp-opt.smp-active { background: #e3eefb; border-color: #4a9eff; color: #2563eb; }
 
 /* Centre: the relocated green timer, sized to fit the header */
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .shd-center { justify-self: center; min-width: 160px; }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .shd-center .timer-wrap { margin: 0; width: 180px; }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .shd-center .timer-number { font-size: 16px; margin-bottom: 4px; }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .shd-center .timer-track { height: 6px; }
+html[data-study="on"] .shd-center { justify-self: center; min-width: 160px; }
+html[data-study="on"] .shd-center .timer-wrap { margin: 0; width: 180px; }
+html[data-study="on"] .shd-center .timer-number { font-size: 16px; margin-bottom: 4px; }
+html[data-study="on"] .shd-center .timer-track { height: 6px; }
 
 /* Right: score + hearts + layout toggle */
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .shd-right { display: flex; align-items: center; gap: 12px; justify-self: end; }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .shd-right .topbar-score { color: #b45309; font-weight: 700; font-size: 13px; }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .shd-right .lives-bar { display: flex; gap: 3px; }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .shd-right .heart-icon { font-size: 16px; }
+html[data-study="on"] .shd-right { display: flex; align-items: center; gap: 12px; justify-self: end; }
+html[data-study="on"] .shd-right .topbar-score { color: #b45309; font-weight: 700; font-size: 13px; }
+html[data-study="on"] .shd-right .lives-bar { display: flex; gap: 3px; }
+html[data-study="on"] .shd-right .heart-icon { font-size: 16px; }
 
 /* Compact streak pill — small rounded chip inside the header (replaces the
    old full-width salmon bar, which is suppressed in study mode). */
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .study-streak-pill {
+html[data-study="on"] .study-streak-pill {
   display: inline-flex;
   align-items: center;
   gap: 3px;
@@ -447,20 +445,20 @@ html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .study-streak-pi
   box-shadow: 0 1px 2px rgba(154, 52, 18, 0.12);
   white-space: nowrap;
 }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .study-streak-pill .ssp-flame {
+html[data-study="on"] .study-streak-pill .ssp-flame {
   font-size: 12px;
 }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .stb-btn {
+html[data-study="on"] .stb-btn {
   background: #ffffff;
   border: 1px solid #c2d8ef;
   border-radius: 8px;
   padding: 6px 12px;
   font-size: 12px; font-weight: 600; color: #1c2030;
 }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .stb-btn:hover { border-color: #4a9eff; color: #2563eb; }
+html[data-study="on"] .stb-btn:hover { border-color: #4a9eff; color: #2563eb; }
 
 /* Rounded arrow buttons (used in the bottom bar) */
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .stb-arrow {
+html[data-study="on"] .stb-arrow {
   width: 40px; height: 34px;
   background: #ffffff;
   border: 1px solid #c2d8ef;
@@ -470,12 +468,12 @@ html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .stb-arrow {
   display: inline-flex; align-items: center; justify-content: center;
   box-shadow: 0 1px 2px rgba(40,60,100,0.08);
 }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .stb-arrow:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .stb-arrow.stb-next:not(:disabled) { color: #2563eb; border-color: #4a9eff; }
+html[data-study="on"] .stb-arrow:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
+html[data-study="on"] .stb-arrow.stb-next:not(:disabled) { color: #2563eb; border-color: #4a9eff; }
 
 /* ── Option rows: clean full-width rows (no boxes) + radio circle ───── */
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-body .options { gap: 2px; }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-body .option-btn {
+html[data-study="on"] .solo-body .options { gap: 2px; }
+html[data-study="on"] .solo-body .option-btn {
   align-items: center;
   background: transparent;
   border: none;
@@ -487,12 +485,12 @@ html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-body .opti
   line-height: 1.55;
   transform: none !important;
 }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-body .option-btn .opt-text { font-size: 16px; font-weight: 500; }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-body .option-btn:hover:not(:disabled) {
+html[data-study="on"] .solo-body .option-btn .opt-text { font-size: 16px; font-weight: 500; }
+html[data-study="on"] .solo-body .option-btn:hover:not(:disabled) {
   background: #f3f7fc;
   border-color: #eef2f7;
 }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-body .option-btn::before {
+html[data-study="on"] .solo-body .option-btn::before {
   content: '';
   flex: 0 0 auto;
   width: 20px; height: 20px;
@@ -502,27 +500,27 @@ html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-body .opti
   box-sizing: border-box;
   display: flex; align-items: center; justify-content: center;
 }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-body .opt-label { color: #545a72; font-weight: 700; }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-body .opt-label::after { content: '.'; }
+html[data-study="on"] .solo-body .opt-label { color: #545a72; font-weight: 700; }
+html[data-study="on"] .solo-body .opt-label::after { content: '.'; }
 
 /* Selected (your pick) → soft full-width blue highlight + blue filled radio */
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-body .option-btn.selected,
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-body .option-btn.wrong {
+html[data-study="on"] .solo-body .option-btn.selected,
+html[data-study="on"] .solo-body .option-btn.wrong {
   background: #e3eefb !important;
   border-color: transparent !important;
 }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-body .option-btn.selected::before,
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-body .option-btn.wrong::before {
+html[data-study="on"] .solo-body .option-btn.selected::before,
+html[data-study="on"] .solo-body .option-btn.wrong::before {
   border-color: #4a9eff;
   background: #4a9eff;
   box-shadow: inset 0 0 0 3px #fff;
 }
 /* Correct answer → soft full-width green highlight + green check (wins over selected) */
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-body .option-btn.correct {
+html[data-study="on"] .solo-body .option-btn.correct {
   background: #e3f7ea !important;
   border-color: transparent !important;
 }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-body .option-btn.correct::before {
+html[data-study="on"] .solo-body .option-btn.correct::before {
   content: '✓';
   border-color: #22c55e;
   background: #22c55e;
@@ -532,7 +530,7 @@ html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-body .opti
 }
 
 /* ── Result strip: white rounded, ✓/✗ + time-spent with icon ───────── */
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .study-result-strip {
+html[data-study="on"] .study-result-strip {
   display: flex;
   align-items: center;
   gap: 20px;
@@ -543,27 +541,27 @@ html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .study-result-st
   font-size: 14px;
   box-shadow: 0 1px 4px rgba(40,60,100,0.06);
 }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .srs-mark { font-weight: 600; }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .study-result-strip.is-correct .srs-mark { color: #16a34a; }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .study-result-strip.is-wrong   .srs-mark { color: #dc2626; }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .srs-time {
+html[data-study="on"] .srs-mark { font-weight: 600; }
+html[data-study="on"] .study-result-strip.is-correct .srs-mark { color: #16a34a; }
+html[data-study="on"] .study-result-strip.is-wrong   .srs-mark { color: #dc2626; }
+html[data-study="on"] .srs-time {
   color: #545a72; font-weight: 600;
   display: inline-flex; align-items: center; gap: 6px;
 }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .srs-time::before { content: '\23F1'; font-size: 14px; }
+html[data-study="on"] .srs-time::before { content: '\23F1'; font-size: 14px; }
 
 /* ── Explanation pane: white card with a blue "Explanation" tab ─────── */
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-body .round-result {
+html[data-study="on"] .solo-body .round-result {
   position: relative;
   padding-top: 56px;
 }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-body .round-result.correct-bg,
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-body .round-result.wrong-bg {
+html[data-study="on"] .solo-body .round-result.correct-bg,
+html[data-study="on"] .solo-body .round-result.wrong-bg {
   background: #ffffff !important;
 }
 /* Soft, inset pale-blue rounded "Explanation" tab (doesn't touch the corner) */
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-body .round-result::before,
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-body .study-expl-placeholder::before {
+html[data-study="on"] .solo-body .round-result::before,
+html[data-study="on"] .solo-body .study-expl-placeholder::before {
   content: 'Explanation';
   position: absolute;
   top: 14px; left: 16px;
@@ -575,22 +573,22 @@ html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-body .stud
   letter-spacing: 0.02em;
 }
 /* CORRECT/WRONG banner is now shown in the result strip — declutter pane */
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-body .round-result .rr-header { display: none; }
+html[data-study="on"] .solo-body .round-result .rr-header { display: none; }
 
 /* Explanation body text: solid near-black for strong contrast on the light
    pane (default body was var(--text-dim) #545a72; why-wrong was white). Only
    the *default* colour is forced — explicit [color] spans keep their colour. */
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-body .rr-explanation,
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-body .rr-explanation p,
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-body .explanation-text,
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-body .explanation-sentence,
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-body .explanation-rich,
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-body .why-wrong-content {
+html[data-study="on"] .solo-body .rr-explanation,
+html[data-study="on"] .solo-body .rr-explanation p,
+html[data-study="on"] .solo-body .explanation-text,
+html[data-study="on"] .solo-body .explanation-sentence,
+html[data-study="on"] .solo-body .explanation-rich,
+html[data-study="on"] .solo-body .why-wrong-content {
   color: #1c2030 !important;
 }
 
 /* ── Calm placeholder (white card, Explanation tab) ────────────────── */
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .study-expl-placeholder {
+html[data-study="on"] .study-expl-placeholder {
   position: relative;
   display: flex;
   align-items: center;
@@ -603,7 +601,7 @@ html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .study-expl-plac
 }
 
 /* ── Bottom status-bar: light-blue rounded frame (mode label only) ──── */
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .study-statusbar {
+html[data-study="on"] .study-statusbar {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
@@ -617,11 +615,11 @@ html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .study-statusbar
   color: #545a72;
   letter-spacing: 0.02em;
 }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .ssb-arrows { display: flex; gap: 10px; justify-self: center; }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .ssb-left  { justify-self: start; display: flex; align-items: center; }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .ssb-right { justify-self: end; display: flex; align-items: center; gap: 8px; }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .ssb-home,
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .ssb-calc {
+html[data-study="on"] .ssb-arrows { display: flex; gap: 10px; justify-self: center; }
+html[data-study="on"] .ssb-left  { justify-self: start; display: flex; align-items: center; }
+html[data-study="on"] .ssb-right { justify-self: end; display: flex; align-items: center; gap: 8px; }
+html[data-study="on"] .ssb-home,
+html[data-study="on"] .ssb-calc {
   background: #ffffff;
   border: 1px solid #c2d8ef;
   border-radius: 8px;
@@ -630,38 +628,38 @@ html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .ssb-calc {
   display: inline-flex; align-items: center; gap: 6px;
   box-shadow: 0 1px 2px rgba(40,60,100,0.08);
 }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .ssb-home:hover,
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .ssb-calc:hover { border-color: #4a9eff; color: #2563eb; }
+html[data-study="on"] .ssb-home:hover,
+html[data-study="on"] .ssb-calc:hover { border-color: #4a9eff; color: #2563eb; }
 
 /* Study + solo only: hide the floating "Show Calculator" / "Show Lab Values"
    buttons (both moved to the footer) */
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-body .calculator-toggle-btn,
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-body .lab-values-toggle-btn { display: none; }
+html[data-study="on"] .solo-body .calculator-toggle-btn,
+html[data-study="on"] .solo-body .lab-values-toggle-btn { display: none; }
 /* Study + solo only: hide the global top-left Home button (moved to footer-left).
    Scoped via :has(.solo-screen) so it only hides during the solo game, not app-wide. */
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) body:has(.solo-screen) .home-btn { display: none; }
+html[data-study="on"] body:has(.solo-screen) .home-btn { display: none; }
 
 /* ── Game over (study only): centre on the page + black text on light bg ── */
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-screen:has(.solo-gameover) {
+html[data-study="on"] .solo-screen:has(.solo-gameover) {
   justify-content: center;
   align-items: center;
   padding: 24px;
 }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-gameover {
+html[data-study="on"] .solo-gameover {
   text-align: center;
   margin: 0 auto;
 }
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-gameover,
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-gameover h2,
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-gameover .sgo-val,
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-gameover .sgo-label,
-html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-gameover .sgo-level-label {
+html[data-study="on"] .solo-gameover,
+html[data-study="on"] .solo-gameover h2,
+html[data-study="on"] .solo-gameover .sgo-val,
+html[data-study="on"] .solo-gameover .sgo-label,
+html[data-study="on"] .solo-gameover .sgo-level-label {
   color: #1c2030;
 }
 
 /* ── Single-column safety on narrow screens (both layouts stack) ───── */
 @media (max-width: 820px) {
-  html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-body[data-expl-layout="right"] {
+  html[data-study="on"] .solo-body[data-expl-layout="right"] {
     --study-gutter: 16px;
     max-width: 760px;
     grid-template-columns: 1fr;
@@ -672,5 +670,5 @@ html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-gameover .
       "expl"
       "status";
   }
-  html[data-study="on"]:not(:has(.solo-screen[data-journey="1"])) .solo-body[data-expl-layout="right"] .study-expl-placeholder { display: none; }
+  html[data-study="on"] .solo-body[data-expl-layout="right"] .study-expl-placeholder { display: none; }
 }

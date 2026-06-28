@@ -22,9 +22,9 @@ function saveHi(subject, score) {
 export default function SoloGame({ subject, username, difficulty, onBack, onTryAgain, onChangeSubject, onBackToTopics, topicId, questionsUrl, onComplete, levelLabel, isJourney }) {
   const { settings } = useGameSettings();
   const { study: studyPref } = useTheme();   // Layer 1 chrome renders only when study mode is on
-  // Journey always renders the plain (training-style) single-pane game screen,
-  // never the two-pane study chrome — even when study mode is globally enabled.
-  const study = isJourney ? false : studyPref;
+  // Journey respects study mode exactly like training/solo: full two-pane study
+  // chrome when study mode is on, plain single-pane screen when off.
+  const study = studyPref;
 
   // Hard mode and easy mode each use their own admin-configured timer / explanation
   // time / hide-explanations setting (falling back to legacy generic keys, then literals)
@@ -281,7 +281,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
 
   if (loading) {
     return (
-      <div className="screen solo-screen" data-journey={isJourney ? '1' : undefined}>
+      <div className="screen solo-screen">
         <div className="waiting-screen"><div className="spinner" /><p>Loading questions…</p></div>
       </div>
     );
@@ -289,7 +289,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
 
   if (fetchError) {
     return (
-      <div className="screen solo-screen" data-journey={isJourney ? '1' : undefined}>
+      <div className="screen solo-screen">
         <div className="solo-card"><p className="error-msg">{fetchError}</p><button className="btn-start" onClick={onBack}>Back</button></div>
       </div>
     );
@@ -312,7 +312,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
 
   if (gameOver) {
     return (
-      <div className="screen solo-screen" data-journey={isJourney ? '1' : undefined}>
+      <div className="screen solo-screen">
         <div className="solo-gameover">
           <h2>Game Over</h2>
           {levelLabel && <p className="sgo-level-label">{levelLabel}</p>}
@@ -356,7 +356,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   const tier = timeLeft > 10 ? 'green' : timeLeft > 5 ? 'yellow' : 'red';
 
   return (
-    <div className="screen solo-screen" data-journey={isJourney ? '1' : undefined}>
+    <div className="screen solo-screen">
       {!study && (
         <div className="solo-topbar">
           {levelLabel && <span className="topbar-level-label">{levelLabel}</span>}
