@@ -1003,6 +1003,94 @@ function BulkImportModal({ activeFolder, selectedTopic, selectedDifficulty, onIm
 
 // ── Questions Panel ────────────────────────────────────────────────────────────
 
+// ── Per-row drag-and-drop image upload ──────────────────────────────────────
+// One drop zone for a single question + a single field (image_url or
+// explanation_image_url). Reuses the shared /admin/upload-image storage upload,
+// then PUTs the new URL onto that exact question id. Fully isolated per zone.
+function RowImageDrop({ questionId, field, label, url, onUploaded }) {
+  const [over,   setOver]   = useState(false);
+  const [busy,   setBusy]   = useState(false);
+  const [flash,  setFlash]  = useState('');   // '' | 'ok' | 'err'
+  const [errMsg, setErrMsg] = useState('');
+
+  async function uploadFile(file) {
+    const allowed = ['image/jpeg', 'image/png', 'image/webp'];
+    const fail = (msg) => {
+      setErrMsg(msg); setFlash('err');
+      setTimeout(() => { setFlash(''); setErrMsg(''); }, 2800);
+    };
+    if (!file || !file.type || !file.type.startsWith('image/')) return fail('Image files only');
+    if (!allowed.includes(file.type)) return fail('JPG, PNG, WEBP only');
+    if (file.size > 5 * 1024 * 1024)   return fail('Max 5MB');
+
+    setErrMsg(''); setBusy(true);
+    try {
+      const base64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload  = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      const upRes  = await apiCall('/admin/upload-image', {
+        method: 'POST',
+        body:   JSON.stringify({ base64, filename: file.name, mimeType: file.type }),
+      });
+      const upData = await upRes.json();
+      if (!upRes.ok) throw new Error(upData.error || 'Upload failed');
+
+      const putRes  = await apiCall(`/admin/questions/${questionId}`, {
+        method: 'PUT',
+        body:   JSON.stringify({ [field]: upData.url }),
+      });
+      const putData = await putRes.json();
+      if (!putRes.ok) throw new Error(putData.error || 'Save failed');
+
+      onUploaded(questionId, field, upData.url);
+      setBusy(false);
+      setFlash('ok');
+      setTimeout(() => setFlash(''), 1800);
+    } catch (err) {
+      setBusy(false);
+      fail(err.message || 'Failed');
+    }
+  }
+
+  function handleDrop(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    setOver(false);
+    if (busy) return;
+    uploadFile(e.dataTransfer?.files?.[0]);
+  }
+
+  const cls = `ap-rowdrop ${over ? 'is-over' : ''} ${flash === 'ok' ? 'is-ok' : ''} ${flash === 'err' ? 'is-err' : ''}`;
+  return (
+    <div
+      className={cls}
+      onDragOver={e => { e.preventDefault(); e.stopPropagation(); if (!busy) setOver(true); }}
+      onDragEnter={e => { e.preventDefault(); e.stopPropagation(); }}
+      onDragLeave={e => { e.preventDefault(); e.stopPropagation(); setOver(false); }}
+      onDrop={handleDrop}
+      title={errMsg || (url ? `${label} image — drop a new image to replace` : `Drop ${label} image here`)}
+    >
+      <span className="ap-rowdrop-face">
+        {busy
+          ? <span className="ap-rowdrop-spin" />
+          : flash === 'ok'
+            ? <span className="ap-rowdrop-tick">✓</span>
+            : flash === 'err'
+              ? <span className="ap-rowdrop-x">⚠</span>
+              : url
+                ? <img src={url} alt="" className="ap-rowdrop-thumb" />
+                : <span className="ap-rowdrop-ph">📷</span>}
+      </span>
+      <span className="ap-rowdrop-lbl">
+        {busy ? '…' : flash === 'ok' ? 'Uploaded' : flash === 'err' ? errMsg : label}
+      </span>
+    </div>
+  );
+}
+
 function QuestionsPanel({ subjects = [] }) {
   // ─── Data ────────────────────────────────────────────────────────────────────
   const [questions,     setQuestions]     = useState([]);
@@ -1100,6 +1188,12 @@ function QuestionsPanel({ subjects = [] }) {
     } finally {
       setLoading(false);
     }
+  }
+
+  // Optimistically reflect a per-row drag-and-drop image upload in local state
+  // (the server PUT already persisted it). Matches by exact question id.
+  function handleRowImageUploaded(qId, field, url) {
+    setQuestions(qs => qs.map(q => String(q.id) === String(qId) ? { ...q, [field]: url } : q));
   }
 
   async function loadTopics(category, difficulty) {
@@ -2264,10 +2358,23 @@ function QuestionsPanel({ subjects = [] }) {
                               {qDiff}
                             </span>
                           </td>
-                          <td className="ap-td-thumb">
-                            {q.image_url
-                              ? <img src={q.image_url} alt="" className="ap-thumb" title={q.image_url} />
-                              : <span className="ap-no-image">—</span>}
+                          <td className="ap-td-thumb" onClick={e => e.stopPropagation()}>
+                            <div className="ap-rowdrop-wrap">
+                              <RowImageDrop
+                                questionId={q.id}
+                                field="image_url"
+                                label="Q"
+                                url={q.image_url}
+                                onUploaded={handleRowImageUploaded}
+                              />
+                              <RowImageDrop
+                                questionId={q.id}
+                                field="explanation_image_url"
+                                label="Expl"
+                                url={q.explanation_image_url}
+                                onUploaded={handleRowImageUploaded}
+                              />
+                            </div>
                           </td>
                           <td className="ap-td-modes">
                             <div className="ap-gm-badges">
