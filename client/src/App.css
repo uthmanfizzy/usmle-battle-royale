@@ -771,6 +771,21 @@ html[data-study="on"] .solo-body .stem-table td { color: #1c2030; }
 /* Keep inline-coloured text legible when it falls inside a highlight. */
 .explanation-text mark.hl span { color: #1a1a2e !important; }
 
+/* Stem hint marks (question-stem highlights) — same readable pastels in both themes. */
+.stem-text { display: contents; } /* zero layout impact; still a real DOM node for selection */
+.stem-text mark.hl {
+  background: transparent;
+  color: #1a1a2e !important;
+  border-radius: 3px;
+  padding: 0.05em 0.08em;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+.stem-text mark.hl-yellow { background: #fdcb6e; }
+.stem-text mark.hl-green  { background: #55efc4; }
+.stem-text mark.hl-pink   { background: #fd79a8; }
+.stem-text mark.hl-blue   { background: #74b9ff; }
+
 /* Floating selection toolbar */
 .expl-hl-toolbar {
   position: fixed;
@@ -808,6 +823,26 @@ html[data-study="on"] .solo-body .stem-table td { color: #1c2030; }
   margin-left: 2px;
 }
 .expl-hl-remove:hover { background: #ff6b6b; }
+/* Bold/Italic format buttons (dev mode) + divider */
+.expl-hl-divider {
+  width: 1px;
+  align-self: stretch;
+  background: rgba(255, 255, 255, 0.22);
+  margin: 0 2px;
+}
+.expl-hl-fmt {
+  min-width: 26px;
+  height: 24px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 6px;
+}
+.expl-hl-fmt:hover { background: rgba(255, 255, 255, 0.22); }
 
 /* Developer-mode toggle (admin only): switches new highlights between OFFICIAL
    (global) and personal authoring. Sits in a labelled bar under the explanation. */

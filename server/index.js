@@ -2239,7 +2239,8 @@ app.get('/api/questions', async (req, res) => {
 // mode) — the handlers below are structured so that path drops in cleanly.
 
 const HL_COLORS  = ['yellow', 'green', 'pink', 'blue'];
-const HL_REGIONS = ['explanation', 'why_wrong'];
+const HL_REGIONS = ['explanation', 'why_wrong', 'question'];
+const HL_FORMATS = ['bold', 'italic'];
 
 // GET — soft auth. A logged-in user gets their own ('user') highlights for the
 // question; the query also pulls scope='official' so stage 2 is forward-ready.
@@ -2280,7 +2281,7 @@ app.post('/api/questions/:questionId/highlights', async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Highlights unavailable' });
   const { questionId } = req.params;
   const {
-    start_offset, end_offset, color,
+    start_offset, end_offset, color = null, format = null,
     region = 'explanation', scope = 'user', quote = null, prefix = null, suffix = null,
   } = req.body || {};
 
@@ -2288,20 +2289,30 @@ app.post('/api/questions/:questionId/highlights', async (req, res) => {
       start_offset < 0 || end_offset <= start_offset) {
     return res.status(400).json({ error: 'Invalid offsets' });
   }
-  if (!HL_COLORS.includes(color))   return res.status(400).json({ error: 'Invalid color' });
   if (!HL_REGIONS.includes(region)) return res.status(400).json({ error: 'Invalid region' });
+  // A row is EITHER a colour highlight OR a bold/italic format span (mirrors the DB
+  // color-XOR-format constraint).
+  const hasColor  = color  != null;
+  const hasFormat = format != null;
+  if (hasColor === hasFormat) return res.status(400).json({ error: 'Provide exactly one of color or format' });
+  if (hasColor  && !HL_COLORS.includes(color))   return res.status(400).json({ error: 'Invalid color' });
+  if (hasFormat && !HL_FORMATS.includes(format)) return res.status(400).json({ error: 'Invalid format' });
 
   const isAdmin = req.headers['x-admin-password'] === ADMIN_PASSWORD;
   const auth = req.headers.authorization;
   const decoded = auth?.startsWith('Bearer ') ? verifyToken(auth.slice(7)) : null;
 
-  // Resolve the persisted scope/user_id from the REAL credentials, not the client's word.
+  // Official-only paths (server is the ONLY gate): format spans, and question-region
+  // hints. Everything else follows the existing user/official colour logic.
+  const mustBeOfficial = hasFormat || region === 'question';
+  const effScope = mustBeOfficial ? 'official' : scope;
+
   let rowScope, rowUserId;
-  if (scope === 'official') {
-    if (!isAdmin) return res.status(403).json({ error: 'Official highlights require admin (developer mode)' });
+  if (effScope === 'official') {
+    if (!isAdmin) return res.status(403).json({ error: 'Official content requires admin (developer mode)' });
     rowScope = 'official';
     rowUserId = null;
-  } else if (scope === 'user') {
+  } else if (effScope === 'user') {
     if (!decoded) return res.status(401).json({ error: 'Unauthorized' });
     rowScope = 'user';
     rowUserId = decoded.userId;
@@ -2319,7 +2330,8 @@ app.post('/api/questions/:questionId/highlights', async (req, res) => {
         user_id: rowUserId,
         start_offset,
         end_offset,
-        color,
+        color:  hasColor  ? color  : null,
+        format: hasFormat ? format : null,
         quote:  quote  != null ? String(quote).slice(0, 2000) : null,
         prefix: prefix != null ? String(prefix).slice(0, 200) : null,
         suffix: suffix != null ? String(suffix).slice(0, 200) : null,

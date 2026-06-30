@@ -212,9 +212,13 @@ function highlightRank(h) {
   return scopeRank * 1e15 + h.__pri; // scope dominates; recency breaks ties
 }
 
-// Flatten possibly-overlapping highlights into minimal NON-overlapping coloured
-// segments. Priority: user-over-official, then most-recent (see highlightRank), so
-// no nested <mark> is ever produced.
+// Flatten possibly-overlapping highlights into minimal NON-overlapping MULTI-ATTRIBUTE
+// segments { start, end, color?, bold, italic }. Two layers merge per interval:
+//   • COLOUR — at most one, picked by highlightRank (user-over-official, recency).
+//   • FORMAT — bold/italic are additive: true if ANY covering (official) format span
+//     of that kind covers the interval.
+// A row is either a colour row (h.color) or a format row (h.format) — see the DB
+// color-XOR-format constraint. No nested <mark> is produced.
 export function offsetsToSegments(visibleString, highlights) {
   const len = visibleString.length;
   const valid = (highlights || [])
@@ -225,7 +229,7 @@ export function offsetsToSegments(visibleString, highlights) {
         h.start >= 0 &&
         h.end > h.start &&
         h.end <= len &&
-        HIGHLIGHT_COLORS.includes(h.color)
+        (HIGHLIGHT_COLORS.includes(h.color) || h.format === 'bold' || h.format === 'italic')
     )
     .map((h, i) => ({
       ...h,
@@ -245,23 +249,31 @@ export function offsetsToSegments(visibleString, highlights) {
     const a = sorted[i];
     const b = sorted[i + 1];
     if (a >= b) continue;
-    let best = null;
+    let bestColor = null;
+    let bold = false;
+    let italic = false;
     for (const h of valid) {
       if (h.start <= a && h.end >= b) {
-        if (!best || highlightRank(h) >= highlightRank(best)) best = h;
+        if (HIGHLIGHT_COLORS.includes(h.color)) {
+          if (!bestColor || highlightRank(h) >= highlightRank(bestColor)) bestColor = h;
+        } else if (h.format === 'bold') bold = true;
+        else if (h.format === 'italic') italic = true;
       }
     }
-    if (best) {
-      const last = segments[segments.length - 1];
-      if (last && last.end === a && last.color === best.color) last.end = b;
-      else segments.push({ start: a, end: b, color: best.color });
+    const color = bestColor ? bestColor.color : undefined;
+    if (!color && !bold && !italic) continue;
+    const last = segments[segments.length - 1];
+    if (last && last.end === a && last.color === color && last.bold === bold && last.italic === italic) {
+      last.end = b;
+    } else {
+      segments.push({ start: a, end: b, color, bold, italic });
     }
   }
   return segments;
 }
 
 // Slice a single run's text by the (sorted, non-overlapping) segments, yielding
-// pieces { text, color|null }. Used by the renderer to wrap highlighted portions.
+// pieces { text, color?, bold?, italic? }. Used by the renderer to wrap pieces.
 export function sliceRun(run, segments) {
   const pieces = [];
   let pos = run.start;
@@ -269,11 +281,11 @@ export function sliceRun(run, segments) {
     if (seg.end <= run.start || seg.start >= run.end) continue;
     const s = Math.max(seg.start, run.start);
     const e = Math.min(seg.end, run.end);
-    if (s > pos) pieces.push({ text: run.text.slice(pos - run.start, s - run.start), color: null });
-    pieces.push({ text: run.text.slice(s - run.start, e - run.start), color: seg.color });
+    if (s > pos) pieces.push({ text: run.text.slice(pos - run.start, s - run.start) });
+    pieces.push({ text: run.text.slice(s - run.start, e - run.start), color: seg.color, bold: seg.bold, italic: seg.italic });
     pos = e;
   }
-  if (pos < run.end) pieces.push({ text: run.text.slice(pos - run.start), color: null });
+  if (pos < run.end) pieces.push({ text: run.text.slice(pos - run.start) });
   return pieces;
 }
 
@@ -350,7 +362,9 @@ export function normalizeHighlightRow(row) {
     id: row.id,
     start: row.start_offset,
     end: row.end_offset,
-    color: row.color,
+    color: row.color ?? null,
+    format: row.format ?? null,
+    region: row.region ?? 'explanation',
     quote: row.quote ?? null,
     prefix: row.prefix ?? null,
     suffix: row.suffix ?? null,

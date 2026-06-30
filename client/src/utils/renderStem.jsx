@@ -1,4 +1,5 @@
 import React from 'react';
+import { offsetsToSegments } from './explanationHighlights';
 
 // A "lab value" line looks like  Name: value [units] [(reference/note)]  — a short
 // test-name label (cap <= ~41 chars so ordinary prose with a mid-sentence colon
@@ -201,69 +202,156 @@ export function segmentStem(text) {
   return out;
 }
 
-// Render a question stem. Prose flows as paragraphs; a detected lab-values block
-// (from newline-separated lines OR a run-on sequence) renders as a styled,
-// line-separated lab panel. Reads theme variables so it's correct in both normal
-// (dark) and study (light) modes.
-export function renderStem(text) {
-  if (!text) return null;
+// ── Offset model (the SINGLE SOURCE shared by toStemVisibleText + renderStem) ──
+//
+// buildStemModel walks segmentStem and assigns GLOBAL VISIBLE OFFSETS to every text
+// fragment, in the SAME document order the renderer emits them. The key alignment
+// rules (so toStemVisibleText === the rendered container's textContent):
+//   • prose: lines joined with nothing (\n → <br>, contributes 0 chars)
+//   • labs:  per row "Name:" + value with NO space between (two adjacent spans)
+//   • table: separator rows dropped; cells concatenated header-first, no separators
+// Both renderStem and toStemVisibleText derive from THIS function, so capture
+// (Range.toString over .stem-text) and apply (these offsets) cannot drift apart.
+export function buildStemModel(text) {
+  const segs = segmentStem(text);
+  let offset = 0;
+  const mk = (s) => { const tok = { text: s, start: offset, end: offset + s.length }; offset += s.length; return tok; };
+  const blocks = [];
+  for (const seg of segs) {
+    if (seg.type === 'prose') {
+      const lines = String(seg.text).split('\n').map((ln) => mk(ln));
+      blocks.push({ type: 'prose', lines });
+    } else if (seg.type === 'labs') {
+      const rows = seg.lines.map((ln) => {
+        const ci = ln.indexOf(':');
+        const name = ci >= 0 ? ln.slice(0, ci).trim() : ln.trim();
+        const val  = ci >= 0 ? ln.slice(ci + 1).trim() : '';
+        const nameTok = mk(val ? `${name}:` : name);
+        const valTok  = val ? mk(val) : null;
+        return { nameTok, valTok };
+      });
+      blocks.push({ type: 'labs', rows });
+    } else if (seg.type === 'table') {
+      const rows = seg.rows.filter((r) => !isSeparatorRow(r)).map((r) => r.map((c) => mk(c)));
+      blocks.push({ type: 'table', rows });
+    }
+  }
+  return blocks;
+}
 
-  const segments = segmentStem(text);
-  // No lab block found → render exactly as before (single prose paragraph).
-  if (segments.length === 1 && segments[0].type === 'prose') {
-    return <p className="question-text">{renderProse(segments[0].text)}</p>;
+// Canonical VISIBLE string for the stem — MUST equal the rendered .stem-text
+// container's textContent (verified by renderStem.invariant.mjs).
+export function toStemVisibleText(text) {
+  if (!text) return '';
+  let s = '';
+  for (const b of buildStemModel(text)) {
+    if (b.type === 'prose') for (const t of b.lines) s += t.text;
+    else if (b.type === 'labs') for (const r of b.rows) { s += r.nameTok.text; if (r.valTok) s += r.valTok.text; }
+    else if (b.type === 'table') for (const row of b.rows) for (const t of row) s += t.text;
+  }
+  return s;
+}
+
+// Slice a single text token by the (sorted, non-overlapping, multi-attribute)
+// segments, yielding pieces { text, color, bold, italic }.
+function sliceToken(tok, segments) {
+  const pieces = [];
+  let pos = tok.start;
+  for (const seg of segments) {
+    if (seg.end <= tok.start || seg.start >= tok.end) continue;
+    const s = Math.max(seg.start, tok.start);
+    const e = Math.min(seg.end, tok.end);
+    if (s > pos) pieces.push({ text: tok.text.slice(pos - tok.start, s - tok.start) });
+    pieces.push({ text: tok.text.slice(s - tok.start, e - tok.start), color: seg.color, bold: seg.bold, italic: seg.italic });
+    pos = e;
+  }
+  if (pos < tok.end) pieces.push({ text: tok.text.slice(pos - tok.start) });
+  return pieces;
+}
+
+function renderPiece(p, key) {
+  let node = p.text;
+  if (p.italic) node = <em>{node}</em>;
+  if (p.bold) node = <strong style={{ fontWeight: 700 }}>{node}</strong>;
+  if (p.color) return <mark key={key} className={`hl hl-${p.color}`}>{node}</mark>;
+  if (p.bold || p.italic) return <React.Fragment key={key}>{node}</React.Fragment>;
+  return node;
+}
+
+// Render a token's text. With no covering segments returns the BARE string, so the
+// no-highlight path is byte-identical to the original renderer.
+function renderTokenText(tok, segments, keyBase) {
+  if (!segments || !segments.length) return tok.text;
+  const pieces = sliceToken(tok, segments);
+  if (pieces.length === 1 && !pieces[0].color && !pieces[0].bold && !pieces[0].italic) return tok.text;
+  return pieces.map((p, i) => renderPiece(p, `${keyBase}-${i}`));
+}
+
+// Render a question stem. Prose flows as paragraphs; a detected lab-values block
+// renders as a styled lab panel; a pipe table renders as a styled <table>. When
+// `opts.highlights` is given, official/own highlight + bold/italic spans are applied
+// over the SAME offset model. With no highlights the output is byte-identical to the
+// original renderer (GameRoom + every existing caller unaffected). Reads theme
+// variables so it's correct in both normal (dark) and study (light) modes.
+export function renderStem(text, opts = {}) {
+  if (!text) return null;
+  const highlights = opts.highlights || [];
+  const blocks = buildStemModel(text);
+
+  let segments = [];
+  if (highlights.length) {
+    let visibleLen = 0;
+    for (const b of blocks) {
+      if (b.type === 'prose') for (const t of b.lines) visibleLen = Math.max(visibleLen, t.end);
+      else if (b.type === 'labs') for (const r of b.rows) { visibleLen = Math.max(visibleLen, r.nameTok.end); if (r.valTok) visibleLen = Math.max(visibleLen, r.valTok.end); }
+      else if (b.type === 'table') for (const row of b.rows) for (const t of row) visibleLen = Math.max(visibleLen, t.end);
+    }
+    segments = offsetsToSegments({ length: visibleLen }, highlights);
   }
 
-  return segments.map((seg, idx) => {
-    if (seg.type === 'table') {
-      const rows = seg.rows.filter((r) => !isSeparatorRow(r));
-      if (rows.length === 0) return null;
-      const [header, ...body] = rows;
+  return blocks.map((b, bi) => {
+    if (b.type === 'table') {
+      if (b.rows.length === 0) return null;
+      const [header, ...body] = b.rows;
       return (
-        <div className="stem-table-wrap" key={idx}>
+        <div className="stem-table-wrap" key={bi}>
           <table className="stem-table">
             <thead>
-              <tr>{header.map((c, ci) => <th key={ci}>{c}</th>)}</tr>
+              <tr>{header.map((c, ci) => <th key={ci}>{renderTokenText(c, segments, `h${bi}-${ci}`)}</th>)}</tr>
             </thead>
             <tbody>
               {body.map((r, ri) => (
-                <tr key={ri}>{r.map((c, ci) => <td key={ci}>{c}</td>)}</tr>
+                <tr key={ri}>{r.map((c, ci) => <td key={ci}>{renderTokenText(c, segments, `c${bi}-${ri}-${ci}`)}</td>)}</tr>
               ))}
             </tbody>
           </table>
         </div>
       );
     }
-    if (seg.type === 'labs') {
+    if (b.type === 'labs') {
       return (
-        <div className="lab-values-box" key={idx}>
-          {seg.lines.map((ln, li) => {
-            const ci = ln.indexOf(':');
-            const name = ci >= 0 ? ln.slice(0, ci).trim() : ln.trim();
-            const val  = ci >= 0 ? ln.slice(ci + 1).trim() : '';
-            return (
-              <div className="lab-row" key={li}>
-                <span className="lab-name">{val ? `${name}:` : name}</span>
-                {val && <span className="lab-value">{val}</span>}
-              </div>
-            );
-          })}
+        <div className="lab-values-box" key={bi}>
+          {b.rows.map((r, li) => (
+            <div className="lab-row" key={li}>
+              <span className="lab-name">{renderTokenText(r.nameTok, segments, `ln${bi}-${li}`)}</span>
+              {r.valTok && <span className="lab-value">{renderTokenText(r.valTok, segments, `lv${bi}-${li}`)}</span>}
+            </div>
+          ))}
         </div>
       );
     }
-    return <p className="question-text" key={idx}>{renderProse(seg.text)}</p>;
+    // prose
+    return (
+      <p className="question-text" key={bi}>
+        {b.lines.map((tok, li) => (
+          <React.Fragment key={li}>
+            {renderTokenText(tok, segments, `p${bi}-${li}`)}
+            {li < b.lines.length - 1 && <br />}
+          </React.Fragment>
+        ))}
+      </p>
+    );
   });
-}
-
-// Prose with internal newlines preserved as line breaks.
-function renderProse(text) {
-  const lines = String(text).split('\n');
-  return lines.map((ln, li) => (
-    <React.Fragment key={li}>
-      {ln}
-      {li < lines.length - 1 && <br />}
-    </React.Fragment>
-  ));
 }
 
 export default renderStem;

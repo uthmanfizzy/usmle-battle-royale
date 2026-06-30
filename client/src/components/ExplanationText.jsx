@@ -44,7 +44,7 @@ export default function ExplanationText({ text, className = '', highlights = [],
 function renderRun(run, runKey, segments) {
   const pieces = sliceRun(run, segments);
   return pieces.map((piece, pi) => {
-    const inner = formatPiece(piece.text, run);
+    const inner = formatPiece(piece, run);
     const key = `${runKey}-${pi}`;
     if (piece.color) {
       return (
@@ -57,13 +57,16 @@ function renderRun(run, runKey, segments) {
   });
 }
 
-// Wrap a text piece in its run's formatting (color outermost so the highlight mark
-// background sits behind the coloured text).
-function formatPiece(text, run) {
-  let node = text;
+// Wrap a text piece in its formatting. Bold/italic come from EITHER the authored
+// markup (run.bold/italic) OR a saved format span (piece.bold/italic) — OR-ed so the
+// two coexist. Colour outermost so the highlight mark sits behind the coloured text.
+function formatPiece(piece, run) {
+  let node = piece.text;
+  const bold = run.bold || piece.bold;
+  const italic = run.italic || piece.italic;
   if (run.underline) node = <u>{node}</u>;
-  if (run.italic) node = <em>{node}</em>;
-  if (run.bold) node = <strong style={{ fontWeight: 700 }}>{node}</strong>;
+  if (italic) node = <em>{node}</em>;
+  if (bold) node = <strong style={{ fontWeight: 700 }}>{node}</strong>;
   if (run.color && COLORS[run.color]) node = <span style={{ color: COLORS[run.color] }}>{node}</span>;
   return node;
 }

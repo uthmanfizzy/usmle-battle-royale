@@ -5,7 +5,7 @@ import * as audio from '../audio';
 import ExplanationText from './ExplanationText';
 import ExplanationHighlightToolbar from './ExplanationHighlightToolbar';
 import { parseRichText } from '../utils/parseRichText';
-import { renderStem } from '../utils/renderStem';
+import { renderStem, toStemVisibleText } from '../utils/renderStem';
 import Calculator from './Calculator';
 import LabValues from './LabValues';
 import { shuffleQuestionOptions } from '../utils/shuffleOptions';
@@ -82,6 +82,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   // OFFICIAL highlights everyone sees.
   const [highlights, setHighlights] = useState([]);
   const explContainerRef = useRef(null);
+  const stemContainerRef = useRef(null);
   // Highlight-visibility filter (display only): 'official' | 'own' | 'both'. Saved
   // per-user in localStorage; persists across sessions. Creating highlights is
   // unaffected by this — it only filters what is SHOWN.
@@ -94,6 +95,14 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   function setHighlightVisibility(v) {
     setHlVisibility(v);
     try { localStorage.setItem('mr_hl_visibility', v); } catch {}
+  }
+  // Question-stem hints visibility (display only, per-user). Default OFF.
+  const [showHints, setShowHints] = useState(() => {
+    try { return localStorage.getItem('mr_show_hints') === 'true'; } catch { return false; }
+  });
+  function setShowHintsPref(v) {
+    setShowHints(v);
+    try { localStorage.setItem('mr_show_hints', String(v)); } catch {}
   }
   // When dev mode is active (admin entered via the panel), official-highlight
   // authoring defaults ON globally — no per-screen re-toggle needed. The per-screen
@@ -458,26 +467,40 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
     });
   }
 
-  // Resolve stored highlights against the CURRENT visible string (drift resilience):
-  // exact-offset match, else relocate via quote/prefix/suffix, else dropped. Applies
-  // to BOTH official and user highlights.
+  // Region-split (MANDATORY): explanation offsets and stem ('question') offsets live
+  // in DIFFERENT visible-text spaces — mixing them would mis-anchor. Resolve each
+  // against its own visible string (drift-resilient).
   const explVisibleText = q.explanation ? toVisibleText(q.explanation) : '';
-  const resolvedHighlights = resolveHighlights(explVisibleText, highlights);
-  // Apply the per-user visibility filter (display only — does not affect creation).
+  const stemVisibleText = q.question ? toStemVisibleText(q.question) : '';
+  const explRows     = highlights.filter(h => (h.region || 'explanation') === 'explanation');
+  const questionRows = highlights.filter(h => h.region === 'question');
+
+  // Explanation: resolve + apply the per-user official/own/both visibility filter.
+  const resolvedHighlights = resolveHighlights(explVisibleText, explRows);
   const displayHighlights = resolvedHighlights.filter(h => {
     if (hlVisibility === 'official') return h.scope === 'official';
     if (hlVisibility === 'own')      return h.scope === 'user';
     return true; // 'both'
   });
 
-  function handleCreateHighlight(payload) {
+  // Stem hints: official region='question'. Hidden unless "Show hints" is ON; the
+  // dev-mode author always sees them (so they can author/verify).
+  const resolvedStem = resolveHighlights(stemVisibleText, questionRows);
+  const stemDisplayHighlights = (showHints || authoringOfficial) ? resolvedStem : [];
+
+  // Create a highlight or format span in a given region. Format spans + question
+  // hints are official (server gates to admin); explanation colour follows dev mode.
+  function handleCreateHighlight(region, payload) {
     if (!q?.id) return;
     const token = getToken();
-    const official = authoringOfficial;          // admin + dev mode → official
-    if (!official && !token) return;             // students need a token; nothing to do otherwise
-    const tmpId = `tmp-${Date.now()}`;
+    const isFormat = payload.format != null;
+    const official = isFormat || region === 'question' || authoringOfficial;
+    if (official && !adminSession) return;   // official authoring needs admin session
+    if (!official && !token) return;         // students need a token for their own
+    const tmpId = `tmp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     const optimistic = {
-      id: tmpId, start: payload.start, end: payload.end, color: payload.color,
+      id: tmpId, start: payload.start, end: payload.end,
+      color: payload.color ?? null, format: payload.format ?? null, region,
       quote: payload.quote, prefix: payload.prefix, suffix: payload.suffix,
       created_at: new Date().toISOString(), scope: official ? 'official' : 'user',
     };
@@ -485,14 +508,14 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
     const headers = { 'Content-Type': 'application/json' };
     if (official) headers['x-admin-password'] = adminSession;
     else headers['Authorization'] = `Bearer ${token}`;
+    const body = {
+      start_offset: payload.start, end_offset: payload.end,
+      region, scope: official ? 'official' : 'user',
+      quote: payload.quote, prefix: payload.prefix, suffix: payload.suffix,
+    };
+    if (isFormat) body.format = payload.format; else body.color = payload.color;
     fetch(`${SERVER_URL}/api/questions/${encodeURIComponent(q.id)}/highlights`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        start_offset: payload.start, end_offset: payload.end, color: payload.color,
-        region: 'explanation', scope: official ? 'official' : 'user',
-        quote: payload.quote, prefix: payload.prefix, suffix: payload.suffix,
-      }),
+      method: 'POST', headers, body: JSON.stringify(body),
     })
       .then(r => (r.ok ? r.json() : null))
       .then(data => {
@@ -505,13 +528,10 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
       .catch(() => setHighlights(hs => hs.filter(h => h.id !== tmpId)));
   }
 
-  function handleRemoveRange(start, end) {
+  function handleRemoveRange(region, start, end) {
     const token = getToken();
-    // Targets overlapping the selection; only delete what THESE credentials allow:
-    // own 'user' highlights (token), or 'official' highlights (admin session).
-    // Use the VISIBLE (filtered) set so you can't remove a highlight hidden by the
-    // current visibility filter.
-    const targets = displayHighlights.filter(
+    const pool = region === 'question' ? stemDisplayHighlights : displayHighlights;
+    const targets = pool.filter(
       h => h.start < end && h.end > start && !String(h.id).startsWith('tmp-')
     );
     const deletable = targets.filter(
@@ -606,6 +626,19 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
                     >
                       Both
                     </button>
+                    <div className="smp-title">Question hints</div>
+                    <button
+                      className={`smp-opt ${showHints ? 'smp-active' : ''}`}
+                      onClick={() => setShowHintsPref(true)}
+                    >
+                      Show hints
+                    </button>
+                    <button
+                      className={`smp-opt ${!showHints ? 'smp-active' : ''}`}
+                      onClick={() => setShowHintsPref(false)}
+                    >
+                      Hide hints
+                    </button>
                   </div>
                 )}
               </div>
@@ -677,7 +710,21 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
               </div>
             </div>
           )}
-          {renderStem(q.question)}
+          <div className="stem-text" ref={stemContainerRef}>
+            {renderStem(q.question, { highlights: stemDisplayHighlights })}
+          </div>
+          {/* Stem hint authoring toolbar — admin + dev mode only; official region='question'.
+              v1 rejects selections that touch a lab box or table (prose-only authoring). */}
+          {authoringOfficial && (
+            <ExplanationHighlightToolbar
+              containerRef={stemContainerRef}
+              highlights={stemDisplayHighlights}
+              onCreate={(p) => handleCreateHighlight('question', p)}
+              onRemoveRange={(s, e) => handleRemoveRange('question', s, e)}
+              allowFormat={true}
+              rejectSelector=".lab-values-box, .stem-table"
+            />
+          )}
           {q?.image_url && (
             <div className="game-question-image">
               <img src={q.image_url} alt="Question" style={{maxWidth:'100%', maxHeight:'300px', borderRadius:'8px', margin:'12px auto', display:'block'}} onError={e => { e.target.style.display = 'none'; }} />
@@ -763,8 +810,9 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
                 <ExplanationHighlightToolbar
                   containerRef={explContainerRef}
                   highlights={displayHighlights}
-                  onCreate={handleCreateHighlight}
-                  onRemoveRange={handleRemoveRange}
+                  onCreate={(p) => handleCreateHighlight('explanation', p)}
+                  onRemoveRange={(s, e) => handleRemoveRange('explanation', s, e)}
+                  allowFormat={authoringOfficial}
                 />
               )}
               {!hideExplanations && isAdminSession && (
