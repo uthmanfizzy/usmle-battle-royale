@@ -811,7 +811,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
         {study && (
           <div className="study-statusbar">
             <div className="ssb-left">
-              <button className="ssb-home" onClick={onBack} title="Home">⌂ Home</button>
+              <button className="ssb-home" onClick={onBack} title="Home">⌂ <span className="ssb-btn-label">Home</span></button>
             </div>
             <div className="ssb-arrows">
               <button className="stb-arrow" disabled title="Previous (not available)">←</button>
@@ -830,14 +830,14 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
                 onClick={() => setShowCalculator(s => !s)}
                 title="Toggle Calculator"
               >
-                🧮 Calculator
+                🧮 <span className="ssb-btn-label">Calculator</span>
               </button>
               <button
                 className="ssb-calc ssb-lab"
                 onClick={() => setShowLabValues(s => !s)}
                 title="Toggle Lab Values"
               >
-                🧪 Lab Values
+                🧪 <span className="ssb-btn-label">Lab Values</span>
               </button>
             </div>
           </div>

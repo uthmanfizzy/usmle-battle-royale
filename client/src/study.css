@@ -672,3 +672,82 @@ html[data-study="on"] .solo-gameover .sgo-level-label {
   }
   html[data-study="on"] .solo-body[data-expl-layout="right"] .study-expl-placeholder { display: none; }
 }
+
+/* ════════════════════════════════════════════════════════════════════════
+   MOBILE (≤768px) — study mode only. Stacks both layouts to a single column
+   (question top, explanation below — the right/below toggle is ignored here)
+   and fits the header / footer / chrome to a phone. All rules gated behind
+   html[data-study="on"], so desktop study + non-study are untouched.
+   ════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  /* ── Panes: force single column for BOTH layouts ── */
+  html[data-study="on"] .solo-body[data-expl-layout="right"],
+  html[data-study="on"] .solo-body[data-expl-layout="below"] {
+    --study-gutter: 12px;
+    max-width: 100%;
+    width: 100%;
+    grid-template-columns: 1fr;
+    column-gap: 0;
+    row-gap: 12px;
+    grid-template-areas:
+      "header"
+      "question"
+      "strip"
+      "expl"
+      "status";
+  }
+  /* Placeholder only made sense in the empty right pane — never on mobile */
+  html[data-study="on"] .solo-body[data-expl-layout] .study-expl-placeholder { display: none; }
+
+  /* Extra bottom room so the fixed footer (which can be a touch taller when
+     wrapped) never hides the last of the explanation / Next button */
+  html[data-study="on"] .solo-screen { padding-bottom: 88px; }
+
+  /* ── Header: compact so Item / timer / hearts / burger all fit a phone ── */
+  html[data-study="on"] .study-header {
+    gap: 8px;
+    padding: 10px 12px;
+    min-height: 56px;
+  }
+  html[data-study="on"] .shd-left { gap: 8px; min-width: 0; }
+  html[data-study="on"] .shd-center { min-width: 0; }
+  html[data-study="on"] .shd-center .timer-wrap { width: 96px; }
+  html[data-study="on"] .shd-center .timer-number { font-size: 13px; margin-bottom: 3px; }
+  html[data-study="on"] .shd-center .timer-track { height: 5px; }
+  html[data-study="on"] .stb-count { font-size: 12px; }
+  html[data-study="on"] .stb-id { font-size: 11px; }
+  html[data-study="on"] .shd-right { gap: 6px; }
+  html[data-study="on"] .shd-right .topbar-score { display: none; } /* declutter — score is implicit */
+  html[data-study="on"] .shd-right .heart-icon { font-size: 13px; }
+  html[data-study="on"] .shd-right .lives-bar { gap: 2px; }
+  html[data-study="on"] .study-streak-pill { font-size: 11px; padding: 2px 7px 2px 5px; }
+  html[data-study="on"] .shd-burger { width: 34px; height: 32px; font-size: 17px; }
+  /* Dropdown: don't overflow the viewport edge */
+  html[data-study="on"] .study-menu-panel { min-width: 180px; max-width: calc(100vw - 24px); }
+
+  /* ── Footer: icons-only calc/lab + home so everything fits one row ── */
+  html[data-study="on"] .study-statusbar {
+    gap: 6px;
+    padding: 8px 10px;
+    min-height: 52px;
+  }
+  html[data-study="on"] .ssb-arrows { gap: 6px; }
+  html[data-study="on"] .ssb-right { gap: 6px; }
+  html[data-study="on"] .ssb-btn-label { display: none; } /* show just the emoji */
+  html[data-study="on"] .ssb-home,
+  html[data-study="on"] .ssb-calc {
+    padding: 8px 10px;
+    font-size: 15px;
+    min-width: 40px;        /* keep a comfortable tap target */
+    justify-content: center;
+    gap: 0;
+  }
+  html[data-study="on"] .stb-arrow { width: 40px; height: 36px; }
+
+  /* ── Question + options: full-width, comfortable tap targets ── */
+  html[data-study="on"] .solo-body .question-card { padding: 14px 14px; }
+  html[data-study="on"] .solo-body .option-btn { padding: 13px 10px; }
+
+  /* ── Explanation pane: a touch less inner padding on a phone ── */
+  html[data-study="on"] .solo-body .round-result { padding: 50px 14px 16px; }
+}
