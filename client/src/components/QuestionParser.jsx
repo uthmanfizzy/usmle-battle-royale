@@ -1,17 +1,25 @@
 import { useState } from 'react';
 import './QuestionParser.css';
 import { supabase } from '../supabaseClient';
-import { isLabLine, renderStem } from '../utils/renderStem';
+import { isLabLine, isTableLine, renderStem } from '../utils/renderStem';
 
 // Reassemble the stem from its collected lines: ordinary prose lines are joined
 // with spaces (so hard-wrapped paragraphs flow normally), but a RUN of 2+
-// consecutive lab-value lines is kept on its own lines (newline-separated) so the
-// display can render it as a styled lab-values box instead of a run-on paragraph.
+// consecutive lab-value lines OR table (pipe) rows is kept on its own lines
+// (newline-separated) so the display can render it as a styled lab-values box /
+// <table> instead of a run-on paragraph.
 function assembleStem(lines) {
   const parts = [];
   let prose = [];
   const flushProse = () => { if (prose.length) { parts.push(prose.join(' ')); prose = []; } };
   for (let i = 0; i < lines.length; ) {
+    // Table run: 2+ consecutive pipe-rows — keep newline-separated (renders as <table>).
+    if (isTableLine(lines[i])) {
+      let j = i;
+      while (j < lines.length && isTableLine(lines[j])) j++;
+      if (j - i >= 2) { flushProse(); parts.push(lines.slice(i, j).join('\n')); i = j; continue; }
+    }
+    // Lab run: 2+ consecutive lab-value lines — keep newline-separated (lab box).
     if (isLabLine(lines[i])) {
       let j = i;
       while (j < lines.length && isLabLine(lines[j])) j++;

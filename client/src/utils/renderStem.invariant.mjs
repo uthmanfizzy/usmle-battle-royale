@@ -61,6 +61,10 @@ const SAMPLES = [
   'Glucose: 180\nHbA1c: 9.2',
   // prose with a non-lab mid-sentence colon
   'Note: the following findings were observed during the examination today.',
+  // the user's table, multi-line
+  '| Option | Type 1 | Type 2 | Basement membrane | Fibroblasts |\n| A | Decreased | Decreased | Intact | Increased |\n| B | Decreased | Increased | Abnormal | Increased |',
+  // FLATTENED table (run-on recovery) — prompt + table on one line
+  'Which option is correct? | Option | T1 | T2 | | A | Decreased | Intact | | B | Increased | Abnormal |',
 ];
 
 let pass = 0, fail = 0;

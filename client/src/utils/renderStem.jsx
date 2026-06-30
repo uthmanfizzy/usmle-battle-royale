@@ -147,6 +147,46 @@ function isSeparatorRow(cells) {
   return cells.length > 0 && cells.every((c) => /^:?-{2,}:?$/.test(c));
 }
 
+// ── Run-on (flattened) table recovery ────────────────────────────────────────
+// A table stored before the parser preserved its line breaks gets flattened onto one
+// line, e.g. "| A | B | | 1 | 2 | | 3 | 4 |". Because each row was wrapped in outer
+// pipes, joining rows with a space leaves a "| |" boundary between them. Recover by
+// splitting on that boundary. CONSERVATIVE: only accept a clean grid — 2+ rows, 2+
+// columns, and a uniform column count — so ordinary prose with a stray pipe is never
+// mistaken for a table.
+function findFlattenedTable(text) {
+  const t = String(text).trim();
+  const first = t.indexOf('|');
+  const last = t.lastIndexOf('|');
+  if (first < 0 || last <= first) return null;
+  const tableStr = t.slice(first, last + 1);
+  if (!/\|\s*\|/.test(tableStr)) return null; // no "| |" row boundary → not multi-row
+  const chunks = tableStr.split(/\|\s*\|/);
+  const rows = chunks.map((c, idx) => {
+    // Re-add the boundary pipes the split consumed so each chunk is a full row.
+    let s = c;
+    if (idx > 0) s = '|' + s;
+    if (idx < chunks.length - 1) s = s + '|';
+    return splitTableRow(s);
+  });
+  if (rows.length < 2) return null;
+  const n = rows[0].length;
+  if (n < 2) return null;
+  if (!rows.every((r) => r.length === n)) return null; // uniform grid only
+  return { before: t.slice(0, first).trim(), rows, after: t.slice(last + 1).trim() };
+}
+
+// Split a prose string into prose/table segments by recovering a flattened table.
+function splitInlineTable(text) {
+  const run = findFlattenedTable(text);
+  if (!run) return [{ type: 'prose', text }];
+  const out = [];
+  if (run.before) out.push({ type: 'prose', text: run.before });
+  out.push({ type: 'table', rows: run.rows });
+  if (run.after) out.push(...splitInlineTable(run.after));
+  return out;
+}
+
 // ── Line-break detection (original + table) ─────────────────────────────────
 // Classify each LINE as 'table' | 'labs' | 'prose'. A RUN of 2+ consecutive table
 // lines becomes a table; a RUN of 2+ consecutive lab lines becomes a lab box; the
@@ -195,8 +235,13 @@ export function segmentStem(text) {
     if (b.type === 'labs') { out.push({ type: 'labs', lines: b.lines }); continue; }
     if (b.type === 'table') { out.push({ type: 'table', rows: b.lines.map(splitTableRow) }); continue; }
     for (const seg of splitInlineLabs(b.lines.join('\n'))) {
-      if (seg.type === 'labs') out.push(seg);
-      else if (seg.text.trim()) out.push({ type: 'prose', text: seg.text });
+      if (seg.type === 'labs') { out.push(seg); continue; }
+      if (!seg.text.trim()) continue;
+      // Recover a flattened (run-on) table inside this prose segment, if any.
+      for (const tseg of splitInlineTable(seg.text)) {
+        if (tseg.type === 'table') out.push(tseg);
+        else if (tseg.text.trim()) out.push({ type: 'prose', text: tseg.text });
+      }
     }
   }
   return out;
