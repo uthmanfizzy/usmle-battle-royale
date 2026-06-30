@@ -3,11 +3,14 @@ import { useGameSettings } from '../contexts/GameSettingsContext';
 import { useTheme } from '../theme';
 import * as audio from '../audio';
 import ExplanationText from './ExplanationText';
+import ExplanationHighlightToolbar from './ExplanationHighlightToolbar';
 import { parseRichText } from '../utils/parseRichText';
 import { renderStem } from '../utils/renderStem';
 import Calculator from './Calculator';
 import LabValues from './LabValues';
 import { shuffleQuestionOptions } from '../utils/shuffleOptions';
+import { toVisibleText, resolveHighlights, normalizeHighlightRow } from '../utils/explanationHighlights';
+import { getToken } from '../auth';
 
 const LABELS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
 const SERVER_URL = 'https://usmle-battle-royale-production.up.railway.app';
@@ -69,6 +72,11 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   const [noQuestionsFound, setNoQuestionsFound] = useState(false);
   const [noQuestionsMessage, setNoQuestionsMessage] = useState('');
 
+  // Explanation highlighting (stage 1: per-user, private). `highlights` holds the
+  // current question's stored highlights (client shape: { start, end, color, ... }).
+  const [highlights, setHighlights] = useState([]);
+  const explContainerRef = useRef(null);
+
   // Layer 1/2 (study mode only): explanation pane layout, time-spent, burger menu
   const [explLayout, setExplLayout] = useState(() => localStorage.getItem('mr_solo_expl_layout') || 'right');
   const [timeSpent, setTimeSpent] = useState(null);
@@ -116,6 +124,25 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   qIdxRef.current = qIdx;
   questionsRef.current = questions;
   onCompleteRef.current = onComplete;
+
+  // Stable per-question id (survives the option shuffle — shuffle keeps `id`).
+  const currentQid = questions[qIdx]?.id;
+
+  // Fetch this question's highlights when the explanation reveals. Soft auth: a
+  // logged-in user gets their own highlights (Bearer); guests get none (stage 1).
+  // Degrades silently to [] on any error / missing table.
+  useEffect(() => {
+    setHighlights([]); // clear stale highlights from the previous question
+    if (!revealed || hideExplanations || !currentQid) return;
+    let cancelled = false;
+    const token = getToken();
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+    fetch(`${SERVER_URL}/api/questions/${encodeURIComponent(currentQid)}/highlights`, { headers })
+      .then(r => (r.ok ? r.json() : { highlights: [] }))
+      .then(data => { if (!cancelled) setHighlights((data.highlights || []).map(normalizeHighlightRow)); })
+      .catch(() => { if (!cancelled) setHighlights([]); });
+    return () => { cancelled = true; };
+  }, [revealed, hideExplanations, currentQid]);
 
   // Start / stop game music with this component's lifetime
   useEffect(() => {
@@ -360,6 +387,60 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   }
   const q = shuffledQRef.current.q;
 
+  // ── Explanation highlighting (per-user) ─────────────────────────────────────
+  // Only logged-in users can persist highlights, so the toolbar is gated on a token.
+  const loggedIn = !!getToken();
+  // Resolve stored highlights against the CURRENT visible string (drift resilience):
+  // exact-offset match, else relocate via quote/prefix/suffix, else dropped.
+  const explVisibleText = q.explanation ? toVisibleText(q.explanation) : '';
+  const resolvedHighlights = resolveHighlights(explVisibleText, highlights);
+
+  function handleCreateHighlight(payload) {
+    const token = getToken();
+    if (!token || !q?.id) return;
+    const tmpId = `tmp-${Date.now()}`;
+    const optimistic = {
+      id: tmpId, start: payload.start, end: payload.end, color: payload.color,
+      quote: payload.quote, prefix: payload.prefix, suffix: payload.suffix,
+      created_at: new Date().toISOString(), scope: 'user',
+    };
+    setHighlights(hs => [...hs, optimistic]);
+    fetch(`${SERVER_URL}/api/questions/${encodeURIComponent(q.id)}/highlights`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        start_offset: payload.start, end_offset: payload.end, color: payload.color,
+        region: 'explanation', quote: payload.quote, prefix: payload.prefix, suffix: payload.suffix,
+      }),
+    })
+      .then(r => (r.ok ? r.json() : null))
+      .then(data => {
+        if (data?.highlight) {
+          setHighlights(hs => hs.map(h => (h.id === tmpId ? normalizeHighlightRow(data.highlight) : h)));
+        } else {
+          setHighlights(hs => hs.filter(h => h.id !== tmpId)); // roll back on failure
+        }
+      })
+      .catch(() => setHighlights(hs => hs.filter(h => h.id !== tmpId)));
+  }
+
+  function handleRemoveRange(start, end) {
+    const token = getToken();
+    if (!token) return;
+    // Remove the user's own highlights overlapping the selection (current offsets).
+    const targets = resolvedHighlights.filter(
+      h => h.start < end && h.end > start && !String(h.id).startsWith('tmp-')
+    );
+    const ids = targets.map(h => h.id);
+    if (!ids.length) return;
+    setHighlights(hs => hs.filter(h => !ids.includes(h.id)));
+    ids.forEach(id => {
+      fetch(`${SERVER_URL}/api/questions/${encodeURIComponent(q.id)}/highlights/${encodeURIComponent(id)}`, {
+        method: 'DELETE', headers: { Authorization: `Bearer ${token}` },
+      }).catch(() => {});
+    });
+  }
+
   const pct = (timeLeft / defaultTimer) * 100;
   const tier = timeLeft > 10 ? 'green' : timeLeft > 5 ? 'yellow' : 'red';
 
@@ -529,7 +610,21 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
             </div>
             <div className="rr-explanation">
               <strong>Correct answer: {q.correct}. {stripLetterPrefix(q.options[q.correct.charCodeAt(0) - 65])}</strong>
-              {!hideExplanations && <ExplanationText text={q.explanation} />}
+              {!hideExplanations && (
+                <ExplanationText
+                  text={q.explanation}
+                  highlights={resolvedHighlights}
+                  containerRef={explContainerRef}
+                />
+              )}
+              {!hideExplanations && loggedIn && (
+                <ExplanationHighlightToolbar
+                  containerRef={explContainerRef}
+                  highlights={resolvedHighlights}
+                  onCreate={handleCreateHighlight}
+                  onRemoveRange={handleRemoveRange}
+                />
+              )}
               {!hideExplanations && q.explanation_image_url && (
                 <img
                   src={q.explanation_image_url}

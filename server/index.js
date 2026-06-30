@@ -2233,6 +2233,112 @@ app.get('/api/questions', async (req, res) => {
   res.json({ questions: shuffle(pool.length >= 5 ? pool : questionBank), empty: false });
 });
 
+// ── Explanation Highlights (stage 1: per-user / private) ────────────────────────
+// Highlights anchor to VISIBLE-TEXT character offsets (see client
+// explanationHighlights.js). Stage 2 will add scope='official' (admin/developer
+// mode) — the handlers below are structured so that path drops in cleanly.
+
+const HL_COLORS  = ['yellow', 'green', 'pink', 'blue'];
+const HL_REGIONS = ['explanation', 'why_wrong'];
+
+// GET — soft auth. A logged-in user gets their own ('user') highlights for the
+// question; the query also pulls scope='official' so stage 2 is forward-ready.
+// Guests / errors / missing table → [] (graceful degrade).
+app.get('/api/questions/:questionId/highlights', async (req, res) => {
+  if (!supabase) return res.json({ highlights: [] });
+  const { questionId } = req.params;
+  let userId = null;
+  const auth = req.headers.authorization;
+  if (auth?.startsWith('Bearer ')) {
+    const decoded = verifyToken(auth.slice(7));
+    if (decoded) userId = decoded.userId;
+  }
+  try {
+    let query = supabase.from('explanation_highlights').select('*').eq('question_id', questionId);
+    if (userId) {
+      query = query.or(`scope.eq.official,and(scope.eq.user,user_id.eq.${userId})`);
+    } else {
+      query = query.eq('scope', 'official');
+    }
+    const { data, error } = await query;
+    if (error) {
+      console.error('[GET highlights]', error.message);
+      return res.json({ highlights: [] }); // e.g. table not yet created
+    }
+    res.json({ highlights: data || [] });
+  } catch (e) {
+    console.error('[GET highlights]', e.message);
+    res.json({ highlights: [] });
+  }
+});
+
+// POST — requireAuth (JWT). Stage 1 always inserts scope='user'. Stage 2 will,
+// when the admin/developer header is present and 'official' is requested, branch
+// to scope='official' with user_id=null.
+app.post('/api/questions/:questionId/highlights', requireAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Highlights unavailable' });
+  const { questionId } = req.params;
+  const {
+    start_offset, end_offset, color,
+    region = 'explanation', quote = null, prefix = null, suffix = null,
+  } = req.body || {};
+
+  if (!Number.isInteger(start_offset) || !Number.isInteger(end_offset) ||
+      start_offset < 0 || end_offset <= start_offset) {
+    return res.status(400).json({ error: 'Invalid offsets' });
+  }
+  if (!HL_COLORS.includes(color))   return res.status(400).json({ error: 'Invalid color' });
+  if (!HL_REGIONS.includes(region)) return res.status(400).json({ error: 'Invalid region' });
+
+  try {
+    const { data, error } = await supabase
+      .from('explanation_highlights')
+      .insert({
+        question_id: questionId,
+        region,
+        scope: 'user',
+        user_id: req.userId,
+        start_offset,
+        end_offset,
+        color,
+        quote:  quote  != null ? String(quote).slice(0, 2000) : null,
+        prefix: prefix != null ? String(prefix).slice(0, 200) : null,
+        suffix: suffix != null ? String(suffix).slice(0, 200) : null,
+      })
+      .select()
+      .single();
+    if (error) {
+      console.error('[POST highlights]', error.message);
+      return res.status(500).json({ error: 'Failed to save highlight' });
+    }
+    res.json({ highlight: data });
+  } catch (e) {
+    console.error('[POST highlights]', e.message);
+    res.status(500).json({ error: 'Failed to save highlight' });
+  }
+});
+
+// DELETE — requireAuth. Stage 1 allows deleting one's own 'user' highlight only.
+// (Stage 2: admins may delete 'official'.)
+app.delete('/api/questions/:questionId/highlights/:id', requireAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Highlights unavailable' });
+  const { id } = req.params;
+  try {
+    const { data: row, error: fErr } = await supabase
+      .from('explanation_highlights').select('*').eq('id', id).single();
+    if (fErr || !row) return res.status(404).json({ error: 'Not found' });
+    if (row.scope === 'user' && row.user_id === req.userId) {
+      const { error } = await supabase.from('explanation_highlights').delete().eq('id', id);
+      if (error) return res.status(500).json({ error: 'Failed to delete highlight' });
+      return res.json({ success: true });
+    }
+    return res.status(403).json({ error: 'Forbidden' });
+  } catch (e) {
+    console.error('[DELETE highlights]', e.message);
+    res.status(500).json({ error: 'Failed to delete highlight' });
+  }
+});
+
 // ── AnKing Mode Questions ──────────────────────────────────────────────────────
 
 app.get('/api/questions/anking', async (req, res) => {

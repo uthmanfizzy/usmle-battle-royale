@@ -701,6 +701,62 @@ button:active:not(:disabled) { transform: scale(0.97); }
   margin-bottom: 0;
 }
 
+/* ── Explanation highlights (per-user) ───────────────────────────────────────── */
+/* Marks force dark text so the bright pastel background stays readable in BOTH the
+   dark theme and study/light theme. */
+.explanation-text mark.hl {
+  background: transparent;
+  color: #1a1a2e !important;
+  border-radius: 3px;
+  padding: 0.05em 0.08em;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+.explanation-text mark.hl-yellow { background: #fdcb6e; }
+.explanation-text mark.hl-green  { background: #55efc4; }
+.explanation-text mark.hl-pink   { background: #fd79a8; }
+.explanation-text mark.hl-blue   { background: #74b9ff; }
+/* Keep inline-coloured text legible when it falls inside a highlight. */
+.explanation-text mark.hl span { color: #1a1a2e !important; }
+
+/* Floating selection toolbar */
+.expl-hl-toolbar {
+  position: fixed;
+  transform: translate(-50%, calc(-100% - 8px));
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  background: #1f2230;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 10px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+  z-index: 9999;
+}
+.expl-hl-swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.55);
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.08s ease;
+}
+.expl-hl-swatch:hover { transform: scale(1.15); }
+.expl-hl-remove {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(255, 107, 107, 0.85);
+  color: #fff;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  margin-left: 2px;
+}
+.expl-hl-remove:hover { background: #ff6b6b; }
+
 .rr-eliminated { font-size: 13px; color: var(--red); margin-top: 6px; }
 
 .rr-skip-row {
