@@ -470,6 +470,13 @@ html[data-study="on"] .stb-arrow {
 }
 html[data-study="on"] .stb-arrow:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
 html[data-study="on"] .stb-arrow.stb-next:not(:disabled) { color: #2563eb; border-color: #4a9eff; }
+/* Pause button between the arrows — amber accent so it reads as pause, not navigation */
+html[data-study="on"] .stb-arrow.stb-pause {
+  color: #92400e;
+  border-color: #fcd9a3;
+  background: #fff7ec;
+}
+html[data-study="on"] .stb-arrow.stb-pause:hover { border-color: #f59e0b; background: #fdebcf; }
 
 /* ── Option rows: clean full-width rows (no boxes) + radio circle ───── */
 html[data-study="on"] .solo-body .options { gap: 2px; }
@@ -638,6 +645,9 @@ html[data-study="on"] .solo-body .lab-values-toggle-btn { display: none; }
 /* Study + solo only: hide the global top-left Home button (moved to footer-left).
    Scoped via :has(.solo-screen) so it only hides during the solo game, not app-wide. */
 html[data-study="on"] body:has(.solo-screen) .home-btn { display: none; }
+/* Study + solo only: hide the global floating mute button — music is controlled by
+   the "Music" toggle in the burger menu instead. (Other modes keep the floater.) */
+html[data-study="on"] body:has(.solo-screen) .mute-btn { display: none; }
 
 /* ── Game over (study only): centre on the page + black text on light bg ── */
 html[data-study="on"] .solo-screen:has(.solo-gameover) {

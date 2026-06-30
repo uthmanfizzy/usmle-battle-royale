@@ -104,6 +104,15 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
     setShowHints(v);
     try { localStorage.setItem('mr_show_hints', String(v)); } catch {}
   }
+  // Background-music on/off (per-user pref, default ON). Controls whether the game
+  // music plays; the pause state still overrides it (paused → music paused).
+  const [musicOn, setMusicOn] = useState(() => {
+    try { return localStorage.getItem('mr_music_on') !== 'false'; } catch { return true; }
+  });
+  function setMusicPref(v) {
+    setMusicOn(v);
+    try { localStorage.setItem('mr_music_on', String(v)); } catch {}
+  }
   // When dev mode is active (admin entered via the panel), official-highlight
   // authoring defaults ON globally — no per-screen re-toggle needed. The per-screen
   // toggle still works (it just flips this for the current screen).
@@ -158,7 +167,6 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   const timeLeftRef   = useRef(defaultTimer);
   const revealedRef   = useRef(false);
   const pausedRef     = useRef(false);
-  const musicPausedRef = useRef(false);
   const livesRef      = useRef(defaultLives);
   const scoreRef      = useRef(0);
   const streakRef     = useRef(0);
@@ -204,26 +212,20 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
     return () => { cancelled = true; };
   }, [revealed, hideExplanations, currentQid]);
 
-  // Start / stop game music with this component's lifetime
+  // Stop lobby music on mount; stop game music on unmount.
   useEffect(() => {
     audio.stopBgMusic();
-    audio.startGameMusic();
     return () => audio.stopGameMusic();
   }, []);
 
-  // Pause/resume the background music with the pause overlay. Only restarts the
-  // music if it was actually paused (musicPausedRef) — so the initial unpaused
-  // render doesn't double-start the music the mount effect already started.
+  // Background music plays only when ENABLED (burger Music toggle) AND NOT paused,
+  // while the game is live. One effect covers mount-start, pause/resume, and the
+  // on/off toggle: music-off → silent; paused → silent; otherwise → playing.
   useEffect(() => {
     if (loading || gameOver) return;
-    if (isPaused) {
-      audio.stopGameMusic();
-      musicPausedRef.current = true;
-    } else if (musicPausedRef.current) {
-      audio.startGameMusic();
-      musicPausedRef.current = false;
-    }
-  }, [isPaused, loading, gameOver]);
+    if (musicOn && !isPaused) audio.startGameMusic();
+    else audio.stopGameMusic();
+  }, [musicOn, isPaused, loading, gameOver]);
 
   useEffect(() => {
     let url = questionsUrl || (topicId
@@ -654,6 +656,19 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
                     >
                       Hide hints
                     </button>
+                    <div className="smp-title">Music</div>
+                    <button
+                      className={`smp-opt ${musicOn ? 'smp-active' : ''}`}
+                      onClick={() => setMusicPref(true)}
+                    >
+                      Music: On
+                    </button>
+                    <button
+                      className={`smp-opt ${!musicOn ? 'smp-active' : ''}`}
+                      onClick={() => setMusicPref(false)}
+                    >
+                      Music: Off
+                    </button>
                   </div>
                 )}
               </div>
@@ -698,10 +713,10 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
         )}
 
         <div className="question-card">
-          {/* Pause (Training + Journey only, during the question countdown). In-flow,
-              right-aligned above the stem so it never overlaps the question text
-              (works in study + non-study, mobile + desktop). */}
-          {canPause && !revealed && !isPaused && (
+          {/* Pause (Training + Journey only, during the question countdown). NON-STUDY:
+              in-flow, right-aligned above the stem so it never overlaps the question.
+              STUDY: rendered in the footer between the prev/next arrows (below). */}
+          {!study && canPause && !revealed && !isPaused && (
             <button
               type="button"
               className="pause-btn"
@@ -881,6 +896,17 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
             </div>
             <div className="ssb-arrows">
               <button className="stb-arrow" disabled title="Previous (not available)">←</button>
+              {/* Pause sits BETWEEN the arrows (training/journey only, during the
+                  question countdown): [← prev] [⏸ pause] [next →]. */}
+              {canPause && !revealed && !isPaused && (
+                <button
+                  className="stb-arrow stb-pause"
+                  onClick={() => setIsPaused(true)}
+                  title="Pause"
+                >
+                  ⏸
+                </button>
+              )}
               <button
                 className="stb-arrow stb-next"
                 onClick={handleSkip}
