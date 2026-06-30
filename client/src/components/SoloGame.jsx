@@ -78,6 +78,19 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   // OFFICIAL highlights everyone sees.
   const [highlights, setHighlights] = useState([]);
   const explContainerRef = useRef(null);
+  // Highlight-visibility filter (display only): 'official' | 'own' | 'both'. Saved
+  // per-user in localStorage; persists across sessions. Creating highlights is
+  // unaffected by this — it only filters what is SHOWN.
+  const [hlVisibility, setHlVisibility] = useState(() => {
+    try {
+      const v = localStorage.getItem('mr_hl_visibility');
+      return v === 'official' || v === 'own' ? v : 'both';
+    } catch { return 'both'; }
+  });
+  function setHighlightVisibility(v) {
+    setHlVisibility(v);
+    try { localStorage.setItem('mr_hl_visibility', v); } catch {}
+  }
   // When dev mode is active (admin entered via the panel), official-highlight
   // authoring defaults ON globally — no per-screen re-toggle needed. The per-screen
   // toggle still works (it just flips this for the current screen).
@@ -442,6 +455,12 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   // to BOTH official and user highlights.
   const explVisibleText = q.explanation ? toVisibleText(q.explanation) : '';
   const resolvedHighlights = resolveHighlights(explVisibleText, highlights);
+  // Apply the per-user visibility filter (display only — does not affect creation).
+  const displayHighlights = resolvedHighlights.filter(h => {
+    if (hlVisibility === 'official') return h.scope === 'official';
+    if (hlVisibility === 'own')      return h.scope === 'user';
+    return true; // 'both'
+  });
 
   function handleCreateHighlight(payload) {
     if (!q?.id) return;
@@ -482,7 +501,9 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
     const token = getToken();
     // Targets overlapping the selection; only delete what THESE credentials allow:
     // own 'user' highlights (token), or 'official' highlights (admin session).
-    const targets = resolvedHighlights.filter(
+    // Use the VISIBLE (filtered) set so you can't remove a highlight hidden by the
+    // current visibility filter.
+    const targets = displayHighlights.filter(
       h => h.start < end && h.end > start && !String(h.id).startsWith('tmp-')
     );
     const deletable = targets.filter(
@@ -557,6 +578,25 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
                       onClick={() => setLayout('below')}
                     >
                       Explanation: Below
+                    </button>
+                    <div className="smp-title">Highlights</div>
+                    <button
+                      className={`smp-opt ${hlVisibility === 'official' ? 'smp-active' : ''}`}
+                      onClick={() => setHighlightVisibility('official')}
+                    >
+                      Official only
+                    </button>
+                    <button
+                      className={`smp-opt ${hlVisibility === 'own' ? 'smp-active' : ''}`}
+                      onClick={() => setHighlightVisibility('own')}
+                    >
+                      My own only
+                    </button>
+                    <button
+                      className={`smp-opt ${hlVisibility === 'both' ? 'smp-active' : ''}`}
+                      onClick={() => setHighlightVisibility('both')}
+                    >
+                      Both
                     </button>
                   </div>
                 )}
@@ -680,14 +720,14 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
               {!hideExplanations && (
                 <ExplanationText
                   text={q.explanation}
-                  highlights={resolvedHighlights}
+                  highlights={displayHighlights}
                   containerRef={explContainerRef}
                 />
               )}
               {!hideExplanations && canHighlight && (
                 <ExplanationHighlightToolbar
                   containerRef={explContainerRef}
-                  highlights={resolvedHighlights}
+                  highlights={displayHighlights}
                   onCreate={handleCreateHighlight}
                   onRemoveRange={handleRemoveRange}
                 />

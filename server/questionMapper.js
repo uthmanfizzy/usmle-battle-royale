@@ -27,6 +27,7 @@ function fromDb(row) {
     options: row.choices,
     correct: row.correct,
     explanation: row.explanation || '',
+    why_others_wrong: row.why_others_wrong || undefined,
     explanation_image_url: row.explanation_image_url || undefined,
     game_modes: row.game_modes || ['battle_royale', 'speed_race', 'trivia_pursuit'],
     image_url: row.image_url || undefined,
