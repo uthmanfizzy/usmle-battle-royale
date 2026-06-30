@@ -79,6 +79,26 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   const [highlights, setHighlights] = useState([]);
   const explContainerRef = useRef(null);
   const [devHlMode, setDevHlMode] = useState(() => localStorage.getItem('mr_dev_highlight_mode') === 'true');
+  // Admin session = the admin password stored by /admin login (AdminApp sets
+  // localStorage['usmle_admin_session']). It enables developer-mode (official)
+  // highlighting. Kept in state so the in-game unlock takes effect immediately.
+  const [adminSession, setAdminSession] = useState(() => {
+    try { return localStorage.getItem('usmle_admin_session'); } catch { return null; }
+  });
+  // `?dev=1` in the URL surfaces an in-game unlock so an admin can enable developer
+  // mode in ANY play tab without first visiting /admin in that browser.
+  const devParam = (() => {
+    try { return new URLSearchParams(window.location.search).has('dev'); } catch { return false; }
+  })();
+  function unlockDevMode() {
+    let pw = '';
+    try { pw = window.prompt('Enter admin password to enable Developer Mode (author OFFICIAL highlights):') || ''; } catch {}
+    if (!pw) return;
+    try { localStorage.setItem('usmle_admin_session', pw); } catch {}
+    setAdminSession(pw);
+    setDevHlMode(true);
+    try { localStorage.setItem('mr_dev_highlight_mode', 'true'); } catch {}
+  }
 
   // Layer 1/2 (study mode only): explanation pane layout, time-spent, burger menu
   const [explLayout, setExplLayout] = useState(() => localStorage.getItem('mr_solo_expl_layout') || 'right');
@@ -393,8 +413,8 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   // ── Explanation highlighting (per-user + official) ──────────────────────────
   const loggedIn = !!getToken();
   // Admin session (the admin password) enables developer mode. The server is the
-  // real gate — this only decides whether the toggle/UI shows.
-  const adminSession = (() => { try { return localStorage.getItem('usmle_admin_session'); } catch { return null; } })();
+  // real gate — this only decides whether the toggle/UI shows. `adminSession` is
+  // state (above), so the in-game `?dev=1` unlock reflects immediately.
   const isAdminSession = !!adminSession;
   // Authoring OFFICIAL (global) highlights only when an admin has dev mode ON.
   const authoringOfficial = isAdminSession && devHlMode;
@@ -478,6 +498,13 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
 
   return (
     <div className="screen solo-screen">
+      {/* Developer-mode unlock: only when ?dev=1 is in the URL and not yet unlocked.
+          Lets an admin enable official-highlight authoring from any play tab. */}
+      {devParam && !isAdminSession && (
+        <button type="button" className="dev-hl-unlock" onClick={unlockDevMode}>
+          🔧 Enable Developer Mode
+        </button>
+      )}
       {!study && (
         <div className="solo-topbar">
           {levelLabel && <span className="topbar-level-label">{levelLabel}</span>}
@@ -658,16 +685,19 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
                 />
               )}
               {!hideExplanations && isAdminSession && (
-                <button
-                  type="button"
-                  className={`dev-hl-toggle ${authoringOfficial ? 'on' : ''}`}
-                  onClick={toggleDevHlMode}
-                  title="Toggle developer mode: author OFFICIAL (global) highlights vs personal"
-                >
-                  {authoringOfficial
-                    ? '✏️ Authoring OFFICIAL highlights (everyone sees these)'
-                    : '👤 Personal highlights — tap to author OFFICIAL'}
-                </button>
+                <div className="dev-hl-bar">
+                  <span className="dev-hl-bar-label">🛠️ Developer Mode</span>
+                  <button
+                    type="button"
+                    className={`dev-hl-toggle ${authoringOfficial ? 'on' : ''}`}
+                    onClick={toggleDevHlMode}
+                    title="Toggle developer mode: author OFFICIAL (global) highlights vs personal"
+                  >
+                    {authoringOfficial
+                      ? '✏️ ON — new highlights are OFFICIAL (everyone sees them)'
+                      : '👤 OFF — new highlights are personal · tap to author OFFICIAL'}
+                  </button>
+                </div>
               )}
               {!hideExplanations && q.explanation_image_url && (
                 <img
