@@ -11,7 +11,7 @@
 // copy of ExplanationText's sentence-split + parseRichText's markup-strip, emitting
 // only text). toVisibleText must match it byte-for-byte.
 
-import { toVisibleText } from './explanationHighlights.js';
+import { toVisibleText, offsetsToSegments } from './explanationHighlights.js';
 
 const COLORS = {
   red: 1, blue: 1, green: 1, yellow: 1, orange: 1,
@@ -115,6 +115,24 @@ for (const sample of SAMPLES) {
 
 console.log(`INVARIANT TEST: toVisibleText === reference textContent`);
 console.log(`  PASS: ${pass}/${SAMPLES.length}`);
+
+// ── Stage 2: overlap priority — a 'user' highlight must win over an 'official'
+// one where they overlap (the student's own emphasis wins on their screen). ──────
+const vs = 'x'.repeat(20);
+const overlapHls = [
+  { start: 0,  end: 10, color: 'green',  scope: 'official', created_at: '2026-01-01T00:00:00Z' },
+  { start: 5,  end: 15, color: 'yellow', scope: 'user',     created_at: '2026-01-01T00:00:00Z' },
+];
+const segs = offsetsToSegments(vs, overlapHls);
+// Expected: [0,5] green (official only), [5,15] yellow (user wins overlap), no [10,15] green.
+const okPriority =
+  segs.length === 2 &&
+  segs[0].start === 0 && segs[0].end === 5 && segs[0].color === 'green' &&
+  segs[1].start === 5 && segs[1].end === 15 && segs[1].color === 'yellow';
+console.log(`OVERLAP PRIORITY TEST: user-over-official`);
+console.log(`  ${okPriority ? 'PASS ✅' : 'FAIL ❌'} — segments: ${JSON.stringify(segs)}`);
+if (!okPriority) { fail++; }
+
 if (fail > 0) {
   console.log(`  FAIL: ${fail}`);
   for (const f of failures) {

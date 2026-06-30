@@ -204,9 +204,17 @@ export function rangeToOffsets(container, range) {
 
 // ── Overlap flattening (apply side) ──────────────────────────────────────────────
 
+// Win priority for overlap flattening: a student's OWN ('user') highlight takes
+// precedence over an 'official' one on their screen; within the same scope, most
+// recent wins. Returns a comparable rank — higher beats lower.
+function highlightRank(h) {
+  const scopeRank = h.scope === 'user' ? 1 : 0; // user over official
+  return scopeRank * 1e15 + h.__pri; // scope dominates; recency breaks ties
+}
+
 // Flatten possibly-overlapping highlights into minimal NON-overlapping coloured
-// segments. Priority: most-recent wins (by created_at, falling back to array order),
-// so no nested <mark> is ever produced.
+// segments. Priority: user-over-official, then most-recent (see highlightRank), so
+// no nested <mark> is ever produced.
 export function offsetsToSegments(visibleString, highlights) {
   const len = visibleString.length;
   const valid = (highlights || [])
@@ -240,7 +248,7 @@ export function offsetsToSegments(visibleString, highlights) {
     let best = null;
     for (const h of valid) {
       if (h.start <= a && h.end >= b) {
-        if (!best || h.__pri >= best.__pri) best = h;
+        if (!best || highlightRank(h) >= highlightRank(best)) best = h;
       }
     }
     if (best) {

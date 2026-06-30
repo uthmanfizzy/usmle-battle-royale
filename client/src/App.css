@@ -757,6 +757,29 @@ button:active:not(:disabled) { transform: scale(0.97); }
 }
 .expl-hl-remove:hover { background: #ff6b6b; }
 
+/* Developer-mode toggle (admin only): switches new highlights between OFFICIAL
+   (global) and personal authoring. */
+.dev-hl-toggle {
+  display: inline-block;
+  margin-top: 10px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  border: 1px dashed rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-dim, #cfd2e0);
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+.dev-hl-toggle:hover { background: rgba(255, 255, 255, 0.12); }
+.dev-hl-toggle.on {
+  border-style: solid;
+  border-color: #ffd700;
+  background: rgba(255, 215, 0, 0.16);
+  color: #ffd700;
+}
+
 .rr-eliminated { font-size: 13px; color: var(--red); margin-top: 6px; }
 
 .rr-skip-row {

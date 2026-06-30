@@ -72,10 +72,13 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   const [noQuestionsFound, setNoQuestionsFound] = useState(false);
   const [noQuestionsMessage, setNoQuestionsMessage] = useState('');
 
-  // Explanation highlighting (stage 1: per-user, private). `highlights` holds the
-  // current question's stored highlights (client shape: { start, end, color, ... }).
+  // Explanation highlighting. `highlights` holds the current question's stored
+  // highlights (client shape: { start, end, color, scope, ... }) — official (global)
+  // + the user's own (private). Stage 2 adds developer mode: an admin authoring
+  // OFFICIAL highlights everyone sees.
   const [highlights, setHighlights] = useState([]);
   const explContainerRef = useRef(null);
+  const [devHlMode, setDevHlMode] = useState(() => localStorage.getItem('mr_dev_highlight_mode') === 'true');
 
   // Layer 1/2 (study mode only): explanation pane layout, time-spent, burger menu
   const [explLayout, setExplLayout] = useState(() => localStorage.getItem('mr_solo_expl_layout') || 'right');
@@ -387,30 +390,53 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   }
   const q = shuffledQRef.current.q;
 
-  // ── Explanation highlighting (per-user) ─────────────────────────────────────
-  // Only logged-in users can persist highlights, so the toolbar is gated on a token.
+  // ── Explanation highlighting (per-user + official) ──────────────────────────
   const loggedIn = !!getToken();
+  // Admin session (the admin password) enables developer mode. The server is the
+  // real gate — this only decides whether the toggle/UI shows.
+  const adminSession = (() => { try { return localStorage.getItem('usmle_admin_session'); } catch { return null; } })();
+  const isAdminSession = !!adminSession;
+  // Authoring OFFICIAL (global) highlights only when an admin has dev mode ON.
+  const authoringOfficial = isAdminSession && devHlMode;
+  // The toolbar is usable by logged-in students (private) and admins (official).
+  const canHighlight = loggedIn || isAdminSession;
+
+  function toggleDevHlMode() {
+    setDevHlMode(prev => {
+      const next = !prev;
+      try { localStorage.setItem('mr_dev_highlight_mode', String(next)); } catch {}
+      return next;
+    });
+  }
+
   // Resolve stored highlights against the CURRENT visible string (drift resilience):
-  // exact-offset match, else relocate via quote/prefix/suffix, else dropped.
+  // exact-offset match, else relocate via quote/prefix/suffix, else dropped. Applies
+  // to BOTH official and user highlights.
   const explVisibleText = q.explanation ? toVisibleText(q.explanation) : '';
   const resolvedHighlights = resolveHighlights(explVisibleText, highlights);
 
   function handleCreateHighlight(payload) {
+    if (!q?.id) return;
     const token = getToken();
-    if (!token || !q?.id) return;
+    const official = authoringOfficial;          // admin + dev mode → official
+    if (!official && !token) return;             // students need a token; nothing to do otherwise
     const tmpId = `tmp-${Date.now()}`;
     const optimistic = {
       id: tmpId, start: payload.start, end: payload.end, color: payload.color,
       quote: payload.quote, prefix: payload.prefix, suffix: payload.suffix,
-      created_at: new Date().toISOString(), scope: 'user',
+      created_at: new Date().toISOString(), scope: official ? 'official' : 'user',
     };
     setHighlights(hs => [...hs, optimistic]);
+    const headers = { 'Content-Type': 'application/json' };
+    if (official) headers['x-admin-password'] = adminSession;
+    else headers['Authorization'] = `Bearer ${token}`;
     fetch(`${SERVER_URL}/api/questions/${encodeURIComponent(q.id)}/highlights`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      headers,
       body: JSON.stringify({
         start_offset: payload.start, end_offset: payload.end, color: payload.color,
-        region: 'explanation', quote: payload.quote, prefix: payload.prefix, suffix: payload.suffix,
+        region: 'explanation', scope: official ? 'official' : 'user',
+        quote: payload.quote, prefix: payload.prefix, suffix: payload.suffix,
       }),
     })
       .then(r => (r.ok ? r.json() : null))
@@ -426,17 +452,23 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
 
   function handleRemoveRange(start, end) {
     const token = getToken();
-    if (!token) return;
-    // Remove the user's own highlights overlapping the selection (current offsets).
+    // Targets overlapping the selection; only delete what THESE credentials allow:
+    // own 'user' highlights (token), or 'official' highlights (admin session).
     const targets = resolvedHighlights.filter(
       h => h.start < end && h.end > start && !String(h.id).startsWith('tmp-')
     );
-    const ids = targets.map(h => h.id);
-    if (!ids.length) return;
+    const deletable = targets.filter(
+      h => (h.scope === 'user' && token) || (h.scope === 'official' && adminSession)
+    );
+    if (!deletable.length) return;
+    const ids = deletable.map(h => h.id);
     setHighlights(hs => hs.filter(h => !ids.includes(h.id)));
-    ids.forEach(id => {
-      fetch(`${SERVER_URL}/api/questions/${encodeURIComponent(q.id)}/highlights/${encodeURIComponent(id)}`, {
-        method: 'DELETE', headers: { Authorization: `Bearer ${token}` },
+    deletable.forEach(h => {
+      const headers = {};
+      if (h.scope === 'official') headers['x-admin-password'] = adminSession;
+      else headers['Authorization'] = `Bearer ${token}`;
+      fetch(`${SERVER_URL}/api/questions/${encodeURIComponent(q.id)}/highlights/${encodeURIComponent(h.id)}`, {
+        method: 'DELETE', headers,
       }).catch(() => {});
     });
   }
@@ -617,13 +649,25 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
                   containerRef={explContainerRef}
                 />
               )}
-              {!hideExplanations && loggedIn && (
+              {!hideExplanations && canHighlight && (
                 <ExplanationHighlightToolbar
                   containerRef={explContainerRef}
                   highlights={resolvedHighlights}
                   onCreate={handleCreateHighlight}
                   onRemoveRange={handleRemoveRange}
                 />
+              )}
+              {!hideExplanations && isAdminSession && (
+                <button
+                  type="button"
+                  className={`dev-hl-toggle ${authoringOfficial ? 'on' : ''}`}
+                  onClick={toggleDevHlMode}
+                  title="Toggle developer mode: author OFFICIAL (global) highlights vs personal"
+                >
+                  {authoringOfficial
+                    ? '✏️ Authoring OFFICIAL highlights (everyone sees these)'
+                    : '👤 Personal highlights — tap to author OFFICIAL'}
+                </button>
               )}
               {!hideExplanations && q.explanation_image_url && (
                 <img

@@ -2272,15 +2272,16 @@ app.get('/api/questions/:questionId/highlights', async (req, res) => {
   }
 });
 
-// POST — requireAuth (JWT). Stage 1 always inserts scope='user'. Stage 2 will,
-// when the admin/developer header is present and 'official' is requested, branch
-// to scope='official' with user_id=null.
-app.post('/api/questions/:questionId/highlights', requireAuth, async (req, res) => {
+// POST — dual auth. scope='official' requires a valid admin password header
+// (developer mode); scope='user' requires a valid JWT. Server is the ONLY gate —
+// client-supplied scope is never trusted, and a forged 'official' without the admin
+// header is rejected 403 (never silently downgraded).
+app.post('/api/questions/:questionId/highlights', async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Highlights unavailable' });
   const { questionId } = req.params;
   const {
     start_offset, end_offset, color,
-    region = 'explanation', quote = null, prefix = null, suffix = null,
+    region = 'explanation', scope = 'user', quote = null, prefix = null, suffix = null,
   } = req.body || {};
 
   if (!Number.isInteger(start_offset) || !Number.isInteger(end_offset) ||
@@ -2290,14 +2291,32 @@ app.post('/api/questions/:questionId/highlights', requireAuth, async (req, res) 
   if (!HL_COLORS.includes(color))   return res.status(400).json({ error: 'Invalid color' });
   if (!HL_REGIONS.includes(region)) return res.status(400).json({ error: 'Invalid region' });
 
+  const isAdmin = req.headers['x-admin-password'] === ADMIN_PASSWORD;
+  const auth = req.headers.authorization;
+  const decoded = auth?.startsWith('Bearer ') ? verifyToken(auth.slice(7)) : null;
+
+  // Resolve the persisted scope/user_id from the REAL credentials, not the client's word.
+  let rowScope, rowUserId;
+  if (scope === 'official') {
+    if (!isAdmin) return res.status(403).json({ error: 'Official highlights require admin (developer mode)' });
+    rowScope = 'official';
+    rowUserId = null;
+  } else if (scope === 'user') {
+    if (!decoded) return res.status(401).json({ error: 'Unauthorized' });
+    rowScope = 'user';
+    rowUserId = decoded.userId;
+  } else {
+    return res.status(400).json({ error: 'Invalid scope' });
+  }
+
   try {
     const { data, error } = await supabase
       .from('explanation_highlights')
       .insert({
         question_id: questionId,
         region,
-        scope: 'user',
-        user_id: req.userId,
+        scope: rowScope,
+        user_id: rowUserId,
         start_offset,
         end_offset,
         color,
@@ -2318,21 +2337,27 @@ app.post('/api/questions/:questionId/highlights', requireAuth, async (req, res) 
   }
 });
 
-// DELETE — requireAuth. Stage 1 allows deleting one's own 'user' highlight only.
-// (Stage 2: admins may delete 'official'.)
-app.delete('/api/questions/:questionId/highlights/:id', requireAuth, async (req, res) => {
+// DELETE — dual auth. Own 'user' highlight (JWT match) OR any 'official' highlight
+// (valid admin header). Anything else → 403.
+app.delete('/api/questions/:questionId/highlights/:id', async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Highlights unavailable' });
   const { id } = req.params;
+  const isAdmin = req.headers['x-admin-password'] === ADMIN_PASSWORD;
+  const auth = req.headers.authorization;
+  const decoded = auth?.startsWith('Bearer ') ? verifyToken(auth.slice(7)) : null;
   try {
     const { data: row, error: fErr } = await supabase
       .from('explanation_highlights').select('*').eq('id', id).single();
     if (fErr || !row) return res.status(404).json({ error: 'Not found' });
-    if (row.scope === 'user' && row.user_id === req.userId) {
-      const { error } = await supabase.from('explanation_highlights').delete().eq('id', id);
-      if (error) return res.status(500).json({ error: 'Failed to delete highlight' });
-      return res.json({ success: true });
-    }
-    return res.status(403).json({ error: 'Forbidden' });
+
+    const canDelete =
+      (row.scope === 'user' && decoded && row.user_id === decoded.userId) ||
+      (row.scope === 'official' && isAdmin);
+    if (!canDelete) return res.status(403).json({ error: 'Forbidden' });
+
+    const { error } = await supabase.from('explanation_highlights').delete().eq('id', id);
+    if (error) return res.status(500).json({ error: 'Failed to delete highlight' });
+    res.json({ success: true });
   } catch (e) {
     console.error('[DELETE highlights]', e.message);
     res.status(500).json({ error: 'Failed to delete highlight' });
