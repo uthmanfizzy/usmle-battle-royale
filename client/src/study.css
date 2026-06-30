@@ -745,8 +745,10 @@ html[data-study="on"] .solo-gameover .sgo-level-label {
   html[data-study="on"] .stb-arrow { width: 40px; height: 36px; }
 
   /* ── Question + options: full-width, comfortable tap targets ── */
-  html[data-study="on"] .solo-body .question-card { padding: 14px 14px; }
-  html[data-study="on"] .solo-body .option-btn { padding: 13px 10px; }
+  /* Side padding so the question text has breathing room from the card border
+     (like desktop's 36px) rather than sitting flush against the edge. */
+  html[data-study="on"] .solo-body .question-card { padding: 16px 18px; }
+  html[data-study="on"] .solo-body .option-btn { padding: 13px 12px; }
 
   /* ── Explanation pane: a touch less inner padding on a phone ── */
   html[data-study="on"] .solo-body .round-result { padding: 50px 14px 16px; }

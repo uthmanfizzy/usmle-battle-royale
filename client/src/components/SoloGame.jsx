@@ -158,6 +158,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   const timeLeftRef   = useRef(defaultTimer);
   const revealedRef   = useRef(false);
   const pausedRef     = useRef(false);
+  const musicPausedRef = useRef(false);
   const livesRef      = useRef(defaultLives);
   const scoreRef      = useRef(0);
   const streakRef     = useRef(0);
@@ -209,6 +210,20 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
     audio.startGameMusic();
     return () => audio.stopGameMusic();
   }, []);
+
+  // Pause/resume the background music with the pause overlay. Only restarts the
+  // music if it was actually paused (musicPausedRef) — so the initial unpaused
+  // render doesn't double-start the music the mount effect already started.
+  useEffect(() => {
+    if (loading || gameOver) return;
+    if (isPaused) {
+      audio.stopGameMusic();
+      musicPausedRef.current = true;
+    } else if (musicPausedRef.current) {
+      audio.startGameMusic();
+      musicPausedRef.current = false;
+    }
+  }, [isPaused, loading, gameOver]);
 
   useEffect(() => {
     let url = questionsUrl || (topicId
@@ -683,11 +698,14 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
         )}
 
         <div className="question-card">
-          {/* Pause (Training + Journey only, during the question countdown) */}
+          {/* Pause (Training + Journey only, during the question countdown). In-flow,
+              right-aligned above the stem so it never overlaps the question text
+              (works in study + non-study, mobile + desktop). */}
           {canPause && !revealed && !isPaused && (
             <button
               type="button"
               className="pause-btn"
+              style={{ position: 'static', display: 'block', width: 'fit-content', marginLeft: 'auto', marginBottom: '10px' }}
               onClick={() => setIsPaused(true)}
               title="Pause"
             >
