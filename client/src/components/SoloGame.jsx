@@ -58,6 +58,10 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   const [streak, setStreak] = useState(0);
   const [bestStreak, setBestStreak] = useState(0);
   const [timeLeft, setTimeLeft] = useState(defaultTimer);
+  // Pause (Training Grounds + First Aid Journey only — never plain solo, and Battle
+  // Royale uses GameRoom not SoloGame). Freezes the countdown + covers the question.
+  const canPause = isJourney || !!topicId || !!questionsUrl;
+  const [isPaused, setIsPaused] = useState(false);
   const [selected, setSelected] = useState(null);
   const [revealed, setRevealed] = useState(false);
   const [bonusPoints, setBonusPoints] = useState(0);
@@ -144,6 +148,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   const timerRef      = useRef(null);
   const timeLeftRef   = useRef(defaultTimer);
   const revealedRef   = useRef(false);
+  const pausedRef     = useRef(false);
   const livesRef      = useRef(defaultLives);
   const scoreRef      = useRef(0);
   const streakRef     = useRef(0);
@@ -161,6 +166,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   const onCompleteRef      = useRef(onComplete);
 
   revealedRef.current = revealed;
+  pausedRef.current = isPaused;
   livesRef.current = lives;
   scoreRef.current = score;
   streakRef.current = streak;
@@ -337,8 +343,10 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
 
     timeLeftRef.current = defaultTimer;
     setTimeLeft(defaultTimer);
+    setIsPaused(false); // new question always starts unpaused
 
     timerRef.current = setInterval(() => {
+      if (pausedRef.current) return; // frozen while paused — no time lost
       timeLeftRef.current -= 1;
       setTimeLeft(timeLeftRef.current);
       if (timeLeftRef.current <= 5 && timeLeftRef.current > 0) audio.playTick();
@@ -642,6 +650,33 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
         )}
 
         <div className="question-card">
+          {/* Pause (Training + Journey only, during the question countdown) */}
+          {canPause && !revealed && !isPaused && (
+            <button
+              type="button"
+              className="pause-btn"
+              onClick={() => setIsPaused(true)}
+              title="Pause"
+            >
+              ⏸ Pause
+            </button>
+          )}
+          {/* Pause overlay — covers stem + options so you can't read/answer while paused */}
+          {canPause && isPaused && !revealed && (
+            <div className="pause-overlay">
+              <div className="pause-overlay-inner">
+                <div className="pause-overlay-icon">⏸</div>
+                <div className="pause-overlay-title">Paused</div>
+                <button
+                  type="button"
+                  className="pause-resume-btn"
+                  onClick={() => setIsPaused(false)}
+                >
+                  ▶ Resume
+                </button>
+              </div>
+            </div>
+          )}
           {renderStem(q.question)}
           {q?.image_url && (
             <div className="game-question-image">

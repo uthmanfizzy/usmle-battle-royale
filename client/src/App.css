@@ -3183,6 +3183,72 @@ table.lb-table tr:last-child td { border-bottom: none; }
   font-weight: 400 !important;
 }
 
+/* ── Pause (Training Grounds + First Aid Journey) ─────────────────────────── */
+.question-card { position: relative; }
+
+.pause-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 5;
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  border-radius: 999px;
+  cursor: pointer;
+  color: #1a1a2e;
+  background: #fdcb6e;
+  border: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+.pause-btn:hover { filter: brightness(1.05); }
+
+.pause-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: inherit;
+  /* Opaque, blurred cover so the question + options can't be read while paused. */
+  background: rgba(12, 14, 26, 0.92);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.pause-overlay-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  text-align: center;
+}
+.pause-overlay-icon { font-size: 48px; line-height: 1; }
+.pause-overlay-title {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #ffffff;
+  text-transform: uppercase;
+}
+.pause-resume-btn {
+  padding: 12px 28px;
+  font-size: 16px;
+  font-weight: 800;
+  border-radius: 999px;
+  cursor: pointer;
+  color: #1a1a2e;
+  background: #55efc4;
+  border: none;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+}
+.pause-resume-btn:hover { filter: brightness(1.05); }
+
+/* Study (light) theme: keep the cover opaque & legible on the white pane. */
+html[data-study="on"] .solo-body .pause-overlay {
+  background: rgba(30, 41, 59, 0.94);
+}
+
 /* ── Why Others Wrong Box ────────────────────────────────────────────────── */
 
 .why-wrong-box {
