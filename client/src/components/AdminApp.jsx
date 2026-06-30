@@ -7662,6 +7662,18 @@ export default function AdminApp() {
         </div>
         <div className="ap-header-right">
           <button
+            className="ap-dev-mode"
+            onClick={() => {
+              // Admin session already set from login → no password re-entry. Flag dev
+              // mode active and open the live site; the persistent banner takes over.
+              try { localStorage.setItem('mr_dev_mode_active', '1'); } catch {}
+              window.location.href = '/';
+            }}
+            title="Open the live site in Developer Mode to author official highlights"
+          >
+            🛠️ Enter Developer Mode
+          </button>
+          <button
             className="ap-theme-toggle"
             onClick={() => setAdminTheme(t => (t === 'light' ? 'dark' : 'light'))}
             title={`Switch to ${adminTheme === 'light' ? 'dark' : 'light'} theme`}

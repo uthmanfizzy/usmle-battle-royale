@@ -5,6 +5,7 @@ import App from './App';
 import { ThemeProvider } from './theme';
 import { GameSettingsProvider } from './contexts/GameSettingsContext';
 import RouteErrorBoundary from './components/RouteErrorBoundary';
+import DevModeBanner from './components/DevModeBanner';
 import './App.css';
 import './themes.css';
 import './study.css';
@@ -98,6 +99,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
       <GameSettingsProvider>
         <ThemeProvider>
           <BrowserRouter>
+            <DevModeBanner />
             <Suspense fallback={<PageSpinner />}>
               <Routes>
                 <Route path="/admin/*"        element={<AdminApp />} />

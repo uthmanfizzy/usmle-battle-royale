@@ -78,7 +78,15 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   // OFFICIAL highlights everyone sees.
   const [highlights, setHighlights] = useState([]);
   const explContainerRef = useRef(null);
-  const [devHlMode, setDevHlMode] = useState(() => localStorage.getItem('mr_dev_highlight_mode') === 'true');
+  // When dev mode is active (admin entered via the panel), official-highlight
+  // authoring defaults ON globally — no per-screen re-toggle needed. The per-screen
+  // toggle still works (it just flips this for the current screen).
+  const [devHlMode, setDevHlMode] = useState(() => {
+    try {
+      if (localStorage.getItem('mr_dev_mode_active') === '1') return true;
+      return localStorage.getItem('mr_dev_highlight_mode') === 'true';
+    } catch { return false; }
+  });
   // Admin session = the admin password stored by /admin login (AdminApp sets
   // localStorage['usmle_admin_session']). It enables developer-mode (official)
   // highlighting. Kept in state so the in-game unlock takes effect immediately.

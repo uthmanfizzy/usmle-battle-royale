@@ -815,6 +815,60 @@ button:active:not(:disabled) { transform: scale(0.97); }
 }
 .dev-hl-unlock:hover { filter: brightness(1.05); }
 
+/* ── Persistent developer-mode banner (app-level) ──────────────────────────── */
+.dev-mode-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 40px;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 14px;
+  background: linear-gradient(90deg, #ffc107 0%, #ff9800 100%);
+  color: #1a1a2e;
+  font-size: 13px;
+  font-weight: 700;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+}
+.dmb-tag { font-weight: 900; letter-spacing: 0.02em; white-space: nowrap; }
+.dmb-hint { font-weight: 600; opacity: 0.85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dmb-spacer { flex: 1; }
+.dmb-btn {
+  border: none;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 12.5px;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.dmb-back { background: #1a1a2e; color: #ffd700; }
+.dmb-back:hover { background: #2a2a44; }
+.dmb-exit { background: rgba(26, 26, 46, 0.18); color: #1a1a2e; }
+.dmb-exit:hover { background: rgba(26, 26, 46, 0.3); }
+/* Offset content so the fixed bar never covers the page. */
+body.dev-mode-banner-active { padding-top: 40px; }
+
+/* Admin "Enter Developer Mode" button */
+.ap-dev-mode {
+  border: none;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  color: #1a1a2e;
+  background: #ffd700;
+}
+.ap-dev-mode:hover { filter: brightness(1.05); }
+
+@media (max-width: 560px) {
+  .dmb-hint { display: none; }
+}
+
 .rr-eliminated { font-size: 13px; color: var(--red); margin-top: 6px; }
 
 .rr-skip-row {
