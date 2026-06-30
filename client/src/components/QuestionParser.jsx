@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import './QuestionParser.css';
 import { supabase } from '../supabaseClient';
-import { isLabLine, isTableLine, renderStem } from '../utils/renderStem';
+import { isLabLine, isTableLine, renderStem, segmentStem } from '../utils/renderStem';
 
 // Reassemble the stem from its collected lines: ordinary prose lines are joined
 // with spaces (so hard-wrapped paragraphs flow normally), but a RUN of 2+
@@ -186,6 +186,29 @@ export default function QuestionParser({ activeFolder, selectedTopic, selectedDi
 
         const questionText = assembleStem(questionLines);
 
+        // Table-as-options: if no standard "A. text" choices were found but the stem
+        // contains a table whose first column is option letters (A, B, C…), derive the
+        // choices from those rows. The table stays in the stem and still renders.
+        if (choices.length < 2 && questionText) {
+          try {
+            for (const seg of segmentStem(questionText)) {
+              if (seg.type !== 'table') continue;
+              const optionRows = (seg.rows || []).filter(
+                (r) => Array.isArray(r) && r.length >= 2 && /^[A-H]$/i.test((r[0] || '').trim())
+              );
+              if (optionRows.length >= 2) {
+                choices = optionRows.map((r) => ({
+                  letter: r[0].trim().toUpperCase(),
+                  text: r.slice(1).join(' · ').trim() || r[0].trim().toUpperCase(),
+                }));
+                break;
+              }
+            }
+          } catch (e) {
+            errs.push(`Block ${blockIndex + 1}: table-option parse error — ${e.message}`);
+          }
+        }
+
         // Validate
         if (!questionText) {
           errs.push(`Block ${blockIndex + 1}: No question text found`);
@@ -219,11 +242,16 @@ export default function QuestionParser({ activeFolder, selectedTopic, selectedDi
     });
 
     setParsed(questions);
-    setErrors(errs);
     if (questions.length > 0) {
+      setErrors(errs);
       setStep('preview');
     } else {
-      setErrors(prev => [...prev, 'No valid questions found. Make sure choices use A. B. C. format and include "Correct Answer: X"']);
+      // Surface WHY nothing parsed instead of silently doing nothing — the error
+      // list is shown on BOTH the input and preview steps (see render).
+      setErrors([
+        ...errs,
+        'No valid questions found. Use "A. B. C." choices (or a table whose first column is A, B, C…) and include "Correct Answer: X".',
+      ]);
     }
   };
 
@@ -387,6 +415,14 @@ export default function QuestionParser({ activeFolder, selectedTopic, selectedDi
                 <p className="qp-char-count">
                   {rawText.length.toLocaleString()} chars · ~{Math.max(1, rawText.split(/\n{2,}/).length)} question block{rawText.split(/\n{2,}/).length !== 1 ? 's' : ''} detected
                 </p>
+              )}
+              {errors.length > 0 && (
+                <div className="qp-errors">
+                  <p className="qp-errors-title">⚠️ Parse Errors:</p>
+                  {errors.map((err, i) => (
+                    <p key={i} className="qp-error-item">• {err}</p>
+                  ))}
+                </div>
               )}
               <div className="qp-right-footer">
                 <button className="qp-cancel" onClick={onClose}>Cancel</button>
