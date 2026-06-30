@@ -117,25 +117,67 @@ function splitInlineLabs(text) {
   return out;
 }
 
-// ── Line-break detection (original) ─────────────────────────────────────────
-// Group consecutive LINES of a stem into prose paragraphs and lab-value boxes.
-// Only a RUN of 2+ consecutive lab-pattern lines becomes a box. Returns an array
-// of { type: 'prose' | 'labs', lines: string[] }.
+// ── Table detection ──────────────────────────────────────────────────────────
+// A pipe-delimited table the author writes as consecutive lines:
+//   | Header 1 | Header 2 |
+//   | Cell A1  | Cell A2  |
+// Split a row on '|', trim cells, and drop a single empty leading/trailing cell so
+// both "| a | b |" and "a | b" work.
+export function splitTableRow(line) {
+  let cells = String(line).split('|').map((c) => c.trim());
+  if (cells.length && cells[0] === '') cells = cells.slice(1);
+  if (cells.length && cells[cells.length - 1] === '') cells = cells.slice(0, -1);
+  return cells;
+}
+
+// A table LINE has a pipe and yields 2+ cells, at least 2 of them non-empty (so a
+// lone "a | b" still qualifies as a line, but a single such line never becomes a
+// table — that needs a RUN of 2+, enforced in groupStem). "| |" is not a table.
+export function isTableLine(line) {
+  if (!line || line.indexOf('|') === -1) return false;
+  const cells = splitTableRow(line);
+  if (cells.length < 2) return false;
+  return cells.filter((c) => c.length > 0).length >= 2;
+}
+
+// Markdown separator row, e.g. "| --- | :--: |" — dropped at render time so a pasted
+// markdown table looks right (the author's structure has no separator, this is a bonus).
+function isSeparatorRow(cells) {
+  return cells.length > 0 && cells.every((c) => /^:?-{2,}:?$/.test(c));
+}
+
+// ── Line-break detection (original + table) ─────────────────────────────────
+// Classify each LINE as 'table' | 'labs' | 'prose'. A RUN of 2+ consecutive table
+// lines becomes a table; a RUN of 2+ consecutive lab lines becomes a lab box; the
+// rest is prose. Tables are detected first (a table line has a pipe; a lab line has
+// a colon-value and no pipe, so they don't collide). Returns blocks of
+// { type, lines: string[] }.
 export function groupStem(text) {
   const lines = String(text).split('\n');
   const n = lines.length;
-  const inLab = new Array(n).fill(false);
+  const kind = new Array(n).fill('prose');
+
+  // Tables: 2+ consecutive pipe-rows.
   for (let i = 0; i < n; ) {
-    if (isLabLine(lines[i])) {
+    if (isTableLine(lines[i])) {
       let j = i;
-      while (j < n && isLabLine(lines[j])) j++;
-      if (j - i >= 2) { for (let k = i; k < j; k++) inLab[k] = true; i = j; continue; }
+      while (j < n && isTableLine(lines[j])) j++;
+      if (j - i >= 2) { for (let k = i; k < j; k++) kind[k] = 'table'; i = j; continue; }
+    }
+    i++;
+  }
+  // Labs: 2+ consecutive lab lines among the lines not already claimed as table.
+  for (let i = 0; i < n; ) {
+    if (kind[i] === 'prose' && isLabLine(lines[i])) {
+      let j = i;
+      while (j < n && kind[j] === 'prose' && isLabLine(lines[j])) j++;
+      if (j - i >= 2) { for (let k = i; k < j; k++) kind[k] = 'labs'; i = j; continue; }
     }
     i++;
   }
   const blocks = [];
   for (let k = 0; k < n; k++) {
-    const type = inLab[k] ? 'labs' : 'prose';
+    const type = kind[k];
     const last = blocks[blocks.length - 1];
     if (last && last.type === type) last.lines.push(lines[k]);
     else blocks.push({ type, lines: [lines[k]] });
@@ -150,6 +192,7 @@ export function segmentStem(text) {
   const out = [];
   for (const b of groupStem(text)) {
     if (b.type === 'labs') { out.push({ type: 'labs', lines: b.lines }); continue; }
+    if (b.type === 'table') { out.push({ type: 'table', rows: b.lines.map(splitTableRow) }); continue; }
     for (const seg of splitInlineLabs(b.lines.join('\n'))) {
       if (seg.type === 'labs') out.push(seg);
       else if (seg.text.trim()) out.push({ type: 'prose', text: seg.text });
@@ -172,6 +215,25 @@ export function renderStem(text) {
   }
 
   return segments.map((seg, idx) => {
+    if (seg.type === 'table') {
+      const rows = seg.rows.filter((r) => !isSeparatorRow(r));
+      if (rows.length === 0) return null;
+      const [header, ...body] = rows;
+      return (
+        <div className="stem-table-wrap" key={idx}>
+          <table className="stem-table">
+            <thead>
+              <tr>{header.map((c, ci) => <th key={ci}>{c}</th>)}</tr>
+            </thead>
+            <tbody>
+              {body.map((r, ri) => (
+                <tr key={ri}>{r.map((c, ci) => <td key={ci}>{c}</td>)}</tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+    }
     if (seg.type === 'labs') {
       return (
         <div className="lab-values-box" key={idx}>

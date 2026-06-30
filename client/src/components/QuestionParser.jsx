@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import './QuestionParser.css';
 import { supabase } from '../supabaseClient';
-import { isLabLine } from '../utils/renderStem';
+import { isLabLine, renderStem } from '../utils/renderStem';
 
 // Reassemble the stem from its collected lines: ordinary prose lines are joined
 // with spaces (so hard-wrapped paragraphs flow normally), but a RUN of 2+
@@ -427,7 +427,7 @@ export default function QuestionParser({ activeFolder, selectedTopic, selectedDi
                     </div>
                     <button className="qp-remove-btn" onClick={() => removeQuestion(i)}>🗑</button>
                   </div>
-                  <p className="qp-preview-question">{q.question}</p>
+                  <div className="qp-preview-question">{renderStem(q.question)}</div>
                   <div className="qp-preview-choices">
                     {q.choices.map((c, j) => (
                       <span
