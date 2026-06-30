@@ -534,7 +534,14 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
     fetch(`${SERVER_URL}/api/questions/${encodeURIComponent(q.id)}/highlights`, {
       method: 'POST', headers, body: JSON.stringify(body),
     })
-      .then(r => (r.ok ? r.json() : null))
+      .then(async (r) => {
+        if (r.ok) return r.json();
+        // Surface the server's reason instead of failing silently.
+        let detail = `HTTP ${r.status}`;
+        try { const e = await r.json(); detail = e.detail || e.error || detail; } catch {}
+        console.error(`[highlight save] failed (${region}, ${isFormat ? `format=${payload.format}` : `color=${payload.color}`}):`, detail);
+        return null;
+      })
       .then(data => {
         if (data?.highlight) {
           setHighlights(hs => hs.map(h => (h.id === tmpId ? normalizeHighlightRow(data.highlight) : h)));
@@ -542,7 +549,10 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
           setHighlights(hs => hs.filter(h => h.id !== tmpId)); // roll back on failure
         }
       })
-      .catch(() => setHighlights(hs => hs.filter(h => h.id !== tmpId)));
+      .catch((err) => {
+        console.error('[highlight save] network error:', err);
+        setHighlights(hs => hs.filter(h => h.id !== tmpId));
+      });
   }
 
   function handleRemoveRange(region, start, end) {

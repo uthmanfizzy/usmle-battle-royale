@@ -2339,13 +2339,16 @@ app.post('/api/questions/:questionId/highlights', async (req, res) => {
       .select()
       .single();
     if (error) {
-      console.error('[POST highlights]', error.message);
-      return res.status(500).json({ error: 'Failed to save highlight' });
+      // Surface the real Postgres reason (don't swallow it). e.g. a format span hits
+      // a not-null/XOR constraint on `color` if the migration's
+      // `ALTER COLUMN color DROP NOT NULL` wasn't applied.
+      console.error('[POST highlights] insert failed:', error.code || '', error.message, error.details || '', error.hint || '');
+      return res.status(500).json({ error: 'Failed to save highlight', detail: error.message, code: error.code });
     }
     res.json({ highlight: data });
   } catch (e) {
     console.error('[POST highlights]', e.message);
-    res.status(500).json({ error: 'Failed to save highlight' });
+    res.status(500).json({ error: 'Failed to save highlight', detail: e.message });
   }
 });
 
