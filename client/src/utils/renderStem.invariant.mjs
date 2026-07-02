@@ -75,7 +75,13 @@ for (const s of SAMPLES) {
   const renderedHL = textOf(renderStem(s, { highlights: [      // marks must NOT change text
     { start: 0, end: Math.min(4, claimed.length || 1), color: 'yellow', scope: 'official', created_at: '2026-01-01T00:00:00Z' },
   ] }));
-  if (claimed === rendered && claimed === renderedHL) pass++;
+  // bold/italic format spans (the stem "hints") are pure <strong>/<em> wrapping —
+  // they must not alter the visible text either, so hiding/showing hints is stable.
+  const renderedFmt = textOf(renderStem(s, { highlights: [
+    { start: 0, end: Math.min(4, claimed.length || 1), format: 'bold', scope: 'official', created_at: '2026-01-01T00:00:00Z' },
+    { start: Math.min(4, claimed.length || 1), end: Math.min(8, claimed.length || 1), format: 'italic', scope: 'official', created_at: '2026-01-01T00:00:00Z' },
+  ] }));
+  if (claimed === rendered && claimed === renderedHL && claimed === renderedFmt) pass++;
   else { fail++; failures.push({ s, claimed, rendered, renderedHL }); }
 }
 

@@ -196,12 +196,15 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   // Stable per-question id (survives the option shuffle — shuffle keeps `id`).
   const currentQid = questions[qIdx]?.id;
 
-  // Fetch this question's highlights when the explanation reveals. Soft auth: a
-  // logged-in user gets their own highlights (Bearer); guests get none (stage 1).
-  // Degrades silently to [] on any error / missing table.
+  // Fetch this question's highlights on question LOAD (not gated behind reveal) so
+  // the stem's official bold/italic format spans (region='question') — the hints —
+  // are available DURING the question and toggle live with "Show hints". Explanation
+  // highlights come down in the same payload; they just aren't shown until reveal.
+  // Soft auth: a logged-in user also gets their own highlights (Bearer); guests get
+  // the official ones. Degrades silently to [] on any error / missing table.
   useEffect(() => {
     setHighlights([]); // clear stale highlights from the previous question
-    if (!revealed || hideExplanations || !currentQid) return;
+    if (!currentQid) return;
     let cancelled = false;
     const token = getToken();
     const headers = token ? { Authorization: `Bearer ${token}` } : {};
@@ -210,7 +213,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
       .then(data => { if (!cancelled) setHighlights((data.highlights || []).map(normalizeHighlightRow)); })
       .catch(() => { if (!cancelled) setHighlights([]); });
     return () => { cancelled = true; };
-  }, [revealed, hideExplanations, currentQid]);
+  }, [currentQid]);
 
   // Stop lobby music on mount; stop game music on unmount.
   useEffect(() => {
