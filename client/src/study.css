@@ -4,9 +4,9 @@
    data-theme=default|pixel and data-color). EVERY rule here is gated
    behind html[data-study="on"], so with the attribute absent the
    cascade is untouched → dark/default stays byte-identical when off.
-   First Aid Journey respects study mode exactly like training/solo: the
-   study skin applies to Journey game screens too whenever study mode is
-   globally on.
+   First Aid Journey is the exception: journey games force study OFF and
+   carry .jm-vibrant (SoloGameJourney.css), whose higher-specificity rules
+   beat this skin — journey answer screens are always vibrant.
    Scope is limited to the answer-screen subtrees so the rest of the
    app (dashboard, lobby, etc.) keeps its dark skin.
    ═══════════════════════════════════════════════════════════════════ */

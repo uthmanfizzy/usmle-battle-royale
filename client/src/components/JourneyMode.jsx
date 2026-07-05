@@ -195,7 +195,7 @@ export default function JourneyMode({
 
     return {
       subject: subjectId,
-      threshold: 80,
+      threshold: 50,
       chapters,
       ultimate: {
         boss_key: 'ultimate',
@@ -464,7 +464,7 @@ export default function JourneyMode({
         setInterstitial({
           status: justMastered ? 'mastery' : (data.passed ? 'complete' : 'tryagain'),
           pct,
-          threshold: data.threshold || 80,
+          threshold: data.threshold || 50,
         });
       })
       .catch(() => {
@@ -492,7 +492,7 @@ export default function JourneyMode({
         setInterstitial({
           status: justMastered ? 'mastery' : (data.passed ? 'complete' : 'tryagain'),
           pct: payload.score_pct,
-          threshold: data.threshold || 80,
+          threshold: data.threshold || 50,
         });
       })
       .catch(() => {
@@ -581,7 +581,7 @@ export default function JourneyMode({
   }
 
   // ----- Pathway -----
-  const threshold = path?.threshold || 80;
+  const threshold = path?.threshold || 50;
   const chapters  = path?.chapters || [];
   const ultimate  = path?.ultimate;
 

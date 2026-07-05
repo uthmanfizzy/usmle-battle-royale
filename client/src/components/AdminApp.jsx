@@ -5609,7 +5609,7 @@ function withDefaults(raw) {
     suddenDeathTimer:         raw.suddenDeathTimer        ?? 5,
     towerFloorLives:          raw.towerFloorLives         ?? 3,
     bossTolerance:            raw.bossTolerance           ?? 0,
-    journeyThreshold:         raw.journeyThreshold        ?? 80,
+    journeyThreshold:         raw.journeyThreshold        ?? 50,
     // Section 3: Lobby
     maxPlayersPerLobby:       raw.maxPlayersPerLobby      ?? 10,
     minPlayersToStart:        raw.minPlayersToStart       ?? 2,

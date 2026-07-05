@@ -11,6 +11,7 @@ import LabValues from './LabValues';
 import { shuffleQuestionOptions } from '../utils/shuffleOptions';
 import { toVisibleText, resolveHighlights, normalizeHighlightRow } from '../utils/explanationHighlights';
 import { getToken } from '../auth';
+import './SoloGameJourney.css';
 
 const LABELS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
 const SERVER_URL = 'https://usmle-battle-royale-production.up.railway.app';
@@ -32,9 +33,12 @@ function saveHi(subject, score) {
 export default function SoloGame({ subject, username, difficulty, onBack, onTryAgain, onChangeSubject, onBackToTopics, topicId, questionsUrl, onComplete, levelLabel, isJourney }) {
   const { settings } = useGameSettings();
   const { study: studyPref } = useTheme();   // Layer 1 chrome renders only when study mode is on
-  // Journey respects study mode exactly like training/solo: full two-pane study
-  // chrome when study mode is on, plain single-pane screen when off.
-  const study = studyPref;
+  // Journey ALWAYS uses its own vibrant single-pane answer screen (matching the
+  // journey map theme) and overrides study mode. Solo/training still respect it.
+  const study = isJourney ? false : studyPref;
+  // Journey-only skin gate: SoloGameJourney.css styles apply solely under this
+  // class, so solo/training/BR keep their normal (dark or study) look.
+  const screenClass = `screen solo-screen${isJourney ? ' jm-vibrant' : ''}`;
 
   // Hard mode and easy mode each use their own admin-configured timer / explanation
   // time / hide-explanations setting (falling back to legacy generic keys, then literals)
@@ -397,7 +401,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
 
   if (loading) {
     return (
-      <div className="screen solo-screen">
+      <div className={screenClass}>
         <div className="waiting-screen"><div className="spinner" /><p>Loading questions…</p></div>
       </div>
     );
@@ -405,7 +409,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
 
   if (fetchError) {
     return (
-      <div className="screen solo-screen">
+      <div className={screenClass}>
         <div className="solo-card"><p className="error-msg">{fetchError}</p><button className="btn-start" onClick={onBack}>Back</button></div>
       </div>
     );
@@ -413,7 +417,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
 
   if (noQuestionsFound) {
     return (
-      <div className="no-questions-screen">
+      <div className={`no-questions-screen${isJourney ? ' jm-vibrant' : ''}`}>
         <div className="no-questions-card">
           <span className="no-questions-icon">📭</span>
           <h3>No Questions Available</h3>
@@ -428,7 +432,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
 
   if (gameOver) {
     return (
-      <div className="screen solo-screen">
+      <div className={screenClass}>
         <div className="solo-gameover">
           <h2>Game Over</h2>
           {levelLabel && <p className="sgo-level-label">{levelLabel}</p>}
@@ -584,7 +588,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   const tier = timeLeft > 10 ? 'green' : timeLeft > 5 ? 'yellow' : 'red';
 
   return (
-    <div className="screen solo-screen">
+    <div className={screenClass}>
       {/* Developer-mode unlock: only when ?dev=1 is in the URL and not yet unlocked.
           Lets an admin enable official-highlight authoring from any play tab. */}
       {devParam && !isAdminSession && (

@@ -247,7 +247,7 @@ let gameSettings = {
   suddenDeathTimer: 5,
   towerFloorLives: 3,
   bossTolerance: 0,
-  journeyThreshold: 80,  // First Aid Journey: % score needed to complete a level
+  journeyThreshold: 50,  // First Aid Journey: % score needed to complete a level (>= passes)
   // First Aid Journey: which of the 16 hardcoded journey subjects players see
   // (ids mirror client/src/journeySubjects.js; default = all active)
   journeyActiveSubjects: [
@@ -367,6 +367,18 @@ async function loadSettingsFromDB() {
       }
 
       gameSettings = { ...gameSettings, ...loadedSettings };
+
+      // One-time migration: journey unlock threshold default dropped 80 → 50.
+      // persistSettingsToDB() writes EVERY key, so an old default of 80 is
+      // almost certainly persisted — migrate it once. The marker (also
+      // persisted) makes any later admin choice stick, including 80 again.
+      if (Number(gameSettings.journeyThreshold) === 80 && !gameSettings.journeyThresholdMigrated50) {
+        gameSettings.journeyThreshold = 50;
+        gameSettings.journeyThresholdMigrated50 = true;
+        await persistSettingsToDB();
+        console.log('[Settings] Migrated journeyThreshold 80 → 50 (one-time default change)');
+      }
+
       console.log(`[Settings] Loaded ${data.length} settings from Supabase`);
       console.log('[Settings] Sample values:', {
         hardModeEnabled: gameSettings.hardModeEnabled,
@@ -6734,7 +6746,7 @@ async function buildJourneyPath(userId, subject) {
 
   return {
     subject,
-    threshold: Number(gameSettings.journeyThreshold) || 80,
+    threshold: Number(gameSettings.journeyThreshold) || 50,
     chapters,
     ultimate,
     mastery: ultCompleted || ultAutoSkipped,
@@ -6742,7 +6754,7 @@ async function buildJourneyPath(userId, subject) {
 }
 
 app.get('/api/journey/:subject', requireAuth, async (req, res) => {
-  if (!supabase) return res.json({ subject: req.params.subject, threshold: 80, chapters: [], ultimate: null, mastery: false });
+  if (!supabase) return res.json({ subject: req.params.subject, threshold: 50, chapters: [], ultimate: null, mastery: false });
   try {
     const path = await buildJourneyPath(req.userId, req.params.subject);
     res.json(path);
@@ -6759,7 +6771,7 @@ app.post('/api/journey/complete', requireAuth, async (req, res) => {
     return res.status(400).json({ error: 'subject, level_key and numeric score_pct required' });
   }
   const pct       = Math.max(0, Math.min(100, Math.round(score_pct)));
-  const threshold = Number(gameSettings.journeyThreshold) || 80;
+  const threshold = Number(gameSettings.journeyThreshold) || 50;
   try {
     const { data: existing } = await supabase.from('journey_progress').select('*')
       .eq('user_id', req.userId).eq('subject', subject).eq('level_key', level_key)
