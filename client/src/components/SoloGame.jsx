@@ -33,9 +33,13 @@ function saveHi(subject, score) {
 export default function SoloGame({ subject, username, difficulty, onBack, onTryAgain, onChangeSubject, onBackToTopics, topicId, questionsUrl, onComplete, levelLabel, isJourney }) {
   const { settings } = useGameSettings();
   const { study: studyPref } = useTheme();   // Layer 1 chrome renders only when study mode is on
-  // Journey ALWAYS uses its own vibrant single-pane answer screen (matching the
-  // journey map theme) and overrides study mode. Solo/training still respect it.
-  const study = isJourney ? false : studyPref;
+  // Journey ALWAYS renders the full study-layout chrome (burger menu, header
+  // timer/hearts, footer with pause + calculator + arrows) regardless of the
+  // study preference — but skinned VIBRANT via .jm-vibrant, not the light study
+  // look. SoloGameJourney.css replicates the layout rules (which normally live
+  // behind html[data-study="on"]) under .jm-vibrant and overrides the study
+  // colours at higher specificity. Solo/training still respect the preference.
+  const study = isJourney ? true : studyPref;
   // Journey-only skin gate: SoloGameJourney.css styles apply solely under this
   // class, so solo/training/BR keep their normal (dark or study) look.
   const screenClass = `screen solo-screen${isJourney ? ' jm-vibrant' : ''}`;
@@ -691,6 +695,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
               </div>
               <div className="shd-meta">
                 <span className="stb-count">Item {qIdx + 1} of {questions.length}</span>
+                {isJourney && levelLabel && <span className="stb-id">{levelLabel}</span>}
               </div>
             </div>
             <div className="shd-center">
