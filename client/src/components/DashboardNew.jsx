@@ -145,6 +145,7 @@ export default function DashboardNew({ user, onPlayNow, onLogout, onUserUpdate }
           <div className="dn-icon-group">
             <div className="dn-drop-wrap" ref={notifDropdownRef}>
               <button
+                type="button"
                 className="dn-icon-btn"
                 title="Notifications"
                 onClick={() => { setShowNotifications(v => !v); setShowFriendsPanel(false); setShowSettings(false); }}
@@ -160,6 +161,7 @@ export default function DashboardNew({ user, onPlayNow, onLogout, onUserUpdate }
             </div>
             <div className="dn-drop-wrap" ref={friendsDropdownRef}>
               <button
+                type="button"
                 className="dn-icon-btn"
                 title="Friends"
                 onClick={() => { setShowFriendsPanel(v => !v); setShowNotifications(false); setShowSettings(false); }}
@@ -179,6 +181,7 @@ export default function DashboardNew({ user, onPlayNow, onLogout, onUserUpdate }
             </div>
             <div className="dn-drop-wrap" ref={settingsDropdownRef}>
               <button
+                type="button"
                 className="dn-icon-btn"
                 title="Settings"
                 onClick={() => { setShowSettings(v => !v); setShowNotifications(false); setShowFriendsPanel(false); }}
@@ -202,17 +205,17 @@ export default function DashboardNew({ user, onPlayNow, onLogout, onUserUpdate }
           <>
             {/* Explore row: Leaderboards / Clans / News live INSIDE Home now */}
             <div className="dn-explore">
-              <button className="dn-explore-card" onClick={() => openHomeView('leaderboard')}>
+              <button type="button" className="dn-explore-card" onClick={() => openHomeView('leaderboard')}>
                 <span className="dn-explore-icon">🏆</span>
                 <span className="dn-explore-label">Leaderboards</span>
                 <span className="dn-explore-arrow" aria-hidden="true">›</span>
               </button>
-              <button className="dn-explore-card" onClick={() => openHomeView('clans')}>
+              <button type="button" className="dn-explore-card" onClick={() => openHomeView('clans')}>
                 <span className="dn-explore-icon">🛡️</span>
                 <span className="dn-explore-label">Clans</span>
                 <span className="dn-explore-arrow" aria-hidden="true">›</span>
               </button>
-              <button className="dn-explore-card" onClick={() => openHomeView('news')}>
+              <button type="button" className="dn-explore-card" onClick={() => openHomeView('news')}>
                 <span className="dn-explore-icon">📰</span>
                 <span className="dn-explore-label">News</span>
                 {unreadCount > 0 && <span className="dn-dot dn-dot--card" />}
@@ -227,7 +230,7 @@ export default function DashboardNew({ user, onPlayNow, onLogout, onUserUpdate }
         {tab === 'home' && homeView !== 'main' && (
           <>
             <div className="dn-subhead">
-              <button className="dn-back-btn" onClick={() => setHomeView('main')}>← Home</button>
+              <button type="button" className="dn-back-btn" onClick={() => setHomeView('main')}>← Home</button>
               <span className="dn-subhead-title">{HOME_VIEW_TITLES[homeView]}</span>
             </div>
             {homeView === 'leaderboard' && <LeaderboardSection userId={user.id} user={user} />}
@@ -249,21 +252,21 @@ export default function DashboardNew({ user, onPlayNow, onLogout, onUserUpdate }
 
       {/* ── Bottom nav: Home · Stats · Shorts · Play ── */}
       <nav className="dn-nav">
-        <button className={`dn-nav-item ${tab === 'home' ? 'dn-nav-item--active' : ''}`} onClick={handleHomeTab}>
+        <button type="button" className={`dn-nav-item ${tab === 'home' ? 'dn-nav-item--active' : ''}`} aria-current={tab === 'home' ? 'page' : undefined} onClick={handleHomeTab}>
           {homeImages.icon_home
             ? <img loading="lazy" src={homeImages.icon_home} alt="" className="dn-nav-img" />
             : <span className="dn-nav-icon">🏠</span>}
           <span className="dn-nav-label">Home</span>
         </button>
-        <button className={`dn-nav-item ${tab === 'stats' ? 'dn-nav-item--active' : ''}`} onClick={() => setTab('stats')}>
+        <button type="button" className={`dn-nav-item ${tab === 'stats' ? 'dn-nav-item--active' : ''}`} aria-current={tab === 'stats' ? 'page' : undefined} onClick={() => setTab('stats')}>
           <span className="dn-nav-icon">📊</span>
           <span className="dn-nav-label">Stats</span>
         </button>
-        <button className={`dn-nav-item ${tab === 'shorts' ? 'dn-nav-item--active' : ''}`} onClick={() => setTab('shorts')}>
+        <button type="button" className={`dn-nav-item ${tab === 'shorts' ? 'dn-nav-item--active' : ''}`} aria-current={tab === 'shorts' ? 'page' : undefined} onClick={() => setTab('shorts')}>
           <span className="dn-nav-icon">🎬</span>
           <span className="dn-nav-label">Shorts</span>
         </button>
-        <button className="dn-nav-item dn-nav-item--play" onClick={onPlayNow}>
+        <button type="button" className="dn-nav-item dn-nav-item--play" onClick={onPlayNow}>
           {homeImages.icon_play
             ? <img loading="lazy" src={homeImages.icon_play} alt="" className="dn-nav-img" />
             : <span className="dn-nav-icon">▶️</span>}

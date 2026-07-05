@@ -167,11 +167,68 @@
   padding: 0;
 }
 
-/* Explore row: Leaderboards / Clans / News entry points inside Home */
+/* ── HomeSection re-homing ──────────────────────────────────────────────────
+   HomeSection (shared with the current dashboard) is styled for the OLD
+   full-screen layout: .dash-main clamps to calc(100vh-186px) with
+   overflow:hidden and 76px/110px chrome padding, and on desktop the widgets
+   are position:fixed at the viewport's top-left. Inside this shell that meant
+   clipped content, a dead top gap, and widgets escaping over the header.
+   Re-home everything into normal flow, scoped to .dn-screen so the current
+   dashboard is untouched. */
+.dn-screen .dash-main {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  padding: 0;
+  height: auto;
+  max-height: none;
+  overflow: visible;
+}
+
+/* Welcome banner first, visible on all widths (the old CSS hides it ≤1024px) */
+.dn-screen .dash-center-col {
+  order: -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  min-height: 0;
+}
+.dn-screen .center-welcome { padding: 6px 0 0; }
+.dn-screen .center-welcome-title { font-size: 26px; margin-bottom: 6px; }
+.dn-screen .center-welcome-sub { font-size: 14px; }
+
+/* Widgets: static, full-width responsive grid instead of a fixed sidebar */
+.dn-screen .dash-left-col { padding-top: 0 !important; }
+.dn-screen .dash-left-col .home-widgets {
+  position: static !important;
+  left: auto !important;
+  top: auto !important;
+  width: 100% !important;
+  max-width: none !important;
+  z-index: auto !important;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 14px;
+  padding: 0;
+}
+.dn-screen .home-widget {
+  border-radius: 16px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+}
+.dn-screen .home-widget-header { padding: 12px 16px 0; }
+.dn-screen .home-widget-content { padding: 12px 16px 14px; }
+
+/* Training Grounds Home shortcut removed from the NEW shell only — it's the
+   right column's sole child, and TG stays reachable via Play → ModeSplit. */
+.dn-screen .dash-right-col { display: none; }
+
+/* ── Explore row: Leaderboards / Clans / News entry points inside Home ─────── */
 .dn-explore {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
+  gap: 12px;
   margin-bottom: 16px;
 }
 
@@ -179,26 +236,40 @@
   position: relative;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 12px 14px;
-  border-radius: 14px;
+  gap: 12px;
+  min-height: 60px;
+  padding: 10px 14px;
+  border-radius: 16px;
   background: var(--dn-glass);
   border: 1px solid var(--dn-border);
   color: var(--dn-text);
   font-weight: 700;
-  font-size: 14px;
+  font-size: 14.5px;
   cursor: pointer;
   backdrop-filter: blur(8px);
-  transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+  transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
 }
 .dn-explore-card:hover {
   transform: translateY(-2px);
   border-color: var(--dn-gold);
   background: rgba(220, 190, 80, 0.12);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.3);
 }
-.dn-explore-icon { font-size: 19px; }
+.dn-explore-card:active { transform: translateY(0); }
+.dn-explore-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  border-radius: 12px;
+  background: rgba(220, 190, 80, 0.12);
+  border: 1px solid rgba(220, 190, 80, 0.2);
+  font-size: 19px;
+}
 .dn-explore-label { flex: 1; text-align: left; }
-.dn-explore-arrow { color: var(--dn-dim); font-size: 18px; font-weight: 800; }
+.dn-explore-arrow { color: var(--dn-dim); font-size: 20px; font-weight: 800; line-height: 1; }
 .dn-dot--card { position: static; margin-right: 2px; flex-shrink: 0; }
 
 /* Sub-view header (Leaderboards / Clans / News opened from Home) */
@@ -206,20 +277,26 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 14px;
+  margin-bottom: 16px;
 }
 .dn-back-btn {
-  padding: 8px 14px;
+  display: inline-flex;
+  align-items: center;
+  min-height: 38px;
+  padding: 8px 16px;
   border-radius: 999px;
   border: 1px solid var(--dn-border);
   background: var(--dn-glass);
   color: var(--dn-text);
+  font-family: inherit;
   font-weight: 700;
   font-size: 13px;
   cursor: pointer;
+  backdrop-filter: blur(8px);
+  transition: border-color 0.15s ease, background 0.15s ease;
 }
-.dn-back-btn:hover { border-color: var(--dn-gold); }
-.dn-subhead-title { font-weight: 800; font-size: 17px; }
+.dn-back-btn:hover { border-color: var(--dn-gold); background: rgba(220, 190, 80, 0.12); }
+.dn-subhead-title { font-weight: 800; font-size: 18px; }
 
 /* Stats tab: the embedded StatsPage manages its own layout; just give the
    fixed bottom nav breathing room. */
@@ -231,36 +308,6 @@
   align-items: center;
   justify-content: center;
   padding: 80px 0;
-}
-
-/* Shorts placeholder */
-.dn-placeholder {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  text-align: center;
-  margin: 12vh auto 0;
-  max-width: 380px;
-  padding: 36px 28px;
-  border-radius: 20px;
-  background: var(--dn-glass);
-  border: 1px solid var(--dn-border);
-  backdrop-filter: blur(10px);
-}
-.dn-placeholder-icon { font-size: 52px; line-height: 1; }
-.dn-placeholder-title { margin: 0; font-size: 24px; font-weight: 800; color: var(--dn-gold); }
-.dn-placeholder-text { margin: 0; font-size: 14px; line-height: 1.6; color: var(--dn-dim); }
-.dn-placeholder-badge {
-  margin-top: 6px;
-  padding: 4px 14px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: #0c110a;
-  background: var(--dn-gold);
 }
 
 /* ── Bottom nav ─────────────────────────────────────────────────────────────── */
@@ -285,24 +332,29 @@
 .dn-nav-item {
   position: relative;
   flex: 1;
-  max-width: 140px;
+  max-width: 150px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 3px;
+  gap: 4px;
+  padding: 6px 0;
   background: none;
   border: none;
   color: var(--dn-dim);
+  font-family: inherit;
   font-weight: 700;
   cursor: pointer;
-  transition: color 0.15s ease;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: color 0.15s ease, transform 0.1s ease;
 }
 .dn-nav-item:hover { color: var(--dn-text); }
+.dn-nav-item:active { transform: scale(0.94); }
 
-.dn-nav-icon { font-size: 21px; line-height: 1; }
+.dn-nav-icon { font-size: 22px; line-height: 1; }
 .dn-nav-img  { width: 24px; height: 24px; object-fit: contain; }
-.dn-nav-label { font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; }
+.dn-nav-label { font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; }
 
 /* Active tab: gold + top indicator bar */
 .dn-nav-item--active { color: var(--dn-gold); }
@@ -327,18 +379,42 @@
 /* ── Responsive ─────────────────────────────────────────────────────────────── */
 
 @media (max-width: 640px) {
-  .dn-header { padding: 8px 12px; }
+  .dn-header { padding: 8px 12px; gap: 8px; }
+  .dn-avatar { width: 38px; height: 38px; }
   .dn-username { max-width: 96px; font-size: 14px; }
+  .dn-level { font-size: 11px; }
   .dn-currency { padding: 5px 10px; font-size: 12px; gap: 8px; }
-  .dn-icon-btn { width: 34px; height: 34px; font-size: 15px; }
+  .dn-icon-btn { width: 36px; height: 36px; font-size: 15px; }
   .dn-main { padding: 12px 12px 20px; }
   .dn-explore { grid-template-columns: 1fr; gap: 8px; }
-  .dn-explore-card { padding: 12px; }
+  .dn-explore-card { min-height: 54px; padding: 8px 12px; }
+  .dn-explore-icon { width: 34px; height: 34px; font-size: 17px; }
   .dn-stats-embed { margin: -12px; }
-  /* Dropdowns hug the viewport on phones */
-  .dn-dropdown { right: -8px; max-width: calc(100vw - 16px); }
+  .dn-screen .center-welcome { padding: 2px 0 0; }
+  .dn-screen .center-welcome-title { font-size: 21px; }
+  .dn-screen .center-welcome-sub { font-size: 13px; }
+  .dn-screen .dash-main { gap: 12px; }
+  .dn-screen .dash-left-col .home-widgets { gap: 12px; }
+  .dn-subhead-title { font-size: 16px; }
+}
+
+/* Phones: anchor dropdown panels to the viewport under the header so a 360px
+   panel can never overflow the left edge from its right-aligned anchor. */
+@media (max-width: 480px) {
+  .dn-drop-wrap { position: static; }
+  .dn-dropdown,
+  .dn-dropdown--right {
+    position: fixed;
+    top: 62px;
+    left: 8px;
+    right: 8px;
+    display: flex;
+    justify-content: center;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .dn-explore-card:hover { transform: none; }
+  .dn-explore-card:hover,
+  .dn-explore-card:active,
+  .dn-nav-item:active { transform: none; }
 }
