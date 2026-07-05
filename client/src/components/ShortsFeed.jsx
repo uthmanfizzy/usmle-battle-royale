@@ -2,17 +2,21 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { embedUrl, thumbnailUrl, PLATFORM_LABELS, PLATFORM_ICONS } from '../utils/shortEmbeds';
 import './ShortsFeed.css';
 
-// Vertical TikTok-style Shorts feed (new dashboard Shorts tab, stage 2a).
+// Vertical TikTok-style Shorts feed (new dashboard Shorts tab, stage 2b).
 //
 // - Full-height slides, scroll-snap; mouse-wheel snap on desktop, swipe on mobile.
 // - PERF RULE: only the ACTIVE slide mounts an iframe (well inside the
 //   "active ± 1" budget); neighbors show instant thumbnails, everything else
-//   stays cheap. Off-screen iframes are unmounted, never left playing.
+//   stays cheap. Off-screen iframes are unmounted, never left playing —
+//   this matters doubly for TikTok, whose embeds are heavy.
 // - YouTube plays inline (muted autoplay when the slide becomes active).
-//   TikTok / Instagram are tap-to-open fallback cards this stage (inline
-//   embeds are stage 2b/2c — embedUrl() returns null for them).
+//   TikTok (2b) renders inline via the direct iframe (tiktok.com/embed/v2/ID);
+//   it has no reliable muted-autoplay, so the slide holds its thumbnail (or a
+//   branded gradient) until active, then the player's own controls take over.
+//   Instagram is still a tap-to-open fallback card (inline embed = stage 2c).
 // - Every slide keeps a permanent "Open in <platform> ↗" link: cross-origin
-//   iframe failures can't be detected, so the way out is always visible.
+//   iframe failures (login wall, removed video, blocked network) are silent,
+//   so the way out is always visible.
 
 const SERVER_URL = 'https://usmle-battle-royale-production.up.railway.app';
 
@@ -31,7 +35,7 @@ function OpenLink({ short, prominent = false }) {
 
 function Slide({ short, isActive, isNear }) {
   const thumb = short.thumbnail_url || thumbnailUrl(short.platform, short.video_id);
-  const inline = embedUrl(short.platform, short.video_id); // null → fallback card (2b/2c)
+  const inline = embedUrl(short.platform, short.video_id); // null → fallback card (Instagram, 2c)
 
   return (
     <div className="sf-media">
@@ -39,22 +43,24 @@ function Slide({ short, isActive, isNear }) {
         isActive ? (
           // Active slide only: the one mounted iframe in the whole feed
           <iframe
-            className="sf-iframe"
+            className={`sf-iframe sf-iframe--${short.platform}`}
             src={inline}
             title={short.title || 'Short'}
             frameBorder="0"
-            allow="autoplay; encrypted-media; picture-in-picture"
+            allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
             allowFullScreen
           />
         ) : (
-          <div className="sf-thumb-wrap">
-            {/* Neighbors keep a cheap thumbnail warm; far slides render it lazily */}
+          // Neighbors keep a cheap thumbnail warm; far slides render it lazily.
+          // The platform modifier paints a branded gradient behind slides with
+          // no thumbnail (e.g. TikTok rows whose oEmbed thumb expired).
+          <div className={`sf-thumb-wrap sf-thumb-wrap--${short.platform}`}>
             {thumb && <img className="sf-thumb" src={thumb} alt="" loading={isNear ? 'eager' : 'lazy'} />}
             <span className="sf-play-glyph" aria-hidden="true">▶</span>
           </div>
         )
       ) : (
-        // TikTok / Instagram (stage 2a): tap-to-open fallback card
+        // Instagram (until 2c): tap-to-open fallback card
         <a
           className={`sf-fallback sf-fallback--${short.platform}`}
           href={short.video_url}

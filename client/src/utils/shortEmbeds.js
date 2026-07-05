@@ -3,8 +3,8 @@
 // The server has its own authoritative copy of the parser (parseShortUrl in
 // server/index.js); keep the regexes in sync when editing.
 //
-// Stage 2a: YouTube renders inline; TikTok/Instagram are stored + shown as
-// tap-to-open fallback cards (their inline embeds are stage 2b/2c).
+// Stage 2b: YouTube + TikTok render inline; Instagram is stored + shown as a
+// tap-to-open fallback card (its inline embed is stage 2c).
 
 export const PLATFORM_LABELS = {
   youtube:   'YouTube',
@@ -45,10 +45,16 @@ export function parseShortUrl(url) {
 }
 
 // Inline-embed URL for a platform, or null when the platform isn't inline yet
-// (TikTok = 2b, Instagram = 2c — the feed shows a tap-to-open card instead).
+// (Instagram = 2c — the feed shows a tap-to-open card instead).
 export function embedUrl(platform, videoId) {
   if (platform === 'youtube') {
     return `https://www.youtube-nocookie.com/embed/${videoId}?playsinline=1&autoplay=1&mute=1&rel=0`;
+  }
+  if (platform === 'tiktok') {
+    // Direct, script-free iframe endpoint. No reliable muted-autoplay — the
+    // feed shows a thumbnail/placeholder until the slide is active, then
+    // mounts this player (its own controls take over).
+    return `https://www.tiktok.com/embed/v2/${videoId}`;
   }
   return null;
 }

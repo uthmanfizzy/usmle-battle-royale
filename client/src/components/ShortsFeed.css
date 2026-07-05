@@ -46,6 +46,12 @@
   border: none;
 }
 
+/* TikTok's embed/v2 brings its own card chrome and aspect handling — keep it
+   filling the 9:16 stage on black and let its internal player letterbox.
+   (Its card has a ~325px min-width; the stage stays within the viewport via
+   max-width, so at worst the embed scrolls internally rather than overflowing.) */
+.sf-iframe--tiktok { background: #000; }
+
 .sf-thumb-wrap {
   position: relative;
   width: 100%;
@@ -63,6 +69,15 @@
 }
 
 .sf-thumb--dim { opacity: 0.35; position: absolute; inset: 0; }
+
+/* Inline platforms with no thumbnail available: branded gradient behind the
+   play glyph (TikTok oEmbed thumbs are signed URLs and can expire). */
+.sf-thumb-wrap--tiktok {
+  background:
+    radial-gradient(ellipse 70% 50% at 20% 15%, rgba(37, 244, 238, 0.28), transparent 60%),
+    radial-gradient(ellipse 70% 50% at 85% 85%, rgba(254, 44, 85, 0.3), transparent 60%),
+    #0a0a0a;
+}
 
 .sf-play-glyph {
   position: absolute;
