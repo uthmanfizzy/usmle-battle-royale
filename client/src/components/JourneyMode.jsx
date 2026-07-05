@@ -633,7 +633,7 @@ export default function JourneyMode({
 
   const openConfirm = (node) => setConfirmNode(node);
 
-  const renderLevelNode = (l) => {
+  const renderLevelNode = (l, li) => {
     const side       = takeSide();
     const showSeg    = nodeCount > 0;
     nodeCount += 1;
@@ -663,8 +663,9 @@ export default function JourneyMode({
             })}
           >
             <span className="jm-node-face">
-              {!l.unlocked ? '🔒' : l.completed ? '✓' : '⚑'}
+              {!l.unlocked ? '🔒' : (li + 1)}
             </span>
+            {l.completed && <span className="jm-node-badge" aria-hidden="true">✓</span>}
           </button>
           <div className="jm-node-caption">
             <span className="jm-node-name" {...en('level', l.level_key, l.name)}>{l.name}</span>
@@ -705,8 +706,9 @@ export default function JourneyMode({
             })}
           >
             <span className="jm-node-face">
-              {boss.auto_skipped ? '💨' : !boss.unlocked ? '🔒' : boss.completed ? '✓' : big ? '🐉' : '💀'}
+              {boss.auto_skipped ? '💨' : !boss.unlocked ? '🔒' : big ? '👑' : '💀'}
             </span>
+            {boss.completed && <span className="jm-node-badge" aria-hidden="true">✓</span>}
           </button>
           <div className="jm-node-caption">
             <span className="jm-node-name" {...(labelKey ? ek(labelKey) : {})}>{label}</span>
@@ -726,23 +728,40 @@ export default function JourneyMode({
           {t('path.back', '← Subjects')}
         </button>
         <span className="jm-path-subject">{subject?.icon} {subject?.label}</span>
-        <span className="jm-path-progress">{doneNodes}/{totalNodes}</span>
+        <span className="jm-path-progress">
+          <span className="jm-progress-track" aria-hidden="true">
+            <span
+              className="jm-progress-fill"
+              style={{ width: `${totalNodes ? Math.round((doneNodes / totalNodes) * 100) : 0}%` }}
+            />
+          </span>
+          <span className="jm-progress-label">{doneNodes}/{totalNodes}</span>
+        </span>
       </div>
 
       <div className="jm-path-scroll">
         <div className="jm-map">
           <CompassRose />
           <div className="jm-path">
-            {chapters.map((c, ci) => (
-              <section key={c.chapter.id} className="jm-chapter">
-                <header className="jm-chapter-banner">
-                  <span className="jm-chapter-num">⚕ Chapter {ci + 1} ⚕</span>
-                  <span className="jm-chapter-name" {...en('chapter', c.chapter.id, c.chapter.name)}>{c.chapter.name}</span>
-                </header>
-                {c.levels.map(renderLevelNode)}
-                {renderBossNode(c.boss, `${c.chapter.name} ${t('boss.suffix', 'Boss')}`, false)}
-              </section>
-            ))}
+            {chapters.map((c, ci) => {
+              const chTotal = c.levels.length + (c.boss.auto_skipped ? 0 : 1);
+              const chDone  = c.levels.filter(l => l.completed).length
+                            + (!c.boss.auto_skipped && c.boss.completed ? 1 : 0);
+              const chComplete = chTotal > 0 && chDone === chTotal;
+              return (
+                <section key={c.chapter.id} className="jm-chapter">
+                  <header className={`jm-chapter-banner${chComplete ? ' jm-chapter-banner--done' : ''}`}>
+                    <span className="jm-chapter-num">Chapter {ci + 1}</span>
+                    <span className="jm-chapter-name" {...en('chapter', c.chapter.id, c.chapter.name)}>{c.chapter.name}</span>
+                    <span className={`jm-chapter-progress${chComplete ? ' jm-chapter-progress--done' : ''}`}>
+                      {chComplete ? '✓ Complete' : `${chDone}/${chTotal}`}
+                    </span>
+                  </header>
+                  {c.levels.map(renderLevelNode)}
+                  {renderBossNode(c.boss, `${c.chapter.name} ${t('boss.suffix', 'Boss')}`, false)}
+                </section>
+              );
+            })}
 
             {ultimate && renderBossNode(ultimate, t('ultimate.label', 'ULTIMATE BOSS'), true, 'ultimate.label')}
 
@@ -762,7 +781,7 @@ export default function JourneyMode({
           <div className="jm-confirm-card" onClick={e => e.stopPropagation()}>
             <span className="jm-confirm-seal" aria-hidden="true">⚕</span>
             <span className="jm-confirm-kind">
-              {confirmNode.kind === 'ultimate' ? '🐉 Ultimate Boss' : confirmNode.kind === 'boss' ? '💀 Chapter Boss' : '⚑ Level'}
+              {confirmNode.kind === 'ultimate' ? '👑 Ultimate Boss' : confirmNode.kind === 'boss' ? '💀 Chapter Boss' : '🎯 Level'}
             </span>
             <h3 className="jm-confirm-name">{confirmNode.name}</h3>
             <div className="jm-confirm-stats">

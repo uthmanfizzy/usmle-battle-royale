@@ -1,28 +1,36 @@
-@import url('https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=IM+Fell+English:ital@0;1&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:ital,wght@0,400;0,600;0,700;0,800;1,400&display=swap');
 
 /* ════════════════════════════════════════════════════════════════════════════
-   FIRST AID JOURNEY — aged-parchment fantasy adventure map
-   Tolkien-map cartography with medical accents. Warm, colourful, hand-drawn.
+   FIRST AID JOURNEY — vibrant gamified adventure path
+   Bold saturated gradients, candy-style 3D nodes, playful rounded type.
+   Same DOM, same logic — pure restyle of the parchment map.
    ════════════════════════════════════════════════════════════════════════════ */
 
 .jm-screen {
   /* palette */
-  --parchment-hi:  #f7ecd2;
-  --parchment:     #efdfb6;
-  --parchment-lo:  #dfc795;
-  --ink:           #4a3520;
-  --ink-soft:      rgba(74, 53, 32, 0.65);
-  --sepia:         #8b5e34;
-  --trail:         #7a4f28;
-  --gold:          #c9971c;
-  --gold-hi:       #f1c40f;
-  --map-green:     #3f6d3a;
-  --map-green-lo:  #2c4d28;
-  --ember:         #a8462a;
-  --ember-lo:      #6e2a17;
-  --royal:         #2e4a8b;
-  --violet:        #4a3a78;
-  --wax:           #9c2b23;
+  --bg-deep:    #140a33;
+  --bg-mid:     #241263;
+  --bg-hi:      #3b1d8f;
+  --text:       #f6f4ff;
+  --text-soft:  rgba(246, 244, 255, 0.72);
+  --glass:      rgba(255, 255, 255, 0.08);
+  --glass-brd:  rgba(255, 255, 255, 0.16);
+  --green:      #34d399;
+  --green-mid:  #10b981;
+  --green-lo:   #047857;
+  --cyan:       #22d3ee;
+  --blue:       #3b82f6;
+  --gold:       #fbbf24;
+  --gold-mid:   #f59e0b;
+  --gold-lo:    #b45309;
+  --pink:       #fb7185;
+  --pink-mid:   #e11d48;
+  --pink-lo:    #9f1239;
+  --purple:     #a855f7;
+  --purple-mid: #7c3aed;
+  --purple-lo:  #581c87;
+  --locked:     #4b5563;
+  --locked-lo:  #1f2937;
 
   position: fixed;
   inset: 0;
@@ -36,42 +44,36 @@
   justify-content: flex-start;
   padding: 40px 20px;
   overflow-y: auto;
-  color: var(--ink);
-  /* Atmospheric parchment: a bright glow lifts the centred content, warm corner
-     light + faint terrain tints (gold NE, forest SW) add depth without noise. */
+  color: var(--text);
+  font-family: 'Nunito', system-ui, sans-serif;
+  /* Vibrant arcade sky: deep indigo base with magenta + cyan energy glows */
   background:
-    radial-gradient(ellipse 62% 52% at 50% 30%, rgba(255, 252, 242, 0.92), transparent 62%),
-    radial-gradient(ellipse at 16% 6%,  rgba(255, 250, 235, 0.7),  transparent 48%),
-    radial-gradient(ellipse at 92% 12%, rgba(201, 151, 28, 0.22),  transparent 46%),
-    radial-gradient(ellipse at 8% 96%,  rgba(63, 109, 58, 0.16),   transparent 52%),
-    radial-gradient(ellipse at 88% 95%, rgba(150, 110, 60, 0.4),   transparent 55%),
-    linear-gradient(160deg, var(--parchment-hi) 0%, var(--parchment) 52%, var(--parchment-lo) 100%);
+    radial-gradient(ellipse 60% 45% at 85% 0%,  rgba(217, 70, 239, 0.32), transparent 60%),
+    radial-gradient(ellipse 55% 45% at 8% 12%,  rgba(34, 211, 238, 0.22), transparent 58%),
+    radial-gradient(ellipse 70% 55% at 50% 110%, rgba(124, 58, 237, 0.4),  transparent 62%),
+    linear-gradient(165deg, var(--bg-hi) 0%, var(--bg-mid) 45%, var(--bg-deep) 100%);
   animation: jm-fade-in 0.35s ease both;
 }
 
-/* Paper grain (SVG turbulence) + burnt-edge vignette, on every journey screen */
+/* Playful dot grid sparkle over the gradient, on every journey screen */
 .jm-screen::before {
   content: '';
   position: fixed;
   inset: 0;
   pointer-events: none;
   z-index: 0;
-  opacity: 0.5;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.42 0 0 0 0 0.31 0 0 0 0 0.16 0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-image: radial-gradient(circle, rgba(255, 255, 255, 0.07) 1.2px, transparent 1.8px);
+  background-size: 28px 28px;
 }
 
+/* Soft vignette for depth so centered content pops */
 .jm-screen::after {
   content: '';
   position: fixed;
   inset: 0;
   pointer-events: none;
   z-index: 0;
-  /* Burnt-edge vignette: radial corner darkening + inset glow frames the map and
-     deepens the scene so centred content reads with more contrast. */
-  background: radial-gradient(ellipse 100% 100% at 50% 48%, transparent 56%, rgba(46, 31, 16, 0.3) 100%);
-  box-shadow:
-    inset 0 0 90px rgba(101, 67, 33, 0.45),
-    inset 0 0 200px rgba(74, 50, 24, 0.26);
+  background: radial-gradient(ellipse 100% 100% at 50% 45%, transparent 55%, rgba(8, 4, 24, 0.5) 100%);
 }
 
 .jm-screen > * { position: relative; z-index: 1; }
@@ -81,32 +83,34 @@
   to   { opacity: 1; }
 }
 
-/* ── Back button: aged leather tab ─────────────────────────────────────────── */
+/* ── Back button: glassy pill ──────────────────────────────────────────────── */
 
 .jm-back-btn {
   position: absolute;
   top: 20px;
   left: 20px;
-  background: linear-gradient(180deg, #6b4a2b, #523722);
-  border: 2px solid #3d2917;
-  box-shadow: 0 3px 8px rgba(74, 53, 32, 0.35), inset 0 1px 0 rgba(247, 236, 210, 0.25);
-  color: var(--parchment-hi);
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  box-shadow: 0 4px 14px rgba(8, 4, 24, 0.35);
+  color: var(--text);
   padding: 9px 18px;
-  border-radius: 8px;
-  font-family: 'IM Fell English SC', serif;
+  border-radius: 999px;
+  font-family: 'Baloo 2', 'Nunito', sans-serif;
+  font-weight: 700;
   font-size: 15px;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.02em;
   cursor: pointer;
+  backdrop-filter: blur(8px);
   transition: all 0.2s ease;
   z-index: 5;
 }
 
 .jm-back-btn:hover {
-  background: linear-gradient(180deg, #7d5733, #5f4128);
+  background: rgba(255, 255, 255, 0.2);
   transform: translateX(-2px);
 }
 
-/* ── Scroll cards (guest gate / error / empty path): a quest parchment ─────── */
+/* ── Glass cards (guest gate / error / empty path) ─────────────────────────── */
 
 .jm-scroll-card {
   display: flex;
@@ -115,77 +119,85 @@
   gap: 14px;
   margin: auto 0; /* vertically centered when it fits, scrollable when not */
   max-width: 430px;
-  padding: 48px 40px;
-  border-radius: 8px;
+  padding: 44px 36px;
+  border-radius: 24px;
   text-align: center;
-  font-family: 'IM Fell English', serif;
-  color: var(--ink);
-  background:
-    linear-gradient(170deg, rgba(255, 250, 238, 0.75), rgba(233, 211, 160, 0.6)),
-    var(--parchment);
-  border: 2px solid var(--sepia);
-  outline: 1px solid rgba(122, 79, 40, 0.45);
-  outline-offset: 5px;
-  box-shadow: 0 12px 34px rgba(74, 53, 32, 0.35);
+  color: var(--text);
+  background: linear-gradient(170deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.05));
+  border: 1px solid var(--glass-brd);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 18px 44px rgba(8, 4, 24, 0.45);
 }
 
-.jm-scroll-icon { font-size: 54px; line-height: 1; filter: drop-shadow(0 3px 6px rgba(74, 53, 32, 0.35)); }
+.jm-scroll-icon { font-size: 56px; line-height: 1; filter: drop-shadow(0 4px 10px rgba(8, 4, 24, 0.45)); }
 
 .jm-scroll-card h2 {
   margin: 0;
-  font-family: 'IM Fell English SC', serif;
-  font-size: 26px;
-  font-weight: 400;
-  letter-spacing: 0.04em;
-  color: var(--ink);
+  font-family: 'Baloo 2', sans-serif;
+  font-size: 27px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  color: var(--text);
 }
 
 .jm-scroll-card p {
   margin: 0 0 8px;
   font-size: 16px;
-  font-style: italic;
-  color: var(--ink-soft);
+  color: var(--text-soft);
   line-height: 1.6;
 }
 
-.jm-scroll-card .error-msg { color: var(--ember); }
+.jm-scroll-card .error-msg { color: var(--pink); font-weight: 700; }
 
 /* Loading screen shares the flex-start container — keep its spinner centered */
 .jm-screen > .waiting-screen { margin: auto 0; }
 
-/* Journey-scoped looks for the shared buttons */
+/* Journey-scoped looks for the shared buttons: chunky candy CTA */
 .jm-screen .btn-start {
-  background: linear-gradient(180deg, var(--map-green), var(--map-green-lo));
-  border: 2px solid #21391e;
-  color: var(--parchment-hi);
-  font-family: 'IM Fell English SC', serif;
-  letter-spacing: 0.08em;
-  box-shadow: 0 4px 10px rgba(44, 77, 40, 0.4), inset 0 1px 0 rgba(247, 236, 210, 0.3);
+  background: linear-gradient(180deg, var(--green), var(--green-mid));
+  border: none;
+  color: #063b27;
+  font-family: 'Baloo 2', sans-serif;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  border-radius: 16px;
+  box-shadow: 0 5px 0 var(--green-lo), 0 12px 22px rgba(4, 120, 87, 0.35);
   text-shadow: none;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
 }
 
 .jm-screen .btn-start:not(:disabled):hover {
-  background: linear-gradient(180deg, #4b7f45, #355c30);
-  transform: translateY(-1px);
+  filter: brightness(1.08);
+  transform: translateY(-2px);
+  box-shadow: 0 7px 0 var(--green-lo), 0 16px 26px rgba(4, 120, 87, 0.4);
+}
+
+.jm-screen .btn-start:not(:disabled):active {
+  transform: translateY(3px);
+  box-shadow: 0 2px 0 var(--green-lo), 0 6px 12px rgba(4, 120, 87, 0.35);
 }
 
 .jm-screen .btn-secondary {
-  background: transparent;
-  border: 2px solid var(--sepia);
-  color: var(--sepia);
-  font-family: 'IM Fell English SC', serif;
-  letter-spacing: 0.06em;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: var(--text);
+  font-family: 'Baloo 2', sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  border-radius: 16px;
+  transition: background 0.15s ease;
 }
 
-.jm-screen .btn-secondary:hover { background: rgba(139, 94, 52, 0.12); }
+.jm-screen .btn-secondary:hover { background: rgba(255, 255, 255, 0.15); }
 
 .jm-screen .waiting-screen p {
-  color: var(--ink);
-  font-family: 'IM Fell English SC', serif;
+  color: var(--text);
+  font-family: 'Baloo 2', sans-serif;
+  font-weight: 700;
   font-size: 18px;
 }
 
-/* ── Subject select: the atlas page ────────────────────────────────────────── */
+/* ── Subject select: the realm picker ──────────────────────────────────────── */
 
 .jm-banner {
   text-align: center;
@@ -202,27 +214,30 @@
   display: block;
   font-size: 13px;
   letter-spacing: 0.3em;
-  color: var(--sepia);
-  opacity: 0.8;
+  color: var(--cyan);
+  opacity: 0.85;
   margin-bottom: 6px;
 }
 
 .jm-title {
-  font-family: 'IM Fell English SC', serif;
-  font-weight: 400;
-  font-size: 44px;
-  letter-spacing: 0.08em;
-  color: var(--ink);
+  font-family: 'Baloo 2', sans-serif;
+  font-weight: 800;
+  font-size: 46px;
+  letter-spacing: 0.01em;
   margin: 0 0 6px;
-  text-shadow: 1px 1px 0 rgba(247, 236, 210, 0.8), 0 3px 12px rgba(122, 79, 40, 0.3);
+  background: linear-gradient(92deg, #67e8f9 0%, #a5b4fc 45%, #f0abfc 100%);
+  -webkit-background-clip: text;
+          background-clip: text;
+  -webkit-text-fill-color: transparent;
+          color: #a5b4fc; /* fallback */
+  filter: drop-shadow(0 4px 16px rgba(124, 58, 237, 0.45));
 }
 
 .jm-tagline {
   margin: 0;
-  font-family: 'IM Fell English', serif;
-  font-style: italic;
   font-size: 16px;
-  color: var(--ink-soft);
+  font-weight: 600;
+  color: var(--text-soft);
 }
 
 /* Sections wrapper — owns the centering auto-margin so the grids inside don't
@@ -234,7 +249,7 @@
   padding-bottom: 44px;
 }
 
-/* Section headers: ⚜ ── label ── ⚜ ink rules, kin to the chapter banners */
+/* Section headers: ✦ ── label ── ✦ neon rules */
 .jm-section-header {
   display: flex;
   align-items: center;
@@ -245,31 +260,33 @@
 
 .jm-section-rule {
   flex: 1;
-  border-top: 2px dashed rgba(122, 79, 40, 0.55);
+  border-top: 2px dashed rgba(165, 180, 252, 0.35);
 }
 
 .jm-section-fleur {
-  font-size: 15px;
-  color: var(--sepia);
+  font-size: 14px;
+  color: var(--cyan);
   opacity: 0.8;
 }
 
 .jm-section-title {
   margin: 0;
-  font-family: 'IM Fell English SC', serif;
-  font-weight: 400;
-  font-size: 21px;
-  letter-spacing: 0.12em;
+  font-family: 'Baloo 2', sans-serif;
+  font-weight: 800;
+  font-size: 20px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
   text-align: center;
-  color: var(--sepia);
-  text-shadow: 1px 1px 0 rgba(247, 236, 210, 0.7);
+  color: #c7d2fe;
 }
 
-/* On a vivid backdrop the title gets the same parchment-ribbon treatment as the banner */
+/* On a vivid backdrop the title gets a glass chip so it stays readable */
 .jm-screen--bg .jm-section-title {
-  background: rgba(247, 236, 210, 0.78);
-  border-radius: 8px;
-  padding: 4px 14px;
+  background: rgba(20, 10, 51, 0.6);
+  border: 1px solid var(--glass-brd);
+  border-radius: 999px;
+  padding: 4px 16px;
+  backdrop-filter: blur(6px);
 }
 
 .jm-subject-grid {
@@ -280,23 +297,21 @@
   margin: 0 auto;
 }
 
-/* Cartouche cards, staggered rise on load */
+/* Glass game-tiles, staggered rise on load */
 .jm-subject-card {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 10px;
-  padding: 20px 12px;
-  border-radius: 10px;
+  padding: 22px 12px;
+  border-radius: 20px;
   cursor: pointer;
-  font-family: 'IM Fell English SC', serif;
-  color: var(--ink);
-  background: linear-gradient(170deg, rgba(255, 250, 238, 0.85), rgba(233, 211, 160, 0.55));
-  border: 2px solid var(--sepia);
-  outline: 1px solid rgba(122, 79, 40, 0.35);
-  outline-offset: 3px;
-  box-shadow: 0 4px 12px rgba(74, 53, 32, 0.22);
-  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  font-family: 'Baloo 2', sans-serif;
+  color: var(--text);
+  background: linear-gradient(170deg, rgba(255, 255, 255, 0.13), rgba(255, 255, 255, 0.05));
+  border: 1px solid var(--glass-brd);
+  box-shadow: 0 6px 18px rgba(8, 4, 24, 0.35);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease;
   animation: jm-card-rise 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
@@ -310,13 +325,14 @@
 }
 
 .jm-subject-card:hover {
-  transform: translateY(-4px);
-  border-color: var(--gold);
-  box-shadow: 0 10px 24px rgba(74, 53, 32, 0.35), 0 0 16px rgba(201, 151, 28, 0.35);
+  transform: translateY(-5px) scale(1.02);
+  border-color: rgba(34, 211, 238, 0.7);
+  background: linear-gradient(170deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.08));
+  box-shadow: 0 14px 30px rgba(8, 4, 24, 0.45), 0 0 24px rgba(34, 211, 238, 0.35);
 }
 
-.jm-subject-icon  { font-size: 34px; line-height: 1; filter: drop-shadow(0 2px 4px rgba(74, 53, 32, 0.3)); }
-.jm-subject-label { font-size: 15px; letter-spacing: 0.04em; text-align: center; line-height: 1.35; }
+.jm-subject-icon  { font-size: 36px; line-height: 1; filter: drop-shadow(0 3px 8px rgba(8, 4, 24, 0.4)); }
+.jm-subject-label { font-size: 15px; font-weight: 700; letter-spacing: 0.01em; text-align: center; line-height: 1.35; }
 
 /* ── Path screen frame ─────────────────────────────────────────────────────── */
 
@@ -324,18 +340,15 @@
   justify-content: flex-start;
   padding: 0;
   overflow: hidden;
-  /* Deep "dusk map-table" backdrop: a warm hearth-glow behind the chart fades to
-     aged-leather and forest-dusk edges, so the bright parchment map sheet and its
-     nodes/ribbons pop with strong contrast and depth. The map sheet is opaque
-     (see .jm-map), so this dark surround never touches text readability. */
+  /* Deeper arena backdrop behind the level board so the vivid nodes pop */
   background:
-    radial-gradient(ellipse 70% 60% at 50% 34%, rgba(135, 92, 48, 0.5), transparent 60%),
-    radial-gradient(ellipse 120% 70% at 50% 2%,  rgba(96, 64, 34, 0.5),  transparent 58%),
-    radial-gradient(ellipse 100% 75% at 50% 118%, rgba(34, 58, 34, 0.55), transparent 62%),
-    linear-gradient(168deg, #2c1e12 0%, #21160d 46%, #181007 100%);
+    radial-gradient(ellipse 70% 45% at 80% -5%,  rgba(217, 70, 239, 0.3),  transparent 60%),
+    radial-gradient(ellipse 60% 45% at 5% 20%,   rgba(34, 211, 238, 0.18), transparent 58%),
+    radial-gradient(ellipse 80% 60% at 50% 115%, rgba(124, 58, 237, 0.35), transparent 64%),
+    linear-gradient(170deg, #2a1470 0%, #1b0e4d 48%, #10082b 100%);
 }
 
-/* Header: a leather-and-brass strip above the map */
+/* Header: sticky glass HUD strip */
 .jm-path-header {
   position: relative;
   width: 100%;
@@ -343,12 +356,14 @@
   align-items: center;
   justify-content: center;
   gap: 16px;
-  padding: 16px 20px;
-  background: linear-gradient(180deg, #5d3f24, #46301b);
-  border-bottom: 3px solid var(--gold);
-  box-shadow: 0 4px 14px rgba(74, 53, 32, 0.45);
-  font-family: 'IM Fell English SC', serif;
+  padding: 14px 20px;
+  background: rgba(16, 8, 43, 0.72);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 6px 22px rgba(8, 4, 24, 0.45);
+  backdrop-filter: blur(12px);
+  font-family: 'Baloo 2', sans-serif;
   flex-shrink: 0;
+  z-index: 6;
 }
 
 .jm-path-header .jm-back-btn { position: absolute; top: 50%; transform: translateY(-50%); }
@@ -356,20 +371,48 @@
 
 .jm-path-subject {
   font-size: 21px;
-  letter-spacing: 0.08em;
-  color: var(--parchment-hi);
-  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  color: var(--text);
+  text-shadow: 0 2px 8px rgba(8, 4, 24, 0.5);
 }
 
-/* Progress badge: a little wax seal */
+/* Progress HUD: gradient bar + count */
 .jm-path-progress {
-  font-size: 14px;
-  color: var(--parchment-hi);
-  background: radial-gradient(circle at 35% 30%, #b8392e, var(--wax) 70%);
-  border: 2px solid #6e1d17;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 6px 12px;
   border-radius: 999px;
-  padding: 4px 13px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.jm-progress-track {
+  display: block;
+  width: 110px;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(8, 4, 24, 0.55);
+  overflow: hidden;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.jm-progress-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--green) 0%, var(--cyan) 100%);
+  box-shadow: 0 0 10px rgba(52, 211, 153, 0.7);
+  transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.jm-progress-label {
+  font-family: 'Baloo 2', sans-serif;
+  font-weight: 800;
+  font-size: 13px;
+  color: var(--text);
+  white-space: nowrap;
 }
 
 .jm-path-scroll {
@@ -379,52 +422,44 @@
   padding: 18px 12px 28px;
 }
 
-/* The map sheet: framed parchment with contour lines and a compass */
+/* The level board: a glass panel the path winds down */
 .jm-map {
   position: relative;
   max-width: 600px;
   margin: 0 auto;
   padding: 34px 18px 50px;
-  border: 3px solid var(--sepia);
-  outline: 1px solid rgba(122, 79, 40, 0.5);
-  outline-offset: 6px;
-  border-radius: 6px;
-  /* Self-contained parchment chart: an opaque parchment fill UNDER the contour
-     lines so the sheet stands on its own against a deep backdrop (no longer
-     relying on the screen background showing through). */
-  background-color: var(--parchment-hi);
-  background-image:
-    repeating-radial-gradient(circle at 108% -6%,  transparent 0 24px, rgba(122, 79, 40, 0.07) 24px 25px),
-    repeating-radial-gradient(circle at -12% 108%, transparent 0 30px, rgba(122, 79, 40, 0.06) 30px 31px),
-    repeating-radial-gradient(circle at 50% 160%,  transparent 0 40px, rgba(63, 109, 58, 0.05) 40px 41px),
-    radial-gradient(ellipse at 28% 14%, var(--parchment-hi), transparent 58%),
-    linear-gradient(160deg, var(--parchment-hi) 0%, var(--parchment) 55%, var(--parchment-lo) 100%);
+  border: 1px solid var(--glass-brd);
+  border-radius: 28px;
+  background:
+    radial-gradient(ellipse 90% 40% at 50% 0%, rgba(168, 85, 247, 0.14), transparent 60%),
+    linear-gradient(170deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.03));
+  backdrop-filter: blur(10px);
   box-shadow:
-    0 16px 44px rgba(12, 8, 4, 0.5),
-    0 4px 14px rgba(12, 8, 4, 0.35);
+    0 20px 50px rgba(8, 4, 24, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
 }
 
-/* Corner ornaments on the map frame */
+/* Corner sparkles on the board frame */
 .jm-map::before,
 .jm-map::after {
   content: '✦';
   position: absolute;
   font-size: 15px;
-  color: var(--sepia);
-  opacity: 0.7;
+  color: var(--cyan);
+  opacity: 0.6;
 }
-.jm-map::before { top: 6px; left: 10px; }
-.jm-map::after  { bottom: 6px; right: 10px; }
+.jm-map::before { top: 10px; left: 14px; }
+.jm-map::after  { bottom: 10px; right: 14px; }
 
 .jm-compass {
   position: absolute;
   top: 16px;
   right: 16px;
-  width: 76px;
-  height: 76px;
-  color: var(--sepia);
+  width: 70px;
+  height: 70px;
+  color: rgba(199, 210, 254, 0.5);
   opacity: 0.55;
-  font-family: 'IM Fell English SC', serif;
+  font-family: 'Baloo 2', sans-serif;
   pointer-events: none;
 }
 
@@ -432,7 +467,7 @@
 
 .jm-chapter { position: relative; }
 
-/* ── Chapter banners: region labels on a forked ribbon ─────────────────────── */
+/* ── Chapter banners: bold gradient ribbons ────────────────────────────────── */
 
 .jm-chapter-banner {
   position: relative;
@@ -440,44 +475,67 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: 3px;
   margin: 30px auto 24px;
-  padding: 12px 40px;
+  padding: 13px 36px 15px;
   max-width: 380px;
   text-align: center;
-  color: var(--parchment-hi);
-  background: linear-gradient(180deg, #4b7a45, var(--map-green-lo));
-  border-top: 2px solid rgba(247, 236, 210, 0.35);
-  border-bottom: 3px solid #1d3319;
-  clip-path: polygon(4% 0, 96% 0, 100% 50%, 96% 100%, 4% 100%, 0 50%);
-  box-shadow: 0 6px 16px rgba(44, 77, 40, 0.35);
-  filter: drop-shadow(0 4px 8px rgba(74, 53, 32, 0.3));
+  color: #fff;
+  background: linear-gradient(120deg, #6366f1 0%, #8b5cf6 55%, #d946ef 100%);
+  border: none;
+  border-radius: 20px;
+  box-shadow: 0 6px 0 rgba(49, 26, 129, 0.85), 0 14px 30px rgba(88, 28, 135, 0.45);
+}
+
+.jm-chapter-banner--done {
+  background: linear-gradient(120deg, var(--gold-mid) 0%, var(--gold) 55%, #fde68a 100%);
+  color: #713f12;
+  box-shadow: 0 6px 0 rgba(146, 64, 14, 0.8), 0 14px 30px rgba(180, 83, 9, 0.4);
 }
 
 .jm-chapter-num {
-  font-family: 'IM Fell English', serif;
-  font-style: italic;
-  font-size: 12px;
-  letter-spacing: 0.22em;
-  color: rgba(247, 236, 210, 0.8);
+  font-family: 'Baloo 2', sans-serif;
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.28em;
   text-transform: uppercase;
+  opacity: 0.85;
 }
 
 .jm-chapter-name {
-  font-family: 'IM Fell English SC', serif;
-  font-size: 20px;
-  letter-spacing: 0.06em;
+  font-family: 'Baloo 2', sans-serif;
+  font-weight: 800;
+  font-size: 21px;
+  letter-spacing: 0.01em;
+  line-height: 1.15;
 }
 
-/* ── The trail: hand-drawn dashed segments winding between destinations ────── */
+/* Per-chapter completion chip */
+.jm-chapter-progress {
+  margin-top: 3px;
+  font-family: 'Baloo 2', sans-serif;
+  font-weight: 800;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  padding: 1px 12px;
+  border-radius: 999px;
+  background: rgba(8, 4, 24, 0.32);
+  color: #fff;
+}
+
+.jm-chapter-progress--done {
+  background: rgba(255, 255, 255, 0.55);
+  color: #713f12;
+}
+
+/* ── The trail: glowing dotted path winding between nodes ──────────────────── */
 
 .jm-trail-seg {
   position: relative;
   z-index: 0;
   width: 38%;
   height: 0;
-  border-top: 4px dashed var(--trail);
-  opacity: 0.7;
+  border-top: 5px dotted rgba(199, 210, 254, 0.4);
   margin: -8px auto;
 }
 
@@ -485,7 +543,7 @@
 .jm-trail-seg--left   { transform: rotate(-16deg); }
 .jm-trail-seg--center { width: 22%; transform: rotate(8deg); }
 
-/* ── Node rows: destinations off the trail ─────────────────────────────────── */
+/* ── Node rows: stops along the path ───────────────────────────────────────── */
 
 .jm-node-row {
   position: relative;
@@ -495,178 +553,324 @@
   align-items: center;
   width: 46%;
   margin: 26px 0;
+  animation: jm-node-in 0.5s cubic-bezier(0.34, 1.4, 0.64, 1) both;
+}
+
+.jm-node-row:nth-child(4n)   { animation-delay: 0.05s; }
+.jm-node-row:nth-child(4n+1) { animation-delay: 0.1s; }
+.jm-node-row:nth-child(4n+3) { animation-delay: 0.15s; }
+
+@keyframes jm-node-in {
+  from { opacity: 0; transform: scale(0.7) translateY(14px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
 }
 
 .jm-node-row--left   { margin-right: auto; }
 .jm-node-row--right  { margin-left: auto; }
 .jm-node-row--center { margin-left: auto; margin-right: auto; }
 
-/* ── Nodes: map destinations ───────────────────────────────────────────────── */
+/* ── Nodes: candy-style 3D game buttons ────────────────────────────────────── */
 
 .jm-node {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 74px;
-  height: 74px;
+  width: 78px;
+  height: 78px;
   border-radius: 50%;
   cursor: pointer;
-  background: radial-gradient(circle at 32% 28%, #fdf4da, #ecd49a 70%);
-  border: 4px solid var(--royal);
+  background: linear-gradient(180deg, var(--green) 0%, var(--green-mid) 100%);
+  border: none;
   box-shadow:
-    0 5px 14px rgba(74, 53, 32, 0.35),
-    inset 0 2px 4px rgba(255, 255, 255, 0.5);
-  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+    0 6px 0 var(--green-lo),
+    0 14px 24px rgba(8, 4, 24, 0.45),
+    inset 0 2px 2px rgba(255, 255, 255, 0.45);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
 }
 
 .jm-node:not(:disabled):hover {
-  transform: scale(1.09);
-  border-color: var(--gold-hi);
-  box-shadow: 0 8px 20px rgba(74, 53, 32, 0.4), 0 0 20px rgba(201, 151, 28, 0.45);
+  transform: translateY(-4px) scale(1.06);
+  filter: brightness(1.08);
+  box-shadow:
+    0 9px 0 var(--green-lo),
+    0 18px 30px rgba(8, 4, 24, 0.5),
+    0 0 26px rgba(52, 211, 153, 0.5),
+    inset 0 2px 2px rgba(255, 255, 255, 0.45);
+}
+
+.jm-node:not(:disabled):active {
+  transform: translateY(3px) scale(0.98);
+  box-shadow:
+    0 2px 0 var(--green-lo),
+    0 6px 12px rgba(8, 4, 24, 0.4),
+    inset 0 2px 2px rgba(255, 255, 255, 0.35);
+}
+
+.jm-node:focus-visible {
+  outline: 3px solid var(--cyan);
+  outline-offset: 3px;
 }
 
 .jm-node-face {
-  font-size: 28px;
+  font-family: 'Baloo 2', sans-serif;
+  font-weight: 800;
+  font-size: 30px;
   line-height: 1;
-  color: var(--royal);
-  filter: drop-shadow(0 2px 3px rgba(74, 53, 32, 0.3));
+  color: #fff;
+  text-shadow: 0 2px 4px rgba(6, 59, 39, 0.5);
+  filter: drop-shadow(0 2px 3px rgba(8, 4, 24, 0.25));
 }
 
-/* Locked: a weathered, sealed location */
+/* Completion badge: little green check pinned to the node */
+.jm-node-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  font-size: 14px;
+  font-weight: 800;
+  color: #063b27;
+  background: linear-gradient(180deg, #a7f3d0, var(--green));
+  border: 2px solid #0b0630;
+  box-shadow: 0 3px 8px rgba(8, 4, 24, 0.45);
+}
+
+/* Locked: muted slate, clearly off-limits */
 .jm-node--locked {
   cursor: default;
-  background: radial-gradient(circle at 32% 28%, #e3d6b5, #cdbb92 70%);
-  border-color: #9a8a68;
-  border-style: dashed;
-  opacity: 0.8;
+  background: linear-gradient(180deg, var(--locked), #374151);
+  box-shadow:
+    0 6px 0 var(--locked-lo),
+    0 10px 18px rgba(8, 4, 24, 0.4),
+    inset 0 2px 2px rgba(255, 255, 255, 0.12);
+  opacity: 0.85;
 }
-.jm-node--locked .jm-node-face { opacity: 0.55; filter: grayscale(0.8) sepia(0.4); }
+.jm-node--locked .jm-node-face { font-size: 26px; opacity: 0.8; text-shadow: none; filter: grayscale(1); }
 
-/* Completed: a gold medallion seal */
+/* Completed: gold trophy button */
 .jm-node--done {
-  background: radial-gradient(circle at 32% 28%, #f9dd80, var(--gold) 75%);
-  border-color: #8c6a14;
-  border-style: solid;
+  background: linear-gradient(180deg, #fde68a 0%, var(--gold-mid) 100%);
+  box-shadow:
+    0 6px 0 var(--gold-lo),
+    0 14px 24px rgba(8, 4, 24, 0.45),
+    0 0 20px rgba(251, 191, 36, 0.35),
+    inset 0 2px 2px rgba(255, 255, 255, 0.55);
 }
-.jm-node--done .jm-node-face { color: #5c450c; font-weight: 700; }
+.jm-node--done .jm-node-face { color: #78350f; text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4); }
+.jm-node--done:not(:disabled):hover {
+  box-shadow:
+    0 9px 0 var(--gold-lo),
+    0 18px 30px rgba(8, 4, 24, 0.5),
+    0 0 30px rgba(251, 191, 36, 0.55),
+    inset 0 2px 2px rgba(255, 255, 255, 0.55);
+}
 
-/* Frontier: the glowing "go here next" destination */
+/* Frontier: the bouncing, glowing "you are here" node */
 .jm-node--frontier {
-  border-color: var(--gold-hi);
-  background: radial-gradient(circle at 32% 28%, #fdf7df, #f4e2a4 70%);
-  animation: jm-pulse 1.9s ease-in-out infinite;
+  background: linear-gradient(180deg, #6ee7b7 0%, var(--green-mid) 100%);
+  animation: jm-frontier 1.8s ease-in-out infinite;
 }
 
-@keyframes jm-pulse {
-  0%, 100% { box-shadow: 0 5px 14px rgba(74, 53, 32, 0.35), 0 0 0 0 rgba(241, 196, 15, 0.55); }
-  50%      { box-shadow: 0 5px 14px rgba(74, 53, 32, 0.35), 0 0 0 16px rgba(241, 196, 15, 0); }
+@keyframes jm-frontier {
+  0%, 100% {
+    transform: translateY(0);
+    box-shadow:
+      0 6px 0 var(--green-lo),
+      0 14px 24px rgba(8, 4, 24, 0.45),
+      0 0 0 0 rgba(52, 211, 153, 0.6),
+      inset 0 2px 2px rgba(255, 255, 255, 0.45);
+  }
+  50% {
+    transform: translateY(-6px);
+    box-shadow:
+      0 12px 0 var(--green-lo),
+      0 20px 30px rgba(8, 4, 24, 0.5),
+      0 0 0 14px rgba(52, 211, 153, 0),
+      inset 0 2px 2px rgba(255, 255, 255, 0.45);
+  }
 }
 
-/* Uncharted level (no authored questions): faded sketch */
+/* Uncharted level (no authored questions): ghost node */
 .jm-node--empty {
   cursor: default;
-  opacity: 0.45;
-  border-style: dotted;
+  opacity: 0.4;
+  outline: 2px dashed rgba(255, 255, 255, 0.45);
+  outline-offset: 3px;
 }
 
-/* Chapter boss: an ominous keep off the trail */
+/* Chapter boss: big red menace */
 .jm-node--boss {
-  width: 98px;
-  height: 98px;
-  border-radius: 46% 46% 42% 42% / 52% 52% 40% 40%;
-  background: radial-gradient(circle at 32% 26%, #d98e6a, var(--ember) 65%, var(--ember-lo));
-  border: 4px solid var(--ember-lo);
+  width: 104px;
+  height: 104px;
+  border-radius: 32%;
+  background: linear-gradient(180deg, var(--pink) 0%, var(--pink-mid) 100%);
+  box-shadow:
+    0 7px 0 var(--pink-lo),
+    0 16px 28px rgba(8, 4, 24, 0.5),
+    0 0 24px rgba(225, 29, 72, 0.35),
+    inset 0 2px 2px rgba(255, 255, 255, 0.4);
 }
-.jm-node--boss .jm-node-face { font-size: 38px; color: #fff0dd; }
+.jm-node--boss .jm-node-face { font-size: 44px; }
 .jm-node--boss:not(:disabled):hover {
-  border-color: #ff8a5c;
-  box-shadow: 0 8px 22px rgba(110, 42, 23, 0.45), 0 0 22px rgba(168, 70, 42, 0.5);
+  box-shadow:
+    0 10px 0 var(--pink-lo),
+    0 20px 34px rgba(8, 4, 24, 0.55),
+    0 0 34px rgba(225, 29, 72, 0.55),
+    inset 0 2px 2px rgba(255, 255, 255, 0.4);
+}
+.jm-node--boss.jm-node--frontier {
+  animation: jm-frontier-boss 1.8s ease-in-out infinite;
+}
+@keyframes jm-frontier-boss {
+  0%, 100% {
+    transform: translateY(0);
+    box-shadow:
+      0 7px 0 var(--pink-lo),
+      0 16px 28px rgba(8, 4, 24, 0.5),
+      0 0 0 0 rgba(251, 113, 133, 0.6),
+      inset 0 2px 2px rgba(255, 255, 255, 0.4);
+  }
+  50% {
+    transform: translateY(-6px);
+    box-shadow:
+      0 13px 0 var(--pink-lo),
+      0 22px 34px rgba(8, 4, 24, 0.55),
+      0 0 0 16px rgba(251, 113, 133, 0),
+      inset 0 2px 2px rgba(255, 255, 255, 0.4);
+  }
 }
 .jm-node--boss.jm-node--locked {
-  background: radial-gradient(circle at 32% 26%, #d6c5a2, #b3a07c 70%);
-  border-color: #9a8a68;
+  background: linear-gradient(180deg, var(--locked), #374151);
+  box-shadow:
+    0 7px 0 var(--locked-lo),
+    0 12px 20px rgba(8, 4, 24, 0.4),
+    inset 0 2px 2px rgba(255, 255, 255, 0.12);
 }
 .jm-node--boss.jm-node--done {
-  background: radial-gradient(circle at 32% 28%, #f9dd80, var(--gold) 75%);
-  border-color: #8c6a14;
+  background: linear-gradient(180deg, #fde68a 0%, var(--gold-mid) 100%);
+  box-shadow:
+    0 7px 0 var(--gold-lo),
+    0 16px 28px rgba(8, 4, 24, 0.5),
+    0 0 24px rgba(251, 191, 36, 0.4),
+    inset 0 2px 2px rgba(255, 255, 255, 0.55);
 }
-.jm-node--boss.jm-node--done .jm-node-face { color: #5c450c; }
+.jm-node--boss.jm-node--done .jm-node-face { text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35); }
 
 /* Auto-skipped boss: bypassed on the route */
 .jm-node--skipped {
   cursor: default;
   opacity: 0.35;
-  border-style: dashed;
 }
 
-/* Ultimate boss: the dark tower at the map's end */
+/* Ultimate boss: the final showdown — royal purple + gold ring */
 .jm-node--ultimate {
-  width: 124px;
-  height: 124px;
-  border-radius: 44% 44% 46% 46% / 56% 56% 38% 38%;
-  background: radial-gradient(circle at 32% 24%, #8a76c4, var(--violet) 60%, #2c2248);
-  border: 5px solid var(--gold);
-  box-shadow: 0 8px 24px rgba(44, 34, 72, 0.5), 0 0 28px rgba(201, 151, 28, 0.3);
+  width: 138px;
+  height: 138px;
+  border-radius: 34%;
+  background: linear-gradient(180deg, #c084fc 0%, var(--purple-mid) 60%, var(--purple-lo) 100%);
+  border: 4px solid var(--gold);
+  box-shadow:
+    0 8px 0 #3b0764,
+    0 20px 36px rgba(8, 4, 24, 0.55),
+    0 0 36px rgba(168, 85, 247, 0.5),
+    inset 0 2px 3px rgba(255, 255, 255, 0.4);
+  animation: jm-ultimate-glow 2.6s ease-in-out infinite;
 }
-.jm-node--ultimate .jm-node-face { font-size: 52px; }
+
+@keyframes jm-ultimate-glow {
+  0%, 100% {
+    box-shadow:
+      0 8px 0 #3b0764,
+      0 20px 36px rgba(8, 4, 24, 0.55),
+      0 0 26px rgba(168, 85, 247, 0.4),
+      inset 0 2px 3px rgba(255, 255, 255, 0.4);
+  }
+  50% {
+    box-shadow:
+      0 8px 0 #3b0764,
+      0 20px 36px rgba(8, 4, 24, 0.55),
+      0 0 46px rgba(251, 191, 36, 0.5),
+      inset 0 2px 3px rgba(255, 255, 255, 0.4);
+  }
+}
+
+.jm-node--ultimate .jm-node-face { font-size: 58px; }
 .jm-node--ultimate.jm-node--locked {
-  background: radial-gradient(circle at 32% 24%, #d6c5a2, #b3a07c 70%);
-  border-color: #9a8a68;
-  box-shadow: 0 5px 14px rgba(74, 53, 32, 0.35);
+  background: linear-gradient(180deg, var(--locked), #374151);
+  border-color: #6b7280;
+  animation: none;
+  box-shadow:
+    0 8px 0 var(--locked-lo),
+    0 14px 24px rgba(8, 4, 24, 0.45),
+    inset 0 2px 2px rgba(255, 255, 255, 0.12);
 }
 .jm-node--ultimate.jm-node--done {
-  background: radial-gradient(circle at 32% 28%, #f9dd80, var(--gold) 75%);
-  border-color: #8c6a14;
+  background: linear-gradient(180deg, #fde68a 0%, var(--gold-mid) 100%);
+  border-color: #fff7e0;
+  animation: none;
+  box-shadow:
+    0 8px 0 var(--gold-lo),
+    0 20px 36px rgba(8, 4, 24, 0.55),
+    0 0 36px rgba(251, 191, 36, 0.55),
+    inset 0 2px 3px rgba(255, 255, 255, 0.55);
 }
-.jm-node--ultimate.jm-node--done .jm-node-face { color: #5c450c; }
+.jm-node--ultimate.jm-node--done .jm-node-face { text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35); }
+.jm-node--ultimate .jm-node-badge { width: 32px; height: 32px; font-size: 17px; top: -4px; right: -4px; }
 
-/* ── Captions: ink labels + star banner ────────────────────────────────────── */
+/* ── Captions: labels + star badges ────────────────────────────────────────── */
 
 .jm-node-caption {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 3px;
-  margin-top: 8px;
+  gap: 4px;
+  margin-top: 9px;
   text-align: center;
 }
 
 .jm-node-name {
-  font-family: 'IM Fell English SC', serif;
-  font-size: 15px;
-  letter-spacing: 0.03em;
-  color: var(--ink);
+  font-family: 'Nunito', sans-serif;
+  font-weight: 800;
+  font-size: 14px;
+  letter-spacing: 0.01em;
+  color: var(--text);
   max-width: 160px;
-  line-height: 1.25;
-  text-shadow: 1px 1px 0 rgba(247, 236, 210, 0.7);
+  line-height: 1.3;
+  text-shadow: 0 2px 6px rgba(8, 4, 24, 0.65);
 }
 
-/* Star rating on a little gold banner */
+/* Star rating chip */
 .jm-node-stars {
-  font-size: 13px;
-  letter-spacing: 0.16em;
-  color: #5c450c;
-  background: linear-gradient(180deg, var(--gold-hi), var(--gold));
-  border: 1px solid #8c6a14;
-  padding: 1px 10px;
-  clip-path: polygon(6% 0, 94% 0, 100% 50%, 94% 100%, 6% 100%, 0 50%);
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35);
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  color: var(--gold);
+  background: rgba(8, 4, 24, 0.55);
+  border: 1px solid rgba(251, 191, 36, 0.45);
+  border-radius: 999px;
+  padding: 2px 10px;
+  text-shadow: 0 0 8px rgba(251, 191, 36, 0.6);
 }
 
 .jm-node-tag {
-  font-family: 'IM Fell English', serif;
-  font-style: italic;
-  font-size: 11px;
-  letter-spacing: 0.12em;
+  font-family: 'Baloo 2', sans-serif;
+  font-weight: 700;
+  font-size: 10px;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--ink-soft);
-  border: 1px dashed var(--sepia);
+  color: var(--text-soft);
+  border: 1px dashed rgba(255, 255, 255, 0.35);
   border-radius: 999px;
   padding: 2px 9px;
-  background: rgba(247, 236, 210, 0.5);
+  background: rgba(8, 4, 24, 0.35);
 }
 
-/* ── Full Mastery: the treasure at trail's end ─────────────────────────────── */
+/* ── Full Mastery: the grand prize at the path's end ───────────────────────── */
 
 .jm-mastery {
   position: relative;
@@ -679,48 +883,48 @@
   padding: 26px 36px;
   max-width: 350px;
   text-align: center;
-  border-radius: 10px;
-  background: linear-gradient(170deg, rgba(255, 250, 238, 0.7), rgba(233, 211, 160, 0.5));
-  border: 2px dashed var(--sepia);
+  border-radius: 22px;
+  background: linear-gradient(170deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03));
+  border: 2px dashed rgba(255, 255, 255, 0.28);
   filter: grayscale(0.9);
-  opacity: 0.65;
+  opacity: 0.6;
 }
 
 .jm-mastery--earned {
   filter: none;
   opacity: 1;
-  border: 3px solid var(--gold);
-  outline: 1px solid rgba(140, 106, 20, 0.5);
-  outline-offset: 4px;
+  border: 2px solid var(--gold);
   background:
-    radial-gradient(circle at 50% 0%, rgba(241, 196, 15, 0.35), transparent 70%),
-    linear-gradient(170deg, #fbeec7, #f0d896);
-  box-shadow: 0 0 34px rgba(241, 196, 15, 0.4);
+    radial-gradient(circle at 50% 0%, rgba(251, 191, 36, 0.3), transparent 70%),
+    linear-gradient(170deg, rgba(251, 191, 36, 0.22), rgba(180, 83, 9, 0.14));
+  box-shadow: 0 0 34px rgba(251, 191, 36, 0.4);
   animation: jm-mastery-glow 2.4s ease-in-out infinite;
 }
 
 @keyframes jm-mastery-glow {
-  0%, 100% { box-shadow: 0 0 22px rgba(241, 196, 15, 0.3); }
-  50%      { box-shadow: 0 0 44px rgba(241, 196, 15, 0.55); }
+  0%, 100% { box-shadow: 0 0 22px rgba(251, 191, 36, 0.3); }
+  50%      { box-shadow: 0 0 46px rgba(251, 191, 36, 0.6); }
 }
 
-.jm-mastery-icon { font-size: 46px; line-height: 1; filter: drop-shadow(0 3px 6px rgba(74, 53, 32, 0.35)); }
+.jm-mastery-icon { font-size: 48px; line-height: 1; filter: drop-shadow(0 4px 10px rgba(8, 4, 24, 0.45)); }
 
 .jm-mastery-text {
-  font-family: 'IM Fell English SC', serif;
+  font-family: 'Baloo 2', sans-serif;
+  font-weight: 800;
   font-size: 21px;
-  letter-spacing: 0.18em;
-  color: var(--ink);
+  letter-spacing: 0.14em;
+  color: var(--text);
 }
+
+.jm-mastery--earned .jm-mastery-text { color: var(--gold); text-shadow: 0 0 14px rgba(251, 191, 36, 0.5); }
 
 .jm-mastery-sub {
-  font-family: 'IM Fell English', serif;
-  font-style: italic;
   font-size: 13px;
-  color: var(--ink-soft);
+  font-weight: 600;
+  color: var(--text-soft);
 }
 
-/* ── Confirm card: a quest scroll with a wax seal ──────────────────────────── */
+/* ── Confirm card: the pre-battle briefing ─────────────────────────────────── */
 
 .jm-confirm-overlay {
   position: fixed;
@@ -730,7 +934,8 @@
   align-items: center;
   justify-content: center;
   padding: 20px;
-  background: rgba(58, 41, 22, 0.55);
+  background: rgba(8, 4, 24, 0.66);
+  backdrop-filter: blur(4px);
   animation: jm-fade-in 0.2s ease both;
 }
 
@@ -742,25 +947,23 @@
   gap: 10px;
   width: 350px;
   max-width: 92vw;
-  padding: 34px 28px 28px;
-  border-radius: 8px;
+  padding: 36px 28px 28px;
+  border-radius: 24px;
   text-align: center;
-  color: var(--ink);
+  color: var(--text);
   background:
-    linear-gradient(170deg, rgba(255, 250, 238, 0.92), rgba(233, 211, 160, 0.85)),
-    var(--parchment);
-  border: 2px solid var(--sepia);
-  outline: 1px solid rgba(122, 79, 40, 0.5);
-  outline-offset: 5px;
-  box-shadow: 0 18px 48px rgba(58, 41, 22, 0.5);
+    radial-gradient(ellipse 100% 45% at 50% 0%, rgba(168, 85, 247, 0.22), transparent 65%),
+    linear-gradient(170deg, #2b1670, #1a0d45);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 24px 56px rgba(8, 4, 24, 0.65), 0 0 40px rgba(124, 58, 237, 0.25);
   animation: jm-card-rise 0.25s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-/* Wax seal in the corner */
+/* Floating emblem on the card corner */
 .jm-confirm-seal {
   position: absolute;
-  top: -16px;
-  right: -14px;
+  top: -18px;
+  right: -12px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -768,59 +971,56 @@
   height: 46px;
   border-radius: 50%;
   font-size: 22px;
-  color: var(--parchment-hi);
-  background: radial-gradient(circle at 35% 30%, #c04437, var(--wax) 70%);
-  border: 2px solid #6e1d17;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.35);
-  transform: rotate(12deg);
+  color: #fff;
+  background: linear-gradient(180deg, var(--cyan), var(--blue));
+  border: 2px solid rgba(255, 255, 255, 0.55);
+  box-shadow: 0 6px 14px rgba(8, 4, 24, 0.5), 0 0 18px rgba(34, 211, 238, 0.5);
+  transform: rotate(10deg);
 }
 
 .jm-confirm-kind {
-  font-family: 'IM Fell English', serif;
-  font-style: italic;
-  font-size: 13px;
-  letter-spacing: 0.16em;
+  font-family: 'Baloo 2', sans-serif;
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: var(--sepia);
+  color: var(--cyan);
 }
 
 .jm-confirm-name {
   margin: 0;
-  font-family: 'IM Fell English SC', serif;
-  font-size: 24px;
-  font-weight: 400;
-  letter-spacing: 0.03em;
-  color: var(--ink);
+  font-family: 'Baloo 2', sans-serif;
+  font-size: 25px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  color: var(--text);
 }
 
 .jm-confirm-stats {
   display: flex;
-  gap: 14px;
-  font-family: 'IM Fell English', serif;
-  font-size: 15px;
-  color: var(--ink-soft);
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.jm-confirm-stats span {
+  padding: 3px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.18);
 }
 
 .jm-confirm-threshold {
   margin: 2px 0 8px;
-  font-family: 'IM Fell English', serif;
-  font-style: italic;
   font-size: 13px;
-  color: var(--ink-soft);
+  font-weight: 600;
+  color: var(--text-soft);
   line-height: 1.5;
 }
 
 .jm-confirm-play { min-width: 180px; }
 .jm-confirm-play:disabled { opacity: 0.55; cursor: default; }
-
-.jm-confirm-soon {
-  font-family: 'IM Fell English', serif;
-  font-style: italic;
-  font-size: 12px;
-  letter-spacing: 0.06em;
-  color: var(--sepia);
-  margin-bottom: 6px;
-}
 
 /* ── Interstitial: result card over the path after a game ──────────────────── */
 
@@ -832,7 +1032,8 @@
   align-items: center;
   justify-content: center;
   padding: 20px;
-  background: rgba(20, 12, 5, 0.65);
+  background: rgba(8, 4, 24, 0.72);
+  backdrop-filter: blur(4px);
   animation: jm-fade-in 0.25s ease both;
 }
 
@@ -845,65 +1046,58 @@
   width: 320px;
   max-width: 92vw;
   padding: 36px 28px 28px;
-  border-radius: 10px;
+  border-radius: 24px;
   text-align: center;
-  color: var(--ink);
+  color: var(--text);
   background:
-    linear-gradient(170deg, rgba(255, 250, 238, 0.96), rgba(233, 211, 160, 0.88)),
-    var(--parchment);
-  border: 2px solid var(--sepia);
-  outline: 1px solid rgba(122, 79, 40, 0.5);
-  outline-offset: 5px;
-  box-shadow: 0 20px 52px rgba(20, 12, 5, 0.55);
+    radial-gradient(ellipse 100% 45% at 50% 0%, rgba(34, 211, 238, 0.16), transparent 65%),
+    linear-gradient(170deg, #2b1670, #1a0d45);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 24px 56px rgba(8, 4, 24, 0.65);
   animation: jm-card-rise 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .jm-interstitial-icon {
-  font-size: 48px;
+  font-size: 50px;
   line-height: 1;
-  filter: drop-shadow(0 3px 6px rgba(74, 53, 32, 0.3));
+  filter: drop-shadow(0 4px 10px rgba(8, 4, 24, 0.45));
 }
 
 .jm-interstitial-heading {
   margin: 0;
-  font-family: 'IM Fell English SC', serif;
-  font-size: 26px;
-  font-weight: 400;
-  letter-spacing: 0.05em;
-  color: var(--ink);
+  font-family: 'Baloo 2', sans-serif;
+  font-size: 27px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  color: var(--text);
 }
 
 .jm-interstitial-score {
   margin: 0;
-  font-family: 'IM Fell English', serif;
+  font-family: 'Baloo 2', sans-serif;
+  font-weight: 700;
   font-size: 20px;
-  color: var(--sepia);
+  color: #c7d2fe;
 }
 
 .jm-interstitial-stars {
   font-size: 18px;
   letter-spacing: 0.14em;
   color: var(--gold);
+  text-shadow: 0 0 12px rgba(251, 191, 36, 0.6);
 }
 
 .jm-interstitial-msg {
   margin: 0;
-  font-family: 'IM Fell English', serif;
-  font-style: italic;
   font-size: 14px;
-  color: var(--ink-soft);
+  font-weight: 600;
+  color: var(--text-soft);
 }
 
-.jm-screen--bg .jm-interstitial-card {
-  background:
-    linear-gradient(170deg, rgba(255, 250, 238, 0.82), rgba(233, 211, 160, 0.74)),
-    rgba(239, 223, 182, 0.55);
-}
+/* ── Admin-set vivid backdrop (journey_bg): design floats over the image ───── */
 
-/* ── Admin-set vivid backdrop: the parchment floats over the image ─────────── */
-
-/* Underlay below the grain (::before, z 0), vignette (::after, z 0) and content (z 1).
-   Negative z paints above .jm-screen's own parchment gradient but under everything else.
+/* Underlay below the dots (::before, z 0), vignette (::after, z 0) and content (z 1).
+   Negative z paints above .jm-screen's own gradient but under everything else.
    Scoped to .jm-screen--bg so it can never exist without an admin-set image. */
 .jm-screen--bg .jm-bg {
   position: fixed;
@@ -914,50 +1108,46 @@
   pointer-events: none;
 }
 
-/* Designed scrim over the admin image: a centre-clear vignette + top/bottom
-   gradients add depth and darken the edges so the map, nodes and header read
-   clearly, while a faint parchment tint keeps it cohesive with the theme.
-   Edges deepen; the artwork stays visible through the clear centre. */
+/* Designed scrim over the admin image: centre-clear vignette + top/bottom
+   gradients so the white text, nodes and HUD stay readable while the artwork
+   shows through the middle. */
 .jm-screen--bg .jm-bg::after {
   content: '';
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(ellipse 82% 72% at 50% 42%, transparent 44%, rgba(24, 16, 8, 0.5) 100%),
-    linear-gradient(180deg, rgba(24, 16, 8, 0.32), transparent 26%, transparent 68%, rgba(24, 16, 8, 0.42)),
-    rgba(239, 223, 182, 0.1);
+    radial-gradient(ellipse 82% 72% at 50% 42%, transparent 40%, rgba(10, 5, 28, 0.62) 100%),
+    linear-gradient(180deg, rgba(10, 5, 28, 0.5), transparent 26%, transparent 66%, rgba(10, 5, 28, 0.6)),
+    rgba(20, 10, 51, 0.18);
 }
 
-/* The framed map becomes a translucent chart laid over the scene — drop the
-   opaque parchment fill from the base .jm-map so the admin image shows through
-   (contour lines only), keeping the translucent tint. */
+/* The level board darkens + blurs over the artwork so nodes/labels stay crisp */
 .jm-screen--bg .jm-map {
-  background-color: rgba(247, 236, 210, 0.85);
-  background-image:
-    repeating-radial-gradient(circle at 108% -6%,  transparent 0 24px, rgba(122, 79, 40, 0.07) 24px 25px),
-    repeating-radial-gradient(circle at -12% 108%, transparent 0 30px, rgba(122, 79, 40, 0.06) 30px 31px),
-    repeating-radial-gradient(circle at 50% 160%,  transparent 0 40px, rgba(63, 109, 58, 0.05) 40px 41px);
+  background:
+    radial-gradient(ellipse 90% 40% at 50% 0%, rgba(168, 85, 247, 0.12), transparent 60%),
+    rgba(13, 7, 35, 0.55);
+  backdrop-filter: blur(8px);
 }
 
-/* Cards let a hint of the image through while staying readable (~0.9 effective) */
-.jm-screen--bg .jm-scroll-card,
-.jm-screen--bg .jm-confirm-card {
-  background:
-    linear-gradient(170deg, rgba(255, 250, 238, 0.78), rgba(233, 211, 160, 0.66)),
-    rgba(239, 223, 182, 0.55);
+/* Cards go a touch more opaque over an image */
+.jm-screen--bg .jm-scroll-card {
+  background: rgba(16, 8, 43, 0.72);
+  backdrop-filter: blur(12px);
 }
 
 .jm-screen--bg .jm-subject-card {
-  background: linear-gradient(170deg, rgba(255, 250, 238, 0.84), rgba(233, 211, 160, 0.62));
+  background: linear-gradient(170deg, rgba(16, 8, 43, 0.66), rgba(16, 8, 43, 0.5));
+  backdrop-filter: blur(8px);
 }
 
-/* Subject-select title floats on the image — give it a parchment ribbon */
+/* Subject-select title floats on the image — give it a glass ribbon */
 .jm-screen--bg .jm-banner {
-  background: rgba(247, 236, 210, 0.78);
-  border: 2px solid rgba(122, 79, 40, 0.5);
-  border-radius: 10px;
+  background: rgba(16, 8, 43, 0.62);
+  border: 1px solid var(--glass-brd);
+  border-radius: 20px;
   padding: 14px 28px;
-  box-shadow: 0 8px 22px rgba(74, 53, 32, 0.25);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 10px 26px rgba(8, 4, 24, 0.4);
 }
 
 /* ── Full Mastery celebration: full-screen fanfare over the path ───────────── */
@@ -971,7 +1161,7 @@
   justify-content: center;
   padding: 20px;
   overflow: hidden;
-  background: radial-gradient(circle at 50% 38%, rgba(201, 151, 28, 0.32), rgba(20, 12, 5, 0.82) 70%);
+  background: radial-gradient(circle at 50% 38%, rgba(251, 191, 36, 0.28), rgba(8, 4, 24, 0.86) 70%);
   animation: jm-fade-in 0.35s ease both;
 }
 
@@ -986,7 +1176,7 @@
   max-height: 140vw;
   transform: translate(-50%, -50%);
   pointer-events: none;
-  background: radial-gradient(circle, rgba(201, 151, 28, 0.45) 0%, rgba(201, 151, 28, 0.16) 38%, transparent 66%);
+  background: radial-gradient(circle, rgba(251, 191, 36, 0.42) 0%, rgba(251, 191, 36, 0.14) 38%, transparent 66%);
   animation: jm-celebration-pulse 2.6s ease-in-out infinite;
 }
 
@@ -1000,16 +1190,14 @@
   width: 380px;
   max-width: 92vw;
   padding: 40px 30px 30px;
-  border-radius: 12px;
+  border-radius: 28px;
   text-align: center;
-  color: var(--ink);
+  color: var(--text);
   background:
-    linear-gradient(170deg, rgba(255, 250, 238, 0.97), rgba(233, 211, 160, 0.9)),
-    var(--parchment);
+    radial-gradient(ellipse 100% 50% at 50% 0%, rgba(251, 191, 36, 0.2), transparent 65%),
+    linear-gradient(170deg, #2b1670, #180c40);
   border: 2px solid var(--gold);
-  outline: 1px solid rgba(122, 79, 40, 0.5);
-  outline-offset: 6px;
-  box-shadow: 0 24px 64px rgba(20, 12, 5, 0.6), 0 0 50px rgba(201, 151, 28, 0.35);
+  box-shadow: 0 28px 70px rgba(8, 4, 24, 0.7), 0 0 60px rgba(251, 191, 36, 0.4);
   animation: jm-card-rise 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
@@ -1024,7 +1212,7 @@
   pointer-events: none;
   background: repeating-conic-gradient(
     from 0deg,
-    rgba(201, 151, 28, 0.22) 0deg 9deg,
+    rgba(251, 191, 36, 0.25) 0deg 9deg,
     transparent 9deg 18deg
   );
   -webkit-mask-image: radial-gradient(circle, #000 30%, transparent 70%);
@@ -1037,42 +1225,45 @@
   z-index: 1;
   font-size: 72px;
   line-height: 1;
-  filter: drop-shadow(0 4px 10px rgba(74, 53, 32, 0.4));
+  filter: drop-shadow(0 6px 14px rgba(8, 4, 24, 0.55));
   animation: jm-trophy-pop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both 0.1s;
 }
 
 .jm-celebration-flourish {
   margin: 0;
-  font-family: 'IM Fell English', serif;
-  font-size: 16px;
+  font-size: 15px;
   letter-spacing: 0.2em;
-  color: var(--sepia);
+  color: var(--gold);
+  opacity: 0.85;
 }
 
 .jm-celebration-heading {
   margin: 0;
-  font-family: 'IM Fell English SC', serif;
-  font-size: 30px;
-  font-weight: 400;
-  letter-spacing: 0.06em;
+  font-family: 'Baloo 2', sans-serif;
+  font-size: 31px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
   line-height: 1.15;
-  color: var(--ink);
-  text-shadow: 0 1px 0 rgba(255, 250, 238, 0.6);
+  background: linear-gradient(92deg, #fde68a 0%, var(--gold) 60%, #f59e0b 100%);
+  -webkit-background-clip: text;
+          background-clip: text;
+  -webkit-text-fill-color: transparent;
+          color: var(--gold); /* fallback */
 }
 
 .jm-celebration-subject {
   margin: 0;
-  font-family: 'IM Fell English SC', serif;
+  font-family: 'Baloo 2', sans-serif;
+  font-weight: 800;
   font-size: 21px;
-  color: var(--sepia);
+  color: var(--text);
 }
 
 .jm-celebration-score {
   margin: 0 0 6px;
-  font-family: 'IM Fell English', serif;
-  font-style: italic;
-  font-size: 15px;
-  color: var(--ink-soft);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-soft);
 }
 
 .jm-celebration-btn { margin-top: 4px; }
@@ -1090,15 +1281,15 @@
   top: -24px;
   width: 9px;
   height: 14px;
-  border-radius: 1px;
+  border-radius: 2px;
   opacity: 0;
   animation: jm-confetti-fall 2.8s linear infinite;
 }
 
 .jm-confetti-piece--0 { background: var(--gold); }
-.jm-confetti-piece--1 { background: var(--sepia); }
-.jm-confetti-piece--2 { background: #d9b14a; }
-.jm-confetti-piece--3 { background: #a9742f; }
+.jm-confetti-piece--1 { background: var(--cyan); }
+.jm-confetti-piece--2 { background: var(--green); }
+.jm-confetti-piece--3 { background: #f0abfc; }
 
 /* 28 pieces spread across the width with varied delay/duration for a natural shower */
 .jm-confetti-piece:nth-child(7n+1)  { left: 6%;  animation-delay: 0s;    animation-duration: 2.6s; }
@@ -1132,10 +1323,14 @@
 /* ── Reduced motion / responsive ───────────────────────────────────────────── */
 
 @media (prefers-reduced-motion: reduce) {
-  .jm-banner, .jm-subject-card, .jm-confirm-card { animation: jm-fade-in 0.3s ease both; }
-  .jm-node--frontier { animation: none; }
+  .jm-banner, .jm-subject-card, .jm-confirm-card,
+  .jm-interstitial-card, .jm-node-row { animation: jm-fade-in 0.3s ease both; }
+  .jm-node--frontier,
+  .jm-node--boss.jm-node--frontier,
+  .jm-node--ultimate { animation: none; }
   .jm-mastery--earned { animation: none; }
   .jm-subject-card:hover, .jm-node:not(:disabled):hover { transform: none; }
+  .jm-progress-fill { transition: none; }
   /* Full Mastery degrades to a calm fade — no motion, just the moment */
   .jm-celebration-overlay { animation: jm-fade-in 0.4s ease both; }
   .jm-celebration-card { animation: jm-fade-in 0.4s ease both; }
@@ -1146,20 +1341,28 @@
 }
 
 @media (max-width: 560px) {
-  .jm-title { font-size: 30px; }
-  .jm-section-title { font-size: 16px; padding-left: 8px; padding-right: 8px; }
-  .jm-node { width: 62px; height: 62px; }
-  .jm-node-face { font-size: 23px; }
-  .jm-node--boss { width: 82px; height: 82px; }
-  .jm-node--boss .jm-node-face { font-size: 31px; }
-  .jm-node--ultimate { width: 104px; height: 104px; }
-  .jm-node--ultimate .jm-node-face { font-size: 42px; }
-  .jm-path-subject { font-size: 16px; }
-  .jm-path-header { justify-content: flex-end; }
+  .jm-title { font-size: 32px; }
+  .jm-section-title { font-size: 15px; padding-left: 8px; padding-right: 8px; }
+  .jm-node { width: 66px; height: 66px; }
+  .jm-node-face { font-size: 26px; }
+  .jm-node--locked .jm-node-face { font-size: 22px; }
+  .jm-node-badge { width: 23px; height: 23px; font-size: 12px; }
+  .jm-node--boss { width: 88px; height: 88px; }
+  .jm-node--boss .jm-node-face { font-size: 36px; }
+  .jm-node--ultimate { width: 112px; height: 112px; }
+  .jm-node--ultimate .jm-node-face { font-size: 46px; }
+  .jm-node--ultimate .jm-node-badge { width: 27px; height: 27px; font-size: 14px; }
+  .jm-path-subject { font-size: 15px; }
+  .jm-path-header { justify-content: flex-end; gap: 10px; padding: 12px 14px; }
+  .jm-progress-track { width: 62px; }
+  .jm-path-progress { padding: 5px 10px; gap: 7px; }
   .jm-node-row { width: 48%; }
-  .jm-trail-seg { width: 42%; margin: -4px auto; }
-  .jm-compass { width: 56px; height: 56px; top: 10px; right: 10px; }
-  .jm-map { padding: 28px 10px 40px; }
+  .jm-node-name { font-size: 12.5px; max-width: 130px; }
+  .jm-trail-seg { width: 42%; margin: -4px auto; border-top-width: 4px; }
+  .jm-compass { width: 52px; height: 52px; top: 10px; right: 10px; }
+  .jm-map { padding: 28px 10px 40px; border-radius: 22px; }
+  .jm-chapter-banner { padding: 11px 22px 13px; max-width: 92%; }
+  .jm-chapter-name { font-size: 18px; }
 }
 
 /* ── Journey Page Editor (admin only, editor mode) ──────────────────────────── */
@@ -1292,14 +1495,16 @@
   max-width: 60%;
   min-width: 120px;
   padding: 12px 14px;
-  border-radius: 10px;
-  background: linear-gradient(160deg, var(--parchment-hi, #f7ecd2), var(--parchment, #efdfb6));
-  border: 1px solid rgba(139, 94, 52, 0.55);
-  box-shadow: 0 6px 18px rgba(74, 53, 32, 0.28);
-  color: var(--ink, #4a3520);
+  border-radius: 14px;
+  background: linear-gradient(170deg, rgba(43, 22, 112, 0.92), rgba(24, 12, 64, 0.92));
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  box-shadow: 0 8px 22px rgba(8, 4, 24, 0.5);
+  color: #f6f4ff;
 }
 .jm-panel-text {
+  font-family: 'Nunito', system-ui, sans-serif;
   font-size: 15px;
+  font-weight: 600;
   line-height: 1.45;
   white-space: pre-wrap;
   word-break: break-word;
@@ -1310,24 +1515,24 @@
   pointer-events: auto; /* editor: draggable + editable */
   padding: 0;
   overflow: hidden;
-  box-shadow: 0 8px 22px rgba(74, 53, 32, 0.35);
-  outline: 1px dashed rgba(201, 151, 28, 0.8);
+  box-shadow: 0 10px 26px rgba(8, 4, 24, 0.55);
+  outline: 1px dashed rgba(220, 190, 80, 0.8);
 }
 .jm-panel-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 4px 6px 4px 8px;
-  background: rgba(139, 94, 52, 0.18);
+  background: rgba(255, 255, 255, 0.1);
   cursor: grab;
   touch-action: none;
   user-select: none;
 }
 .jm-panel-bar:active { cursor: grabbing; }
-.jm-panel-grip { font-size: 14px; color: var(--sepia, #8b5e34); letter-spacing: 2px; }
+.jm-panel-grip { font-size: 14px; color: rgba(246, 244, 255, 0.7); letter-spacing: 2px; }
 .jm-panel-del {
   border: none;
-  background: rgba(156, 43, 35, 0.9);
+  background: rgba(225, 29, 72, 0.9);
   color: #fff;
   width: 20px;
   height: 20px;
@@ -1337,7 +1542,7 @@
   cursor: pointer;
   padding: 0;
 }
-.jm-panel-del:hover { background: #9c2b23; }
+.jm-panel-del:hover { background: var(--pink-mid, #e11d48); }
 .jm-panel-input {
   display: block;
   width: 160px;
@@ -1350,7 +1555,7 @@
   font-family: inherit;
   font-size: 15px;
   line-height: 1.45;
-  color: var(--ink, #4a3520);
+  color: #f6f4ff;
 }
 .jm-panel-input:focus { outline: none; }
 
