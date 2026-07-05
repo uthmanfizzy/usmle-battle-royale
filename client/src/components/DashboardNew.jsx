@@ -3,14 +3,16 @@ import FriendsPanel from './FriendsPanel';
 import NotificationsDropdown from './NotificationsDropdown';
 import SettingsDropdown from './SettingsDropdown';
 import ClansPage from './ClansPage';
+import ShortsFeed from './ShortsFeed';
 import { HomeSection, LeaderboardSection, AnnouncementsSection } from './Dashboard';
 import './DashboardNew.css';
 
-// STAGE 1 of the new dashboard shell. Bottom nav: Home · Stats · Shorts · Play.
+// New dashboard shell. Bottom nav: Home · Stats · Shorts · Play.
 // Leaderboards / Clans / News are reached from cards INSIDE Home (not the bar).
-// Shorts is a placeholder this stage (feed lands in stage 2). All page content
-// is REUSED from the existing app (HomeSection/LeaderboardSection/ClansPage/
-// AnnouncementsSection/StatsPage) — this component is only a new shell + nav.
+// Shorts (stage 2a) is a vertical snap feed (ShortsFeed) — the dn header hides
+// on that tab for the TikTok feel. All other page content is REUSED from the
+// existing app (HomeSection/LeaderboardSection/ClansPage/AnnouncementsSection/
+// StatsPage) — this component is only a shell + nav.
 // Rendered only when the admin toggle `useNewDashboard` is on (default: off).
 
 const StatsPage = lazy(() => import('./StatsPage'));
@@ -96,15 +98,19 @@ export default function DashboardNew({ user, onPlayNow, onLogout, onUserUpdate }
   const coins = user.coins || 0;
   const gems  = user.gems  || 0;
 
+  const isShorts = tab === 'shorts';
+
   return (
-    <div className="dn-screen">
+    <div className={`dn-screen${isShorts ? ' dn-screen--shorts' : ''}`}>
       {/* Background (admin dashboard_bg image, dimmed) */}
       <div className="dn-bg" aria-hidden="true">
         {bgUrl && <img src={bgUrl} alt="" className="dn-bg-img" />}
         <div className="dn-bg-overlay" />
       </div>
 
-      {/* ── Header: profile · currency · notifications/friends/settings ── */}
+      {/* ── Header: profile · currency · notifications/friends/settings ──
+          Hidden on the Shorts tab so the feed fills the screen (TikTok feel). */}
+      {!isShorts && (
       <header className="dn-header">
         <div className="dn-profile">
           <div className="dn-avatar">
@@ -188,9 +194,10 @@ export default function DashboardNew({ user, onPlayNow, onLogout, onUserUpdate }
           </div>
         </div>
       </header>
+      )}
 
       {/* ── Tab content ── */}
-      <main className="dn-main">
+      <main className={`dn-main${isShorts ? ' dn-main--shorts' : ''}`}>
         {tab === 'home' && homeView === 'main' && (
           <>
             {/* Explore row: Leaderboards / Clans / News live INSIDE Home now */}
@@ -237,16 +244,7 @@ export default function DashboardNew({ user, onPlayNow, onLogout, onUserUpdate }
           </div>
         )}
 
-        {tab === 'shorts' && (
-          <div className="dn-placeholder">
-            <span className="dn-placeholder-icon">🎬</span>
-            <h2 className="dn-placeholder-title">Shorts</h2>
-            <p className="dn-placeholder-text">
-              Bite-size medical videos are coming soon. This is where your Shorts feed will live.
-            </p>
-            <span className="dn-placeholder-badge">Coming soon</span>
-          </div>
-        )}
+        {tab === 'shorts' && <ShortsFeed />}
       </main>
 
       {/* ── Bottom nav: Home · Stats · Shorts · Play ── */}

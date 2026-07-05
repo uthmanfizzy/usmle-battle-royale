@@ -5,6 +5,7 @@ import AnKingAdmin from './admin/AnKingAdmin';
 import JourneyMode from './JourneyMode';
 import QuestionParser from './QuestionParser';
 import { parseRichText } from '../utils/parseRichText';
+import { parseShortUrl, thumbnailUrl as shortThumbnailUrl, PLATFORM_LABELS, PLATFORM_ICONS } from '../utils/shortEmbeds';
 import { JOURNEY_SUBJECTS, JOURNEY_SECTIONS } from '../journeySubjects';
 
 const API = 'https://usmle-battle-royale-production.up.railway.app';
@@ -3676,6 +3677,273 @@ function VideosPanel() {
             <div className="ap-modal-foot">
               <button className="ap-btn-sec" onClick={() => setDeleteVid(null)}>Cancel</button>
               <button className="ap-btn-danger" onClick={handleDelete}>Delete Video</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Shorts Panel (new dashboard Shorts feed, stage 2a) ─────────────────────────
+// Clones the Videos panel patterns. Uses the SHARED parseShortUrl helper
+// (client/src/utils/shortEmbeds.js) for the live preview; the server
+// re-validates authoritatively on POST/PUT. Previews stay light: thumbnail +
+// open link only — no embeds in the admin bundle.
+
+function ShortsPanel() {
+  const [shorts,      setShorts]      = useState([]);
+  const [loading,     setLoading]     = useState(true);
+  const [error,       setError]       = useState('');
+  const [deleteShort, setDeleteShort] = useState(null); // row object
+  const [editing,     setEditing]     = useState(null); // null | row object
+  const [saving,      setSaving]      = useState(false);
+  const [busyRow,     setBusyRow]     = useState(null); // row id during toggle/reorder
+
+  // form fields
+  const [url,     setUrl]     = useState('');
+  const [title,   setTitle]   = useState('');
+  const [caption, setCaption] = useState('');
+
+  useEffect(() => { loadShorts(); }, []);
+
+  async function loadShorts() {
+    setLoading(true);
+    try {
+      const res  = await apiCall('/admin/shorts');
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to load shorts');
+      setShorts(data.shorts || []);
+    } catch (err) {
+      setError(err.message);
+    }
+    setLoading(false);
+  }
+
+  function resetForm() {
+    setEditing(null);
+    setUrl('');
+    setTitle('');
+    setCaption('');
+  }
+
+  function startEdit(s) {
+    setError('');
+    setEditing(s);
+    setUrl(s.video_url);
+    setTitle(s.title || '');
+    setCaption(s.caption || '');
+  }
+
+  async function handleSave(e) {
+    e.preventDefault();
+    setError('');
+    setSaving(true);
+    try {
+      let res, data;
+      if (editing) {
+        const body = {};
+        if (url.trim() !== editing.video_url)        body.url     = url.trim();
+        if (title.trim() !== (editing.title || ''))   body.title   = title.trim();
+        if (caption.trim() !== (editing.caption || '')) body.caption = caption.trim();
+        if (Object.keys(body).length === 0) { resetForm(); setSaving(false); return; }
+        res  = await apiCall(`/admin/shorts/${editing.id}`, { method: 'PUT', body: JSON.stringify(body) });
+        data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to save short');
+        setShorts(list => list.map(s => s.id === editing.id ? data : s));
+      } else {
+        // New shorts land at the end of the feed
+        const maxOrder = shorts.reduce((mx, s) => Math.max(mx, s.sort_order || 0), 0);
+        res  = await apiCall('/admin/shorts', {
+          method: 'POST',
+          body: JSON.stringify({ url: url.trim(), title: title.trim(), caption: caption.trim(), sort_order: maxOrder + 1 }),
+        });
+        data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to add short');
+        setShorts(list => [...list, data]);
+      }
+      resetForm();
+    } catch (err) { setError(err.message); }
+    setSaving(false);
+  }
+
+  async function handleToggleActive(s) {
+    setError('');
+    setBusyRow(s.id);
+    try {
+      const res  = await apiCall(`/admin/shorts/${s.id}`, { method: 'PUT', body: JSON.stringify({ active: !s.active }) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to update short');
+      setShorts(list => list.map(x => x.id === s.id ? data : x));
+    } catch (err) { setError(err.message); }
+    setBusyRow(null);
+  }
+
+  // Reorder: swap sort_order with the neighbor (two PUTs, then local swap)
+  async function handleMove(idx, dir) {
+    const other = idx + dir;
+    if (other < 0 || other >= shorts.length) return;
+    const a = shorts[idx], b = shorts[other];
+    // Distinct orders even if both rows share a value (legacy 0s)
+    const aOrder = b.sort_order === a.sort_order ? a.sort_order + dir : b.sort_order;
+    const bOrder = a.sort_order;
+    setError('');
+    setBusyRow(a.id);
+    try {
+      const [r1, r2] = await Promise.all([
+        apiCall(`/admin/shorts/${a.id}`, { method: 'PUT', body: JSON.stringify({ sort_order: aOrder }) }),
+        apiCall(`/admin/shorts/${b.id}`, { method: 'PUT', body: JSON.stringify({ sort_order: bOrder }) }),
+      ]);
+      if (!r1.ok || !r2.ok) throw new Error('Failed to reorder');
+      const [d1, d2] = await Promise.all([r1.json(), r2.json()]);
+      setShorts(list => {
+        const next = list.map(x => x.id === d1.id ? d1 : x.id === d2.id ? d2 : x);
+        return next.sort((x, y) => (x.sort_order - y.sort_order) || String(x.created_at).localeCompare(String(y.created_at)));
+      });
+    } catch (err) { setError(err.message); }
+    setBusyRow(null);
+  }
+
+  async function handleDelete() {
+    setError('');
+    try {
+      const res  = await apiCall(`/admin/shorts/${deleteShort.id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to delete short');
+      setShorts(list => list.filter(s => s.id !== deleteShort.id));
+      setDeleteShort(null);
+    } catch (err) { setError(err.message); setDeleteShort(null); }
+  }
+
+  const parsed  = parseShortUrl(url);
+  const canSave = !saving && url.trim() && !parsed.error;
+  const thumbFor = (s) => s.thumbnail_url || shortThumbnailUrl(s.platform, s.video_id);
+
+  if (loading) return <div className="ap-loading"><div className="ap-spinner" /></div>;
+
+  return (
+    <div className="ap-panel">
+      <div className="ap-panel-head">
+        <h2>🎬 Shorts</h2>
+      </div>
+      <p className="ap-section-subtitle" style={{ marginTop: -8, marginBottom: 16 }}>
+        The vertical Shorts feed on the new dashboard. YouTube plays inline;
+        TikTok / Instagram show as tap-to-open cards for now.
+      </p>
+
+      {error && <div className="ap-error">{error}</div>}
+
+      {/* Add / edit form */}
+      <form onSubmit={handleSave} className="ap-qform ap-video-form">
+        <h3 className="ap-video-form-title">{editing ? '✏️ Edit Short' : '➕ Add Short'}</h3>
+        <div className="ap-field">
+          <label>Video URL (YouTube Shorts, TikTok, or Instagram Reel)</label>
+          <input
+            type="text"
+            value={url}
+            onChange={e => setUrl(e.target.value)}
+            placeholder="https://www.youtube.com/shorts/… · https://www.tiktok.com/@user/video/… · https://www.instagram.com/reel/…"
+          />
+        </div>
+
+        {/* Live parse preview via the shared helper */}
+        {url.trim() && (parsed.error ? (
+          <div className="ap-video-invalid">⚠ {parsed.error}</div>
+        ) : (
+          <div className="ap-video-preview">
+            {shortThumbnailUrl(parsed.platform, parsed.video_id) ? (
+              <img className="ap-video-thumb" src={shortThumbnailUrl(parsed.platform, parsed.video_id)} alt="" />
+            ) : (
+              <div className="ap-video-thumb ap-video-thumb--placeholder">{PLATFORM_ICONS[parsed.platform]}</div>
+            )}
+            <span className={`ap-video-badge ap-video-badge--${parsed.platform}`}>
+              {PLATFORM_ICONS[parsed.platform]} {PLATFORM_LABELS[parsed.platform]} · {parsed.video_id}
+            </span>
+          </div>
+        ))}
+
+        <div className="ap-field">
+          <label>Title (optional)</label>
+          <input
+            type="text"
+            value={title}
+            onChange={e => setTitle(e.target.value)}
+            placeholder="e.g. Murmurs in 60 seconds"
+            maxLength={200}
+          />
+        </div>
+        <div className="ap-field">
+          <label>Caption (optional)</label>
+          <input
+            type="text"
+            value={caption}
+            onChange={e => setCaption(e.target.value)}
+            placeholder="Shown under the title in the feed"
+            maxLength={300}
+          />
+        </div>
+
+        <div className="ap-video-form-actions">
+          {editing && <button type="button" className="ap-btn-sec" onClick={() => { setError(''); resetForm(); }}>Cancel</button>}
+          <button type="submit" className="ap-btn-pri" disabled={!canSave}>
+            {saving ? 'Saving…' : editing ? 'Save Changes' : 'Add Short'}
+          </button>
+        </div>
+      </form>
+
+      {/* Feed list, in feed order */}
+      {shorts.length === 0 ? (
+        <div className="ap-topic-empty">
+          <div className="ap-topic-empty-icon">🎬</div>
+          <p>No shorts yet. Paste a YouTube Shorts, TikTok, or Instagram Reel link above to add the first one.</p>
+        </div>
+      ) : (
+        <div className="ap-video-group">
+          <h3 className="ap-video-group-head">📱 Feed order ({shorts.length})</h3>
+          {shorts.map((s, idx) => (
+            <div className="ap-video-row" key={s.id} style={s.active ? undefined : { opacity: 0.5 }}>
+              {thumbFor(s) ? (
+                <img className="ap-video-thumb" src={thumbFor(s)} alt="" />
+              ) : (
+                <div className="ap-video-thumb ap-video-thumb--placeholder">{PLATFORM_ICONS[s.platform]}</div>
+              )}
+              <div className="ap-video-row-info">
+                <span className="ap-video-row-title">{s.title || '(untitled)'}</span>
+                <span className="ap-video-row-attach">
+                  {s.caption ? s.caption : <a href={s.video_url} target="_blank" rel="noopener noreferrer">{s.video_url}</a>}
+                </span>
+              </div>
+              <span className={`ap-video-badge ap-video-badge--${s.platform}`}>
+                {PLATFORM_ICONS[s.platform]} {PLATFORM_LABELS[s.platform]}
+              </span>
+              <div className="ap-video-row-actions">
+                <button className="ap-topic-edit-btn" disabled={busyRow === s.id || idx === 0} onClick={() => handleMove(idx, -1)} title="Move up">↑</button>
+                <button className="ap-topic-edit-btn" disabled={busyRow === s.id || idx === shorts.length - 1} onClick={() => handleMove(idx, 1)} title="Move down">↓</button>
+                <button
+                  className="ap-topic-edit-btn"
+                  disabled={busyRow === s.id}
+                  onClick={() => handleToggleActive(s)}
+                  title={s.active ? 'Active — click to hide from the feed' : 'Hidden — click to show in the feed'}
+                >
+                  {s.active ? '👁️' : '🚫'}
+                </button>
+                <button className="ap-topic-edit-btn" onClick={() => startEdit(s)} title="Edit">✏️</button>
+                <button className="ap-topic-del-btn" onClick={() => setDeleteShort(s)} title="Delete">🗑️</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {deleteShort && (
+        <div className="ap-backdrop" onClick={() => setDeleteShort(null)}>
+          <div className="ap-confirm" onClick={e => e.stopPropagation()}>
+            <div className="ap-confirm-icon">🎬</div>
+            <h3>Delete {deleteShort.title ? `"${deleteShort.title}"` : 'this short'}?</h3>
+            <p>It will be removed from the Shorts feed. The video itself is untouched on {PLATFORM_LABELS[deleteShort.platform]}.</p>
+            <div className="ap-modal-foot">
+              <button className="ap-btn-sec" onClick={() => setDeleteShort(null)}>Cancel</button>
+              <button className="ap-btn-danger" onClick={handleDelete}>Delete Short</button>
             </div>
           </div>
         </div>
@@ -7708,6 +7976,9 @@ export default function AdminApp() {
         <button className={`ap-nav-btn ${tab === 'videos'        ? 'active' : ''}`} onClick={() => setTab('videos')}>
           🎬 Videos
         </button>
+        <button className={`ap-nav-btn ${tab === 'shorts'        ? 'active' : ''}`} onClick={() => setTab('shorts')}>
+          📱 Shorts
+        </button>
         <button className={`ap-nav-btn ${tab === 'journey'       ? 'active' : ''}`} onClick={() => setTab('journey')}>
           🚑 First Aid Journey
         </button>
@@ -7745,6 +8016,7 @@ export default function AdminApp() {
         {tab === 'tower'         && <TowerEditorPanel />}
         {tab === 'quests'        && <QuestsPanel />}
         {tab === 'videos'        && <VideosPanel />}
+        {tab === 'shorts'        && <ShortsPanel />}
         {tab === 'journey'       && <JourneyPanel />}
         {tab === 'journeyeditor' && <JourneyPageEditor />}
         {tab === 'announcements' && <AnnouncementsPanel />}

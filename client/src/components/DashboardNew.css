@@ -154,6 +154,19 @@
   padding: 16px 16px 24px;
 }
 
+/* Shorts tab: full-bleed feed — no header (hidden in JSX), no gutters, and no
+   extra screen padding so the snap feed + fixed nav fill the viewport exactly. */
+.dn-screen--shorts {
+  padding-bottom: 0;
+  overflow: hidden;
+  height: 100dvh;
+}
+.dn-main--shorts {
+  max-width: none;
+  margin: 0;
+  padding: 0;
+}
+
 /* Explore row: Leaderboards / Clans / News entry points inside Home */
 .dn-explore {
   display: grid;

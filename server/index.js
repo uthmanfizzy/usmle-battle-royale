@@ -5713,6 +5713,145 @@ app.delete('/admin/videos/:id', adminAuth, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// ── Shorts feed (new dashboard, stage 2a) ─────────────────────────────────────
+
+// Authoritative copy of the client's parseShortUrl (client/src/utils/
+// shortEmbeds.js) — keep the regexes in sync. Returns { platform, video_id }
+// or { error } with an admin-facing message.
+function parseShortUrl(url) {
+  if (typeof url !== 'string' || !url.trim()) return { error: 'url required' };
+  const s = url.trim();
+  // TikTok share/short links redirect and carry no video id — reject with guidance
+  if (/(?:vm\.tiktok\.com|tiktok\.com\/t)\//i.test(s)) {
+    return { error: 'That is a TikTok share link — paste the full URL from the address bar (tiktok.com/@user/video/…).' };
+  }
+  let m = s.match(/(?:youtube\.com\/watch\?(?:.*&)?v=|youtube\.com\/shorts\/|youtube\.com\/embed\/|youtu\.be\/)([\w-]{11})/i);
+  if (m) return { platform: 'youtube', video_id: m[1] };
+  m = s.match(/tiktok\.com\/@[\w.-]+\/video\/(\d+)/i);
+  if (m) return { platform: 'tiktok', video_id: m[1] };
+  m = s.match(/instagram\.com\/(?:reel|reels|p)\/([\w-]+)/i);
+  if (m) return { platform: 'instagram', video_id: m[1] };
+  return { error: 'Unrecognized link — paste a YouTube Shorts, TikTok video, or Instagram Reel URL.' };
+}
+
+// Best-effort thumbnail at add-time. YouTube is derivable; TikTok's public
+// oEmbed provides one (no auth); Instagram has no free source → null.
+// Never throws — a thumbnail failure must not block adding a short.
+async function resolveShortThumbnail(platform, videoId, url) {
+  if (platform === 'youtube') return `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+  if (platform === 'tiktok' && typeof fetch === 'function') {
+    try {
+      const r = await fetch(`https://www.tiktok.com/oembed?url=${encodeURIComponent(url)}`, {
+        signal: AbortSignal.timeout ? AbortSignal.timeout(5000) : undefined,
+      });
+      if (r.ok) {
+        const d = await r.json();
+        if (typeof d.thumbnail_url === 'string' && d.thumbnail_url) return d.thumbnail_url;
+      }
+    } catch { /* best-effort only */ }
+  }
+  return null;
+}
+
+// Public: the shared shorts feed — active rows, ordered. Degrades to an empty
+// list if the table doesn't exist yet (manual migration), like /api/videos.
+app.get('/api/shorts', async (req, res) => {
+  if (!supabase) return res.json({ shorts: [] });
+  try {
+    const { data, error } = await supabase.from('shorts').select('*')
+      .eq('active', true)
+      .order('sort_order', { ascending: true })
+      .order('created_at', { ascending: true });
+    if (error) throw error;
+    res.json({ shorts: data || [] });
+  } catch (err) {
+    console.warn('[/api/shorts] unavailable, returning shorts: [] —', err.message);
+    res.json({ shorts: [] });
+  }
+});
+
+app.get('/admin/shorts', adminAuth, async (req, res) => {
+  if (!supabase) return res.json({ shorts: [] });
+  try {
+    const { data, error } = await supabase.from('shorts').select('*')
+      .order('sort_order', { ascending: true })
+      .order('created_at', { ascending: true });
+    if (error) throw error;
+    res.json({ shorts: data || [] });
+  } catch (err) {
+    console.warn('[/admin/shorts] unavailable, returning shorts: [] —', err.message);
+    res.json({ shorts: [] });
+  }
+});
+
+app.post('/admin/shorts', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  const { url, title, caption, sort_order } = req.body;
+  const parsed = parseShortUrl(url);
+  if (parsed.error) return res.status(400).json({ error: parsed.error });
+  try {
+    const thumbnail_url = await resolveShortThumbnail(parsed.platform, parsed.video_id, url.trim());
+    const { data, error } = await supabase
+      .from('shorts')
+      .insert({
+        platform:  parsed.platform,
+        video_url: url.trim(),
+        video_id:  parsed.video_id,
+        title:     title?.trim() || null,
+        caption:   caption?.trim() || null,
+        thumbnail_url,
+        sort_order: Number.isFinite(sort_order) ? sort_order : 0,
+        active: true,
+      })
+      .select()
+      .single();
+    if (error) throw error;
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/admin/shorts/:id', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  const { url, title, caption, sort_order, active } = req.body;
+  const updates = {};
+  try {
+    if (url !== undefined) {
+      const parsed = parseShortUrl(url);
+      if (parsed.error) return res.status(400).json({ error: parsed.error });
+      updates.video_url     = url.trim();
+      updates.platform      = parsed.platform;
+      updates.video_id      = parsed.video_id;
+      updates.thumbnail_url = await resolveShortThumbnail(parsed.platform, parsed.video_id, url.trim());
+    }
+    if (title !== undefined)   updates.title   = title?.trim() || null;
+    if (caption !== undefined) updates.caption = caption?.trim() || null;
+    if (Number.isFinite(sort_order)) updates.sort_order = sort_order;
+    if (active !== undefined)  updates.active  = Boolean(active);
+    if (Object.keys(updates).length === 0) return res.status(400).json({ error: 'nothing to update' });
+    const { data, error } = await supabase
+      .from('shorts')
+      .update(updates)
+      .eq('id', req.params.id)
+      .select()
+      .single();
+    if (error) throw error;
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/admin/shorts/:id', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  try {
+    const { error } = await supabase.from('shorts').delete().eq('id', req.params.id);
+    if (error) throw error;
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // ── First Aid Journey: boss questions (admin) ─────────────────────────────────
 
 // Validation shared by POST (full) and PUT (merged row): question present,
