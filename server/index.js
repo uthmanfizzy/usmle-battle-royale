@@ -248,6 +248,9 @@ let gameSettings = {
   towerFloorLives: 3,
   bossTolerance: 0,
   journeyThreshold: 50,  // First Aid Journey: % score needed to complete a level (>= passes)
+  // Dashboard UI shell: false = current dashboard (default), true = new
+  // bottom-nav shell (Home · Stats · Shorts · Play). Admin-toggleable.
+  useNewDashboard: false,
   // First Aid Journey: which of the 16 hardcoded journey subjects players see
   // (ids mirror client/src/journeySubjects.js; default = all active)
   journeyActiveSubjects: [
@@ -4084,6 +4087,7 @@ app.post('/admin/settings', adminAuth, async (req, res) => {
     'navbarBlurEnabled',
     'hardModeHideExplanations',
     'easyModeHideExplanations',
+    'useNewDashboard',
   ];
   for (const k of numFields)  { if (b[k] !== undefined) gameSettings[k] = Number(b[k]); }
   for (const k of boolFields) { if (b[k] !== undefined) gameSettings[k] = Boolean(b[k]); }

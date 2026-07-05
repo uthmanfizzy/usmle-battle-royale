@@ -1491,6 +1491,10 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
   );
 }
 
+// Sections reused by the new dashboard shell (DashboardNew). Additive named
+// exports only — the current dashboard's behavior is untouched.
+export { HomeSection, LeaderboardSection, AnnouncementsSection };
+
 // Wrap Dashboard with Error Boundary
 export default function DashboardWithBoundary(props) {
   return (

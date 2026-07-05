@@ -1,10 +1,16 @@
 import { useState, useEffect } from 'react';
 import Dashboard from './Dashboard';
+import DashboardNew from './DashboardNew';
+import { useGameSettings } from '../contexts/GameSettingsContext';
 import { getToken, clearToken, fetchMe, getCachedUser, setCachedUser, redirectToGoogle } from '../auth';
 
 export default function DashboardPage() {
   const [user, setUser] = useState(getCachedUser);
   const [isGuest, setIsGuest] = useState(false);
+  // Admin-toggled dashboard shell: false/absent = current UI (default),
+  // true = new bottom-nav shell (DashboardNew). Switchable anytime in /admin.
+  const { settings } = useGameSettings();
+  const useNewDashboard = !!settings.useNewDashboard;
 
   useEffect(() => {
     const token = getToken();
@@ -77,8 +83,9 @@ export default function DashboardPage() {
     );
   }
 
+  const DashboardShell = useNewDashboard ? DashboardNew : Dashboard;
   return (
-    <Dashboard
+    <DashboardShell
       user={user}
       onPlayNow={handlePlayNow}
       onLogout={handleLogout}

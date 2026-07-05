@@ -5640,6 +5640,7 @@ function withDefaults(raw) {
     maintenanceMessage:       raw.maintenanceMessage      ?? '',
     maxConcurrentLobbies:     raw.maxConcurrentLobbies    ?? 0,
     // Section 7: UI
+    useNewDashboard:          raw.useNewDashboard         ?? false,
     showStreakCounter:         raw.showStreakCounter        ?? true,
     showPlayerCount:          raw.showPlayerCount         ?? true,
     showCorrectAnswer:        raw.showCorrectAnswer       ?? true,
@@ -6823,6 +6824,10 @@ function SettingsPanel() {
         </div>
 
         <div className="ap-settings-rows">
+          <ToggleRow label="New Dashboard UI (Beta)"
+            desc="Switch players to the new dashboard shell: bottom nav Home / Stats / Shorts / Play, with Leaderboards, Clans and News inside Home. Off = current dashboard. Flip back anytime."
+            checked={settings.useNewDashboard}
+            onChange={v => upd('useNewDashboard', v)} />
           <ToggleRow label="Show Streak Counter"
             desc="Display the consecutive correct answer streak counter during games"
             checked={settings.showStreakCounter}

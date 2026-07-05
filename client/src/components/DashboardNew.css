@@ -1,0 +1,331 @@
+/* ════════════════════════════════════════════════════════════════════════════
+   NEW DASHBOARD SHELL (stage 1) — bottom nav: Home · Stats · Shorts · Play.
+   Only a shell: the page content inside each tab is the existing app's
+   (HomeSection / LeaderboardSection / ClansPage / AnnouncementsSection /
+   StatsPage). All classes are dn-* so nothing collides with the current
+   dashboard, which stays byte-identical when the admin toggle is off.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.dn-screen {
+  --dn-gold:   #dcbe50;
+  --dn-text:   #f0eee4;
+  --dn-dim:    rgba(240, 238, 228, 0.65);
+  --dn-glass:  rgba(16, 22, 12, 0.72);
+  --dn-border: rgba(220, 190, 80, 0.28);
+  --dn-nav-h:  64px;
+
+  position: relative;
+  min-height: 100vh;
+  min-height: 100dvh;
+  color: var(--dn-text);
+  background: linear-gradient(170deg, #131a0e 0%, #0c110a 55%, #080c06 100%);
+  padding-bottom: calc(var(--dn-nav-h) + env(safe-area-inset-bottom, 0px) + 12px);
+  box-sizing: border-box;
+}
+
+/* Background image (admin dashboard_bg) with dark overlay for readability */
+.dn-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.dn-bg-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.dn-bg-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(8, 12, 6, 0.82), rgba(8, 12, 6, 0.66) 40%, rgba(8, 12, 6, 0.88));
+}
+
+/* ── Header ─────────────────────────────────────────────────────────────────── */
+
+.dn-header {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  background: var(--dn-glass);
+  border-bottom: 1px solid var(--dn-border);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.dn-profile { display: flex; align-items: center; gap: 10px; min-width: 0; }
+
+.dn-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  border: 2px solid var(--dn-gold);
+  background: rgba(220, 190, 80, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.dn-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.dn-avatar-fallback { font-weight: 800; font-size: 18px; color: var(--dn-gold); }
+
+.dn-profile-meta { display: flex; flex-direction: column; line-height: 1.25; min-width: 0; }
+.dn-username {
+  font-weight: 800;
+  font-size: 15px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 160px;
+}
+.dn-level { font-size: 12px; color: var(--dn-gold); font-weight: 700; }
+
+.dn-header-right { display: flex; align-items: center; gap: 10px; }
+
+.dn-currency {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--dn-border);
+  font-size: 13px;
+  font-weight: 700;
+}
+.dn-currency-item { display: inline-flex; align-items: center; gap: 5px; }
+.dn-currency-icon { width: 18px; height: 18px; object-fit: contain; }
+.dn-currency-emoji { font-size: 14px; }
+
+.dn-icon-group { display: flex; align-items: center; gap: 8px; }
+
+.dn-drop-wrap { position: relative; }
+
+.dn-icon-btn {
+  position: relative;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 1px solid var(--dn-border);
+  background: rgba(0, 0, 0, 0.35);
+  color: var(--dn-text);
+  font-size: 17px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.dn-icon-btn:hover { background: rgba(220, 190, 80, 0.15); border-color: var(--dn-gold); }
+
+.dn-dot {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #e74c3c;
+  border: 2px solid #0c110a;
+}
+
+.dn-dropdown {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 60;
+}
+.dn-dropdown--right { right: 0; }
+
+/* ── Main content ───────────────────────────────────────────────────────────── */
+
+.dn-main {
+  position: relative;
+  z-index: 1;
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 16px 16px 24px;
+}
+
+/* Explore row: Leaderboards / Clans / News entry points inside Home */
+.dn-explore {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.dn-explore-card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--dn-glass);
+  border: 1px solid var(--dn-border);
+  color: var(--dn-text);
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+.dn-explore-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--dn-gold);
+  background: rgba(220, 190, 80, 0.12);
+}
+.dn-explore-icon { font-size: 19px; }
+.dn-explore-label { flex: 1; text-align: left; }
+.dn-explore-arrow { color: var(--dn-dim); font-size: 18px; font-weight: 800; }
+.dn-dot--card { position: static; margin-right: 2px; flex-shrink: 0; }
+
+/* Sub-view header (Leaderboards / Clans / News opened from Home) */
+.dn-subhead {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.dn-back-btn {
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--dn-border);
+  background: var(--dn-glass);
+  color: var(--dn-text);
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+}
+.dn-back-btn:hover { border-color: var(--dn-gold); }
+.dn-subhead-title { font-weight: 800; font-size: 17px; }
+
+/* Stats tab: the embedded StatsPage manages its own layout; just give the
+   fixed bottom nav breathing room. */
+.dn-stats-embed { margin: -16px; }
+.dn-stats-embed > * { padding-bottom: calc(var(--dn-nav-h) + 24px); }
+
+.dn-tab-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 0;
+}
+
+/* Shorts placeholder */
+.dn-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+  margin: 12vh auto 0;
+  max-width: 380px;
+  padding: 36px 28px;
+  border-radius: 20px;
+  background: var(--dn-glass);
+  border: 1px solid var(--dn-border);
+  backdrop-filter: blur(10px);
+}
+.dn-placeholder-icon { font-size: 52px; line-height: 1; }
+.dn-placeholder-title { margin: 0; font-size: 24px; font-weight: 800; color: var(--dn-gold); }
+.dn-placeholder-text { margin: 0; font-size: 14px; line-height: 1.6; color: var(--dn-dim); }
+.dn-placeholder-badge {
+  margin-top: 6px;
+  padding: 4px 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #0c110a;
+  background: var(--dn-gold);
+}
+
+/* ── Bottom nav ─────────────────────────────────────────────────────────────── */
+
+.dn-nav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 50;
+  display: flex;
+  align-items: stretch;
+  justify-content: space-around;
+  height: calc(var(--dn-nav-h) + env(safe-area-inset-bottom, 0px));
+  padding: 0 8px env(safe-area-inset-bottom, 0px);
+  background: rgba(10, 14, 8, 0.92);
+  border-top: 1px solid var(--dn-border);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.dn-nav-item {
+  position: relative;
+  flex: 1;
+  max-width: 140px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  background: none;
+  border: none;
+  color: var(--dn-dim);
+  font-weight: 700;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+.dn-nav-item:hover { color: var(--dn-text); }
+
+.dn-nav-icon { font-size: 21px; line-height: 1; }
+.dn-nav-img  { width: 24px; height: 24px; object-fit: contain; }
+.dn-nav-label { font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; }
+
+/* Active tab: gold + top indicator bar */
+.dn-nav-item--active { color: var(--dn-gold); }
+.dn-nav-item--active::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 38px;
+  height: 3px;
+  border-radius: 0 0 4px 4px;
+  background: var(--dn-gold);
+  box-shadow: 0 0 10px rgba(220, 190, 80, 0.6);
+}
+
+/* Play: standout gold action */
+.dn-nav-item--play { color: var(--dn-gold); }
+.dn-nav-item--play .dn-nav-icon,
+.dn-nav-item--play .dn-nav-img { filter: drop-shadow(0 0 8px rgba(220, 190, 80, 0.5)); }
+
+/* ── Responsive ─────────────────────────────────────────────────────────────── */
+
+@media (max-width: 640px) {
+  .dn-header { padding: 8px 12px; }
+  .dn-username { max-width: 96px; font-size: 14px; }
+  .dn-currency { padding: 5px 10px; font-size: 12px; gap: 8px; }
+  .dn-icon-btn { width: 34px; height: 34px; font-size: 15px; }
+  .dn-main { padding: 12px 12px 20px; }
+  .dn-explore { grid-template-columns: 1fr; gap: 8px; }
+  .dn-explore-card { padding: 12px; }
+  .dn-stats-embed { margin: -12px; }
+  /* Dropdowns hug the viewport on phones */
+  .dn-dropdown { right: -8px; max-width: calc(100vw - 16px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dn-explore-card:hover { transform: none; }
+}
