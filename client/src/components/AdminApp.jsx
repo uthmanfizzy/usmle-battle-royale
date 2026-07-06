@@ -1139,6 +1139,13 @@ function QuestionsPanel({ subjects = [] }) {
   // ─── Question Parser ──────────────────────────────────────────────────────────
   const [showParser, setShowParser] = useState(false);
 
+  // ─── Folder round-trip (Copy ID-tagged text ↔ Update by ID / add new) ─────────
+  const [copyModal, setCopyModal]   = useState(false);   // export text modal open?
+  const [copyText, setCopyText]     = useState('');       // the ID-tagged export block
+  const [copyCount, setCopyCount]   = useState(0);        // how many questions exported
+  const [copied, setCopied]         = useState(false);
+  const [updateParser, setUpdateParser] = useState(false); // paste-back parser open?
+
   // ─── Anki Import ──────────────────────────────────────────────────────────────
   const [ankiFile, setAnkiFile] = useState(null);
   const [ankiImporting, setAnkiImporting] = useState(false);
@@ -1560,6 +1567,108 @@ function QuestionsPanel({ subjects = [] }) {
       alert('Export failed: ' + e.message);
     }
   };
+
+  // ─── Folder Round-Trip: Copy (export ID-tagged) ↔ Update (by ID) / Add new ────
+  // Build an editable, ID-tagged text block for the current folder's questions.
+  // Each question carries a hidden [ID: question_id] matcher; the stem's own
+  // line breaks (tables / lab values) are preserved verbatim so formatting
+  // survives the round-trip.
+  const buildExportText = (qs) => qs.map(q => {
+    const opts = (q.choices || q.options || []).map((opt, idx) => {
+      const letter = String.fromCharCode(65 + idx);
+      // Strip any existing "A. " / "A) " prefix so we don't double it up.
+      const text = String(opt).replace(/^\s*[A-H][.)]\s*/, '').trim();
+      return `${letter}. ${text}`;
+    });
+    const lines = [
+      `[ID: ${q.id || ''}]`,
+      (q.question || '').trim(),
+      ...opts,
+      `Correct Answer: ${q.correct || ''}`,
+    ];
+    if ((q.explanation || '').trim()) lines.push(`Explanation: ${q.explanation.trim()}`);
+    if ((q.why_others_wrong || '').trim()) lines.push(`Why others wrong: ${q.why_others_wrong.trim()}`);
+    return lines.join('\n');
+  }).join('\n\n---\n\n');
+
+  const handleCopyQuestions = () => {
+    if (filtered.length === 0) { alert('No questions in this folder to copy.'); return; }
+    setCopyText(buildExportText(filtered));
+    setCopyCount(filtered.length);
+    setCopied(false);
+    setCopyModal(true);
+  };
+
+  // customImport for the Update parser: rows with a [ID:] → UPDATE that exact
+  // question; rows without → CREATE, assigned to the current folder/topic.
+  async function updateRoundTrip(parsed) {
+    let updated = 0, added = 0;
+    const errors = [];
+    // New questions inherit the folder's category + the current topic (if any).
+    const newSubject = isCatFolder(activeFolder) ? activeFolder : null;
+    const newTopicId = (selectedTopic && typeof selectedTopic === 'object') ? selectedTopic.id : null;
+
+    for (let i = 0; i < parsed.length; i++) {
+      const q = parsed[i];
+      const options = q.choices || q.options || [];
+      const label = `Q${i + 1}${q.question_id ? ` [ID ${q.question_id}]` : ' (new)'}`;
+      try {
+        if (q.question_id) {
+          // UPDATE existing by question_id (stable text id). No duplicate created.
+          // Send ONLY the fields the export carries — difficulty, game_modes,
+          // topic, and images aren't in the text, so they must stay untouched
+          // (the server merges onto the existing record).
+          const res = await apiCall(`/admin/questions/${encodeURIComponent(q.question_id)}`, {
+            method: 'PUT',
+            body: JSON.stringify({
+              question: q.question,
+              options,
+              correct: q.correct,
+              explanation: q.explanation || '',
+              why_others_wrong: q.why_others_wrong || null,
+            }),
+          });
+          if (!res.ok) {
+            const d = await res.json().catch(() => ({}));
+            throw new Error(res.status === 404 ? 'ID not found (no matching question)' : (d.error || `HTTP ${res.status}`));
+          }
+          updated++;
+        } else {
+          // CREATE new, assigned to this folder.
+          if (!newSubject) throw new Error('Open a specific subject folder to add new questions');
+          const res = await apiCall('/admin/questions', {
+            method: 'POST',
+            body: JSON.stringify({
+              subject: newSubject,
+              question: q.question,
+              options,
+              correct: q.correct,
+              explanation: q.explanation || '',
+              why_others_wrong: q.why_others_wrong || null,
+              difficulty: q.difficulty || selectedDifficulty || 'easy',
+              game_modes: q.game_modes,
+              topic_id: newTopicId,
+            }),
+          });
+          if (!res.ok) {
+            const d = await res.json().catch(() => ({}));
+            throw new Error(d.error || `HTTP ${res.status}`);
+          }
+          added++;
+        }
+      } catch (e) {
+        errors.push(`${label}: ${e.message}`);
+      }
+    }
+
+    return { imported: updated + added, updated, added, failed: errors.length, errors };
+  }
+
+  async function handleUpdateDone(result) {
+    setBulkMsg(`✓ ${result.updated} updated, ${result.added} added${result.failed ? `, ${result.failed} failed` : ''}`);
+    await loadQuestions();
+    if (isCatFolder(activeFolder)) loadTopics(activeFolder, selectedDifficulty);
+  }
 
   // ─── Anki Import Handlers ────────────────────────────────────────────────────
   const handleAnkiPreview = async () => {
@@ -2201,6 +2310,20 @@ function QuestionsPanel({ subjects = [] }) {
                   >
                     📤 Export
                   </button>
+                  <button
+                    className="ap-btn-sec"
+                    onClick={handleCopyQuestions}
+                    title={`Copy ${filtered.length} question${filtered.length !== 1 ? 's' : ''} as editable ID-tagged text (round-trip)`}
+                  >
+                    📋 Copy Questions
+                  </button>
+                  <button
+                    className="ap-btn-sec"
+                    onClick={() => setUpdateParser(true)}
+                    title="Paste edited questions back — updates by ID, adds new ones to this folder"
+                  >
+                    ♻️ Update Questions
+                  </button>
                   <button className="ap-btn-sec" onClick={() => setImportModal(true)}>
                     📥 Bulk Import
                   </button>
@@ -2542,6 +2665,60 @@ function QuestionsPanel({ subjects = [] }) {
           onImport={handleImportDone}
           onClose={() => setShowParser(false)}
         />
+      )}
+
+      {/* Round-trip: Update Questions — reuses the parser, routes by [ID:] */}
+      {updateParser && (
+        <QuestionParser
+          activeFolder={activeFolder}
+          selectedTopic={selectedTopic}
+          selectedDifficulty={selectedDifficulty}
+          customImport={updateRoundTrip}
+          onImport={handleUpdateDone}
+          onClose={() => setUpdateParser(false)}
+        />
+      )}
+
+      {/* Round-trip: Copy Questions — ID-tagged editable text to copy out */}
+      {copyModal && (
+        <div className="ap-backdrop" onClick={e => e.target === e.currentTarget && setCopyModal(false)}>
+          <div className="ap-modal" style={{ maxWidth: 720, width: '90%' }}>
+            <div className="ap-modal-head">
+              <h2>📋 Copy Questions</h2>
+              <button className="ap-modal-x" onClick={() => setCopyModal(false)}>✕</button>
+            </div>
+            <div style={{ padding: '16px 20px' }}>
+              <p style={{ marginTop: 0, fontSize: 13, opacity: 0.85, lineHeight: 1.5 }}>
+                {copyCount} question{copyCount !== 1 ? 's' : ''} from this folder, ID-tagged and editable.
+                Paste into an editor, edit, then bring it back via <strong>♻️ Update Questions</strong>.
+                Keep each <code>[ID: …]</code> line to <strong>update</strong> that exact question.
+                To <strong>add</strong> a new one, start its block with a number (e.g. <code>1.</code>)
+                and no <code>[ID:]</code> line — it&rsquo;s created in this folder.
+              </p>
+              <textarea
+                style={{ width: '100%', minHeight: 320, fontFamily: 'monospace', fontSize: 13,
+                         padding: 10, borderRadius: 8, boxSizing: 'border-box' }}
+                readOnly
+                value={copyText}
+                onFocus={e => e.target.select()}
+              />
+            </div>
+            <div className="ap-modal-foot">
+              <button className="ap-btn-sec" onClick={() => setCopyModal(false)}>Close</button>
+              <button
+                className="ap-btn-pri"
+                onClick={async () => {
+                  try { await navigator.clipboard.writeText(copyText); }
+                  catch { /* clipboard may be blocked; textarea is still selectable */ }
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 2000);
+                }}
+              >
+                {copied ? '✓ Copied!' : '📋 Copy to Clipboard'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

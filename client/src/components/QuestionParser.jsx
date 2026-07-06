@@ -80,8 +80,9 @@ export default function QuestionParser({ activeFolder, selectedTopic, selectedDi
       .reduce((acc, block) => {
         const trimmed = block.trim();
         if (!trimmed) return acc;
-        // Check if this block starts a new question
-        const isQuestion = /^(Q?\d+[.):\s]|Question\s+\d+)/i.test(trimmed);
+        // Check if this block starts a new question.
+        // A leading [ID: …] marker (round-trip export) also begins a fresh question.
+        const isQuestion = /^(Q?\d+[.):\s]|Question\s+\d+|\[ID:)/i.test(trimmed);
 
         // If NOT a new question and we have previous blocks, merge with last block
         if (acc.length > 0 && !isQuestion) {
@@ -105,10 +106,21 @@ export default function QuestionParser({ activeFolder, selectedTopic, selectedDi
         let correctLetter = '';
         let explanation = '';
         let whyOthersWrong = '';
+        let blockId = '';      // round-trip [ID: …] marker, if present
         let mode = 'question'; // 'question' | 'choices' | 'answer' | 'explanation' | 'why'
 
         for (let i = 0; i < lines.length; i++) {
           const line = lines[i];
+
+          // ── Round-trip ID marker: [ID: question_id] ──
+          // Hidden matcher for the folder round-trip. Present → UPDATE that
+          // question; absent (or blank) → treated as a new question.
+          const idMatch = line.match(/^\[ID:\s*([^\]]*)\]\s*$/i);
+          if (idMatch) { blockId = idMatch[1].trim(); continue; }
+
+          // Standalone separator rule (--- between exported questions): ignore.
+          // Pure-dash lines only — table separators contain pipes, so they're safe.
+          if (/^-{3,}$/.test(line)) continue;
 
           // ── Detect section headers ──────────────────
           // Why others wrong
@@ -233,7 +245,8 @@ export default function QuestionParser({ activeFolder, selectedTopic, selectedDi
           why_others_wrong: whyOthersWrong.trim(),
           difficulty,
           game_modes: gameModes,
-          image_url: ''
+          image_url: '',
+          question_id: blockId || undefined,   // round-trip: matcher for UPDATE-vs-CREATE
         });
 
       } catch(e) {
@@ -585,8 +598,17 @@ export default function QuestionParser({ activeFolder, selectedTopic, selectedDi
             {importResult ? (
               <>
                 <p>
-                  Imported {importResult.imported}
-                  {importResult.failed > 0 ? `, ${importResult.failed} failed.` : ' questions successfully.'}
+                  {(importResult.updated != null || importResult.added != null) ? (
+                    <>
+                      {importResult.updated || 0} updated, {importResult.added || 0} added
+                      {importResult.failed > 0 ? `, ${importResult.failed} failed.` : '.'}
+                    </>
+                  ) : (
+                    <>
+                      Imported {importResult.imported}
+                      {importResult.failed > 0 ? `, ${importResult.failed} failed.` : ' questions successfully.'}
+                    </>
+                  )}
                 </p>
                 {importResult.failed > 0 && (
                   <div className="qp-errors">
