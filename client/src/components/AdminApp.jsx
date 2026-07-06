@@ -119,6 +119,31 @@ function apiCall(path, options = {}) {
   });
 }
 
+// Shared [ID: …]-tagged export — the ONE source of truth for both the folder
+// round-trip and the journey level round-trip. Each question is emitted with a
+// hidden [ID: id] matcher; the stem's own line breaks (tables / lab values) are
+// preserved verbatim so formatting survives the round-trip. Works for both the
+// folder question shape (q.choices) and the journey question shape (q.options).
+function buildIdTaggedExport(questions) {
+  return questions.map(q => {
+    const opts = (q.choices || q.options || []).map((opt, idx) => {
+      const letter = String.fromCharCode(65 + idx);
+      // Strip any existing "A. " / "A) " prefix so we don't double it up.
+      const text = String(opt).replace(/^\s*[A-H][.)]\s*/, '').trim();
+      return `${letter}. ${text}`;
+    });
+    const lines = [
+      `[ID: ${q.id || ''}]`,
+      (q.question || '').trim(),
+      ...opts,
+      `Correct Answer: ${q.correct || ''}`,
+    ];
+    if ((q.explanation || '').trim()) lines.push(`Explanation: ${q.explanation.trim()}`);
+    if ((q.why_others_wrong || '').trim()) lines.push(`Why others wrong: ${q.why_others_wrong.trim()}`);
+    return lines.join('\n');
+  }).join('\n\n---\n\n');
+}
+
 // ── Login ──────────────────────────────────────────────────────────────────────
 
 function AdminLogin({ onLogin }) {
@@ -1573,27 +1598,9 @@ function QuestionsPanel({ subjects = [] }) {
   // Each question carries a hidden [ID: question_id] matcher; the stem's own
   // line breaks (tables / lab values) are preserved verbatim so formatting
   // survives the round-trip.
-  const buildExportText = (qs) => qs.map(q => {
-    const opts = (q.choices || q.options || []).map((opt, idx) => {
-      const letter = String.fromCharCode(65 + idx);
-      // Strip any existing "A. " / "A) " prefix so we don't double it up.
-      const text = String(opt).replace(/^\s*[A-H][.)]\s*/, '').trim();
-      return `${letter}. ${text}`;
-    });
-    const lines = [
-      `[ID: ${q.id || ''}]`,
-      (q.question || '').trim(),
-      ...opts,
-      `Correct Answer: ${q.correct || ''}`,
-    ];
-    if ((q.explanation || '').trim()) lines.push(`Explanation: ${q.explanation.trim()}`);
-    if ((q.why_others_wrong || '').trim()) lines.push(`Why others wrong: ${q.why_others_wrong.trim()}`);
-    return lines.join('\n');
-  }).join('\n\n---\n\n');
-
   const handleCopyQuestions = () => {
     if (filtered.length === 0) { alert('No questions in this folder to copy.'); return; }
-    setCopyText(buildExportText(filtered));
+    setCopyText(buildIdTaggedExport(filtered));
     setCopyCount(filtered.length);
     setCopied(false);
     setCopyModal(true);
@@ -4288,6 +4295,13 @@ function JourneyPanel() {
   const [saving,   setSaving]   = useState(false);
   const [showParser, setShowParser] = useState(false);
   const [form,     setForm]     = useState(BOSS_EMPTY_FORM);
+
+  // ─── Level question round-trip (Copy ID-tagged ↔ Update by ID / add new) ─────
+  const [copyModal,    setCopyModal]    = useState(false);
+  const [copyText,     setCopyText]     = useState('');
+  const [copyCount,    setCopyCount]    = useState(0);
+  const [copied,       setCopied]       = useState(false);
+  const [updateParser, setUpdateParser] = useState(false);
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
   // Journey map background — stored via the landing-images slot system ('journey_bg')
@@ -4644,6 +4658,79 @@ function JourneyPanel() {
     return { imported, failed: errors.length, errors };
   }
 
+  // ─── Level question round-trip: Copy (export ID-tagged) ↔ Update (by id) / Add
+  // Mirrors the folder round-trip, scoped to THIS journey level's questions.
+  const handleCopyLevelQuestions = () => {
+    if (editorQuestions.length === 0) { alert('No questions in this level to copy.'); return; }
+    setCopyText(buildIdTaggedExport(editorQuestions));
+    setCopyCount(editorQuestions.length);
+    setCopied(false);
+    setCopyModal(true);
+  };
+
+  // customImport for the Update parser: rows with a [ID:] → UPDATE that exact
+  // journey question; rows without → CREATE, assigned to THIS level (level_id).
+  async function levelUpdateRoundTrip(parsed) {
+    if (!selected || selected.kind !== 'level') {
+      return { imported: 0, updated: 0, added: 0, failed: parsed.length, errors: ['No level selected'] };
+    }
+    const levelId = selected.level.id;
+    const existingCount = editorQuestions.length;
+    let updated = 0, added = 0, addIdx = 0;
+    const errors = [];
+
+    for (let i = 0; i < parsed.length; i++) {
+      const q = parsed[i];
+      const options = q.choices || q.options || [];
+      const label = `Q${i + 1}${q.question_id ? ` [ID ${q.question_id}]` : ' (new)'}`;
+      try {
+        if (q.question_id) {
+          // UPDATE existing by journey_questions.id. No duplicate created.
+          // Send only the fields the export carries; images/sort_order untouched.
+          const res = await apiCall(`/admin/journey-questions/${encodeURIComponent(q.question_id)}`, {
+            method: 'PUT',
+            body: JSON.stringify({
+              question: q.question,
+              options,
+              correct: q.correct,
+              explanation: q.explanation || null,
+              why_others_wrong: q.why_others_wrong || null,
+            }),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(res.status === 404 ? 'ID not found (no matching question)' : (data.error || `HTTP ${res.status}`));
+          setLevelQs(qs => qs.map(x => x.id === data.id ? data : x));
+          updated++;
+        } else {
+          // CREATE new, assigned to this level.
+          const res = await apiCall('/admin/journey-questions', {
+            method: 'POST',
+            body: JSON.stringify({
+              level_id: levelId,
+              question: q.question,
+              options,
+              correct: q.correct,
+              explanation: q.explanation || null,
+              why_others_wrong: q.why_others_wrong || null,
+              sort_order: existingCount + addIdx,
+            }),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+          setLevelQs(qs => [...qs, data]);
+          added++; addIdx++;
+        }
+      } catch (e) {
+        errors.push(`${label}: ${e.message}`);
+      }
+    }
+
+    if (added > 0) {
+      setCounts(c => ({ ...c, levels: { ...c.levels, [levelId]: (c.levels[levelId] || 0) + added } }));
+    }
+    return { imported: updated + added, updated, added, failed: errors.length, errors };
+  }
+
   function startEdit(q) {
     setError('');
     setEditing(q);
@@ -4998,9 +5085,21 @@ function JourneyPanel() {
             <span className="ap-journey-editor-title">
               {folder?.icon} {folder?.label} › {editorTitle}
             </span>
-            <button className="ap-btn-sec ap-journey-parse-btn" onClick={() => setShowParser(true)}>
-              📋 Paste &amp; Parse
-            </button>
+            <div className="ap-journey-parse-btn" style={{ marginLeft: 'auto', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {selected.kind === 'level' && (
+                <>
+                  <button className="ap-btn-sec" onClick={handleCopyLevelQuestions} title="Copy this level's questions as editable ID-tagged text (round-trip)">
+                    📋 Copy Questions
+                  </button>
+                  <button className="ap-btn-sec" onClick={() => setUpdateParser(true)} title="Paste edited questions back — updates by ID, adds new ones to this level">
+                    ♻️ Update Questions
+                  </button>
+                </>
+              )}
+              <button className="ap-btn-sec" onClick={() => setShowParser(true)}>
+                📋 Paste &amp; Parse
+              </button>
+            </div>
           </div>
 
           {selected.kind === 'level' && (
@@ -5167,6 +5266,60 @@ function JourneyPanel() {
           onImport={() => {}}
           onClose={() => setShowParser(false)}
         />
+      )}
+
+      {/* Round-trip: Update Questions — reuses the parser, routes by [ID:] (per level) */}
+      {updateParser && selected?.kind === 'level' && (
+        <QuestionParser
+          activeFolder={subject}
+          selectedTopic={null}
+          selectedDifficulty="easy"
+          customImport={levelUpdateRoundTrip}
+          onImport={() => {}}
+          onClose={() => setUpdateParser(false)}
+        />
+      )}
+
+      {/* Round-trip: Copy Questions — ID-tagged editable text to copy out (per level) */}
+      {copyModal && (
+        <div className="ap-backdrop" onClick={e => e.target === e.currentTarget && setCopyModal(false)}>
+          <div className="ap-modal" style={{ maxWidth: 720, width: '90%' }}>
+            <div className="ap-modal-head">
+              <h2>📋 Copy Questions</h2>
+              <button className="ap-modal-x" onClick={() => setCopyModal(false)}>✕</button>
+            </div>
+            <div style={{ padding: '16px 20px' }}>
+              <p style={{ marginTop: 0, fontSize: 13, opacity: 0.85, lineHeight: 1.5 }}>
+                {copyCount} question{copyCount !== 1 ? 's' : ''} from this level, ID-tagged and editable.
+                Paste into an editor, edit, then bring it back via <strong>♻️ Update Questions</strong>.
+                Keep each <code>[ID: …]</code> line to <strong>update</strong> that exact question.
+                To <strong>add</strong> a new one, start its block with a number (e.g. <code>1.</code>)
+                and no <code>[ID:]</code> line — it&rsquo;s created in this level.
+              </p>
+              <textarea
+                style={{ width: '100%', minHeight: 320, fontFamily: 'monospace', fontSize: 13,
+                         padding: 10, borderRadius: 8, boxSizing: 'border-box' }}
+                readOnly
+                value={copyText}
+                onFocus={e => e.target.select()}
+              />
+            </div>
+            <div className="ap-modal-foot">
+              <button className="ap-btn-sec" onClick={() => setCopyModal(false)}>Close</button>
+              <button
+                className="ap-btn-pri"
+                onClick={async () => {
+                  try { await navigator.clipboard.writeText(copyText); }
+                  catch { /* clipboard may be blocked; textarea is still selectable */ }
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 2000);
+                }}
+              >
+                {copied ? '✓ Copied!' : '📋 Copy to Clipboard'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
