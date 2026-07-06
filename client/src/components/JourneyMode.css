@@ -1022,6 +1022,74 @@
 .jm-confirm-play { min-width: 180px; }
 .jm-confirm-play:disabled { opacity: 0.55; cursor: default; }
 
+/* ── Optional recommended video on the level confirm screen ─────────────────── */
+.jm-confirm-card--video { width: 460px; }
+
+.jm-confirm-video {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin: 2px 0 8px;
+}
+
+.jm-confirm-video-msg {
+  margin: 0;
+  font-family: 'Baloo 2', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.45;
+  color: var(--cyan);
+}
+
+.jm-confirm-video-frame {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #000;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 8px 22px rgba(8, 4, 24, 0.5);
+}
+
+/* Vertical platforms (TikTok / Instagram Reels) — portrait frame, capped height */
+.jm-confirm-video-frame--vertical {
+  aspect-ratio: 9 / 16;
+  max-height: 60vh;
+  width: auto;
+  max-width: 100%;
+  align-self: center;
+}
+
+.jm-confirm-video-frame iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+/* Fallback link when the platform has no inline embed (e.g. Instagram) */
+.jm-confirm-video-link {
+  display: inline-block;
+  padding: 9px 18px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 13px;
+  text-decoration: none;
+  color: #fff;
+  background: linear-gradient(180deg, var(--cyan), var(--blue));
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 6px 14px rgba(8, 4, 24, 0.4);
+}
+.jm-confirm-video-link:hover { filter: brightness(1.06); }
+
+@media (max-width: 520px) {
+  .jm-confirm-card--video { width: 350px; }
+}
+
 /* ── Interstitial: result card over the path after a game ──────────────────── */
 
 .jm-interstitial-overlay {

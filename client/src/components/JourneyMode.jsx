@@ -1,6 +1,7 @@
 import { Fragment, useState, useEffect, useRef, useCallback } from 'react';
 import { getToken } from '../auth';
 import { JOURNEY_SUBJECTS, JOURNEY_SECTIONS } from '../journeySubjects';
+import { parseShortUrl, embedUrlStatic } from '../utils/shortEmbeds';
 import './JourneyMode.css';
 
 const SERVER = 'https://usmle-battle-royale-production.up.railway.app';
@@ -176,6 +177,7 @@ export default function JourneyMode({
         completed: false,
         best_score_pct: 0,
         unlocked: true,
+        video_url: l.video_url || null,
       }));
       const bossKey = `chapter:${ch.id}`;
       chapters.push({
@@ -659,6 +661,7 @@ export default function JourneyMode({
               kind: 'level', name: l.name, questionCount: l.question_count,
               bestPct: l.best_score_pct, completed: l.completed,
               levelKey: l.level_key,
+              videoUrl: l.video_url || null,
               questionsUrl: `${SERVER}/api/journey-questions?level_id=${l.level_key}`,
             })}
           >
@@ -778,7 +781,7 @@ export default function JourneyMode({
 
       {confirmNode && (
         <div className="jm-confirm-overlay" onClick={() => setConfirmNode(null)}>
-          <div className="jm-confirm-card" onClick={e => e.stopPropagation()}>
+          <div className={`jm-confirm-card${confirmNode.videoUrl ? ' jm-confirm-card--video' : ''}`} onClick={e => e.stopPropagation()}>
             <span className="jm-confirm-seal" aria-hidden="true">⚕</span>
             <span className="jm-confirm-kind">
               {confirmNode.kind === 'ultimate' ? '👑 Ultimate Boss' : confirmNode.kind === 'boss' ? '💀 Chapter Boss' : '🎯 Level'}
@@ -789,6 +792,34 @@ export default function JourneyMode({
               {confirmNode.bestPct > 0 && <span>Best: {confirmNode.bestPct}%</span>}
             </div>
             <p className="jm-confirm-threshold">Pass with ≥{threshold}% to unlock the next {confirmNode.kind === 'level' ? 'level' : 'stage'}</p>
+            {confirmNode.videoUrl && (() => {
+              const parsed = parseShortUrl(confirmNode.videoUrl);
+              const src = parsed.error ? null : embedUrlStatic(parsed.platform, parsed.video_id);
+              const vertical = parsed.platform === 'tiktok' || parsed.platform === 'instagram';
+              return (
+                <div className="jm-confirm-video">
+                  <p className="jm-confirm-video-msg">📺 Recommended: watch this video before answering the questions.</p>
+                  {src ? (
+                    <div className={`jm-confirm-video-frame${vertical ? ' jm-confirm-video-frame--vertical' : ''}`}>
+                      <iframe
+                        src={src}
+                        title="Recommended video"
+                        frameBorder="0"
+                        allow="accelerometer; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                      />
+                    </div>
+                  ) : (
+                    <a
+                      className="jm-confirm-video-link"
+                      href={confirmNode.videoUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >▶ Open the recommended video</a>
+                  )}
+                </div>
+              );
+            })()}
             <button
               className="btn-start jm-confirm-play"
               onClick={() => {

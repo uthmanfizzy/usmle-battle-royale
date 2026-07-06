@@ -3197,6 +3197,44 @@
 .ap-journey-editor-title { font-size: 14px; font-weight: 700; }
 .ap-journey-parse-btn { margin-left: auto; }
 
+/* ── Optional per-level recommended video (admin) ──────────────────────────── */
+.ap-journey-video-field {
+  margin-bottom: 16px;
+  padding: 14px;
+  border-radius: 12px;
+  background: var(--card-hi, rgba(255, 255, 255, 0.03));
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+}
+.ap-journey-video-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.ap-journey-video-row .ap-input-plain { flex: 1; min-width: 200px; }
+.ap-journey-video-preview {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-soft, #b8c0e0);
+}
+.ap-journey-video-thumb {
+  width: 72px;
+  height: 44px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+}
+.ap-journey-video-status {
+  margin-top: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-soft, #b8c0e0);
+}
+
 .ap-journey-q-list { margin-top: 18px; }
 .ap-journey-q-caption {
   font-size: 12px;

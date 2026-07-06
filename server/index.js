@@ -6098,7 +6098,7 @@ app.get('/admin/journey-levels', adminAuth, async (req, res) => {
 
 app.post('/admin/journey-levels', adminAuth, async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
-  const { chapter_id, name, sort_order } = req.body;
+  const { chapter_id, name, sort_order, video_url } = req.body;
   if (!chapter_id || !name?.trim()) return res.status(400).json({ error: 'chapter_id and name required' });
   try {
     const { data, error } = await supabase
@@ -6107,6 +6107,8 @@ app.post('/admin/journey-levels', adminAuth, async (req, res) => {
         chapter_id,
         name: name.trim(),
         sort_order: Number.isFinite(sort_order) ? sort_order : 0,
+        // Optional recommended video shown on the level's confirm screen. Empty → null.
+        video_url: (typeof video_url === 'string' && video_url.trim()) ? video_url.trim() : null,
       })
       .select()
       .single();
@@ -6123,6 +6125,11 @@ app.put('/admin/journey-levels/:id', adminAuth, async (req, res) => {
     updates.name = req.body.name.trim();
   }
   if (Number.isFinite(req.body.sort_order)) updates.sort_order = req.body.sort_order;
+  // Optional recommended video for the level's confirm screen. Empty string clears it.
+  if ('video_url' in req.body) {
+    const v = (req.body.video_url ?? '').toString().trim();
+    updates.video_url = v || null;
+  }
   if (Object.keys(updates).length === 0) return res.status(400).json({ error: 'nothing to update' });
   try {
     const { data, error } = await supabase
@@ -6842,6 +6849,7 @@ async function buildJourneyPath(userId, subject) {
         completed,
         best_score_pct: best(l.id),
         unlocked,
+        video_url: l.video_url || null,   // optional recommended video for the confirm screen
       };
     });
 

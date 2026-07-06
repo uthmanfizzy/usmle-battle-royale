@@ -4198,6 +4198,74 @@ function ExplanationImageField({ value, onChange }) {
   );
 }
 
+// Optional per-level recommended video. Paste a URL → validated with the shared
+// shorts embed parser (same source of truth as the Shorts feed + player), saved
+// on the level via PUT /admin/journey-levels/:id. Empty clears it. Keyed by
+// level.id at the call site so it reseeds when the admin switches levels.
+function LevelVideoField({ level, onSaved }) {
+  const [url,    setUrl]    = useState(level.video_url || '');
+  const [saving, setSaving] = useState(false);
+  const [msg,    setMsg]    = useState('');
+
+  const trimmed = url.trim();
+  const parsed  = trimmed ? parseShortUrl(trimmed) : null;
+  const valid   = !!parsed && !parsed.error;
+  const dirty   = trimmed !== (level.video_url || '');
+  const canSave = dirty && (!trimmed || valid);   // allow saving a valid URL or clearing to empty
+
+  async function doSave(value) {
+    setSaving(true); setMsg('');
+    try {
+      const res  = await apiCall(`/admin/journey-levels/${level.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ video_url: value }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Save failed');
+      onSaved(data.video_url || '');
+      setUrl(data.video_url || '');
+      setMsg('✓ Saved');
+      setTimeout(() => setMsg(''), 2000);
+    } catch (e) { setMsg('⚠ ' + e.message); }
+    setSaving(false);
+  }
+
+  return (
+    <div className="ap-field ap-journey-video-field">
+      <label>
+        Level Video <span className="ap-field-opt">(optional · shown on the player's confirm screen with a "recommended to watch" note)</span>
+      </label>
+      <div className="ap-journey-video-row">
+        <input
+          type="url"
+          value={url}
+          onChange={e => setUrl(e.target.value)}
+          placeholder="Paste a YouTube / TikTok / Instagram video URL"
+          className="ap-input-plain"
+        />
+        <button type="button" className="ap-btn-pri ap-btn-sm" disabled={!canSave || saving} onClick={() => doSave(trimmed)}>
+          {saving ? '…' : 'Save'}
+        </button>
+        {level.video_url && (
+          <button type="button" className="ap-btn-sec ap-btn-sm" disabled={saving} onClick={() => doSave('')}>
+            Clear
+          </button>
+        )}
+      </div>
+      {trimmed && parsed?.error && <div className="ap-error">{parsed.error}</div>}
+      {valid && (
+        <div className="ap-journey-video-preview">
+          {shortThumbnailUrl(parsed.platform, parsed.video_id) && (
+            <img src={shortThumbnailUrl(parsed.platform, parsed.video_id)} alt="" className="ap-journey-video-thumb" />
+          )}
+          <span>{PLATFORM_ICONS[parsed.platform]} {PLATFORM_LABELS[parsed.platform]} video linked</span>
+        </div>
+      )}
+      {msg && <div className="ap-journey-video-status">{msg}</div>}
+    </div>
+  );
+}
+
 function JourneyPanel() {
   const [subject,  setSubject]  = useState(JOURNEY_SUBJECTS[0].id);
   const [chapters, setChapters] = useState([]);
@@ -4934,6 +5002,23 @@ function JourneyPanel() {
               📋 Paste &amp; Parse
             </button>
           </div>
+
+          {selected.kind === 'level' && (
+            <LevelVideoField
+              key={selected.level.id}
+              level={selected.level}
+              onSaved={(newUrl) => {
+                setSelected(s => (s && s.kind === 'level')
+                  ? { ...s, level: { ...s.level, video_url: newUrl } }
+                  : s);
+                setLevelsByChapter(prev => {
+                  const arr = prev[selected.chapter.id];
+                  if (!arr) return prev;
+                  return { ...prev, [selected.chapter.id]: arr.map(l => l.id === selected.level.id ? { ...l, video_url: newUrl } : l) };
+                });
+              }}
+            />
+          )}
 
           <form onSubmit={handleSave} className="ap-qform ap-video-form">
             <h3 className="ap-video-form-title">{editing ? '✏️ Edit Question' : '➕ Add Question'}</h3>

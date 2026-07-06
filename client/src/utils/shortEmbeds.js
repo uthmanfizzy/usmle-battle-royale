@@ -59,6 +59,19 @@ export function embedUrl(platform, videoId) {
   return null;
 }
 
+// Play-on-demand embed URL (no autoplay) — for places where a video is *offered*
+// and the user presses play themselves, e.g. the Journey level confirm screen.
+// Same endpoints as embedUrl minus the autoplay/mute flags. null when not inline.
+export function embedUrlStatic(platform, videoId) {
+  if (platform === 'youtube') {
+    return `https://www.youtube-nocookie.com/embed/${videoId}?playsinline=1&rel=0`;
+  }
+  if (platform === 'tiktok') {
+    return `https://www.tiktok.com/embed/v2/${videoId}`;
+  }
+  return null;
+}
+
 // Derivable thumbnail, or null (TikTok thumbs come from oEmbed at add-time and
 // live in the row's thumbnail_url; Instagram has no free thumbnail source).
 export function thumbnailUrl(platform, videoId) {
