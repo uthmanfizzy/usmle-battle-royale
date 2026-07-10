@@ -56,6 +56,11 @@ const DEFAULT_ACTIVE_IDS = new Set([
   'cardiology', 'neurology', 'pharmacology', 'microbiology', 'biochemistry', 'biostatistics',
 ]);
 
+// Which top-level groups the user has expanded, remembered for the session.
+// Module-level so it survives Training Grounds remounts (leaving to play and
+// coming back doesn't re-collapse everything). Keys: `${subject}/${groupId}`.
+const sessionExpandedGroups = new Set();
+
 // Placeholder per-subject progress ring. Driven by subjectProgress[s.id] ?? 0 —
 // real completion data drops in later by populating that map; no markup change.
 function ProgressRing({ percent }) {
@@ -141,6 +146,10 @@ export default function TrainingGrounds({ user, onBack, onStartPractice, initial
   // App.jsx POSTs at game-over). { [key]: { completed, best_pct } }. Empty for
   // guests or when the tg_completions table is missing — never errors.
   const [completions, setCompletions] = useState({});
+
+  // Top-level groups start collapsed; clicking a group header reveals its topics.
+  // Seeded from the module-level session set so remounts keep what was open.
+  const [expandedGroups, setExpandedGroups] = useState(() => new Set(sessionExpandedGroups));
 
   // Videos cached per category|difficulty — one fetch serves the whole rail
   const [videosCache, setVideosCache] = useState({});
@@ -262,6 +271,18 @@ export default function TrainingGrounds({ user, onBack, onStartPractice, initial
     setSelectedTopic(item);
     loadVideos(selectedSubject, selectedDifficulty);
   }
+
+  function toggleGroup(groupId) {
+    const key = `${selectedSubject}/${groupId}`;
+    setExpandedGroups(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) { next.delete(key); sessionExpandedGroups.delete(key); }
+      else               { next.add(key);    sessionExpandedGroups.add(key);    }
+      return next;
+    });
+  }
+
+  const isGroupExpanded = (groupId) => expandedGroups.has(`${selectedSubject}/${groupId}`);
 
   function backToSubjects() {
     setScreen('subject');
@@ -458,26 +479,58 @@ export default function TrainingGrounds({ user, onBack, onStartPractice, initial
                     const subs         = subGroupsOf(group.id);
                     // A flat group (no sub-folders) with no topics renders nothing, as before.
                     if (directTopics.length === 0 && subs.length === 0) return null;
+                    const count = wholeFolderCount(group);
+                    const open  = isGroupExpanded(group.id);
+                    const done  = completions[`${selectedSubject}/group:${group.id}`]?.completed;
+                    const isSel = selectedTopic?.scope === 'group' && selectedTopic?.id === group.id;
                     return (
-                      <div className="tg-group-section" key={group.id}>
-                        <div className="tg-group-label">🗂️ {group.name}</div>
-                        {/* Study the whole top-level folder (its topics + all sub-folders) */}
-                        {renderStudyWhole(group, wholeFolderCount(group), 'parent')}
-                        {directTopics.length > 0 && (
-                          <div className="tg-folder-grid">{directTopics.map(renderFolderCard)}</div>
+                      <div className={`tg-group-section ${open ? 'tg-group-section--open' : ''}`} key={group.id}>
+                        {/* Collapsed by default — the header toggles the topic list open */}
+                        <div className="tg-group-header">
+                          <button
+                            className="tg-group-toggle"
+                            onClick={() => toggleGroup(group.id)}
+                            aria-expanded={open}
+                            title={open ? `Collapse ${group.name}` : `Expand ${group.name} to see its topics`}
+                          >
+                            <span className="tg-group-chevron">{open ? '▾' : '▸'}</span>
+                            <span className="tg-group-title">🗂️ {group.name}</span>
+                            <span className="tg-group-qcount">{count} q{count !== 1 ? 's' : ''}</span>
+                            <span
+                              className={`tg-folder-status ${done ? 'tg-folder-status--done' : 'tg-folder-status--todo'}`}
+                              title={done ? 'Completed — scored 85%+ in a single run' : 'Not completed yet'}
+                            >
+                              {done ? '✓' : ''}
+                            </span>
+                          </button>
+                          {/* Study the whole top-level folder (its topics + all sub-folders) */}
+                          <button
+                            className={`tg-group-studyall ${isSel ? 'tg-group-studyall--selected' : ''}`}
+                            onClick={() => handleSelect({ id: group.id, name: group.name, question_count: count, scope: 'group' })}
+                            title={`Study all ${count} question${count !== 1 ? 's' : ''} in ${group.name}`}
+                          >
+                            ▶ Study all
+                          </button>
+                        </div>
+                        {open && (
+                          <div className="tg-group-body">
+                            {directTopics.length > 0 && (
+                              <div className="tg-folder-grid">{directTopics.map(renderFolderCard)}</div>
+                            )}
+                            {subs.map(sub => {
+                              const subTopics = topicsInGroup(sub.id);
+                              return (
+                                <div className="tg-subgroup-section" key={sub.id}>
+                                  <div className="tg-subgroup-label">↳ 📂 {sub.name}</div>
+                                  {renderStudyWhole(sub, sumCount(subTopics), 'sub')}
+                                  {subTopics.length > 0 && (
+                                    <div className="tg-folder-grid">{subTopics.map(renderFolderCard)}</div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
                         )}
-                        {subs.map(sub => {
-                          const subTopics = topicsInGroup(sub.id);
-                          return (
-                            <div className="tg-subgroup-section" key={sub.id}>
-                              <div className="tg-subgroup-label">↳ 📂 {sub.name}</div>
-                              {renderStudyWhole(sub, sumCount(subTopics), 'sub')}
-                              {subTopics.length > 0 && (
-                                <div className="tg-folder-grid">{subTopics.map(renderFolderCard)}</div>
-                              )}
-                            </div>
-                          );
-                        })}
                       </div>
                     );
                   })}

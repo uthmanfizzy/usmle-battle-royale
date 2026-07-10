@@ -15,8 +15,8 @@ export function isMuted() { return muted; }
 
 export function setMuted(val) {
   muted = val;
-  if (bgGain) bgGain.gain.value = val ? 0 : 0.05;
-  if (gameGain) gameGain.gain.value = val ? 0 : 0.06875;
+  if (bgGain) bgGain.gain.value = val ? 0 : 0.07;
+  if (gameGain) gameGain.gain.value = val ? 0 : 0.09625;
 }
 
 export function playClick() {
@@ -140,7 +140,7 @@ export function startBgMusic() {
   if (muted) return;
   const c = getCtx();
   bgGain = c.createGain();
-  bgGain.gain.value = 0.05; // quieter for lobby (+25%)
+  bgGain.gain.value = 0.07; // quieter for lobby (+40%)
   bgGain.connect(c.destination);
   bgInterval = startSequencer(bgGain, 98, false); // slow, no drums
 }
@@ -161,7 +161,7 @@ export function startGameMusic() {
   if (muted) return;
   const c = getCtx();
   gameGain = c.createGain();
-  gameGain.gain.value = 0.06875; // full energy (+25%)
+  gameGain.gain.value = 0.09625; // full energy (+40%)
   gameGain.connect(c.destination);
   gameNodes = [{ interval: startSequencer(gameGain, 132, true) }];
 }

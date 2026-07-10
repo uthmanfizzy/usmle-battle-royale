@@ -276,18 +276,98 @@
   gap: 16px;
 }
 
-/* Topic group sections (display-only labels above their folders) */
+/* Topic group sections — collapsed by default, header click expands */
 .tg-group-section {
+  margin-bottom: 12px;
+}
+.tg-group-section--open {
   margin-bottom: 24px;
 }
-.tg-group-label {
+
+/* Header row: toggle (chevron + name + count + tick) and a "Study all" action */
+.tg-group-header {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.tg-group-section--open .tg-group-header { margin-bottom: 14px; }
+
+.tg-group-toggle {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: rgba(25, 35, 22, 0.8);
+  border: 1px solid rgba(180, 140, 40, 0.45);
+  border-radius: 10px;
+  color: rgba(200, 163, 44, 0.9);
   font-family: 'Cinzel', serif;
   font-size: 15px;
   font-weight: 700;
-  color: rgba(200, 163, 44, 0.85);
-  border-bottom: 1px solid rgba(180, 140, 40, 0.3);
-  padding-bottom: 6px;
-  margin-bottom: 14px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.tg-group-toggle:hover {
+  background: rgba(35, 50, 30, 0.9);
+  border-color: rgba(200, 163, 44, 0.75);
+}
+.tg-group-chevron {
+  flex: 0 0 auto;
+  width: 16px;
+  color: rgba(220, 180, 60, 0.95);
+  font-size: 14px;
+}
+.tg-group-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tg-group-qcount {
+  flex: 0 0 auto;
+  background: rgba(180, 140, 40, 0.25);
+  border-radius: 999px;
+  padding: 2px 9px;
+  font-size: 12px;
+  color: #e8e0c8;
+}
+/* Completion tick sits inline in the header row (not absolute like on cards) */
+.tg-group-toggle .tg-folder-status {
+  position: static;
+  flex: 0 0 auto;
+}
+
+.tg-group-studyall {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  padding: 10px 14px;
+  background: rgba(30, 45, 30, 0.7);
+  border: 1px solid rgba(180, 140, 40, 0.5);
+  border-radius: 10px;
+  color: #e8e0c8;
+  font-family: 'Cinzel', serif;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.tg-group-studyall:hover { background: rgba(40, 60, 40, 0.85); }
+.tg-group-studyall--selected {
+  border-color: rgba(220, 180, 60, 0.95);
+  box-shadow: 0 0 0 2px rgba(220, 180, 60, 0.35);
+  background: rgba(45, 65, 40, 0.95);
+}
+
+@media (max-width: 520px) {
+  .tg-group-toggle { font-size: 13px; padding: 9px 10px; gap: 7px; }
+  .tg-group-studyall { font-size: 11px; padding: 9px 10px; }
 }
 
 /* Sub-folders (one level of nesting under a top-level folder) */
