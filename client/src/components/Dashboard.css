@@ -98,59 +98,6 @@
   align-items: center;
 }
 
-/* Profile card + study-time strip stacked vertically in the header */
-.header-left-stack {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 6px;
-}
-
-/* Study time strip — same dark-glass look as .profile-card-panel */
-.study-time-strip {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  background: rgba(20, 20, 20, 0.55);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
-  padding: 6px 14px;
-  width: fit-content;
-  max-width: 100%;
-}
-
-.sts-label {
-  font-size: 11px;
-  font-weight: 700;
-  color: rgba(255, 200, 50, 0.9);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  white-space: nowrap;
-}
-
-.sts-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  line-height: 1.2;
-}
-
-.sts-value {
-  font-size: 13px;
-  font-weight: 700;
-  color: #fff;
-  white-space: nowrap;
-}
-
-.sts-key {
-  font-size: 9px;
-  color: rgba(255, 255, 255, 0.55);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
 .header-right {
   display: flex;
   align-items: center;
@@ -2021,6 +1968,19 @@
 
 .lb-row--clickable { cursor: pointer; }
 
+/* Player tabs add a STUDY column; clans keep the 6-col default above */
+.lb-table--players .lb-table-header,
+.lb-table--players .lb-row {
+  grid-template-columns: 80px 1fr 90px 110px 70px 90px 95px;
+}
+
+.lb-col-study {
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.6);
+  white-space: nowrap;
+}
+
 .lb-row--you {
   background: rgba(40,50,20,0.5) !important;
   border-left: 3px solid rgba(200,165,60,0.7) !important;
@@ -2320,7 +2280,8 @@
     grid-template-columns: 50px 1fr 70px 80px !important;
   }
   .lb-col-wins,
-  .lb-col-winrate {
+  .lb-col-winrate,
+  .lb-col-study {
     display: none !important;
   }
   .lb-title { font-size: 28px !important; }

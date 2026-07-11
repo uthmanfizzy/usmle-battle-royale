@@ -230,9 +230,23 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   const postStudyTimeRef = useRef(postStudyTime);
   postStudyTimeRef.current = postStudyTime;
 
-  // Best-effort flush on unmount so an abandoned run (back button mid-game)
-  // still credits its time. No-op after the game-over POST (studyTimeSentRef).
-  useEffect(() => () => { postStudyTimeRef.current(true); }, []);
+  // Best-effort flush so an abandoned run still credits its time. Two triggers,
+  // both funnelled through postStudyTime so studyTimeSentRef keeps it to one send:
+  //  - unmount cleanup: soft exits (Journey Home sets phase state, React unmounts
+  //    normally) — this was already correct and is unchanged.
+  //  - 'pagehide': HARD exits (solo/training Home runs window.location.href,
+  //    which never unmounts React, so cleanup alone silently lost the time).
+  // sendBeacon would be the more reliable unload transport, but it cannot set
+  // an Authorization header and /api/study-time authenticates via Bearer — so
+  // per the endpoint's existing contract we keep fetch(keepalive) instead.
+  useEffect(() => {
+    const onPageHide = () => { postStudyTimeRef.current(true); };
+    window.addEventListener('pagehide', onPageHide);
+    return () => {
+      window.removeEventListener('pagehide', onPageHide);
+      postStudyTimeRef.current(true);
+    };
+  }, []);
 
   // Stable per-question id (survives the option shuffle — shuffle keeps `id`).
   const currentQid = questions[qIdx]?.id;

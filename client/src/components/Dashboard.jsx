@@ -663,8 +663,8 @@ function LeaderboardSection({ userId, user }) {
             ))}
           </div>
 
-          {/* Table */}
-          <div className="lb-table">
+          {/* Table (player tabs carry an extra STUDY column; clans keep 6 cols) */}
+          <div className={`lb-table ${activeTab !== 'clans' ? 'lb-table--players' : ''}`}>
             <div className="lb-table-header">
               {activeTab === 'clans' ? (
                 <>
@@ -683,6 +683,7 @@ function LeaderboardSection({ userId, user }) {
                   <span className="lb-col-xp">XP</span>
                   <span className="lb-col-wins">WINS</span>
                   <span className="lb-col-winrate">WIN RATE</span>
+                  <span className="lb-col-study">STUDY</span>
                 </>
               )}
             </div>
@@ -747,6 +748,7 @@ function LeaderboardSection({ userId, user }) {
                         <span className="lb-col-xp">{(item.xp || 0).toLocaleString()} XP</span>
                         <span className="lb-col-wins">{item.wins || 0}</span>
                         <span className="lb-col-winrate">{item.winRate || 0}%</span>
+                        <span className="lb-col-study">📚 {formatStudyTime(item.total_study_seconds)}</span>
                       </>
                     )}
                   </div>
@@ -771,6 +773,7 @@ function LeaderboardSection({ userId, user }) {
                       <span className="lb-col-xp">{(user.xp || 0).toLocaleString()} XP</span>
                       <span className="lb-col-wins">{user.wins || 0}</span>
                       <span className="lb-col-winrate">0%</span>
+                      <span className="lb-col-study">📚 {formatStudyTime(leaderboard.find(p => p.id === userId)?.total_study_seconds)}</span>
                     </div>
                   </>
                 )}
@@ -1162,19 +1165,6 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
     icon_settings: '',
     chest_image: '',
   });
-  // Own study-time stats (total/today/week/streak) — public endpoint, fails
-  // soft to null (strip renders zeros for a fresh account either way).
-  const [studyStats, setStudyStats] = useState(null);
-
-  useEffect(() => {
-    if (!user?.id) return;
-    let cancelled = false;
-    authFetch(`/api/users/${user.id}/study-stats`)
-      .then(r => r.json())
-      .then(d => { if (!cancelled) setStudyStats(d); })
-      .catch(() => {});
-    return () => { cancelled = true; };
-  }, [user?.id]);
 
   // DEBUG: Catch runtime errors to diagnose black screen
   useEffect(() => {
@@ -1313,7 +1303,6 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
         {/* Dashboard Header - Profile Left, Currency + Icons Right */}
         <div className="dashboard-header">
           <div className="header-left">
-           <div className="header-left-stack">
             {/* Profile Card — click-through to own Progress page */}
             <div
               className="horizontal-profile-card"
@@ -1348,28 +1337,6 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
                 </div>
               </div>
             </div>
-
-            {/* Study time strip — active time answering questions */}
-            <div className="study-time-strip" title="Active time spent answering questions">
-              <span className="sts-label">📚 Study time</span>
-              <span className="sts-item">
-                <span className="sts-value">{formatStudyTime(studyStats?.total_seconds)}</span>
-                <span className="sts-key">Total</span>
-              </span>
-              <span className="sts-item">
-                <span className="sts-value">{formatStudyTime(studyStats?.today_seconds)}</span>
-                <span className="sts-key">Today</span>
-              </span>
-              <span className="sts-item">
-                <span className="sts-value">{formatStudyTime(studyStats?.week_seconds)}</span>
-                <span className="sts-key">Week</span>
-              </span>
-              <span className="sts-item">
-                <span className="sts-value">🔥 {studyStats?.streak_days || 0}d</span>
-                <span className="sts-key">Streak</span>
-              </span>
-            </div>
-           </div>
           </div>
 
           <div className="header-right">

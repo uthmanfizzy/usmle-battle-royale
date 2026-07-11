@@ -3896,10 +3896,30 @@ app.get('/api/leaderboard/players', async (req, res) => {
       const { data: clans } = await supabase.from('clans').select('id, tag').in('id', clanIds);
       (clans || []).forEach(c => { tagMap[c.id] = c.tag; });
     }
+    // Total study time per player — same in-memory-join pattern as clan tags.
+    // Isolated so a study_time_daily failure just yields 0s, never breaks the
+    // leaderboard itself.
+    const studyMap = {};
+    try {
+      const { data: studyRows, error: studyErr } = await supabase
+        .from('study_time_daily')
+        .select('user_id, seconds')
+        .in('user_id', players.map(p => p.id));
+      if (studyErr) {
+        console.warn('[/api/leaderboard/players] study_time_daily unavailable —', studyErr.message);
+      } else {
+        for (const r of (studyRows || [])) {
+          studyMap[r.user_id] = (studyMap[r.user_id] || 0) + (r.seconds || 0);
+        }
+      }
+    } catch (studyErr) {
+      console.warn('[/api/leaderboard/players] study time lookup failed —', studyErr.message);
+    }
     res.json({
       players: players.map((p, i) => ({
         rank: i + 1, id: p.id, username: p.username, avatar_url: p.avatar_url,
         xp: p.xp, level: p.level, clan_tag: p.clan_id ? tagMap[p.clan_id] : null,
+        total_study_seconds: studyMap[p.id] || 0,
       })),
     });
   } catch (err) { res.status(500).json({ error: err.message }); }
