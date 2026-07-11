@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import ProfileModal from './ProfileModal';
 import './FriendsPanel.css';
 
 const SERVER_URL = 'https://usmle-battle-royale-production.up.railway.app';
@@ -12,6 +13,7 @@ export default function FriendsPanel({ user, onClose, onInviteToGame, isDropdown
   const [searching, setSearching] = useState(false);
   const [loading, setLoading] = useState(false);
   const [actionMsg, setActionMsg] = useState('');
+  const [profileFriend, setProfileFriend] = useState(null); // friend whose ProfileModal is open
 
   useEffect(() => {
     if (user?.id) {
@@ -169,14 +171,24 @@ export default function FriendsPanel({ user, onClose, onInviteToGame, isDropdown
             )}
             {friends.map(friend => (
               <div className="friend-card" key={friend.friendshipId}>
-                <div className="friend-avatar">
+                <div
+                  className="friend-avatar"
+                  onClick={() => setProfileFriend(friend)}
+                  style={{ cursor: 'pointer' }}
+                  title="View profile"
+                >
                   {friend.avatar_url ? (
                     <img src={friend.avatar_url} alt={friend.username} referrerPolicy="no-referrer" />
                   ) : (
                     <span>{friend.username?.[0]?.toUpperCase()}</span>
                   )}
                 </div>
-                <div className="friend-info">
+                <div
+                  className="friend-info"
+                  onClick={() => setProfileFriend(friend)}
+                  style={{ cursor: 'pointer' }}
+                  title="View profile"
+                >
                   <span className="friend-name">{friend.username}</span>
                   <span className="friend-level">Level {friend.level || 1}</span>
                   <div className="friend-xp-bar">
@@ -299,6 +311,10 @@ export default function FriendsPanel({ user, onClose, onInviteToGame, isDropdown
               </div>
             ))}
           </div>
+        )}
+
+        {profileFriend && (
+          <ProfileModal user={profileFriend} onClose={() => setProfileFriend(null)} />
         )}
 
     </div>

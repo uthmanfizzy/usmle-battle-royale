@@ -2873,6 +2873,80 @@ app.get('/api/training-completions', requireAuth, async (req, res) => {
   }
 });
 
+// ── Study time ─────────────────────────────────────────────────────────────────
+// Active seconds spent answering questions, rolled up one row per user per day
+// in study_time_daily (table + add_study_time / get_study_stats RPCs live in
+// Supabase — see the documentation block in schema.sql). seconds is
+// client-reported, so it's capped server-side; the RPC caps the daily total.
+
+app.post('/api/study-time', requireAuth, async (req, res) => {
+  const seconds   = Number(req.body?.seconds);
+  const questions = Number(req.body?.questions);
+  if (!Number.isFinite(seconds) || seconds < 0 || !Number.isFinite(questions) || questions < 0) {
+    return res.status(400).json({ error: 'seconds and questions must be non-negative numbers.' });
+  }
+
+  if (!supabase) return res.json({ ok: false });
+
+  // Cap at 35s per answered question (per-question timer max is 30s) so a
+  // forged or buggy payload can't credit hours in one request.
+  const capped = Math.min(Math.round(seconds), Math.round(questions) * 35);
+  if (capped <= 0) return res.json({ ok: true });
+
+  // "Today" = the client's local date when plausible (within ±1 day of server
+  // UTC today), so a late-night session credits the student's own day.
+  // Anything missing/invalid/further off uses server UTC today instead.
+  const utcToday = new Date().toISOString().slice(0, 10);
+  let studyDate = utcToday;
+  const claimed = (req.body?.date ?? '').toString();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(claimed)) {
+    const diffMs = Math.abs(Date.parse(`${claimed}T00:00:00Z`) - Date.parse(`${utcToday}T00:00:00Z`));
+    if (diffMs <= 24 * 60 * 60 * 1000) studyDate = claimed;
+  }
+
+  try {
+    const { error } = await supabase.rpc('add_study_time', {
+      p_user_id: req.userId,
+      p_date:    studyDate,
+      p_seconds: capped,
+    });
+    if (error) {
+      console.warn('[/api/study-time] rpc failed —', error.message);
+      return res.json({ ok: false });
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    console.warn('[/api/study-time] unavailable —', err.message);
+    res.json({ ok: false });
+  }
+});
+
+// Public (no auth) like /api/leaderboard/players — anyone viewing a profile
+// sees these stats. Fails soft to zeros so a profile view never breaks.
+app.get('/api/users/:userId/study-stats', async (req, res) => {
+  const zeros = { total_seconds: 0, today_seconds: 0, week_seconds: 0, streak_days: 0 };
+  if (!supabase) return res.json(zeros);
+
+  try {
+    const { data, error } = await supabase.rpc('get_study_stats', { p_user_id: req.params.userId });
+    if (error) {
+      console.warn('[/api/users/:userId/study-stats] rpc failed —', error.message);
+      return res.json(zeros);
+    }
+    // The RPC returns a single-row table; supabase-js hands it back as an array.
+    const row = Array.isArray(data) ? data[0] : data;
+    res.json({
+      total_seconds: Number(row?.total_seconds) || 0,
+      today_seconds: Number(row?.today_seconds) || 0,
+      week_seconds:  Number(row?.week_seconds)  || 0,
+      streak_days:   Number(row?.streak_days)   || 0,
+    });
+  } catch (err) {
+    console.warn('[/api/users/:userId/study-stats] unavailable —', err.message);
+    res.json(zeros);
+  }
+});
+
 // ── Clan API ───────────────────────────────────────────────────────────────────
 
 app.post('/api/clans', requireAuth, async (req, res) => {

@@ -190,6 +190,9 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   const correctCountRef    = useRef(0);
   const completionFiredRef = useRef(false);
   const onCompleteRef      = useRef(onComplete);
+  const activeSecondsRef   = useRef(0);     // sum of per-question active answer time (s)
+  const answeredCountRef   = useRef(0);     // questions answered or timed out this run
+  const studyTimeSentRef   = useRef(false); // study-time POST fired for this run
 
   revealedRef.current = revealed;
   pausedRef.current = isPaused;
@@ -200,6 +203,36 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   qIdxRef.current = qIdx;
   questionsRef.current = questions;
   onCompleteRef.current = onComplete;
+
+  // POST the run's accumulated active study seconds exactly once — at game-over,
+  // or via the unmount flush below for abandoned runs. Guests (no token) never
+  // post, same check as App's handleTrainingComplete. Fire-and-forget: errors
+  // are swallowed and the game-over UI never waits on it. Kept in a ref (like
+  // onCompleteRef) so processAnswer's useCallback always sees the latest.
+  const postStudyTime = (useKeepalive = false) => {
+    if (studyTimeSentRef.current) return;
+    const seconds = Math.round(activeSecondsRef.current);
+    if (seconds <= 0) return;
+    const token = getToken();
+    if (!token) return; // guests don't record study time
+    studyTimeSentRef.current = true;
+    fetch(`${SERVER_URL}/api/study-time`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        seconds,
+        questions: answeredCountRef.current,
+        date: new Date().toLocaleDateString('en-CA'), // local YYYY-MM-DD
+      }),
+      ...(useKeepalive ? { keepalive: true } : {}),
+    }).catch(() => {});
+  };
+  const postStudyTimeRef = useRef(postStudyTime);
+  postStudyTimeRef.current = postStudyTime;
+
+  // Best-effort flush on unmount so an abandoned run (back button mid-game)
+  // still credits its time. No-op after the game-over POST (studyTimeSentRef).
+  useEffect(() => () => { postStudyTimeRef.current(true); }, []);
 
   // Stable per-question id (survives the option shuffle — shuffle keeps `id`).
   const currentQid = questions[qIdx]?.id;
@@ -311,6 +344,10 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
     const correct = label === q.correct;
     const tl = timeLeftRef.current;
     setTimeSpent(defaultTimer - tl);   // Layer 1: additive only — no flow/timer/scoring change
+    // Study time: accumulate this question's active time (inherently capped at
+    // defaultTimer, so an idle/backgrounded question can't log a huge value).
+    activeSecondsRef.current += (defaultTimer - tl);
+    answeredCountRef.current += 1;
     let newLives = livesRef.current;
     let newScore = scoreRef.current;
     let newStreak = streakRef.current;
@@ -352,11 +389,19 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
         setFinalBestStreak(newBest);
         setIsNewHi(newHi);
         setGameOver(true);
-        if (onCompleteRef.current && !completionFiredRef.current) {
+        if (!completionFiredRef.current) {
           completionFiredRef.current = true;
-          const total = questionsRef.current.length;
-          const c = correctCountRef.current;
-          onCompleteRef.current({ correct: c, total, pct: total ? Math.round((c / total) * 100) : 0 });
+          postStudyTimeRef.current(); // once per run — guarded by studyTimeSentRef
+          if (onCompleteRef.current) {
+            const total = questionsRef.current.length;
+            const c = correctCountRef.current;
+            onCompleteRef.current({
+              correct: c,
+              total,
+              pct: total ? Math.round((c / total) * 100) : 0,
+              activeSeconds: activeSecondsRef.current,
+            });
+          }
         }
       } else {
         revealedRef.current = false;

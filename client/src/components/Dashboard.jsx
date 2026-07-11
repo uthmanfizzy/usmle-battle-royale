@@ -3,6 +3,7 @@ import { fetchMe, authFetch } from '../auth';
 import { DefaultPreview, PixelPreview } from './AppearanceSection';
 import { useTheme, PALETTE } from '../theme';
 import FriendsPanel from './FriendsPanel';
+import ProfileModal, { formatStudyTime } from './ProfileModal';
 import NotificationsDropdown from './NotificationsDropdown';
 import SettingsDropdown from './SettingsDropdown';
 import ClansPage from './ClansPage';
@@ -557,6 +558,7 @@ function LeaderboardSection({ userId, user }) {
   const [leaderboard, setLeaderboard] = useState([]);
   const [topClan, setTopClan] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [profileUser, setProfileUser] = useState(null); // player whose ProfileModal is open
 
   useEffect(() => {
     fetchLeaderboard();
@@ -698,7 +700,8 @@ function LeaderboardSection({ userId, user }) {
                 {leaderboard.slice(0, 10).map(item => (
                   <div
                     key={item.id}
-                    className={`lb-row ${activeTab !== 'clans' && isCurrentUser(item.id) ? 'lb-row--you' : ''} ${item.rank <= 3 ? `lb-row--top${item.rank}` : ''}`}
+                    className={`lb-row ${activeTab !== 'clans' ? 'lb-row--clickable' : ''} ${activeTab !== 'clans' && isCurrentUser(item.id) ? 'lb-row--you' : ''} ${item.rank <= 3 ? `lb-row--top${item.rank}` : ''}`}
+                    onClick={activeTab !== 'clans' ? () => setProfileUser(item) : undefined}
                   >
                     <span className="lb-col-rank">{getRankBadge(item.rank)}</span>
 
@@ -797,7 +800,11 @@ function LeaderboardSection({ userId, user }) {
               <p className="lb-top-player-stats">
                 Level {topPlayer?.level || '-'} &nbsp;·&nbsp; {(topPlayer?.xp || 0).toLocaleString()} XP
               </p>
-              <button className="lb-view-btn">VIEW PROFILE</button>
+              <button
+                className="lb-view-btn"
+                disabled={!topPlayer}
+                onClick={() => topPlayer && setProfileUser(topPlayer)}
+              >VIEW PROFILE</button>
             </div>
           </div>
 
@@ -847,6 +854,10 @@ function LeaderboardSection({ userId, user }) {
 
         </div>
       </div>
+
+      {profileUser && (
+        <ProfileModal user={profileUser} onClose={() => setProfileUser(null)} />
+      )}
     </div>
   );
 }
@@ -1151,6 +1162,19 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
     icon_settings: '',
     chest_image: '',
   });
+  // Own study-time stats (total/today/week/streak) — public endpoint, fails
+  // soft to null (strip renders zeros for a fresh account either way).
+  const [studyStats, setStudyStats] = useState(null);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+    authFetch(`/api/users/${user.id}/study-stats`)
+      .then(r => r.json())
+      .then(d => { if (!cancelled) setStudyStats(d); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [user?.id]);
 
   // DEBUG: Catch runtime errors to diagnose black screen
   useEffect(() => {
@@ -1289,6 +1313,7 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
         {/* Dashboard Header - Profile Left, Currency + Icons Right */}
         <div className="dashboard-header">
           <div className="header-left">
+           <div className="header-left-stack">
             {/* Profile Card */}
             <div className="horizontal-profile-card">
               <div className="profile-card-avatar">
@@ -1319,6 +1344,28 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
                 </div>
               </div>
             </div>
+
+            {/* Study time strip — active time answering questions */}
+            <div className="study-time-strip" title="Active time spent answering questions">
+              <span className="sts-label">📚 Study time</span>
+              <span className="sts-item">
+                <span className="sts-value">{formatStudyTime(studyStats?.total_seconds)}</span>
+                <span className="sts-key">Total</span>
+              </span>
+              <span className="sts-item">
+                <span className="sts-value">{formatStudyTime(studyStats?.today_seconds)}</span>
+                <span className="sts-key">Today</span>
+              </span>
+              <span className="sts-item">
+                <span className="sts-value">{formatStudyTime(studyStats?.week_seconds)}</span>
+                <span className="sts-key">Week</span>
+              </span>
+              <span className="sts-item">
+                <span className="sts-value">🔥 {studyStats?.streak_days || 0}d</span>
+                <span className="sts-key">Streak</span>
+              </span>
+            </div>
+           </div>
           </div>
 
           <div className="header-right">

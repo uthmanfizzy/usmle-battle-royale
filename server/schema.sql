@@ -356,3 +356,20 @@ ALTER TABLE game_settings ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY IF NOT EXISTS "server_full_access_game_settings"
   ON game_settings FOR ALL USING (true) WITH CHECK (true);
+
+-- ── study_time_daily (DOCUMENTATION ONLY — already live in Supabase) ───────────
+-- The table and RPCs below were created directly in the Supabase SQL editor and
+-- exist in production. This block documents them so schema.sql stays in sync;
+-- do NOT re-run it.
+--
+-- study_time_daily: one row per user per day, active study seconds
+-- CREATE TABLE IF NOT EXISTS study_time_daily (
+--   user_id     UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+--   study_date  DATE        NOT NULL,
+--   seconds     INTEGER     NOT NULL DEFAULT 0 CHECK (seconds >= 0 AND seconds <= 57600),
+--   updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+--   PRIMARY KEY (user_id, study_date)
+-- );
+-- RLS enabled, no public policies (service-role key on server bypasses RLS).
+-- RPCs: add_study_time(p_user_id, p_date, p_seconds), get_study_stats(p_user_id)
+-- returning (total_seconds, today_seconds, week_seconds, streak_days).
