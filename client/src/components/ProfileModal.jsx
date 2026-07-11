@@ -78,6 +78,13 @@ export default function ProfileModal({ user, onClose }) {
             <span className="pm-stat-key">Streak</span>
           </div>
         </div>
+
+        <button
+          className="pm-progress-btn"
+          onClick={() => { window.location.href = `/progress/${user.id}`; }}
+        >
+          📈 View full progress
+        </button>
       </div>
     </div>
   );

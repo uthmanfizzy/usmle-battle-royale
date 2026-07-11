@@ -1,0 +1,250 @@
+/* ═══════════════════════════════════════════════════════════════════
+   MED ROYALE — PROGRESS PAGE
+   Same self-scoped dark RPG look as StatsPage (.sp) — purple + gold.
+   ═══════════════════════════════════════════════════════════════════ */
+
+.pp {
+  --bg:      #05050f;
+  --purple:  var(--color-primary, #7C3AED);
+  --gold:    #F59E0B;
+  --glass:   rgba(255,255,255,0.03);
+  --glass2:  rgba(255,255,255,0.07);
+  --border:  rgba(124,58,237,0.2);
+  --border2: rgba(124,58,237,0.4);
+  --text:    #e8e8f4;
+  --muted:   rgba(232,232,244,0.45);
+
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  overflow-x: hidden;
+}
+
+/* ── Loading / error ─────────────────────────────────────────────── */
+.pp-load {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+}
+.pp-load-ring {
+  width: 52px; height: 52px;
+  border-radius: 50%;
+  border: 3px solid rgba(124,58,237,0.2);
+  border-top-color: #7C3AED;
+  animation: pp-spin 0.9s linear infinite;
+}
+.pp-load-text { font-size: 15px; color: var(--muted); }
+@keyframes pp-spin { to { transform: rotate(360deg); } }
+
+/* ── Nav ─────────────────────────────────────────────────────────── */
+.pp-nav {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  height: 60px;
+  background: rgba(5,5,15,0.85);
+  border-bottom: 1px solid var(--border);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+.pp-nav-back {
+  background: var(--glass2);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 7px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s, background 0.2s;
+}
+.pp-nav-back:hover { color: var(--text); border-color: var(--border2); background: rgba(124,58,237,0.1); }
+.pp-nav-brand { font-size: 15px; font-weight: 700; letter-spacing: -0.3px; }
+.pp-nav-spacer { width: 60px; }
+
+/* ── Page + panels ───────────────────────────────────────────────── */
+.pp-page {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 32px 20px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.pp-footer-space { height: 60px; }
+
+.pp-panel {
+  background: rgba(10,10,24,0.7);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 24px 28px;
+  box-shadow: 0 0 40px rgba(124,58,237,0.06);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.pp-panel-hd {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 18px;
+}
+.pp-panel-title { font-size: 17px; font-weight: 700; margin: 0; }
+.pp-panel-note  { font-size: 12px; color: var(--muted); }
+
+/* ── Identity header ─────────────────────────────────────────────── */
+.pp-identity {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+.pp-avatar {
+  width: 72px; height: 72px; min-width: 72px;
+  border-radius: 50%;
+  border: 3px solid rgba(245,158,11,0.75);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--glass2);
+  font-size: 28px;
+  font-weight: 700;
+}
+.pp-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.pp-id-text { flex: 1; min-width: 0; }
+.pp-username { font-size: 20px; font-weight: 700; }
+.pp-clan-tag { font-size: 14px; color: var(--gold); font-weight: 600; }
+.pp-you-badge { font-size: 12px; color: var(--muted); font-weight: 500; }
+.pp-level { font-size: 13px; color: var(--muted); margin: 3px 0 8px; }
+.pp-xp-track {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--glass2);
+  overflow: hidden;
+  max-width: 320px;
+}
+.pp-xp-fill {
+  height: 100%;
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--purple), #9D5CF5);
+}
+.pp-xp-text { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+/* ── Study time grid ─────────────────────────────────────────────── */
+.pp-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+.pp-stat {
+  background: var(--glass);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  text-align: center;
+}
+.pp-stat-value { font-size: 16px; font-weight: 700; white-space: nowrap; }
+.pp-stat-key {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* ── Strongest / weakest highlight cards ─────────────────────────── */
+.pp-highlights {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.pp-highlight {
+  border-radius: 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  background: var(--glass);
+}
+.pp-highlight--strong { border-color: rgba(16,185,129,0.35); }
+.pp-highlight--weak   { border-color: rgba(245,158,11,0.35); }
+.pp-highlight-title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+.pp-highlight-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 14px;
+}
+.pp-highlight-subj { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pp-highlight-pct { font-weight: 700; }
+
+/* ── Full subject bar list ───────────────────────────────────────── */
+.pp-skill-list { display: flex; flex-direction: column; gap: 14px; }
+.pp-skill-row {
+  display: grid;
+  grid-template-columns: minmax(150px, 220px) 1fr 48px;
+  align-items: center;
+  gap: 14px;
+  animation: pp-rise 0.4s ease both;
+  animation-delay: var(--delay, 0s);
+}
+@keyframes pp-rise {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.pp-skill-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.pp-skill-icon { font-size: 20px; }
+.pp-skill-name { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pp-skill-rank { font-size: 11px; }
+.pp-skill-track {
+  height: 10px;
+  border-radius: 5px;
+  background: var(--glass2);
+  overflow: hidden;
+}
+.pp-skill-fill {
+  height: 100%;
+  border-radius: 5px;
+  transition: width 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.pp-skill-pct { font-size: 13px; font-weight: 700; text-align: right; }
+
+/* ── Empty state ─────────────────────────────────────────────────── */
+.pp-empty {
+  text-align: center;
+  padding: 28px 12px;
+  color: var(--muted);
+  font-size: 15px;
+}
+.pp-empty-icon { font-size: 34px; display: block; margin-bottom: 10px; }
+.pp-empty p { margin: 6px 0; }
+.pp-empty-sub { font-size: 13px; opacity: 0.8; }
+
+/* ── Mobile ──────────────────────────────────────────────────────── */
+@media (max-width: 560px) {
+  .pp-stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .pp-highlights { grid-template-columns: 1fr; }
+  .pp-skill-row  { grid-template-columns: minmax(110px, 150px) 1fr 42px; gap: 10px; }
+  .pp-panel      { padding: 18px 16px; }
+}

@@ -2947,6 +2947,85 @@ app.get('/api/users/:userId/study-stats', async (req, res) => {
   }
 });
 
+// Public per-subject mastery breakdown for the Progress page. V1 honesty note:
+// subject_mastery is only ever written by ranked multiplayer games (awardXP →
+// upsertMastery) — solo / Training Grounds / Journey don't record per-subject
+// accuracy yet, and the client labels the data accordingly. No auth, same
+// pattern as /api/leaderboard/players and /api/users/:userId/study-stats.
+app.get('/api/users/:userId/mastery', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Database not configured.' });
+  const { userId } = req.params;
+
+  try {
+    const { data: user, error: userErr } = await supabase
+      .from('users')
+      .select('id, username, avatar_url, level, xp, clan_id')
+      .eq('id', userId)
+      .maybeSingle();
+    // An invalid UUID surfaces as a query error — treat it like a missing user.
+    if (userErr || !user) return res.status(404).json({ error: 'User not found.' });
+
+    // Clan tag via the same secondary clans lookup /api/leaderboard/players uses.
+    let clanTag = null;
+    if (user.clan_id) {
+      const { data: clan } = await supabase.from('clans').select('tag').eq('id', user.clan_id).maybeSingle();
+      clanTag = clan?.tag || null;
+    }
+
+    const publicUser = {
+      id:         user.id,
+      username:   user.username,
+      avatar_url: user.avatar_url,
+      level:      user.level,
+      xp:         user.xp,
+      clan_tag:   clanTag,
+    };
+
+    const [masteryRes, subjectsRes] = await Promise.all([
+      supabase.from('subject_mastery')
+        .select('subject, questions_correct, questions_attempted, mastery_percent')
+        .eq('user_id', userId),
+      // Same source /api/subjects reads — attaches display name + icon.
+      supabase.from('subjects').select('id, name, icon'),
+    ]);
+
+    if (masteryRes.error) {
+      console.warn('[/api/users/:userId/mastery] subject_mastery unavailable —', masteryRes.error.message);
+      return res.json({ user: publicUser, subjects: [], strongest: [], weakest: [], hasData: false });
+    }
+
+    const meta = {};
+    for (const s of (subjectsRes.data || [])) meta[s.id] = s;
+    const prettify = id =>
+      String(id).split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+
+    const subjects = (masteryRes.data || [])
+      .map(m => ({
+        subject:             m.subject,
+        name:                meta[m.subject]?.name || prettify(m.subject),
+        icon:                meta[m.subject]?.icon || '📚',
+        questions_correct:   m.questions_correct   || 0,
+        questions_attempted: m.questions_attempted || 0,
+        mastery_percent:     m.mastery_percent     || 0,
+      }))
+      .sort((a, b) =>
+        (b.mastery_percent - a.mastery_percent) ||
+        (b.questions_attempted - a.questions_attempted));
+
+    // Nothing attempted = nothing learned about it — not "weak", just absent.
+    const qualifying = subjects.filter(s => s.questions_attempted > 0);
+    const strongest  = qualifying.slice(0, 3);
+    // Bottom 3 of what remains after the strongest; weakest first. No padding —
+    // with <=3 qualifying subjects this is simply empty.
+    const weakest = qualifying.slice(strongest.length).slice(-3).reverse();
+
+    res.json({ user: publicUser, subjects, strongest, weakest, hasData: qualifying.length > 0 });
+  } catch (err) {
+    console.warn('[/api/users/:userId/mastery] error —', err.message);
+    res.status(404).json({ error: 'User not found.' });
+  }
+});
+
 // ── Clan API ───────────────────────────────────────────────────────────────────
 
 app.post('/api/clans', requireAuth, async (req, res) => {

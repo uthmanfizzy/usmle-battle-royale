@@ -1364,6 +1364,13 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
                 <span className="sts-value">🔥 {studyStats?.streak_days || 0}d</span>
                 <span className="sts-key">Streak</span>
               </span>
+              <button
+                className="sts-progress-link"
+                onClick={() => { window.location.href = '/progress'; }}
+                title="View my progress"
+              >
+                📈 My progress
+              </button>
             </div>
            </div>
           </div>

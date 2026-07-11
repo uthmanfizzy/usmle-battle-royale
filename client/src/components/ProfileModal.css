@@ -98,6 +98,26 @@
   letter-spacing: 0.5px;
 }
 
+.pm-progress-btn {
+  width: 100%;
+  margin-top: 14px;
+  background: linear-gradient(135deg, var(--gold-rpg), var(--gold-dark));
+  border: 2px solid var(--gold-dark);
+  border-radius: 10px;
+  padding: 10px 12px;
+  color: var(--parchment-light);
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: filter 0.15s;
+}
+
+.pm-progress-btn:hover {
+  filter: brightness(1.1);
+}
+
 @media (max-width: 480px) {
   .pm-stats-grid {
     grid-template-columns: repeat(2, 1fr);
