@@ -818,6 +818,7 @@ export default function App() {
         <ModeSplit
           onStory={() => setPhase('story_menu')}
           onOnline={() => { setPlayInitialMode(null); setPhase('play_page'); }}
+          onTraining={() => setPhase('training_grounds')}
           onBack={() => window.location.href = '/dashboard'}
         />
         </RouteErrorBoundary>
