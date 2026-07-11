@@ -1314,8 +1314,12 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
         <div className="dashboard-header">
           <div className="header-left">
            <div className="header-left-stack">
-            {/* Profile Card */}
-            <div className="horizontal-profile-card">
+            {/* Profile Card — click-through to own Progress page */}
+            <div
+              className="horizontal-profile-card"
+              onClick={() => { window.location.href = '/progress'; }}
+              title="View my progress"
+            >
               <div className="profile-card-avatar">
                 {user.avatar_url ? (
                   <img src={user.avatar_url} alt={user.username} referrerPolicy="no-referrer" />
@@ -1364,13 +1368,6 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
                 <span className="sts-value">🔥 {studyStats?.streak_days || 0}d</span>
                 <span className="sts-key">Streak</span>
               </span>
-              <button
-                className="sts-progress-link"
-                onClick={() => { window.location.href = '/progress'; }}
-                title="View my progress"
-              >
-                📈 My progress
-              </button>
             </div>
            </div>
           </div>

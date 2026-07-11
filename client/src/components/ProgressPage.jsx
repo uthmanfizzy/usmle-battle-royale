@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { getToken, fetchMe, getCachedUser } from '../auth';
 import { formatStudyTime } from './ProfileModal';
+import StudyCalendar from './StudyCalendar';
 import './ProgressPage.css';
 
 const SERVER_URL = 'https://usmle-battle-royale-production.up.railway.app';
@@ -189,6 +190,8 @@ export default function ProgressPage() {
               <span className="pp-stat-key">Streak</span>
             </div>
           </div>
+
+          <StudyCalendar userId={viewedId} />
         </div>
 
         {/* Subject mastery */}

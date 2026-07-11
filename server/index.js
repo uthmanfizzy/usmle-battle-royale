@@ -2947,6 +2947,49 @@ app.get('/api/users/:userId/study-stats', async (req, res) => {
   }
 });
 
+// Per-day study seconds for one calendar month — feeds the Progress page's
+// heatmap calendar. Public like study-stats. Reads study_time_daily directly
+// (service-role client bypasses RLS); only days that have a row are returned,
+// the client fills the gaps. Fails soft to an empty month, never 500s.
+app.get('/api/users/:userId/study-time/calendar', async (req, res) => {
+  const now = new Date();
+  let year  = Number(req.query.year);
+  let month = Number(req.query.month);
+  if (!Number.isInteger(year) || year < 2000 || year > 2100) year = now.getUTCFullYear();
+  if (!Number.isInteger(month) || month < 1 || month > 12)   month = now.getUTCMonth() + 1;
+
+  const mm       = String(month).padStart(2, '0');
+  const firstDay = `${year}-${mm}-01`;
+  // Day 0 of the next month = last day of this month (UTC-safe)
+  const lastDay  = `${year}-${mm}-${String(new Date(Date.UTC(year, month, 0)).getUTCDate()).padStart(2, '0')}`;
+
+  if (!supabase) return res.json({ year, month, days: [] });
+
+  try {
+    const { data, error } = await supabase
+      .from('study_time_daily')
+      .select('study_date, seconds')
+      .eq('user_id', req.params.userId)
+      .gte('study_date', firstDay)
+      .lte('study_date', lastDay)
+      .order('study_date', { ascending: true });
+
+    if (error) {
+      console.warn('[/api/users/:userId/study-time/calendar] query failed —', error.message);
+      return res.json({ year, month, days: [] });
+    }
+
+    res.json({
+      year,
+      month,
+      days: (data || []).map(r => ({ date: r.study_date, seconds: r.seconds || 0 })),
+    });
+  } catch (err) {
+    console.warn('[/api/users/:userId/study-time/calendar] unavailable —', err.message);
+    res.json({ year, month, days: [] });
+  }
+});
+
 // Public per-subject mastery breakdown for the Progress page. V1 honesty note:
 // subject_mastery is only ever written by ranked multiplayer games (awardXP →
 // upsertMastery) — solo / Training Grounds / Journey don't record per-subject
