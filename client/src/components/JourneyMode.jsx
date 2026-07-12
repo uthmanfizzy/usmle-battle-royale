@@ -2,6 +2,7 @@ import { Fragment, useState, useEffect, useRef, useCallback } from 'react';
 import { getToken } from '../auth';
 import { JOURNEY_SUBJECTS, JOURNEY_SECTIONS } from '../journeySubjects';
 import { parseShortUrl, embedUrlStatic } from '../utils/shortEmbeds';
+import { getStarCount } from '../utils/journeyStars';
 import './JourneyMode.css';
 
 const SERVER = 'https://usmle-battle-royale-production.up.railway.app';
@@ -17,13 +18,6 @@ function adminApi(path, options = {}) {
       ...(options.headers || {}),
     },
   });
-}
-
-function starsFor(pct, threshold) {
-  if (pct >= 100) return 3;
-  if (pct >= 90) return 2;
-  if (pct >= threshold) return 1;
-  return 0;
 }
 
 // Decorative compass rose for the map corner
@@ -642,7 +636,7 @@ export default function JourneyMode({
     const empty      = l.question_count === 0;
     const isFrontier = l.level_key === frontierKey;
     const tappable   = l.unlocked && !empty;
-    const stars      = l.completed ? starsFor(l.best_score_pct, threshold) : 0;
+    const stars      = l.completed ? getStarCount(l.best_score_pct) : 0;
     const cls = [
       'jm-node', 'jm-node--level',
       !l.unlocked ? 'jm-node--locked' : '',
@@ -686,7 +680,7 @@ export default function JourneyMode({
     nodeCount += 1;
     const isFrontier = boss.level_key === frontierKey;
     const tappable   = boss.unlocked && !boss.auto_skipped && boss.question_count > 0;
-    const stars      = boss.completed ? starsFor(boss.best_score_pct, threshold) : 0;
+    const stars      = boss.completed ? getStarCount(boss.best_score_pct) : 0;
     const cls = [
       'jm-node', big ? 'jm-node--ultimate' : 'jm-node--boss',
       !boss.unlocked ? 'jm-node--locked' : '',
@@ -855,8 +849,8 @@ export default function JourneyMode({
                 <p className="jm-interstitial-score">
                   {interstitial.pct}%{' '}
                   <span className="jm-interstitial-stars">
-                    {'★'.repeat(starsFor(interstitial.pct, interstitial.threshold))}
-                    {'☆'.repeat(Math.max(0, 3 - starsFor(interstitial.pct, interstitial.threshold)))}
+                    {'★'.repeat(getStarCount(interstitial.pct))}
+                    {'☆'.repeat(Math.max(0, 3 - getStarCount(interstitial.pct)))}
                   </span>
                 </p>
                 <button className="btn-start" onClick={() => setInterstitial(null)} {...ek('inter.continue')}>{t('inter.continue', 'Continue')}</button>
