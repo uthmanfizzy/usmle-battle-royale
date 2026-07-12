@@ -373,3 +373,22 @@ CREATE POLICY IF NOT EXISTS "server_full_access_game_settings"
 -- RLS enabled, no public policies (service-role key on server bypasses RLS).
 -- RPCs: add_study_time(p_user_id, p_date, p_seconds), get_study_stats(p_user_id)
 -- returning (total_seconds, today_seconds, week_seconds, streak_days).
+
+-- ── guide_sections (DOCUMENTATION ONLY — already live in Supabase) ─────────────
+-- Admin-authored sections for the public /guide page. Created directly in the
+-- Supabase SQL editor; this block documents the live shape — do NOT re-run it.
+--
+-- CREATE TABLE IF NOT EXISTS guide_sections (
+--   id             UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+--   title          TEXT        NOT NULL,
+--   content        TEXT,
+--   video_type     TEXT,                 -- 'youtube' | 'vimeo' | NULL (parsed server-side)
+--   video_embed_id TEXT,                 -- 11-char YouTube id or 6-12 digit Vimeo id
+--   video_url      TEXT,                 -- raw admin-pasted URL, kept even if unparseable
+--   sort_order     INT         NOT NULL DEFAULT 0,
+--   created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+--   updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+-- );
+-- Ordered by sort_order (journey_chapters convention). RLS enabled, server-only
+-- access. CRUD: GET /api/guide-sections (public) + POST/PUT/DELETE
+-- /admin/guide-sections (adminAuth).

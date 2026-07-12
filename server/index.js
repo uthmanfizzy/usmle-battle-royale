@@ -7408,6 +7408,93 @@ app.delete('/admin/announcements/:id', adminAuth, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// ── Guide sections ─────────────────────────────────────────────────────────────
+// Admin-authored content for the public /guide page. Same shape as the
+// journey_chapters CRUD; video URLs go through the shared parseVideoUrl
+// (YouTube/Vimeo). An unparseable link is kept as video_url with null
+// type/embed_id — the admin can fix it later, the save never fails over it.
+
+app.get('/api/guide-sections', async (req, res) => {
+  if (!supabase) return res.json({ sections: [] });
+  try {
+    const { data, error } = await supabase
+      .from('guide_sections')
+      .select('*')
+      .order('sort_order', { ascending: true })
+      .order('created_at', { ascending: true });
+    if (error) throw error;
+    res.json({ sections: data || [] });
+  } catch (err) {
+    console.warn('[/api/guide-sections] unavailable, returning sections: [] —', err.message);
+    res.json({ sections: [] });
+  }
+});
+
+// video_url ('' or null clears the video) → { video_url, video_type, video_embed_id }
+function guideVideoFields(video_url) {
+  const url = typeof video_url === 'string' ? video_url.trim() : '';
+  if (!url) return { video_url: null, video_type: null, video_embed_id: null };
+  const parsed = parseVideoUrl(url);
+  return {
+    video_url:      url,
+    video_type:     parsed?.video_type || null,
+    video_embed_id: parsed?.embed_id   || null,
+  };
+}
+
+app.post('/admin/guide-sections', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Database not configured.' });
+  const { title, content, video_url, sort_order } = req.body;
+  if (!title?.trim()) return res.status(400).json({ error: 'title is required.' });
+  try {
+    const { data, error } = await supabase
+      .from('guide_sections')
+      .insert({
+        title:      title.trim(),
+        content:    typeof content === 'string' ? content : '',
+        sort_order: Number.isFinite(sort_order) ? sort_order : 0,
+        ...guideVideoFields(video_url),
+      })
+      .select()
+      .single();
+    if (error) throw error;
+    res.json(data);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.put('/admin/guide-sections/:id', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Database not configured.' });
+  const updates = {};
+  if ('title' in req.body) {
+    if (!req.body.title?.trim()) return res.status(400).json({ error: 'title is required.' });
+    updates.title = req.body.title.trim();
+  }
+  if ('content' in req.body) updates.content = typeof req.body.content === 'string' ? req.body.content : '';
+  if ('video_url' in req.body) Object.assign(updates, guideVideoFields(req.body.video_url));
+  if (Number.isFinite(req.body.sort_order)) updates.sort_order = req.body.sort_order;
+  if (Object.keys(updates).length === 0) return res.status(400).json({ error: 'nothing to update' });
+  updates.updated_at = new Date().toISOString();
+  try {
+    const { data, error } = await supabase
+      .from('guide_sections')
+      .update(updates)
+      .eq('id', req.params.id)
+      .select()
+      .single();
+    if (error) throw error;
+    res.json(data);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.delete('/admin/guide-sections/:id', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Database not configured.' });
+  try {
+    const { error } = await supabase.from('guide_sections').delete().eq('id', req.params.id);
+    if (error) throw error;
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // ── Health check ───────────────────────────────────────────────────────────────
 
 // ── Stats endpoints ────────────────────────────────────────────────────────────

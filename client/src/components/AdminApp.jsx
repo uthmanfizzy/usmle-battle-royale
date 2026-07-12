@@ -3370,6 +3370,223 @@ function AnnouncementsPanel() {
   );
 }
 
+// ── Guide Panel ────────────────────────────────────────────────────────────────
+// Admin CRUD for the public /guide page (guide_sections). Mirrors the
+// Announcements tab structure; video parsing reuses parseVideoUrlClient (the
+// training-video regex) for the live preview — the server re-parses on save.
+
+function GuideSectionModal({ section, onSave, onClose }) {
+  const isEdit = !!section;
+  const [form, setForm] = useState({
+    title:      section?.title      || '',
+    content:    section?.content    || '',
+    video_url:  section?.video_url  || '',
+    sort_order: section?.sort_order ?? 0,
+  });
+  const [saving, setSaving] = useState(false);
+  const [error,  setError]  = useState('');
+
+  function set(key, val) { setForm(f => ({ ...f, [key]: val })); }
+
+  const parsed = form.video_url.trim() ? parseVideoUrlClient(form.video_url) : null;
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    if (!form.title.trim()) { setError('Title is required.'); return; }
+    setSaving(true); setError('');
+    try {
+      const body = JSON.stringify({ ...form, sort_order: Number(form.sort_order) || 0 });
+      const res = isEdit
+        ? await apiCall(`/admin/guide-sections/${section.id}`, { method: 'PUT', body })
+        : await apiCall('/admin/guide-sections', { method: 'POST', body });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Save failed');
+      onSave(data);
+    } catch (err) {
+      setError(err.message);
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="ap-backdrop" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="ap-modal ap-ann-modal">
+        <div className="ap-modal-head">
+          <h2>{isEdit ? 'Edit Guide Section' : 'New Guide Section'}</h2>
+          <button className="ap-modal-x" onClick={onClose}>✕</button>
+        </div>
+        <form onSubmit={handleSubmit} className="ap-qform">
+          <div className="ap-field">
+            <label>Title</label>
+            <input
+              type="text"
+              value={form.title}
+              onChange={e => set('title', e.target.value)}
+              placeholder="Section title…"
+              maxLength={200}
+              required
+              autoFocus
+            />
+          </div>
+          <div className="ap-field">
+            <label>Content</label>
+            <textarea
+              value={form.content}
+              onChange={e => set('content', e.target.value)}
+              rows={8}
+              placeholder="Write the section text here… (plain text, line breaks are kept)"
+            />
+          </div>
+          <div className="ap-field">
+            <label>YouTube or Vimeo URL, optional</label>
+            <input
+              type="text"
+              value={form.video_url}
+              onChange={e => set('video_url', e.target.value)}
+              placeholder="https://www.youtube.com/watch?v=…"
+            />
+          </div>
+
+          {/* Live parse preview — same pattern as the Videos panel */}
+          {form.video_url.trim() && (parsed ? (
+            <div className="ap-video-preview">
+              {parsed.video_type === 'youtube' ? (
+                <img className="ap-video-thumb" src={`https://img.youtube.com/vi/${parsed.embed_id}/mqdefault.jpg`} alt="" />
+              ) : (
+                <div className="ap-video-thumb ap-video-thumb--placeholder">🎬</div>
+              )}
+              <span className={`ap-video-badge ap-video-badge--${parsed.video_type}`}>
+                {parsed.video_type === 'youtube' ? '▶ YouTube' : '🎬 Vimeo'} · {parsed.embed_id}
+              </span>
+            </div>
+          ) : (
+            <div className="ap-video-invalid">⚠ Unrecognized link — it will be saved, but no video will embed until it's a valid YouTube/Vimeo URL</div>
+          ))}
+
+          <div className="ap-field">
+            <label>Sort Order</label>
+            <input
+              type="number"
+              value={form.sort_order}
+              onChange={e => set('sort_order', e.target.value)}
+              placeholder="0"
+            />
+          </div>
+
+          {error && <div className="ap-error">{error}</div>}
+          <div className="ap-modal-foot">
+            <button type="button" className="ap-btn-sec" onClick={onClose}>Cancel</button>
+            <button type="submit" className="ap-btn-pri" disabled={saving}>
+              {saving ? 'Saving…' : isEdit ? 'Save Changes' : 'Create Section'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function GuidePanel() {
+  const [list,    setList]    = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [modal,   setModal]   = useState(null);
+  const [delId,   setDelId]   = useState(null);
+  const [error,   setError]   = useState('');
+
+  useEffect(() => { load(); }, []);
+
+  async function load() {
+    setLoading(true);
+    try {
+      const res  = await apiCall('/api/guide-sections');
+      const data = await res.json();
+      setList(data.sections || []);
+    } catch { setError('Failed to load guide sections.'); }
+    setLoading(false);
+  }
+
+  async function handleDelete() {
+    try {
+      await apiCall(`/admin/guide-sections/${encodeURIComponent(delId)}`, { method: 'DELETE' });
+      setList(a => a.filter(x => x.id !== delId));
+    } catch { setError('Delete failed.'); }
+    setDelId(null);
+  }
+
+  function handleSaved(saved) {
+    setList(prev => {
+      const idx  = prev.findIndex(s => s.id === saved.id);
+      const copy = idx >= 0 ? prev.map(s => (s.id === saved.id ? saved : s)) : [...prev, saved];
+      // Keep the list in public display order (sort_order asc, created_at asc)
+      return copy.sort((a, b) =>
+        (a.sort_order - b.sort_order) ||
+        (new Date(a.created_at) - new Date(b.created_at)));
+    });
+    setModal(null);
+  }
+
+  if (loading) return <div className="ap-loading">Loading guide sections…</div>;
+
+  return (
+    <div className="ap-ann-panel">
+      <div className="ap-ann-toolbar">
+        <h2 className="ap-ann-title">📖 Guide</h2>
+        <button className="ap-btn-pri" onClick={() => setModal('new')}>+ New Section</button>
+      </div>
+      {error && <div className="ap-error">{error}</div>}
+
+      <div className="ap-ann-list">
+        {list.length === 0 && (
+          <div className="ap-empty" style={{ textAlign: 'center', padding: 40 }}>
+            No guide sections yet. Create the first one!
+          </div>
+        )}
+        {list.map(s => (
+          <div key={s.id} className="ap-ann-card">
+            <div className="ap-ann-card-head">
+              <div className="ap-ann-badges">
+                <span className="ap-ann-badge-cat" style={{ background: '#555' }}>#{s.sort_order}</span>
+                {s.video_embed_id && (
+                  <span className={`ap-video-badge ap-video-badge--${s.video_type}`}>
+                    {s.video_type === 'youtube' ? '▶ YouTube' : '🎬 Vimeo'}
+                  </span>
+                )}
+                {s.video_url && !s.video_embed_id && (
+                  <span className="ap-ann-badge-urgent">⚠ Video link not recognized</span>
+                )}
+              </div>
+              <div className="ap-ann-card-actions">
+                <button className="ap-edit-btn" onClick={() => setModal(s)}>Edit</button>
+                <button className="ap-del-btn" onClick={() => setDelId(s.id)}>Delete</button>
+              </div>
+            </div>
+            <h3 className="ap-ann-card-title">{s.title}</h3>
+            <p className="ap-ann-card-body">
+              {(s.content || '').slice(0, 160)}{(s.content || '').length > 160 ? '…' : ''}
+            </p>
+          </div>
+        ))}
+      </div>
+
+      {modal && (
+        <GuideSectionModal
+          section={modal === 'new' ? null : modal}
+          onSave={handleSaved}
+          onClose={() => setModal(null)}
+        />
+      )}
+
+      {delId !== null && (
+        <DeleteConfirm
+          questionId="this guide section"
+          onConfirm={handleDelete}
+          onCancel={() => setDelId(null)}
+        />
+      )}
+    </div>
+  );
+}
+
 // ── Subjects Panel ─────────────────────────────────────────────────────────────
 
 const MIN_QUESTIONS_TO_ACTIVATE = 5;
@@ -8403,6 +8620,9 @@ export default function AdminApp() {
         <button className={`ap-nav-btn ${tab === 'announcements' ? 'active' : ''}`} onClick={() => setTab('announcements')}>
           📣 Announcements
         </button>
+        <button className={`ap-nav-btn ${tab === 'guide'         ? 'active' : ''}`} onClick={() => setTab('guide')}>
+          📖 Guide
+        </button>
         <button className={`ap-nav-btn ${tab === 'landing'       ? 'active' : ''}`} onClick={() => setTab('landing')}>
           🖼️ Landing Page
         </button>
@@ -8435,6 +8655,7 @@ export default function AdminApp() {
         {tab === 'journey'       && <JourneyPanel />}
         {tab === 'journeyeditor' && <JourneyPageEditor />}
         {tab === 'announcements' && <AnnouncementsPanel />}
+        {tab === 'guide'         && <GuidePanel />}
         {tab === 'landing'       && <LandingImagesPanel />}
         {tab === 'playpage'      && <PlayPageAdmin />}
         {tab === 'homepage'      && <HomePagePanel />}

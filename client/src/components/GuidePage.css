@@ -1,0 +1,145 @@
+/* ═══════════════════════════════════════════════════════════════════
+   MED ROYALE — GUIDE PAGE
+   Same self-scoped dark RPG look as ProgressPage (.pp) — purple + gold.
+   ═══════════════════════════════════════════════════════════════════ */
+
+.gp {
+  --bg:      #05050f;
+  --purple:  var(--color-primary, #7C3AED);
+  --gold:    #F59E0B;
+  --glass:   rgba(255,255,255,0.03);
+  --glass2:  rgba(255,255,255,0.07);
+  --border:  rgba(124,58,237,0.2);
+  --border2: rgba(124,58,237,0.4);
+  --text:    #e8e8f4;
+  --muted:   rgba(232,232,244,0.45);
+
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  overflow-x: hidden;
+}
+
+/* ── Nav (ProgressPage convention) ───────────────────────────────── */
+.gp-nav {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  height: 60px;
+  background: rgba(5,5,15,0.85);
+  border-bottom: 1px solid var(--border);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+.gp-nav-back {
+  background: var(--glass2);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 7px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s, background 0.2s;
+}
+.gp-nav-back:hover { color: var(--text); border-color: var(--border2); background: rgba(124,58,237,0.1); }
+.gp-nav-brand { font-size: 15px; font-weight: 700; letter-spacing: -0.3px; }
+.gp-nav-spacer { width: 60px; }
+
+/* ── Page + panels ───────────────────────────────────────────────── */
+.gp-page {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 32px 20px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.gp-footer-space { height: 60px; }
+
+.gp-panel {
+  background: rgba(10,10,24,0.7);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 24px 28px;
+  box-shadow: 0 0 40px rgba(124,58,237,0.06);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+/* ── Loading ─────────────────────────────────────────────────────── */
+.gp-load {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  padding: 80px 0;
+}
+.gp-load-ring {
+  width: 52px; height: 52px;
+  border-radius: 50%;
+  border: 3px solid rgba(124,58,237,0.2);
+  border-top-color: #7C3AED;
+  animation: gp-spin 0.9s linear infinite;
+}
+.gp-load-text { font-size: 15px; color: var(--muted); }
+@keyframes gp-spin { to { transform: rotate(360deg); } }
+
+/* ── Sections ────────────────────────────────────────────────────── */
+.gp-section-title {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0 0 14px;
+  color: var(--gold);
+}
+
+.gp-section-content {
+  margin: 14px 0 0;
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--text);
+  white-space: pre-wrap;   /* plain text — admin line breaks are kept as typed */
+  overflow-wrap: break-word;
+}
+
+/* 16:9 responsive embed (JourneyMode .jm-confirm-video-frame convention) */
+.gp-video-frame {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #000;
+  border: 1px solid var(--border2);
+  box-shadow: 0 8px 22px rgba(8, 4, 24, 0.5);
+}
+.gp-video-frame iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+/* ── Empty state ─────────────────────────────────────────────────── */
+.gp-empty {
+  text-align: center;
+  padding: 48px 24px;
+  color: var(--muted);
+  font-size: 16px;
+}
+.gp-empty-icon { font-size: 40px; display: block; margin-bottom: 12px; }
+.gp-empty p { margin: 6px 0; }
+.gp-empty-sub { font-size: 13px; opacity: 0.8; }
+
+/* ── Mobile ──────────────────────────────────────────────────────── */
+@media (max-width: 560px) {
+  .gp-panel { padding: 18px 16px; }
+  .gp-page  { padding: 24px 14px 0; }
+}

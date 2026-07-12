@@ -15,6 +15,7 @@ const AuthCallback      = lazy(() => import('./components/AuthCallback'));
 const DashboardPage     = lazy(() => import('./components/DashboardPage'));
 const StatsPage         = lazy(() => import('./components/StatsPage'));
 const ProgressPage      = lazy(() => import('./components/ProgressPage'));
+const GuidePage         = lazy(() => import('./components/GuidePage'));
 const UsernameSetupPage = lazy(() => import('./components/UsernameSetupPage'));
 
 function PageSpinner() {
@@ -108,6 +109,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
                 <Route path="/dashboard"      element={<DashboardPage />} />
                 <Route path="/stats"          element={<RouteErrorBoundary name="StatsPage"><StatsPage /></RouteErrorBoundary>} />
                 <Route path="/progress/:userId?" element={<RouteErrorBoundary name="ProgressPage"><ProgressPage /></RouteErrorBoundary>} />
+                <Route path="/guide"          element={<RouteErrorBoundary name="GuidePage"><GuidePage /></RouteErrorBoundary>} />
                 <Route path="/username-setup" element={<UsernameSetupPage />} />
                 <Route path="/*"              element={<App />} />
               </Routes>
