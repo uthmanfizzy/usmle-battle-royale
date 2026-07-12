@@ -213,6 +213,18 @@
   from { opacity: 0; transform: translateY(6px); }
   to   { opacity: 1; transform: translateY(0); }
 }
+/* Click-to-open detail modal — same affordance the leaderboard's clickable
+   rows use (cursor + subtle hover tint); negative margin keeps the grid
+   exactly where it was while giving the highlight some breathing room. */
+.pp-skill-row--clickable {
+  cursor: pointer;
+  padding: 6px 8px;
+  margin: -6px -8px;
+  border-radius: 10px;
+  transition: background 0.15s;
+}
+.pp-skill-row--clickable:hover { background: rgba(124, 58, 237, 0.1); }
+
 .pp-skill-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .pp-skill-icon { font-size: 20px; }
 .pp-skill-name { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

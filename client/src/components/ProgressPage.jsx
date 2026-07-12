@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { getToken, fetchMe, getCachedUser } from '../auth';
 import { formatStudyTime } from './ProfileModal';
 import StudyCalendar from './StudyCalendar';
+import SubjectDetailModal from './SubjectDetailModal';
 import './ProgressPage.css';
 
 const SERVER_URL = 'https://usmle-battle-royale-production.up.railway.app';
@@ -26,11 +27,15 @@ function getMasteryColor(pct) {
   return '#4B5563';
 }
 
-function SubjectBar({ s, i }) {
+function SubjectBar({ s, i, onClick }) {
   const pct   = s.mastery_percent || 0;
   const color = getMasteryColor(pct);
   return (
-    <div className="pp-skill-row" style={{ '--delay': `${i * 0.06}s` }}>
+    <div
+      className="pp-skill-row pp-skill-row--clickable"
+      style={{ '--delay': `${i * 0.06}s` }}
+      onClick={onClick}
+    >
       <div className="pp-skill-left">
         <span className="pp-skill-icon">{s.icon}</span>
         <div>
@@ -73,6 +78,7 @@ export default function ProgressPage() {
   const [study, setStudy] = useState(null);   // /api/users/:id/study-stats response
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [detailSubject, setDetailSubject] = useState(null); // subject row whose detail modal is open
 
   // No :userId param = my own progress. Same own-identity resolution StatsPage
   // uses: token check, cached user, fetchMe fallback, redirect home if guest.
@@ -214,7 +220,9 @@ export default function ProgressPage() {
                 <HighlightCard title="Needs work" icon="🎯" items={data.weakest} tone="weak" />
               </div>
               <div className="pp-skill-list">
-                {data.subjects.map((s, i) => <SubjectBar key={s.subject} s={s} i={i} />)}
+                {data.subjects.map((s, i) => (
+                  <SubjectBar key={s.subject} s={s} i={i} onClick={() => setDetailSubject(s)} />
+                ))}
               </div>
             </>
           )}
@@ -222,6 +230,16 @@ export default function ProgressPage() {
 
         <div className="pp-footer-space" />
       </div>
+
+      {detailSubject && (
+        <SubjectDetailModal
+          userId={viewedId}
+          s={detailSubject}
+          rank={getMasteryRank(detailSubject.mastery_percent || 0)}
+          color={getMasteryColor(detailSubject.mastery_percent || 0)}
+          onClose={() => setDetailSubject(null)}
+        />
+      )}
     </div>
   );
 }

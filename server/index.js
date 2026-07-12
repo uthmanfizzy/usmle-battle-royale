@@ -2952,6 +2952,9 @@ app.get('/api/users/:userId/study-stats', async (req, res) => {
 // (service-role client bypasses RLS); only days that have a row are returned,
 // the client fills the gaps. Fails soft to an empty month, never 500s.
 app.get('/api/users/:userId/study-time/calendar', async (req, res) => {
+  // Month navigation must always hit the server — never let a browser/CDN
+  // serve a cached month grid (Express's default ETag has no max-age policy).
+  res.set('Cache-Control', 'no-store');
   const now = new Date();
   let year  = Number(req.query.year);
   let month = Number(req.query.month);
@@ -3066,6 +3069,31 @@ app.get('/api/users/:userId/mastery', async (req, res) => {
   } catch (err) {
     console.warn('[/api/users/:userId/mastery] error —', err.message);
     res.status(404).json({ error: 'User not found.' });
+  }
+});
+
+// Public recent ranked games for one subject — powers the Progress page's
+// per-subject detail modal. No auth, same pattern as /mastery and /study-stats.
+// Fail soft: any query problem (including bad UUIDs) returns { subject, games: [] }.
+app.get('/api/users/:userId/subject-history/:subject', async (req, res) => {
+  const { userId, subject } = req.params;
+  if (!supabase) return res.json({ subject, games: [] });
+  try {
+    const { data, error } = await supabase
+      .from('game_history')
+      .select('played_at, correct_answers, total_questions, xp_earned, placement')
+      .eq('user_id', userId)
+      .eq('subject', subject)
+      .order('played_at', { ascending: false })
+      .limit(20);
+    if (error) {
+      console.warn('[/api/users/:userId/subject-history] query failed —', error.message);
+      return res.json({ subject, games: [] });
+    }
+    res.json({ subject, games: data || [] });
+  } catch (err) {
+    console.warn('[/api/users/:userId/subject-history] unavailable —', err.message);
+    res.json({ subject, games: [] });
   }
 });
 
