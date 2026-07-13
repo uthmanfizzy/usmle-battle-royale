@@ -1486,13 +1486,6 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
             <span className="nav-label">NEWS</span>
           </div>
           <div className="nav-divider" />
-          <div className="nav-item" onClick={() => { window.location.href = '/guide'; }}>
-            {homeImages.icon_guide && (
-              <img loading="lazy" src={homeImages.icon_guide} className="nav-icon" alt="Guide" />
-            )}
-            <span className="nav-label">GUIDE</span>
-          </div>
-          <div className="nav-divider" />
           <div className="nav-item nav-item--play" onClick={onPlayNow}>
             {homeImages.icon_play && (
               <img loading="lazy" src={homeImages.icon_play} className="nav-icon" alt="Play" />

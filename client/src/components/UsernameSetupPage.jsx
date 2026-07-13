@@ -66,7 +66,10 @@ export default function UsernameSetupPage() {
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error || 'Failed to set username.'); setLoading(false); return; }
-      window.location.href = '/dashboard';
+      // Brand-new account's first navigation: land on the Guide once, with a
+      // Continue button back to the dashboard. This page only runs pre-username,
+      // so it can never re-fire for an existing account.
+      window.location.href = '/guide?onboarding=1';
     } catch {
       setError('Network error. Please try again.');
       setLoading(false);

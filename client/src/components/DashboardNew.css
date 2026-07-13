@@ -10,8 +10,8 @@
   --dn-gold:   #dcbe50;
   --dn-text:   #f0eee4;
   --dn-dim:    rgba(240, 238, 228, 0.65);
-  --dn-glass:  rgba(16, 22, 12, 0.72);
-  --dn-border: rgba(220, 190, 80, 0.28);
+  --dn-glass:  rgba(22, 35, 42, 0.72);
+  --dn-border: rgba(210, 180, 100, 0.35);
   --dn-nav-h:  64px;
 
   position: relative;
@@ -323,7 +323,7 @@
   justify-content: space-around;
   height: calc(var(--dn-nav-h) + env(safe-area-inset-bottom, 0px));
   padding: 0 8px env(safe-area-inset-bottom, 0px);
-  background: rgba(10, 14, 8, 0.92);
+  background: rgba(22, 35, 42, 0.92);
   border-top: 1px solid var(--dn-border);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
@@ -339,9 +339,9 @@
   justify-content: center;
   gap: 4px;
   padding: 6px 0;
-  background: none;
+  background: rgba(22, 35, 42, 0.55);
   border: none;
-  color: var(--dn-dim);
+  color: #cfd6d8;
   font-family: inherit;
   font-weight: 700;
   cursor: pointer;
@@ -349,15 +349,18 @@
   -webkit-tap-highlight-color: transparent;
   transition: color 0.15s ease, transform 0.1s ease;
 }
-.dn-nav-item:hover { color: var(--dn-text); }
+.dn-nav-item:hover { color: #ffffff; }
 .dn-nav-item:active { transform: scale(0.94); }
 
 .dn-nav-icon { font-size: 22px; line-height: 1; }
 .dn-nav-img  { width: 24px; height: 24px; object-fit: contain; }
 .dn-nav-label { font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; }
 
-/* Active tab: gold + top indicator bar */
-.dn-nav-item--active { color: var(--dn-gold); }
+/* Active tab: teal fill + white label, gold top indicator kept as the accent */
+.dn-nav-item--active {
+  color: #ffffff;
+  background: #2a5c58;
+}
 .dn-nav-item--active::before {
   content: '';
   position: absolute;
@@ -367,14 +370,17 @@
   width: 38px;
   height: 3px;
   border-radius: 0 0 4px 4px;
-  background: var(--dn-gold);
-  box-shadow: 0 0 10px rgba(220, 190, 80, 0.6);
+  background: rgba(230, 195, 110, 0.9);
+  box-shadow: 0 0 10px rgba(230, 195, 110, 0.6);
 }
 
-/* Play: standout gold action */
-.dn-nav-item--play { color: var(--dn-gold); }
+/* Play: standout brighter-teal call-to-action */
+.dn-nav-item--play {
+  color: #ffffff;
+  background: #37847c;
+}
 .dn-nav-item--play .dn-nav-icon,
-.dn-nav-item--play .dn-nav-img { filter: drop-shadow(0 0 8px rgba(220, 190, 80, 0.5)); }
+.dn-nav-item--play .dn-nav-img { filter: drop-shadow(0 0 8px rgba(95, 211, 196, 0.55)); }
 
 /* ── Responsive ─────────────────────────────────────────────────────────────── */
 

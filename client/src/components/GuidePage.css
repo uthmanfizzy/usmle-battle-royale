@@ -127,6 +127,26 @@
   border: 0;
 }
 
+/* ── Onboarding CTA (only with ?onboarding=1, first visit after signup) ── */
+.gp-continue-btn {
+  display: block;
+  width: 100%;
+  padding: 15px 20px;
+  border-radius: 14px;
+  border: 1px solid rgba(210, 180, 100, 0.5);
+  background: linear-gradient(135deg, #2a5c58, #37847c);
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(42, 92, 88, 0.45);
+  transition: filter 0.15s, transform 0.1s;
+}
+.gp-continue-btn:hover  { filter: brightness(1.12); }
+.gp-continue-btn:active { transform: scale(0.98); }
+
 /* ── Empty state ─────────────────────────────────────────────────── */
 .gp-empty {
   text-align: center;

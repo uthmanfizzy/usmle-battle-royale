@@ -98,6 +98,12 @@ export default function SettingsDropdown({ user, onClose, onLogout }) {
             <span className="settings-row-value">Level {user?.level || 1}</span>
           </div>
           <button
+            className="settings-link-btn"
+            onClick={() => { window.location.href = '/guide'; }}
+          >
+            📖 View Guide
+          </button>
+          <button
             className="settings-danger-btn"
             onClick={() => {
               if(window.confirm('Sign out?')) {

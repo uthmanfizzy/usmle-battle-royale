@@ -28,6 +28,9 @@ function VideoEmbed({ type, embedId, title }) {
 export default function GuidePage() {
   const [sections, setSections] = useState(null); // null = loading
   const [error, setError] = useState(false);
+  // First navigation after signup (UsernameSetupPage sends ?onboarding=1):
+  // show a prominent Continue CTA. Same URLSearchParams pattern as AuthCallback.
+  const onboarding = new URLSearchParams(window.location.search).get('onboarding') === '1';
 
   useEffect(() => {
     let cancelled = false;
@@ -74,6 +77,14 @@ export default function GuidePage() {
               {s.content && <p className="gp-section-content">{s.content}</p>}
             </div>
           ))
+        )}
+        {onboarding && sections !== null && (
+          <button
+            className="gp-continue-btn"
+            onClick={() => { window.location.href = '/dashboard'; }}
+          >
+            Continue to Dashboard →
+          </button>
         )}
         <div className="gp-footer-space" />
       </div>
