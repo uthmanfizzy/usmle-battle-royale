@@ -55,13 +55,21 @@ export function StoryMenu({ onBack, onJourney, onTower, onAnKing }) {
           <span className="ms-card-sub">March through First Aid, chapter by chapter</span>
         </button>
 
-        <button className="ms-card ms-card--story" onClick={onTower}>
+        {/* COMING SOON — temporarily disabled. To re-enable: drop the
+            ms-card--disabled class + ms-ribbon span and restore onClick={onTower}.
+            TowerMode and its App.jsx routing are untouched. */}
+        <button className="ms-card ms-card--story ms-card--disabled" disabled>
+          <span className="ms-ribbon">COMING SOON</span>
           <span className="ms-card-icon">🏰</span>
           <span className="ms-card-name">THE TOWER</span>
           <span className="ms-card-sub">Climb 100 floors of knowledge</span>
         </button>
 
-        <button className="ms-card ms-card--story" onClick={onAnKing}>
+        {/* COMING SOON — temporarily disabled. To re-enable: drop the
+            ms-card--disabled class + ms-ribbon span and restore onClick={onAnKing}.
+            AnKing and its App.jsx routing are untouched. */}
+        <button className="ms-card ms-card--story ms-card--disabled" disabled>
+          <span className="ms-ribbon">COMING SOON</span>
           <span className="ms-card-icon">🃏</span>
           <span className="ms-card-name">ANKING</span>
           <span className="ms-card-sub">Master AnKing flashcards</span>

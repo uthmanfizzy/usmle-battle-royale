@@ -1139,6 +1139,7 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
   const notifDropdownRef = useRef(null);
   const settingsDropdownRef = useRef(null);
   const [bgUrl,        setBgUrl]        = useState(null);
+  const [bgLoaded,     setBgLoaded]     = useState(false); // fade the bg in on load
   const [homeImages,   setHomeImages]   = useState({
     dashboard_bg: '',
     footer_bg: '',
@@ -1282,7 +1283,14 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
     <div className="dashboard-screen">
       {/* Background */}
       <div className="dashboard-bg">
-        {bgUrl && <img src={bgUrl} alt="" className="dashboard-bg-image" />}
+        {bgUrl && (
+          <img
+            src={bgUrl}
+            alt=""
+            className={`dashboard-bg-image${bgLoaded ? ' loaded' : ''}`}
+            onLoad={() => setBgLoaded(true)}
+          />
+        )}
         <div className="dashboard-bg-overlay" />
       </div>
 
