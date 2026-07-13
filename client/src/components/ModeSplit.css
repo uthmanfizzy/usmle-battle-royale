@@ -43,6 +43,33 @@
   transform: translateX(-2px);
 }
 
+/* The global App-level ⌂ Home button (App.css .home-btn, fixed top-left) is a
+   ghost button that lands unstyled on top of this screen's ← Back pill. On the
+   ModeSplit screen only, restyle it to match .ms-back-btn and sit just to its
+   right (back pill is at left:20px, ~92px wide → ~12px gap). Higher specificity
+   than the base .home-btn rule, so no !important needed. body:has() scoping is
+   the same pattern study.css / SoloGameJourney.css use for this button. */
+body:has(.ms-screen) .home-btn {
+  top: 20px;
+  left: 124px;
+  z-index: 1001;
+  background: rgba(20, 30, 20, 0.8);
+  border: 1px solid rgba(180, 140, 40, 0.5);
+  border-radius: 8px;
+  color: #c8a32c;
+  font-family: 'Cinzel', serif;
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: normal;
+  padding: 10px 20px;
+  transition: all 0.2s ease;
+}
+body:has(.ms-screen) .home-btn:hover {
+  background: rgba(30, 40, 30, 0.9);
+  border-color: rgba(180, 140, 40, 0.8);
+  color: #c8a32c;
+}
+
 /* ── Banner: drops from above, gold underline sweeps in ────────────────────── */
 
 .ms-banner {
