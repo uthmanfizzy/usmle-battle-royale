@@ -172,7 +172,7 @@
 }
 
 .profile-card-panel {
-  background: rgba(22, 35, 42, 0.55);
+  background: rgba(16, 26, 32, 0.92);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -3017,11 +3017,29 @@
     padding: 6px 8px;
   }
 
-  /* Further reduce profile card size */
+  /* Real dimensional shrink (no transform/zoom, so the card's actual layout
+     footprint matches its visual size). ~0.6x the 768px card via real props. */
   .horizontal-profile-card {
-    transform: scale(0.55) !important;
-    margin-bottom: -25px !important;
+    transform: none !important;
   }
+  .profile-card-avatar {
+    width: 40px !important;
+    height: 40px !important;
+    min-width: 40px !important;
+    border-width: 2px !important;
+  }
+  .profile-card-panel {
+    min-width: 104px !important;
+    max-width: 140px !important;
+    padding: 6px 10px 6px 22px !important;
+    margin-left: -16px !important;
+    gap: 2px !important;
+  }
+  .profile-card-username { font-size: 12px !important; }
+  .profile-card-crown    { font-size: 10px !important; }
+  .profile-card-level    { font-size: 10px !important; }
+  .profile-card-xp-bar   { height: 4px !important; }
+  .profile-card-xp-text  { font-size: 8px !important; }
 
   /* Adjust currency bar for smaller screens */
   .currency-bar {
@@ -3775,19 +3793,29 @@
     max-width: 130px !important;
   }
 
-  /* Smaller profile card on very small screens */
+  /* Smaller profile card on very small screens — real dimensional shrink
+     (no zoom/transform), a touch smaller than the 480px sizes above. */
   .horizontal-profile-card {
-    zoom: 0.88 !important;
+    transform: none !important;
   }
-
+  .profile-card-avatar {
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+    border-width: 2px !important;
+  }
   .profile-card-panel {
-    min-width: 140px !important;
-    max-width: 160px !important;
+    min-width: 94px !important;
+    max-width: 124px !important;
+    padding: 5px 8px 5px 20px !important;
+    margin-left: -14px !important;
+    gap: 2px !important;
   }
-
-  .profile-card-username {
-    font-size: 14px !important;
-  }
+  .profile-card-username { font-size: 11px !important; }
+  .profile-card-crown    { font-size: 9px !important; }
+  .profile-card-level    { font-size: 9px !important; }
+  .profile-card-xp-bar   { height: 3px !important; }
+  .profile-card-xp-text  { font-size: 7px !important; }
 
   /* Slightly smaller bubbles and icons on very small screens */
   .header-icon-bubble {
@@ -3836,7 +3864,9 @@ button.settings-btn img,
 }
 
 .home-widget {
-  background: rgba(22, 35, 42, 0.75);
+  background: rgba(16, 26, 32, 0.92);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   border: 1px solid rgba(210, 180, 100, 0.3);
   border-radius: 12px;
   overflow: hidden;
