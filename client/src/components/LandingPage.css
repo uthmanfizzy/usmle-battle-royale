@@ -132,6 +132,7 @@
   font-weight: 700;
   color: var(--cream);
   letter-spacing: 1px;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9), 0 2px 8px rgba(0, 0, 0, 0.6);
 }
 
 /* Nav Links */
@@ -146,20 +147,21 @@
   background: none;
   border: none;
   cursor: pointer;
-  color: #000000;
+  color: var(--cream);
   font-family: 'Crimson Text', Georgia, serif;
   font-size: 13px;
   font-weight: 600;
   letter-spacing: 1.5px;
   padding: 6px 12px;
   transition: color 0.25s;
-  text-shadow: 0 1px 3px rgba(255,255,255,0.8), 0 0 8px rgba(255,255,255,0.5);
+  /* Dark multi-layer halo: legible over light (sky/stone) AND dark (canopy) image regions */
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9), 0 2px 8px rgba(0, 0, 0, 0.6);
 }
 
 .lp-nav-link:hover,
 .lp-nav-link.active {
   color: var(--gold);
-  text-shadow: 0 1px 3px rgba(255,255,255,0.8), 0 0 8px rgba(255,255,255,0.5);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9), 0 2px 8px rgba(0, 0, 0, 0.6);
 }
 
 /* Nav Right */
@@ -281,11 +283,13 @@
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 4px;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9), 0 2px 8px rgba(0, 0, 0, 0.6);
 }
 
 .lp-ornament {
   color: var(--gold);
   font-size: 10px;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9), 0 2px 8px rgba(0, 0, 0, 0.6);
 }
 
 .lp-hero-title {
@@ -296,27 +300,28 @@
   line-height: 1;
   letter-spacing: 2px;
   margin: 0;
-  text-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
+  /* Robust dark halo (was a single soft shadow tuned to dark images) */
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9), 0 2px 10px rgba(0, 0, 0, 0.7);
 }
 
 .lp-hero-tagline {
   font-family: 'Crimson Text', Georgia, serif;
   font-size: 13px;
   font-weight: 600;
-  color: #000000;
+  color: var(--cream);
   letter-spacing: 4px;
   margin: 0;
-  text-shadow: 0 1px 3px rgba(255,255,255,0.8), 0 0 8px rgba(255,255,255,0.5);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9), 0 2px 8px rgba(0, 0, 0, 0.6);
 }
 
 .lp-hero-desc {
   font-family: 'Crimson Text', Georgia, serif;
   font-size: 15px;
   line-height: 1.5;
-  color: #000000;
+  color: var(--cream);
   margin: 0;
   max-width: 400px;
-  text-shadow: 0 1px 3px rgba(255,255,255,0.8), 0 0 8px rgba(255,255,255,0.5);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9), 0 2px 8px rgba(0, 0, 0, 0.6);
 }
 
 .lp-hero-buttons {
@@ -394,11 +399,11 @@
   font-size: 13px;
   font-weight: 600;
   letter-spacing: 2px;
-  color: #000000;
+  color: var(--cream);
   padding: 10px 20px;
   cursor: pointer;
   transition: all 0.3s ease;
-  text-shadow: 0 1px 3px rgba(255,255,255,0.8), 0 0 8px rgba(255,255,255,0.5);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9), 0 2px 8px rgba(0, 0, 0, 0.6);
 }
 
 .lp-btn-ghost:hover {
@@ -434,6 +439,7 @@
   font-size: 18px;
   color: var(--gold);
   opacity: 0.8;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9), 0 2px 8px rgba(0, 0, 0, 0.6);
 }
 
 .lp-modes-title {
@@ -443,6 +449,10 @@
   color: var(--gold);
   letter-spacing: 4px;
   margin: 0;
+  /* Heading crosses the busiest part of the image (castle/bright stone): stronger
+     halo + a thin dark stroke for extra weight. */
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9), 0 2px 10px rgba(0, 0, 0, 0.7);
+  -webkit-text-stroke: 1px rgba(0, 0, 0, 0.4);
 }
 
 /* Game Modes Grid - 4 cards in a row */

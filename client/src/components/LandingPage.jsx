@@ -38,7 +38,7 @@ const GAME_MODES = [
     id: 'more_to_come',
     number: '04',
     icon: '🌿',
-    title: 'MORE TO COME',
+    title: 'FIRST AID VENTURES',
     description: 'New modes coming soon!',
     hasArrow: false,
   },
