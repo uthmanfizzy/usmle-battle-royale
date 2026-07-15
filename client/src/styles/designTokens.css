@@ -11,6 +11,15 @@
    - --mv-gold     = currency, completed states, level ring, corner accents.
    - --mv-teal     = secondary currency (diamonds), focus/mana, secondary accent.
    - --mv-success  = quest completion / positive states (distinct from gold).
+
+   Tint ramps: alpha/tint variants of these tokens (e.g. gold at 20%) are
+   written as PRECOMPUTED static rgba()/rgb() values at the point of use, not
+   live color-mix() blends — engines without color-mix (Safari <16.2,
+   Chrome <111, Firefox <113) drop the whole declaration, which renders as
+   flat black/transparent. If a token's base value changes, regenerate the
+   ramps (rgba(232,176,75,*) = gold, rgba(22,35,42,*) = glass,
+   rgba(61,220,132,*) = success, rgba(79,209,197,*) = teal,
+   rgba(231,76,60,*) = danger).
    ═══════════════════════════════════════════════════════════════════════════ */
 
 :root {
