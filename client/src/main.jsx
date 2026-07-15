@@ -6,6 +6,7 @@ import { ThemeProvider } from './theme';
 import { GameSettingsProvider } from './contexts/GameSettingsContext';
 import RouteErrorBoundary from './components/RouteErrorBoundary';
 import DevModeBanner from './components/DevModeBanner';
+import './styles/designTokens.css';
 import './App.css';
 import './themes.css';
 import './study.css';

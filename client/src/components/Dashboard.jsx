@@ -1077,7 +1077,7 @@ function WelcomePopup({ announcement, onClose }) {
       <div className="welcome-popup" onClick={e => e.stopPropagation()}>
         <h2>{announcement?.title || 'Welcome to MedVale!'}</h2>
         <p>{announcement?.message || 'The most epic way to prepare for your medical exams. Study hard, play hard!'}</p>
-        <button onClick={onClose}>Let's Go!</button>
+        <button className="mv-btn-cut" onClick={onClose}>Let's Go!</button>
       </div>
     </div>
   );

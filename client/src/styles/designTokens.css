@@ -1,0 +1,89 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   MEDVALE — SHARED DESIGN TOKENS
+   Single source of truth for the brand palette. Loaded globally via main.jsx.
+
+   Semantic rules:
+   - --mv-red      = primary/brand actions ONLY (CTAs, active states, health,
+                     level badge). NEVER destructive actions.
+   - --mv-danger   = destructive actions (leave/kick/decline/delete/logout).
+                     Deliberately a distinct hue from --mv-red so "primary"
+                     and "destructive" are never confused.
+   - --mv-gold     = currency, completed states, level ring, corner accents.
+   - --mv-teal     = secondary currency (diamonds), focus/mana, secondary accent.
+   - --mv-success  = quest completion / positive states (distinct from gold).
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* Backgrounds */
+  --mv-bg-void: #060a07;
+  --mv-bg-base: #0f1512;
+  --mv-glass: rgba(22, 35, 42, 0.75);      /* card/panel fill, blurred */
+  --mv-glass-strong: rgba(16, 26, 32, 0.92);
+
+  /* Accent: RED = primary/brand actions only */
+  --mv-red: #c1291e;
+  --mv-red-link: #d9544a;
+
+  /* Accent: DANGER = destructive actions */
+  --mv-danger: #e74c3c;
+  --mv-danger-bg: rgba(220, 100, 100, 0.15);
+
+  /* Gold */
+  --mv-gold: #e8b04b;
+  --mv-gold-dim: rgba(232, 176, 75, 0.5);
+
+  /* Teal */
+  --mv-teal: #4fd1c5;
+
+  /* Success */
+  --mv-success: #3ddc84;
+
+  /* Text */
+  --mv-text: #ffffff;
+  --mv-text-dim-85: rgba(255, 255, 255, 0.85);
+  --mv-text-dim-65: rgba(255, 255, 255, 0.65);
+  --mv-text-dim-45: rgba(255, 255, 255, 0.45);
+
+  /* Borders */
+  --mv-border: rgba(255, 255, 255, 0.1);
+  --mv-border-gold: rgba(232, 176, 75, 0.35);
+
+  /* Type */
+  --mv-font-display: 'Cinzel', serif;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   SHARED CUT-CORNER BUTTON
+   Octagon-cut primary CTA, extracted from the landing page's two button
+   treatments. Base = 10px cut ("Enter Now" style); --lg = 14px cut, display
+   font ("Enter Medvale" style).
+   ───────────────────────────────────────────────────────────────────────────── */
+.mv-btn-cut {
+  background: var(--mv-red);
+  color: var(--mv-text);
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 11px 26px;
+  clip-path: polygon(10px 0, calc(100% - 10px) 0, 100% 10px, 100% calc(100% - 10px), calc(100% - 10px) 100%, 10px 100%, 0 calc(100% - 10px), 0 10px);
+  transition: filter 0.15s, transform 0.15s;
+}
+
+.mv-btn-cut--lg {
+  font-family: var(--mv-font-display);
+  font-weight: 700;
+  font-size: 16px;
+  padding: 15px 34px;
+  clip-path: polygon(14px 0, calc(100% - 14px) 0, 100% 14px, 100% calc(100% - 14px), calc(100% - 14px) 100%, 14px 100%, 0 calc(100% - 14px), 0 14px);
+}
+
+.mv-btn-cut:hover {
+  filter: brightness(1.15);
+  transform: translateY(-1px);
+}
+
+.mv-btn-cut:active {
+  filter: brightness(0.92);
+  transform: translateY(0);
+}
