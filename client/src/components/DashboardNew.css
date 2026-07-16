@@ -171,13 +171,12 @@
 }
 
 /* ── HomeSection re-homing ──────────────────────────────────────────────────
-   HomeSection (shared with the current dashboard) is styled for the OLD
-   full-screen layout: .dash-main clamps to calc(100vh-186px) with
-   overflow:hidden and 76px/110px chrome padding, and on desktop the widgets
-   are position:fixed at the viewport's top-left. Inside this shell that meant
-   clipped content, a dead top gap, and widgets escaping over the header.
-   Re-home everything into normal flow, scoped to .dn-screen so the current
-   dashboard is untouched. */
+   HomeSection (shared with the current dashboard) lays out for the old
+   shell's mockup bands: .dash-main is a space-between flex row with wide
+   chrome padding, and the content column clamps to min(400px,100%). Inside
+   this shell, re-home everything into a normal-flow vertical stack (welcome
+   banner first via order:-1) with the widgets in a responsive grid. Scoped
+   to .dn-screen so the current dashboard is untouched. */
 .dn-screen .dash-main {
   display: flex;
   flex-direction: column;
@@ -189,7 +188,7 @@
   overflow: visible;
 }
 
-/* Welcome banner first, visible on all widths (the old CSS hides it ≤1024px) */
+/* Welcome banner first, visible on all widths */
 .dn-screen .dash-center-col {
   order: -1;
   display: flex;
@@ -202,15 +201,14 @@
 .dn-screen .center-welcome-title { font-size: 26px; margin-bottom: 6px; }
 .dn-screen .center-welcome-sub { font-size: 14px; }
 
-/* Widgets: static, full-width responsive grid instead of a fixed sidebar */
-.dn-screen .dash-left-col { padding-top: 0 !important; }
-.dn-screen .dash-left-col .home-widgets {
-  position: static !important;
-  left: auto !important;
-  top: auto !important;
+/* Content column full width; widgets in a responsive grid */
+.dn-screen .dash-content-col {
+  width: 100%;
+  flex-shrink: 1;
+}
+.dn-screen .home-widgets {
   width: 100% !important;
   max-width: none !important;
-  z-index: auto !important;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 14px;
@@ -222,10 +220,6 @@
 }
 .dn-screen .home-widget-header { padding: 12px 16px 0; }
 .dn-screen .home-widget-content { padding: 12px 16px 14px; }
-
-/* Training Grounds Home shortcut removed from the NEW shell only — it's the
-   right column's sole child, and TG stays reachable via Play → ModeSplit. */
-.dn-screen .dash-right-col { display: none; }
 
 /* ── Explore row: Leaderboards / Clans / News entry points inside Home ─────── */
 .dn-explore {
@@ -406,7 +400,7 @@
   .dn-screen .center-welcome-title { font-size: 21px; }
   .dn-screen .center-welcome-sub { font-size: 13px; }
   .dn-screen .dash-main { gap: 12px; }
-  .dn-screen .dash-left-col .home-widgets { gap: 12px; }
+  .dn-screen .home-widgets { gap: 12px; }
   .dn-subhead-title { font-size: 16px; }
 }
 

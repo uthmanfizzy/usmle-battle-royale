@@ -244,7 +244,11 @@ function UsernameChangeModal({ user, onClose, onSuccess }) {
 }
 
 // ── Home Section (RPG Style) ───────────────────────────────────────────────────
-function HomeSection({ user, bgUrl, onUserUpdate, homeImages }) {
+// Shared by both shells. The old shell passes navCards (left nav column JSX,
+// built by Dashboard which owns the tab handlers) and onViewAllNews; the
+// DashboardNew shell passes withWelcome to keep its welcome banner (re-homed
+// to the top via .dn-screen .dash-center-col { order: -1 }).
+function HomeSection({ user, bgUrl, onUserUpdate, homeImages, navCards, onViewAllNews, withWelcome }) {
   const [showUsernameModal, setShowUsernameModal] = useState(false);
   const [quests, setQuests] = useState([]);
   const [questProgress, setQuestProgress] = useState({});
@@ -408,12 +412,46 @@ function HomeSection({ user, bgUrl, onUserUpdate, homeImages }) {
 
   return (
     <div className="dash-main">
-      {/* Left Column */}
-      <div className="dash-left-col">
+      {/* Welcome banner — DashboardNew shell only (the old shell's mockup
+          layout has no center column) */}
+      {withWelcome && (
+        <div className="dash-center-col">
+          <div className="center-welcome">
+            <div className="center-welcome-title">Welcome Back, {user.username}!</div>
+            <div className="center-welcome-sub">Ready for your next challenge?</div>
+          </div>
+        </div>
+      )}
+
+      {/* Left nav column (old shell only) */}
+      {navCards && <nav className="dash-nav-col">{navCards}</nav>}
+
+      {/* Right content column: event art + quests/rewards widgets + news feed */}
+      <div className="dash-content-col">
+        {navCards && (
+          /* INERT visual placeholder — no events feature exists yet. Art box,
+             label, and dots are purely decorative; nothing here is clickable
+             or wired to data by design. */
+          <div className="dash-event-card" aria-hidden="true">
+            <div className="dash-event-art">event art placeholder</div>
+            <div className="dash-event-body">
+              <div className="dash-event-label">NEW EVENT</div>
+              <div className="dash-event-title">Coming Soon</div>
+              <div className="dash-event-sub">Seasonal events will appear here in a future update.</div>
+              <div className="dash-event-dots">
+                <span className="dash-event-dot dash-event-dot--on" />
+                <span className="dash-event-dot" />
+                <span className="dash-event-dot" />
+                <span className="dash-event-dot" />
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="home-widgets">
 
           {/* DAILY QUESTS */}
-          <div className="home-widget">
+          <div className="home-widget" id="dash-quests-widget">
             <div className="home-widget-header">
               <h3 className="home-widget-title">DAILY QUESTS</h3>
             </div>
@@ -460,7 +498,7 @@ function HomeSection({ user, bgUrl, onUserUpdate, homeImages }) {
           </div>
 
           {/* REWARDS */}
-          <div className="home-widget">
+          <div className="home-widget" id="dash-rewards-widget">
             <div className="home-widget-header">
               <h3 className="home-widget-title">REWARDS</h3>
             </div>
@@ -487,10 +525,16 @@ function HomeSection({ user, bgUrl, onUserUpdate, homeImages }) {
             </div>
           </div>
 
-          {/* NEWS */}
+          {/* NEWS FEED (thumbnail + title + date rows; View All jumps to the
+              existing AnnouncementsSection tab via onViewAllNews) */}
           <div className="home-widget">
-            <div className="home-widget-header">
-              <h3 className="home-widget-title">NEWS</h3>
+            <div className="home-widget-header home-widget-header--row">
+              <h3 className="home-widget-title">NEWS FEED</h3>
+              {onViewAllNews && (
+                <button type="button" className="news-view-all" onClick={onViewAllNews}>
+                  View All
+                </button>
+              )}
             </div>
             <div className="home-widget-content">
               {newsItems.map((item, i) => (
@@ -504,6 +548,11 @@ function HomeSection({ user, bgUrl, onUserUpdate, homeImages }) {
                     <p className="news-item-title">{item.title || item.message?.substring(0, 40)}</p>
                     <p className="news-item-desc">{item.message?.substring(0, 60)}{item.message?.length > 60 ? '...' : ''}</p>
                   </div>
+                  {item.created_at && (
+                    <span className="news-item-date">
+                      {new Date(item.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                    </span>
+                  )}
                 </div>
               ))}
               {newsItems.length === 0 && (
@@ -514,18 +563,6 @@ function HomeSection({ user, bgUrl, onUserUpdate, homeImages }) {
 
         </div>
       </div>
-
-      {/* Center Column - Transparent */}
-      <div className="dash-center-col">
-        <div className="center-welcome">
-          <div className="center-welcome-title">Welcome Back, {user.username}!</div>
-          <div className="center-welcome-sub">Ready for your next challenge?</div>
-        </div>
-      </div>
-
-      {/* Right Column removed — the Training Grounds entry card that lived here
-          is gone (TG stays reachable via Play → CHOOSE YOUR PATH). .dash-main's
-          fixed 28%/40%/28% grid keeps the other columns in place. */}
 
       {showUsernameModal && (
         <UsernameChangeModal
@@ -1275,6 +1312,16 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
     localStorage.setItem(ANN_WELCOME_KEY, '1');
   }
 
+  // Dock → widget bridge (temporary until a real Quests page ships): scroll
+  // the existing widget into view and pulse its border. No new routes.
+  function revealHomeWidget(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.classList.add('home-widget--flash');
+    setTimeout(() => el.classList.remove('home-widget--flash'), 1600);
+  }
+
   // User currency
   const coins = user.coins || 0;
   const gems = user.gems || 0;
@@ -1306,21 +1353,29 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
               onClick={() => { window.location.href = '/progress'; }}
               title="View my progress"
             >
-              <div className="profile-card-avatar">
-                {user.avatar_url ? (
-                  <img src={user.avatar_url} alt={user.username} referrerPolicy="no-referrer" />
-                ) : (
-                  <div className="profile-card-avatar-placeholder">
-                    {user.username?.[0]?.toUpperCase() || 'U'}
-                  </div>
-                )}
+              {/* Wrapper exists so the diamond level badge can sit outside the
+                  avatar's overflow:hidden circle */}
+              <div className="profile-card-avatar-wrap">
+                <div className="profile-card-avatar">
+                  {user.avatar_url ? (
+                    <img src={user.avatar_url} alt={user.username} referrerPolicy="no-referrer" />
+                  ) : (
+                    <div className="profile-card-avatar-placeholder">
+                      {user.username?.[0]?.toUpperCase() || 'U'}
+                    </div>
+                  )}
+                </div>
+                {/* Red diamond level badge (mockup's 45°-rotated square);
+                    replaces the old "Level N" text line */}
+                <div className="profile-card-lvl-badge" title={`Level ${user.level || 1}`}>
+                  <span className="profile-card-lvl-num">{user.level || 1}</span>
+                </div>
               </div>
               <div className="profile-card-panel">
                 <div className="profile-card-username">
                   {user.username || 'Player'}
                   <span className="profile-card-crown">👑</span>
                 </div>
-                <div className="profile-card-level">Level {user.level || 1}</div>
                 <div className="profile-card-xp">
                   <div className="profile-card-xp-bar">
                     <div
@@ -1445,7 +1500,117 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
         </div>
 
         {/* Tab content */}
-        {dashTab === 'home'          && <HomeSection user={user} bgUrl={bgUrl} onUserUpdate={onUserUpdate} homeImages={homeImages} />}
+        {dashTab === 'home' && (
+          <>
+            <HomeSection
+              user={user}
+              bgUrl={bgUrl}
+              onUserUpdate={onUserUpdate}
+              homeImages={homeImages}
+              onViewAllNews={handleAnnouncementsTab}
+              navCards={
+                <>
+                  <button type="button" className="dash-nav-card dash-nav-card--play" onClick={onPlayNow}>
+                    <span className="dash-nav-card-icon dash-nav-card-icon--play">
+                      {homeImages.icon_play
+                        ? <img loading="lazy" src={homeImages.icon_play} alt="" />
+                        : '▶'}
+                    </span>
+                    <span className="dash-nav-card-text">
+                      <span className="dash-nav-card-name">PLAY</span>
+                      <span className="dash-nav-card-sub">ENTER THE WARZONE</span>
+                    </span>
+                  </button>
+                  <button type="button" className="dash-nav-card" onClick={() => setDashTab('leaderboard')}>
+                    <span className="dash-nav-card-icon">
+                      {homeImages.icon_leaderboards
+                        ? <img loading="lazy" src={homeImages.icon_leaderboards} alt="" />
+                        : '🏆'}
+                    </span>
+                    <span className="dash-nav-card-text">
+                      <span className="dash-nav-card-name">LEADERBOARDS</span>
+                      <span className="dash-nav-card-sub">TOP WARRIORS</span>
+                    </span>
+                  </button>
+                  <button type="button" className="dash-nav-card" onClick={() => setDashTab('clans')}>
+                    <span className="dash-nav-card-icon">
+                      {homeImages.icon_clans
+                        ? <img loading="lazy" src={homeImages.icon_clans} alt="" />
+                        : '🛡️'}
+                    </span>
+                    <span className="dash-nav-card-text">
+                      <span className="dash-nav-card-name">CLANS</span>
+                      <span className="dash-nav-card-sub">FIGHT TOGETHER</span>
+                    </span>
+                  </button>
+                  <button type="button" className="dash-nav-card" onClick={handleAnnouncementsTab}>
+                    <span className="dash-nav-card-icon">
+                      {homeImages.icon_news
+                        ? <img loading="lazy" src={homeImages.icon_news} alt="" />
+                        : '📰'}
+                    </span>
+                    <span className="dash-nav-card-text">
+                      <span className="dash-nav-card-name">
+                        NEWS
+                        {unreadCount > 0 && <span className="ann-unread-dot dash-nav-card-dot" />}
+                      </span>
+                      <span className="dash-nav-card-sub">LATEST UPDATES</span>
+                    </span>
+                  </button>
+                </>
+              }
+            />
+
+            {/* Bottom dock band (mockup's third band). Coexists with — does
+                not replace — the persistent .bottom-nav pill below it.
+                Inventory/Heroes/Shop/Events are unbuilt features: disabled
+                coming-soon tiles (ms-ribbon treatment, dock-sized). Quests
+                and the Daily Reward pill jump to the existing widgets. */}
+            <div className="dash-dock">
+              <div className="dash-dock-items">
+                <div className="dash-dock-item dash-dock-item--soon" aria-disabled="true">
+                  <span className="dash-dock-tile"><span className="dash-dock-ribbon">SOON</span>🎒</span>
+                  <span className="dash-dock-label">INVENTORY</span>
+                </div>
+                <div className="dash-dock-item dash-dock-item--soon" aria-disabled="true">
+                  <span className="dash-dock-tile"><span className="dash-dock-ribbon">SOON</span>🦸</span>
+                  <span className="dash-dock-label">HEROES</span>
+                </div>
+                <div className="dash-dock-item dash-dock-item--soon" aria-disabled="true">
+                  <span className="dash-dock-tile"><span className="dash-dock-ribbon">SOON</span>🛒</span>
+                  <span className="dash-dock-label">SHOP</span>
+                </div>
+                <button
+                  type="button"
+                  className="dash-dock-item"
+                  onClick={() => revealHomeWidget('dash-quests-widget')}
+                  title="Daily Quests"
+                >
+                  <span className="dash-dock-tile">⚔️</span>
+                  <span className="dash-dock-label">QUESTS</span>
+                </button>
+                <div className="dash-dock-item dash-dock-item--soon" aria-disabled="true">
+                  <span className="dash-dock-tile"><span className="dash-dock-ribbon">SOON</span>🎉</span>
+                  <span className="dash-dock-label">EVENTS</span>
+                </div>
+              </div>
+
+              {/* Single claim mechanism: this pill only jumps to the Rewards
+                  widget's CLAIM button — it is not a second claim action */}
+              <button
+                type="button"
+                className="dash-dock-reward"
+                onClick={() => revealHomeWidget('dash-rewards-widget')}
+              >
+                <span className="dash-dock-reward-gem" />
+                <span className="dash-dock-reward-text">
+                  <span className="dash-dock-reward-title">DAILY REWARD</span>
+                  <span className="dash-dock-reward-sub">Open your daily chest</span>
+                </span>
+              </button>
+            </div>
+          </>
+        )}
         {dashTab === 'leaderboard'   && <LeaderboardSection userId={user.id} user={user} />}
         {dashTab === 'clans'         && <ClansPage user={user} />}
         {dashTab === 'announcements' && <AnnouncementsSection />}

@@ -223,7 +223,14 @@ export default function DashboardNew({ user, onPlayNow, onLogout, onUserUpdate }
               </button>
             </div>
 
-            <HomeSection user={user} bgUrl={bgUrl} onUserUpdate={onUserUpdate} homeImages={homeImages} />
+            <HomeSection
+              user={user}
+              bgUrl={bgUrl}
+              onUserUpdate={onUserUpdate}
+              homeImages={homeImages}
+              withWelcome
+              onViewAllNews={() => openHomeView('news')}
+            />
           </>
         )}
 

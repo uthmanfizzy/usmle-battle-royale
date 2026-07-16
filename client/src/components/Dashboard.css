@@ -146,6 +146,13 @@
   border-color: var(--mv-gold);
 }
 
+/* Wrapper so the diamond level badge can overhang the clipped avatar circle */
+.profile-card-avatar-wrap {
+  position: relative;
+  flex-shrink: 0;
+  z-index: 2;
+}
+
 .profile-card-avatar {
   width: 68px;
   height: 68px;
@@ -156,6 +163,32 @@
   position: relative;
   z-index: 2;
   flex-shrink: 0;
+}
+
+/* Red diamond level badge (45°-rotated square, number counter-rotated) */
+.profile-card-lvl-badge {
+  position: absolute;
+  bottom: -6px;
+  left: 50%;
+  transform: translateX(-50%) rotate(45deg);
+  width: 24px;
+  height: 24px;
+  background: var(--mv-red);
+  border: 2px solid var(--mv-bg-void);
+  z-index: 3;
+}
+
+.profile-card-lvl-num {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: rotate(-45deg);
+  font-family: var(--mv-font-display);
+  font-size: 11px;
+  font-weight: 700;
+  color: #ffffff;
 }
 
 .profile-card-avatar img {
@@ -202,12 +235,6 @@
 
 .profile-card-crown {
   font-size: 14px;
-}
-
-.profile-card-level {
-  font-size: 13px;
-  color: var(--mv-gold);
-  font-weight: 600;
 }
 
 .profile-card-xp {
@@ -405,19 +432,21 @@
 /* ══════════════════════════════════════════════════════════════════════════════
    MAIN CONTENT AREA
    ══════════════════════════════════════════════════════════════════════════════ */
+/* Mockup band 2: left nav column + right content column, space-between —
+   no center column, normal document flow (the old fixed-height 28/40/28
+   grid and its overflow clamp are gone; #root scrolls as usual). */
 .dash-main {
   flex: 1;
-  padding: 76px 8px 110px 8px;
-  display: grid;
-  grid-template-columns: 28% 40% 28%;
-  gap: 8px;
+  padding: 120px 28px 24px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 24px;
   max-width: 1400px;
   margin: 0 auto;
   width: 100%;
   box-sizing: border-box;
-  overflow: hidden;
-  max-height: calc(100vh - 186px);
-  height: calc(100vh - 186px);
 }
 
 /* ══════════════════════════════════════════════════════════════════════════════
@@ -475,21 +504,388 @@
 /* ══════════════════════════════════════════════════════════════════════════════
    LEFT COLUMN
    ══════════════════════════════════════════════════════════════════════════════ */
-.dash-left-col {
+/* ── Left nav column (mockup band 2, left) ──────────────────────────────────
+   Vertical glass nav cards. These are the same handlers the bottom nav
+   drives (onPlayNow / setDashTab) — repositioned, not a new nav system. */
+.dash-nav-col {
+  width: min(280px, 100%);
+  flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  gap: 0;
-  width: auto;
-  pointer-events: all;
-  padding-top: 105px !important;
+  gap: 14px;
+  margin-top: 36px;
 }
 
-.dash-left-col .home-widgets {
-  position: fixed !important;
-  left: 12px !important;
-  top: 130px !important;
-  width: 260px !important;
-  z-index: 50 !important;
+.dash-nav-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: rgba(6, 10, 7, 0.5);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 6px;
+  padding: 16px 18px;
+  color: var(--mv-text);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+}
+
+.dash-nav-card:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.dash-nav-card--play {
+  background: rgba(193, 41, 30, 0.22);
+  border: 1.5px solid var(--mv-red);
+  box-shadow: 0 0 18px rgba(193, 41, 30, 0.35);
+}
+
+.dash-nav-card--play:hover {
+  background: rgba(193, 41, 30, 0.32);
+  border-color: var(--mv-red);
+  box-shadow: 0 0 26px rgba(193, 41, 30, 0.55);
+}
+
+.dash-nav-card-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  flex-shrink: 0;
+}
+
+.dash-nav-card-icon img {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+}
+
+.dash-nav-card-icon--play {
+  background: var(--mv-red);
+}
+
+.dash-nav-card-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.dash-nav-card-name {
+  font-family: var(--mv-font-display);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dash-nav-card-sub {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.6);
+  letter-spacing: 0.4px;
+}
+
+/* Unread dot inside the NEWS card: reuse .ann-unread-dot, un-absolute it */
+.dash-nav-card-dot {
+  position: static !important;
+  display: inline-block;
+}
+
+/* ── Right content column (mockup band 2, right) ────────────────────────────── */
+.dash-content-col {
+  width: min(400px, 100%);
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* Widgets live in normal flow here — kill the base card clamp/padding */
+.dash-content-col .home-widgets {
+  max-width: none;
+  padding: 0;
+}
+
+/* Event card — INERT placeholder (no events feature yet); striped art box
+   convention matches the landing-page placeholders */
+.dash-event-card {
+  background: rgba(6, 10, 7, 0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.dash-event-art {
+  height: 150px;
+  background: repeating-linear-gradient(45deg, #1a2420, #1a2420 10px, #141d19 10px, #141d19 20px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.4);
+  font-family: ui-monospace, Menlo, monospace;
+}
+
+.dash-event-body {
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dash-event-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  color: var(--mv-red-link);
+}
+
+.dash-event-title {
+  font-family: var(--mv-font-display);
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.dash-event-sub {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.65);
+  line-height: 1.4;
+}
+
+.dash-event-dots {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.dash-event-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.dash-event-dot--on {
+  background: var(--mv-red);
+}
+
+/* News feed extras (header row with View All; date on each row) */
+.home-widget-header--row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.news-view-all {
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--mv-red-link);
+  cursor: pointer;
+}
+
+.news-view-all:hover {
+  text-decoration: underline;
+}
+
+.news-item-date {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.45);
+  white-space: nowrap;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+/* Dock → widget reveal pulse (see revealHomeWidget) */
+.home-widget--flash {
+  animation: home-widget-flash 1.5s ease;
+}
+
+@keyframes home-widget-flash {
+  0%, 100% { box-shadow: none; }
+  25%, 65% { box-shadow: 0 0 0 2px var(--mv-gold), 0 0 22px rgba(232, 176, 75, 0.55); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-widget--flash { animation: none; }
+}
+
+/* ── Bottom dock band (mockup band 3) ────────────────────────────────────────
+   In normal flow after .dash-main; the large bottom padding keeps it clear
+   of the fixed .bottom-nav pill (90px desktop / 70px mobile) below it. */
+.dash-dock {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  max-width: 1400px;
+  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 28px 118px;
+}
+
+.dash-dock-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: clamp(14px, 3vw, 28px);
+  row-gap: 14px;
+}
+
+.dash-dock-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.dash-dock-tile {
+  position: relative;
+  overflow: hidden;
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  background: rgba(6, 10, 7, 0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.dash-dock-item:not(.dash-dock-item--soon):hover .dash-dock-tile {
+  border-color: var(--mv-gold);
+  background: rgba(232, 176, 75, 0.12);
+}
+
+.dash-dock-label {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.6);
+  letter-spacing: 0.4px;
+  font-weight: 600;
+}
+
+/* Coming-soon tiles: ms-card--disabled treatment (dimmed, inert) with the
+   ms-ribbon gold diagonal scaled down to dock-tile size */
+.dash-dock-item--soon {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.dash-dock-ribbon {
+  position: absolute;
+  top: 5px;
+  right: -15px;
+  transform: rotate(45deg);
+  background: linear-gradient(90deg, rgba(200, 163, 44, 0.95), rgba(241, 196, 15, 0.95));
+  color: #1a1408;
+  font-size: 7px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 1px 16px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+}
+
+/* Daily Reward pill — entry point to the Rewards widget's CLAIM (not a
+   second claim mechanism) */
+.dash-dock-reward {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(6, 10, 7, 0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border: 1px solid rgba(232, 176, 75, 0.4);
+  border-radius: 8px;
+  padding: 10px 18px;
+  color: var(--mv-text);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.dash-dock-reward:hover {
+  border-color: var(--mv-gold);
+  box-shadow: 0 0 14px rgba(232, 176, 75, 0.25);
+}
+
+.dash-dock-reward-gem {
+  width: 26px;
+  height: 26px;
+  background: var(--mv-gold);
+  transform: rotate(45deg);
+  flex-shrink: 0;
+  margin: 4px 6px;
+}
+
+.dash-dock-reward-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.dash-dock-reward-title {
+  font-family: var(--mv-font-display);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.dash-dock-reward-sub {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+@media (max-width: 1024px) {
+  .dash-dock {
+    padding: 4px 16px 108px;
+    justify-content: center;
+  }
+
+  .dash-dock-reward {
+    flex-basis: 100%;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .dash-dock-tile {
+    width: 40px;
+    height: 40px;
+    font-size: 17px;
+  }
+
+  .dash-dock-items {
+    width: 100%;
+    justify-content: space-around;
+  }
 }
 
 /* ── Player Profile Panel ─────────────────────────────────────────────────── */
@@ -740,14 +1136,17 @@
 }
 
 /* ══════════════════════════════════════════════════════════════════════════════
-   CENTER COLUMN - Transparent
+   CENTER COLUMN (welcome banner) — DashboardNew shell only. The old shell's
+   mockup layout dropped its center column; HomeSection renders this block
+   solely when the withWelcome prop is set (DashboardNew re-homes it via
+   .dn-screen .dash-center-col { order: -1 }).
    ══════════════════════════════════════════════════════════════════════════════ */
 .dash-center-col {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: space-between;
-  min-height: 400px;
+  min-height: 0;
 }
 
 .center-welcome {
@@ -1514,48 +1913,31 @@
 /* ══════════════════════════════════════════════════════════════════════════════
    RESPONSIVE
    ══════════════════════════════════════════════════════════════════════════════ */
-@media (max-width: 1200px) {
-  .dash-main {
-    grid-template-columns: 280px 1fr 280px;
-    gap: 16px;
-  }
-}
-
+/* ≤1024px: nav column and content column stack vertically, full width —
+   same collapse principle the old 28/40/28 grid used, applied to the new
+   two-column band. The dock stacks below the content in flow. */
 @media (max-width: 1024px) {
   .dash-main {
-    grid-template-columns: 1fr;
+    flex-direction: column;
+    align-items: stretch;
     max-width: 600px;
-    /* Stacked cards can exceed the viewport — let this region scroll instead of
-       clipping (base rule is overflow:hidden with a fixed height). */
-    overflow-y: auto;
-    overflow-x: hidden;
+    padding: 110px 16px 20px;
+    gap: 16px;
   }
 
-  .dash-center-col {
-    display: none;
+  .dash-nav-col {
+    width: 100%;
+    margin-top: 0;
+    gap: 10px;
   }
 
-  .dash-left-col {
+  .dash-nav-card {
+    padding: 13px 16px;
+  }
+
+  .dash-content-col {
     width: 100%;
   }
-
-  /* ROOT CAUSE FIX: the home widgets (Daily Quests / Rewards / News) are
-     position:fixed for the desktop sidebar layout. That rule was never undone on
-     mobile, so they stayed pinned top-left out of flow while the in-flow Training
-     Grounds card (right column) rendered on top of them — the banner/News overlap.
-     Un-fix them so they sit in the normal vertical stack, full width. */
-  .dash-left-col {
-    padding-top: 0 !important;
-  }
-  .dash-left-col .home-widgets {
-    position: static !important;
-    left: auto !important;
-    top: auto !important;
-    width: 100% !important;
-    max-width: none !important;
-    z-index: auto !important;
-  }
-
 }
 
 @media (max-width: 600px) {
@@ -1582,8 +1964,11 @@
     height: 24px;
   }
 
+  /* Top padding clears the fixed header's vertically stacked icon bubbles
+     (bell/friends/settings run to ~165px on phones) so they never cover the
+     PLAY nav card */
   .dash-main {
-    padding: 70px 16px 80px;
+    padding: 170px 16px 20px;
     gap: 16px;
   }
 
@@ -2760,8 +3145,12 @@
     font-size: 16px !important;
   }
 
-  .profile-card-level {
-    font-size: 13px !important;
+  .profile-card-lvl-badge {
+    width: 22px !important;
+    height: 22px !important;
+  }
+  .profile-card-lvl-num {
+    font-size: 10px !important;
   }
 
   .profile-card-xp-bar {
@@ -3034,7 +3423,8 @@
   }
   .profile-card-username { font-size: 12px !important; }
   .profile-card-crown    { font-size: 10px !important; }
-  .profile-card-level    { font-size: 10px !important; }
+  .profile-card-lvl-badge { width: 18px !important; height: 18px !important; bottom: -4px !important; }
+  .profile-card-lvl-num   { font-size: 8px !important; }
   .profile-card-xp-bar   { height: 4px !important; }
   .profile-card-xp-text  { font-size: 8px !important; }
 
@@ -3810,7 +4200,8 @@
   }
   .profile-card-username { font-size: 11px !important; }
   .profile-card-crown    { font-size: 9px !important; }
-  .profile-card-level    { font-size: 9px !important; }
+  .profile-card-lvl-badge { width: 16px !important; height: 16px !important; bottom: -3px !important; }
+  .profile-card-lvl-num   { font-size: 7px !important; }
   .profile-card-xp-bar   { height: 3px !important; }
   .profile-card-xp-text  { font-size: 7px !important; }
 
