@@ -43,7 +43,11 @@
   display: flex;
   flex-direction: column;
   font-family: 'Crimson Text', Georgia, serif;
-  overflow: hidden;
+  /* clip, NOT hidden: overflow:hidden makes this element the scroll
+     container for position:sticky descendants (killing the sticky dock,
+     since #root is what actually scrolls); overflow:clip clips without
+     creating a scroll container. */
+  overflow: clip;
 }
 
 .dashboard-bg {
@@ -436,7 +440,12 @@
    no center column, normal document flow (the old fixed-height 28/40/28
    grid and its overflow clamp are gone; #root scrolls as usual). */
 .dash-main {
-  flex: 1;
+  /* flex-basis MUST stay auto: `flex: 1` (basis 0%) sized this box to the
+     leftover viewport height instead of its content, which parked the dock
+     behind the fixed .bottom-nav at first paint while the content painted
+     past it. Basis auto = box grows from content; grow:1 still pushes the
+     dock to the viewport bottom when content is short. */
+  flex: 1 0 auto;
   padding: 120px 28px 24px;
   display: flex;
   align-items: flex-start;
@@ -727,19 +736,26 @@
 }
 
 /* ── Bottom dock band (mockup band 3) ────────────────────────────────────────
-   In normal flow after .dash-main; the large bottom padding keeps it clear
-   of the fixed .bottom-nav pill (90px desktop / 70px mobile) below it. */
+   Sticky at the viewport bottom on desktop so the band is visible from first
+   paint, like the mockup's persistent HUD row. It keeps its normal-flow slot
+   (after .dash-main) and un-sticks into it at scroll end; bottom: 104px =
+   .bottom-nav pill height (90px) + gap, so it can never overlap the pill.
+   The gradient keeps the tiles legible while content scrolls beneath. */
 .dash-dock {
+  position: sticky;
+  bottom: 104px;
+  z-index: 40;
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
   gap: 16px;
   max-width: 1400px;
-  margin: 0 auto;
+  margin: 0 auto 110px;
   width: 100%;
   box-sizing: border-box;
-  padding: 8px 28px 118px;
+  padding: 10px 28px;
+  background: linear-gradient(180deg, rgba(6, 10, 7, 0) 0%, rgba(6, 10, 7, 0.82) 34%, rgba(6, 10, 7, 0.92) 100%);
 }
 
 .dash-dock-items {
@@ -863,10 +879,16 @@
   color: rgba(255, 255, 255, 0.65);
 }
 
+/* ≤1024px: dock returns to plain flow (a stuck dock + full-width reward pill
+   would eat ~28% of a phone viewport above the nav bar); margin-bottom keeps
+   its scroll-end position clear of the full-width 70px mobile .bottom-nav. */
 @media (max-width: 1024px) {
   .dash-dock {
-    padding: 4px 16px 108px;
+    position: static;
+    padding: 4px 16px;
+    margin-bottom: 100px;
     justify-content: center;
+    background: none;
   }
 
   .dash-dock-reward {
