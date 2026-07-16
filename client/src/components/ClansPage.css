@@ -317,24 +317,41 @@
   letter-spacing: 0.1em;
 }
 
+/* Hexagon crest (mockup shape). A normal border would be clipped away by
+   the hexagon clip-path, so the gold ring is the element's own background
+   showing through a ::before inset layer; the glow uses drop-shadow, which
+   follows the clip (box-shadow would be clipped too). */
 .clan-crest-icon {
+  position: relative;
   width: 90px;
   height: 90px;
-  border-radius: 50%;
-  background: var(--mv-glass-strong);
-  border: 3px solid rgba(232, 176, 75, 0.6);
+  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+  background: rgba(232, 176, 75, 0.6);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 48px;
-  box-shadow: 0 0 20px rgba(232, 176, 75, 0.3);
+  filter: drop-shadow(0 0 10px rgba(232, 176, 75, 0.3));
+}
+
+.clan-crest-icon::before {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+  background: var(--mv-glass-strong);
+}
+
+.clan-crest-icon > * {
+  position: relative;
+  z-index: 1;
 }
 
 .clan-crest-icon img {
-  width: 100%;
-  height: 100%;
+  width: calc(100% - 6px);
+  height: calc(100% - 6px);
   object-fit: cover;
-  border-radius: 50%;
+  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
 }
 
 .clan-xp-bar--center {
@@ -481,6 +498,57 @@
 
 .clan-member-row:hover {
   background: rgba(22, 35, 42, 0.41);
+}
+
+/* Mockup roster treatment: your own row gets a red tint, and Leader/you
+   rows get a gold-ringed avatar (red/gold tints are static token ramps) */
+.clan-member-row--you {
+  background: rgba(193, 41, 30, 0.1);
+}
+
+.clan-member-row--you:hover {
+  background: rgba(193, 41, 30, 0.16);
+}
+
+.clan-member-row--you .clan-member-avatar,
+.clan-member-row--leader .clan-member-avatar {
+  background: rgba(232, 176, 75, 0.2);
+  border: 1.5px solid var(--mv-gold);
+}
+
+/* Role text colors (Leader gold, Elder dim, Member dimmer — real role
+   names; the mockup's "Officer" maps to this app's Elder) */
+.clan-role {
+  font-family: 'Cinzel', serif;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.clan-role--leader { color: var(--mv-gold); }
+.clan-role--elder  { color: rgba(255, 255, 255, 0.7); }
+.clan-role--member { color: rgba(255, 255, 255, 0.5); }
+
+/* Mockup value-over-label stat block (used for TOTAL WINS) */
+.clan-stat-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 0 2px;
+}
+
+.clan-stat-block-value {
+  font-family: 'Cinzel', serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.clan-stat-block-label {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.5);
+  letter-spacing: 0.4px;
+  white-space: nowrap;
 }
 
 .clan-member-cell {

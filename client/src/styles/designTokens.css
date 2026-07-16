@@ -41,6 +41,11 @@
   --mv-gold: #e8b04b;
   --mv-gold-dim: rgba(232, 176, 75, 0.5);
 
+  /* Medal ranks (leaderboard top-3 and similar tiered accents).
+     Tint ramps: silver rgba(201,204,209,*), bronze rgba(193,122,74,*) */
+  --mv-silver: #c9ccd1;
+  --mv-bronze: #c17a4a;
+
   /* Teal */
   --mv-teal: #4fd1c5;
 

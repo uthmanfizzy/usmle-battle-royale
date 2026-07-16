@@ -404,6 +404,15 @@ export default function ClansPage({ user }) {
               <span>🏅 CLAN XP</span>
               <span>{clan.xp.toLocaleString()} / {xpForNextLevel.toLocaleString()}</span>
             </div>
+            {/* Mockup value-over-label stat block. Total wins = sum of the
+                members' wins already returned by /api/clans/:id (real data,
+                not fabricated). Clan rank is NOT in the response — omitted. */}
+            <div className="clan-stat-block">
+              <span className="clan-stat-block-value">
+                {members.reduce((sum, m) => sum + (m.wins || 0), 0).toLocaleString()}
+              </span>
+              <span className="clan-stat-block-label">TOTAL WINS</span>
+            </div>
           </div>
 
           <div className="clan-xp-bar">
@@ -567,7 +576,10 @@ export default function ClansPage({ user }) {
                 <span>STATUS</span>
               </div>
               {sortedMembers.map((member, i) => (
-                <div className="clan-member-row" key={member.id}>
+                <div
+                  className={`clan-member-row${member.id === user?.id ? ' clan-member-row--you' : ''}${member.role === 'Leader' ? ' clan-member-row--leader' : ''}`}
+                  key={member.id}
+                >
                   <span>{i + 1}</span>
                   <span className="clan-member-cell">
                     <div className="clan-member-avatar">
@@ -579,7 +591,7 @@ export default function ClansPage({ user }) {
                     </div>
                     {member.username}
                   </span>
-                  <span>{member.role}</span>
+                  <span className={`clan-role clan-role--${(member.role || 'Member').toLowerCase()}`}>{member.role}</span>
                   <span>{member.trophies?.toLocaleString()}</span>
                   <span>{member.clan_xp?.toLocaleString()}</span>
                   <span className={onlineStatus[member.id]?.online ? 'status-online' : ''}>

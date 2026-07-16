@@ -76,7 +76,16 @@ class DashboardErrorBoundary extends React.Component {
 const SERVER_URL = 'https://usmle-battle-royale-production.up.railway.app';
 const ANN_READ_KEY    = 'mrb_read_announcements';
 const ANN_WELCOME_KEY = 'mrb_welcome_v1';
-const ANN_CAT_COLORS  = { Update: '#3498db', News: '#9b59b6', Maintenance: '#e67e22', Event: '#27ae60' };
+// Category tag pills for the News tab, on the shared token families (static
+// rgba tints, no color-mix). Replaces the old unused ANN_CAT_COLORS palette
+// (AdminApp.jsx keeps its own separate copy for the admin badge).
+const ANN_CAT_TAGS = {
+  Update:      { background: 'rgba(79, 209, 197, 0.2)',  color: '#4fd1c5' },
+  News:        { background: 'rgba(232, 176, 75, 0.2)',  color: '#e8b04b' },
+  Event:       { background: 'rgba(193, 41, 30, 0.25)',  color: '#e2776e' },
+  Maintenance: { background: 'rgba(255, 255, 255, 0.12)', color: 'rgba(255, 255, 255, 0.7)' },
+};
+const ANN_TAG_FALLBACK = { background: 'rgba(255, 255, 255, 0.12)', color: 'rgba(255, 255, 255, 0.7)' };
 
 function getReadIds() {
   try { return new Set(JSON.parse(localStorage.getItem(ANN_READ_KEY) || '[]')); }
@@ -639,19 +648,13 @@ function LeaderboardSection({ userId, user }) {
   const topPlayer = leaderboard[0];
   const isCurrentUser = (playerId) => playerId === userId;
 
-  const getRankBadge = (rank) => {
-    if (rank === 1) return <div className="lb-rank-badge lb-rank-1"><span>👑</span><span>1</span></div>;
-    if (rank === 2) return <div className="lb-rank-badge lb-rank-2"><span>🥈</span><span>2</span></div>;
-    if (rank === 3) return <div className="lb-rank-badge lb-rank-3"><span>🥉</span><span>3</span></div>;
-    return <div className="lb-rank-num">{rank}</div>;
-  };
-
-  const getPlayerIcon = (rank) => {
-    if (rank === 1) return '👑';
-    if (rank === 2) return '💎';
-    if (rank === 3) return '⚔️';
-    return null;
-  };
+  // Mockup medal treatment: Cinzel rank number colored per tier; the row
+  // tint, avatar ring, and wins color come from the lb-row--topN classes.
+  // (Replaces the emoji circle badges and trailing 👑💎⚔️ icons — the color
+  // tiers carry the ranking on their own.)
+  const getRankBadge = (rank) => (
+    <div className={`lb-rank-num${rank <= 3 ? ` lb-rank-num--${rank}` : ''}`}>{rank}</div>
+  );
 
   return (
     <div className="lb-page">
@@ -743,9 +746,6 @@ function LeaderboardSection({ userId, user }) {
                             }
                           </div>
                           <span className="lb-player-name">{item.name}</span>
-                          {item.rank <= 3 && (
-                            <span className="lb-player-icon">{getPlayerIcon(item.rank)}</span>
-                          )}
                         </span>
                         <span className="lb-col-level">Level {item.level || 1}</span>
                         <span className="lb-col-xp">{(item.score || 0).toLocaleString()}</span>
@@ -766,9 +766,6 @@ function LeaderboardSection({ userId, user }) {
                             {item.username}
                             {isCurrentUser(item.id) && <span className="lb-you-badge"> (YOU)</span>}
                           </span>
-                          {getPlayerIcon(item.rank) && (
-                            <span className="lb-player-icon">{getPlayerIcon(item.rank)}</span>
-                          )}
                         </span>
                         <span className="lb-col-level">Level {item.level || 1}</span>
                         <span className="lb-col-xp">{(item.xp || 0).toLocaleString()} XP</span>
@@ -1141,23 +1138,54 @@ function AnnouncementsSection() {
 
   if (loading) return <div className="lb-loading"><div className="spinner" /></div>;
 
+  const annDate = a =>
+    new Date(a.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  const annTag = a => ANN_CAT_TAGS[a.category] || ANN_TAG_FALLBACK;
+
+  const [featured, ...rest] = announcements;
+
   return (
-    <div className="dash-content">
+    <div className="ann-feed">
       {announcements.length === 0 ? (
-        <div className="dash-card" style={{ textAlign: 'center', padding: 32 }}>
+        <div className="ann-card" style={{ textAlign: 'center', padding: 32 }}>
           <p className="no-history">No announcements yet. Check back soon!</p>
         </div>
       ) : (
-        announcements.map(a => (
-          <div key={a.id} className="dash-card">
-            <div className="card-title">{a.category}</div>
-            <h3 style={{ marginBottom: 8, color: 'var(--text-dark)' }}>{a.title}</h3>
-            <p style={{ color: 'var(--text-muted)', marginBottom: 12, lineHeight: 1.6 }}>{a.message}</p>
-            <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-              {new Date(a.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+        <>
+          {/* Most recent announcement = featured card. The art band is an
+              INERT striped placeholder (announcements have no image field). */}
+          <div className="ann-featured">
+            <div className="ann-featured-art" aria-hidden="true">article art placeholder</div>
+            <div className="ann-featured-body">
+              <div className="ann-tag-row">
+                <span className="ann-tag" style={annTag(featured)}>{(featured.category || 'News').toUpperCase()}</span>
+                <span className="ann-date">{annDate(featured)}</span>
+              </div>
+              <h3 className="ann-featured-title">{featured.title}</h3>
+              <p className="ann-featured-msg">{featured.message}</p>
             </div>
           </div>
-        ))
+
+          {/* Older announcements = compact tagged rows */}
+          {rest.length > 0 && (
+            <div className="ann-list">
+              {rest.map(a => (
+                <div key={a.id} className="ann-card">
+                  {/* Inert striped placeholder thumb — no real image field exists */}
+                  <div className="ann-thumb" aria-hidden="true" />
+                  <div className="ann-card-body">
+                    <div className="ann-tag-row">
+                      <span className="ann-tag" style={annTag(a)}>{(a.category || 'News').toUpperCase()}</span>
+                      <span className="ann-date">{annDate(a)}</span>
+                    </div>
+                    <h4 className="ann-card-title">{a.title}</h4>
+                    <p className="ann-card-msg">{a.message}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
       )}
     </div>
   );
