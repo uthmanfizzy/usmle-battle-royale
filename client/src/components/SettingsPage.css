@@ -1,0 +1,312 @@
+/* SettingsPage — standalone /settings route (Phase D), promoted from the
+   header gear's SettingsDropdown. Own lazy chunk: Dashboard.css never loads
+   here, so everything is self-scoped (same precedent as ProgressPage).
+   Built on the shared --mv-* tokens; tints are static rgba values, no
+   color-mix (see designTokens.css). */
+
+.stg {
+  min-height: 100vh;
+  background: var(--mv-bg-void);
+  color: var(--mv-text);
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  padding: clamp(16px, 4vw, 28px) clamp(16px, 5vw, 36px);
+  box-sizing: border-box;
+  overflow-x: hidden;
+}
+
+/* ── Top bar: wordmark + avatar only (mockup's Settings chrome) ──────── */
+.stg-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 30px;
+}
+
+.stg-wordmark {
+  font-family: var(--mv-font-display);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: var(--mv-text);
+  text-decoration: none;
+}
+
+.stg-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mv-font-display);
+  font-size: 14px;
+  color: var(--mv-gold);
+  flex-shrink: 0;
+}
+
+.stg-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.stg-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.85);
+  padding: 8px 16px 8px 12px;
+  border-radius: 20px;
+  cursor: pointer;
+  margin-bottom: 22px;
+  transition: background 0.15s;
+}
+
+.stg-back:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* ── Column + sections ───────────────────────────────────────────────── */
+.stg-col {
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.stg-title {
+  font-family: var(--mv-font-display);
+  font-size: 34px;
+  font-weight: 700;
+  margin: 0 0 28px;
+}
+
+.stg-section-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--mv-font-display);
+  font-size: 16px;
+  font-weight: 700;
+  margin: 0 0 12px;
+}
+
+.stg-card {
+  background: rgba(6, 10, 7, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  padding: 8px 20px;
+  margin-bottom: 32px;
+}
+
+.stg-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.stg-row:last-child,
+.stg-row--last {
+  border-bottom: none;
+}
+
+.stg-row-label {
+  font-size: 14px;
+  min-width: 0;
+}
+
+.stg-row-value {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.6);
+  white-space: nowrap;
+}
+
+/* Links (View Guide, Log Out) — text links per the mockup, not buttons */
+.stg-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--mv-red-link);
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.stg-link:hover {
+  color: #e2776e;
+  text-decoration: underline;
+}
+
+/* ── Toggle switch (mockup style) ────────────────────────────────────── */
+.stg-toggle {
+  width: 42px;
+  height: 24px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.15);
+  border: none;
+  padding: 2px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+
+.stg-toggle-knob {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #ffffff;
+  transition: transform 0.15s ease;
+}
+
+.stg-toggle--on {
+  background: var(--mv-red);
+}
+
+.stg-toggle--on .stg-toggle-knob {
+  transform: translateX(18px);
+}
+
+.stg-toggle:disabled {
+  cursor: default;
+}
+
+/* ── Coming-soon sections (no backend: dimmed + inert, chip on heading) ── */
+.stg-card--soon {
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.stg-soon-chip {
+  font-family: 'Inter', sans-serif;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  background: linear-gradient(90deg, rgba(200, 163, 44, 0.95), rgba(241, 196, 15, 0.95));
+  color: #1a1408;
+  padding: 2px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+  transform: translateY(-1px);
+}
+
+/* ── Appearance (ported from the dropdown; immediate-apply) ──────────── */
+.stg-card--appearance {
+  padding: 18px 20px;
+}
+
+.stg-themes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.stg-theme-card {
+  position: relative;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 10px;
+  padding: 10px;
+  cursor: pointer;
+  font-family: inherit;
+  color: inherit;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.stg-theme-card:hover {
+  border-color: rgba(232, 176, 75, 0.5);
+}
+
+.stg-theme-card--active {
+  border-color: var(--mv-gold);
+  background: rgba(232, 176, 75, 0.08);
+}
+
+.stg-theme-check {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--mv-gold);
+  color: #1a1408;
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+}
+
+.stg-theme-name {
+  margin-top: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.stg-colors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.stg-color-dot {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: none;
+  border: 2px solid transparent;
+  padding: 2px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.15s, transform 0.1s;
+}
+
+.stg-color-dot:hover {
+  transform: scale(1.1);
+}
+
+.stg-color-dot--active {
+  border-color: #ffffff;
+}
+
+.stg-color-inner {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: var(--c);
+}
+
+.stg-footer-space {
+  height: 40px;
+}
+
+/* ── Mobile ──────────────────────────────────────────────────────────── */
+@media (max-width: 480px) {
+  .stg-title { font-size: 28px; }
+  .stg-themes { grid-template-columns: 1fr; }
+  .stg-card { padding: 4px 14px; }
+  .stg-card--appearance { padding: 14px; }
+}

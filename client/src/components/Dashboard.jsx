@@ -1,11 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { fetchMe, authFetch } from '../auth';
-import { DefaultPreview, PixelPreview } from './AppearanceSection';
-import { useTheme, PALETTE } from '../theme';
 import FriendsPanel from './FriendsPanel';
 import ProfileModal, { formatStudyTime } from './ProfileModal';
 import NotificationsDropdown from './NotificationsDropdown';
-import SettingsDropdown from './SettingsDropdown';
 import ClansPage from './ClansPage';
 import './Dashboard.css';
 
@@ -1197,12 +1194,10 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
   const [unreadCount,  setUnreadCount]  = useState(0);
   const [showWelcome,  setShowWelcome]  = useState(false);
   const [welcomeAnn,   setWelcomeAnn]   = useState(null);
-  const [showSettings, setShowSettings] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showFriendsPanel, setShowFriendsPanel] = useState(false);
   const friendsDropdownRef = useRef(null);
   const notifDropdownRef = useRef(null);
-  const settingsDropdownRef = useRef(null);
   const [bgUrl,        setBgUrl]        = useState(null);
   const [bgLoaded,     setBgLoaded]     = useState(false); // fade the bg in on load
   const [homeImages,   setHomeImages]   = useState({
@@ -1296,23 +1291,6 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
       document.removeEventListener('touchstart', handleClickOutside);
     };
   }, [showNotifications]);
-
-  // Close settings dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (settingsDropdownRef.current && !settingsDropdownRef.current.contains(e.target)) {
-        setShowSettings(false);
-      }
-    };
-    if (showSettings) {
-      document.addEventListener('mousedown', handleClickOutside);
-      document.addEventListener('touchstart', handleClickOutside); // mobile touch
-    }
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('touchstart', handleClickOutside);
-    };
-  }, [showSettings]);
 
   useEffect(() => {
     fetch(`${SERVER_URL}/api/announcements`)
@@ -1443,7 +1421,7 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
               <div className="friends-dropdown-wrapper" ref={notifDropdownRef}>
                 <button
                   className="header-icon-bubble notification-btn"
-                  onClick={() => { setShowNotifications(!showNotifications); setShowFriendsPanel(false); setShowSettings(false); }}
+                  onClick={() => { setShowNotifications(!showNotifications); setShowFriendsPanel(false); }}
                   title="Notifications"
                 >
                   {homeImages.icon_notification ? (
@@ -1468,7 +1446,7 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
               <div className="friends-dropdown-wrapper" ref={friendsDropdownRef}>
                 <button
                   className="header-icon-bubble friends-btn"
-                  onClick={() => { setShowFriendsPanel(!showFriendsPanel); setShowNotifications(false); setShowSettings(false); }}
+                  onClick={() => { setShowFriendsPanel(!showFriendsPanel); setShowNotifications(false); }}
                   title="Friends"
                 >
                   {homeImages.icon_friends ? (
@@ -1493,36 +1471,25 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
                 )}
               </div>
 
-              {/* 3. SETTINGS - bottom on mobile */}
-              <div className="friends-dropdown-wrapper" ref={settingsDropdownRef}>
-                <button
-                  className="header-icon-bubble settings-btn"
-                  onClick={() => { setShowSettings(!showSettings); setShowNotifications(false); setShowFriendsPanel(false); }}
-                  title="Settings"
-                >
-                  {homeImages.icon_settings ? (
-                    <img
-                      loading="lazy"
-                      src={homeImages.icon_settings}
-                      alt="Settings"
-                      className="header-icon-img"
-                      style={{width:'28px', height:'28px', minWidth:'28px', minHeight:'28px', position:'static', margin:'0', display:'block'}}
-                    />
-                  ) : (
-                    <span>⚙️</span>
-                  )}
-                </button>
-
-                {showSettings && (
-                  <div className="friends-dropdown friends-dropdown--left">
-                    <SettingsDropdown
-                      user={user}
-                      onClose={() => setShowSettings(false)}
-                      onLogout={onLogout}
-                    />
-                  </div>
+              {/* 3. SETTINGS - bottom on mobile. Navigates to the standalone
+                  /settings page (the old SettingsDropdown is retired). */}
+              <button
+                className="header-icon-bubble settings-btn"
+                onClick={() => { window.location.href = '/settings'; }}
+                title="Settings"
+              >
+                {homeImages.icon_settings ? (
+                  <img
+                    loading="lazy"
+                    src={homeImages.icon_settings}
+                    alt="Settings"
+                    className="header-icon-img"
+                    style={{width:'28px', height:'28px', minWidth:'28px', minHeight:'28px', position:'static', margin:'0', display:'block'}}
+                  />
+                ) : (
+                  <span>⚙️</span>
                 )}
-              </div>
+              </button>
             </div>
           </div>
         </div>
