@@ -269,6 +269,14 @@
 .dn-explore-arrow { color: var(--dn-dim); font-size: 20px; font-weight: 800; line-height: 1; }
 .dn-dot--card { position: static; margin-right: 2px; flex-shrink: 0; }
 
+/* ClansPage's top padding exists to clear the OLD shell's fixed header;
+   this shell's header is sticky/in-flow, so that clearance is dead space
+   here — collapse it at every breakpoint (the page rules use !important). */
+.dn-screen .clan-page {
+  padding-top: 8px !important;
+  min-height: 0;
+}
+
 /* Sub-view header (Leaderboards / Clans / News opened from Home) */
 .dn-subhead {
   display: flex;

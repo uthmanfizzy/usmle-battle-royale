@@ -6,7 +6,9 @@
   display: grid;
   grid-template-columns: 280px 1fr 280px;
   gap: 16px;
-  padding: 80px 16px 100px;
+  /* Top padding clears the old shell's fixed header (~100px tall) — same
+     clearance ladder .dash-main uses (120 desktop / 110 ≤1024 / 170 ≤600) */
+  padding: 120px 16px 100px;
   min-height: 100vh;
   max-width: 1400px;
   margin: 0 auto;
@@ -1528,7 +1530,7 @@
 @media (max-width: 1024px) {
   .clan-page {
     grid-template-columns: 1fr !important;
-    padding: 70px 12px 120px !important;
+    padding: 110px 12px 120px !important;
   }
 
   .clan-activity-grid {
@@ -1552,5 +1554,13 @@
   .clan-crest-card {
     flex-direction: column;
     align-items: center;
+  }
+}
+
+/* Phones: the old shell's fixed header stacks its icon bubbles vertically
+   (to ~165px), so the page needs the same 170px clearance .dash-main uses */
+@media (max-width: 600px) {
+  .clan-page {
+    padding-top: 170px !important;
   }
 }
