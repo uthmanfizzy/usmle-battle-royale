@@ -93,6 +93,90 @@ body:has(.ms-screen) .home-btn:hover {
   text-shadow: 0 2px 14px rgba(200, 163, 44, 0.5);
 }
 
+.ms-tagline {
+  margin: 0 0 12px;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* ── Story menu: wide First Aid Journey campaign card (mockup) ─────────────── */
+.ms-journey-card {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  width: 640px;
+  max-width: 92vw;
+  min-height: 150px;
+  padding: 0;
+  margin-bottom: 24px;
+  background: rgba(6, 10, 7, 0.55);
+  border: 1.5px solid var(--mv-red);
+  box-shadow: 0 0 18px rgba(193, 41, 30, 0.25);
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  font-family: 'Cinzel', serif;
+  color: #fff;
+  text-align: left;
+  transition: box-shadow 0.25s ease, transform 0.25s ease;
+  animation: ms-card-up 0.45s 0.1s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.ms-journey-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 0 28px rgba(193, 41, 30, 0.45);
+}
+
+.ms-journey-art {
+  width: 200px;
+  flex-shrink: 0;
+  background: repeating-linear-gradient(45deg, #1a2420, #1a2420 10px, #141d19 10px, #141d19 20px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ms-journey-art-icon {
+  font-size: 52px;
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.6));
+}
+
+.ms-journey-body {
+  flex: 1;
+  min-width: 0;
+  padding: 22px 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 10px;
+}
+
+.ms-journey-name {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #e8d48a;
+}
+
+.ms-journey-sub {
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  font-size: 13px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* Secondary (coming-soon) story cards sit smaller beneath the campaign card */
+.ms-cards--story-secondary .ms-card {
+  min-height: 220px;
+  width: 260px;
+  padding: 26px 20px;
+}
+
+@media (max-width: 700px) {
+  .ms-journey-card { flex-direction: column; }
+  .ms-journey-art { width: 100%; height: 110px; }
+}
+
 .ms-title-rule {
   height: 2px;
   margin: 0 auto;

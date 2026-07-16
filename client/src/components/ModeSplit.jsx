@@ -37,7 +37,8 @@ export default function ModeSplit({ onStory, onOnline, onTraining, onBack }) {
   );
 }
 
-// Story menu: First Aid Journey / The Tower / AnKing
+// Story menu: First Aid Journey emphasized per the mockup (wide campaign
+// card), Tower/AnKing keep their existing coming-soon treatment below.
 export function StoryMenu({ onBack, onJourney, onTower, onAnKing }) {
   return (
     <div className="ms-screen">
@@ -45,16 +46,27 @@ export function StoryMenu({ onBack, onJourney, onTower, onAnKing }) {
 
       <div className="ms-banner">
         <h1 className="ms-title">📖 STORY MODE</h1>
+        <p className="ms-tagline">Choose your campaign.</p>
         <div className="ms-title-rule" />
       </div>
 
-      <div className="ms-cards ms-cards--story">
-        <button className="ms-card ms-card--story" onClick={onJourney}>
-          <span className="ms-card-icon">🚑</span>
-          <span className="ms-card-name">FIRST AID JOURNEY</span>
-          <span className="ms-card-sub">March through First Aid, chapter by chapter</span>
-        </button>
+      {/* Mockup wide campaign card. Art area is an INERT striped placeholder
+          (no per-campaign art asset exists); the mockup's progress row +
+          "Chapter X of Y" is intentionally OMITTED — no aggregate journey
+          progress endpoint exists yet (ships with the Journey restructure). */}
+      <button className="ms-journey-card" onClick={onJourney}>
+        <div className="ms-journey-art" aria-hidden="true">
+          <span className="ms-journey-art-icon">🚑</span>
+        </div>
+        <div className="ms-journey-body">
+          <span className="ms-journey-name">FIRST AID JOURNEY</span>
+          <span className="ms-journey-sub">
+            A field medic&apos;s first steps — march through First Aid, chapter by chapter.
+          </span>
+        </div>
+      </button>
 
+      <div className="ms-cards ms-cards--story ms-cards--story-secondary">
         {/* COMING SOON — temporarily disabled. To re-enable: drop the
             ms-card--disabled class + ms-ribbon span and restore onClick={onTower}.
             TowerMode and its App.jsx routing are untouched. */}

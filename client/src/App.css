@@ -81,19 +81,64 @@ button:active:not(:disabled) { transform: scale(0.97); }
 }
 
 /* ── Entry ─────────────────────────────────────────────────────────────── */
+/* Phase F: mockup login treatment — flat token background, glass card,
+   MEDVALE wordmark. Also inherited by DashboardPage's guest gate. */
 .entry-screen {
-  background: radial-gradient(ellipse at center, #1a1a4e 0%, var(--bg) 70%);
+  background: var(--mv-bg-base, #0f1512);
+  /* the flat token background must reach the viewport bottom (the old
+     radial faded into the body color, hiding .screen's min-height: 0) */
+  min-height: 100vh;
+  box-sizing: border-box;
+}
+
+.entry-outer {
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 26px;
+}
+
+.entry-wordmark {
+  font-family: var(--mv-font-display, 'Cinzel', serif);
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: #ffffff;
+}
+
+.entry-heading {
+  font-family: var(--mv-font-display, 'Cinzel', serif);
+  font-size: 26px;
+  font-weight: 700;
+  margin: 0 0 6px;
+  color: #ffffff;
+}
+
+.entry-tagline {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.6);
+  margin: 0 0 24px;
+}
+
+.entry-terms {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.4);
+  text-align: center;
+  line-height: 1.6;
+  margin: 0;
 }
 
 .entry-card {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 20px;
-  padding: 52px 44px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 40px 36px;
   width: 100%;
   max-width: 420px;
   text-align: center;
-  box-shadow: var(--shadow);
+  box-shadow: none;
 }
 
 .logo-icon { font-size: 72px; display: block; margin-bottom: 16px; }
@@ -1797,6 +1842,8 @@ table.lb-table tr:last-child td { border-bottom: none; }
 }
 
 /* ── Google login / guest entry ────────────────────────────────────────── */
+/* Mockup octagon-cut white Google button (clip-path replaces the radius;
+   the border would be clipped so contrast comes from the white fill) */
 .btn-google {
   width: 100%;
   display: flex;
@@ -1804,12 +1851,13 @@ table.lb-table tr:last-child td { border-bottom: none; }
   justify-content: center;
   gap: 12px;
   background: #fff;
-  color: #3c4043;
-  border: 1px solid #dadce0;
-  padding: 12px 16px;
+  color: #1a1a1a;
+  border: none;
+  padding: 14px 16px;
   font-size: 15px;
   font-weight: 600;
-  border-radius: var(--radius);
+  border-radius: 0;
+  clip-path: polygon(10px 0, calc(100% - 10px) 0, 100% 10px, 100% calc(100% - 10px), calc(100% - 10px) 100%, 10px 100%, 0 calc(100% - 10px), 0 10px);
   margin-bottom: 4px;
   transition: background 0.15s, box-shadow 0.15s;
 }
@@ -1834,20 +1882,23 @@ table.lb-table tr:last-child td { border-bottom: none; }
   background: var(--border);
 }
 
+/* Mockup red-outlined octagon-cut guest button (border corners get clipped
+   by the octagon — same look as the mockup, which does exactly this) */
 .btn-guest {
   width: 100%;
   background: transparent;
-  border: 1px solid var(--border);
-  color: var(--text-dim);
-  padding: 12px;
+  border: 1.5px solid var(--mv-red, #c1291e);
+  color: #e2776e;
+  padding: 14px;
   font-size: 15px;
   font-weight: 600;
-  border-radius: var(--radius);
+  border-radius: 0;
+  clip-path: polygon(10px 0, calc(100% - 10px) 0, 100% 10px, 100% calc(100% - 10px), calc(100% - 10px) 100%, 10px 100%, 0 calc(100% - 10px), 0 10px);
   transition: all 0.2s;
 }
 .btn-guest:hover {
-  border-color: rgba(255,255,255,0.3);
-  color: var(--text);
+  background: rgba(193, 41, 30, 0.12);
+  color: #f0958c;
 }
 
 /* ── Responsive ────────────────────────────────────────────────────────── */

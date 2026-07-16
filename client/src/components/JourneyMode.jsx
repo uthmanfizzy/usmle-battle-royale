@@ -549,7 +549,6 @@ export default function JourneyMode({
         <div className="jm-atlas">
           {JOURNEY_SECTIONS.map(sec => {
             const subjects = JOURNEY_SUBJECTS.filter(s => s.section === sec.id && isActive(s.id));
-            if (subjects.length === 0) return null; // fully deactivated section vanishes
             return (
               <Fragment key={sec.id}>
                 <div className="jm-section-header">
@@ -559,14 +558,22 @@ export default function JourneyMode({
                   <span className="jm-section-rule" aria-hidden="true" />
                   <span className="jm-section-fleur" aria-hidden="true">⚜</span>
                 </div>
-                <div className="jm-subject-grid">
-                  {subjects.map(s => (
-                    <button key={s.id} className="jm-subject-card" onClick={() => loadPath(s)}>
-                      <span className="jm-subject-icon">{s.icon}</span>
-                      <span className="jm-subject-label">{s.label}</span>
-                    </button>
-                  ))}
-                </div>
+                {subjects.length === 0 ? (
+                  /* Mockup empty state for a fully admin-deactivated section
+                     (previously the whole section silently vanished) */
+                  <div className="jm-section-empty" {...ek(`section.${sec.id}.empty`)}>
+                    {t(`section.${sec.id}.empty`, 'No subjects activated yet. Check back soon.')}
+                  </div>
+                ) : (
+                  <div className="jm-subject-grid">
+                    {subjects.map(s => (
+                      <button key={s.id} className="jm-subject-card" onClick={() => loadPath(s)}>
+                        <span className="jm-subject-icon">{s.icon}</span>
+                        <span className="jm-subject-label">{s.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </Fragment>
             );
           })}

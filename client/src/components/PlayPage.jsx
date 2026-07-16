@@ -272,6 +272,17 @@ export default function PlayPage({
         backgroundRepeat: 'no-repeat',
       }}
     >
+      {/* Top bar in the previously-empty 58px strip above .play-page:
+          mockup "Deploy" chrome (back pill + title + tagline). onBack was
+          already passed by App (→ /dashboard) but had no page-level trigger. */}
+      <div className="play-topbar">
+        <button type="button" className="play-topbar-back" onClick={onBack}>← Back to Dashboard</button>
+        <div className="play-topbar-titles">
+          <span className="play-topbar-title">Deploy</span>
+          <span className="play-topbar-sub">Choose your battlefield.</span>
+        </div>
+      </div>
+
       <div className="play-page">
 
         {/* LEFT PANEL - Game Mode List */}

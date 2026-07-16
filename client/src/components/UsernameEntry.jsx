@@ -21,52 +21,57 @@ export default function UsernameEntry({ onJoin, onGoogleLogin, error }) {
     if (canSubmit) onJoin(cleanName.trim());
   }
 
+  // Mockup login card: MEDVALE wordmark, "Enter Medvale" heading, white
+  // octagon-cut Google button, red-outlined guest button. Handlers are the
+  // SAME onGoogleLogin/onJoin as before — presentation only. (The mockup's
+  // "Continue as Guest" corresponds to the real, pre-existing guest flow.)
   return (
     <div className="screen entry-screen">
-      <div className="entry-card">
-        <div className="logo">
-          <span className="logo-icon">⚕️</span>
-          <h1>USMLE Battle Royale</h1>
-          <p className="subtitle">Last doctor standing wins</p>
-        </div>
+      <div className="entry-outer">
+        <div className="entry-wordmark">MEDVALE</div>
+        <div className="entry-card">
+          <h1 className="entry-heading">Enter Medvale</h1>
+          <p className="entry-tagline">Sign in to continue your saga.</p>
 
-        <button className="btn-google" onClick={onGoogleLogin} type="button">
-          {GOOGLE_SVG}
-          Sign in with Google
-        </button>
-
-        <div className="entry-divider"><span>or</span></div>
-
-        {!showGuest ? (
-          <button className="btn-guest" onClick={() => setShowGuest(true)} type="button">
-            👤 Continue as Guest
+          <button className="btn-google" onClick={onGoogleLogin} type="button">
+            {GOOGLE_SVG}
+            Continue with Google
           </button>
-        ) : (
-          <div className="guest-form-wrap">
-            <p className="guest-form-label">What should we call you?</p>
-            <form onSubmit={handleSubmit}>
-              <input
-                type="text"
-                placeholder="Enter a name..."
-                value={name}
-                onChange={e => setName(e.target.value.slice(0, 20))}
-                maxLength={20}
-                autoFocus
-                autoComplete="off"
-              />
-              <p className="guest-form-hint">
-                Guest accounts don't save progress.{' '}
-                <button type="button" className="guest-form-signin-link" onClick={onGoogleLogin}>
-                  Sign in instead →
+
+          <div className="entry-divider"><span>or</span></div>
+
+          {!showGuest ? (
+            <button className="btn-guest" onClick={() => setShowGuest(true)} type="button">
+              Continue as Guest
+            </button>
+          ) : (
+            <div className="guest-form-wrap">
+              <p className="guest-form-label">What should we call you?</p>
+              <form onSubmit={handleSubmit}>
+                <input
+                  type="text"
+                  placeholder="Enter a name..."
+                  value={name}
+                  onChange={e => setName(e.target.value.slice(0, 20))}
+                  maxLength={20}
+                  autoFocus
+                  autoComplete="off"
+                />
+                <p className="guest-form-hint">
+                  Guest accounts don't save progress.{' '}
+                  <button type="button" className="guest-form-signin-link" onClick={onGoogleLogin}>
+                    Sign in instead →
+                  </button>
+                </p>
+                {error && <p className="error-msg">{error}</p>}
+                <button className="btn-primary" type="submit" disabled={!canSubmit}>
+                  Play as Guest →
                 </button>
-              </p>
-              {error && <p className="error-msg">{error}</p>}
-              <button className="btn-primary" type="submit" disabled={!canSubmit}>
-                Play as Guest →
-              </button>
-            </form>
-          </div>
-        )}
+              </form>
+            </div>
+          )}
+        </div>
+        <p className="entry-terms">By entering, you agree to the Terms and Early Access Agreement.</p>
       </div>
     </div>
   );
