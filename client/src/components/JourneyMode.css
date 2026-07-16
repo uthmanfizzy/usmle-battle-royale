@@ -1697,3 +1697,304 @@
 .jpe-unsaved { color: #f0c040; font-size: 13px; font-weight: 600; }
 .jpe-saved { color: #7ed07e; font-size: 13px; font-weight: 600; }
 .jpe-error { color: #e88; font-size: 13px; font-weight: 600; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PHASE F pt2 — mockup dark-fantasy chapter list + per-chapter level map.
+   Appended overrides: equal-specificity rules later in the file beat the
+   arcade styles above. Static rgba tints only (no color-mix).
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.jm-screen--path {
+  background:
+    radial-gradient(ellipse 70% 50% at 50% 0%, rgba(232, 176, 75, 0.07), transparent 60%),
+    linear-gradient(165deg, #101713 0%, #0a0f0c 45%, #060a07 100%);
+}
+
+.jm-path-header {
+  background: rgba(6, 10, 7, 0.82);
+  border-bottom: 1px solid rgba(232, 176, 75, 0.25);
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.45);
+}
+
+.jm-path-subject {
+  font-family: var(--mv-font-display, 'Cinzel', serif);
+  font-weight: 700;
+  font-size: 18px;
+  color: #ffffff;
+}
+
+.jm-map {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 12px;
+  background:
+    radial-gradient(ellipse 90% 40% at 50% 0%, rgba(232, 176, 75, 0.08), transparent 60%),
+    rgba(6, 10, 7, 0.5);
+}
+
+.jm-map::before,
+.jm-map::after { color: rgba(232, 176, 75, 0.5); }
+
+/* Central spine + traversal-colored connectors (mockup) */
+.jm-trail-seg { border-top: 3px solid rgba(255, 255, 255, 0.18); }
+.jm-trail-seg--done    { border-top-color: rgba(232, 176, 75, 0.85); border-top-style: solid; }
+.jm-trail-seg--current { border-top-color: rgba(193, 41, 30, 0.9); border-top-style: solid; }
+.jm-trail-seg--todo    { border-top-color: rgba(255, 255, 255, 0.18); }
+
+/* Level nodes: 60px dim glass circles; gold+✓ when done; 68px red current */
+.jm-node {
+  width: 60px;
+  height: 60px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.45);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.jm-node:not(:disabled):hover {
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.5), 0 0 14px rgba(232, 176, 75, 0.25);
+}
+
+.jm-node .jm-node-face {
+  font-family: var(--mv-font-display, 'Cinzel', serif);
+  font-size: 20px;
+}
+
+.jm-node--locked {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: none;
+  opacity: 0.5;
+}
+
+.jm-node--done {
+  background: var(--mv-gold, #e8b04b);
+  border: 2px solid #ffffff;
+  box-shadow: 0 0 16px rgba(232, 176, 75, 0.5);
+}
+.jm-node--done .jm-node-face { color: #1a1400; text-shadow: none; }
+.jm-node--done:not(:disabled):hover {
+  box-shadow: 0 0 24px rgba(232, 176, 75, 0.7);
+}
+
+.jm-node--frontier {
+  width: 68px;
+  height: 68px;
+  background: var(--mv-red, #c1291e);
+  border: 3px solid #ffffff;
+  animation: jm-frontier-red 1.8s ease-in-out infinite;
+}
+.jm-node--frontier .jm-node-face { color: #ffffff; font-weight: 900; }
+
+@keyframes jm-frontier-red {
+  0%, 100% { box-shadow: 0 0 22px rgba(193, 41, 30, 0.6), 0 0 0 0 rgba(193, 41, 30, 0.5); }
+  50%      { box-shadow: 0 0 26px rgba(193, 41, 30, 0.8), 0 0 0 12px rgba(193, 41, 30, 0); }
+}
+
+/* Chapter boss: larger gold-ringed circle (the mockup's "Chapter Trial" ★) */
+.jm-node--boss {
+  width: 82px;
+  height: 82px;
+  border-radius: 50%;
+  background: rgba(232, 176, 75, 0.12);
+  border: 2px solid rgba(232, 176, 75, 0.45);
+  box-shadow: 0 0 18px rgba(232, 176, 75, 0.2);
+}
+.jm-node--boss .jm-node-face { font-size: 34px; }
+.jm-node--boss:not(:disabled):hover {
+  box-shadow: 0 0 26px rgba(232, 176, 75, 0.45);
+}
+.jm-node--boss.jm-node--locked {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: none;
+}
+.jm-node--boss.jm-node--done {
+  background: var(--mv-gold, #e8b04b);
+  border: 2px solid #ffffff;
+  box-shadow: 0 0 20px rgba(232, 176, 75, 0.5);
+}
+.jm-node--boss.jm-node--frontier {
+  background: var(--mv-red, #c1291e);
+  border: 3px solid #ffffff;
+  animation: jm-frontier-red 1.8s ease-in-out infinite;
+}
+
+/* ── Chapter list view ─────────────────────────────────────────────────────── */
+
+.jm-screen--chapters {
+  background:
+    radial-gradient(ellipse 70% 50% at 50% 0%, rgba(232, 176, 75, 0.07), transparent 60%),
+    linear-gradient(165deg, #101713 0%, #0a0f0c 45%, #060a07 100%);
+  padding: 0;
+  justify-content: flex-start;
+}
+
+.jm-chapters-scroll {
+  flex: 1;
+  width: 100%;
+  overflow-y: auto;
+  padding: 24px 16px 40px;
+}
+
+.jm-chapter-list {
+  max-width: 600px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.jm-chapters-tagline {
+  margin: 0 0 4px;
+  text-align: center;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+/* Every chapter is accessible (existing design: no cross-chapter locking),
+   so all rows share the mockup's ACCESSIBLE treatment — red accent, no
+   dashed/dimmed/locked state anywhere here */
+.jm-chapter-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background: rgba(6, 10, 7, 0.6);
+  border: 1.5px solid var(--mv-red, #c1291e);
+  box-shadow: 0 0 18px rgba(193, 41, 30, 0.3);
+  border-radius: 8px;
+  padding: 18px 22px;
+  cursor: pointer;
+  color: #ffffff;
+  font-family: var(--mv-font-display, 'Cinzel', serif);
+  text-align: left;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.jm-chapter-row:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 26px rgba(193, 41, 30, 0.5);
+}
+
+.jm-chapter-row--done {
+  border-color: rgba(232, 176, 75, 0.7);
+  box-shadow: 0 0 16px rgba(232, 176, 75, 0.3);
+}
+
+.jm-chapter-row-num {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: var(--mv-red, #c1291e);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.jm-chapter-row--done .jm-chapter-row-num {
+  background: var(--mv-gold, #e8b04b);
+  color: #1a1400;
+}
+
+.jm-chapter-row-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.jm-chapter-row-name {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.jm-chapter-row-progress {
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.jm-chapter-row-arrow { font-size: 18px; flex-shrink: 0; }
+
+/* Ultimate Boss + Mastery: distinct "beyond all chapters" card */
+.jm-ultimate-card {
+  margin-top: 14px;
+  padding: 18px;
+  border: 1px solid rgba(232, 176, 75, 0.45);
+  border-radius: 8px;
+  background:
+    radial-gradient(ellipse 90% 60% at 50% 0%, rgba(232, 176, 75, 0.1), transparent 65%),
+    rgba(6, 10, 7, 0.6);
+  box-shadow: 0 0 22px rgba(232, 176, 75, 0.15);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.jm-ultimate-btn {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1.5px solid rgba(232, 176, 75, 0.6);
+  border-radius: 8px;
+  padding: 14px 18px;
+  cursor: pointer;
+  color: #ffffff;
+  font-family: var(--mv-font-display, 'Cinzel', serif);
+  text-align: left;
+  transition: box-shadow 0.2s ease;
+}
+
+.jm-ultimate-btn:not(:disabled):hover {
+  box-shadow: 0 0 22px rgba(232, 176, 75, 0.45);
+}
+
+.jm-ultimate-btn--locked { opacity: 0.55; cursor: default; }
+.jm-ultimate-btn--done   { border-color: var(--mv-gold, #e8b04b); }
+
+.jm-ultimate-face {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: rgba(232, 176, 75, 0.18);
+  border: 2px solid rgba(232, 176, 75, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  flex-shrink: 0;
+}
+
+.jm-ultimate-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.jm-ultimate-name { font-size: 17px; font-weight: 700; letter-spacing: 0.05em; color: var(--mv-gold, #e8b04b); }
+.jm-ultimate-sub  {
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+/* Mastery plaque restyle (now lives inside the ultimate card) */
+.jm-mastery {
+  margin: 0;
+  border: 1px dashed rgba(232, 176, 75, 0.4);
+  border-radius: 8px;
+  background: rgba(6, 10, 7, 0.4);
+  padding: 12px 16px;
+}
+
+.jm-mastery--earned {
+  border-style: solid;
+  border-color: var(--mv-gold, #e8b04b);
+  background: rgba(232, 176, 75, 0.12);
+  box-shadow: 0 0 18px rgba(232, 176, 75, 0.35);
+}
+
+@media (max-width: 520px) {
+  .jm-chapter-row { padding: 14px 16px; }
+  .jm-chapter-row-name { font-size: 16px; }
+}

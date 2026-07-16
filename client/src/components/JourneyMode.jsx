@@ -46,7 +46,8 @@ export default function JourneyMode({
   editorElements = null, onElementMove, onElementText, onElementDelete,
   previewSubjectId = null,
 }) {
-  const [view,        setView]        = useState('subjects'); // 'subjects' | 'path'
+  const [view,        setView]        = useState('subjects'); // 'subjects' | 'chapters' | 'levels'
+  const [chapterIdx,  setChapterIdx]  = useState(0);          // which chapter the 'levels' view shows
   const [subject,     setSubject]     = useState(null);       // entry from JOURNEY_SUBJECTS
   const [path,        setPath]        = useState(null);       // GET /api/journey/:subject response
   const [loading,     setLoading]     = useState(false);
@@ -124,23 +125,26 @@ export default function JourneyMode({
         const data = await buildPreviewPath(subj.id);
         setPath(data);
         setSubject(subj);
-        setView('path');
+        setView('chapters');
         setLoading(false);
-        return;
+        return data;
       }
       const res = await fetch(`${SERVER}/api/journey/${subj.id}`, {
         headers: { Authorization: `Bearer ${getToken()}` },
       });
-      if (res.status === 401) { setAuthExpired(true); setLoading(false); return; }
+      if (res.status === 401) { setAuthExpired(true); setLoading(false); return null; }
       if (!res.ok) throw new Error(`Server error (${res.status})`);
       const data = await res.json();
       setPath(data);
       setSubject(subj);
-      setView('path');
+      setView('chapters');
+      setLoading(false);
+      return data;
     } catch {
       setError('Could not load the journey. Check your connection.');
     }
     setLoading(false);
+    return null;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editorMode]);
 
@@ -395,26 +399,31 @@ export default function JourneyMode({
     );
   };
 
-  // Auto-scroll to the frontier node (first unlocked, not-yet-completed) when a path renders
+  // Auto-scroll to the frontier node (first unlocked, not-yet-completed) when
+  // a chapter's level map renders and contains it
   useEffect(() => {
-    if (view === 'path' && path && frontierRef.current) {
+    if (view === 'levels' && path && frontierRef.current) {
       frontierRef.current.scrollIntoView({ block: 'center' });
     }
-  }, [view, path]);
+  }, [view, path, chapterIdx]);
 
   // Editor: jump straight to the requested subject's map so panels can be placed on it.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!editorMode || !previewSubjectId) return;
-    if (subject && subject.id === previewSubjectId) return;
+    // Already previewing this subject (e.g. drilled into a level map in text
+    // mode): snap back to the chapter list — panels only render there.
+    if (subject && subject.id === previewSubjectId) { setView('chapters'); return; }
     const subj = JOURNEY_SUBJECTS.find(s => s.id === previewSubjectId);
     if (subj) loadPath(subj);
   }, [editorMode, previewSubjectId]);
 
-  // Player: fetch published panels for the open subject. Editor uses its draft instead.
+  // Player: fetch published panels for the open subject. Editor uses its draft
+  // instead. Panels render on the CHAPTER LIST view (see renderElementsLayer
+  // call sites) — the closest analog to the old all-at-once map.
   useEffect(() => {
     if (editorMode) return;
-    if (view !== 'path' || !subject) { setPlayerElements([]); return; }
+    if (view !== 'chapters' || !subject) { setPlayerElements([]); return; }
     let cancelled = false;
     fetch(`${SERVER}/api/journey-elements?subject=${encodeURIComponent(subject.id)}`)
       .then(r => r.json())
@@ -436,14 +445,28 @@ export default function JourneyMode({
       wasMastery:  reentry.wasMastery,
     };
     onReentryConsumedRef.current();
+
+    // Which chapter does the just-played node live in? (-1 = ultimate boss /
+    // unknown → land on the chapter list, which is where the ultimate lives)
+    const chapterIndexForKey = (pathData, levelKey) => {
+      if (!levelKey || levelKey === 'boss:ultimate') return -1;
+      return (pathData?.chapters || []).findIndex(c =>
+        c.boss.level_key === levelKey || c.levels.some(l => l.level_key === levelKey));
+    };
+    const landOn = (pathData) => {
+      const idx = chapterIndexForKey(pathData, reentry.levelKey);
+      if (idx >= 0) { setChapterIdx(idx); setView('levels'); }
+      else { setView('chapters'); }
+    };
+
     if (reentry.pct === null) {
-      // Quit mid-level: return to map, no POST
-      loadPath(reentry.subject);
+      // Quit mid-level: return to the same chapter's map, no POST
+      loadPath(reentry.subject).then(data => { if (data) landOn(data); });
       return;
     }
     const pct = reentry.pct;
     setSubject(reentry.subject);
-    setView('path');
+    landOn(path); // immediate best guess from the pre-play path (refined below)
     setInterstitial({ status: 'saving', pct });
     // POST is the single source of truth; loadPath only fires as fallback on POST failure
     fetch(`${SERVER}/api/journey/complete`, {
@@ -457,6 +480,7 @@ export default function JourneyMode({
         // flipped false→true this run (wasMastery captured pre-play survives the unmount)
         const justMastered = reentry.levelKey === 'boss:ultimate' && data.mastery && !reentry.wasMastery;
         setPath(data);
+        landOn(data); // re-derive against the fresh path (indexes could shift)
         setInterstitial({
           status: justMastered ? 'mastery' : (data.passed ? 'complete' : 'tryagain'),
           pct,
@@ -465,7 +489,7 @@ export default function JourneyMode({
       })
       .catch(() => {
         // Save failed: reload last-known path so the map isn't blank, show retry banner
-        loadPath(reentry.subject);
+        loadPath(reentry.subject).then(data => { if (data) landOn(data); });
         setInterstitial({
           status: 'save_failed',
           pct,
@@ -630,8 +654,10 @@ export default function JourneyMode({
   let nodeCount = 0;
   const takeSide = () => (slot++ % 2 === 0 ? 'left' : 'right');
 
-  const trailSeg = (toSide) => (
-    <div className={`jm-trail-seg jm-trail-seg--${toSide}`} aria-hidden="true" />
+  // Connector segment leading INTO a node, colored by traversal state
+  // (mockup: gold = passed, red = leads to the current node, dim = beyond)
+  const trailSeg = (toSide, state = 'todo') => (
+    <div className={`jm-trail-seg jm-trail-seg--${toSide} jm-trail-seg--${state}`} aria-hidden="true" />
   );
 
   const openConfirm = (node) => setConfirmNode(node);
@@ -651,9 +677,10 @@ export default function JourneyMode({
       isFrontier ? 'jm-node--frontier' : '',
       empty ? 'jm-node--empty' : '',
     ].join(' ');
+    const segState = l.completed ? 'done' : isFrontier ? 'current' : 'todo';
     return (
       <Fragment key={l.level_key}>
-        {showSeg && trailSeg(side)}
+        {showSeg && trailSeg(side, segState)}
         <div className={`jm-node-row jm-node-row--${side}`} ref={isFrontier ? frontierRef : null}>
           <button
             className={cls}
@@ -695,9 +722,10 @@ export default function JourneyMode({
       isFrontier ? 'jm-node--frontier' : '',
       boss.auto_skipped ? 'jm-node--skipped' : '',
     ].join(' ');
+    const segState = (boss.completed || boss.auto_skipped) ? 'done' : isFrontier ? 'current' : 'todo';
     return (
       <Fragment key={boss.level_key}>
-        {showSeg && trailSeg(side)}
+        {showSeg && trailSeg(side, segState)}
         <div className={`jm-node-row jm-node-row--${side}`} ref={isFrontier ? frontierRef : null}>
           <button
             className={cls}
@@ -724,61 +752,18 @@ export default function JourneyMode({
     );
   };
 
-  return (
-    <div className={`screen jm-screen jm-screen--path${bgClass}${editorMode ? ' jm-editor' : ''}`} {...editorRootProps}>
-      {bgLayer}
-      <div className="jm-path-header">
-        <button className="jm-back-btn" onClick={() => { setView('subjects'); setPath(null); setConfirmNode(null); }} {...ek('path.back')}>
-          {t('path.back', '← Subjects')}
-        </button>
-        <span className="jm-path-subject">{subject?.icon} {subject?.label}</span>
-        <span className="jm-path-progress">
-          <span className="jm-progress-track" aria-hidden="true">
-            <span
-              className="jm-progress-fill"
-              style={{ width: `${totalNodes ? Math.round((doneNodes / totalNodes) * 100) : 0}%` }}
-            />
-          </span>
-          <span className="jm-progress-label">{doneNodes}/{totalNodes}</span>
-        </span>
-      </div>
+  // Per-chapter progress stats (same computation the old inline banner used)
+  const chapterStats = (c) => {
+    const chTotal = c.levels.length + (c.boss.auto_skipped ? 0 : 1);
+    const chDone  = c.levels.filter(l => l.completed).length
+                  + (!c.boss.auto_skipped && c.boss.completed ? 1 : 0);
+    return { chTotal, chDone, chComplete: chTotal > 0 && chDone === chTotal };
+  };
 
-      <div className="jm-path-scroll">
-        <div className="jm-map">
-          <CompassRose />
-          <div className="jm-path">
-            {chapters.map((c, ci) => {
-              const chTotal = c.levels.length + (c.boss.auto_skipped ? 0 : 1);
-              const chDone  = c.levels.filter(l => l.completed).length
-                            + (!c.boss.auto_skipped && c.boss.completed ? 1 : 0);
-              const chComplete = chTotal > 0 && chDone === chTotal;
-              return (
-                <section key={c.chapter.id} className="jm-chapter">
-                  <header className={`jm-chapter-banner${chComplete ? ' jm-chapter-banner--done' : ''}`}>
-                    <span className="jm-chapter-num">Chapter {ci + 1}</span>
-                    <span className="jm-chapter-name" {...en('chapter', c.chapter.id, c.chapter.name)}>{c.chapter.name}</span>
-                    <span className={`jm-chapter-progress${chComplete ? ' jm-chapter-progress--done' : ''}`}>
-                      {chComplete ? '✓ Complete' : `${chDone}/${chTotal}`}
-                    </span>
-                  </header>
-                  {c.levels.map(renderLevelNode)}
-                  {renderBossNode(c.boss, `${c.chapter.name} ${t('boss.suffix', 'Boss')}`, false)}
-                </section>
-              );
-            })}
-
-            {ultimate && renderBossNode(ultimate, t('ultimate.label', 'ULTIMATE BOSS'), true, 'ultimate.label')}
-
-            <div className={`jm-mastery ${path?.mastery ? 'jm-mastery--earned' : ''}`}>
-              <span className="jm-mastery-icon">🏆</span>
-              <span className="jm-mastery-text" {...ek('mastery.title')}>{t('mastery.title', 'FULL MASTERY')}</span>
-              <span className="jm-mastery-sub">{path?.mastery ? `${subject?.label} conquered!` : t('mastery.sub.locked', 'Defeat the Ultimate Boss to claim it')}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {renderElementsLayer()}
+  // Shared overlays (confirm / interstitial / celebration / editor picker),
+  // rendered inside whichever of the two views below is active
+  const overlays = (
+    <>
 
       {confirmNode && (
         <div className="jm-confirm-overlay" onClick={() => setConfirmNode(null)}>
@@ -912,6 +897,141 @@ export default function JourneyMode({
       )}
 
       {renderEditorPicker()}
+    </>
+  );
+
+  // ----- Chapter list ('chapters') — mockup chapter rows + Ultimate card -----
+  if (view === 'chapters') {
+    const ult = ultimate;
+    const ultTappable = ult && ult.unlocked && !ult.auto_skipped && ult.question_count > 0;
+    const ultStars = ult?.completed ? getStarCount(ult.best_score_pct) : 0;
+    return (
+      <div className={`screen jm-screen jm-screen--chapters${bgClass}${editorMode ? ' jm-editor' : ''}`} {...editorRootProps}>
+        {bgLayer}
+        <div className="jm-path-header">
+          <button className="jm-back-btn" onClick={() => { setView('subjects'); setPath(null); setConfirmNode(null); }} {...ek('path.back')}>
+            {t('path.back', '← Subjects')}
+          </button>
+          <span className="jm-path-subject">{subject?.icon} {subject?.label}</span>
+          <span className="jm-path-progress">
+            <span className="jm-progress-track" aria-hidden="true">
+              <span
+                className="jm-progress-fill"
+                style={{ width: `${totalNodes ? Math.round((doneNodes / totalNodes) * 100) : 0}%` }}
+              />
+            </span>
+            <span className="jm-progress-label">{doneNodes}/{totalNodes}</span>
+          </span>
+        </div>
+
+        <div className="jm-chapters-scroll">
+          <div className="jm-chapter-list">
+            <p className="jm-chapters-tagline" {...ek('chapters.tagline')}>{t('chapters.tagline', 'Choose a chapter to begin.')}</p>
+            {chapters.map((c, ci) => {
+              const { chTotal, chDone, chComplete } = chapterStats(c);
+              return (
+                <button
+                  key={c.chapter.id}
+                  type="button"
+                  className={`jm-chapter-row${chComplete ? ' jm-chapter-row--done' : ''}`}
+                  onClick={(e) => {
+                    // editor: clicking the chapter NAME opens the inline
+                    // name editor (root handler) instead of navigating
+                    if (editorMode && e.target.closest('[data-edit-name]')) return;
+                    setChapterIdx(ci);
+                    setView('levels');
+                  }}
+                >
+                  <span className="jm-chapter-row-num">{ci + 1}</span>
+                  <span className="jm-chapter-row-text">
+                    <span className="jm-chapter-row-name" {...en('chapter', c.chapter.id, c.chapter.name)}>{c.chapter.name}</span>
+                    <span className="jm-chapter-row-progress">
+                      {c.levels.length} level{c.levels.length === 1 ? '' : 's'} · {chComplete ? '✓ Complete' : `${chDone}/${chTotal} completed`}
+                    </span>
+                  </span>
+                  <span className="jm-chapter-row-arrow" aria-hidden="true">→</span>
+                </button>
+              );
+            })}
+
+            {/* Ultimate Boss + Mastery plaque: subject-level content that sits
+                BEYOND all chapters (it gates on every chapter boss), so it
+                lives here rather than inside any single chapter's map */}
+            {ultimate && (
+              <div className="jm-ultimate-card">
+                <button
+                  type="button"
+                  className={`jm-ultimate-btn${ultimate.completed ? ' jm-ultimate-btn--done' : ''}${!ultimate.unlocked ? ' jm-ultimate-btn--locked' : ''}`}
+                  disabled={!ultTappable}
+                  onClick={editorMode ? undefined : () => openConfirm({
+                    kind: 'ultimate', name: t('ultimate.label', 'ULTIMATE BOSS'),
+                    questionCount: ultimate.question_count, bestPct: ultimate.best_score_pct,
+                    completed: ultimate.completed, levelKey: ultimate.level_key,
+                    questionsUrl: `${SERVER}/api/boss-questions?subject=${subject?.id}&boss_key=${ultimate.boss_key}`,
+                  })}
+                >
+                  <span className="jm-ultimate-face">{ultimate.auto_skipped ? '💨' : !ultimate.unlocked ? '🔒' : '👑'}</span>
+                  <span className="jm-ultimate-text">
+                    <span className="jm-ultimate-name" {...ek('ultimate.label')}>{t('ultimate.label', 'ULTIMATE BOSS')}</span>
+                    <span className="jm-ultimate-sub">
+                      {!ultimate.unlocked
+                        ? t('ultimate.locked', 'Clear every chapter boss to face it')
+                        : ultimate.completed
+                          ? <>Defeated {'★'.repeat(ultStars)}{'☆'.repeat(Math.max(0, 3 - ultStars))}</>
+                          : t('ultimate.ready', 'The final trial awaits')}
+                    </span>
+                  </span>
+                </button>
+                <div className={`jm-mastery ${path?.mastery ? 'jm-mastery--earned' : ''}`}>
+                  <span className="jm-mastery-icon">🏆</span>
+                  <span className="jm-mastery-text" {...ek('mastery.title')}>{t('mastery.title', 'FULL MASTERY')}</span>
+                  <span className="jm-mastery-sub">{path?.mastery ? `${subject?.label} conquered!` : t('mastery.sub.locked', 'Defeat the Ultimate Boss to claim it')}</span>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {renderElementsLayer()}
+        {overlays}
+      </div>
+    );
+  }
+
+  // ----- Per-chapter level map ('levels') — mockup zig-zag path -----
+  const curIdx   = Math.min(chapterIdx, chapters.length - 1);
+  const current  = chapters[curIdx];
+  const curStats = chapterStats(current);
+  return (
+    <div className={`screen jm-screen jm-screen--path${bgClass}${editorMode ? ' jm-editor' : ''}`} {...editorRootProps}>
+      {bgLayer}
+      <div className="jm-path-header">
+        <button className="jm-back-btn" onClick={() => { setView('chapters'); setConfirmNode(null); }} {...ek('levels.back')}>
+          {t('levels.back', '← Chapters')}
+        </button>
+        <span className="jm-path-subject">Chapter {curIdx + 1} · {current.chapter.name}</span>
+        <span className="jm-path-progress">
+          <span className="jm-progress-track" aria-hidden="true">
+            <span
+              className="jm-progress-fill"
+              style={{ width: `${curStats.chTotal ? Math.round((curStats.chDone / curStats.chTotal) * 100) : 0}%` }}
+            />
+          </span>
+          <span className="jm-progress-label">{curStats.chDone}/{curStats.chTotal}</span>
+        </span>
+      </div>
+
+      <div className="jm-path-scroll">
+        <div className="jm-map">
+          <CompassRose />
+          <div className="jm-path">
+            {current.levels.map(renderLevelNode)}
+            {renderBossNode(current.boss, `${current.chapter.name} ${t('boss.suffix', 'Boss')}`, false)}
+          </div>
+        </div>
+      </div>
+
+      {overlays}
     </div>
   );
 }
