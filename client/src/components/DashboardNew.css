@@ -7,18 +7,21 @@
    ════════════════════════════════════════════════════════════════════════════ */
 
 .dn-screen {
-  --dn-gold:   #dcbe50;
+  /* Color vars are aliases of the shared --mv-* tokens (designTokens.css) so
+     both shells draw from one palette; the --dn-* names stay for consumers.
+     Gold tints below are static rgba(232,176,75,*) ramps of --mv-gold. */
+  --dn-gold:   var(--mv-gold);
   --dn-text:   #f0eee4;
   --dn-dim:    rgba(240, 238, 228, 0.65);
-  --dn-glass:  rgba(22, 35, 42, 0.72);
-  --dn-border: rgba(210, 180, 100, 0.35);
+  --dn-glass:  var(--mv-glass);
+  --dn-border: var(--mv-border-gold);
   --dn-nav-h:  64px;
 
   position: relative;
   min-height: 100vh;
   min-height: 100dvh;
   color: var(--dn-text);
-  background: linear-gradient(170deg, #131a0e 0%, #0c110a 55%, #080c06 100%);
+  background: linear-gradient(170deg, var(--mv-bg-base) 0%, #0a0f0c 55%, var(--mv-bg-void) 100%);
   padding-bottom: calc(var(--dn-nav-h) + env(safe-area-inset-bottom, 0px) + 12px);
   box-sizing: border-box;
 }
@@ -39,7 +42,7 @@
 .dn-bg-overlay {
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, rgba(8, 12, 6, 0.82), rgba(8, 12, 6, 0.66) 40%, rgba(8, 12, 6, 0.88));
+  background: linear-gradient(180deg, rgba(6, 10, 7, 0.82), rgba(6, 10, 7, 0.66) 40%, rgba(6, 10, 7, 0.88));
 }
 
 /* ── Header ─────────────────────────────────────────────────────────────────── */
@@ -68,7 +71,7 @@
   overflow: hidden;
   flex-shrink: 0;
   border: 2px solid var(--dn-gold);
-  background: rgba(220, 190, 80, 0.15);
+  background: rgba(232, 176, 75, 0.15);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -123,7 +126,7 @@
   cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease;
 }
-.dn-icon-btn:hover { background: rgba(220, 190, 80, 0.15); border-color: var(--dn-gold); }
+.dn-icon-btn:hover { background: rgba(232, 176, 75, 0.15); border-color: var(--dn-gold); }
 
 .dn-dot {
   position: absolute;
@@ -132,8 +135,8 @@
   width: 9px;
   height: 9px;
   border-radius: 50%;
-  background: #e74c3c;
-  border: 2px solid #0c110a;
+  background: var(--mv-danger);
+  border: 2px solid var(--mv-bg-base);
 }
 
 .dn-dropdown {
@@ -252,7 +255,7 @@
 .dn-explore-card:hover {
   transform: translateY(-2px);
   border-color: var(--dn-gold);
-  background: rgba(220, 190, 80, 0.12);
+  background: rgba(232, 176, 75, 0.12);
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.3);
 }
 .dn-explore-card:active { transform: translateY(0); }
@@ -264,8 +267,8 @@
   height: 38px;
   flex-shrink: 0;
   border-radius: 12px;
-  background: rgba(220, 190, 80, 0.12);
-  border: 1px solid rgba(220, 190, 80, 0.2);
+  background: rgba(232, 176, 75, 0.12);
+  border: 1px solid rgba(232, 176, 75, 0.2);
   font-size: 19px;
 }
 .dn-explore-label { flex: 1; text-align: left; }
@@ -295,7 +298,7 @@
   backdrop-filter: blur(8px);
   transition: border-color 0.15s ease, background 0.15s ease;
 }
-.dn-back-btn:hover { border-color: var(--dn-gold); background: rgba(220, 190, 80, 0.12); }
+.dn-back-btn:hover { border-color: var(--dn-gold); background: rgba(232, 176, 75, 0.12); }
 .dn-subhead-title { font-weight: 800; font-size: 18px; }
 
 /* Stats tab: the embedded StatsPage manages its own layout; just give the
@@ -323,7 +326,7 @@
   justify-content: space-around;
   height: calc(var(--dn-nav-h) + env(safe-area-inset-bottom, 0px));
   padding: 0 8px env(safe-area-inset-bottom, 0px);
-  background: rgba(22, 35, 42, 0.92);
+  background: var(--mv-glass-strong);
   border-top: 1px solid var(--dn-border);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
@@ -356,10 +359,11 @@
 .dn-nav-img  { width: 24px; height: 24px; object-fit: contain; }
 .dn-nav-label { font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; }
 
-/* Active tab: teal fill + white label, gold top indicator kept as the accent */
+/* Active tab: brand-red fill + white label (same "active = red" language as
+   the old shell's .nav-item--active), gold top indicator kept as the accent */
 .dn-nav-item--active {
   color: #ffffff;
-  background: #2a5c58;
+  background: var(--mv-red);
 }
 .dn-nav-item--active::before {
   content: '';
@@ -370,17 +374,19 @@
   width: 38px;
   height: 3px;
   border-radius: 0 0 4px 4px;
-  background: rgba(230, 195, 110, 0.9);
-  box-shadow: 0 0 10px rgba(230, 195, 110, 0.6);
+  background: rgba(232, 176, 75, 0.9);
+  box-shadow: 0 0 10px rgba(232, 176, 75, 0.6);
 }
 
-/* Play: standout brighter-teal call-to-action */
+/* Play: standout teal call-to-action, distinct from the red active tab —
+   same fill the old shell's .nav-item--play uses (teal glow = --mv-teal ramp) */
 .dn-nav-item--play {
   color: #ffffff;
-  background: #37847c;
+  background: rgb(34, 77, 72);
+  box-shadow: inset 0 0 0 1px var(--mv-teal);
 }
 .dn-nav-item--play .dn-nav-icon,
-.dn-nav-item--play .dn-nav-img { filter: drop-shadow(0 0 8px rgba(95, 211, 196, 0.55)); }
+.dn-nav-item--play .dn-nav-img { filter: drop-shadow(0 0 8px rgba(79, 209, 197, 0.55)); }
 
 /* ── Responsive ─────────────────────────────────────────────────────────────── */
 

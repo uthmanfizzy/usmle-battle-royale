@@ -2,8 +2,9 @@
    Structurally the same overlay/card/header/close pattern as the shared
    modal classes in Dashboard.css, but ProgressPage is its own lazy chunk
    where Dashboard.css (and its parchment vars) never loads — so these are
-   self-scoped copies restyled to the page's dark purple/gold look, the same
-   precedent as PlayPage's .invite-modal-overlay and the ClansPage modals. */
+   self-scoped copies on the shared --mv-* tokens (gold tints = static
+   rgba(232,176,75,*) ramps, no color-mix), the same precedent as PlayPage's
+   .invite-modal-overlay and the ClansPage modals. */
 
 .sdm-overlay {
   position: fixed;
@@ -19,15 +20,15 @@
 }
 
 .sdm-card {
-  background: rgba(10, 10, 24, 0.97);
-  border: 1px solid rgba(124, 58, 237, 0.4);
+  background: rgba(16, 26, 32, 0.97);
+  border: 1px solid rgba(232, 176, 75, 0.4);
   border-radius: 20px;
   padding: 24px 26px;
   width: 100%;
   max-width: 420px;
-  color: #e8e8f4;
+  color: var(--mv-text);
   font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55), 0 0 40px rgba(124, 58, 237, 0.08);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55), 0 0 40px rgba(232, 176, 75, 0.08);
   animation: sdm-pop 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 
@@ -56,8 +57,8 @@
 
 .sdm-close-btn {
   background: rgba(255, 255, 255, 0.07);
-  border: 1px solid rgba(124, 58, 237, 0.2);
-  color: rgba(232, 232, 244, 0.45);
+  border: 1px solid rgba(232, 176, 75, 0.2);
+  color: var(--mv-text-dim-45);
   font-size: 14px;
   width: 30px;
   height: 30px;
@@ -71,8 +72,8 @@
 }
 
 .sdm-close-btn:hover {
-  color: #e8e8f4;
-  background: rgba(124, 58, 237, 0.2);
+  color: var(--mv-text);
+  background: rgba(232, 176, 75, 0.2);
 }
 
 /* ── Mastery summary (data already on the clicked row — no refetch) ── */
@@ -90,7 +91,7 @@
 .sdm-count {
   margin-left: auto;
   font-size: 12px;
-  color: rgba(232, 232, 244, 0.45);
+  color: var(--mv-text-dim-45);
 }
 
 .sdm-track {
@@ -112,7 +113,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.6px;
-  color: rgba(232, 232, 244, 0.45);
+  color: var(--mv-text-dim-45);
   margin-bottom: 8px;
 }
 
@@ -129,22 +130,22 @@
   gap: 10px;
   padding: 8px 2px;
   font-size: 13px;
-  border-bottom: 1px solid rgba(124, 58, 237, 0.12);
+  border-bottom: 1px solid rgba(232, 176, 75, 0.12);
 }
 
 .sdm-game-row:last-child { border-bottom: none; }
 
-.sdm-game-date  { color: rgba(232, 232, 244, 0.65); }
+.sdm-game-date  { color: var(--mv-text-dim-65); }
 .sdm-game-score { margin-left: auto; font-weight: 600; }
 .sdm-game-acc {
   min-width: 42px;
   text-align: right;
   font-weight: 700;
-  color: #F59E0B;
+  color: var(--mv-gold);
 }
 
 .sdm-muted {
   font-size: 13px;
-  color: rgba(232, 232, 244, 0.45);
+  color: var(--mv-text-dim-45);
   padding: 10px 0 4px;
 }

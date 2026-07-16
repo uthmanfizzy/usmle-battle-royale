@@ -19,12 +19,14 @@ function getMasteryRank(pct) {
   return 'Novice';
 }
 
+// Gold ramp hand-derived from --mv-gold #e8b04b (CSS custom properties can't
+// reach these JS values) — brighter gold = higher mastery, gray = Novice.
 function getMasteryColor(pct) {
-  if (pct >= 81) return '#F59E0B';
-  if (pct >= 61) return '#10B981';
-  if (pct >= 41) return '#3B82F6';
-  if (pct >= 21) return '#6366F1';
-  return '#4B5563';
+  if (pct >= 81) return '#e8b04b';
+  if (pct >= 61) return '#c9973f';
+  if (pct >= 41) return '#a67c34';
+  if (pct >= 21) return '#8a6529';
+  return '#6b7280';
 }
 
 function SubjectBar({ s, i, onClick }) {
