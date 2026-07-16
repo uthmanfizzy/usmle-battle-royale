@@ -1190,7 +1190,12 @@ function AnnouncementsSection() {
 
 // ── Main Dashboard ─────────────────────────────────────────────────────────────
 function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
-  const [dashTab,      setDashTab]      = useState('home');
+  // Deep-linkable tab: /dashboard?tab=clans etc. (used by ProgressPage's
+  // clan-tag link; unknown values fall back to home)
+  const [dashTab,      setDashTab]      = useState(() => {
+    const t = new URLSearchParams(window.location.search).get('tab');
+    return ['home', 'leaderboard', 'clans', 'announcements'].includes(t) ? t : 'home';
+  });
   const [unreadCount,  setUnreadCount]  = useState(0);
   const [showWelcome,  setShowWelcome]  = useState(false);
   const [welcomeAnn,   setWelcomeAnn]   = useState(null);

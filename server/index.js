@@ -3097,6 +3097,52 @@ app.get('/api/users/:userId/subject-history/:subject', async (req, res) => {
   }
 });
 
+// Public game stats for the unified profile page. Aggregates game_history.
+// Win semantics: placement === 1. awardXP's own rule is
+// `placement === 1 && player.alive` (all three game-end paths sort players
+// best-first and pass index+1), but game_history does not store `alive`, so
+// placement alone is the best derivable signal — it only diverges from
+// users.games_won in the everyone-eliminated edge case.
+// select('*') is deliberate: code inserts game_mode but schema.sql lacks the
+// column (known drift) — read it defensively and fall back to battle_royale.
+// Fail soft: any error or no rows → zeros/empty with 200.
+app.get('/api/users/:userId/game-stats', async (req, res) => {
+  const { userId } = req.params;
+  const empty = { total_games: 0, wins: 0, win_rate: 0, total_correct_answers: 0, recent_matches: [] };
+  if (!supabase) return res.json(empty);
+  try {
+    const { data, error } = await supabase
+      .from('game_history')
+      .select('*')
+      .eq('user_id', userId)
+      .order('played_at', { ascending: false });
+    if (error) {
+      console.warn('[/api/users/:userId/game-stats] query failed —', error.message);
+      return res.json(empty);
+    }
+    const rows = data || [];
+    const wins = rows.filter(g => g.placement === 1).length;
+    const totalCorrect = rows.reduce((s, g) => s + (g.correct_answers || 0), 0);
+    res.json({
+      total_games: rows.length,
+      wins,
+      win_rate: rows.length > 0 ? Math.round((wins / rows.length) * 100) : 0,
+      total_correct_answers: totalCorrect,
+      recent_matches: rows.slice(0, 15).map(g => ({
+        subject: g.subject || 'all',
+        mode: g.game_mode || 'battle_royale',
+        is_win: g.placement === 1,
+        correct_answers: g.correct_answers || 0,
+        total_questions: g.total_questions || 0,
+        played_at: g.played_at,
+      })),
+    });
+  } catch (err) {
+    console.warn('[/api/users/:userId/game-stats] unavailable —', err.message);
+    res.json(empty);
+  }
+});
+
 // ── Clan API ───────────────────────────────────────────────────────────────────
 
 app.post('/api/clans', requireAuth, async (req, res) => {

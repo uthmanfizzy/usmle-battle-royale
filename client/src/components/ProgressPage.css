@@ -257,10 +257,337 @@
 .pp-empty p { margin: 6px 0; }
 .pp-empty-sub { font-size: 13px; opacity: 0.8; }
 
+/* ── Phase E: unified profile additions (all --mv-* token ramps) ──── */
+
+/* Diamond level badge on the avatar (Phase A dashboard technique) */
+.pp-avatar-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.pp-lvl-badge {
+  position: absolute;
+  bottom: -5px;
+  left: 50%;
+  transform: translateX(-50%) rotate(45deg);
+  width: 26px;
+  height: 26px;
+  background: var(--mv-red);
+  border: 2px solid var(--mv-bg-void);
+  z-index: 2;
+}
+
+.pp-lvl-num {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: rotate(-45deg);
+  font-family: var(--mv-font-display, 'Cinzel', serif);
+  font-size: 11px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.pp-clan-tag { text-decoration: none; }
+.pp-clan-tag:hover { text-decoration: underline; }
+
+/* Stat tiles (mockup value-over-label grid) */
+.pp-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 14px;
+}
+
+.pp-tile {
+  background: rgba(22, 35, 42, 0.7);
+  border: 1px solid rgba(232, 176, 75, 0.2);
+  border-radius: 8px;
+  padding: 16px;
+  text-align: center;
+}
+
+.pp-tile-value {
+  font-family: var(--mv-font-display, 'Cinzel', serif);
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.pp-tile-value--gold { color: var(--mv-gold); }
+
+.pp-tile-label {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.6);
+  letter-spacing: 0.4px;
+  margin-top: 4px;
+}
+
+/* Section headings between panels */
+.pp-section-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--mv-font-display, 'Cinzel', serif);
+  font-size: 18px;
+  font-weight: 700;
+  margin: 8px 0 -8px;
+}
+
+.pp-soon-chip {
+  font-family: 'Inter', sans-serif;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  background: linear-gradient(90deg, rgba(200, 163, 44, 0.95), rgba(241, 196, 15, 0.95));
+  color: #1a1408;
+  padding: 2px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+/* Equipped Gear — inert placeholder cards */
+.pp-gear {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 14px;
+  opacity: 0.65;
+}
+
+.pp-gear-card {
+  background: rgba(22, 35, 42, 0.7);
+  border: 1px solid rgba(232, 176, 75, 0.2);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.pp-gear-art {
+  height: 90px;
+  background: repeating-linear-gradient(45deg, #1a2420, #1a2420 8px, #141d19 8px, #141d19 16px);
+}
+
+.pp-gear-name {
+  padding: 12px;
+  font-size: 13px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* Achievements — mockup badge circles */
+.pp-ach-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.pp-ach {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 80px;
+}
+
+.pp-ach-circle {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mv-font-display, 'Cinzel', serif);
+  font-size: 20px;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.pp-ach-name {
+  font-size: 11px;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.4);
+  line-height: 1.25;
+}
+
+.pp-ach--unlocked .pp-ach-circle {
+  background: rgba(232, 176, 75, 0.2);
+  border: 1.5px solid var(--mv-gold);
+}
+
+.pp-ach--unlocked .pp-ach-name {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* Recent Matches list */
+.pp-matches { padding: 6px 0; }
+
+.pp-match-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 22px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 13px;
+}
+
+.pp-match-row:last-child { border-bottom: none; }
+
+.pp-match-tag {
+  font-family: var(--mv-font-display, 'Cinzel', serif);
+  font-size: 12px;
+  font-weight: 700;
+  width: 42px;
+  flex-shrink: 0;
+}
+
+.pp-match-tag--win  { color: var(--mv-teal); }
+.pp-match-tag--loss { color: var(--mv-red); }
+
+.pp-match-mode { flex: 1; color: rgba(255, 255, 255, 0.8); min-width: 0; }
+.pp-match-score { color: rgba(255, 255, 255, 0.45); }
+
+.pp-match-date {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+  white-space: nowrap;
+}
+
+.pp-match-empty {
+  padding: 20px 22px;
+  color: var(--muted);
+  font-size: 14px;
+  text-align: center;
+}
+
+/* ── "Your Stats" (own profile only) ─────────────────────────────── */
+.pp-tiles--own { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+
+.pp-miles {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.pp-mile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.pp-mile:last-child { border-bottom: none; }
+
+.pp-mile-level {
+  font-family: var(--mv-font-display, 'Cinzel', serif);
+  font-weight: 700;
+  width: 52px;
+  flex-shrink: 0;
+}
+
+.pp-mile-title { flex: 1; min-width: 0; }
+.pp-mile-reward { white-space: nowrap; font-size: 12px; }
+
+.pp-mile--done {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.pp-mile--done .pp-mile-level { color: var(--mv-gold); }
+
+.pp-xp-graph {
+  width: 100%;
+  height: 110px;
+  display: block;
+}
+
+/* Comparison bars */
+.pp-cmp { display: flex; flex-direction: column; gap: 14px; }
+
+.pp-cmp-row { display: flex; flex-direction: column; gap: 5px; }
+
+.pp-cmp-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.7);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.pp-cmp-bars {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pp-cmp-track {
+  flex: 1;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--glass2);
+  overflow: hidden;
+}
+
+.pp-cmp-fill { height: 100%; border-radius: 4px; }
+.pp-cmp-fill--you { background: var(--mv-gold); }
+.pp-cmp-fill--avg { background: rgba(255, 255, 255, 0.35); }
+
+.pp-cmp-val {
+  font-size: 12px;
+  font-weight: 700;
+  width: 44px;
+  text-align: right;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.pp-cmp-val--you { color: var(--mv-gold); }
+
+.pp-cmp-legend {
+  display: flex;
+  gap: 16px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.pp-cmp-leg--you { color: var(--mv-gold); }
+
+/* CTA */
+.pp-cta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.pp-cta-text { font-size: 15px; }
+
+.pp-cta-xp {
+  color: var(--mv-gold);
+  font-weight: 700;
+}
+
+.pp-cta-btn {
+  background: var(--mv-red);
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  padding: 11px 22px;
+  font-family: var(--mv-font-display, 'Cinzel', serif);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: filter 0.15s;
+}
+
+.pp-cta-btn:hover { filter: brightness(1.15); }
+
 /* ── Mobile ──────────────────────────────────────────────────────── */
 @media (max-width: 560px) {
   .pp-stats-grid { grid-template-columns: repeat(2, 1fr); }
   .pp-highlights { grid-template-columns: 1fr; }
   .pp-skill-row  { grid-template-columns: minmax(110px, 150px) 1fr 42px; gap: 10px; }
   .pp-panel      { padding: 18px 16px; }
+  .pp-tiles      { grid-template-columns: repeat(2, 1fr); }
+  .pp-mile-reward { display: none; }
 }

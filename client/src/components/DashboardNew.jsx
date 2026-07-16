@@ -32,7 +32,15 @@ const HOME_VIEW_TITLES = {
 
 export default function DashboardNew({ user, onPlayNow, onLogout, onUserUpdate }) {
   const [tab,      setTab]      = useState('home');   // 'home' | 'stats' | 'shorts'
-  const [homeView, setHomeView] = useState('main');   // 'main' | 'leaderboard' | 'clans' | 'news'
+  // Deep-linkable home view: /dashboard?tab=clans etc. (same param the old
+  // shell honors; leaderboard/announcements map to this shell's view names)
+  const [homeView, setHomeView] = useState(() => {
+    const t = new URLSearchParams(window.location.search).get('tab');
+    if (t === 'clans') return 'clans';
+    if (t === 'leaderboard') return 'leaderboard';
+    if (t === 'announcements') return 'news';
+    return 'main';
+  });   // 'main' | 'leaderboard' | 'clans' | 'news'
   const [unreadCount, setUnreadCount] = useState(0);
 
   const [showNotifications, setShowNotifications] = useState(false);
