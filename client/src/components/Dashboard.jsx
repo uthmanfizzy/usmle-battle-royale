@@ -1564,10 +1564,10 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
             {/* Bottom dock band (mockup's third band) — the sole bottom-of-
                 screen furniture (the old persistent .bottom-nav pill is gone;
                 navigation lives in the left nav column + this dock).
-                Inventory/Heroes/Shop/Events are unbuilt features: disabled
+                Inventory/Heroes/Events are unbuilt features: disabled
                 coming-soon tiles (ms-ribbon treatment, dock-sized). Quests
-                routes to the standalone /quests page; the Daily Reward pill
-                jumps to the existing Rewards widget. */}
+                and Shop route to their standalone pages; the Daily Reward
+                pill jumps to the existing Rewards widget. */}
             <div className="dash-dock">
               <div className="dash-dock-items">
                 <div className="dash-dock-item dash-dock-item--soon" aria-disabled="true">
@@ -1578,10 +1578,15 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
                   <span className="dash-dock-tile"><span className="dash-dock-ribbon">SOON</span>🦸</span>
                   <span className="dash-dock-label">HEROES</span>
                 </div>
-                <div className="dash-dock-item dash-dock-item--soon" aria-disabled="true">
-                  <span className="dash-dock-tile"><span className="dash-dock-ribbon">SOON</span>🛒</span>
+                <button
+                  type="button"
+                  className="dash-dock-item"
+                  onClick={() => { window.location.href = '/shop'; }}
+                  title="Shop"
+                >
+                  <span className="dash-dock-tile">🛒</span>
                   <span className="dash-dock-label">SHOP</span>
-                </div>
+                </button>
                 <button
                   type="button"
                   className="dash-dock-item"

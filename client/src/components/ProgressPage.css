@@ -351,7 +351,29 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 14px;
-  opacity: 0.65;
+}
+
+.pp-gear-empty {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 18px;
+  background: rgba(22, 35, 42, 0.5);
+  border: 1px dashed rgba(232, 176, 75, 0.3);
+  border-radius: 8px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.pp-gear-shop-link {
+  color: var(--mv-gold, #e8b04b);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.pp-gear-shop-link:hover {
+  text-decoration: underline;
 }
 
 .pp-gear-card {
@@ -370,7 +392,7 @@
   padding: 12px;
   font-size: 13px;
   font-weight: 700;
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(255, 255, 255, 0.85);
 }
 
 /* Achievements — mockup badge circles */

@@ -121,6 +121,7 @@ export default function ProgressPage() {
   const [data,  setData]  = useState(null);   // /api/users/:id/mastery response
   const [study, setStudy] = useState(null);   // /api/users/:id/study-stats response
   const [gameStats, setGameStats] = useState(null); // /api/users/:id/game-stats response
+  const [gear,  setGear]  = useState([]);     // /api/users/:id/gear response (shop collection)
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [detailSubject, setDetailSubject] = useState(null); // subject row whose detail modal is open
@@ -159,8 +160,11 @@ export default function ProgressPage() {
       fetch(`${SERVER_URL}/api/users/${viewedId}/game-stats`)
         .then(r => (r.ok ? r.json() : null))
         .catch(() => null),
+      fetch(`${SERVER_URL}/api/users/${viewedId}/gear`)
+        .then(r => (r.ok ? r.json() : null))
+        .catch(() => null),
     ])
-      .then(([m, s, g]) => { if (!cancelled) { setData(m); setStudy(s); setGameStats(g); setLoading(false); } })
+      .then(([m, s, g, gr]) => { if (!cancelled) { setData(m); setStudy(s); setGameStats(g); setGear(gr?.gear || []); setLoading(false); } })
       .catch(() => { if (!cancelled) { setError('Player not found.'); setLoading(false); } });
     return () => { cancelled = true; };
   }, [viewedId]);
@@ -300,19 +304,25 @@ export default function ProgressPage() {
           </div>
         </div>
 
-        {/* Equipped Gear — INERT placeholders: no gear/cosmetics system
-            exists yet (mockup parity only, nothing clickable) */}
-        <div className="pp-section-head">
-          Equipped Gear <span className="pp-soon-chip">COMING SOON</span>
-        </div>
-        <div className="pp-gear" aria-disabled="true">
-          {[1, 2, 3].map(i => (
-            <div className="pp-gear-card" key={i}>
-              <div className="pp-gear-art" />
-              <div className="pp-gear-name">Gear Slot {i}</div>
-            </div>
-          ))}
-        </div>
+        {/* Gear Collection — real owned items from the shop (public endpoint,
+            works for any viewed profile). Collection display only: no prices,
+            no buying here, and gear has no gameplay/visual effect anywhere. */}
+        <div className="pp-section-head">Gear Collection</div>
+        {gear.length > 0 ? (
+          <div className="pp-gear">
+            {gear.map(g => (
+              <div className="pp-gear-card" key={g.id} title={g.description || g.name}>
+                <div className="pp-gear-art" />
+                <div className="pp-gear-name">{g.name}</div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="pp-gear-empty">
+            No gear collected yet.
+            {isOwn && <a className="pp-gear-shop-link" href="/shop">Visit the Shop →</a>}
+          </div>
+        )}
 
         {/* Achievements (shared evaluator; mockup badge circles) */}
         <div className="pp-section-head">Achievements</div>

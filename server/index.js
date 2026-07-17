@@ -8235,6 +8235,143 @@ app.post('/api/quest-progress/update', requireAuth, async (req, res) => {
   }
 });
 
+// ══════════════════════════════════════════════════════════════════════════════
+// GEAR SHOP (virtual currency only — gems). Tables gear_items/user_gear and
+// the purchase_gear_item RPC live in Supabase (see schema.sql doc block).
+// ══════════════════════════════════════════════════════════════════════════════
+
+// Public gear catalog — active items only
+app.get('/api/gear-items', async (req, res) => {
+  if (!supabase) return res.json({ items: [] });
+  try {
+    const { data, error } = await supabase.from('gear_items').select('*')
+      .eq('active', true)
+      .order('sort_order', { ascending: true })
+      .order('name', { ascending: true });
+    if (error) throw error;
+    res.json({ items: data || [] });
+  } catch (err) {
+    // Table may not exist yet (manual migration) — degrade to empty list
+    console.warn('[/api/gear-items] unavailable, returning items: [] —', err.message);
+    res.json({ items: [] });
+  }
+});
+
+// Public: a user's owned gear (collection display on /progress)
+app.get('/api/users/:userId/gear', async (req, res) => {
+  if (!supabase) return res.json({ gear: [] });
+  try {
+    const { data, error } = await supabase.from('user_gear')
+      .select('purchased_at, item:gear_item_id(id, name, description, price_gems)')
+      .eq('user_id', req.params.userId)
+      .order('purchased_at', { ascending: false });
+    if (error) throw error;
+    const gear = (data || [])
+      .filter(r => r.item)
+      .map(r => ({ ...r.item, purchased_at: r.purchased_at }));
+    res.json({ gear });
+  } catch (err) {
+    console.warn('[/api/users/:userId/gear] unavailable, returning gear: [] —', err.message);
+    res.json({ gear: [] });
+  }
+});
+
+// Purchase — the RPC is the single source of truth for the atomic spend
+// (FOR UPDATE row lock in Postgres); this endpoint only calls and relays it.
+app.post('/api/gear-items/purchase', requireAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ success: false, message: 'Supabase not configured.' });
+  const { gear_item_id } = req.body || {};
+  if (!gear_item_id) return res.status(400).json({ success: false, message: 'gear_item_id required' });
+  try {
+    const { data, error } = await supabase.rpc('purchase_gear_item', {
+      p_user_id: req.userId,
+      p_gear_item_id: gear_item_id,
+    });
+    if (error) throw error;
+    // RETURNS TABLE surfaces as a one-row array; a scalar/json return as an object
+    const row = Array.isArray(data) ? data[0] : data;
+    if (!row) throw new Error('empty RPC response');
+    res.json({ success: !!row.success, message: row.message || '', new_gems: row.new_gems ?? null });
+  } catch (err) {
+    console.error('[/api/gear-items/purchase] Error:', err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// Admin CRUD (journey-chapters pattern)
+app.get('/admin/gear-items', adminAuth, async (req, res) => {
+  if (!supabase) return res.json({ items: [] });
+  try {
+    const { data, error } = await supabase.from('gear_items').select('*')
+      .order('sort_order', { ascending: true })
+      .order('name', { ascending: true });
+    if (error) throw error;
+    res.json({ items: data || [] });
+  } catch (err) {
+    console.warn('[/admin/gear-items] unavailable, returning items: [] —', err.message);
+    res.json({ items: [] });
+  }
+});
+
+app.post('/admin/gear-items', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  const { name, description, price_gems, sort_order, active } = req.body;
+  if (!name?.trim()) return res.status(400).json({ error: 'name required' });
+  if (!Number.isFinite(price_gems) || price_gems < 0) return res.status(400).json({ error: 'price_gems must be a non-negative number' });
+  try {
+    const { data, error } = await supabase
+      .from('gear_items')
+      .insert({
+        name: name.trim(),
+        description: (description || '').trim(),
+        price_gems,
+        sort_order: Number.isFinite(sort_order) ? sort_order : 0,
+        active: active !== false,
+      })
+      .select()
+      .single();
+    if (error) throw error;
+    res.json(data);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.put('/admin/gear-items/:id', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  const updates = {};
+  if ('name' in req.body) {
+    if (!req.body.name?.trim()) return res.status(400).json({ error: 'name required' });
+    updates.name = req.body.name.trim();
+  }
+  if ('description' in req.body) updates.description = (req.body.description || '').trim();
+  if ('price_gems' in req.body) {
+    if (!Number.isFinite(req.body.price_gems) || req.body.price_gems < 0) return res.status(400).json({ error: 'price_gems must be a non-negative number' });
+    updates.price_gems = req.body.price_gems;
+  }
+  if (Number.isFinite(req.body.sort_order)) updates.sort_order = req.body.sort_order;
+  if (typeof req.body.active === 'boolean') updates.active = req.body.active;
+  if (Object.keys(updates).length === 0) return res.status(400).json({ error: 'nothing to update' });
+  try {
+    const { data, error } = await supabase
+      .from('gear_items')
+      .update(updates)
+      .eq('id', req.params.id)
+      .select()
+      .single();
+    if (error) throw error;
+    res.json(data);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.delete('/admin/gear-items/:id', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  try {
+    // user_gear ownership rows cascade via FK
+    const { error } = await supabase.from('gear_items').delete().eq('id', req.params.id);
+    if (error) throw error;
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // ── Reward Chest Endpoints ─────────────────────────────────────────────────
 
 app.get('/api/rewards/chest/:userId', async (req, res) => {

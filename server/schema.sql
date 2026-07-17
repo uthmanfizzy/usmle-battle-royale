@@ -392,3 +392,37 @@ CREATE POLICY IF NOT EXISTS "server_full_access_game_settings"
 -- Ordered by sort_order (journey_chapters convention). RLS enabled, server-only
 -- access. CRUD: GET /api/guide-sections (public) + POST/PUT/DELETE
 -- /admin/guide-sections (adminAuth).
+
+-- ── gear_items / user_gear / purchase_gear_item (DOCUMENTATION ONLY) ───────────
+-- Already live in Supabase — created manually in the Supabase SQL editor.
+-- This block documents the live shape so schema.sql stays in sync; do NOT
+-- re-run it.
+--
+-- gear_items: the shop's virtual-currency (gems) gear catalog
+-- CREATE TABLE IF NOT EXISTS gear_items (
+--   id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+--   name        TEXT        NOT NULL,
+--   description TEXT,
+--   price_gems  INTEGER     NOT NULL DEFAULT 0 CHECK (price_gems >= 0),
+--   sort_order  INT         NOT NULL DEFAULT 0,
+--   active      BOOLEAN     NOT NULL DEFAULT true,
+--   created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+-- );
+--
+-- user_gear: ownership rows (collection only — equipping has no gameplay
+-- or visual effect anywhere, per locked decision)
+-- CREATE TABLE IF NOT EXISTS user_gear (
+--   user_id      UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+--   gear_item_id UUID        NOT NULL REFERENCES gear_items(id) ON DELETE CASCADE,
+--   purchased_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+--   PRIMARY KEY (user_id, gear_item_id)
+-- );
+--
+-- RPC: purchase_gear_item(p_user_id UUID, p_gear_item_id UUID)
+--   RETURNS TABLE(success BOOLEAN, message TEXT, new_gems INTEGER)
+-- The ONLY spend path for users.gems — the Node endpoint just relays it.
+-- Atomic inside one transaction: SELECT users.gems FOR UPDATE (row lock, so
+-- two near-simultaneous purchases serialize and can't double-spend), verifies
+-- the item exists + active ('Item not found'), not already owned ('Already
+-- owned'), gems >= price_gems ('Not enough gems'), then decrements gems and
+-- inserts the user_gear row. RLS enabled, server-only access (service key).

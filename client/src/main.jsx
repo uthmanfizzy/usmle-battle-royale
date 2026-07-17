@@ -19,6 +19,7 @@ const ProgressPage      = lazy(() => import('./components/ProgressPage'));
 const GuidePage         = lazy(() => import('./components/GuidePage'));
 const SettingsPage      = lazy(() => import('./components/SettingsPage'));
 const QuestsPage        = lazy(() => import('./components/QuestsPage'));
+const ShopPage          = lazy(() => import('./components/ShopPage'));
 const UsernameSetupPage = lazy(() => import('./components/UsernameSetupPage'));
 
 function PageSpinner() {
@@ -115,6 +116,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
                 <Route path="/guide"          element={<RouteErrorBoundary name="GuidePage"><GuidePage /></RouteErrorBoundary>} />
                 <Route path="/settings"       element={<RouteErrorBoundary name="SettingsPage"><SettingsPage /></RouteErrorBoundary>} />
                 <Route path="/quests"         element={<RouteErrorBoundary name="QuestsPage"><QuestsPage /></RouteErrorBoundary>} />
+                <Route path="/shop"           element={<RouteErrorBoundary name="ShopPage"><ShopPage /></RouteErrorBoundary>} />
                 <Route path="/username-setup" element={<UsernameSetupPage />} />
                 <Route path="/*"              element={<App />} />
               </Routes>
