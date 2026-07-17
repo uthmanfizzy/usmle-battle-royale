@@ -753,8 +753,12 @@ export default function App() {
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
-  const showMuteBtn = ['lobby', 'game', 'game_over', 'solo_game', 'tower'].includes(phase);
-  const showHomeBtn = !['loading', 'entry', 'landing'].includes(phase);
+  // The duel HUD carries its own Sound toggle and Forfeit button, and its
+  // fixed top-left plate sits where the floating buttons live — hide the
+  // global pair for that screen only.
+  const inDuelHud   = phase === 'game' && gameMode === 'pvp_duel';
+  const showMuteBtn = ['lobby', 'game', 'game_over', 'solo_game', 'tower'].includes(phase) && !inDuelHud;
+  const showHomeBtn = !['loading', 'entry', 'landing'].includes(phase) && !inDuelHud;
 
   return (
     <Suspense fallback={
@@ -1019,6 +1023,10 @@ export default function App() {
           username={username}
           onTick={audio.playTick}
           socketId={socket.id}
+          user={user}
+          muted={muted}
+          onToggleMute={toggleMute}
+          onForfeit={handleReturnHome}
         />
         </RouteErrorBoundary>
       )}

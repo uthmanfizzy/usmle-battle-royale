@@ -1,66 +1,24 @@
 import { useState, useEffect, useRef } from 'react';
 import ExplanationText from './ExplanationText';
 import { renderStem } from '../utils/renderStem';
+import './PvpDuelGame.css';
 
 const LABELS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
 const STARTING_HP = 100; // display default until the first server snapshot arrives
 
-// Minimal duplicate of GameRoom's Timer (that one is a private component
-// carrying powerup bonus-seconds plumbing this mode doesn't have).
-function Timer({ timeLimit, active, questionId, onTick }) {
-  const [left, setLeft] = useState(timeLimit);
-  const ref = useRef(null);
+const fmtClock = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
-  useEffect(() => {
-    setLeft(timeLimit);
-    if (!active) return;
-    ref.current = setInterval(() => setLeft(t => Math.max(0, t - 1)), 1000);
-    return () => clearInterval(ref.current);
-  }, [timeLimit, active, questionId]);
-
-  useEffect(() => {
-    if (active && left <= 5 && left > 0 && onTick) onTick();
-  }, [left, active, onTick]);
-
-  const pct  = Math.min(100, (left / timeLimit) * 100);
-  const tier = left > 10 ? 'green' : left > 5 ? 'yellow' : 'red';
-  return (
-    <div className="timer-wrap">
-      <div className={`timer-number ${tier}`}>{left}s</div>
-      <div className="timer-track">
-        <div className={`timer-fill ${tier}`} style={{ width: `${pct}%` }} />
-      </div>
-    </div>
-  );
-}
-
-// Plain HP readout — Phase 4c restyles this into the mockup HUD bars.
-function HpRow({ label, hp, mine }) {
-  const pct = Math.max(0, Math.min(100, (hp / STARTING_HP) * 100));
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%' }}>
-      <span style={{ fontSize: 13, fontWeight: 700, minWidth: 130, textAlign: 'left' }}>
-        {label}: {hp}/{STARTING_HP} HP
-      </span>
-      <div style={{ flex: 1, height: 10, borderRadius: 5, background: 'rgba(255,255,255,0.12)', overflow: 'hidden' }}>
-        <div style={{
-          width: `${pct}%`, height: '100%', borderRadius: 5,
-          background: mine ? '#4fd1c5' : '#c1291e', transition: 'width 0.3s ease',
-        }} />
-      </div>
-    </div>
-  );
-}
-
-// Phase 4a: functional 1v1 duel screen (SpeedRaceGame/TriviaGame sibling
-// precedent). Deliberately plain — the mockup PvP HUD treatment is Phase 4c.
+// Phase 4c: mockup PvP Match HUD treatment (minus the minimap). Visual pass
+// only — HP bars are real (existing pvp_duel socket data); the mana bar and
+// ability keys render per the mockup but are INERT (no mana/ability system
+// exists yet). Sound + Forfeit are REAL: they reuse App's global mute and
+// the return-home disconnect path (server-side forfeit proven in 4a).
 export default function PvpDuelGame({
   question,
   round,
   timeLimit,
   myAnswer,
   hasAnswered,
-  answeredCount,
   players,
   answerResult,
   roundResults,
@@ -69,9 +27,27 @@ export default function PvpDuelGame({
   username,
   onTick,
   socketId,
+  user = null,
+  muted = false,
+  onToggleMute,
+  onForfeit,
 }) {
-  // HP: prefer the latest round snapshot, then the new_question snapshot,
-  // then the starting value (before round 1 resolves).
+  // ── Per-question countdown (drives BOTH the top-center clock and the
+  //    modal header — one source, mockup shows the two readouts) ──
+  const [left, setLeft] = useState(timeLimit || 0);
+  const tickRef = useRef(null);
+  const timerActive = !!question && !hasAnswered && !showingRoundResult;
+  useEffect(() => {
+    setLeft(timeLimit || 0);
+    if (!question) return;
+    tickRef.current = setInterval(() => setLeft(t => Math.max(0, t - 1)), 1000);
+    return () => clearInterval(tickRef.current);
+  }, [timeLimit, question?.id]);
+  useEffect(() => {
+    if (timerActive && left <= 5 && left > 0 && onTick) onTick();
+  }, [left, timerActive, onTick]);
+
+  // ── Real HP (same derivation as 4a) ──
   const snapshotPlayers = roundResults?.players;
   const findHp = (isMe) => {
     const bySnapshot = snapshotPlayers?.find(p => (p.id === socketId) === isMe);
@@ -85,62 +61,131 @@ export default function PvpDuelGame({
   const myHp  = findHp(true);
   const oppHp = findHp(false);
   const oppName = (snapshotPlayers || players || []).find(p => p.id !== socketId)?.username || 'Opponent';
+  const myLevel = user?.level || 1;
 
-  if (!question) {
-    return (
-      <div className="screen game-screen">
-        <div className="waiting-screen">
-          <div className="spinner" />
-          <p>Your opponent approaches…</p>
-        </div>
-      </div>
-    );
-  }
+  // ── Event feed: real strike messages from the existing mechanic ──
+  const [feed, setFeed] = useState([]);
+  const lastFeedRef = useRef(null);
+  useEffect(() => {
+    if (!roundResults || roundResults === lastFeedRef.current) return;
+    lastFeedRef.current = roundResults;
+    const msg = roundResults.striker
+      ? (roundResults.striker === username
+          ? { text: <>You struck <em>{oppName}</em> for 5 damage!</>, mine: true }
+          : { text: <><em>{oppName}</em> struck you for 5 damage!</>, mine: false })
+      : { text: <>No strike — nobody was first with the right answer.</>, mine: false };
+    setFeed(prev => [msg, ...prev].slice(0, 2));
+  }, [roundResults, username, oppName]);
 
-  const timerActive = !hasAnswered && !showingRoundResult;
+  const handleForfeit = () => {
+    // Same plain-confirm convention as the rest of the app; the actual quit
+    // is App's return-home path: socket.disconnect() → server forfeit.
+    if (window.confirm('Forfeit the match? Your opponent will claim victory.')) onForfeit?.();
+  };
+
+  const avatarLetter = (name) => (name || '?')[0].toUpperCase();
+  const barPct = (hp) => `${Math.max(0, Math.min(100, (hp / STARTING_HP) * 100))}%`;
 
   return (
-    <div className="screen game-screen">
-      <div className="game-topbar">
-        <span className="topbar-round">⚔️ Duel · Round {round}</span>
+    <div className="pvd">
+      {/* ── Top bar: self plate · timer · opponent plate ─────────────────── */}
+      <div className="pvd-top">
+        <div className="pvd-plate">
+          <span className="pvd-avatar pvd-avatar--self">
+            {user?.avatar_url
+              ? <img src={user.avatar_url} alt="" referrerPolicy="no-referrer" />
+              : avatarLetter(username)}
+          </span>
+          <div className="pvd-plate-info">
+            <div className="pvd-plate-name">{username} · Lvl. {myLevel}</div>
+            <div className="pvd-bar pvd-bar--hp">
+              <div className="pvd-bar-fill pvd-bar-fill--hp" style={{ width: barPct(myHp) }} />
+            </div>
+            {/* Mana bar: mockup styling, INERT — no mana system exists yet */}
+            <div className="pvd-bar pvd-bar--mana" title="Mana — coming soon" aria-hidden="true">
+              <div className="pvd-bar-fill pvd-bar-fill--mana" style={{ width: '100%' }} />
+            </div>
+          </div>
+        </div>
+
+        {/* Honest top-center readout: real per-question countdown over the
+            real question number (no round/score concept exists in 4a) */}
+        <div className="pvd-center">
+          <div className="pvd-center-timer">{fmtClock(left)}</div>
+          <div className="pvd-center-label">QUESTION {round || 1}</div>
+        </div>
+
+        {/* Opponent plate, mirrored. Level omitted — the server doesn't
+            share opponent level, and we don't fabricate one. */}
+        <div className="pvd-plate pvd-plate--opp">
+          <div className="pvd-plate-info pvd-plate-info--right">
+            <div className="pvd-plate-name">{oppName}</div>
+            <div className="pvd-bar pvd-bar--hp">
+              <div className="pvd-bar-fill pvd-bar-fill--hp pvd-bar-fill--right" style={{ width: barPct(oppHp) }} />
+            </div>
+            <div className="pvd-bar pvd-bar--mana" title="Mana — coming soon" aria-hidden="true">
+              <div className="pvd-bar-fill pvd-bar-fill--mana pvd-bar-fill--right" style={{ width: '100%' }} />
+            </div>
+          </div>
+          <span className="pvd-avatar pvd-avatar--opp">{avatarLetter(oppName)}</span>
+        </div>
       </div>
 
-      <div className="game-layout">
-        <div className="game-center">
-          {/* Plain HP block (both players) */}
-          <div style={{
-            display: 'flex', flexDirection: 'column', gap: 8, width: '100%',
-            maxWidth: 640, margin: '0 auto 14px', padding: '12px 16px',
-            background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 10,
-          }}>
-            <HpRow label={`${username} (you)`} hp={myHp} mine />
-            <HpRow label={oppName} hp={oppHp} mine={false} />
+      {/* ── Utility row: REAL sound toggle + REAL forfeit ─────────────────── */}
+      <div className="pvd-utility">
+        <button
+          type="button"
+          className="pvd-sound"
+          onClick={onToggleMute}
+          aria-pressed={!muted}
+          title={muted ? 'Unmute' : 'Mute'}
+        >
+          <span>Sound</span>
+          <span className={`pvd-sound-track${muted ? ' pvd-sound-track--off' : ''}`}>
+            <span className="pvd-sound-knob" />
+          </span>
+        </button>
+        <button type="button" className="pvd-forfeit" onClick={handleForfeit}>
+          Forfeit Match
+        </button>
+      </div>
+
+      {/* ── Event feed: real strike messages (no fabricated ability lines) ── */}
+      {feed.length > 0 && (
+        <div className="pvd-feed">
+          {feed.map((f, i) => (
+            <div key={i} className={`pvd-feed-line${i === 0 ? ' pvd-feed-line--latest' : ''}`}>
+              {f.text}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ── Center: ANSWER TO STRIKE modal ────────────────────────────────── */}
+      <div className="pvd-modal-wrap">
+        {!question ? (
+          <div className="pvd-modal pvd-modal--waiting">
+            <div className="spinner" />
+            <p className="pvd-waiting-text">Your opponent approaches…</p>
           </div>
+        ) : (
+          <div className="pvd-modal">
+            <div className="pvd-modal-head">
+              <span className="pvd-modal-title">ANSWER TO STRIKE</span>
+              <span className="pvd-modal-clock">{fmtClock(left)}</span>
+            </div>
 
-          {!showingRoundResult && (
-            <Timer
-              key={question.id}
-              timeLimit={timeLimit}
-              active={timerActive}
-              questionId={question.id}
-              onTick={onTick}
-            />
-          )}
-
-          <div className="question-card">
-            {renderStem(question.question)}
+            <div className="pvd-stem">{renderStem(question.question)}</div>
             {question.image_url && (
-              <div className="question-image-wrap">
-                <img
-                  src={question.image_url}
-                  alt="Medical scan"
-                  className="question-image"
-                  onError={e => { e.target.style.display = 'none'; }}
-                />
-              </div>
+              <img
+                src={question.image_url}
+                alt="Medical scan"
+                className="pvd-stem-image"
+                onError={e => { e.target.style.display = 'none'; }}
+              />
             )}
 
-            <div className="options">
+            <div className="pvd-options">
               {question.options.map((opt, i) => {
                 const label   = LABELS[i];
                 const isMine  = myAnswer === label;
@@ -149,61 +194,92 @@ export default function PvpDuelGame({
                 return (
                   <button
                     key={i}
+                    type="button"
                     className={[
-                      'option-btn',
-                      isMine  ? 'selected' : '',
-                      isRight ? 'correct'  : '',
-                      isWrong ? 'wrong'    : '',
+                      'pvd-option',
+                      isMine  ? 'pvd-option--mine'  : '',
+                      isRight ? 'pvd-option--right' : '',
+                      isWrong ? 'pvd-option--wrong' : '',
                     ].join(' ')}
                     onClick={() => onAnswer(label)}
                     disabled={hasAnswered || showingRoundResult}
                   >
-                    <span className="opt-label">{label}</span>
-                    <span className="opt-text">{opt}</span>
+                    <span className="pvd-option-letter">{label}</span>
+                    <span className="pvd-option-text">{opt}</span>
                   </button>
                 );
               })}
             </div>
 
-            {hasAnswered && !showingRoundResult && (
-              <div style={{ display: 'flex', justifyContent: 'center', marginTop: 14 }}>
-                <div className="answer-progress">
-                  <div className="dot" />
-                  <span>Waiting… {answeredCount}/2 answered</span>
+            {!showingRoundResult && (
+              <div className="pvd-modal-foot">
+                {hasAnswered
+                  ? <>Waiting for {oppName}…</>
+                  : <>Answer correctly before {oppName} to land a strike.</>}
+              </div>
+            )}
+
+            {showingRoundResult && roundResults && (
+              <div className={`pvd-result${answerResult?.correct ? ' pvd-result--correct' : ''}`}>
+                <div className="pvd-result-line">
+                  {answerResult && (
+                    <span className={`pvd-result-verdict${answerResult.correct ? ' pvd-result-verdict--correct' : ''}`}>
+                      {answerResult.correct ? '✓ CORRECT' : '✗ WRONG'}
+                    </span>
+                  )}
+                  <span className="pvd-result-strike">
+                    {roundResults.striker
+                      ? (roundResults.striker === username
+                          ? `⚔ You strike ${oppName} for 5 damage!`
+                          : `🛡 ${oppName} strikes you for 5 damage!`)
+                      : 'No strike this round.'}
+                  </span>
+                </div>
+                <div className="pvd-result-expl">
+                  <strong>
+                    Correct answer: {roundResults.correctAnswer}
+                    {question?.options?.[(roundResults.correctAnswer || 'A').charCodeAt(0) - 65]
+                      ? `. ${question.options[(roundResults.correctAnswer || 'A').charCodeAt(0) - 65]}`
+                      : ''}
+                  </strong>
+                  <ExplanationText text={roundResults.explanation} />
                 </div>
               </div>
             )}
           </div>
+        )}
+      </div>
 
-          {showingRoundResult && roundResults && (
-            <div className={`round-result ${answerResult ? (answerResult.correct ? 'correct-bg' : 'wrong-bg') : 'neutral-bg'}`}>
-              {answerResult && (
-                <div className="rr-header">
-                  <span className="rr-icon">{answerResult.correct ? '✅' : '❌'}</span>
-                  <span className={`rr-label ${answerResult.correct ? 'correct' : 'wrong'}`}>
-                    {answerResult.correct ? 'CORRECT!' : 'WRONG!'}
-                  </span>
-                </div>
-              )}
-              <p style={{ fontWeight: 700, margin: '6px 0' }}>
-                {roundResults.striker
-                  ? (roundResults.striker === username
-                      ? '⚔️ You strike first — 5 damage dealt!'
-                      : `🛡 ${roundResults.striker} strikes you for 5 damage!`)
-                  : 'No strike this round — nobody answered correctly first.'}
-              </p>
-              <div className="rr-explanation">
-                <strong>
-                  Correct answer: {roundResults.correctAnswer}
-                  {question?.options?.[(roundResults.correctAnswer || 'A').charCodeAt(0) - 65]
-                    ? `. ${question.options[(roundResults.correctAnswer || 'A').charCodeAt(0) - 65]}`
-                    : ''}
-                </strong>
-                <ExplanationText text={roundResults.explanation} />
-              </div>
-            </div>
-          )}
+      {/* ── Bottom bar: self avatar (no status orbs — no buff system) +
+             inert ability keys per the mockup. No minimap. ─────────────── */}
+      <div className="pvd-bottom">
+        <span className="pvd-avatar pvd-avatar--self pvd-avatar--corner">
+          {user?.avatar_url
+            ? <img src={user.avatar_url} alt="" referrerPolicy="no-referrer" />
+            : avatarLetter(username)}
+        </span>
+
+        <div className="pvd-abilities" aria-label="Abilities — coming soon">
+          <button type="button" className="pvd-ability pvd-ability--teal" disabled title="Abilities coming soon">
+            <span className="pvd-ability-key">1</span>
+            <span className="pvd-ability-name">Heal</span>
+          </button>
+          <button type="button" className="pvd-ability pvd-ability--teal" disabled title="Abilities coming soon">
+            <span className="pvd-ability-key">2</span>
+            <span className="pvd-ability-name">Ward</span>
+          </button>
+          <button type="button" className="pvd-ability pvd-ability--cooldown" disabled title="Abilities coming soon">
+            <span className="pvd-ability-key">4s</span>
+            <span className="pvd-ability-name">Lance</span>
+          </button>
+          <button type="button" className="pvd-ability pvd-ability--ult" disabled title="Abilities coming soon">
+            <span className="pvd-ability-key">R</span>
+            <span className="pvd-ability-name">Ult</span>
+          </button>
         </div>
+
+        {/* right slot intentionally empty: the mockup's minimap is excluded */}
+        <span className="pvd-bottom-spacer" aria-hidden="true" />
       </div>
     </div>
   );

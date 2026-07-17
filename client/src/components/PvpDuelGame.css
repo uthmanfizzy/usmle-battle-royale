@@ -1,0 +1,519 @@
+/* PvpDuelGame — Phase 4c: mockup "PvP Match HUD" treatment (no minimap).
+   Fixed-overlay HUD chassis over a tokenized dark gradient (no fabricated
+   backdrop art). --mv-red = HP/danger, --mv-teal = mana/secondary,
+   --mv-gold = modal accents, Cinzel for names/headers. Static rgba/hex
+   tints only — zero color-mix (project rule). */
+
+.pvd {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  color: #fff;
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  background:
+    radial-gradient(ellipse 70% 50% at 50% 0%, rgba(79, 209, 197, 0.06), transparent 60%),
+    linear-gradient(165deg, var(--mv-bg-base, #101713) 0%, var(--mv-bg-void, #060a07) 60%, #04060a 100%);
+  z-index: 5;
+}
+
+/* ── Avatars ─────────────────────────────────────────────────────────── */
+.pvd-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: rgba(6, 10, 7, 0.6);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mv-font-display, 'Cinzel', serif);
+  font-size: 18px;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.pvd-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.pvd-avatar--self {
+  border: 2px solid var(--mv-gold, #e8b04b);
+  color: var(--mv-gold, #e8b04b);
+}
+
+.pvd-avatar--opp {
+  border: 2px solid #c9ccd1;
+  color: #c9ccd1;
+}
+
+.pvd-avatar--corner {
+  width: 56px;
+  height: 56px;
+  font-size: 20px;
+  background: rgba(6, 10, 7, 0.65);
+}
+
+/* ── Top bar: plates + center timer ──────────────────────────────────── */
+.pvd-top {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  right: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  z-index: 3;
+}
+
+.pvd-plate {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.pvd-plate-info {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.pvd-plate-info--right {
+  align-items: flex-end;
+}
+
+.pvd-plate-name {
+  font-family: var(--mv-font-display, 'Cinzel', serif);
+  font-size: 14px;
+  font-weight: 700;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+  white-space: nowrap;
+}
+
+.pvd-bar {
+  width: 180px;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+
+.pvd-bar--hp   { height: 12px; border: 1px solid rgba(255, 255, 255, 0.2); }
+.pvd-bar--mana { height: 7px;  border: 1px solid rgba(255, 255, 255, 0.15); }
+
+.pvd-bar-fill {
+  height: 100%;
+  transition: width 0.35s ease;
+}
+
+.pvd-bar-fill--hp   { background: var(--mv-red, #c1291e); }
+.pvd-bar-fill--mana { background: var(--mv-teal, #4fd1c5); }
+.pvd-bar-fill--right { margin-left: auto; }
+
+.pvd-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.pvd-center-timer {
+  font-family: var(--mv-font-display, 'Cinzel', serif);
+  font-size: 28px;
+  font-weight: 700;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
+}
+
+.pvd-center-label {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.75);
+  letter-spacing: 0.4px;
+  white-space: nowrap;
+}
+
+/* ── Utility row: sound toggle + forfeit (both REAL) ─────────────────── */
+.pvd-utility {
+  position: fixed;
+  top: 76px;
+  right: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  z-index: 12;
+}
+
+.pvd-sound {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 16px;
+  padding: 6px 14px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.85);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.pvd-sound-track {
+  width: 34px;
+  height: 20px;
+  border-radius: 10px;
+  background: var(--mv-red, #c1291e);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 2px;
+  box-sizing: border-box;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+
+.pvd-sound-track--off {
+  background: rgba(255, 255, 255, 0.2);
+  justify-content: flex-start;
+}
+
+.pvd-sound-knob {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+}
+
+.pvd-forfeit {
+  font-family: var(--mv-font-display, 'Cinzel', serif);
+  font-size: 12px;
+  font-weight: 700;
+  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: rgba(255, 255, 255, 0.8);
+  padding: 7px 16px;
+  border-radius: 16px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
+}
+
+.pvd-forfeit:hover {
+  background: rgba(193, 41, 30, 0.35);
+  color: #fff;
+}
+
+/* ── Event feed (real strike messages) ───────────────────────────────── */
+.pvd-feed {
+  position: fixed;
+  top: 96px;
+  left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  z-index: 3;
+}
+
+.pvd-feed-line {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+
+.pvd-feed-line--latest {
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.pvd-feed-line em {
+  font-style: normal;
+  color: var(--mv-teal, #4fd1c5);
+}
+
+/* ── ANSWER TO STRIKE modal ──────────────────────────────────────────── */
+.pvd-modal-wrap {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  pointer-events: none;
+  padding: 130px 16px 100px;
+  box-sizing: border-box;
+}
+
+.pvd-modal {
+  width: 520px;
+  max-width: 90vw;
+  max-height: 100%;
+  overflow-y: auto;
+  background: rgba(10, 14, 10, 0.92);
+  border: 1.5px solid var(--mv-gold, #e8b04b);
+  box-shadow: 0 0 30px rgba(232, 176, 75, 0.25);
+  border-radius: 10px;
+  padding: 28px 32px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  pointer-events: auto;
+}
+
+.pvd-modal--waiting {
+  align-items: center;
+  padding: 40px 32px;
+}
+
+.pvd-waiting-text {
+  margin: 0;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.pvd-modal-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.pvd-modal-title {
+  font-family: var(--mv-font-display, 'Cinzel', serif);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  color: var(--mv-gold, #e8b04b);
+  white-space: nowrap;
+}
+
+.pvd-modal-clock {
+  font-family: var(--mv-font-display, 'Cinzel', serif);
+  font-size: 18px;
+  font-weight: 900;
+  color: #fff;
+}
+
+.pvd-stem {
+  font-size: 16px;
+  line-height: 1.5;
+  color: #fff;
+}
+
+.pvd-stem-image {
+  max-width: 100%;
+  max-height: 220px;
+  object-fit: contain;
+  border-radius: 6px;
+  align-self: center;
+}
+
+.pvd-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pvd-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 6px;
+  padding: 12px 16px;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.pvd-option:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.pvd-option:disabled {
+  cursor: default;
+}
+
+.pvd-option-letter {
+  font-family: var(--mv-font-display, 'Cinzel', serif);
+  font-size: 13px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.6);
+  flex-shrink: 0;
+}
+
+.pvd-option-text {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+/* Mockup selection state: teal chip + teal tint */
+.pvd-option--mine {
+  background: rgba(79, 209, 197, 0.15);
+  border: 1.5px solid var(--mv-teal, #4fd1c5);
+}
+
+.pvd-option--mine .pvd-option-letter { color: var(--mv-teal, #4fd1c5); }
+.pvd-option--mine .pvd-option-text   { color: #fff; }
+
+/* Resolution states */
+.pvd-option--right {
+  background: rgba(79, 209, 197, 0.18);
+  border: 1.5px solid var(--mv-teal, #4fd1c5);
+}
+
+.pvd-option--right .pvd-option-letter { color: var(--mv-teal, #4fd1c5); }
+
+.pvd-option--wrong {
+  background: rgba(193, 41, 30, 0.18);
+  border: 1.5px solid var(--mv-red, #c1291e);
+}
+
+.pvd-option--wrong .pvd-option-letter { color: var(--mv-red, #c1291e); }
+
+.pvd-modal-foot {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+  text-align: center;
+}
+
+/* Round resolution inside the modal */
+.pvd-result {
+  border-top: 1px solid rgba(193, 41, 30, 0.4);
+  padding-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pvd-result--correct {
+  border-top-color: rgba(79, 209, 197, 0.4);
+}
+
+.pvd-result-line {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.pvd-result-verdict {
+  font-family: var(--mv-font-display, 'Cinzel', serif);
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 0.6px;
+  color: var(--mv-red, #c1291e);
+  white-space: nowrap;
+}
+
+.pvd-result-verdict--correct {
+  color: var(--mv-teal, #4fd1c5);
+}
+
+.pvd-result-strike {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.pvd-result-expl {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.8);
+  line-height: 1.5;
+}
+
+.pvd-result-expl strong {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--mv-gold, #e8b04b);
+}
+
+/* ── Bottom bar: corner avatar + inert ability keys (no minimap) ─────── */
+.pvd-bottom {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  right: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 12px;
+  z-index: 3;
+}
+
+.pvd-abilities {
+  display: flex;
+  gap: 10px;
+}
+
+/* Inert per the established coming-soon convention: dimmed, not-allowed
+   cursor, tooltip — visually the mockup's key row, functionally nothing */
+.pvd-ability {
+  width: 56px;
+  height: 56px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  font-family: inherit;
+  opacity: 0.65;
+  cursor: not-allowed;
+  pointer-events: auto;
+}
+
+.pvd-ability--teal {
+  background: rgba(6, 10, 7, 0.6);
+  border: 1.5px solid var(--mv-teal, #4fd1c5);
+  box-shadow: 0 0 12px rgba(79, 209, 197, 0.4);
+}
+
+.pvd-ability--cooldown {
+  background: rgba(0, 0, 0, 0.65);
+  border: 1.5px solid rgba(255, 255, 255, 0.2);
+}
+
+.pvd-ability--ult {
+  background: rgba(193, 41, 30, 0.25);
+  border: 1.5px solid var(--mv-red, #c1291e);
+  box-shadow: 0 0 12px rgba(193, 41, 30, 0.4);
+}
+
+.pvd-ability-key {
+  font-family: var(--mv-font-display, 'Cinzel', serif);
+  font-size: 18px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.pvd-ability--cooldown .pvd-ability-key {
+  font-size: 20px;
+  font-weight: 900;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.pvd-ability-name {
+  position: absolute;
+  bottom: 3px;
+  right: 5px;
+  font-size: 9px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.pvd-bottom-spacer {
+  width: 56px;
+}
+
+/* ── Small screens ───────────────────────────────────────────────────── */
+@media (max-width: 700px) {
+  .pvd-bar { width: 120px; }
+  .pvd-plate-name { font-size: 12px; }
+  .pvd-center-timer { font-size: 22px; }
+  .pvd-avatar { width: 40px; height: 40px; font-size: 15px; }
+  .pvd-utility { top: 130px; }
+  .pvd-feed { top: 150px; }
+  .pvd-modal { padding: 20px 18px; }
+  .pvd-modal-wrap { padding: 175px 10px 90px; }
+  .pvd-ability { width: 46px; height: 46px; }
+  .pvd-avatar--corner { width: 46px; height: 46px; }
+}
