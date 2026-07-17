@@ -11,6 +11,7 @@ const GAME_MODES = [
     name: 'BATTLE ROYALE',
     icon: '💀',
     shortDesc: 'Last doctor standing wins',
+    meta: 'Multiplayer',
     longDescription: 'Drop into the medical arena. Wrong answers cost lives. Outlast every other player through skill and knowledge. Strategy and speed will lead you to victory.',
     supportsSolo: false,
   },
@@ -19,6 +20,7 @@ const GAME_MODES = [
     name: 'SPEED RACE',
     icon: '🏁',
     shortDesc: 'First to 20 correct answers wins',
+    meta: 'Multiplayer',
     longDescription: 'Race against the clock and your opponents. Answer 20 questions correctly as fast as possible. No lives lost, just pure speed and accuracy.',
     supportsSolo: false,
   },
@@ -27,6 +29,7 @@ const GAME_MODES = [
     name: 'TRIVIA PURSUIT',
     icon: '🎯',
     shortDesc: 'Collect all 6 subject wedges',
+    meta: 'Multiplayer',
     longDescription: 'Take turns answering questions across 6 medical subjects. Earn a wedge for each correct answer. First player to collect all 6 subject wedges wins the game.',
     supportsSolo: false,
   },
@@ -35,6 +38,7 @@ const GAME_MODES = [
     name: 'SCAN MASTER',
     icon: '🔬',
     shortDesc: 'Identify conditions from medical images',
+    meta: 'Multiplayer',
     longDescription: 'Study real medical images including ECGs, X-rays, histology slides, and dermatology photos. Last doctor standing wins through visual diagnosis mastery.',
     supportsSolo: false,
   },
@@ -43,14 +47,18 @@ const GAME_MODES = [
     name: 'BUZZ FUN',
     icon: '⚡',
     shortDesc: 'Buzzwords, triads & classic HY facts',
+    meta: 'Multiplayer',
     longDescription: 'Fast-paced flash cards of buzzwords, triads, side effects and classic high-yield associations. 8 seconds each — fast answers earn bonus points!',
     supportsSolo: false,
   },
   {
+    // Real, live 1v1 mode (Phase 4a). Card copy follows the Deploy mockup's
+    // "PvP Arenas" treatment; kept ALL-CAPS to match the five sibling names.
     id: 'pvp_duel',
-    name: 'PVP DUEL',
+    name: 'PVP ARENAS',
     icon: '⚔️',
-    shortDesc: '1v1 — first correct answer strikes',
+    shortDesc: 'Duel rival healers in ranked combat.',
+    meta: '1V1',
     longDescription: 'Face a single opponent in a duel of knowledge. Both of you see the same question — whoever answers correctly first strikes the other for 5 damage. Reduce your rival from 100 HP to zero to claim victory. The duel begins the moment your opponent arrives.',
     supportsSolo: false,
   },
@@ -94,10 +102,21 @@ export default function PlayPage({
   const [recentPlayersOnline, setRecentPlayersOnline] = useState([]);
   const [loadingInvites, setLoadingInvites] = useState(false);
   const [inviteSent, setInviteSent] = useState({});
+  const [ownedGear, setOwnedGear] = useState([]);
+  const [gearLoading, setGearLoading] = useState(false);
 
   const selectedModeData = GAME_MODES.find(m => m.id === selectedMode)
     || STORY_MODES.find(m => m.id === selectedMode)
     || GAME_MODES[0];
+
+  // PvP Duel is 1v1-only today, so Duo/Squad party sizes don't apply to it.
+  const duelSelected = selectedMode === 'pvp_duel';
+
+  // Keep the (UI-only) squad size honest for the duel: force Solo when the
+  // 1v1 mode is selected so a stale Duo/Squad choice can't linger visually.
+  useEffect(() => {
+    if (duelSelected && squadSize !== 'solo') setSquadSize('solo');
+  }, [duelSelected, squadSize]);
 
   // Fetch game modes, exam boards configs, and background image
   useEffect(() => {
@@ -163,6 +182,24 @@ export default function PlayPage({
       }
     }
     if (user) loadRecentPlayers();
+  }, [user]);
+
+  // Fetch owned gear for the read-only Loadout bar (real Shop endpoint).
+  // Gear is collection-only — it has no gameplay effect (locked decision).
+  useEffect(() => {
+    async function loadGear() {
+      if (!user?.id) { setOwnedGear([]); return; }
+      setGearLoading(true);
+      try {
+        const res = await authFetch(`/api/users/${user.id}/gear`);
+        const data = await res.json();
+        setOwnedGear(Array.isArray(data.gear) ? data.gear : []);
+      } catch {
+        setOwnedGear([]);
+      }
+      setGearLoading(false);
+    }
+    loadGear();
   }, [user]);
 
   // Season countdown timer (6 days from now)
@@ -309,6 +346,7 @@ export default function PlayPage({
                   <div className="mode-list-info">
                     <h4>{mode.name}</h4>
                     <p>{!isEnabled ? 'Coming Soon' : mode.shortDesc}</p>
+                    {isEnabled && mode.meta && <span className="mode-list-meta">{mode.meta}</span>}
                   </div>
                 </div>
               );
@@ -457,18 +495,25 @@ export default function PlayPage({
                       👤 SOLO
                     </button>
                     <button
-                      className={squadSize === 'duo' ? 'squad-btn active' : 'squad-btn'}
-                      onClick={() => setSquadSize('duo')}
+                      className={`${squadSize === 'duo' ? 'squad-btn active' : 'squad-btn'}${duelSelected ? ' squad-btn--soon' : ''}`}
+                      onClick={() => !duelSelected && setSquadSize('duo')}
+                      disabled={duelSelected}
+                      title={duelSelected ? 'PvP Arenas is 1v1 only — coming soon' : ''}
                     >
-                      👥 DUO
+                      {duelSelected ? '🔒 DUO' : '👥 DUO'}
                     </button>
                     <button
-                      className={squadSize === 'squad' ? 'squad-btn active' : 'squad-btn'}
-                      onClick={() => setSquadSize('squad')}
+                      className={`${squadSize === 'squad' ? 'squad-btn active' : 'squad-btn'}${duelSelected ? ' squad-btn--soon' : ''}`}
+                      onClick={() => !duelSelected && setSquadSize('squad')}
+                      disabled={duelSelected}
+                      title={duelSelected ? 'PvP Arenas is 1v1 only — coming soon' : ''}
                     >
-                      👥 SQUAD (4)
+                      {duelSelected ? '🔒 SQUAD' : '👥 SQUAD (4)'}
                     </button>
                   </div>
+                  {duelSelected && (
+                    <p className="squad-note">PvP Arenas is 1v1 — Duo & Squad coming soon.</p>
+                  )}
                 </div>
 
                 <div className="fill-team-section">
@@ -503,6 +548,24 @@ export default function PlayPage({
               </div>
             ) : (
               <>
+                {/* LOADOUT BAR — read-only. Gear is collection-only and has no
+                    gameplay effect (locked decision), so "Change Loadout" points
+                    at the Shop, the closest real, honest destination. */}
+                <div className="loadout-bar">
+                  <div className="loadout-thumb" aria-hidden="true" />
+                  <div className="loadout-info">
+                    <span className="loadout-items">
+                      {gearLoading
+                        ? 'Loading loadout…'
+                        : ownedGear.length > 0
+                          ? ownedGear.slice(0, 3).map(g => g.name).join(' · ')
+                          : 'No gear collected yet'}
+                    </span>
+                    <span className="loadout-label">Current loadout</span>
+                  </div>
+                  <a className="loadout-change" href="/shop">Change Loadout →</a>
+                </div>
+
                 <div className="lobby-actions">
 
                   {/* CREATE LOBBY - full width */}
