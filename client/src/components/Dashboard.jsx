@@ -1566,7 +1566,8 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
                 navigation lives in the left nav column + this dock).
                 Inventory/Heroes/Shop/Events are unbuilt features: disabled
                 coming-soon tiles (ms-ribbon treatment, dock-sized). Quests
-                and the Daily Reward pill jump to the existing widgets. */}
+                routes to the standalone /quests page; the Daily Reward pill
+                jumps to the existing Rewards widget. */}
             <div className="dash-dock">
               <div className="dash-dock-items">
                 <div className="dash-dock-item dash-dock-item--soon" aria-disabled="true">
@@ -1584,8 +1585,8 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
                 <button
                   type="button"
                   className="dash-dock-item"
-                  onClick={() => revealHomeWidget('dash-quests-widget')}
-                  title="Daily Quests"
+                  onClick={() => { window.location.href = '/quests'; }}
+                  title="Quests"
                 >
                   <span className="dash-dock-tile">⚔️</span>
                   <span className="dash-dock-label">QUESTS</span>

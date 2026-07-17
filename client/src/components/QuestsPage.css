@@ -1,0 +1,369 @@
+/* QuestsPage — standalone /quests route (Phase C). Own lazy chunk:
+   Dashboard.css never loads here, so everything is self-scoped (same
+   precedent as SettingsPage/ProgressPage). Built on the shared --mv-*
+   tokens; tints are static rgba values, no color-mix. */
+
+.qp {
+  min-height: 100vh;
+  background: var(--mv-bg-void);
+  color: var(--mv-text);
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  padding: clamp(16px, 4vw, 28px) clamp(16px, 5vw, 36px);
+  box-sizing: border-box;
+  overflow-x: hidden;
+}
+
+/* ── Top bar: wordmark + currency + avatar ───────────────────────────── */
+.qp-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 30px;
+}
+
+.qp-wordmark {
+  font-family: var(--mv-font-display);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: var(--mv-text);
+  text-decoration: none;
+}
+
+.qp-topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.qp-currency {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 20px;
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.qp-currency-divider {
+  width: 1px;
+  height: 14px;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.qp-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mv-font-display);
+  font-size: 14px;
+  color: var(--mv-gold);
+  flex-shrink: 0;
+}
+
+.qp-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* ── Back pill (same glass treatment as /settings) ───────────────────── */
+.qp-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.85);
+  padding: 8px 16px 8px 12px;
+  border-radius: 20px;
+  cursor: pointer;
+  margin-bottom: 22px;
+  transition: background 0.15s;
+}
+
+.qp-back:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* ── Column + title ──────────────────────────────────────────────────── */
+.qp-col {
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.qp-title {
+  font-family: var(--mv-font-display);
+  font-size: 34px;
+  font-weight: 700;
+  margin: 0 0 18px;
+  color: var(--mv-text);
+}
+
+/* ── Tabs row: red-pill tabs (Phase B treatment) + reset countdown ───── */
+.qp-tabs-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+
+.qp-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.qp-tab {
+  padding: 9px 18px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  color: rgba(255, 255, 255, 0.75);
+  font-family: 'Cinzel', serif;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.qp-tab:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+}
+
+/* !important mirrors Phase B's .lb-tab--active: without it the
+   equal-or-higher-specificity :hover rule strips the active fill */
+.qp-tab--active {
+  background: rgba(193, 41, 30, 0.25) !important;
+  border: 1px solid var(--mv-red) !important;
+  color: #ffffff !important;
+}
+
+.qp-reset {
+  font-family: 'Cinzel', serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--mv-gold);
+}
+
+/* ── Quest cards ─────────────────────────────────────────────────────── */
+.qp-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.qp-empty {
+  text-align: center;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 14px;
+  padding: 40px 0;
+}
+
+.qp-quest {
+  background: var(--mv-glass);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 16px 18px;
+}
+
+.qp-quest--done {
+  border-color: rgba(232, 176, 75, 0.45);
+  background: rgba(232, 176, 75, 0.06);
+}
+
+.qp-quest-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
+/* 44px letter-circle (or admin-set icon image) */
+.qp-quest-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(193, 41, 30, 0.2);
+  border: 1px solid rgba(193, 41, 30, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mv-font-display);
+  font-size: 18px;
+  font-weight: 700;
+  color: #ffffff;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.qp-quest--done .qp-quest-icon {
+  background: rgba(232, 176, 75, 0.18);
+  border-color: rgba(232, 176, 75, 0.6);
+  color: var(--mv-gold);
+}
+
+.qp-quest-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.qp-quest-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.qp-quest-name {
+  font-family: var(--mv-font-display);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--mv-text);
+}
+
+.qp-quest-desc {
+  font-size: 12.5px;
+  color: rgba(255, 255, 255, 0.6);
+  line-height: 1.45;
+}
+
+.qp-quest-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  flex-shrink: 0;
+  text-align: right;
+}
+
+.qp-quest-reward {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.85);
+  white-space: nowrap;
+}
+
+/* Celebratory gold badge — rewards already auto-awarded server-side,
+   so this is a state marker, never a button */
+.qp-claimed {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: 'Cinzel', serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #1a1400;
+  background: var(--mv-gold);
+  border-radius: 12px;
+  padding: 4px 12px;
+  box-shadow: 0 0 12px rgba(232, 176, 75, 0.45);
+}
+
+.qp-inprogress {
+  font-family: 'Cinzel', serif;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: rgba(255, 255, 255, 0.5);
+  text-transform: uppercase;
+}
+
+/* Progress bar: red while working, gold when complete */
+.qp-bar {
+  height: 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.qp-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  background: var(--mv-red);
+  transition: width 0.3s ease;
+}
+
+.qp-bar-fill--done {
+  background: var(--mv-gold);
+  box-shadow: 0 0 10px rgba(232, 176, 75, 0.5);
+}
+
+.qp-bar-label {
+  display: block;
+  margin-top: 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+/* ── Weekly coming-soon state ────────────────────────────────────────── */
+.qp-soon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+  padding: 56px 20px;
+  background: var(--mv-glass);
+  border: 1px dashed rgba(232, 176, 75, 0.4);
+  border-radius: 12px;
+}
+
+.qp-soon-icon {
+  font-size: 40px;
+}
+
+.qp-soon-title {
+  font-family: var(--mv-font-display);
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0;
+  color: var(--mv-gold);
+}
+
+.qp-soon-sub {
+  margin: 0;
+  font-size: 13.5px;
+  color: rgba(255, 255, 255, 0.6);
+  max-width: 380px;
+  line-height: 1.5;
+}
+
+/* ── Mobile ──────────────────────────────────────────────────────────── */
+@media (max-width: 520px) {
+  .qp-quest-main {
+    flex-wrap: wrap;
+  }
+
+  .qp-quest-side {
+    text-align: left;
+    width: 100%;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
+}
