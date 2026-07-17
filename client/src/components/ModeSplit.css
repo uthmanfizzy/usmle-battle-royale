@@ -88,9 +88,9 @@ body:has(.ms-screen) .home-btn:hover {
   font-weight: 700;
   font-size: 38px;
   letter-spacing: 0.18em;
-  color: #c8a32c;
+  color: var(--mv-gold);
   margin: 0 0 12px;
-  text-shadow: 0 2px 14px rgba(200, 163, 44, 0.5);
+  text-shadow: 0 2px 14px rgba(232, 176, 75, 0.5);
 }
 
 .ms-tagline {
@@ -181,7 +181,7 @@ body:has(.ms-screen) .home-btn:hover {
   height: 2px;
   margin: 0 auto;
   width: 260px;
-  background: linear-gradient(90deg, transparent, rgba(200, 163, 44, 0.9), transparent);
+  background: linear-gradient(90deg, transparent, rgba(232, 176, 75, 0.9), transparent);
   transform-origin: center;
   animation: ms-rule-sweep 0.5s 0.25s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
@@ -217,27 +217,26 @@ body:has(.ms-screen) .home-btn:hover {
   transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
 }
 
-/* Hover: lift + gold glow (tg-action-card DNA) */
+/* Hover: lift + brightened gold border/glow (reuses the app's established
+   gold-hover pattern — cf. PlayPage .training-entry-card:hover) */
 .ms-card:hover {
   transform: translateY(-8px);
-  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.55), 0 0 28px rgba(200, 163, 44, 0.3);
+  border-color: var(--mv-gold);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.55), 0 0 28px rgba(232, 176, 75, 0.3);
 }
 
+/* Story + Online are equal-weight glass cards (same treatment as the
+   Dashboard nav cards); only the entrance-slide direction differs. */
 .ms-card--story {
-  background: linear-gradient(160deg, rgba(18, 30, 16, 0.92), rgba(8, 14, 8, 0.96));
-  border: 2px solid rgba(200, 163, 44, 0.55);
+  background: var(--mv-glass);
+  border: 2px solid var(--mv-border-gold);
   animation: ms-card-left 0.45s 0.15s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
-.ms-card--story:hover { border-color: rgba(241, 196, 15, 0.95); }
 
 .ms-card--online {
-  background: linear-gradient(160deg, rgba(38, 16, 12, 0.92), rgba(14, 8, 6, 0.96));
-  border: 2px solid rgba(220, 90, 60, 0.55);
+  background: var(--mv-glass);
+  border: 2px solid var(--mv-border-gold);
   animation: ms-card-right 0.45s 0.27s cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-.ms-card--online:hover {
-  border-color: rgba(241, 196, 15, 0.95);
-  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.55), 0 0 28px rgba(220, 90, 60, 0.35);
 }
 
 @keyframes ms-card-left {
@@ -260,11 +259,8 @@ body:has(.ms-screen) .home-btn:hover {
   font-size: 26px;
   font-weight: 700;
   letter-spacing: 0.14em;
-  color: #ffffff;
+  color: var(--mv-gold);
 }
-
-.ms-card--story  .ms-card-name { color: #e8d48a; }
-.ms-card--online .ms-card-name { color: #f0b9a0; }
 
 .ms-card-sub {
   font-size: 13px;
@@ -295,15 +291,17 @@ body:has(.ms-screen) .home-btn:hover {
   cursor: pointer;
   font-family: 'Cinzel', serif;
   text-align: left;
-  background: linear-gradient(150deg, rgba(12, 34, 40, 0.94), rgba(8, 20, 30, 0.96));
-  border: 2px solid rgba(56, 178, 195, 0.55);
+  background: var(--mv-glass);
+  /* Teal secondary accent, sourced from --mv-teal (#4fd1c5 → rgb 79,209,197)
+     at the same border weight the two cards above use for gold. */
+  border: 2px solid rgba(79, 209, 197, 0.35);
   transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
   animation: ms-card-up 0.45s 0.39s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 .ms-train:hover {
   transform: translateY(-6px);
-  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.55), 0 0 28px rgba(56, 178, 195, 0.4);
-  border-color: rgba(94, 220, 235, 0.95);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.55), 0 0 28px rgba(79, 209, 197, 0.4);
+  border-color: var(--mv-teal);
 }
 
 .ms-train-icon {
@@ -317,7 +315,7 @@ body:has(.ms-screen) .home-btn:hover {
   font-size: 21px;
   font-weight: 700;
   letter-spacing: 0.14em;
-  color: #8fe3ee;
+  color: var(--mv-teal);
 }
 .ms-train-sub {
   font-size: 12px;
