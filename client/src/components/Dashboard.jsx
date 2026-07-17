@@ -1561,8 +1561,9 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
               }
             />
 
-            {/* Bottom dock band (mockup's third band). Coexists with — does
-                not replace — the persistent .bottom-nav pill below it.
+            {/* Bottom dock band (mockup's third band) — the sole bottom-of-
+                screen furniture (the old persistent .bottom-nav pill is gone;
+                navigation lives in the left nav column + this dock).
                 Inventory/Heroes/Shop/Events are unbuilt features: disabled
                 coming-soon tiles (ms-ribbon treatment, dock-sized). Quests
                 and the Daily Reward pill jump to the existing widgets. */}
@@ -1611,61 +1612,25 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
             </div>
           </>
         )}
-        {dashTab === 'leaderboard'   && <LeaderboardSection userId={user.id} user={user} />}
-        {dashTab === 'clans'         && <ClansPage user={user} />}
+        {/* Mockup back convention: an explicit pill back to Home on the two
+            full-page tabs, floated over the section's own header clearance */}
+        {dashTab === 'leaderboard' && (
+          <div className="dash-tab-wrap">
+            <button type="button" className="dash-back-pill" onClick={() => setDashTab('home')}>
+              ← Back to Dashboard
+            </button>
+            <LeaderboardSection userId={user.id} user={user} />
+          </div>
+        )}
+        {dashTab === 'clans' && (
+          <div className="dash-tab-wrap">
+            <button type="button" className="dash-back-pill" onClick={() => setDashTab('home')}>
+              ← Back to Dashboard
+            </button>
+            <ClansPage user={user} />
+          </div>
+        )}
         {dashTab === 'announcements' && <AnnouncementsSection />}
-
-        {/* Bottom Navigation */}
-        <div className="bottom-nav">
-          <div
-            className={`nav-item ${dashTab === 'home' ? 'nav-item--active' : ''}`}
-            onClick={() => setDashTab('home')}
-          >
-            {homeImages.icon_home && (
-              <img loading="lazy" src={homeImages.icon_home} className="nav-icon" alt="Home" />
-            )}
-            <span className="nav-label">HOME</span>
-          </div>
-          <div className="nav-divider" />
-          <div
-            className={`nav-item nav-item--leaderboards ${dashTab === 'leaderboard' ? 'nav-item--active' : ''}`}
-            onClick={() => setDashTab('leaderboard')}
-          >
-            {homeImages.icon_leaderboards && (
-              <img loading="lazy" src={homeImages.icon_leaderboards} className="nav-icon nav-icon--leaderboards" alt="Leaderboards" />
-            )}
-            <span className="nav-label">LEADERBOARDS</span>
-          </div>
-          <div className="nav-divider" />
-          <div
-            className={`nav-item ${dashTab === 'clans' ? 'nav-item--active' : ''}`}
-            onClick={() => setDashTab('clans')}
-          >
-            {homeImages.icon_clans && (
-              <img loading="lazy" src={homeImages.icon_clans} className="nav-icon" alt="Clans" />
-            )}
-            <span className="nav-label">CLANS</span>
-          </div>
-          <div className="nav-divider" />
-          <div
-            className={`nav-item ${dashTab === 'announcements' ? 'nav-item--active' : ''}`}
-            onClick={handleAnnouncementsTab}
-            style={{ position: 'relative' }}
-          >
-            {unreadCount > 0 && <span className="ann-unread-dot" />}
-            {homeImages.icon_news && (
-              <img loading="lazy" src={homeImages.icon_news} className="nav-icon" alt="News" />
-            )}
-            <span className="nav-label">NEWS</span>
-          </div>
-          <div className="nav-divider" />
-          <div className="nav-item nav-item--play" onClick={onPlayNow}>
-            {homeImages.icon_play && (
-              <img loading="lazy" src={homeImages.icon_play} className="nav-icon" alt="Play" />
-            )}
-            <span className="nav-label">PLAY</span>
-          </div>
-        </div>
       </div>
     </div>
   );

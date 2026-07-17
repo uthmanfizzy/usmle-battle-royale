@@ -441,10 +441,10 @@
    grid and its overflow clamp are gone; #root scrolls as usual). */
 .dash-main {
   /* flex-basis MUST stay auto: `flex: 1` (basis 0%) sized this box to the
-     leftover viewport height instead of its content, which parked the dock
-     behind the fixed .bottom-nav at first paint while the content painted
-     past it. Basis auto = box grows from content; grow:1 still pushes the
-     dock to the viewport bottom when content is short. */
+     leftover viewport height instead of its content, which misplaced the
+     dock at first paint while the content painted past it. Basis auto =
+     box grows from content; grow:1 still pushes the dock to the viewport
+     bottom when content is short. */
   flex: 1 0 auto;
   padding: 120px 28px 24px;
   display: flex;
@@ -898,12 +898,13 @@
 /* ── Bottom dock band (mockup band 3) ────────────────────────────────────────
    Sticky at the viewport bottom on desktop so the band is visible from first
    paint, like the mockup's persistent HUD row. It keeps its normal-flow slot
-   (after .dash-main) and un-sticks into it at scroll end; bottom: 104px =
-   .bottom-nav pill height (90px) + gap, so it can never overlap the pill.
-   The gradient keeps the tiles legible while content scrolls beneath. */
+   (after .dash-main) and un-sticks into it at scroll end. Bottom: 0 — the old
+   .bottom-nav pill this used to clear (104px) is gone; the dock is now the
+   true bottom of the screen. The gradient keeps the tiles legible while
+   content scrolls beneath. */
 .dash-dock {
   position: sticky;
-  bottom: 104px;
+  bottom: 0;
   z-index: 40;
   display: flex;
   flex-wrap: wrap;
@@ -911,7 +912,7 @@
   align-items: center;
   gap: 16px;
   max-width: 1400px;
-  margin: 0 auto 110px;
+  margin: 0 auto;
   width: 100%;
   box-sizing: border-box;
   padding: 10px 28px;
@@ -1040,13 +1041,13 @@
 }
 
 /* ≤1024px: dock returns to plain flow (a stuck dock + full-width reward pill
-   would eat ~28% of a phone viewport above the nav bar); margin-bottom keeps
-   its scroll-end position clear of the full-width 70px mobile .bottom-nav. */
+   would eat ~28% of a phone viewport); small margin-bottom now that no
+   fixed bar sits below it. */
 @media (max-width: 1024px) {
   .dash-dock {
     position: static;
     padding: 4px 16px;
-    margin-bottom: 100px;
+    margin-bottom: 16px;
     justify-content: center;
     background: none;
   }
@@ -1602,130 +1603,61 @@
 }
 
 /* ══════════════════════════════════════════════════════════════════════════════
-   BOTTOM NAVIGATION BAR
+   FULL-PAGE TAB CHROME (Leaderboards / Clans)
    ══════════════════════════════════════════════════════════════════════════════ */
-.bottom-nav {
-  position: fixed;
-  bottom: 0;
-  left: 50% !important;
-  transform: translateX(-50%) !important;
-  width: auto !important;
-  min-width: 0 !important;
-  max-width: fit-content !important;
-  right: auto !important;
-  z-index: 200;
-  display: flex;
-  align-items: stretch;
-  justify-content: center;
-  background: var(--mv-glass-strong);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border-top: 1px solid var(--mv-border-gold);
-  border-left: 1px solid var(--mv-border-gold);
-  border-right: 1px solid var(--mv-border-gold);
-  border-radius: 12px 12px 0 0;
-  height: 90px;
-  padding: 0;
-  overflow: visible !important;
+/* Explicit route back to Home on the full-page tabs (mockup back-pill
+   convention). The wrapper owns the fixed-header clearance (same ladder the
+   sections used); the pill renders in flow in its own band, and the sections'
+   own header-clearance padding is neutralized inside the wrapper so heights
+   don't double up. */
+.dash-tab-wrap {
+  padding-top: 104px;
 }
 
-.nav-item {
-  display: flex;
-  flex-direction: column;
+.dash-back-pill {
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
   gap: 6px;
-  padding: 0 40px;
+  margin: 0 0 4px 24px;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid var(--mv-border-gold);
+  color: var(--mv-gold);
+  padding: 8px 16px 8px 12px;
+  border-radius: 20px;
   cursor: pointer;
-  position: relative;
-  transition: background 0.2s;
-  overflow: visible !important;
-  /* Lighter than --mv-glass: idle tabs sit ON the glass-strong bar and need
-     to read as a distinct teal-glass surface, not blend to black */
-  background: rgba(45, 68, 78, 0.75);
+  transition: background 0.15s;
 }
 
-.nav-item::before,
-.nav-item::after {
-  content: '';
-  position: absolute;
-  width: 8px;
-  height: 8px;
-  border-color: var(--mv-gold-dim);
-  border-style: solid;
+.dash-back-pill:hover {
+  background: rgba(232, 176, 75, 0.18);
 }
 
-.nav-item::before {
-  top: 8px;
-  left: 8px;
-  border-width: 1px 0 0 1px;
+/* Neutralize the sections' own fixed-header clearance inside the wrapper
+   (!important where the sections' responsive rules use it themselves) */
+.dash-tab-wrap .lb-page {
+  min-height: 0;
+  padding-top: 0 !important; /* its ≤768 padding shorthand is !important */
 }
 
-.nav-item::after {
-  bottom: 8px;
-  right: 8px;
-  border-width: 0 1px 1px 0;
+.dash-tab-wrap .clan-page {
+  padding-top: 12px !important;
+  min-height: 0;
 }
 
-.nav-item--active {
-  background: var(--mv-red);
-  border: 1px solid var(--mv-gold-dim);
-}
+@media (max-width: 600px) {
+  /* Phones: the fixed header's icon bubbles stack to ~165px on the right,
+     same clearance .dash-main / .clan-page used */
+  .dash-tab-wrap {
+    padding-top: 170px;
+  }
 
-.nav-item--active::before,
-.nav-item--active::after {
-  border-color: var(--mv-gold);
-}
-
-.nav-item--active .nav-label {
-  color: #ffffff;
-}
-
-.nav-item--play {
-  /* CTA stays visually distinct from idle tabs (glass) and the active tab (red) */
-  background: rgb(34, 77, 72);
-  border: 1px solid var(--mv-teal);
-  padding: 0 50px;
-  min-width: 150px;
-}
-
-.nav-item--play .nav-label {
-  color: #ffffff;
-}
-
-.nav-icon {
-  width: 72px !important;
-  height: 72px !important;
-  object-fit: contain !important;
-  margin: -12px 0 !important;
-  position: relative !important;
-  z-index: 1 !important;
-  pointer-events: none !important;
-  flex-shrink: 0 !important;
-}
-
-/* Leaderboards icon is smaller (reduced by 1.5x) */
-.nav-icon--leaderboards {
-  width: 54px !important;
-  height: 54px !important;
-  margin: -8px 0 !important;
-}
-
-.nav-label {
-  font-family: 'Cinzel', serif;
-  font-weight: 700;
-  font-size: 11px;
-  letter-spacing: 0.12em;
-  color: var(--mv-text-dim-85);
-  text-transform: uppercase;
-}
-
-.nav-divider {
-  width: 1px;
-  background: rgba(232, 176, 75, 0.2);
-  margin: 16px 0;
-  align-self: stretch;
-  flex-shrink: 0;
+  .dash-back-pill {
+    margin-left: 12px;
+  }
 }
 
 .ann-unread-dot {
@@ -2158,13 +2090,6 @@
     padding: 16px;
   }
 
-  .dash-nav {
-    height: 64px;
-  }
-
-  .dash-nav-btn .nav-label {
-    font-size: 9px;
-  }
 }
 
 /* ══════════════════════════════════════════════════════════════════════════════
@@ -3469,53 +3394,6 @@
     height: 32px !important;
   }
 
-  /* BOTTOM NAV - FULL WIDTH on mobile */
-  .bottom-nav {
-    height: 70px !important;
-    left: 0 !important;
-    right: 0 !important;
-    transform: none !important;
-    width: 100vw !important;
-    max-width: 100vw !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    border-radius: 0 !important;
-    border-left: none !important;
-    border-right: none !important;
-    box-sizing: border-box !important;
-  }
-
-  .nav-item {
-    flex: 1 !important;
-    padding: 0 2px !important;
-  }
-
-  .nav-item--play {
-    flex: 1.4 !important;
-  }
-
-  .nav-divider {
-    display: none !important;
-  }
-
-  .nav-icon {
-    width: 42px !important;
-    height: 42px !important;
-    margin: -7px 0 !important;
-  }
-
-  /* Leaderboards icon smaller on mobile */
-  .nav-icon--leaderboards {
-    width: 28px !important;
-    height: 28px !important;
-    margin: -4px 0 !important;
-  }
-
-  .nav-label {
-    font-size: 8px !important;
-    letter-spacing: 0.03em !important;
-  }
-
   /* PARTY BAR on mobile */
   .party-bar {
     bottom: 70px !important;
@@ -3656,31 +3534,6 @@
   .modes-grid,
   .game-mode-grid {
     grid-template-columns: 1fr !important;
-  }
-
-  .bottom-nav {
-    height: 60px !important;
-  }
-
-  .nav-label {
-    font-size: 7px !important;
-  }
-
-  .nav-icon {
-    width: 36px !important;
-    height: 36px !important;
-    margin: -6px 0 !important;
-  }
-
-  /* Leaderboards icon smaller on small mobile */
-  .nav-icon--leaderboards {
-    width: 24px !important;
-    height: 24px !important;
-    margin: -4px 0 !important;
-  }
-
-  .nav-item {
-    padding: 0 2px !important;
   }
 
   .party-bar {
