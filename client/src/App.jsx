@@ -431,6 +431,15 @@ export default function App() {
     redirectToGoogle();
   }
 
+  // Landing "Enter" (logged-out) → show the styled sign-in card (UsernameEntry)
+  // so the visitor can pick Google or Guest, instead of jumping straight to
+  // Google OAuth. Reuses the existing 'entry' phase (same card the auth_error /
+  // logout / logged-out ?play deep-links already land on).
+  function handleShowSignIn() {
+    setError('');
+    setPhase('entry');
+  }
+
   function handleLogout() {
     clearToken();
     setUser(null);
@@ -786,7 +795,7 @@ export default function App() {
       )}
 
       {phase === 'landing' && (
-        <RouteErrorBoundary name="LandingPage"><LandingPage onSignIn={handleGoogleLogin} /></RouteErrorBoundary>
+        <RouteErrorBoundary name="LandingPage"><LandingPage onSignIn={handleShowSignIn} /></RouteErrorBoundary>
       )}
 
       {phase === 'loading' && (
