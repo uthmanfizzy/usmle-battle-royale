@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import './ClansPage.css';
 import CreateClanModal from './CreateClanModal';
 import BrowseClansModal from './BrowseClansModal';
@@ -6,60 +6,53 @@ import ClanSettingsModal from './ClanSettingsModal';
 
 const SERVER_URL = 'https://usmle-battle-royale-production.up.railway.app';
 
+// Roles come back in mixed casing / legacy names; normalize to the three real
+// display roles (Elder is the real name — NOT "Officer", per an earlier decision).
+const ROLE_ORDER = { Leader: 0, Elder: 1, Member: 2 };
+function normalizeRole(r) {
+  const s = (r || '').toLowerCase();
+  if (s === 'leader' || s === 'owner') return 'Leader';
+  if (s === 'elder' || s === 'officer') return 'Elder';
+  return 'Member';
+}
+
 export default function ClansPage({ user }) {
   const [clan, setClan] = useState(null);
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('members');
-  const [chatMessages, setChatMessages] = useState([]);
-  const [newMessage, setNewMessage] = useState('');
   const [userRole, setUserRole] = useState('Member');
+  const [activeTab, setActiveTab] = useState('my'); // 'my' | 'browse'
+  const [leaving, setLeaving] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [showBrowse, setShowBrowse] = useState(false);
-  const [joinRequests, setJoinRequests] = useState([]);
-  const [leaving, setLeaving] = useState(false);
-  const [onlineStatus, setOnlineStatus] = useState({});
-  const [clanQuests, setClanQuests] = useState([]);
-  const [showAddQuest, setShowAddQuest] = useState(false);
-  const [questForm, setQuestForm] = useState({
-    name: '', description: '', type: 'damage',
-    target: 1000, reward_gems: 50, reward_coins: 500,
-    reward_xp: 1000, expires_hours: 168
-  });
   const [showSettings, setShowSettings] = useState(false);
-  const [memberSort, setMemberSort] = useState('clan_xp');
-  const [memberSortDir, setMemberSortDir] = useState('desc');
-  const [clanPerks, setClanPerks] = useState([]);
-  const chatEndRef = useRef(null);
+
+  // Browse Clans tab (inline list — same glass-row language as the Roster)
+  const [browseClans, setBrowseClans] = useState([]);
+  const [browseLoading, setBrowseLoading] = useState(false);
+  const [joining, setJoining] = useState({});
+  const [joinMsg, setJoinMsg] = useState({});
 
   useEffect(() => {
-    if (user?.id) {
-      fetchUserClan();
-    } else {
-      setLoading(false);
-    }
+    if (user?.id) fetchUserClan();
+    else setLoading(false);
   }, [user]);
 
   useEffect(() => {
-    if (clan) {
-      fetchClanQuests();
-    }
-  }, [clan]);
-
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [chatMessages]);
+    if (activeTab === 'browse') fetchBrowseClans();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
 
   const fetchUserClan = async () => {
     setLoading(true);
     try {
       const res = await fetch(`${SERVER_URL}/api/clans/user/${user.id}`);
       const clanData = await res.json();
-
       if (clanData) {
         setClan(clanData);
         await fetchClanDetails(clanData.id);
-        await fetchClanChat(clanData.id);
+      } else {
+        setClan(null);
       }
     } catch (e) {
       console.error('Failed to fetch user clan:', e);
@@ -71,122 +64,59 @@ export default function ClansPage({ user }) {
     try {
       const res = await fetch(`${SERVER_URL}/api/clans/${clanId}`);
       const data = await res.json();
-
       if (data?.members) {
-        const sortedMembers = data.members
-          .map(m => ({
-            ...m.user,
-            role: m.role || 'Member',
-            clan_xp: m.user?.clan_xp || 0,
-            trophies: m.user?.trophies || 0,
-            status: m.user?.status || 'offline'
-          }))
-          .sort((a, b) => b.clan_xp - a.clan_xp);
-
-        setMembers(sortedMembers);
-
-        // Find current user's role
-        const userMember = data.members.find(m => m.user_id === user.id);
-        if (userMember) {
-          setUserRole(userMember.role || 'Member');
-        }
-
-        // Fetch online status for all members
-        fetchOnlineStatus(sortedMembers.map(m => m.id).filter(Boolean));
-      }
-
-      // Set clan perks from response or calculate from level
-      if (data?.perks) {
-        setClanPerks(data.perks);
-      } else {
-        setClanPerks(getClanPerksClient(data?.level || 1));
+        const mapped = data.members.map(m => ({
+          ...m.user,
+          role: normalizeRole(m.role),
+          wins: m.user?.wins || 0,
+          level: m.user?.level || 1,
+        }));
+        // Leader → Elder → Member, then most wins first
+        mapped.sort((a, b) => (ROLE_ORDER[a.role] - ROLE_ORDER[b.role]) || (b.wins - a.wins));
+        setMembers(mapped);
+        const me = data.members.find(m => (m.user_id || m.user?.id) === user.id);
+        if (me) setUserRole(normalizeRole(me.role));
       }
     } catch (e) {
       console.error('Failed to fetch clan details:', e);
     }
   };
 
-  const fetchClanChat = async (clanId) => {
+  const fetchBrowseClans = async () => {
+    setBrowseLoading(true);
     try {
-      const res = await fetch(`${SERVER_URL}/api/clans/${clanId}/chat`);
+      const res = await fetch(`${SERVER_URL}/api/clans?sort=score`);
       const data = await res.json();
-      setChatMessages(data || []);
+      setBrowseClans(data.clans || []);
     } catch (e) {
-      console.error('Failed to fetch chat:', e);
+      console.error('Failed to browse clans:', e);
     }
+    setBrowseLoading(false);
   };
 
-  const sendMessage = async () => {
-    if (!newMessage.trim() || !clan) return;
-
+  // Same join flow BrowseClansModal uses: /request auto-joins Open clans,
+  // otherwise files a join request.
+  const handleJoinBrowse = async (c) => {
+    setJoining(p => ({ ...p, [c.id]: true }));
     try {
-      const res = await fetch(`${SERVER_URL}/api/clans/${clan.id}/chat`, {
+      const res = await fetch(`${SERVER_URL}/api/clans/${c.id}/request`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: user.id,
-          message: newMessage.trim()
-        })
+        body: JSON.stringify({ userId: user.id }),
       });
-
-      const result = await res.json();
-
-      if (result.success) {
-        setChatMessages(prev => [...prev, {
-          id: Date.now(),
-          message: newMessage.trim(),
-          user: {
-            username: user.username,
-            avatar_url: user.avatar_url
-          },
-          created_at: new Date().toISOString()
-        }]);
-        setNewMessage('');
+      const data = await res.json();
+      setJoinMsg(p => ({
+        ...p,
+        [c.id]: data.message || (data.joined ? 'Joined!' : data.success ? 'Requested' : (data.error || 'Failed')),
+      }));
+      if (data.joined) {
+        setActiveTab('my');
+        await fetchUserClan();
       }
     } catch (e) {
-      console.error('Failed to send message:', e);
+      setJoinMsg(p => ({ ...p, [c.id]: 'Error joining clan' }));
     }
-  };
-
-  const formatTimeAgo = (dateStr) => {
-    const diff = (new Date() - new Date(dateStr)) / 60000;
-    if (diff < 1) return 'just now';
-    if (diff < 60) return `${Math.floor(diff)}m ago`;
-    if (diff < 1440) return `${Math.floor(diff / 60)}h ago`;
-    return `${Math.floor(diff / 1440)}d ago`;
-  };
-
-  const getClanPerksClient = (level) => {
-    const allPerks = {
-      1: [],
-      2: [{ icon: '🔄', text: '+5% Clan XP Boost' }],
-      3: [{ icon: '🔄', text: '+10% Clan XP Boost' }, { icon: '🪙', text: '+10% Gold from Battles' }],
-      4: [{ icon: '🔄', text: '+10% Clan XP Boost' }, { icon: '🪙', text: '+20% Gold from Battles' }, { icon: '⚔️', text: '+5% Damage in Clan Wars' }],
-      5: [{ icon: '🔄', text: '+10% Clan XP Boost' }, { icon: '🪙', text: '+20% Gold from Battles' }, { icon: '⚔️', text: '+5% Damage in Clan Wars' }, { icon: '📋', text: '+1 Extra Daily Quest' }],
-      6: [{ icon: '🔄', text: '+15% Clan XP Boost' }, { icon: '🪙', text: '+25% Gold from Battles' }, { icon: '⚔️', text: '+10% Damage in Clan Wars' }, { icon: '📋', text: '+2 Extra Daily Quests' }, { icon: '💎', text: '+5% Gem Drop Rate' }],
-      7: [{ icon: '🔄', text: '+20% Clan XP Boost' }, { icon: '🪙', text: '+30% Gold from Battles' }, { icon: '⚔️', text: '+15% Damage in Clan Wars' }, { icon: '📋', text: '+2 Extra Daily Quests' }, { icon: '💎', text: '+10% Gem Drop Rate' }, { icon: '🛡', text: '+10% Defense Bonus' }],
-    };
-    return allPerks[Math.min(level || 1, 7)] || [];
-  };
-
-  const handleSort = (field) => {
-    if (memberSort === field) {
-      setMemberSortDir(d => d === 'desc' ? 'asc' : 'desc');
-    } else {
-      setMemberSort(field);
-      setMemberSortDir('desc');
-    }
-  };
-
-  const fetchJoinRequests = async () => {
-    if (!clan || !['Leader','Elder'].includes(userRole)) return;
-    try {
-      const res = await fetch(`${SERVER_URL}/api/clans/${clan.id}/requests`);
-      const data = await res.json();
-      setJoinRequests(data || []);
-    } catch(e) {
-      console.error('Failed to fetch join requests:', e);
-    }
+    setJoining(p => ({ ...p, [c.id]: false }));
   };
 
   const handleLeave = async () => {
@@ -196,136 +126,20 @@ export default function ClansPage({ user }) {
       const res = await fetch(`${SERVER_URL}/api/clans/${clan.id}/members/${user.id}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({})
+        body: JSON.stringify({}),
       });
       const data = await res.json();
       if (data.success) {
         setClan(null);
         setMembers([]);
+        setActiveTab('my');
       } else {
         alert(data.error || 'Failed to leave clan');
       }
-    } catch(e) {
+    } catch (e) {
       alert('Error leaving clan');
     }
     setLeaving(false);
-  };
-
-  const handleKick = async (memberId) => {
-    if (!window.confirm('Kick this member?')) return;
-    try {
-      const res = await fetch(`${SERVER_URL}/api/clans/${clan.id}/members/${memberId}`, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ kickedBy: user.id })
-      });
-      const data = await res.json();
-      if (data.success) {
-        setMembers(prev => prev.filter(m => m.id !== memberId));
-      } else {
-        alert(data.error);
-      }
-    } catch(e) {
-      alert('Error kicking member');
-    }
-  };
-
-  const handlePromote = async (memberId, newRole) => {
-    try {
-      const res = await fetch(`${SERVER_URL}/api/clans/${clan.id}/members/${memberId}/role`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ newRole, leaderId: user.id })
-      });
-      const data = await res.json();
-      if (data.success) {
-        setMembers(prev => prev.map(m => m.id === memberId ? {...m, role: newRole} : m));
-      } else {
-        alert(data.error);
-      }
-    } catch(e) {
-      alert('Error changing role');
-    }
-  };
-
-  const handleApproveRequest = async (requestId) => {
-    try {
-      const res = await fetch(`${SERVER_URL}/api/clans/${clan.id}/requests/${requestId}/approve`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ leaderId: user.id })
-      });
-      const data = await res.json();
-      if (data.success) {
-        setJoinRequests(prev => prev.filter(r => r.id !== requestId));
-        fetchClanDetails(clan.id);
-      }
-    } catch(e) {
-      console.error('Failed to approve request:', e);
-    }
-  };
-
-  const handleDenyRequest = async (requestId) => {
-    try {
-      const res = await fetch(`${SERVER_URL}/api/clans/${clan.id}/requests/${requestId}/deny`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ leaderId: user.id })
-      });
-      const data = await res.json();
-      if (data.success) {
-        setJoinRequests(prev => prev.filter(r => r.id !== requestId));
-      }
-    } catch(e) {
-      console.error('Failed to deny request:', e);
-    }
-  };
-
-  const fetchOnlineStatus = async (memberIds) => {
-    if (!memberIds.length) return;
-    try {
-      const res = await fetch(`${SERVER_URL}/api/users/online-status`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userIds: memberIds })
-      });
-      const data = await res.json();
-      setOnlineStatus(data);
-    } catch(e) {
-      console.error('Failed to fetch online status:', e);
-    }
-  };
-
-  const fetchClanQuests = async () => {
-    if (!clan) return;
-    try {
-      const res = await fetch(`${SERVER_URL}/api/clans/${clan.id}/quests`);
-      const data = await res.json();
-      setClanQuests(data || []);
-    } catch(e) {
-      console.error('Failed to fetch clan quests:', e);
-    }
-  };
-
-  const handleAddQuest = async () => {
-    if (!questForm.name.trim()) return alert('Quest name is required');
-    try {
-      const res = await fetch(`${SERVER_URL}/api/clans/${clan.id}/quests`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...questForm, userId: user.id })
-      });
-      const data = await res.json();
-      if (data.success) {
-        setClanQuests(prev => [data.quest, ...prev]);
-        setShowAddQuest(false);
-        setQuestForm({ name: '', description: '', type: 'damage', target: 1000, reward_gems: 50, reward_coins: 500, reward_xp: 1000, expires_hours: 168 });
-      } else {
-        alert(data.error || 'Failed to create quest');
-      }
-    } catch(e) {
-      alert('Error creating quest');
-    }
   };
 
   if (loading) {
@@ -336,414 +150,161 @@ export default function ClansPage({ user }) {
     );
   }
 
+  // ── No-clan entry state (preserved unchanged: Browse / Create modals) ──
   if (!clan) {
     return (
-      <div className="clan-no-clan">
-        <h2>You are not in a clan</h2>
-        <p>Join or create a clan to compete with others!</p>
-        <button className="clan-action-btn" onClick={() => setShowBrowse(true)}>🔍 Browse Clans</button>
-        <button className="clan-action-btn clan-action-btn--create" onClick={() => setShowCreate(true)}>⚔️ Create Clan</button>
+      <div className="cp">
+        <div className="cp-col">
+          <h1 className="cp-title">Clans</h1>
+          <p className="cp-subtitle">Fight together. Rise together.</p>
+          <div className="clan-no-clan">
+            <h2>You are not in a clan</h2>
+            <p>Join or create a clan to compete with others!</p>
+            <button className="clan-action-btn" onClick={() => setShowBrowse(true)}>🔍 Browse Clans</button>
+            <button className="clan-action-btn clan-action-btn--create" onClick={() => setShowCreate(true)}>⚔️ Create Clan</button>
+          </div>
+        </div>
         {showCreate && <CreateClanModal user={user} onClose={() => setShowCreate(false)} onCreated={(c) => { setClan(c); fetchClanDetails(c.id); }} />}
         {showBrowse && <BrowseClansModal user={user} onClose={() => setShowBrowse(false)} onJoined={(c) => { setClan(c); setShowBrowse(false); fetchClanDetails(c.id); }} />}
       </div>
     );
   }
 
-  const xpForNextLevel = clan.level * 5000;
-  const xpProgress = Math.min(100, (clan.xp / xpForNextLevel) * 100);
-  const topContributors = [...members].sort((a, b) => b.clan_xp - a.clan_xp).slice(0, 3);
-  const onlineCount = members.filter(m => onlineStatus[m.id]?.online).length;
-
-  const sortedMembers = [...members].sort((a, b) => {
-    const dir = memberSortDir === 'desc' ? -1 : 1;
-    if (memberSort === 'role') {
-      const roleOrder = { Leader: 0, Elder: 1, Member: 2 };
-      return dir * ((roleOrder[a.role] || 2) - (roleOrder[b.role] || 2));
-    }
-    if (memberSort === 'name') return dir * (a.username || '').localeCompare(b.username || '');
-    return dir * ((a[memberSort] || 0) - (b[memberSort] || 0));
-  });
+  const totalWins = members.reduce((sum, m) => sum + (m.wins || 0), 0);
+  const crestLetter = (clan.tag || clan.name || 'C').trim()[0]?.toUpperCase() || 'C';
 
   return (
-    <div className="clan-page">
+    <div className="cp">
+      <div className="cp-col">
+        <h1 className="cp-title">Clans</h1>
+        <p className="cp-subtitle">Fight together. Rise together.</p>
 
-      {/* LEFT COLUMN */}
-      <div className="clan-left">
-
-        {/* Clan Info Panel */}
-        <p className="clan-section-label">CLAN INFO</p>
-        <div className="clan-card">
-          <div className="clan-info-header">
-            <div className="clan-banner">
-              {clan.banner_url ? (
-                <img src={clan.banner_url} alt={clan.name} />
-              ) : (
-                <div className="clan-banner-placeholder">🛡</div>
-              )}
-            </div>
-            <div className="clan-info-text">
-              <h3 className="clan-name">{clan.name} 👑</h3>
-              <p className="clan-motto">{clan.description}</p>
-            </div>
-          </div>
-
-          <div className="clan-stats-grid">
-            <div className="clan-stat-row">
-              <span>🏷 CLAN TAG</span>
-              <span>{clan.tag}</span>
-            </div>
-            <div className="clan-stat-row">
-              <span>👥 MEMBERS</span>
-              <span>{clan.members_count || members.length} / 50</span>
-            </div>
-            <div className="clan-stat-row">
-              <span>⭐ CLAN LEVEL</span>
-              <span>{clan.level}</span>
-            </div>
-            <div className="clan-stat-row">
-              <span>🏅 CLAN XP</span>
-              <span>{clan.xp.toLocaleString()} / {xpForNextLevel.toLocaleString()}</span>
-            </div>
-            {/* Mockup value-over-label stat block. Total wins = sum of the
-                members' wins already returned by /api/clans/:id (real data,
-                not fabricated). Clan rank is NOT in the response — omitted. */}
-            <div className="clan-stat-block">
-              <span className="clan-stat-block-value">
-                {members.reduce((sum, m) => sum + (m.wins || 0), 0).toLocaleString()}
-              </span>
-              <span className="clan-stat-block-label">TOTAL WINS</span>
-            </div>
-          </div>
-
-          <div className="clan-xp-bar">
-            <div className="clan-xp-fill" style={{ width: `${xpProgress}%` }} />
-          </div>
-
-          <div className="clan-stats-grid">
-            <div className="clan-stat-row">
-              <span>🏆 REQ. TROPHIES</span>
-              <span>{clan.required_trophies?.toLocaleString()}</span>
-            </div>
-            <div className="clan-stat-row">
-              <span>📍 LOCATION</span>
-              <span>{clan.location}</span>
-            </div>
-            <div className="clan-stat-row">
-              <span>🛡 CLAN TYPE</span>
-              <span>{clan.type}</span>
-            </div>
-          </div>
-
-          {userRole === 'Leader' && <button className="clan-settings-btn" onClick={() => setShowSettings(true)}>SETTINGS</button>}
-          {userRole !== 'Leader' && (
-            <button className="clan-leave-btn" onClick={handleLeave} disabled={leaving}>
-              {leaving ? 'Leaving...' : '🚪 Leave Clan'}
-            </button>
-          )}
+        {/* Tabs */}
+        <div className="cp-tabs">
+          <button
+            type="button"
+            className={`cp-tab ${activeTab === 'my' ? 'cp-tab--active' : ''}`}
+            onClick={() => setActiveTab('my')}
+          >
+            My Clan
+          </button>
+          <button
+            type="button"
+            className={`cp-tab ${activeTab === 'browse' ? 'cp-tab--active' : ''}`}
+            onClick={() => setActiveTab('browse')}
+          >
+            Browse Clans
+          </button>
         </div>
 
-        {showSettings && (
-          <ClanSettingsModal
-            clan={clan}
-            user={user}
-            onClose={() => setShowSettings(false)}
-            onUpdated={(updatedClan) => {
-              setClan(updatedClan);
-              setShowSettings(false);
-            }}
-          />
+        {activeTab === 'my' && (
+          <>
+            {/* Clan header card */}
+            <div className="cp-header-card">
+              <div className="cp-header-top">
+                <div className="cp-crest" aria-hidden="true"><span className="cp-crest-letter">{crestLetter}</span></div>
+                <div className="cp-header-info">
+                  <div className="cp-name-row">
+                    <span className="cp-name">{clan.name}</span>
+                    <span className="cp-nametag">[{clan.tag}] · Lvl. {clan.level}</span>
+                  </div>
+                  <p className="cp-motto">&ldquo;{clan.description || 'No motto set.'}&rdquo;</p>
+                </div>
+              </div>
+
+              {/* Members + Total Wins only — Clan Rank omitted (no real data) */}
+              <div className="cp-stats">
+                <div className="cp-stat">
+                  <span className="cp-stat-value">{members.length}</span>
+                  <span className="cp-stat-label">MEMBERS</span>
+                </div>
+                <div className="cp-stat">
+                  <span className="cp-stat-value">{totalWins.toLocaleString()}</span>
+                  <span className="cp-stat-label">TOTAL WINS</span>
+                </div>
+              </div>
+
+              {/* Subtle management links (no mockup element for these) */}
+              <div className="cp-header-actions">
+                {userRole === 'Leader' && (
+                  <button type="button" className="cp-text-link" onClick={() => setShowSettings(true)}>
+                    Settings
+                  </button>
+                )}
+                <button type="button" className="cp-text-link cp-text-link--leave" onClick={handleLeave} disabled={leaving}>
+                  {leaving ? 'Leaving…' : 'Leave clan'}
+                </button>
+              </div>
+            </div>
+
+            {/* Roster */}
+            <h2 className="cp-roster-head">Roster</h2>
+            <div className="cp-roster">
+              {members.map(m => {
+                const you = m.id === user?.id;
+                const role = m.role.toLowerCase();
+                return (
+                  <div className={`cp-row cp-row--${role}${you ? ' cp-row--you' : ''}`} key={m.id}>
+                    <div className="cp-avatar">
+                      {m.avatar_url
+                        ? <img src={m.avatar_url} alt={m.username} referrerPolicy="no-referrer" />
+                        : <span>{m.username?.[0]?.toUpperCase() || '?'}</span>}
+                    </div>
+                    <div className="cp-row-info">
+                      <span className="cp-row-name">{m.username}{you ? ' (You)' : ''}</span>
+                      <span className="cp-row-level">Lvl. {m.level}</span>
+                    </div>
+                    <span className="cp-row-role">{m.role}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </>
         )}
 
-        {/* Top Contributors */}
-        <p className="clan-section-label">TOP CONTRIBUTORS</p>
-        <div className="clan-card">
-          {topContributors.map((member, i) => (
-            <div className="clan-contributor" key={member.id}>
-              <span className={`clan-contrib-rank rank-${i + 1}`}>{i === 0 ? '①' : i === 1 ? '②' : '③'}</span>
-              <div className="clan-contrib-avatar">
-                {member.avatar_url ? (
-                  <img src={member.avatar_url} alt={member.username} />
+        {activeTab === 'browse' && (
+          <div className="cp-roster cp-browse">
+            {browseLoading && <p className="cp-empty">Loading clans…</p>}
+            {!browseLoading && browseClans.length === 0 && <p className="cp-empty">No clans found</p>}
+            {browseClans.map(c => (
+              <div className="cp-row cp-browse-row" key={c.id}>
+                <div className="cp-avatar cp-avatar--clan" aria-hidden="true">
+                  {(c.tag || c.name || 'C').trim()[0]?.toUpperCase() || 'C'}
+                </div>
+                <div className="cp-row-info">
+                  <span className="cp-row-name">
+                    {c.name} <span className="cp-browse-tag">[{c.tag}]</span>
+                  </span>
+                  <span className="cp-row-level">
+                    Lvl. {c.level || 1} · {c.member_count?.[0]?.count || 0}/50 members
+                  </span>
+                </div>
+                {joinMsg[c.id] ? (
+                  <span className="cp-join-msg">{joinMsg[c.id]}</span>
                 ) : (
-                  <span>{member.username?.[0]?.toUpperCase()}</span>
+                  <button
+                    type="button"
+                    className="cp-join-btn"
+                    onClick={() => handleJoinBrowse(c)}
+                    disabled={joining[c.id]}
+                  >
+                    {joining[c.id] ? '…' : (c.type === 'Open' ? 'JOIN' : 'REQUEST')}
+                  </button>
                 )}
               </div>
-              <span className="clan-contrib-name">{member.username}</span>
-              <span className="clan-contrib-score">{member.clan_xp?.toLocaleString()} 🛡</span>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* CENTER COLUMN */}
-      <div className="clan-center">
-
-        {/* Clan Crest Header */}
-        <div className="clan-card clan-crest-card">
-          <div className="clan-crest-header">
-            <p className="clan-level-text">CLAN LEVEL {clan.level}</p>
-            <div className="clan-crest-icon">
-              {clan.crest_url ? (
-                <img src={clan.crest_url} alt="Crest" />
-              ) : (
-                <span>🛡</span>
-              )}
-            </div>
-            <div className="clan-xp-bar clan-xp-bar--center">
-              <div className="clan-xp-fill" style={{ width: `${xpProgress}%` }} />
-            </div>
-            <p className="clan-xp-text">{clan.xp.toLocaleString()} / {xpForNextLevel.toLocaleString()} XP</p>
-          </div>
-          <div className="clan-perks">
-            <p className="clan-perks-title">CLAN PERKS</p>
-            {clanPerks.length === 0 ? (
-              <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', fontFamily: 'Inter,sans-serif', margin: '8px 0' }}>
-                Reach Level 2 to unlock perks!
-              </p>
-            ) : (
-              clanPerks.map((perk, i) => (
-                <div className="clan-perk" key={i}>{perk.icon} {perk.text}</div>
-              ))
-            )}
-          </div>
-        </div>
-
-        {/* Activity Stats */}
-        <div className="clan-activity">
-          <p className="clan-section-title">CLAN ACTIVITY</p>
-          <div className="clan-activity-grid">
-            <div className="clan-activity-box">
-              <span className="clan-activity-icon">⚔️</span>
-              <p className="clan-activity-label">CLAN WARS</p>
-              <p className="clan-activity-value">Active</p>
-            </div>
-            <div className="clan-activity-box">
-              <span className="clan-activity-icon">🏆</span>
-              <p className="clan-activity-label">CLAN RANK</p>
-              <p className="clan-activity-value">#{clan.rank}</p>
-            </div>
-            <div className="clan-activity-box">
-              <span className="clan-activity-icon">🛡</span>
-              <p className="clan-activity-label">WEEKLY TROPHIES</p>
-              <p className="clan-activity-value">🏆 {clan.weekly_trophies?.toLocaleString()}</p>
-            </div>
-            <div className="clan-activity-box">
-              <span className="clan-activity-icon">👥</span>
-              <p className="clan-activity-label">MEMBERS ONLINE</p>
-              <p className="clan-activity-value">{onlineCount} 🟢</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Members Table */}
-        <div className="clan-card clan-members-card">
-          <div className="clan-tabs">
-            <button
-              className={`clan-tab ${activeTab === 'members' ? 'clan-tab--active' : ''}`}
-              onClick={() => setActiveTab('members')}
-            >
-              MEMBERS
-            </button>
-            <button
-              className={`clan-tab ${activeTab === 'pending' ? 'clan-tab--active' : ''}`}
-              onClick={() => { setActiveTab('pending'); fetchJoinRequests(); }}
-            >
-              PENDING ({joinRequests.length})
-            </button>
-            <button
-              className={`clan-tab ${activeTab === 'invites' ? 'clan-tab--active' : ''}`}
-              onClick={() => setActiveTab('invites')}
-            >
-              INVITES
-            </button>
-          </div>
-
-          {activeTab === 'members' && (
-            <div className="clan-members-table">
-              <div className="clan-members-header">
-                <span>RANK</span>
-                <span className="clan-sortable" onClick={() => handleSort('username')}>
-                  MEMBER {memberSort === 'username' ? (memberSortDir === 'desc' ? '▼' : '▲') : ''}
-                </span>
-                <span className="clan-sortable" onClick={() => handleSort('role')}>
-                  ROLE {memberSort === 'role' ? (memberSortDir === 'desc' ? '▼' : '▲') : ''}
-                </span>
-                <span className="clan-sortable" onClick={() => handleSort('trophies')}>
-                  TROPHIES {memberSort === 'trophies' ? (memberSortDir === 'desc' ? '▼' : '▲') : ''}
-                </span>
-                <span className="clan-sortable" onClick={() => handleSort('clan_xp')}>
-                  CLAN XP {memberSort === 'clan_xp' ? (memberSortDir === 'desc' ? '▼' : '▲') : ''}
-                </span>
-                <span>STATUS</span>
-              </div>
-              {sortedMembers.map((member, i) => (
-                <div
-                  className={`clan-member-row${member.id === user?.id ? ' clan-member-row--you' : ''}${member.role === 'Leader' ? ' clan-member-row--leader' : ''}`}
-                  key={member.id}
-                >
-                  <span>{i + 1}</span>
-                  <span className="clan-member-cell">
-                    <div className="clan-member-avatar">
-                      {member.avatar_url ? (
-                        <img src={member.avatar_url} alt={member.username} />
-                      ) : (
-                        <span>{member.username?.[0]?.toUpperCase()}</span>
-                      )}
-                    </div>
-                    {member.username}
-                  </span>
-                  <span className={`clan-role clan-role--${(member.role || 'Member').toLowerCase()}`}>{member.role}</span>
-                  <span>{member.trophies?.toLocaleString()}</span>
-                  <span>{member.clan_xp?.toLocaleString()}</span>
-                  <span className={onlineStatus[member.id]?.online ? 'status-online' : ''}>
-                    {onlineStatus[member.id]?.online ? 'Online' : formatTimeAgo(onlineStatus[member.id]?.lastSeen || member.last_seen || new Date())}
-                  </span>
-                  {(userRole === 'Leader' || userRole === 'Elder') && member.id !== user?.id && (
-                    <div className="clan-member-actions">
-                      {userRole === 'Leader' && member.role !== 'Elder' && (
-                        <button className="clan-member-action-btn" onClick={() => handlePromote(member.id, 'Elder')} title="Promote to Elder">▲</button>
-                      )}
-                      {userRole === 'Leader' && member.role === 'Elder' && (
-                        <button className="clan-member-action-btn" onClick={() => handlePromote(member.id, 'Member')} title="Demote to Member">▼</button>
-                      )}
-                      <button className="clan-member-action-btn clan-member-action-btn--kick" onClick={() => handleKick(member.id)} title="Kick member">✕</button>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-
-          {activeTab === 'pending' && (
-            <div className="clan-requests-list">
-              {joinRequests.length === 0 && <div className="clan-empty-tab">No pending requests</div>}
-              {joinRequests.map(req => (
-                <div className="clan-request-row" key={req.id}>
-                  <div className="clan-member-avatar">
-                    {req.user?.avatar_url ? (
-                      <img src={req.user.avatar_url} alt={req.user.username} />
-                    ) : (
-                      <span>{req.user?.username?.[0]?.toUpperCase()}</span>
-                    )}
-                  </div>
-                  <div className="clan-request-info">
-                    <p className="clan-request-name">{req.user?.username}</p>
-                    <p className="clan-request-meta">Level {req.user?.level || 1} · {req.message || 'No message'}</p>
-                  </div>
-                  <div className="clan-request-actions">
-                    <button className="clan-request-approve" onClick={() => handleApproveRequest(req.id)}>✓ Approve</button>
-                    <button className="clan-request-deny" onClick={() => handleDenyRequest(req.id)}>✕ Deny</button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {activeTab === 'invites' && (
-            <div className="clan-empty-tab">No pending invites</div>
-          )}
-        </div>
-      </div>
-
-      {/* RIGHT COLUMN */}
-      <div className="clan-right">
-
-        {/* Clan Chat */}
-        <p className="clan-section-label">CLAN CHAT</p>
-        <div className="clan-card clan-chat-card">
-          <div className="clan-chat-messages">
-            {chatMessages.length === 0 ? (
-              <p className="clan-placeholder">No messages yet. Say hello!</p>
-            ) : (
-              chatMessages.map((msg, i) => (
-                <div className="clan-chat-message" key={msg.id || i}>
-                  <div className="clan-chat-avatar">
-                    {msg.user?.avatar_url ? (
-                      <img src={msg.user.avatar_url} alt={msg.user.username} />
-                    ) : (
-                      <span>{msg.user?.username?.[0]?.toUpperCase() || '?'}</span>
-                    )}
-                  </div>
-                  <div className="clan-chat-content">
-                    <div className="clan-chat-meta">
-                      <span className="clan-chat-username">{msg.user?.username || 'Unknown'}</span>
-                      <span className="clan-chat-time">{formatTimeAgo(msg.created_at)}</span>
-                    </div>
-                    <p className="clan-chat-text">{msg.message}</p>
-                  </div>
-                </div>
-              ))
-            )}
-            <div ref={chatEndRef} />
-          </div>
-          <div className="clan-chat-input-row">
-            <input
-              className="clan-chat-input"
-              placeholder="Type a message..."
-              value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
-            />
-            <button className="clan-chat-send" onClick={sendMessage}>➤</button>
-          </div>
-        </div>
-
-        {/* Clan Quest - Real Data */}
-        <p className="clan-section-label">CLAN QUESTS</p>
-        <div className="clan-card clan-quest-card">
-          {clanQuests.length === 0 && !showAddQuest && (
-            <p className="clan-placeholder">No active quests</p>
-          )}
-          {clanQuests.slice(0, 2).map(quest => (
-            <div className="clan-quest-content" key={quest.id}>
-              <div className="clan-quest-icon">🎯</div>
-              <div className="clan-quest-info">
-                <p className="clan-quest-name">{quest.name}</p>
-                <div className="clan-quest-bar">
-                  <div className="clan-quest-fill" style={{ width: `${Math.min(100, (quest.progress / quest.target) * 100)}%` }} />
-                </div>
-                <p className="clan-quest-progress">{quest.progress.toLocaleString()} / {quest.target.toLocaleString()}</p>
-                <p className="clan-quest-time">Expires: {new Date(quest.expires_at).toLocaleDateString()}</p>
-              </div>
-              <div className="clan-quest-reward">
-                <span>💎 {quest.reward_gems}</span>
-              </div>
-            </div>
-          ))}
-          {['Leader', 'Elder'].includes(userRole) && (
-            <button
-              className="clan-green-btn clan-green-btn--full"
-              onClick={() => setShowAddQuest(!showAddQuest)}
-              style={{ marginTop: clanQuests.length > 0 ? '8px' : '0' }}
-            >
-              {showAddQuest ? '✕ Cancel' : '+ Add Quest'}
-            </button>
-          )}
-          {showAddQuest && (
-            <div className="clan-add-quest-form">
-              <input className="create-clan-input" placeholder="Quest name" value={questForm.name} onChange={e => setQuestForm(f => ({ ...f, name: e.target.value }))} />
-              <input className="create-clan-input" placeholder="Description (optional)" value={questForm.description} onChange={e => setQuestForm(f => ({ ...f, description: e.target.value }))} />
-              <select className="create-clan-input" value={questForm.type} onChange={e => setQuestForm(f => ({ ...f, type: e.target.value }))}>
-                <option value="damage">Deal Damage</option>
-                <option value="wins">Win Matches</option>
-                <option value="questions">Answer Questions</option>
-                <option value="xp">Earn XP</option>
-              </select>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <input className="create-clan-input" type="number" placeholder="Target" value={questForm.target} onChange={e => setQuestForm(f => ({ ...f, target: parseInt(e.target.value) || 1000 }))} />
-                <input className="create-clan-input" type="number" placeholder="Gem reward" value={questForm.reward_gems} onChange={e => setQuestForm(f => ({ ...f, reward_gems: parseInt(e.target.value) || 0 }))} />
-              </div>
-              <button className="clan-green-btn clan-green-btn--full" onClick={handleAddQuest}>Create Quest</button>
-            </div>
-          )}
-        </div>
-
-        {/* Clan Wars - Placeholder */}
-        <p className="clan-section-label">CLAN WARS</p>
-        <div className="clan-card clan-wars-card">
-          <p className="clan-placeholder">Clan wars coming soon...</p>
-        </div>
-      </div>
-
+      {showSettings && (
+        <ClanSettingsModal
+          clan={clan}
+          user={user}
+          onClose={() => setShowSettings(false)}
+          onUpdated={(updatedClan) => { setClan(updatedClan); setShowSettings(false); }}
+        />
+      )}
     </div>
   );
 }

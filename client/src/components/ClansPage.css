@@ -1564,3 +1564,318 @@
     padding-top: 170px !important;
   }
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   SINGLE-COLUMN CLANS LAYOUT (Medvale Clans.dc.html) — exact mockup values.
+   Replaces the old .clan-page 3-column grid. Renders inside the Dashboard
+   shell (whose fixed header already provides wordmark/currency/avatar and the
+   "← Back to Dashboard" pill), so only the title/subtitle/tabs/content live
+   here. All tints are precomputed static rgba values.
+   ══════════════════════════════════════════════════════════════════════════ */
+.cp {
+  width: 100%;
+  color: var(--mv-text);
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  box-sizing: border-box;
+}
+
+.cp-col {
+  max-width: 820px;
+  margin: 0 auto;
+}
+
+.cp-title {
+  font-family: var(--mv-font-display, 'Cinzel', serif);
+  font-size: 34px;
+  font-weight: 700;
+  margin: 0 0 6px;
+  color: var(--mv-text);
+}
+
+.cp-subtitle {
+  margin: 0 0 24px;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* ── Tabs ─────────────────────────────────────────────────────────────── */
+.cp-tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.cp-tab {
+  font-family: var(--mv-font-display, 'Cinzel', serif);
+  font-size: 13px;
+  font-weight: 700;
+  padding: 9px 18px;
+  border-radius: 20px;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: rgba(255, 255, 255, 0.75);
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.cp-tab--active {
+  background: rgba(193, 41, 30, 0.25);
+  border: 1px solid #c1291e;
+  color: #ffffff;
+}
+
+/* ── Clan header card ─────────────────────────────────────────────────── */
+.cp-header-card {
+  background: rgba(6, 10, 7, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  padding: 24px;
+  margin-bottom: 24px;
+}
+
+.cp-header-top {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+/* Hexagon crest (Phase B technique — a plain border is clipped away, so the
+   1.5px #c1291e edge is the element's own background showing past the inset
+   ::before fill). */
+.cp-crest {
+  position: relative;
+  width: 58px;
+  height: 58px;
+  flex-shrink: 0;
+  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+  background: #c1291e;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cp-crest::before {
+  content: '';
+  position: absolute;
+  inset: 1.5px;
+  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+  /* mockup fill rgba(193,41,30,.25) over an opaque void base so the tint
+     reads and the red ring stays visible (precomputed static rgba) */
+  background: linear-gradient(rgba(193, 41, 30, 0.25), rgba(193, 41, 30, 0.25)), var(--mv-bg-void);
+}
+
+.cp-crest-letter {
+  position: relative;
+  z-index: 1;
+  font-family: var(--mv-font-display, 'Cinzel', serif);
+  font-size: 20px;
+  font-weight: 700;
+  color: #e2776e;
+}
+
+.cp-header-info { min-width: 0; flex: 1; }
+
+.cp-name-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.cp-name {
+  font-family: var(--mv-font-display, 'Cinzel', serif);
+  font-size: 20px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.cp-nametag {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.cp-motto {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.cp-stats {
+  display: flex;
+  gap: 40px;
+  margin-top: 20px;
+}
+
+.cp-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cp-stat-value {
+  font-family: var(--mv-font-display, 'Cinzel', serif);
+  font-size: 16px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.cp-stat-label {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.5);
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+
+.cp-header-actions {
+  display: flex;
+  gap: 16px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.cp-text-link {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.55);
+  transition: color 0.15s;
+}
+.cp-text-link:hover { color: rgba(255, 255, 255, 0.9); }
+.cp-text-link--leave { color: rgba(217, 84, 74, 0.85); }
+.cp-text-link--leave:hover { color: #d9544a; }
+.cp-text-link:disabled { opacity: 0.5; cursor: default; }
+
+/* ── Roster ───────────────────────────────────────────────────────────── */
+.cp-roster-head {
+  font-family: var(--mv-font-display, 'Cinzel', serif);
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0 0 12px;
+  color: #ffffff;
+}
+
+.cp-roster {
+  background: rgba(6, 10, 7, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.cp-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+.cp-row:first-child { border-top: none; }
+
+.cp-row--you { background: rgba(193, 41, 30, 0.1); }
+
+.cp-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.08);
+  font-family: var(--mv-font-display, 'Cinzel', serif);
+  font-size: 14px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.85);
+}
+.cp-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+/* Leader avatar → gold treatment */
+.cp-row--leader .cp-avatar {
+  background: rgba(232, 176, 75, 0.2);
+  border: 1.5px solid #e8b04b;
+}
+
+.cp-row-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cp-row-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: #ffffff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cp-row-level {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.cp-row-role {
+  font-family: var(--mv-font-display, 'Cinzel', serif);
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+  text-align: right;
+}
+.cp-row--leader .cp-row-role { color: #e8b04b; }
+.cp-row--elder  .cp-row-role { color: rgba(255, 255, 255, 0.7); }
+.cp-row--member .cp-row-role { color: rgba(255, 255, 255, 0.5); }
+
+/* ── Browse Clans tab (same glass-row language as the Roster) ──────────── */
+.cp-avatar--clan {
+  border-radius: 8px;
+  background: rgba(193, 41, 30, 0.2);
+  color: #e2776e;
+}
+
+.cp-browse-tag {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+  font-weight: 400;
+}
+
+.cp-join-btn {
+  flex-shrink: 0;
+  font-family: var(--mv-font-display, 'Cinzel', serif);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  background: rgba(193, 41, 30, 0.25);
+  border: 1px solid #c1291e;
+  color: #ffffff;
+  transition: filter 0.15s;
+}
+.cp-join-btn:hover:not(:disabled) { filter: brightness(1.15); }
+.cp-join-btn:disabled { opacity: 0.5; cursor: default; }
+
+.cp-join-msg {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.6);
+  font-family: var(--mv-font-display, 'Cinzel', serif);
+  text-align: right;
+  max-width: 140px;
+}
+
+.cp-empty {
+  padding: 20px;
+  text-align: center;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.4);
+  margin: 0;
+}
