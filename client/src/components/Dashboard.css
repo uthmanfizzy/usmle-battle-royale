@@ -619,12 +619,6 @@
   gap: 18px;
 }
 
-/* Widgets live in normal flow here — kill the base card clamp/padding */
-.dash-content-col .home-widgets {
-  max-width: none;
-  padding: 0;
-}
-
 /* Event card — INERT placeholder (no events feature yet); striped art box
    convention matches the landing-page placeholders */
 .dash-event-card {
@@ -688,37 +682,6 @@
 
 .dash-event-dot--on {
   background: var(--mv-red);
-}
-
-/* News feed extras (header row with View All; date on each row) */
-.home-widget-header--row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.news-view-all {
-  background: none;
-  border: none;
-  padding: 0;
-  font-family: inherit;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--mv-red-link);
-  cursor: pointer;
-}
-
-.news-view-all:hover {
-  text-decoration: underline;
-}
-
-.news-item-date {
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.45);
-  white-space: nowrap;
-  margin-left: auto;
-  flex-shrink: 0;
 }
 
 /* ── News tab (AnnouncementsSection): featured card + tagged rows ─────────────
@@ -881,20 +844,6 @@
   .ann-thumb { width: 56px; height: 56px; }
 }
 
-/* Dock → widget reveal pulse (see revealHomeWidget) */
-.home-widget--flash {
-  animation: home-widget-flash 1.5s ease;
-}
-
-@keyframes home-widget-flash {
-  0%, 100% { box-shadow: none; }
-  25%, 65% { box-shadow: 0 0 0 2px var(--mv-gold), 0 0 22px rgba(232, 176, 75, 0.55); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .home-widget--flash { animation: none; }
-}
-
 /* ── Bottom dock band (mockup band 3) ────────────────────────────────────────
    Sticky at the viewport bottom on desktop so the band is visible from first
    paint, like the mockup's persistent HUD row. It keeps its normal-flow slot
@@ -1009,9 +958,53 @@
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 
-.dash-dock-reward:hover {
+.dash-dock-reward:hover:not(:disabled) {
   border-color: var(--mv-gold);
   box-shadow: 0 0 14px rgba(232, 176, 75, 0.25);
+}
+
+/* On-cooldown / claiming: dimmed + inert (same convention as the dock's
+   coming-soon tiles) */
+.dash-dock-reward--soon,
+.dash-dock-reward:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.dash-dock-reward--soon .dash-dock-reward-gem {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* Anchor for the claim toast so it can float above the pill */
+.dash-dock-reward-wrap {
+  position: relative;
+  display: flex;
+}
+
+/* Inline claim result, e.g. "+87 coins, +3 gems!" */
+.dash-dock-reward-toast {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  background: rgba(6, 10, 7, 0.96);
+  border: 1px solid var(--mv-gold);
+  color: var(--mv-gold);
+  font-family: var(--mv-font-display);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 6px 12px;
+  border-radius: 6px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+  animation: dash-reward-toast-in 0.2s ease;
+  z-index: 5;
+}
+
+@keyframes dash-reward-toast-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(6px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
 
 .dash-dock-reward-gem {
@@ -1052,8 +1045,12 @@
     background: none;
   }
 
-  .dash-dock-reward {
+  .dash-dock-reward-wrap {
     flex-basis: 100%;
+  }
+
+  .dash-dock-reward-wrap .dash-dock-reward {
+    flex: 1;
     justify-content: center;
   }
 }
@@ -4284,274 +4281,15 @@ button.settings-btn img,
 }
 
 
-/* ── Home Widgets (Daily Quests, Rewards, News) ──────────────────────────── */
-
-.home-widgets {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 12px;
-  max-width: 360px;
-  width: 100%;
-}
-
-.home-widget {
-  background: var(--mv-glass-strong);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border: 1px solid rgba(232, 176, 75, 0.3);
-  border-radius: 12px;
-  overflow: hidden;
-}
-
-.home-widget-header {
-  padding: 10px 14px 0;
-}
-
-.home-widget-title {
-  font-family: 'Cinzel', serif;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.15em;
-  color: var(--mv-gold);
-  margin: 0;
-}
-
-.home-widget-content {
-  padding: 10px 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.home-widget-empty {
-  font-family: 'Cinzel', serif;
-  font-size: 12px;
-  color: rgba(255,255,255,0.25);
-  text-align: center;
-  padding: 10px 0;
-  margin: 0;
-}
-
-/* ── Inter Font for Homepage Readable Text ─────────────────────────────────── */
-/* Homepage readable text - use Inter for better readability */
+/* ── Homepage readable text (Inter) for the home containers ──────────────────
+   The Daily Quests / Rewards / News home widgets were removed; their
+   widget-specific styles went with them. This override keeps body text on the
+   home containers readable (the base .dashboard-screen * rule forces
+   Cinzel/bold otherwise). */
 .dash-main,
-.dash-center-col,
-.home-widgets,
-.home-widget-content,
-.quest-name,
-.quest-progress-text,
-.reward-text,
-.news-item-title,
-.news-item-desc,
-.home-widget-empty {
+.dash-center-col {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
   text-transform: none !important;
   font-variant: normal !important;
   letter-spacing: normal !important;
-}
-
-/* Welcome message - keep original Playfair Display font for elegance */
-
-/* Keep Cinzel only for widget headers/labels */
-.home-widget-title,
-.home-widget-viewall,
-.quest-reward-amount {
-  font-family: 'Cinzel', serif !important;
-}
-
-/* QUEST ITEMS */
-.quest-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.quest-icon-wrap {
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
-  background: var(--mv-glass);
-  border: 1px solid rgba(232, 176, 75, 0.2);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  overflow: hidden;
-}
-
-.quest-icon-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.quest-icon-emoji {
-  font-size: 18px;
-}
-
-.quest-info {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.quest-name {
-  font-family: 'Cinzel', serif;
-  font-size: 11px;
-  font-weight: 700;
-  color: rgba(255,255,255,0.85);
-  margin: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.quest-progress-bar {
-  height: 4px;
-  background: rgba(255,255,255,0.1);
-  border-radius: 999px;
-  overflow: hidden;
-}
-
-.quest-progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, var(--mv-gold-dim), var(--mv-gold));
-  border-radius: 999px;
-  transition: width 0.3s ease;
-}
-
-.quest-progress-text {
-  font-size: 10px;
-  color: rgba(255,255,255,0.35);
-  font-family: 'Cinzel', serif;
-  margin: 0;
-}
-
-.quest-reward {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  flex-shrink: 0;
-}
-
-.quest-gem-icon { font-size: 14px; }
-
-.quest-reward-amount {
-  font-family: 'Cinzel', serif;
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--mv-teal);
-}
-
-/* REWARDS */
-.reward-content {
-  flex-direction: row !important;
-  align-items: center !important;
-}
-
-.reward-chest-wrap {
-  flex-shrink: 0;
-}
-
-.reward-chest-img {
-  width: 70px;
-  height: 70px;
-  object-fit: contain;
-}
-
-.reward-chest-emoji {
-  font-size: 50px;
-}
-
-.reward-info {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.reward-text {
-  font-family: 'Cinzel', serif;
-  font-size: 12px;
-  color: rgba(255,255,255,0.7);
-  margin: 0;
-}
-
-.reward-claim-btn {
-  padding: 8px 20px;
-  background: var(--mv-success);
-  border: 1px solid rgba(61, 220, 132, 0.4);
-  border-radius: 6px;
-  color: var(--mv-bg-void);
-  font-family: 'Cinzel', serif;
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-  letter-spacing: 0.08em;
-  transition: all 0.2s;
-  align-self: flex-start;
-}
-.reward-claim-btn:hover:not(:disabled) {
-  filter: brightness(1.12);
-}
-.reward-claim-btn--disabled {
-  background: var(--mv-glass) !important;
-  border-color: rgba(232, 176, 75, 0.2) !important;
-  color: rgba(255,255,255,0.3) !important;
-  cursor: not-allowed !important;
-}
-
-/* NEWS */
-.news-item {
-  display: flex;
-  gap: 10px;
-  align-items: flex-start;
-}
-
-.news-item-img {
-  width: 54px;
-  height: 54px;
-  border-radius: 8px;
-  object-fit: cover;
-  flex-shrink: 0;
-  border: 1px solid rgba(232, 176, 75, 0.2);
-}
-
-.news-item-img-placeholder {
-  width: 54px;
-  height: 54px;
-  border-radius: 8px;
-  background: var(--mv-glass);
-  border: 1px solid rgba(232, 176, 75, 0.2);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 24px;
-  flex-shrink: 0;
-}
-
-.news-item-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.news-item-title {
-  font-family: 'Cinzel', serif;
-  font-size: 12px;
-  font-weight: 700;
-  color: rgba(255,255,255,0.85);
-  margin: 0 0 3px 0;
-  line-height: 1.3;
-}
-
-.news-item-desc {
-  font-size: 11px;
-  color: rgba(255,255,255,0.4);
-  margin: 0;
-  line-height: 1.4;
-  font-family: 'Inter', sans-serif;
 }

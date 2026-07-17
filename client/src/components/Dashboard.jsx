@@ -256,18 +256,12 @@ function UsernameChangeModal({ user, onClose, onSuccess }) {
 // to the top via .dn-screen .dash-center-col { order: -1 }).
 function HomeSection({ user, bgUrl, onUserUpdate, homeImages, navCards, onViewAllNews, withWelcome }) {
   const [showUsernameModal, setShowUsernameModal] = useState(false);
-  const [quests, setQuests] = useState([]);
-  const [questProgress, setQuestProgress] = useState({});
-  const [questsLoading, setQuestsLoading] = useState(true);
-  const [completedQuest, setCompletedQuest] = useState(null);
   const [panelBackgrounds, setPanelBackgrounds] = useState({
     profile_panel_bg: '',
     stats_panel_bg: '',
     quests_panel_bg: '',
     recent_games_panel_bg: '',
   });
-  const [newsItems, setNewsItems] = useState([]);
-  const [rewardChest, setRewardChest] = useState(null);
 
   const xp          = user.xp    || 0;
   const level       = user.level || 1;
@@ -278,43 +272,6 @@ function HomeSection({ user, bgUrl, onUserUpdate, homeImages, navCards, onViewAl
   const winRate     = gamesPlayed > 0 ? ((gamesWon / gamesPlayed) * 100).toFixed(1) : 0;
   const gameHistory = user.game_history || [];
   const rank        = getRank(xp);
-
-  // Fetch daily quests and progress from server
-  useEffect(() => {
-    async function loadQuests() {
-      try {
-        const [questsRes, progressRes] = await Promise.all([
-          fetch(`${SERVER_URL}/api/daily-quests`),
-          authFetch('/api/quest-progress'),
-        ]);
-        const questsData = await questsRes.json();
-        const progressData = await progressRes.json();
-
-        // Map progress by quest_id
-        const progressMap = {};
-        (progressData.progress || []).forEach(p => {
-          progressMap[p.quest_id] = p;
-        });
-        setQuestProgress(progressMap);
-
-        // Merge quests with progress data
-        const mergedQuests = (questsData.quests || []).map(q => {
-          const prog = progressMap[q.id];
-          return {
-            ...q,
-            current: prog?.current_progress || 0,
-            completed: prog?.completed || false,
-            rewards_claimed: prog?.rewards_claimed || false,
-          };
-        });
-        setQuests(mergedQuests);
-      } catch (err) {
-        console.error('Failed to load quests:', err);
-      }
-      setQuestsLoading(false);
-    }
-    loadQuests();
-  }, [user]);
 
   // Fetch panel background images
   useEffect(() => {
@@ -337,85 +294,6 @@ function HomeSection({ user, bgUrl, onUserUpdate, homeImages, navCards, onViewAl
     loadPanelBackgrounds();
   }, []);
 
-  // Fetch news/announcements
-  useEffect(() => {
-    async function loadNews() {
-      try {
-        const res = await fetch(`${SERVER_URL}/api/announcements`);
-        if (res.ok) {
-          const data = await res.json();
-          setNewsItems((data.announcements || []).slice(0, 3));
-        }
-      } catch (err) {
-        console.error('Failed to load news:', err);
-      }
-    }
-    loadNews();
-  }, []);
-
-  // Fetch reward chest status
-  useEffect(() => {
-    async function loadRewardChest() {
-      if (!user?.id) return;
-      try {
-        const res = await fetch(`${SERVER_URL}/api/rewards/chest/${user.id}`);
-        if (res.ok) {
-          const data = await res.json();
-          setRewardChest(data);
-        }
-      } catch (err) {
-        console.error('Failed to load reward chest:', err);
-      }
-    }
-    loadRewardChest();
-  }, [user]);
-
-  // Time until daily reset (midnight UTC)
-  const [timeLeft, setTimeLeft] = useState('');
-  useEffect(() => {
-    function updateTimer() {
-      const now = new Date();
-      const midnight = new Date(now);
-      midnight.setUTCHours(24, 0, 0, 0);
-      const diff = midnight - now;
-      const hrs = Math.floor(diff / 3600000);
-      const mins = Math.floor((diff % 3600000) / 60000);
-      setTimeLeft(`${hrs}h ${mins}m left`);
-    }
-    updateTimer();
-    const interval = setInterval(updateTimer, 60000);
-    return () => clearInterval(interval);
-  }, []);
-
-  // Handle claiming reward chest
-  const handleClaimChest = async () => {
-    if (!user?.id || !rewardChest?.available) return;
-    try {
-      const res = await fetch(`${SERVER_URL}/api/rewards/claim/${user.id}`, { method: 'POST' });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.success) {
-          // Refresh chest status
-          const refreshRes = await fetch(`${SERVER_URL}/api/rewards/chest/${user.id}`);
-          if (refreshRes.ok) {
-            const refreshData = await refreshRes.json();
-            setRewardChest(refreshData);
-          }
-          // Update user coins/gems
-          if (onUserUpdate) {
-            onUserUpdate({
-              ...user,
-              coins: (user.coins || 0) + (data.coins || 0),
-              gems: (user.gems || 0) + (data.gems || 0),
-            });
-          }
-        }
-      }
-    } catch (err) {
-      console.error('Failed to claim chest:', err);
-    }
-  };
-
   return (
     <div className="dash-main">
       {/* Welcome banner — DashboardNew shell only (the old shell's mockup
@@ -432,12 +310,15 @@ function HomeSection({ user, bgUrl, onUserUpdate, homeImages, navCards, onViewAl
       {/* Left nav column (old shell only) */}
       {navCards && <nav className="dash-nav-col">{navCards}</nav>}
 
-      {/* Right content column: event art + quests/rewards widgets + news feed */}
-      <div className="dash-content-col">
-        {navCards && (
-          /* INERT visual placeholder — no events feature exists yet. Art box,
-             label, and dots are purely decorative; nothing here is clickable
-             or wired to data by design. */
+      {/* Right content column (old shell only): inert Event placeholder.
+          The Daily Quests / Rewards / News home widgets were removed — their
+          real destinations are /quests (dock), the dock's Daily Reward button
+          (claim), and the News tab (left-nav card / handleAnnouncementsTab). */}
+      {navCards && (
+        <div className="dash-content-col">
+          {/* INERT visual placeholder — no events feature exists yet. Art box,
+              label, and dots are purely decorative; nothing here is clickable
+              or wired to data by design. */}
           <div className="dash-event-card" aria-hidden="true">
             <div className="dash-event-art">event art placeholder</div>
             <div className="dash-event-body">
@@ -452,123 +333,8 @@ function HomeSection({ user, bgUrl, onUserUpdate, homeImages, navCards, onViewAl
               </div>
             </div>
           </div>
-        )}
-
-        <div className="home-widgets">
-
-          {/* DAILY QUESTS */}
-          <div className="home-widget" id="dash-quests-widget">
-            <div className="home-widget-header">
-              <h3 className="home-widget-title">DAILY QUESTS</h3>
-            </div>
-            <div className="home-widget-content">
-              {quests.slice(0, 3).map((quest, i) => (
-                <div className="quest-item" key={quest.id || i}>
-                  <div className="quest-icon-wrap">
-                    {quest.icon_image ? (
-                      <img src={quest.icon_image} alt={quest.name} className="quest-icon-img" />
-                    ) : (
-                      <span className="quest-icon-emoji">{quest.icon || '⚔️'}</span>
-                    )}
-                  </div>
-                  <div className="quest-info">
-                    <p className="quest-name">{quest.name}</p>
-                    <div className="quest-progress-bar">
-                      <div
-                        className="quest-progress-fill"
-                        style={{ width: `${Math.min(100, ((quest.current || 0) / (quest.target || 1)) * 100)}%` }}
-                      />
-                    </div>
-                    <p className="quest-progress-text">{quest.current || 0} / {quest.target || 1}</p>
-                  </div>
-                  <div className="quest-reward">
-                    {quest.coin_reward > 0 && (
-                      <>
-                        <span className="quest-gem-icon">🪙</span>
-                        <span className="quest-reward-amount">{quest.coin_reward}</span>
-                      </>
-                    )}
-                    {quest.gem_reward > 0 && (
-                      <>
-                        <span className="quest-gem-icon">💎</span>
-                        <span className="quest-reward-amount">{quest.gem_reward}</span>
-                      </>
-                    )}
-                  </div>
-                </div>
-              ))}
-              {quests.length === 0 && (
-                <p className="home-widget-empty">No active quests today</p>
-              )}
-            </div>
-          </div>
-
-          {/* REWARDS */}
-          <div className="home-widget" id="dash-rewards-widget">
-            <div className="home-widget-header">
-              <h3 className="home-widget-title">REWARDS</h3>
-            </div>
-            <div className="home-widget-content reward-content">
-              <div className="reward-chest-wrap">
-                {homeImages.chest_image ? (
-                  <img src={homeImages.chest_image} alt="Reward Chest" className="reward-chest-img" />
-                ) : (
-                  <div className="reward-chest-placeholder" />
-                )}
-              </div>
-              <div className="reward-info">
-                <p className="reward-text">
-                  {rewardChest?.available ? 'Open your free chest!' : `Next chest in ${rewardChest?.timeLeft || '24h'}`}
-                </p>
-                <button
-                  className={`reward-claim-btn ${!rewardChest?.available ? 'reward-claim-btn--disabled' : ''}`}
-                  onClick={handleClaimChest}
-                  disabled={!rewardChest?.available}
-                >
-                  {rewardChest?.available ? 'CLAIM' : 'CLAIMED'}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* NEWS FEED (thumbnail + title + date rows; View All jumps to the
-              existing AnnouncementsSection tab via onViewAllNews) */}
-          <div className="home-widget">
-            <div className="home-widget-header home-widget-header--row">
-              <h3 className="home-widget-title">NEWS FEED</h3>
-              {onViewAllNews && (
-                <button type="button" className="news-view-all" onClick={onViewAllNews}>
-                  View All
-                </button>
-              )}
-            </div>
-            <div className="home-widget-content">
-              {newsItems.map((item, i) => (
-                <div className="news-item" key={item.id || i}>
-                  {item.image_url ? (
-                    <img src={item.image_url} alt={item.title} className="news-item-img" />
-                  ) : (
-                    <div className="news-item-img-placeholder">📢</div>
-                  )}
-                  <div className="news-item-info">
-                    <p className="news-item-title">{item.title || item.message?.substring(0, 40)}</p>
-                    <p className="news-item-desc">{item.message?.substring(0, 60)}{item.message?.length > 60 ? '...' : ''}</p>
-                  </div>
-                  {item.created_at && (
-                    <span className="news-item-date">
-                      {new Date(item.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                    </span>
-                  )}
-                </div>
-              ))}
-              {newsItems.length === 0 && (
-                <p className="home-widget-empty">No news yet</p>
-              )}
-            </div>
-          </div>
-
         </div>
-      </div>
+      )}
 
       {showUsernameModal && (
         <UsernameChangeModal
@@ -1323,14 +1089,84 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
     localStorage.setItem(ANN_WELCOME_KEY, '1');
   }
 
-  // Dock → widget bridge (temporary until a real Quests page ships): scroll
-  // the existing widget into view and pulse its border. No new routes.
-  function revealHomeWidget(id) {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    el.classList.add('home-widget--flash');
-    setTimeout(() => el.classList.remove('home-widget--flash'), 1600);
+  // ── Daily Reward chest (dock button) ─────────────────────────────────
+  // The old Rewards home-widget was removed; its claim flow now lives on the
+  // dock's Daily Reward button. Endpoints: GET /api/rewards/chest/:id (24h
+  // cooldown) + POST /api/rewards/claim/:id (awards random coins/gems).
+  const [rewardChest, setRewardChest] = useState(null);  // { available, timeLeft, lastClaim }
+  const [claiming, setClaiming] = useState(false);
+  const [claimNotice, setClaimNotice] = useState('');    // inline toast text
+  const [nowTick, setNowTick] = useState(Date.now());    // minute tick for cooldown label
+
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await authFetch(`/api/rewards/chest/${user.id}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!cancelled) setRewardChest(data);
+      } catch (err) {
+        console.error('Failed to load reward chest:', err);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [user?.id]);
+
+  // Keep the "Next chest in Xh Ym" label fresh
+  useEffect(() => {
+    const t = setInterval(() => setNowTick(Date.now()), 60000);
+    return () => clearInterval(t);
+  }, []);
+
+  async function handleClaimReward() {
+    if (!user?.id || !rewardChest?.available || claiming) return;
+    setClaiming(true);
+    try {
+      const res = await authFetch(`/api/rewards/claim/${user.id}`, { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        const gainedCoins = data.coins || 0;
+        const gainedGems = data.gems || 0;
+        setClaimNotice(`+${gainedCoins} coins, +${gainedGems} gems!`);
+        setTimeout(() => setClaimNotice(''), 4000);
+        // Refresh the header currency (same onUserUpdate path the Shop uses)
+        if (onUserUpdate) {
+          onUserUpdate({
+            ...user,
+            coins: (user.coins || 0) + gainedCoins,
+            gems: (user.gems || 0) + gainedGems,
+          });
+        }
+        // Re-check chest → now on cooldown
+        try {
+          const refresh = await authFetch(`/api/rewards/chest/${user.id}`);
+          if (refresh.ok) setRewardChest(await refresh.json());
+        } catch { /* keep local state */ }
+      } else {
+        setClaimNotice(data.message || 'Chest already claimed today');
+        setTimeout(() => setClaimNotice(''), 4000);
+      }
+    } catch (err) {
+      console.error('Failed to claim chest:', err);
+      setClaimNotice('Claim failed — try again.');
+      setTimeout(() => setClaimNotice(''), 4000);
+    }
+    setClaiming(false);
+  }
+
+  // Availability + "Next chest in Xh Ym" (from lastClaim + 24h; server timeLeft fallback)
+  const rewardAvailable = !!rewardChest?.available;
+  let rewardCooldownLabel = rewardChest?.timeLeft ? `Next chest in ${rewardChest.timeLeft}` : 'Next chest soon';
+  if (!rewardAvailable && rewardChest?.lastClaim) {
+    const next = new Date(rewardChest.lastClaim).getTime() + 24 * 60 * 60 * 1000;
+    const diff = next - nowTick;
+    if (diff > 0) {
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      rewardCooldownLabel = `Next chest in ${h}h ${m}m`;
+    }
   }
 
   // User currency
@@ -1567,7 +1403,7 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
                 Inventory/Heroes/Events are unbuilt features: disabled
                 coming-soon tiles (ms-ribbon treatment, dock-sized). Quests
                 and Shop route to their standalone pages; the Daily Reward
-                pill jumps to the existing Rewards widget. */}
+                button claims the daily chest directly. */}
             <div className="dash-dock">
               <div className="dash-dock-items">
                 <div className="dash-dock-item dash-dock-item--soon" aria-disabled="true">
@@ -1602,19 +1438,29 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
                 </div>
               </div>
 
-              {/* Single claim mechanism: this pill only jumps to the Rewards
-                  widget's CLAIM button — it is not a second claim action */}
-              <button
-                type="button"
-                className="dash-dock-reward"
-                onClick={() => revealHomeWidget('dash-rewards-widget')}
-              >
-                <span className="dash-dock-reward-gem" />
-                <span className="dash-dock-reward-text">
-                  <span className="dash-dock-reward-title">DAILY REWARD</span>
-                  <span className="dash-dock-reward-sub">Open your daily chest</span>
-                </span>
-              </button>
+              {/* Daily Reward: the real claim action (moved here from the
+                  removed Rewards home-widget). Available → claims the chest;
+                  on cooldown → disabled with a "Next chest in Xh Ym" label. */}
+              <div className="dash-dock-reward-wrap">
+                {claimNotice && (
+                  <span className="dash-dock-reward-toast" role="status">{claimNotice}</span>
+                )}
+                <button
+                  type="button"
+                  className={`dash-dock-reward${rewardAvailable ? '' : ' dash-dock-reward--soon'}`}
+                  onClick={handleClaimReward}
+                  disabled={!rewardAvailable || claiming}
+                  title={rewardAvailable ? 'Claim your daily chest' : rewardCooldownLabel}
+                >
+                  <span className="dash-dock-reward-gem" />
+                  <span className="dash-dock-reward-text">
+                    <span className="dash-dock-reward-title">DAILY REWARD</span>
+                    <span className="dash-dock-reward-sub">
+                      {claiming ? 'Claiming…' : rewardAvailable ? 'Open your daily chest' : rewardCooldownLabel}
+                    </span>
+                  </span>
+                </button>
+              </div>
             </div>
           </>
         )}
