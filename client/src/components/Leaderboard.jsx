@@ -77,6 +77,58 @@ export default function Leaderboard({ gameResult, username, gameMode, onPlayAgai
     );
   }
 
+  // ── PvP Duel ───────────────────────────────────────────────────────────────
+  // Plain functional summary (Phase 4a); the mockup Victory/Defeat results
+  // card treatment is Phase 4c.
+  if (detectedMode === 'pvp_duel') {
+    const { duelResults = [], draw = false, reason } = gameResult;
+    const iWon = !draw && winner?.username === username;
+    const heading = draw ? "IT'S A DRAW" : iWon ? 'VICTORY!' : 'DEFEAT';
+    const subtitle = draw
+      ? 'Perfectly matched — same damage, same correct answers.'
+      : iWon
+      ? (reason === 'forfeit' ? 'Your opponent fled the arena.' : `You defeated ${duelResults.find(p => p.username !== username)?.username || 'your opponent'}!`)
+      : `${winner?.username || 'Your opponent'} won the duel.`;
+
+    return (
+      <div className="screen leaderboard-screen">
+        <div className="leaderboard-card">
+          <div className="victory-header">
+            <span className="victory-trophy">{draw ? '🤝' : iWon ? '🏆' : '⚔️'}</span>
+            <h2>{heading}</h2>
+            <p>{subtitle}</p>
+          </div>
+
+          <div className="lb-section">
+            <p className="section-title">⚔️ Duel Results</p>
+            <table className="lb-table">
+              <thead>
+                <tr><th>Player</th><th>HP Left</th><th>Damage Dealt</th><th>Correct</th><th>XP</th></tr>
+              </thead>
+              <tbody>
+                {duelResults.map(p => (
+                  <tr key={p.id} className={p.username === username ? 'me' : ''}>
+                    <td>
+                      {p.username}{p.username === username ? ' 👤' : ''}
+                      {p.isGuest && <span className="guest-badge" style={{ marginLeft: 6 }}>👤 Guest</span>}
+                    </td>
+                    <td>{p.hp} HP</td>
+                    <td>⚔️ {p.damageDealt}</td>
+                    <td>{p.correctAnswers}</td>
+                    <td>+{p.xpEarned} XP</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {isGuest && <GuestSignInBanner onSignIn={onSignIn || (() => window.location.href = '/')} />}
+          <button className="btn-play-again" onClick={onPlayAgain}>⚔️ Duel Again</button>
+        </div>
+      </div>
+    );
+  }
+
   // ── Trivia Pursuit ─────────────────────────────────────────────────────────
   if (detectedMode === 'trivia_pursuit') {
     const { players = [] } = gameResult;

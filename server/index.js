@@ -559,6 +559,12 @@ function makeLobby(hostSocketId, subject = 'all', gameMode = 'battle_royale', di
     triviaIsHQ:             false,
     triviaCanEarnWedge:     false,
     triviaIsFinalQuestion:  false,
+    // PvP Duel (initialized in startPvpDuel)
+    duelHp:          null,   // socketId → current HP
+    duelDamage:      null,   // socketId → cumulative damage dealt
+    duelCorrects:    null,   // socketId → correct answers landed
+    duelAnswerTimes: null,   // socketId → server-received timestamp (per round)
+    duelPlacements:  null,   // socketId → final placement (set by endPvpDuel; draw = both 1)
   };
   lobbies.set(id, lobby);
   return lobby;
@@ -596,6 +602,17 @@ function shuffle(arr) {
 
 function clearTimer(lobby) {
   if (lobby.timer) { clearTimeout(lobby.timer); lobby.timer = null; }
+}
+
+// PvP duels auto-start the moment the 2nd player joins — no host click.
+// Short delay so both clients process the join's lobby_update before
+// game_start arrives; re-checked inside the timeout in case someone left.
+function maybeAutoStartDuel(lobby) {
+  if (lobby.gameMode !== 'pvp_duel') return;
+  if (lobby.status !== 'waiting' || lobby.players.size !== 2) return;
+  setTimeout(() => {
+    if (lobby.status === 'waiting' && lobby.players.size === 2) startGame(lobby);
+  }, 800);
 }
 
 // ── Power-up system ────────────────────────────────────────────────────────────
@@ -780,6 +797,7 @@ function startGame(lobby) {
   if (lobby.gameMode === 'speed_race')     return startSpeedRace(lobby);
   if (lobby.gameMode === 'trivia_pursuit') return startTriviaPursuit(lobby);
   if (lobby.gameMode === 'buzz_fun')       return startBuzzFun(lobby);
+  if (lobby.gameMode === 'pvp_duel')       return startPvpDuel(lobby);
 
   // ── Battle Royale & Scan Master ────────────────────────────────────────────
   // Guard: Scan Master needs image questions
@@ -1021,6 +1039,219 @@ function endGame(lobby, reason) {
   awardXP(lobby, sorted).catch(err => console.error('[awardXP]', err.message));
 }
 
+// ── PvP Duel (1v1) ─────────────────────────────────────────────────────────────
+// Self-contained mode (speed-race precedent): own start/loop/end, own game_over
+// emit. Does NOT route through endGame() — its lives/score comparators don't
+// apply to an HP duel. Bots are unsupported here (they never answer duel rounds).
+
+const PVP_DUEL_STARTING_HP    = 100;
+const PVP_DUEL_DAMAGE_PER_HIT = 5;
+
+function startPvpDuel(lobby) {
+  lobby.round           = 0;
+  lobby.duelHp          = new Map();
+  lobby.duelDamage      = new Map();
+  lobby.duelCorrects    = new Map();
+  lobby.duelAnswerTimes = new Map();
+  lobby.duelPlacements  = null;
+  for (const p of lobby.players.values()) {
+    lobby.duelHp.set(p.id, PVP_DUEL_STARTING_HP);
+    lobby.duelDamage.set(p.id, 0);
+    lobby.duelCorrects.set(p.id, 0);
+    p.alive = true; p.score = 0;
+  }
+
+  // Pool: questions tagged for this mode; fall back to the Battle Royale pool
+  // when too few exist (same <5 threshold the BR subject fallback uses).
+  const duelPool = questionBank.filter(q => (q.game_modes || []).includes('pvp_duel'));
+  const brPool   = questionBank.filter(q => (q.game_modes || ['battle_royale']).includes('battle_royale'));
+  const base     = duelPool.length >= 5 ? duelPool : brPool;
+  const raw      = lobby.subject === 'all' ? base : base.filter(q => q.subject === lobby.subject);
+  lobby.questionQueue = shuffle(raw.length >= 5 ? raw : base);
+  lobby.questionIdx   = -1;
+
+  lobby.status = 'pvp_duel_question';
+  io.to(lobby.id).emit('game_start', {
+    gameMode: 'pvp_duel', message: 'Duel begins!', startingHp: PVP_DUEL_STARTING_HP,
+  });
+  setTimeout(() => nextPvpDuelQuestion(lobby), 1500);
+}
+
+function duelHpSnapshot(lobby) {
+  const hp = {};
+  for (const p of lobby.players.values()) hp[p.id] = lobby.duelHp?.get(p.id) ?? PVP_DUEL_STARTING_HP;
+  return hp;
+}
+
+function nextPvpDuelQuestion(lobby) {
+  lobby.questionIdx++;
+  if (lobby.questionIdx >= lobby.questionQueue.length) return endPvpDuel(lobby, 'questions_exhausted');
+  if (lobby.players.size < 2) return endPvpDuel(lobby, 'forfeit');
+
+  lobby.round++;
+  lobby.status = 'pvp_duel_question';
+  lobby.answers.clear();
+  lobby.duelAnswerTimes.clear();
+
+  // Same shuffle-once-into-the-slot pattern as Battle Royale: emit, grading,
+  // and both clients all see the identical shuffled order.
+  const q = lobby.questionQueue[lobby.questionIdx] = withShuffledOptions(lobby.questionQueue[lobby.questionIdx]);
+  const timeLimit = q.difficulty === 'hard' ? gameSettings.hardModeTimer : gameSettings.easyModeTimer;
+
+  io.to(lobby.id).emit('new_question', {
+    ...toPublicQuestion(q),
+    round: lobby.round, timeLimit, alivePlayers: lobby.players.size,
+    duelHp: duelHpSnapshot(lobby),
+  });
+
+  lobby.timerEnd = Date.now() + timeLimit * 1000;
+  lobby.timer    = setTimeout(() => processPvpDuelAnswers(lobby), timeLimit * 1000);
+}
+
+function processPvpDuelAnswers(lobby) {
+  if (lobby.status !== 'pvp_duel_question') return;
+  clearTimer(lobby);
+  lobby.status = 'pvp_duel_reviewing';
+
+  const q  = lobby.questionQueue[lobby.questionIdx];
+  const ps = [...lobby.players.values()];
+
+  const graded = ps.map(p => ({
+    p,
+    answer:  lobby.answers.get(p.id),
+    correct: isAnswerCorrect(lobby.answers.get(p.id), q),
+    at:      lobby.duelAnswerTimes.get(p.id) ?? Infinity,
+  }));
+  for (const g of graded) {
+    if (g.correct) lobby.duelCorrects.set(g.p.id, (lobby.duelCorrects.get(g.p.id) || 0) + 1);
+  }
+
+  // First correct (by server-received timestamp) deals the damage — exactly
+  // one strike per round, even when both answered correctly.
+  let striker = null;
+  const correctOnes = graded.filter(g => g.correct).sort((a, b) => a.at - b.at);
+  if (correctOnes.length > 0 && ps.length === 2) {
+    striker = correctOnes[0].p;
+    const victim = ps.find(p => p.id !== striker.id);
+    lobby.duelHp.set(victim.id, Math.max(0, (lobby.duelHp.get(victim.id) || 0) - PVP_DUEL_DAMAGE_PER_HIT));
+    lobby.duelDamage.set(striker.id, (lobby.duelDamage.get(striker.id) || 0) + PVP_DUEL_DAMAGE_PER_HIT);
+  }
+
+  const explanation = (lobby.difficulty === 'hard' ? gameSettings.hardModeHideExplanations : gameSettings.easyModeHideExplanations)
+    ? ''
+    : (q.explanation || '');
+
+  for (const g of graded) {
+    const sock = io.sockets.sockets.get(g.p.id);
+    if (!sock) continue;
+    const hp = lobby.duelHp.get(g.p.id) ?? 0;
+    const opponent = ps.find(p => p.id !== g.p.id);
+    sock.emit('answer_result', answerResultPayload({
+      isCorrect: g.correct, q,
+      extras: {
+        hp,
+        opponentHp: opponent ? (lobby.duelHp.get(opponent.id) ?? 0) : 0,
+        struck: striker ? g.p.id === striker.id : false,
+        damageDealt: lobby.duelDamage.get(g.p.id) || 0,
+        alive: hp > 0,
+        explanation,
+      },
+    }));
+  }
+
+  const snapshot = ps.map(p => ({
+    id: p.id, username: p.username,
+    hp: lobby.duelHp.get(p.id) ?? 0,
+    damage: lobby.duelDamage.get(p.id) || 0,
+    alive: (lobby.duelHp.get(p.id) ?? 0) > 0,
+  }));
+  io.to(lobby.id).emit('round_results', {
+    results: graded.map(g => ({
+      id: g.p.id, username: g.p.username,
+      answered: g.answer !== undefined, correct: g.correct,
+      hp: lobby.duelHp.get(g.p.id) ?? 0,
+    })),
+    correctAnswer: q.correct, explanation,
+    striker: striker ? striker.username : null,
+    eliminated: [],
+    players: snapshot,
+  });
+
+  const explanationDelay = lobby.difficulty === 'hard'
+    ? (gameSettings.hardModeHideExplanations ? 2500 : 22000)
+    : (gameSettings.easyModeHideExplanations ? 2500 : ((gameSettings.easyModeExplanationTime || gameSettings.explanationTime || 5) * 1000 + 2000));
+
+  const anyDead = ps.some(p => (lobby.duelHp.get(p.id) ?? 0) <= 0);
+  if (anyDead) setTimeout(() => endPvpDuel(lobby, 'hp_zero'), explanationDelay);
+  else setTimeout(() => nextPvpDuelQuestion(lobby), explanationDelay);
+}
+
+function endPvpDuel(lobby, reason) {
+  if (lobby.status === 'game_over') return;
+  lobby.status = 'game_over';
+  clearTimer(lobby);
+  totalGamesPlayed++;
+
+  const ps = [...lobby.players.values()];
+  let winner = null;
+  let draw   = false;
+
+  if (ps.length === 1) {
+    // Opponent left mid-duel — remaining player wins by forfeit
+    winner = ps[0];
+  } else if (ps.length === 2) {
+    const [a, b] = ps;
+    const hpA = lobby.duelHp?.get(a.id) ?? 0;
+    const hpB = lobby.duelHp?.get(b.id) ?? 0;
+    if (hpA <= 0 || hpB <= 0) {
+      winner = hpA <= 0 ? (hpB <= 0 ? null : b) : a;
+    } else {
+      // Pool exhausted: most damage dealt → most correct answers → draw
+      const dA = lobby.duelDamage?.get(a.id) || 0;
+      const dB = lobby.duelDamage?.get(b.id) || 0;
+      if (dA !== dB) winner = dA > dB ? a : b;
+      else {
+        const cA = lobby.duelCorrects?.get(a.id) || 0;
+        const cB = lobby.duelCorrects?.get(b.id) || 0;
+        if (cA !== cB) winner = cA > cB ? a : b;
+        else draw = true;
+      }
+    }
+  }
+
+  const sorted = winner ? [winner, ...ps.filter(p => p.id !== winner.id)] : ps;
+
+  // Placements for awardXP: winner 1 / loser 2; a draw is placement 1 for both.
+  // The alive flag doubles as "won" so awardXP's isWinner check (placement===1
+  // && alive) credits games_won only to a real winner — never on a draw.
+  lobby.duelPlacements = new Map();
+  sorted.forEach((p, i) => lobby.duelPlacements.set(p.id, draw ? 1 : i + 1));
+  for (const p of ps) p.alive = winner ? p.id === winner.id : false;
+
+  const duelResults = sorted.map(p => {
+    const placement = lobby.duelPlacements.get(p.id);
+    const corrects  = lobby.duelCorrects?.get(p.id) || 0;
+    // Mirrors awardXP's math for this mode (no powerup/bonus sources in duels)
+    const xpEarned  = (XP_BY_PLACEMENT[placement] ?? XP_FALLBACK) + corrects * XP_PER_CORRECT;
+    return {
+      id: p.id, username: p.username,
+      hp: Math.max(0, lobby.duelHp?.get(p.id) ?? 0),
+      damageDealt: lobby.duelDamage?.get(p.id) || 0,
+      correctAnswers: corrects,
+      placement, xpEarned,
+      isGuest: p.isGuest || false,
+    };
+  });
+
+  io.to(lobby.id).emit('game_over', {
+    gameMode: 'pvp_duel',
+    winner: winner ? { username: winner.username, id: winner.id } : null,
+    draw, reason, duelResults,
+  });
+
+  awardXP(lobby, sorted).catch(err => console.error('[awardXP]', err.message));
+}
+
 // ── XP system ─────────────────────────────────────────────────────────────────
 
 const XP_BY_PLACEMENT = { 1: 100, 2: 70, 3: 50 };
@@ -1035,13 +1266,16 @@ async function awardXP(lobby, sorted) {
     const sock   = io.sockets.sockets.get(player.id);
     if (!sock?.userId) continue; // skip unauthenticated players
 
-    const placement = i + 1;
+    // pvp_duel overrides placement so a draw awards both players 1st-place XP
+    const placement = lobby.duelPlacements?.get(player.id) ?? (i + 1);
     const baseXp    = XP_BY_PLACEMENT[placement] ?? XP_FALLBACK;
     let correctCount = 0;
     if (lobby.gameMode === 'speed_race') {
       correctCount = lobby.raceCorrects?.get(player.id) || 0;
     } else if (lobby.gameMode === 'trivia_pursuit') {
       correctCount = (lobby.triviaWedges?.get(player.id) || new Set()).size * 2;
+    } else if (lobby.gameMode === 'pvp_duel') {
+      correctCount = lobby.duelCorrects?.get(player.id) || 0;
     } else {
       correctCount = lobby.correctCounts?.get(player.id) || 0;
     }
@@ -1089,6 +1323,8 @@ async function awardXP(lobby, sorted) {
         xp_earned:       totalXp,
         correct_answers: correctCount,
         total_questions: lobby.questionIdx + 1,
+        // Non-zero only for pvp_duel; every other mode has no duelDamage map
+        damage_dealt:    lobby.duelDamage?.get(player.id) || 0,
       });
 
       // Update subject mastery
@@ -1723,6 +1959,9 @@ io.on('connection', (socket) => {
     const lobby = lobbies.get((lobbyId ?? '').toUpperCase().trim());
     if (!lobby)                       return ack({ ok: false, error: 'Lobby not found. Check the code and try again.' });
     if (lobby.status !== 'waiting')   return ack({ ok: false, error: 'This game has already started.' });
+    // 1v1 cap: a duel holds exactly 2 players (other modes stay uncapped)
+    if (lobby.gameMode === 'pvp_duel' && lobby.players.size >= 2)
+      return ack({ ok: false, error: 'This duel is full.' });
 
     const taken = [...lobby.players.values()].some(
       p => p.username.toLowerCase() === name.toLowerCase()
@@ -1739,19 +1978,23 @@ io.on('connection', (socket) => {
     ack({ ok: true, lobbyId: lobby.id });
     io.to(lobby.id).emit('lobby_update', lobbyPayload(lobby));
     console.log(`${name} joined lobby ${lobby.id}`);
+    maybeAutoStartDuel(lobby);
   });
 
   socket.on('quick_join', ({ username, gameMode = 'battle_royale', clanTag = null, isGuest = false }, ack) => {
     const name = (username ?? '').trim().slice(0, 20);
     if (!name) return ack({ ok: false, error: 'Username required.' });
 
-    // Find best open lobby: same mode, waiting, open to quick join, no username clash
+    // Find best open lobby: same mode, waiting, open to quick join, no username
+    // clash, and (for 1v1 duels) not already full — a full duel is skipped so
+    // the existing fallback below creates a fresh lobby instead.
     const candidates = [...lobbies.values()]
       .filter(l =>
         l.status === 'waiting' &&
         l.openToQuickJoin !== false &&
         l.gameMode === gameMode &&
         l.players.size >= 1 &&
+        !(l.gameMode === 'pvp_duel' && l.players.size >= 2) &&
         ![...l.players.values()].some(p => p.username.toLowerCase() === name.toLowerCase())
       )
       .sort((a, b) => b.players.size - a.players.size);
@@ -1768,6 +2011,7 @@ io.on('connection', (socket) => {
       ack({ ok: true, lobbyId: lobby.id, subject: lobby.subject, created: false });
       io.to(lobby.id).emit('lobby_update', lobbyPayload(lobby));
       console.log(`${name} quick-joined lobby ${lobby.id}`);
+      maybeAutoStartDuel(lobby);
       return;
     }
 
@@ -1935,6 +2179,21 @@ io.on('connection', (socket) => {
       lobby.answers.set(socket.id, answer);
       clearTimer(lobby);
       setTimeout(() => processTriviaAnswer(lobby, answer), 300);
+      return;
+    }
+
+    // ── PvP Duel ───────────────────────────────────────────────────────────
+    if (lobby.status === 'pvp_duel_question') {
+      const player = lobby.players.get(socket.id);
+      if (!player || lobby.answers.has(socket.id)) return;
+      lobby.answers.set(socket.id, answer);
+      // Arrival timestamp decides who struck when both answer correctly
+      lobby.duelAnswerTimes.set(socket.id, Date.now());
+      io.to(lobby.id).emit('answer_count', { answered: lobby.answers.size, total: lobby.players.size });
+      if (lobby.answers.size >= lobby.players.size) {
+        clearTimer(lobby);
+        setTimeout(() => processPvpDuelAnswers(lobby), 600);
+      }
       return;
     }
 
@@ -2115,6 +2374,10 @@ io.on('connection', (socket) => {
         lobby.triviaTurnIdx++;
         setTimeout(() => nextTriviaTurn(lobby), 1000);
       }
+    } else if (lobby.status === 'pvp_duel_question' || lobby.status === 'pvp_duel_reviewing') {
+      // 1v1: a mid-duel disconnect forfeits — the remaining player wins
+      clearTimer(lobby);
+      endPvpDuel(lobby, 'forfeit');
     }
   });
 });

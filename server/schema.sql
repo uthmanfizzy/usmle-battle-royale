@@ -426,3 +426,11 @@ CREATE POLICY IF NOT EXISTS "server_full_access_game_settings"
 -- the item exists + active ('Item not found'), not already owned ('Already
 -- owned'), gems >= price_gems ('Not enough gems'), then decrements gems and
 -- inserts the user_gear row. RLS enabled, server-only access (service key).
+
+-- ── game_history.damage_dealt (DOCUMENTATION ONLY) ─────────────────────────────
+-- Added directly in the Supabase SQL editor (same drift precedent as
+-- game_history.game_mode, which the code inserts but this file predates).
+-- Documents the live shape — do NOT re-run:
+-- ALTER TABLE game_history ADD COLUMN IF NOT EXISTS damage_dealt INTEGER NOT NULL DEFAULT 0;
+-- Written by awardXP for every mode; only pvp_duel produces non-zero values
+-- (PVP_DUEL_DAMAGE_PER_HIT per first-correct answer landed).

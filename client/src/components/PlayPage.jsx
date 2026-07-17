@@ -46,6 +46,14 @@ const GAME_MODES = [
     longDescription: 'Fast-paced flash cards of buzzwords, triads, side effects and classic high-yield associations. 8 seconds each — fast answers earn bonus points!',
     supportsSolo: false,
   },
+  {
+    id: 'pvp_duel',
+    name: 'PVP DUEL',
+    icon: '⚔️',
+    shortDesc: '1v1 — first correct answer strikes',
+    longDescription: 'Face a single opponent in a duel of knowledge. Both of you see the same question — whoever answers correctly first strikes the other for 5 damage. Reduce your rival from 100 HP to zero to claim victory. The duel begins the moment your opponent arrives.',
+    supportsSolo: false,
+  },
 ];
 
 // Launched from Story Mode (via the initialMode prop), not listed as Online tiles.

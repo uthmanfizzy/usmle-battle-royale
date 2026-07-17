@@ -19,6 +19,7 @@ const Leaderboard = lazy(() => import('./components/Leaderboard'));
 const SoloGame = lazy(() => import('./components/SoloGame'));
 const TowerMode = lazy(() => import('./components/TowerMode'));
 const BuzzFunGame = lazy(() => import('./components/BuzzFunGame'));
+const PvpDuelGame = lazy(() => import('./components/PvpDuelGame'));
 const LandingPage = lazy(() => import('./components/LandingPage'));
 const TrainingGrounds = lazy(() => import('./components/TrainingGrounds'));
 const PlayPage = lazy(() => import('./components/PlayPage'));
@@ -996,6 +997,27 @@ export default function App() {
           hiddenOptions={hiddenOptions}
           extraTimeBonus={extraTimeBonus}
           showPowerupIntro={showPowerupIntro}
+          socketId={socket.id}
+        />
+        </RouteErrorBoundary>
+      )}
+
+      {phase === 'game' && gameMode === 'pvp_duel' && (
+        <RouteErrorBoundary name="PvpDuelGame">
+        <PvpDuelGame
+          question={question}
+          round={round}
+          timeLimit={timeLimit}
+          myAnswer={myAnswer}
+          hasAnswered={hasAnswered}
+          answeredCount={answeredCount}
+          players={players}
+          answerResult={answerResult}
+          roundResults={roundResults}
+          showingRoundResult={showingRoundResult}
+          onAnswer={handleAnswer}
+          username={username}
+          onTick={audio.playTick}
           socketId={socket.id}
         />
         </RouteErrorBoundary>
