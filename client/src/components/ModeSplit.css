@@ -225,8 +225,10 @@ body:has(.ms-screen) .home-btn:hover {
   box-shadow: 0 14px 36px rgba(0, 0, 0, 0.55), 0 0 28px rgba(232, 176, 75, 0.3);
 }
 
-/* Story + Online are equal-weight glass cards (same treatment as the
-   Dashboard nav cards); only the entrance-slide direction differs. */
+/* .ms-card--story keeps its glass/gold chrome for the SEPARATE Story-menu
+   screen (Tower/AnKing coming-soon tiles). On the "CHOOSE YOUR PATH" screen
+   both cards are overridden to the exact Deploy plain-card chrome below
+   (scoped via :not(.ms-cards--story)). Only the entrance-slide differs. */
 .ms-card--story {
   background: var(--mv-glass);
   border: 2px solid var(--mv-border-gold);
@@ -234,8 +236,6 @@ body:has(.ms-screen) .home-btn:hover {
 }
 
 .ms-card--online {
-  background: var(--mv-glass);
-  border: 2px solid var(--mv-border-gold);
   animation: ms-card-right 0.45s 0.27s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
@@ -269,6 +269,54 @@ body:has(.ms-screen) .home-btn:hover {
   max-width: 260px;
 }
 
+/* ── EXACT Deploy-mockup plain-card chrome (Medvale Play.dc.html) ──────────────
+   Applied to the "CHOOSE YOUR PATH" Story + Online cards. Scoped with
+   :not(.ms-cards--story) so the Story-menu tiles on the other screen keep
+   their own styling. Story and Online share IDENTICAL chrome — they differ
+   only in icon/text. Values are literal copies from the mockup source. */
+.ms-cards:not(.ms-cards--story) > .ms-card {
+  background: rgba(6, 10, 7, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 8px;
+  padding: 22px;
+  min-height: 0;
+}
+
+.ms-cards:not(.ms-cards--story) > .ms-card:hover {
+  border-color: rgba(255, 255, 255, 0.3);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.55);
+}
+
+/* Icon circle: 40px, rgba(255,255,255,.08), Cinzel 16px emoji centered */
+.ms-cards:not(.ms-cards--story) .ms-card-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Cinzel', serif;
+  font-size: 16px;
+  line-height: 1;
+  filter: none;
+}
+
+/* Title: Cinzel 18px/700 (white, per the Deploy plain card) */
+.ms-cards:not(.ms-cards--story) .ms-card-name {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: normal;
+  color: #ffffff;
+}
+
+/* Description: 12px, rgba(255,255,255,.7), line-height 1.4 */
+.ms-cards:not(.ms-cards--story) .ms-card-sub {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+  line-height: 1.4;
+}
+
 /* ── Training Grounds: its OWN row below the two cards ──────────────────────────
    A separate flex child of .ms-screen (which centres its children), so it sits on
    its own row, centred beneath the pair. Width 408px = from the horizontal centre
@@ -286,41 +334,51 @@ body:has(.ms-screen) .home-btn:hover {
   align-items: center;
   justify-content: center;
   gap: 18px;
-  padding: 20px 28px;
-  border-radius: 16px;
+  padding: 22px;
+  border-radius: 8px;
   cursor: pointer;
   font-family: 'Cinzel', serif;
   text-align: left;
-  background: var(--mv-glass);
-  /* Teal secondary accent, sourced from --mv-teal (#4fd1c5 → rgb 79,209,197)
-     at the same border weight the two cards above use for gold. */
-  border: 2px solid rgba(79, 209, 197, 0.35);
+  /* Same exact plain-card chrome as the two cards above (no red/gold
+     hierarchy reason to elevate it); its ONLY distinction is the teal-tinted
+     icon circle below. */
+  background: rgba(6, 10, 7, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.16);
   transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
   animation: ms-card-up 0.45s 0.39s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 .ms-train:hover {
   transform: translateY(-6px);
-  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.55), 0 0 28px rgba(79, 209, 197, 0.4);
-  border-color: var(--mv-teal);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.55);
+  border-color: rgba(255, 255, 255, 0.3);
 }
 
+/* Icon circle: 40px, teal tint rgba(79,209,197,.15) — the one point of
+   distinction (judgment call: no mockup exists for this element). */
 .ms-train-icon {
-  font-size: 42px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(79, 209, 197, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
   line-height: 1;
   flex-shrink: 0;
-  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.6));
+  filter: none;
 }
 .ms-train-text { display: flex; flex-direction: column; gap: 4px; }
 .ms-train-name {
-  font-size: 21px;
+  font-size: 18px;
   font-weight: 700;
-  letter-spacing: 0.14em;
-  color: var(--mv-teal);
+  letter-spacing: normal;
+  color: #ffffff;
 }
 .ms-train-sub {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.6);
-  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.7);
+  line-height: 1.4;
 }
 
 /* ── Story menu tiles: rise in with a stagger ──────────────────────────────── */
