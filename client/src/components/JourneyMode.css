@@ -1998,3 +1998,36 @@
   .jm-chapter-row { padding: 14px 16px; }
   .jm-chapter-row-name { font-size: 16px; }
 }
+
+/* ── Stray global ⌂ Home button ───────────────────────────────────────────────
+   Same root cause and same fix as TrainingGrounds.css / ModeSplit.css:52 — the
+   always-rendered App.jsx .home-btn (fixed top:10 left:12, unstyled) was
+   sitting on top of this screen's "← Back" / "← Subjects" / "← Chapters" pill.
+   Kept (it goes HOME, the pill only goes back one step), restyled, and offset.
+   NOTE: journey GAMES hide it instead (SoloGameJourney.css) because the game's
+   footer already carries its own ⌂ Home. */
+body:has(.jm-screen) .home-btn {
+  /* .jm-back-btn is position:absolute at left:20px (and vertically centred in
+     .jm-path-header), so a vertical nudge can't reliably clear it — separate
+     the two HORIZONTALLY instead, exactly as ModeSplit.css:52 does. The widest
+     label ("← Subjects"/"← Chapters") ends near x=160. */
+  top: 20px;
+  left: 176px;
+  z-index: 1001;
+  background: var(--mv-glass);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid var(--mv-border-gold);
+  border-radius: 8px;
+  color: var(--mv-gold);
+  font-family: var(--mv-font-display);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  padding: 8px 16px;
+}
+body:has(.jm-screen) .home-btn:hover {
+  background: var(--mv-glass-strong);
+  border-color: var(--mv-gold);
+  color: var(--mv-gold);
+}

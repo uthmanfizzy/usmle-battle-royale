@@ -14,28 +14,34 @@
 /* ── Tokens + arcade-sky background ─────────────────────────────────────────
    (0,3,0) beats the study skin's html[data-study="on"] .solo-screen (0,2,1). */
 .screen.solo-screen.jm-vibrant {
-  --bg:        #1b0e4d;
-  --surface:   rgba(255, 255, 255, 0.07);
-  --card:      rgba(255, 255, 255, 0.08);
+  /* Journey's local aliases now point at the shared --mv-* tokens, so every
+     rule already written as var(--card)/var(--green)/... retheme's for free.
+     --red is deliberately --mv-danger (wrong answers are an ERROR state);
+     --mv-red stays reserved for primary actions like the next-question CTA. */
+  --bg:        var(--mv-bg-void);
+  --surface:   var(--mv-glass);
+  --card:      var(--mv-glass);
   --card-hi:   rgba(255, 255, 255, 0.14);
-  --border:    rgba(255, 255, 255, 0.18);
-  --text:      #f6f4ff;
-  --text-dim:  rgba(246, 244, 255, 0.72);
-  --gold:      #fbbf24;
-  --gold-dim:  #f59e0b;
-  --green:     #34d399;
-  --red:       #fb7185;
-  --blue:      #22d3ee;
-  --shadow:    0 18px 44px rgba(8, 4, 24, 0.45);
+  --border:    var(--mv-border);
+  --text:      var(--mv-text);
+  --text-dim:  var(--mv-text-dim-65);
+  --gold:      var(--mv-gold);
+  --gold-dim:  var(--mv-gold-dim);
+  --green:     var(--mv-success);
+  --red:       var(--mv-danger);
+  --blue:      var(--mv-teal);
+  --shadow:    0 18px 44px rgba(0, 0, 0, 0.55);
 
   color: var(--text);
   font-family: 'Nunito', system-ui, sans-serif;
+  /* Same layered structure as before, re-hued onto the brand void: gold and
+     teal glows over the dark green/black base (was purple/magenta/violet). */
   background:
-    radial-gradient(circle, rgba(255, 255, 255, 0.06) 1.2px, transparent 1.8px) 0 0 / 28px 28px,
-    radial-gradient(ellipse 60% 45% at 85% 0%,  rgba(217, 70, 239, 0.3),  transparent 60%),
-    radial-gradient(ellipse 55% 45% at 8% 12%,  rgba(34, 211, 238, 0.2),  transparent 58%),
-    radial-gradient(ellipse 70% 55% at 50% 110%, rgba(124, 58, 237, 0.38), transparent 62%),
-    linear-gradient(165deg, #3b1d8f 0%, #241263 45%, #140a33 100%);
+    radial-gradient(circle, rgba(255, 255, 255, 0.05) 1.2px, transparent 1.8px) 0 0 / 28px 28px,
+    radial-gradient(ellipse 60% 45% at 85% 0%,  rgba(232, 176, 75, 0.14), transparent 60%),
+    radial-gradient(ellipse 55% 45% at 8% 12%,  rgba(79, 209, 197, 0.12), transparent 58%),
+    radial-gradient(ellipse 70% 55% at 50% 110%, rgba(193, 41, 30, 0.16), transparent 62%),
+    linear-gradient(165deg, #12261d 0%, #0d1712 45%, #060a07 100%);
   background-attachment: fixed;
 
   /* Layout frame (mirrors the study layout): content pinned to the top, panes
@@ -128,13 +134,13 @@ body:has(.solo-screen.jm-vibrant) .mute-btn { display: none; }
   gap: 12px;
   padding: 14px 16px;
   min-height: 66px;
-  background: rgba(16, 8, 43, 0.85);
+  background: rgba(16, 26, 32, 0.9);
   border: none;
   border-bottom: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 0;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  box-shadow: 0 6px 22px rgba(8, 4, 24, 0.45);
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.45);
   font-family: 'Baloo 2', sans-serif;
 }
 
@@ -158,9 +164,9 @@ body:has(.solo-screen.jm-vibrant) .mute-btn { display: none; }
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(8, 4, 24, 0.35);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
 }
-.screen.solo-screen.jm-vibrant .shd-burger:hover { border-color: rgba(34, 211, 238, 0.7); color: #67e8f9; }
+.screen.solo-screen.jm-vibrant .shd-burger:hover { border-color: rgba(79, 209, 197, 0.7); color: var(--mv-teal); }
 
 .screen.solo-screen.jm-vibrant .study-menu-panel {
   position: absolute;
@@ -168,10 +174,10 @@ body:has(.solo-screen.jm-vibrant) .mute-btn { display: none; }
   left: 0;
   z-index: 80;
   min-width: 200px;
-  background: rgba(24, 12, 64, 0.98);
+  background: rgba(16, 26, 32, 0.98);
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 14px;
-  box-shadow: 0 14px 36px rgba(8, 4, 24, 0.65);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.65);
   padding: 8px;
   display: flex;
   flex-direction: column;
@@ -180,7 +186,7 @@ body:has(.solo-screen.jm-vibrant) .mute-btn { display: none; }
 .screen.solo-screen.jm-vibrant .smp-title {
   font-size: 11px;
   font-weight: 800;
-  color: rgba(246, 244, 255, 0.55);
+  color: var(--mv-text-dim-45);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   padding: 4px 8px 2px;
@@ -198,9 +204,9 @@ body:has(.solo-screen.jm-vibrant) .mute-btn { display: none; }
 }
 .screen.solo-screen.jm-vibrant .smp-opt:hover { background: rgba(255, 255, 255, 0.08); }
 .screen.solo-screen.jm-vibrant .smp-opt.smp-active {
-  background: rgba(34, 211, 238, 0.15);
-  border-color: rgba(34, 211, 238, 0.6);
-  color: #67e8f9;
+  background: rgba(79, 209, 197, 0.15);
+  border-color: rgba(79, 209, 197, 0.6);
+  color: var(--mv-teal);
 }
 
 /* Centre: timer sized for the header */
@@ -215,11 +221,11 @@ body:has(.solo-screen.jm-vibrant) .mute-btn { display: none; }
   color: var(--gold);
   font-weight: 800;
   font-size: 13px;
-  text-shadow: 0 0 12px rgba(251, 191, 36, 0.45);
+  text-shadow: 0 0 12px rgba(232, 176, 75, 0.45);
 }
 .screen.solo-screen.jm-vibrant .shd-right .lives-bar { display: flex; gap: 3px; }
 .screen.solo-screen.jm-vibrant .shd-right .heart-icon { font-size: 16px; }
-.screen.solo-screen.jm-vibrant .heart-icon { filter: drop-shadow(0 2px 5px rgba(8, 4, 24, 0.5)); }
+.screen.solo-screen.jm-vibrant .heart-icon { filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.5)); }
 .screen.solo-screen.jm-vibrant .heart-icon.dead { filter: grayscale(1) opacity(0.3); }
 
 /* Streak pill: fiery chip */
@@ -233,9 +239,9 @@ body:has(.solo-screen.jm-vibrant) .mute-btn { display: none; }
   font-weight: 800;
   line-height: 1;
   color: #fff;
-  background: linear-gradient(120deg, #fb923c, #f43f5e);
+  background: linear-gradient(120deg, var(--mv-gold), var(--mv-red));
   border: none;
-  box-shadow: 0 3px 10px rgba(244, 63, 94, 0.45);
+  box-shadow: 0 3px 10px rgba(193, 41, 30, 0.45);
   white-space: nowrap;
 }
 .screen.solo-screen.jm-vibrant .study-streak-pill .ssp-flame { font-size: 12px; }
@@ -253,13 +259,13 @@ body:has(.solo-screen.jm-vibrant) .mute-btn { display: none; }
   align-items: center;
   padding: 14px 16px;
   min-height: 62px;
-  background: rgba(16, 8, 43, 0.88);
+  background: rgba(16, 26, 32, 0.92);
   border: none;
   border-top: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 0;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  box-shadow: 0 -6px 22px rgba(8, 4, 24, 0.45);
+  box-shadow: 0 -6px 22px rgba(0, 0, 0, 0.45);
   font-size: 12px;
   font-weight: 600;
   color: var(--text-dim);
@@ -282,10 +288,10 @@ body:has(.solo-screen.jm-vibrant) .mute-btn { display: none; }
   align-items: center;
   gap: 6px;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(8, 4, 24, 0.35);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
 }
 .screen.solo-screen.jm-vibrant .ssb-home:hover,
-.screen.solo-screen.jm-vibrant .ssb-calc:hover { border-color: rgba(34, 211, 238, 0.7); color: #67e8f9; }
+.screen.solo-screen.jm-vibrant .ssb-calc:hover { border-color: rgba(79, 209, 197, 0.7); color: var(--mv-teal); }
 
 .screen.solo-screen.jm-vibrant .stb-arrow {
   width: 40px;
@@ -300,23 +306,23 @@ body:has(.solo-screen.jm-vibrant) .mute-btn { display: none; }
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(8, 4, 24, 0.35);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
 }
 .screen.solo-screen.jm-vibrant .stb-arrow:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
 .screen.solo-screen.jm-vibrant .stb-arrow.stb-next:not(:disabled) {
-  color: #67e8f9;
-  border-color: rgba(34, 211, 238, 0.7);
-  box-shadow: 0 2px 8px rgba(8, 4, 24, 0.35), 0 0 14px rgba(34, 211, 238, 0.25);
+  color: var(--mv-teal);
+  border-color: rgba(79, 209, 197, 0.7);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35), 0 0 14px rgba(79, 209, 197, 0.25);
 }
 /* Pause between the arrows — amber so it reads as pause, not navigation */
 .screen.solo-screen.jm-vibrant .stb-arrow.stb-pause {
   color: var(--gold);
-  border-color: rgba(251, 191, 36, 0.55);
-  background: rgba(251, 191, 36, 0.12);
+  border-color: rgba(232, 176, 75, 0.55);
+  background: rgba(232, 176, 75, 0.12);
 }
 .screen.solo-screen.jm-vibrant .stb-arrow.stb-pause:hover {
   border-color: var(--gold);
-  background: rgba(251, 191, 36, 0.2);
+  background: rgba(232, 176, 75, 0.2);
 }
 
 /* The floating in-card calc/lab buttons duplicate the footer ones — hide (as study does) */
@@ -329,17 +335,17 @@ body:has(.solo-screen.jm-vibrant) .mute-btn { display: none; }
   display: flex;
   align-items: center;
   gap: 20px;
-  background: rgba(16, 8, 43, 0.6);
+  background: rgba(16, 26, 32, 0.7);
   border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 14px;
   padding: 12px 16px;
   font-size: 14px;
   backdrop-filter: blur(8px);
-  box-shadow: 0 6px 18px rgba(8, 4, 24, 0.35);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
 }
 .screen.solo-screen.jm-vibrant .srs-mark { font-family: 'Baloo 2', sans-serif; font-weight: 800; font-size: 16px; }
-.screen.solo-screen.jm-vibrant .study-result-strip.is-correct { border-color: rgba(52, 211, 153, 0.55); box-shadow: 0 0 20px rgba(52, 211, 153, 0.18); }
-.screen.solo-screen.jm-vibrant .study-result-strip.is-wrong   { border-color: rgba(251, 113, 133, 0.55); box-shadow: 0 0 20px rgba(251, 113, 133, 0.16); }
+.screen.solo-screen.jm-vibrant .study-result-strip.is-correct { border-color: rgba(61, 220, 132, 0.55); box-shadow: 0 0 20px rgba(61, 220, 132, 0.18); }
+.screen.solo-screen.jm-vibrant .study-result-strip.is-wrong   { border-color: rgba(231, 76, 60, 0.55); box-shadow: 0 0 20px rgba(231, 76, 60, 0.16); }
 .screen.solo-screen.jm-vibrant .study-result-strip.is-correct .srs-mark { color: var(--green); }
 .screen.solo-screen.jm-vibrant .study-result-strip.is-wrong   .srs-mark { color: var(--red); }
 .screen.solo-screen.jm-vibrant .srs-time {
@@ -357,40 +363,42 @@ body:has(.solo-screen.jm-vibrant) .mute-btn { display: none; }
   font-family: 'Baloo 2', sans-serif;
   font-weight: 800;
 }
-.screen.solo-screen.jm-vibrant .timer-number.green  { color: #34d399; text-shadow: 0 0 14px rgba(52, 211, 153, 0.5); }
-.screen.solo-screen.jm-vibrant .timer-number.yellow { color: #fbbf24; text-shadow: 0 0 14px rgba(251, 191, 36, 0.5); }
-.screen.solo-screen.jm-vibrant .timer-number.red    { color: #fb7185; text-shadow: 0 0 14px rgba(251, 113, 133, 0.55); }
+/* Gold countdown (same convention as the PvP question modal's 0:08); only the
+   final tier escalates to danger so the urgency cue survives. */
+.screen.solo-screen.jm-vibrant .timer-number.green  { color: var(--mv-gold); text-shadow: 0 0 14px rgba(232, 176, 75, 0.5); }
+.screen.solo-screen.jm-vibrant .timer-number.yellow { color: var(--mv-gold); text-shadow: 0 0 14px rgba(232, 176, 75, 0.5); }
+.screen.solo-screen.jm-vibrant .timer-number.red    { color: var(--mv-danger); text-shadow: 0 0 14px rgba(231, 76, 60, 0.55); }
 
 .screen.solo-screen.jm-vibrant .timer-track {
-  background: rgba(8, 4, 24, 0.55);
+  background: rgba(0, 0, 0, 0.55);
   border-radius: 999px;
   box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.4);
   overflow: hidden;
 }
 .screen.solo-screen.jm-vibrant .timer-fill { border-radius: 999px; }
 .screen.solo-screen.jm-vibrant .timer-fill.green {
-  background: linear-gradient(90deg, #34d399, #22d3ee);
-  box-shadow: 0 0 12px rgba(52, 211, 153, 0.6);
+  background: linear-gradient(90deg, var(--mv-gold), var(--mv-gold-dim));
+  box-shadow: 0 0 12px rgba(232, 176, 75, 0.6);
 }
 .screen.solo-screen.jm-vibrant .timer-fill.yellow {
-  background: linear-gradient(90deg, #fbbf24, #f59e0b);
-  box-shadow: 0 0 12px rgba(251, 191, 36, 0.6);
+  background: linear-gradient(90deg, var(--mv-gold), var(--mv-gold-dim));
+  box-shadow: 0 0 12px rgba(232, 176, 75, 0.6);
 }
 .screen.solo-screen.jm-vibrant .timer-fill.red {
-  background: linear-gradient(90deg, #fb7185, #e11d48);
-  box-shadow: 0 0 12px rgba(251, 113, 133, 0.6);
+  background: linear-gradient(90deg, var(--mv-danger), #b93226);
+  box-shadow: 0 0 12px rgba(231, 76, 60, 0.6);
 }
 
 /* ── Question card: glass panel (beats study's forced white with !important) ── */
 
 .screen.solo-screen.jm-vibrant .solo-body .question-card {
   background:
-    radial-gradient(ellipse 90% 40% at 50% 0%, rgba(168, 85, 247, 0.12), transparent 60%),
+    radial-gradient(ellipse 90% 40% at 50% 0%, rgba(232, 176, 75, 0.1), transparent 60%),
     linear-gradient(170deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.04)) !important;
   border: 1px solid rgba(255, 255, 255, 0.16) !important;
   border-radius: 20px;
   backdrop-filter: blur(10px);
-  box-shadow: 0 20px 50px rgba(8, 4, 24, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.12);
 }
 
 .screen.solo-screen.jm-vibrant .solo-body .question-text {
@@ -404,7 +412,7 @@ body:has(.solo-screen.jm-vibrant) .mute-btn { display: none; }
 .screen.solo-screen.jm-vibrant .solo-body .stem-table,
 .screen.solo-screen.jm-vibrant .solo-body .stem-table td { color: var(--text); }
 .screen.solo-screen.jm-vibrant .solo-body .stem-table thead th {
-  background: rgba(251, 191, 36, 0.16);
+  background: rgba(232, 176, 75, 0.16);
   color: var(--text);
   border-bottom: 2px solid var(--gold);
 }
@@ -425,11 +433,11 @@ body:has(.solo-screen.jm-vibrant) .mute-btn { display: none; }
 
 .screen.solo-screen.jm-vibrant .solo-body .option-btn {
   align-items: center;
-  background: rgba(13, 7, 35, 0.6) !important;
+  background: rgba(10, 16, 13, 0.6) !important;
   border: 2px solid rgba(255, 255, 255, 0.2) !important;
   border-radius: 16px;
   padding: 14px 18px;
-  color: #f6f4ff !important;
+  color: var(--mv-text) !important;
   font-family: 'Nunito', system-ui, sans-serif;
   font-size: 15px;
   font-weight: 600;
@@ -452,34 +460,34 @@ body:has(.solo-screen.jm-vibrant) .mute-btn { display: none; }
   transition: translate 0.15s ease, border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
 }
 .screen.solo-screen.jm-vibrant .solo-body .option-btn:hover:not(:disabled) {
-  border-color: rgba(34, 211, 238, 0.75) !important;
-  background: rgba(34, 211, 238, 0.14) !important;
+  border-color: rgba(79, 209, 197, 0.75) !important;
+  background: rgba(79, 209, 197, 0.14) !important;
   translate: 0 -2px;
-  box-shadow: 0 8px 18px rgba(8, 4, 24, 0.35), 0 0 16px rgba(34, 211, 238, 0.25);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.35), 0 0 16px rgba(79, 209, 197, 0.25);
 }
 
 .screen.solo-screen.jm-vibrant .solo-body .option-btn.selected {
   border-color: var(--blue) !important;
-  background: rgba(34, 211, 238, 0.16) !important;
-  color: #f6f4ff !important;
-  box-shadow: 0 0 18px rgba(34, 211, 238, 0.3);
+  background: rgba(79, 209, 197, 0.18) !important;
+  color: var(--mv-text) !important;
+  box-shadow: 0 0 18px rgba(79, 209, 197, 0.3);
 }
 
 /* Correct: deep green with pure white text — unmissable and readable */
 .screen.solo-screen.jm-vibrant .solo-body .option-btn.correct {
-  border-color: #34d399 !important;
-  background: linear-gradient(180deg, #0e9f6e, #057a55) !important;
+  border-color: var(--mv-success) !important;
+  background: linear-gradient(180deg, #2fae68, #1f7d49) !important;
   color: #ffffff !important;
-  box-shadow: 0 5px 0 #046c4e, 0 0 26px rgba(52, 211, 153, 0.5);
+  box-shadow: 0 5px 0 #176038, 0 0 26px rgba(61, 220, 132, 0.5);
   animation: jmv-correct-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 /* Wrong: deep red with pure white text */
 .screen.solo-screen.jm-vibrant .solo-body .option-btn.wrong {
-  border-color: #fb7185 !important;
-  background: linear-gradient(180deg, #e02424, #b91c1c) !important;
+  border-color: var(--mv-danger) !important;
+  background: linear-gradient(180deg, #d9432f, #a83224) !important;
   color: #ffffff !important;
-  box-shadow: 0 5px 0 #9b1c1c, 0 0 22px rgba(251, 113, 133, 0.45);
+  box-shadow: 0 5px 0 #8c2a1e, 0 0 22px rgba(231, 76, 60, 0.45);
   animation: jmv-wrong-shake 0.4s ease;
 }
 
@@ -516,12 +524,12 @@ body:has(.solo-screen.jm-vibrant) .mute-btn { display: none; }
 .screen.solo-screen.jm-vibrant .solo-body .option-btn.correct .opt-label {
   background: #ffffff;
   border-color: #ffffff;
-  color: #057a55 !important;
+  color: #1f7d49 !important;
 }
 .screen.solo-screen.jm-vibrant .solo-body .option-btn.wrong .opt-label {
   background: #ffffff;
   border-color: #ffffff;
-  color: #b91c1c !important;
+  color: #a83224 !important;
 }
 
 /* ── Explanation pane: LIGHT card with dark text — maximum readability ─────── */
@@ -530,18 +538,18 @@ body:has(.solo-screen.jm-vibrant) .mute-btn { display: none; }
   position: relative;
   padding-top: 56px;
   border-radius: 18px;
-  background: #f7f6ff !important;
-  border: 1px solid rgba(139, 92, 246, 0.4) !important;
-  box-shadow: 0 16px 40px rgba(8, 4, 24, 0.4);
+  background: var(--mv-glass-strong) !important;
+  border: 1px solid var(--mv-border-gold) !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
   animation: jmv-result-rise 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 .screen.solo-screen.jm-vibrant .solo-body .round-result.correct-bg {
-  border-color: rgba(14, 159, 110, 0.55) !important;
-  box-shadow: 0 16px 40px rgba(8, 4, 24, 0.4), 0 0 26px rgba(52, 211, 153, 0.2);
+  border-color: rgba(61, 220, 132, 0.55) !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4), 0 0 26px rgba(61, 220, 132, 0.2);
 }
 .screen.solo-screen.jm-vibrant .solo-body .round-result.wrong-bg {
-  border-color: rgba(224, 36, 36, 0.5) !important;
-  box-shadow: 0 16px 40px rgba(8, 4, 24, 0.4), 0 0 26px rgba(251, 113, 133, 0.18);
+  border-color: rgba(231, 76, 60, 0.5) !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4), 0 0 26px rgba(231, 76, 60, 0.18);
 }
 
 @keyframes jmv-result-rise {
@@ -556,7 +564,7 @@ body:has(.solo-screen.jm-vibrant) .mute-btn { display: none; }
   position: absolute;
   top: 14px;
   left: 16px;
-  background: linear-gradient(120deg, #6366f1, #a855f7);
+  background: linear-gradient(120deg, var(--mv-red), #d9544a);
   color: #fff;
   font-family: 'Baloo 2', sans-serif;
   font-size: 12px;
@@ -564,7 +572,7 @@ body:has(.solo-screen.jm-vibrant) .mute-btn { display: none; }
   padding: 5px 14px;
   border-radius: 999px;
   letter-spacing: 0.04em;
-  box-shadow: 0 3px 10px rgba(88, 28, 135, 0.35);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35);
 }
 
 /* Verdict banner lives in the result strip — declutter the pane (as study does) */
@@ -582,41 +590,41 @@ body:has(.solo-screen.jm-vibrant) .mute-btn { display: none; }
 .screen.solo-screen.jm-vibrant .solo-body .explanation-sentence,
 .screen.solo-screen.jm-vibrant .solo-body .explanation-rich,
 .screen.solo-screen.jm-vibrant .solo-body .why-wrong-content {
-  color: #1c2030 !important;
+  color: var(--mv-text-dim-85) !important;
   font-family: 'Nunito', system-ui, sans-serif;
   font-size: 16px;
   font-weight: 500;
   line-height: 1.6;
 }
 .screen.solo-screen.jm-vibrant .solo-body .rr-explanation strong {
-  color: #6d28d9;
+  color: var(--mv-gold);
   font-size: 18px;
   font-weight: 800;
 }
 
 /* Why-others-wrong box, restyled for the light pane */
 .screen.solo-screen.jm-vibrant .solo-body .why-wrong-box {
-  background: rgba(224, 36, 36, 0.06);
-  border: 1px solid rgba(224, 36, 36, 0.25);
+  background: rgba(231, 76, 60, 0.1);
+  border: 1px solid rgba(231, 76, 60, 0.25);
   border-radius: 12px;
 }
-.screen.solo-screen.jm-vibrant .solo-body .why-wrong-title { color: #b91c1c; }
+.screen.solo-screen.jm-vibrant .solo-body .why-wrong-title { color: var(--mv-danger); }
 
 /* Next-question CTA: candy green */
 .screen.solo-screen.jm-vibrant .rr-skip-btn {
-  background: linear-gradient(180deg, #34d399, #10b981);
+  background: var(--mv-red);
   border: none;
-  color: #063b27;
+  color: var(--mv-text);
   font-family: 'Baloo 2', sans-serif;
   font-weight: 800;
   border-radius: 14px;
-  box-shadow: 0 4px 0 #047857, 0 10px 18px rgba(4, 120, 87, 0.35);
+  box-shadow: 0 4px 0 #8c1f16, 0 10px 18px rgba(193, 41, 30, 0.35);
   transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
 }
 .screen.solo-screen.jm-vibrant .rr-skip-btn:hover {
   filter: brightness(1.08);
   transform: translateY(-2px);
-  box-shadow: 0 6px 0 #047857, 0 14px 22px rgba(4, 120, 87, 0.4);
+  box-shadow: 0 6px 0 #8c1f16, 0 14px 22px rgba(193, 41, 30, 0.4);
 }
 
 /* ── Placeholder pane (pre-answer): glass card ─────────────────────────────── */
@@ -639,30 +647,30 @@ body:has(.solo-screen.jm-vibrant) .mute-btn { display: none; }
 
 /* Pause: keep the cover opaque + on-theme (beats the study override) */
 .screen.solo-screen.jm-vibrant .solo-body .pause-overlay {
-  background: rgba(13, 7, 35, 0.94);
+  background: rgba(10, 16, 13, 0.94);
 }
 
 /* ── Game over: glass card + candy buttons ─────────────────────────────────── */
 
 .screen.solo-screen.jm-vibrant .solo-gameover {
   background:
-    radial-gradient(ellipse 100% 45% at 50% 0%, rgba(168, 85, 247, 0.18), transparent 65%),
+    radial-gradient(ellipse 100% 45% at 50% 0%, rgba(232, 176, 75, 0.14), transparent 65%),
     linear-gradient(170deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.04));
   border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 26px;
   backdrop-filter: blur(10px);
-  box-shadow: 0 24px 56px rgba(8, 4, 24, 0.55);
+  box-shadow: 0 24px 56px rgba(0, 0, 0, 0.55);
   color: var(--text);
   margin-top: 0;
 }
 .screen.solo-screen.jm-vibrant .solo-gameover h2 {
   font-family: 'Baloo 2', sans-serif;
   font-weight: 800;
-  background: linear-gradient(92deg, #67e8f9 0%, #a5b4fc 45%, #f0abfc 100%);
+  background: linear-gradient(92deg, var(--mv-gold) 0%, #f0cd8a 45%, var(--mv-teal) 100%);
   -webkit-background-clip: text;
           background-clip: text;
   -webkit-text-fill-color: transparent;
-          color: #a5b4fc; /* fallback */
+          color: var(--mv-gold); /* fallback */
 }
 .screen.solo-screen.jm-vibrant .sgo-stat {
   background: rgba(255, 255, 255, 0.06);
@@ -674,21 +682,21 @@ body:has(.solo-screen.jm-vibrant) .mute-btn { display: none; }
 .screen.solo-screen.jm-vibrant .solo-gameover .sgo-level-label { color: var(--text-dim); font-weight: 700; }
 
 .screen.solo-screen.jm-vibrant .btn-start {
-  background: linear-gradient(180deg, #34d399, #10b981);
+  background: var(--mv-red);
   border: none;
-  color: #063b27;
+  color: var(--mv-text);
   font-family: 'Baloo 2', sans-serif;
   font-weight: 800;
   letter-spacing: 0.05em;
   border-radius: 16px;
-  box-shadow: 0 5px 0 #047857, 0 12px 22px rgba(4, 120, 87, 0.35);
+  box-shadow: 0 5px 0 #8c1f16, 0 12px 22px rgba(193, 41, 30, 0.35);
   text-shadow: none;
   transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
 }
 .screen.solo-screen.jm-vibrant .btn-start:not(:disabled):hover {
   filter: brightness(1.08);
   transform: translateY(-2px);
-  box-shadow: 0 7px 0 #047857, 0 16px 26px rgba(4, 120, 87, 0.4);
+  box-shadow: 0 7px 0 #8c1f16, 0 16px 26px rgba(193, 41, 30, 0.4);
 }
 .screen.solo-screen.jm-vibrant .btn-secondary {
   background: rgba(255, 255, 255, 0.07);
@@ -710,15 +718,15 @@ body:has(.solo-screen.jm-vibrant) .mute-btn { display: none; }
 /* No-questions screen (journey variant) */
 .no-questions-screen.jm-vibrant {
   background:
-    radial-gradient(ellipse 60% 45% at 85% 0%,  rgba(217, 70, 239, 0.3),  transparent 60%),
-    radial-gradient(ellipse 70% 55% at 50% 110%, rgba(124, 58, 237, 0.38), transparent 62%),
-    linear-gradient(165deg, #3b1d8f 0%, #241263 45%, #140a33 100%);
+    radial-gradient(ellipse 60% 45% at 85% 0%,  rgba(232, 176, 75, 0.14), transparent 60%),
+    radial-gradient(ellipse 70% 55% at 50% 110%, rgba(193, 41, 30, 0.16), transparent 62%),
+    linear-gradient(165deg, #12261d 0%, #0d1712 45%, #060a07 100%);
 }
 .no-questions-screen.jm-vibrant .no-questions-card {
   background: linear-gradient(170deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.04));
   border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 22px;
-  color: #f6f4ff;
+  color: var(--mv-text);
   backdrop-filter: blur(10px);
 }
 
@@ -814,4 +822,202 @@ body:has(.solo-screen.jm-vibrant) .mute-btn { display: none; }
   .screen.solo-screen.jm-vibrant .solo-body .question-card { padding: 16px 18px; border-radius: 16px; }
   .screen.solo-screen.jm-vibrant .solo-body .option-btn { padding: 13px 12px; }
   .screen.solo-screen.jm-vibrant .solo-body .round-result { padding: 50px 14px 16px; }
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   SOLO / TRAINING GROUNDS / ANKING — token retheme (NON-journey)
+   ────────────────────────────────────────────────────────────────────────────
+   This file is SoloGame's only stylesheet (the "Journey" name is historical);
+   everything above is Journey-only (.jm-vibrant). The rules below cover the
+   OTHER variant: solo/training/AnKing with the study preference OFF, which
+   until now inherited App.css's pre-reskin indigo/navy theme (--card #181836,
+   --surface #111127, --border #272755).
+
+   SCOPING, deliberately: App.css's .question-card / .option-btn / theme vars
+   are SHARED with GameRoom, TriviaGame and SpeedRaceGame. Everything here is
+   scoped to .screen.solo-screen so those modes are untouched. Specificity is
+   (0,2,0) — study mode's html[data-study="on"] .solo-screen is (0,2,1) and
+   .jm-vibrant is (0,3,0), so BOTH still win over this layer. Study mode keeps
+   its light reading skin on purpose; Journey keeps its own rules above.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.screen.solo-screen {
+  --bg:       var(--mv-bg-void);
+  --surface:  var(--mv-glass);
+  --card:     var(--mv-glass);
+  --border:   var(--mv-border);
+  --gold:     var(--mv-gold);
+  --green:    var(--mv-success);
+  --red:      var(--mv-danger);   /* wrong-answer = error, NOT --mv-red */
+  --blue:     var(--mv-teal);     /* selection highlight, matches the PvP HUD */
+  --text:     var(--mv-text);
+  --text-dim: var(--mv-text-dim-65);
+  --shadow:   0 18px 44px rgba(0, 0, 0, 0.55);
+
+  background:
+    radial-gradient(ellipse 60% 45% at 85% 0%,   rgba(232, 176, 75, 0.1),  transparent 60%),
+    radial-gradient(ellipse 70% 55% at 50% 110%, rgba(193, 41, 30, 0.12), transparent 62%),
+    linear-gradient(165deg, #12261d 0%, #0d1712 45%, #060a07 100%);
+  background-attachment: fixed;
+}
+
+/* Question card: glass + gold border, same as every other card in the app */
+.screen.solo-screen .question-card {
+  background: var(--mv-glass);
+  border: 1px solid var(--mv-border-gold);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* Round counter / score / hearts strip */
+.screen.solo-screen .solo-topbar {
+  background: var(--mv-glass);
+  border: 1px solid var(--mv-border-gold);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.screen.solo-screen .topbar-score { color: var(--mv-gold); }
+
+/* Timer: gold countdown (matches the PvP question modal's 0:08) */
+.screen.solo-screen .timer-number,
+.screen.solo-screen .timer-number.green,
+.screen.solo-screen .timer-number.yellow {
+  color: var(--mv-gold);
+}
+/* Final seconds still escalate to danger so the urgency cue survives */
+.screen.solo-screen .timer-number.red { color: var(--mv-danger); }
+.screen.solo-screen .timer-track { background: rgba(0, 0, 0, 0.45); }
+.screen.solo-screen .timer-fill.green  { background: var(--mv-gold); }
+.screen.solo-screen .timer-fill.yellow { background: var(--mv-gold-dim); }
+.screen.solo-screen .timer-fill.red    { background: var(--mv-danger); }
+
+/* ── Options: idle / selected / correct / wrong ───────────────────────────── */
+.screen.solo-screen .option-btn {
+  background: var(--mv-glass);
+  border: 1px solid var(--mv-border);
+}
+.screen.solo-screen .option-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+/* Selected-but-unconfirmed: teal, same convention as the PvP HUD */
+.screen.solo-screen .option-btn.selected {
+  background: rgba(79, 209, 197, 0.15);
+  border-color: var(--mv-teal);
+}
+.screen.solo-screen .option-btn.selected .opt-label { color: var(--mv-teal); }
+/* Resolved states. Wrong is --mv-danger, never --mv-red. */
+.screen.solo-screen .option-btn.correct {
+  background: rgba(61, 220, 132, 0.18) !important;
+  border-color: var(--mv-success) !important;
+}
+.screen.solo-screen .option-btn.correct .opt-label { color: var(--mv-success); }
+.screen.solo-screen .option-btn.wrong {
+  background: rgba(231, 76, 60, 0.18) !important;
+  border-color: var(--mv-danger) !important;
+}
+.screen.solo-screen .option-btn.wrong .opt-label { color: var(--mv-danger); }
+.screen.solo-screen .opt-label { color: var(--mv-gold); }
+
+/* Pause overlay + resume CTA (resume is a primary action -> --mv-red) */
+.screen.solo-screen .pause-overlay { background: rgba(6, 10, 7, 0.92); }
+.screen.solo-screen .pause-resume-btn {
+  background: var(--mv-red);
+  color: var(--mv-text);
+}
+
+/* Explanation / round-result panel */
+.screen.solo-screen .round-result {
+  background: var(--mv-glass-strong);
+  border: 1px solid var(--mv-border-gold);
+}
+.screen.solo-screen .rr-explanation,
+.screen.solo-screen .explanation-text,
+.screen.solo-screen .explanation-rich { color: var(--mv-text-dim-85); }
+.screen.solo-screen .rr-skip-btn {
+  background: var(--mv-red);
+  border: none;
+  color: var(--mv-text);
+}
+/* Hints / why-others-wrong box */
+.screen.solo-screen .why-wrong-box {
+  background: rgba(231, 76, 60, 0.1);
+  border: 1px solid rgba(231, 76, 60, 0.25);
+}
+.screen.solo-screen .why-wrong-title { color: var(--mv-danger); }
+
+/* Game-over card */
+.screen.solo-screen .solo-gameover,
+.screen.solo-screen .solo-card {
+  background: var(--mv-glass);
+  border: 1px solid var(--mv-border-gold);
+}
+.screen.solo-screen .sgo-val { color: var(--mv-gold); }
+
+/* ── Calculator + Lab Values panels ───────────────────────────────────────────
+   Calculator.css/LabValues.css are SHARED with GameRoom/Trivia/SpeedRace/
+   BuzzFun, so the retheme is scoped to this screen rather than edited there.
+   Both panels are position:fixed siblings of the screen, so they are matched
+   via body:has(.solo-screen) rather than as descendants. */
+body:has(.solo-screen) .calculator-panel,
+body:has(.solo-screen) .lab-values-panel {
+  background: var(--mv-glass-strong);
+  border: 1px solid var(--mv-border-gold);
+}
+body:has(.solo-screen) .calc-display {
+  background: rgba(0, 0, 0, 0.5);
+  color: var(--mv-gold);
+}
+body:has(.solo-screen) .calc-title,
+body:has(.solo-screen) .lab-title { color: var(--mv-gold); }
+body:has(.solo-screen) .calc-button {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--mv-border);
+  color: var(--mv-text);
+}
+body:has(.solo-screen) .calc-button:hover {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: var(--mv-border-gold);
+}
+body:has(.solo-screen) .calc-button.op-btn,
+body:has(.solo-screen) .calc-button.func-btn {
+  background: rgba(232, 176, 75, 0.16);
+  border-color: var(--mv-border-gold);
+  color: var(--mv-gold);
+}
+body:has(.solo-screen) .calc-button.equals-btn {
+  background: var(--mv-red);
+  border-color: var(--mv-red);
+  color: var(--mv-text);
+}
+
+/* ── Stray global ⌂ Home button ───────────────────────────────────────────────
+   App.jsx always renders .home-btn (App.css: fixed top:10 left:12, z-index
+   9999, transparent/no border). Screens either hide it (study.css:647,
+   .jm-vibrant above) or restyle+offset it (ModeSplit.css:52) — any screen that
+   does NEITHER gets an unstyled ghost dropped onto its own back control.
+
+   On THIS screen it is the player's only exit (no footer ⌂ Home renders
+   without the study chrome), so it must NOT be hidden — it gets the token
+   pill treatment and sits clear of the topbar instead. */
+body:has(.solo-screen) .home-btn {
+  top: 14px;
+  left: 14px;
+  z-index: 1001;
+  background: var(--mv-glass);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid var(--mv-border-gold);
+  border-radius: 8px;
+  color: var(--mv-gold);
+  font-family: var(--mv-font-display);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  padding: 8px 16px;
+}
+body:has(.solo-screen) .home-btn:hover {
+  background: var(--mv-glass-strong);
+  border-color: var(--mv-gold);
+  color: var(--mv-gold);
 }
