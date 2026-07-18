@@ -94,15 +94,13 @@
    ══════════════════════════════════════════════════════════════════════════ */
 
 /* ── Page chrome: wordmark + currency + avatar (reuses the Shop/Quests
-   chrome pattern). Left-padded to clear the app's global fixed "⌂ Home"
-   button (App.css .home-btn, top:10 left:12, z-index:9999). ─────────────── */
+   chrome pattern). ─────────────────────────────────────────────────────── */
 .pp-topbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 16px;
   margin-bottom: 26px;
-  padding-left: 72px;
 }
 
 .pp-wordmark {

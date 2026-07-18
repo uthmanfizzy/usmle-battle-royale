@@ -66,9 +66,8 @@
   font-weight: 700;
 }
 
-/* Hide the global floating Home / mute buttons during journey games — Home and
-   the Music toggle live in the footer/burger here (mirrors study behavior). */
-body:has(.solo-screen.jm-vibrant) .home-btn { display: none; }
+/* Hide the global floating mute button during journey games — the Music
+   toggle lives in the footer/burger here (mirrors study behavior). */
 body:has(.solo-screen.jm-vibrant) .mute-btn { display: none; }
 
 /* ════════════════════════════════════════════════════════════════════════════
@@ -991,33 +990,3 @@ body:has(.solo-screen) .calc-button.equals-btn {
   color: var(--mv-text);
 }
 
-/* ── Stray global ⌂ Home button ───────────────────────────────────────────────
-   App.jsx always renders .home-btn (App.css: fixed top:10 left:12, z-index
-   9999, transparent/no border). Screens either hide it (study.css:647,
-   .jm-vibrant above) or restyle+offset it (ModeSplit.css:52) — any screen that
-   does NEITHER gets an unstyled ghost dropped onto its own back control.
-
-   On THIS screen it is the player's only exit (no footer ⌂ Home renders
-   without the study chrome), so it must NOT be hidden — it gets the token
-   pill treatment and sits clear of the topbar instead. */
-body:has(.solo-screen) .home-btn {
-  top: 14px;
-  left: 14px;
-  z-index: 1001;
-  background: var(--mv-glass);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border: 1px solid var(--mv-border-gold);
-  border-radius: 8px;
-  color: var(--mv-gold);
-  font-family: var(--mv-font-display);
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.3px;
-  padding: 8px 16px;
-}
-body:has(.solo-screen) .home-btn:hover {
-  background: var(--mv-glass-strong);
-  border-color: var(--mv-gold);
-  color: var(--mv-gold);
-}

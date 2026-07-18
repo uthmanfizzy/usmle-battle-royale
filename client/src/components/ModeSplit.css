@@ -22,52 +22,27 @@
   to   { opacity: 1; }
 }
 
+/* Exact mockup values — sits alone in its natural top-left location now that
+   the stray global ⌂ Home button (formerly squeezed in beside it) is gone. */
 .ms-back-btn {
-  position: absolute;
-  top: 20px;
-  left: 20px;
-  background: rgba(20, 30, 20, 0.8);
-  border: 1px solid rgba(180, 140, 40, 0.5);
-  color: #c8a32c;
-  padding: 10px 20px;
-  border-radius: 8px;
-  font-family: 'Cinzel', serif;
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-size: 13px;
+  font-weight: 600;
+  background: rgba(0, 0, 0, .4);
+  border: 1px solid rgba(255, 255, 255, .18);
+  color: rgba(255, 255, 255, .85);
+  padding: 8px 16px 8px 12px;
+  border-radius: 20px;
+  margin-bottom: 22px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background 0.2s ease;
 }
 
 .ms-back-btn:hover {
-  background: rgba(30, 40, 30, 0.9);
-  border-color: rgba(180, 140, 40, 0.8);
-  transform: translateX(-2px);
-}
-
-/* The global App-level ⌂ Home button (App.css .home-btn, fixed top-left) is a
-   ghost button that lands unstyled on top of this screen's ← Back pill. On the
-   ModeSplit screen only, restyle it to match .ms-back-btn and sit just to its
-   right (back pill is at left:20px, ~92px wide → ~12px gap). Higher specificity
-   than the base .home-btn rule, so no !important needed. body:has() scoping is
-   the same pattern study.css / SoloGameJourney.css use for this button. */
-body:has(.ms-screen) .home-btn {
-  top: 20px;
-  left: 124px;
-  z-index: 1001;
-  background: rgba(20, 30, 20, 0.8);
-  border: 1px solid rgba(180, 140, 40, 0.5);
-  border-radius: 8px;
-  color: #c8a32c;
-  font-family: 'Cinzel', serif;
-  font-size: 13px;
-  font-weight: 400;
-  letter-spacing: normal;
-  padding: 10px 20px;
-  transition: all 0.2s ease;
-}
-body:has(.ms-screen) .home-btn:hover {
-  background: rgba(30, 40, 30, 0.9);
-  border-color: rgba(180, 140, 40, 0.8);
-  color: #c8a32c;
+  background: rgba(255, 255, 255, .12);
 }
 
 /* ── Banner: drops from above, gold underline sweeps in ────────────────────── */
@@ -99,7 +74,15 @@ body:has(.ms-screen) .home-btn:hover {
   color: rgba(255, 255, 255, 0.6);
 }
 
-/* ── Story menu: wide First Aid Journey campaign card (mockup) ─────────────── */
+/* ── Story menu: campaign list — First Aid Journey, Tower, AnKing all share
+   this wide card layout so they read as siblings in one list ────────────── */
+.ms-campaign-list {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
 .ms-journey-card {
   display: flex;
   align-items: stretch;
@@ -108,7 +91,6 @@ body:has(.ms-screen) .home-btn:hover {
   max-width: 92vw;
   min-height: 150px;
   padding: 0;
-  margin-bottom: 24px;
   background: rgba(6, 10, 7, 0.55);
   border: 1.5px solid var(--mv-red);
   box-shadow: 0 0 18px rgba(193, 41, 30, 0.25);
@@ -125,6 +107,25 @@ body:has(.ms-screen) .home-btn:hover {
 .ms-journey-card:hover {
   transform: translateY(-3px);
   box-shadow: 0 0 28px rgba(193, 41, 30, 0.45);
+}
+
+/* Coming-soon state: dimmed + neutral border (same plain-card language as
+   Deploy's disabled mode cards), no red glow, no hover lift.
+   animation:none is required — ms-card-up's fill:both end state is
+   opacity:1, which would otherwise override this dim once the entrance
+   animation completes. */
+.ms-journey-card--disabled {
+  border-color: rgba(255, 255, 255, 0.16);
+  box-shadow: none;
+  opacity: 0.55;
+  cursor: not-allowed;
+  animation: none !important;
+}
+
+.ms-journey-card--disabled:hover {
+  transform: none;
+  box-shadow: none;
+  border-color: rgba(255, 255, 255, 0.16);
 }
 
 .ms-journey-art {
@@ -152,6 +153,9 @@ body:has(.ms-screen) .home-btn:hover {
 }
 
 .ms-journey-name {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   font-size: 22px;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -165,11 +169,17 @@ body:has(.ms-screen) .home-btn:hover {
   color: rgba(255, 255, 255, 0.7);
 }
 
-/* Secondary (coming-soon) story cards sit smaller beneath the campaign card */
-.ms-cards--story-secondary .ms-card {
-  min-height: 220px;
-  width: 260px;
-  padding: 26px 20px;
+/* Coming-soon chip — integrated into the card's text area, matching Deploy's
+   disabled mode-card chip style (PlayPage.css .pp-soon-chip). */
+.ms-soon-chip {
+  font-family: var(--mv-font-display, 'Cinzel', serif);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.6);
+  padding: 3px 8px;
+  border-radius: 3px;
 }
 
 @media (max-width: 700px) {
@@ -381,54 +391,9 @@ body:has(.ms-screen) .home-btn:hover {
   line-height: 1.4;
 }
 
-/* ── Story menu tiles: rise in with a stagger ──────────────────────────────── */
-
-.ms-cards--story .ms-card {
-  width: 300px;
-  min-height: 300px;
-  padding: 32px 24px;
-  animation: ms-card-up 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
-.ms-cards--story .ms-card:nth-child(1) { animation-delay: 0.10s; }
-.ms-cards--story .ms-card:nth-child(2) { animation-delay: 0.22s; }
-.ms-cards--story .ms-card:nth-child(3) { animation-delay: 0.34s; }
-
 @keyframes ms-card-up {
   from { opacity: 0; transform: translateY(40px); }
   to   { opacity: 1; transform: translateY(0); }
-}
-
-/* Coming Soon tile: dimmed, no interaction, diagonal gold ribbon.
-   animation:none is required — the shared ms-card-up (and the reduced-motion
-   ms-backdrop-in) end at opacity:1 with fill:both, which would otherwise
-   override this dim once the entrance animation completes. */
-.ms-card--disabled {
-  position: relative;
-  overflow: hidden;
-  cursor: default;
-  opacity: 0.55;
-  animation: none !important;
-}
-
-.ms-card--disabled:hover {
-  transform: none;
-  box-shadow: none;
-  border-color: rgba(200, 163, 44, 0.55);
-}
-
-.ms-ribbon {
-  position: absolute;
-  top: 22px;
-  right: -42px;
-  transform: rotate(45deg);
-  background: linear-gradient(90deg, rgba(200, 163, 44, 0.95), rgba(241, 196, 15, 0.95));
-  color: #1a1408;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  padding: 5px 48px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
 }
 
 /* ── Reduced motion: opacity-only, no slides/drops ─────────────────────────── */
@@ -438,7 +403,7 @@ body:has(.ms-screen) .home-btn:hover {
   .ms-title-rule,
   .ms-card--story,
   .ms-card--online,
-  .ms-cards--story .ms-card,
+  .ms-journey-card,
   .ms-train {
     animation: ms-backdrop-in 0.3s ease both;
   }

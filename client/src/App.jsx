@@ -767,7 +767,6 @@ export default function App() {
   // global pair for that screen only.
   const inDuelHud   = phase === 'game' && gameMode === 'pvp_duel';
   const showMuteBtn = ['lobby', 'game', 'game_over', 'solo_game', 'tower'].includes(phase) && !inDuelHud;
-  const showHomeBtn = !['loading', 'entry', 'landing'].includes(phase) && !inDuelHud;
 
   return (
     <Suspense fallback={
@@ -781,12 +780,6 @@ export default function App() {
     }>
       <div style={{ minHeight: '100vh', overflow: 'auto' }}>
         {toast && <div className="notification">{toast}</div>}
-
-      {showHomeBtn && (
-        <button className="home-btn" onClick={handleReturnHome} title="Return to home">
-          ⌂ Home
-        </button>
-      )}
 
       {showMuteBtn && (
         <button className="mute-btn" onClick={toggleMute} title={muted ? 'Unmute' : 'Mute'}>

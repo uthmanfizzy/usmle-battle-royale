@@ -642,9 +642,6 @@ html[data-study="on"] .ssb-calc:hover { border-color: #4a9eff; color: #2563eb; }
    buttons (both moved to the footer) */
 html[data-study="on"] .solo-body .calculator-toggle-btn,
 html[data-study="on"] .solo-body .lab-values-toggle-btn { display: none; }
-/* Study + solo only: hide the global top-left Home button (moved to footer-left).
-   Scoped via :has(.solo-screen) so it only hides during the solo game, not app-wide. */
-html[data-study="on"] body:has(.solo-screen) .home-btn { display: none; }
 /* Study + solo only: hide the global floating mute button — music is controlled by
    the "Music" toggle in the burger menu instead. (Other modes keep the floater.) */
 html[data-study="on"] body:has(.solo-screen) .mute-btn { display: none; }

@@ -1594,28 +1594,6 @@ table.lb-table tr:last-child td { border-bottom: none; }
   margin-bottom: 20px;
 }
 
-/* ── Home button ───────────────────────────────────────────────────────── */
-.home-btn {
-  position: fixed;
-  top: 10px;
-  left: 12px;
-  z-index: 9999;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  color: var(--text-dim);
-  font-size: 12px;
-  font-weight: 600;
-  padding: 6px 10px;
-  letter-spacing: 0.3px;
-  transition: all 0.2s;
-}
-.home-btn:hover {
-  border-color: var(--border);
-  color: var(--text);
-  background: rgba(255,255,255,0.06);
-}
-
 /* ── Mute button ───────────────────────────────────────────────────────── */
 .mute-btn {
   position: fixed;

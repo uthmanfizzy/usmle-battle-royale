@@ -823,36 +823,3 @@
   .training-overlay.tg-has-cta { padding-bottom: 120px; }
 }
 
-/* ── Stray global ⌂ Home button ───────────────────────────────────────────────
-   App.jsx always renders .home-btn (App.css: fixed top:10 left:12, z-index
-   9999, transparent/borderless). Unless a screen hides or offsets it, it lands
-   as an unstyled ghost on top of that screen's own back control — here it
-   covered the top edge of "← Back to Game Modes" / "← Subjects" (measured:
-   Home y10-40 vs back pill y37-77, both starting near x12-44).
-
-   Same fix ModeSplit.css:52 uses: keep the button (it goes HOME, the back pill
-   only goes back one step) but restyle it and move it clear of the pill.
-   Higher specificity than the base .home-btn rule, so no !important needed. */
-body:has(.training-grounds) .home-btn {
-  top: 14px;
-  left: 14px;
-  z-index: 1001;
-  background: var(--mv-glass);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border: 1px solid var(--mv-border-gold);
-  border-radius: 8px;
-  color: var(--mv-gold);
-  font-family: var(--mv-font-display);
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.3px;
-  padding: 8px 16px;
-}
-body:has(.training-grounds) .home-btn:hover {
-  background: var(--mv-glass-strong);
-  border-color: var(--mv-gold);
-  color: var(--mv-gold);
-}
-/* Push this screen's own back pill clear of the restyled Home button */
-body:has(.training-grounds) .tg-back-btn { margin-top: 34px; }

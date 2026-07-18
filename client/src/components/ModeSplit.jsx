@@ -50,41 +50,49 @@ export function StoryMenu({ onBack, onJourney, onTower, onAnKing }) {
         <div className="ms-title-rule" />
       </div>
 
-      {/* Mockup wide campaign card. Art area is an INERT striped placeholder
-          (no per-campaign art asset exists); the mockup's progress row +
-          "Chapter X of Y" is intentionally OMITTED — no aggregate journey
-          progress endpoint exists yet (ships with the Journey restructure). */}
-      <button className="ms-journey-card" onClick={onJourney}>
-        <div className="ms-journey-art" aria-hidden="true">
-          <span className="ms-journey-art-icon">🚑</span>
-        </div>
-        <div className="ms-journey-body">
-          <span className="ms-journey-name">FIRST AID JOURNEY</span>
-          <span className="ms-journey-sub">
-            A field medic&apos;s first steps — march through First Aid, chapter by chapter.
-          </span>
-        </div>
-      </button>
-
-      <div className="ms-cards ms-cards--story ms-cards--story-secondary">
-        {/* COMING SOON — temporarily disabled. To re-enable: drop the
-            ms-card--disabled class + ms-ribbon span and restore onClick={onTower}.
-            TowerMode and its App.jsx routing are untouched. */}
-        <button className="ms-card ms-card--story ms-card--disabled" disabled>
-          <span className="ms-ribbon">COMING SOON</span>
-          <span className="ms-card-icon">🏰</span>
-          <span className="ms-card-name">THE TOWER</span>
-          <span className="ms-card-sub">Climb 100 floors of knowledge</span>
+      {/* All three campaigns share the wide ms-journey-card layout (art panel
+          left, name/description right) so they read as siblings in one list.
+          Art areas are INERT striped placeholders (no per-campaign art asset
+          exists); the mockup's progress row + "Chapter X of Y" is intentionally
+          OMITTED — no aggregate journey progress endpoint exists yet (ships
+          with the Journey restructure). */}
+      <div className="ms-campaign-list">
+        <button className="ms-journey-card" onClick={onJourney}>
+          <div className="ms-journey-art" aria-hidden="true">
+            <span className="ms-journey-art-icon">🚑</span>
+          </div>
+          <div className="ms-journey-body">
+            <span className="ms-journey-name">FIRST AID JOURNEY</span>
+            <span className="ms-journey-sub">
+              A field medic&apos;s first steps — march through First Aid, chapter by chapter.
+            </span>
+          </div>
         </button>
 
         {/* COMING SOON — temporarily disabled. To re-enable: drop the
-            ms-card--disabled class + ms-ribbon span and restore onClick={onAnKing}.
-            AnKing and its App.jsx routing are untouched. */}
-        <button className="ms-card ms-card--story ms-card--disabled" disabled>
-          <span className="ms-ribbon">COMING SOON</span>
-          <span className="ms-card-icon">🃏</span>
-          <span className="ms-card-name">ANKING</span>
-          <span className="ms-card-sub">Master AnKing flashcards</span>
+            ms-journey-card--disabled class + ms-soon-chip span and restore
+            onClick={onTower}. TowerMode and its App.jsx routing are untouched. */}
+        <button className="ms-journey-card ms-journey-card--disabled" disabled>
+          <div className="ms-journey-art" aria-hidden="true">
+            <span className="ms-journey-art-icon">🏰</span>
+          </div>
+          <div className="ms-journey-body">
+            <span className="ms-journey-name">THE TOWER <span className="ms-soon-chip">COMING SOON</span></span>
+            <span className="ms-journey-sub">Climb 100 floors of knowledge</span>
+          </div>
+        </button>
+
+        {/* COMING SOON — temporarily disabled. To re-enable: drop the
+            ms-journey-card--disabled class + ms-soon-chip span and restore
+            onClick={onAnKing}. AnKing and its App.jsx routing are untouched. */}
+        <button className="ms-journey-card ms-journey-card--disabled" disabled>
+          <div className="ms-journey-art" aria-hidden="true">
+            <span className="ms-journey-art-icon">🃏</span>
+          </div>
+          <div className="ms-journey-body">
+            <span className="ms-journey-name">ANKING <span className="ms-soon-chip">COMING SOON</span></span>
+            <span className="ms-journey-sub">Master AnKing flashcards</span>
+          </div>
         </button>
       </div>
     </div>
