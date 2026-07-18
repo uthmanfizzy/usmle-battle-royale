@@ -42,6 +42,8 @@ export default function DashboardNew({ user, onPlayNow, onLogout, onUserUpdate }
     return 'main';
   });   // 'main' | 'leaderboard' | 'clans' | 'news'
   const [unreadCount, setUnreadCount] = useState(0);
+  // Announcement list from the fetch below, reused by HomeSection's News Feed
+  const [annList, setAnnList] = useState([]);
 
   const [showNotifications, setShowNotifications] = useState(false);
   const [showFriendsPanel,  setShowFriendsPanel]  = useState(false);
@@ -66,6 +68,7 @@ export default function DashboardNew({ user, onPlayNow, onLogout, onUserUpdate }
       .then(r => r.json())
       .then(d => {
         const list = d.announcements || [];
+        setAnnList(list);
         const readIds = getReadIds();
         setUnreadCount(list.filter(a => !readIds.has(String(a.id))).length);
       })
@@ -229,6 +232,7 @@ export default function DashboardNew({ user, onPlayNow, onLogout, onUserUpdate }
               homeImages={homeImages}
               withWelcome
               onViewAllNews={() => openHomeView('news')}
+              announcements={annList}
             />
           </>
         )}

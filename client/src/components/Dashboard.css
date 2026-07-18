@@ -6,9 +6,14 @@
    re-@import them here — that is a redundant render-blocking request.
    ══════════════════════════════════════════════════════════════════════════════ */
 
-/* Apply Cinzel Bold to all dashboard text, except explanations */
+/* Apply Cinzel Bold to all dashboard text, except explanations.
+   NOTE: every :not() argument here is a class, so this selector's specificity
+   is far above a single class — a later `.foo { font-weight: 400 !important }`
+   does NOT win against it. `.mv-plain` is the escape hatch: put it on any
+   subtree that must keep its own font-family/weight (mockup body copy is plain
+   sans, not Cinzel), and style that subtree normally. */
 .dashboard-screen,
-.dashboard-screen *:not(.explanation-rich):not(.explanation-rich *):not(.explanation-text):not(.explanation-text *):not(.explanation-sentence):not(.rr-explanation):not(.rr-explanation *) {
+.dashboard-screen *:not(.mv-plain):not(.mv-plain *):not(.explanation-rich):not(.explanation-rich *):not(.explanation-text):not(.explanation-text *):not(.explanation-sentence):not(.rr-explanation):not(.rr-explanation *) {
   font-family: 'Cinzel', serif !important;
   font-weight: 700 !important;
 }
@@ -94,7 +99,12 @@
   align-items: flex-start;
   justify-content: space-between;
   width: 100%;
-  padding: 12px 16px;
+  /* Mockup page padding. The header is position:fixed, so it can't inherit
+     the page container's inset — it carries the same clamp values itself,
+     which is what keeps the profile card / currency pills / icon bubbles off
+     the top and side edges. */
+  padding: clamp(16px, 4vw, 28px) clamp(16px, 5vw, 36px);
+  box-sizing: border-box;
   position: fixed;
   top: 0;
   left: 0;
@@ -272,58 +282,79 @@
 /* ══════════════════════════════════════════════════════════════════════════════
    CURRENCY BAR - Right Side
    ══════════════════════════════════════════════════════════════════════════════ */
+/* Two separate glass pills (mockup), not one bar with a divider. The old
+   .currency-item / .currency-icon / .currency-divider rules are gone with the
+   markup they styled; other pages use their own prefixed copies (sp-/qp-/pp-). */
 .currency-bar {
   display: flex;
   align-items: center;
-  gap: 16px;
-  background: rgba(22, 35, 42, 0.34);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 999px;
-  padding: 4px 16px;
-  height: auto;
+  gap: 12px;
   white-space: nowrap;
   overflow: visible !important;
 }
 
-.currency-item {
+.currency-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(6, 10, 7, 0.55);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  padding: 8px 14px;
+}
+
+/* Flat CSS tokens — deliberately not images/emoji (mockup uses pure shapes) */
+.currency-token {
+  flex-shrink: 0;
+}
+
+.currency-token--coin {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #e8b04b;
+  box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.25);
+}
+
+.currency-token--gem {
+  width: 12px;
+  height: 12px;
+  background: #4fd1c5;
+  transform: rotate(45deg);
+  border-radius: 2px;
+}
+
+/* !important beats the base `.dashboard-screen *` Cinzel/700 rule (the
+   mockup's currency readout is plain sans at 600) */
+.currency-value {
+  color: #ffffff;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+  font-size: 13px;
+  font-weight: 600 !important;
+}
+
+/* "+" → /shop?tab=currency (honest coming-soon state, not a purchase flow) */
+.currency-add {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.1);
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  color: white;
-  font-weight: 700;
-  font-size: 15px;
-  flex-shrink: 0;
-  overflow: visible !important;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.8);
+  text-decoration: none;
+  line-height: 1;
+  transition: background 0.15s, color 0.15s;
 }
 
-.currency-icon {
-  width: 54px !important;
-  height: 54px !important;
-  min-width: 48px !important;
-  object-fit: contain !important;
-  padding: 0 !important;
-  /* Negative margin so image is larger but pill stays same size */
-  margin: -12px -2px !important;
-  flex-shrink: 0 !important;
-  overflow: visible !important;
-  position: relative !important;
-  z-index: 1 !important;
-  pointer-events: none !important;
-}
-
-.currency-value {
-  color: #ffffff;
-  font-weight: 700;
-}
-
-.currency-divider {
-  width: 1px;
-  height: 18px;
-  background: rgba(255, 255, 255, 0.2);
-  flex-shrink: 0;
+.currency-add:hover {
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
 }
 
 /* ══════════════════════════════════════════════════════════════════════════════
@@ -347,14 +378,16 @@
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  width: 40px !important;
-  height: 40px !important;
-  min-width: 40px !important;
-  min-height: 40px !important;
-  background: rgba(22, 35, 42, 0.52) !important;
-  backdrop-filter: blur(6px) !important;
-  -webkit-backdrop-filter: blur(6px) !important;
-  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  /* Mockup bubble chrome (38px / rgba(6,10,7,.55) / blur(8px) / .16 border).
+     The real bell/friends/gear icons stay — only the chrome was aligned. */
+  width: 38px !important;
+  height: 38px !important;
+  min-width: 38px !important;
+  min-height: 38px !important;
+  background: rgba(6, 10, 7, 0.55) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.16) !important;
   border-radius: 999px !important;
   cursor: pointer !important;
   padding: 0 !important;
@@ -682,6 +715,110 @@
 
 .dash-event-dot--on {
   background: var(--mv-red);
+}
+
+/* ── News Feed panel (mockup band 2, right, below the event card) ─────────────
+   Real announcement data, passed down from whichever shell already fetched it.
+   Thumbs are INERT striped placeholders (announcements have no image field).
+   Several rules carry !important to beat the base `.dashboard-screen *`
+   Cinzel/700 rule — same precedent as the .ann-* block. */
+.dash-news-panel {
+  /* .mv-plain opts this subtree out of the global Cinzel rule, but the panel
+     still INHERITS Cinzel from .dash-content-col — so declare the font here */
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: rgba(6, 10, 7, 0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.dash-news-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.dash-news-title {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.dash-news-viewall {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif !important;
+  font-size: 12px;
+  font-weight: 400 !important;
+  color: var(--mv-red-link);
+}
+
+.dash-news-viewall:hover {
+  color: #e2776e;
+}
+
+.dash-news-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.dash-news-thumb {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border-radius: 6px;
+  background: repeating-linear-gradient(45deg, #1a2420, #1a2420 6px, #141d19 6px, #141d19 12px);
+}
+
+.dash-news-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dash-news-row-title {
+  font-size: 13px;
+  font-weight: 700;
+  /* Titles can be long; the mockup row is a single line */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dash-news-row-msg {
+  font-family: 'Inter', sans-serif !important;
+  font-size: 12px;
+  font-weight: 400 !important;
+  color: rgba(255, 255, 255, 0.6);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dash-news-date {
+  font-family: 'Inter', sans-serif !important;
+  font-size: 11px;
+  font-weight: 400 !important;
+  color: rgba(255, 255, 255, 0.45);
+  white-space: nowrap;
+}
+
+.dash-news-empty {
+  font-family: 'Inter', sans-serif !important;
+  font-size: 12px;
+  font-weight: 400 !important;
+  color: rgba(255, 255, 255, 0.5);
 }
 
 /* ── News tab (AnnouncementsSection): featured card + tagged rows ─────────────
@@ -2057,29 +2194,15 @@
   }
 
   .currency-pill {
-    padding: 6px 16px;
-    gap: 12px;
-  }
-
-  .currency-icon {
-    width: 52px !important;
-    height: 52px !important;
-    margin: -12px -2px !important;
-  }
-
-  .currency-value {
-    font-size: 14px;
-  }
-
-  .currency-divider {
-    height: 24px;
+    padding: 7px 12px;
+    gap: 7px;
   }
 
   /* Top padding clears the fixed header's vertically stacked icon bubbles
-     (bell/friends/settings run to ~165px on phones) so they never cover the
+     (three 48px bubbles from 16px = ~172px on phones) so they never cover the
      PLAY nav card */
   .dash-main {
-    padding: 170px 16px 20px;
+    padding: 184px 16px 20px;
     gap: 16px;
   }
 
@@ -3228,7 +3351,9 @@
 
   /* TOP HEADER */
   .dashboard-header {
-    padding: 6px 8px !important;
+    /* Keep the mockup's 16px minimum inset on phones (was 6px 8px, which put
+       the profile card flush against the viewport edges) */
+    padding: 16px !important;
     align-items: flex-start !important;
     overflow: visible !important;
   }
@@ -3293,39 +3418,19 @@
     gap: 6px !important;
     flex-shrink: 0 !important;
     position: fixed !important;
-    top: 8px !important;
-    right: 8px !important;
+    top: 16px !important;
+    right: 16px !important;
     z-index: 200 !important;
   }
 
   .currency-bar {
-    padding: 5px 12px !important;
-    gap: 10px !important;
+    gap: 8px !important;
     position: relative !important;
-    background: var(--mv-glass) !important;
-    backdrop-filter: blur(6px) !important;
-    border-radius: 999px !important;
-    border: 1px solid rgba(255,255,255,0.08) !important;
   }
 
-  .currency-item {
-    font-size: 16px !important;
-    gap: 6px !important;
-    font-weight: 700 !important;
-  }
-
-  .currency-bar img,
-  .currency-item img,
-  .currency-icon {
-    width: 38px !important;
-    height: 38px !important;
-    min-width: 38px !important;
-    min-height: 38px !important;
-    margin: -6px 0 !important;
-  }
-
-  .currency-divider {
-    height: 24px !important;
+  .currency-pill {
+    padding: 7px 12px !important;
+    gap: 7px !important;
   }
 
   /* Individual icon bubbles on mobile */
@@ -3494,22 +3599,14 @@
   .profile-card-xp-bar   { height: 4px !important; }
   .profile-card-xp-text  { font-size: 8px !important; }
 
-  /* Adjust currency bar for smaller screens */
+  /* Adjust currency pills for smaller screens */
   .currency-bar {
-    padding: 4px 10px !important;
-    gap: 8px !important;
+    gap: 6px !important;
   }
 
-  .currency-item {
-    font-size: 14px !important;
-  }
-
-  .currency-bar img,
-  .currency-item img,
-  .currency-icon {
-    width: 34px !important;
-    height: 34px !important;
-    margin: -6px 0 !important;
+  .currency-pill {
+    padding: 6px 10px !important;
+    gap: 6px !important;
   }
 
   .header-icon-bubble {
@@ -3925,8 +4022,8 @@
     align-items: center !important;
     gap: 6px !important;
     position: fixed !important;
-    top: 8px !important;
-    right: 8px !important;
+    top: 16px !important;   /* mockup's 16px minimum edge inset */
+    right: 16px !important;
     z-index: 300 !important;
     overflow: visible !important;
   }
@@ -3975,11 +4072,14 @@
     overflow: visible !important;
   }
 
-  /* Also move currency bar to not overlap the vertical icons */
+  /* On phones the icon bubbles stack into a fixed right-hand column, leaving
+     no room for the pills beside the profile card (they used to overlap it).
+     Park them directly under the profile card instead, still 16px inset. */
   .currency-bar {
     position: fixed !important;
-    top: 8px !important;
-    right: 64px !important;  /* leave space for the vertical icon column */
+    top: 76px !important;
+    left: 16px !important;
+    right: auto !important;
     z-index: 200 !important;
   }
 

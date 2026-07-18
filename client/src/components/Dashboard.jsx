@@ -254,7 +254,7 @@ function UsernameChangeModal({ user, onClose, onSuccess }) {
 // built by Dashboard which owns the tab handlers) and onViewAllNews; the
 // DashboardNew shell passes withWelcome to keep its welcome banner (re-homed
 // to the top via .dn-screen .dash-center-col { order: -1 }).
-function HomeSection({ user, bgUrl, onUserUpdate, homeImages, navCards, onViewAllNews, withWelcome }) {
+function HomeSection({ user, bgUrl, onUserUpdate, homeImages, navCards, onViewAllNews, withWelcome, announcements = [] }) {
   const [showUsernameModal, setShowUsernameModal] = useState(false);
   const [panelBackgrounds, setPanelBackgrounds] = useState({
     profile_panel_bg: '',
@@ -310,15 +310,16 @@ function HomeSection({ user, bgUrl, onUserUpdate, homeImages, navCards, onViewAl
       {/* Left nav column (old shell only) */}
       {navCards && <nav className="dash-nav-col">{navCards}</nav>}
 
-      {/* Right content column (old shell only): inert Event placeholder.
-          The Daily Quests / Rewards / News home widgets were removed — their
-          real destinations are /quests (dock), the dock's Daily Reward button
-          (claim), and the News tab (left-nav card / handleAnnouncementsTab). */}
-      {navCards && (
-        <div className="dash-content-col">
-          {/* INERT visual placeholder — no events feature exists yet. Art box,
-              label, and dots are purely decorative; nothing here is clickable
-              or wired to data by design. */}
+      {/* Right content column: inert Event placeholder (old shell only, since
+          it sits beside that shell's nav column) + the News Feed panel, which
+          renders in BOTH shells. The Daily Quests / Rewards home widgets stay
+          removed — their real destinations are /quests (dock) and the dock's
+          Daily Reward button. */}
+      <div className="dash-content-col">
+        {/* INERT visual placeholder — no events feature exists yet. Art box,
+            label, and dots are purely decorative; nothing here is clickable
+            or wired to data by design. */}
+        {navCards && (
           <div className="dash-event-card" aria-hidden="true">
             <div className="dash-event-art">event art placeholder</div>
             <div className="dash-event-body">
@@ -333,8 +334,35 @@ function HomeSection({ user, bgUrl, onUserUpdate, homeImages, navCards, onViewAl
               </div>
             </div>
           </div>
+        )}
+
+        {/* News Feed — up to 3 most recent real announcements, fed by the
+            list the parent shell already fetches (no extra API call). The
+            thumbnails are inert striped placeholders because announcements
+            have no image field, same as AnnouncementsSection's. */}
+        <div className="dash-news-panel mv-plain">
+          <div className="dash-news-head">
+            <span className="dash-news-title">NEWS FEED</span>
+            <button type="button" className="dash-news-viewall" onClick={onViewAllNews}>View All</button>
+          </div>
+          {announcements.length === 0 ? (
+            <div className="dash-news-empty">No announcements yet. Check back soon!</div>
+          ) : (
+            announcements.slice(0, 3).map(a => (
+              <div key={a.id} className="dash-news-row">
+                <div className="dash-news-thumb" aria-hidden="true" />
+                <div className="dash-news-body">
+                  <div className="dash-news-row-title">{a.title}</div>
+                  <div className="dash-news-row-msg">{a.message}</div>
+                </div>
+                <span className="dash-news-date">
+                  {new Date(a.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                </span>
+              </div>
+            ))
+          )}
         </div>
-      )}
+      </div>
 
       {showUsernameModal && (
         <UsernameChangeModal
@@ -963,6 +991,8 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
     return ['home', 'leaderboard', 'clans', 'announcements'].includes(t) ? t : 'home';
   });
   const [unreadCount,  setUnreadCount]  = useState(0);
+  // Announcement list from the fetch below, reused by HomeSection's News Feed
+  const [annList,      setAnnList]      = useState([]);
   const [showWelcome,  setShowWelcome]  = useState(false);
   const [welcomeAnn,   setWelcomeAnn]   = useState(null);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -1068,6 +1098,7 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
       .then(r => r.json())
       .then(d => {
         const list = d.announcements || [];
+        setAnnList(list);
         const readIds = getReadIds();
         const unread = list.filter(a => !readIds.has(String(a.id))).length;
         setUnreadCount(unread);
@@ -1239,20 +1270,21 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
           </div>
 
           <div className="header-right">
-            {/* Currency Bar */}
+            {/* Currency pills (mockup): two separate glass pills, each with a
+                flat CSS token (gold circle / teal rotated diamond — not the
+                admin icon_coins/icon_gems images or emoji) and a "+" button
+                that routes to the Shop's Currency tab, which is an honest
+                coming-soon state (no payment processor exists). */}
             <div className="currency-bar">
-              <div className="currency-item">
-                {homeImages.icon_coins && (
-                  <img loading="lazy" src={homeImages.icon_coins} alt="" className="currency-icon" />
-                )}
-                <span className="currency-value">{coins.toLocaleString()}</span>
+              <div className="currency-pill">
+                <span className="currency-token currency-token--coin" aria-hidden="true" />
+                <span className="currency-value mv-plain">{coins.toLocaleString()}</span>
+                <a className="currency-add" href="/shop?tab=currency" title="Get more coins" aria-label="Get more coins">+</a>
               </div>
-              <div className="currency-divider"></div>
-              <div className="currency-item">
-                {homeImages.icon_gems && (
-                  <img loading="lazy" src={homeImages.icon_gems} alt="" className="currency-icon" />
-                )}
-                <span className="currency-value">{gems.toLocaleString()}</span>
+              <div className="currency-pill">
+                <span className="currency-token currency-token--gem" aria-hidden="true" />
+                <span className="currency-value mv-plain">{gems.toLocaleString()}</span>
+                <a className="currency-add" href="/shop?tab=currency" title="Get more gems" aria-label="Get more gems">+</a>
               </div>
             </div>
 
@@ -1344,6 +1376,7 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
               onUserUpdate={onUserUpdate}
               homeImages={homeImages}
               onViewAllNews={handleAnnouncementsTab}
+              announcements={annList}
               navCards={
                 <>
                   <button type="button" className="dash-nav-card dash-nav-card--play" onClick={onPlayNow}>

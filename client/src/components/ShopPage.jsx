@@ -12,7 +12,12 @@ const SERVER_URL = 'https://usmle-battle-royale-production.up.railway.app';
 // purchase_gear_item RPC — the single atomic spend path for users.gems.
 export default function ShopPage() {
   const [user, setUser] = useState(getCachedUser);
-  const [tab, setTab] = useState('gear'); // 'featured' | 'currency' | 'gear'
+  // Deep-linkable tab (/shop?tab=currency), same URLSearchParams pattern the
+  // Dashboard uses for ?tab=clans; unknown values fall back to 'gear'.
+  const [tab, setTab] = useState(() => {
+    const t = new URLSearchParams(window.location.search).get('tab');
+    return ['featured', 'currency', 'gear'].includes(t) ? t : 'gear';
+  }); // 'featured' | 'currency' | 'gear'
   const [items, setItems] = useState([]);
   const [ownedIds, setOwnedIds] = useState(() => new Set());
   const [loading, setLoading] = useState(true);
