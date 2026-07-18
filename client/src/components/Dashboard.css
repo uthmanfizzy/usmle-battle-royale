@@ -105,6 +105,14 @@
      the top and side edges. */
   padding: clamp(16px, 4vw, 28px) clamp(16px, 5vw, 36px);
   box-sizing: border-box;
+  /* Track the same 2000px cap as .dash-main / .dash-dock so all three bands
+     stay aligned past that width. Without it the header ran to the true
+     viewport edges on ultrawides while the body bands sat inset, visibly
+     staggering the profile card against the nav column below it. Auto margins
+     centre a fixed element inside its left:0/right:0 span; below 2000px the
+     cap is inactive and this changes nothing. */
+  max-width: 2000px;
+  margin: 0 auto;
   position: fixed;
   top: 0;
   left: 0;
@@ -485,7 +493,14 @@
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 24px;
-  max-width: 1400px;
+  /* The cap was 1400px, which centred the whole band and left ~260px of dead
+     viewport on EACH side at 1920px — space-between could not reach it because
+     both columns are fixed-width (280/400) with flex-shrink: 0, so all the
+     slack piled into the middle gap instead of pushing the columns outward.
+     2000px lets 1920px displays run edge-to-edge (the padding below is the
+     only inset) while still stopping the gap from ballooning on ultrawides;
+     margin: 0 auto only takes effect once the viewport passes the cap. */
+  max-width: 2000px;
   margin: 0 auto;
   width: 100%;
   box-sizing: border-box;
@@ -997,7 +1012,11 @@
   justify-content: space-between;
   align-items: center;
   gap: 16px;
-  max-width: 1400px;
+  /* Must track .dash-main's cap: the dock is the mockup's third band and its
+     28px padding is what lines the Inventory tile and the Daily Reward pill up
+     with the nav / content columns above. Leaving this at 1400 while the band
+     above widened to 2000 visibly staggered the two. */
+  max-width: 2000px;
   margin: 0 auto;
   width: 100%;
   box-sizing: border-box;
