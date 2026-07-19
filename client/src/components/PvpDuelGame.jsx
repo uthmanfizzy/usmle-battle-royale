@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import ExplanationText from './ExplanationText';
 import { renderStem } from '../utils/renderStem';
+import { useScrollToTopOnChange } from '../utils/useScrollToTopOnChange';
 import './PvpDuelGame.css';
 
 const LABELS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
@@ -36,6 +37,12 @@ export default function PvpDuelGame({
   //    modal header — one source, mockup shows the two readouts) ──
   const [left, setLeft] = useState(timeLimit || 0);
   const tickRef = useRef(null);
+  // Reset the view to the top on each new question (keyed on the question id,
+  // so answering/timer ticks don't retrigger it). This one attaches to
+  // .pvd-modal, not the .pvd root: the duel's stem scrolls inside the modal
+  // box, which is a DESCENDANT of .pvd, so a ref on the root would never reach
+  // it. The hook walks upward, so it must sit on the scrolling element itself.
+  const screenRef = useScrollToTopOnChange(question?.id);
   const timerActive = !!question && !hasAnswered && !showingRoundResult;
   useEffect(() => {
     setLeft(timeLimit || 0);
@@ -169,7 +176,7 @@ export default function PvpDuelGame({
             <p className="pvd-waiting-text">Your opponent approaches…</p>
           </div>
         ) : (
-          <div className="pvd-modal">
+          <div className="pvd-modal" ref={screenRef}>
             <div className="pvd-modal-head">
               <span className="pvd-modal-title">ANSWER TO STRIKE</span>
               <span className="pvd-modal-clock">{fmtClock(left)}</span>

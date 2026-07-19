@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import PowerupBar from './PowerupBar';
 import Calculator from './Calculator';
+import { useScrollToTopOnChange } from '../utils/useScrollToTopOnChange';
 
 const LABELS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
 
@@ -61,6 +62,9 @@ export default function SpeedRaceGame({
   socketId,
 }) {
   const [showCalculator, setShowCalculator] = useState(false);
+  // Reset the view to the top on each new question (keyed on the question id,
+  // so answering/timer ticks don't retrigger it). Attach to the gameplay root.
+  const screenRef = useScrollToTopOnChange(question?.id);
   const GOAL = 20;
   const sortedProgress = [...(raceProgress || [])].sort((a, b) => b.correct - a.correct);
 
@@ -95,7 +99,7 @@ export default function SpeedRaceGame({
   }
 
   return (
-    <div className="screen game-screen speed-race-screen">
+    <div className="screen game-screen speed-race-screen" ref={screenRef}>
 
       {/* Race progress panel */}
       <div className="race-panel">

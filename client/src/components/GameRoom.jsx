@@ -4,6 +4,7 @@ import ExplanationText from './ExplanationText';
 import { parseRichText } from '../utils/parseRichText';
 import { renderStem } from '../utils/renderStem';
 import Calculator from './Calculator';
+import { useScrollToTopOnChange } from '../utils/useScrollToTopOnChange';
 
 const LABELS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
 
@@ -88,6 +89,10 @@ export default function GameRoom({
   gameMode = 'battle_royale',
 }) {
   const [showCalculator, setShowCalculator] = useState(false);
+  // Reset the view to the top on each new question (keyed on the question id,
+  // so answering/timer ticks don't retrigger it). Attach to the gameplay root.
+  const screenRef = useScrollToTopOnChange(question?.id);
+
   if (showSuddenDeathScreen) {
     return (
       <div className="screen sd-announcement-screen">
@@ -145,7 +150,7 @@ export default function GameRoom({
   const timerActive = !hasAnswered && isAlive && !showingRoundResult;
 
   return (
-    <div className={`screen game-screen ${suddenDeath ? 'sudden-death-mode' : ''}`}>
+    <div className={`screen game-screen ${suddenDeath ? 'sudden-death-mode' : ''}`} ref={screenRef}>
       {/* Fixed top bar */}
       <div className="game-topbar">
         <span className="topbar-round">Round {round}</span>

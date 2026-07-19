@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import TriviaBoard from './TriviaBoard';
 import ExplanationText from './ExplanationText';
 import Calculator from './Calculator';
+import { useScrollToTopOnChange } from '../utils/useScrollToTopOnChange';
 
 const LABELS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
 
@@ -81,6 +82,12 @@ export default function TriviaGame({
 }) {
   const [rolling, setRolling] = useState(false);
   const [showCalculator, setShowCalculator] = useState(false);
+  // Reset the view to the top on each new question (keyed on the question id,
+  // so answering/timer ticks don't retrigger it). Read off triviaState directly:
+  // `question` is destructured below, after an early return, and hooks can't
+  // run conditionally. Note .trivia-screen scrolls itself rather than #root,
+  // which the hook handles by walking up from this ref.
+  const screenRef = useScrollToTopOnChange(triviaState?.question?.id);
 
   // Stop rolling animation when server responds with dice value
   useEffect(() => {
@@ -125,7 +132,7 @@ export default function TriviaGame({
   }
 
   return (
-    <div className="screen trivia-screen">
+    <div className="screen trivia-screen" ref={screenRef}>
       <div className="trivia-inner">
 
         {/* ── Board ── */}

@@ -9,6 +9,7 @@ import { renderStem, toStemVisibleText } from '../utils/renderStem';
 import Calculator from './Calculator';
 import LabValues from './LabValues';
 import { shuffleQuestionOptions } from '../utils/shuffleOptions';
+import { useScrollToTopOnChange } from '../utils/useScrollToTopOnChange';
 import { toVisibleText, resolveHighlights, normalizeHighlightRow } from '../utils/explanationHighlights';
 import { getToken } from '../auth';
 import './SoloGameJourney.css';
@@ -61,6 +62,9 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
 
   const [questions, setQuestions] = useState([]);
   const [qIdx, setQIdx] = useState(0);
+  // Reset the view to the top on each new question (keyed on the index, so
+  // answering/timer ticks don't retrigger it). Attach to the gameplay root.
+  const screenRef = useScrollToTopOnChange(qIdx);
   const [lives, setLives] = useState(defaultLives);
   const [score, setScore] = useState(0);
   const [streak, setStreak] = useState(0);
@@ -651,7 +655,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   const tier = timeLeft > 10 ? 'green' : timeLeft > 5 ? 'yellow' : 'red';
 
   return (
-    <div className={screenClass}>
+    <div className={screenClass} ref={screenRef}>
       {/* Developer-mode unlock: only when ?dev=1 is in the URL and not yet unlocked.
           Lets an admin enable official-highlight authoring from any play tab. */}
       {devParam && !isAdminSession && (
