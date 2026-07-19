@@ -7956,7 +7956,6 @@ function SettingsPanel() {
 function HomePagePanel() {
   const [homeImages, setHomeImages] = useState({
     dashboard_bg: '',
-    footer_bg: '',
     icon_home: '',
     icon_leaderboards: '',
     icon_clans: '',
@@ -8073,7 +8072,8 @@ function HomePagePanel() {
 
   const imageSlots = [
     { id: 'dashboard_bg', label: 'Dashboard Background', desc: 'Background image for home page dashboard' },
-    { id: 'footer_bg', label: 'Footer Background', desc: 'Background image for bottom navigation bar' },
+    /* footer_bg removed: it uploaded fine but nothing has rendered it since the
+       .bottom-nav pill was retired. The Supabase row is left in place. */
   ];
 
   const iconSlots = [

@@ -38,7 +38,7 @@
   --text-muted: var(--mv-text-dim-65);
   --green-progress: var(--mv-success);
   --red-rpg: var(--mv-danger);
-  --silver: #A8A8A8; /* rank-medal silver — ranking colors sit outside the brand palette */
+  --silver: var(--mv-silver);
 }
 
 /* ── Dashboard Screen ─────────────────────────────────────────────────────── */

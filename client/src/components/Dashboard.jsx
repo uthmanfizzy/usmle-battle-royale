@@ -1004,7 +1004,6 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
   const [bgLoaded,     setBgLoaded]     = useState(false); // fade the bg in on load
   const [homeImages,   setHomeImages]   = useState({
     dashboard_bg: '',
-    footer_bg: '',
     icon_home: '',
     icon_leaderboards: '',
     icon_clans: '',

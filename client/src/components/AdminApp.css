@@ -1415,7 +1415,12 @@
 }
 .ap-save-all-sub {
   font-size: 12px;
-  color: var(--text-muted, #888);
+  /* --text-muted is Dashboard.css's legacy alias and is never defined on
+     /admin, so this always fell through to a hardcoded grey. --text-dim is
+     AdminApp's own secondary-text token (106 other uses) and is defined in
+     BOTH admin themes, unlike --mv-text-dim-65 which is near-white and would
+     be unreadable on the light theme's white cards. */
+  color: var(--text-dim);
   max-width: 480px;
 }
 .ap-save-all-actions {

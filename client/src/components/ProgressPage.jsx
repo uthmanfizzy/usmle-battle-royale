@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { getToken, fetchMe, getCachedUser, authFetch } from '../auth';
 import { formatStudyTime } from './ProfileModal';
 import { evaluateAchievements, LEVEL_MILESTONES } from '../utils/achievements';
+import { getMasteryColor } from '../utils/masteryColors';
 import StudyCalendar from './StudyCalendar';
 import SubjectDetailModal from './SubjectDetailModal';
 import './ProgressPage.css';
@@ -20,15 +21,6 @@ function getMasteryRank(pct) {
   return 'Novice';
 }
 
-// Gold ramp hand-derived from --mv-gold #e8b04b (CSS custom properties can't
-// reach these JS values) — brighter gold = higher mastery, gray = Novice.
-function getMasteryColor(pct) {
-  if (pct >= 81) return '#e8b04b';
-  if (pct >= 61) return '#c9973f';
-  if (pct >= 41) return '#a67c34';
-  if (pct >= 21) return '#8a6529';
-  return '#6b7280';
-}
 
 const MODE_LABELS = {
   battle_royale:  'Battle Royale',

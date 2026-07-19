@@ -1,6 +1,10 @@
-/* ProfileModal — public player profile popup. The overlay/card/header/close
-   styles come from the shared modal classes in Dashboard.css; this file only
-   styles the profile-specific content (parchment theme vars, same as modal-card). */
+/* ProfileModal — public player profile popup. Colors reference the shared
+   --mv-* tokens (designTokens.css, loaded globally in main.jsx) directly, so
+   this file no longer depends on Dashboard.css's legacy alias block.
+   NOTE: the layout/chrome classes this component wears — .modal-overlay,
+   .modal-card, .modal-header, .modal-title, .modal-close-btn — are still
+   defined in Dashboard.css (:1878-1936), so the modal remains structurally
+   dependent on that stylesheet even though its colors no longer are. */
 
 .profile-modal-card {
   max-width: 380px;
@@ -18,14 +22,14 @@
   height: 56px;
   min-width: 56px;
   border-radius: 50%;
-  border: 3px solid var(--gold-rpg);
+  border: 3px solid var(--mv-gold);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
   overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--parchment-dark);
-  color: var(--text-dark);
+  background: var(--mv-glass-strong);
+  color: var(--mv-text);
   font-size: 22px;
   font-weight: 700;
 }
@@ -40,18 +44,18 @@
   font-family: 'Playfair Display', Georgia, serif;
   font-size: 18px;
   font-weight: 700;
-  color: var(--text-dark);
+  color: var(--mv-text);
 }
 
 .pm-clan-tag {
   font-size: 13px;
-  color: var(--text-muted);
+  color: var(--mv-text-dim-65);
   font-weight: 600;
 }
 
 .pm-level {
   font-size: 13px;
-  color: var(--text-muted);
+  color: var(--mv-text-dim-65);
   margin-top: 2px;
 }
 
@@ -59,7 +63,7 @@
   font-family: 'Playfair Display', Georgia, serif;
   font-size: 11px;
   font-weight: 700;
-  color: var(--text-muted);
+  color: var(--mv-text-dim-65);
   text-transform: uppercase;
   letter-spacing: 1px;
   margin-bottom: 8px;
@@ -72,8 +76,8 @@
 }
 
 .pm-stat {
-  background: var(--parchment-dark);
-  border: 1px solid var(--brown-border);
+  background: var(--mv-glass-strong);
+  border: 1px solid var(--mv-border-gold);
   border-radius: 10px;
   padding: 10px 4px;
   display: flex;
@@ -86,14 +90,14 @@
 .pm-stat-value {
   font-size: 14px;
   font-weight: 700;
-  color: var(--text-dark);
+  color: var(--mv-text);
   white-space: nowrap;
 }
 
 .pm-stat-key {
   font-size: 9px;
   font-weight: 700;
-  color: var(--text-muted);
+  color: var(--mv-text-dim-65);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -101,11 +105,11 @@
 .pm-progress-btn {
   width: 100%;
   margin-top: 14px;
-  background: linear-gradient(135deg, var(--gold-rpg), var(--gold-dark));
-  border: 2px solid var(--gold-dark);
+  background: linear-gradient(135deg, var(--mv-gold), var(--mv-gold-dim));
+  border: 2px solid var(--mv-gold-dim);
   border-radius: 10px;
   padding: 10px 12px;
-  color: var(--parchment-light);
+  color: var(--mv-glass);
   font-family: 'Playfair Display', Georgia, serif;
   font-size: 13px;
   font-weight: 700;

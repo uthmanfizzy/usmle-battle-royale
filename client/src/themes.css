@@ -12,9 +12,11 @@
 }
 
 /* ── Propagate into scoped component vars ────────────────────────── */
-/* LandingPage and StatsPage use --purple locally; tie them to root */
+/* LandingPage uses --purple locally; tie it to root. StatsPage (.sp) used to
+   be here too — it is now on the shared --mv-* tokens and defines no --purple,
+   so leaving its rule in place would have kept re-injecting the old hue into
+   the one thing still reading it (the XP-over-time chart's SVG stroke). */
 .lp { --purple: var(--color-primary); --purple2: var(--color-primary-light); }
-.sp { --purple: var(--color-primary); --purple2: var(--color-primary-light); }
 
 /* btn-view-stats in dashboard uses hardcoded purple — override via var */
 .btn-view-stats {

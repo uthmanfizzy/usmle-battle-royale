@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { getToken, clearToken, fetchMe, authFetch } from '../auth';
+import { getMasteryColor, getRingColor } from '../utils/masteryColors';
 import './StatsPage.css';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -16,18 +17,6 @@ function getTitle(lvl) {
   return 'Medical Rookie 🩺';
 }
 
-function getRingColor(lvl) {
-  if (lvl >= 100) return '#FFD700';
-  if (lvl >= 76)  return '#FF4444';
-  if (lvl >= 51)  return '#FF6B35';
-  if (lvl >= 41)  return '#F59E0B';
-  if (lvl >= 31)  return '#10B981';
-  if (lvl >= 21)  return '#8B5CF6';
-  if (lvl >= 11)  return '#7C3AED';
-  if (lvl >= 6)   return '#3B82F6';
-  return '#6B7280';
-}
-
 function getMasteryRank(pct) {
   if (pct >= 100) return 'Master ⭐';
   if (pct >= 81)  return 'Expert';
@@ -35,14 +24,6 @@ function getMasteryRank(pct) {
   if (pct >= 41)  return 'Competent';
   if (pct >= 21)  return 'Apprentice';
   return 'Novice';
-}
-
-function getMasteryColor(pct) {
-  if (pct >= 81) return '#F59E0B';
-  if (pct >= 61) return '#10B981';
-  if (pct >= 41) return '#3B82F6';
-  if (pct >= 21) return '#6366F1';
-  return '#4B5563';
 }
 
 const SUBJECTS = [
@@ -115,12 +96,12 @@ function buildAchievements(user) {
 // ── Placement helpers ──────────────────────────────────────────────────────────
 
 const PLACEMENT_META = {
-  1: { label: '1st Place',  emoji: '🥇', color: '#F59E0B', border: '#F59E0B' },
-  2: { label: '2nd Place',  emoji: '🥈', color: '#9CA3AF', border: '#9CA3AF' },
-  3: { label: '3rd Place',  emoji: '🥉', color: '#CD7F32', border: '#CD7F32' },
+  1: { label: '1st Place',  emoji: '🥇', color: 'var(--mv-gold)',   border: 'var(--mv-gold)' },
+  2: { label: '2nd Place',  emoji: '🥈', color: 'var(--mv-silver)', border: 'var(--mv-silver)' },
+  3: { label: '3rd Place',  emoji: '🥉', color: 'var(--mv-bronze)', border: 'var(--mv-bronze)' },
 };
 function getPlacementMeta(placement) {
-  return PLACEMENT_META[placement] || { label: `Eliminated`, emoji: '💀', color: '#EF4444', border: '#EF4444' };
+  return PLACEMENT_META[placement] || { label: `Eliminated`, emoji: '💀', color: 'var(--mv-danger)', border: 'var(--mv-danger)' };
 }
 
 const MODE_META = {
@@ -176,7 +157,10 @@ function Particles() {
       x: Math.random() * window.innerWidth, y: Math.random() * window.innerHeight,
       vx: (Math.random() - 0.5) * 0.25, vy: -(Math.random() * 0.35 + 0.08),
       r: Math.random() * 1.6 + 0.4, alpha: Math.random() * 0.35 + 0.08,
-      col: Math.random() > 0.55 ? '124,58,237' : '245,158,11',
+      // Raw RGB triples, not tokens: these are painted onto a <canvas>, which
+      // cannot resolve CSS custom properties. Gold (--mv-gold) + bronze
+      // (--mv-bronze) keeps the field two-tone as before, on the new palette.
+      col: Math.random() > 0.55 ? '232,176,75' : '193,122,74',
     }));
     function draw() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -314,10 +298,10 @@ function RankRow({ user, globalRank }) {
   const winRate     = gamesPlayed > 0 ? Math.round((gamesWon / gamesPlayed) * 100) : 0;
 
   const pills = [
-    { icon: '👑', val: globalRank ? `#${globalRank}` : '—', label: 'Global Rank',    accent: '#F59E0B' },
-    { icon: '🏰', val: `${towerFloor}/100`,                  label: 'Tower Floor',   accent: '#7C3AED' },
-    { icon: '🎯', val: `${winRate}%`,                         label: 'Win Rate',      accent: '#10B981' },
-    { icon: '🔥', val: `${streak} day${streak !== 1 ? 's' : ''}`, label: 'Daily Streak', accent: '#EF4444' },
+    { icon: '👑', val: globalRank ? `#${globalRank}` : '—', label: 'Global Rank',    accent: 'var(--mv-gold)' },
+    { icon: '🏰', val: `${towerFloor}/100`,                  label: 'Tower Floor',   accent: 'var(--mv-gold)' },
+    { icon: '🎯', val: `${winRate}%`,                         label: 'Win Rate',      accent: 'var(--mv-success)' },
+    { icon: '🔥', val: `${streak} day${streak !== 1 ? 's' : ''}`, label: 'Daily Streak', accent: 'var(--mv-danger)' },
   ];
 
   return (
@@ -374,7 +358,9 @@ function SubjectMastery({ mastery }) {
                     className={`sp-skill-fill ${master ? 'sp-master-fill' : ''}`}
                     style={{
                       width: vis ? `${pct}%` : '0%',
-                      background: master ? 'linear-gradient(90deg, #F59E0B, #FFD700, #F59E0B)' : color,
+                      background: master
+                        ? 'linear-gradient(90deg, var(--mv-gold), var(--mv-gold-dim), var(--mv-gold))'
+                        : color,
                       transitionDelay: vis ? `${i * 0.09}s` : '0s',
                     }}
                   />
@@ -612,8 +598,8 @@ function XpGraph({ days }) {
         >
           <defs>
             <linearGradient id="xpAreaGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%"   stopColor="var(--purple)" stopOpacity="0.45" />
-              <stop offset="100%" stopColor="var(--purple)" stopOpacity="0.01" />
+              <stop offset="0%"   stopColor="var(--mv-gold)" stopOpacity="0.45" />
+              <stop offset="100%" stopColor="var(--mv-gold)" stopOpacity="0.01" />
             </linearGradient>
           </defs>
 
@@ -622,7 +608,7 @@ function XpGraph({ days }) {
             <line key={f}
               x1={PAD.l} x2={VW - PAD.r}
               y1={PAD.t + f * pH} y2={PAD.t + f * pH}
-              stroke="rgba(255,255,255,0.04)" strokeWidth="1"
+              stroke="rgba(255,255,255,0.06)" strokeWidth="1"
             />
           ))}
 
@@ -631,13 +617,13 @@ function XpGraph({ days }) {
 
           {/* Glow line */}
           <path d={linePath} fill="none"
-            stroke="var(--purple)" strokeWidth="6"
+            stroke="var(--mv-gold)" strokeWidth="6"
             strokeOpacity="0.2" strokeLinejoin="round" strokeLinecap="round"
           />
 
           {/* Main line */}
           <path d={linePath} fill="none"
-            stroke="var(--purple2)" strokeWidth="2"
+            stroke="var(--mv-gold)" strokeWidth="2"
             strokeLinejoin="round" strokeLinecap="round"
           />
 
@@ -646,8 +632,8 @@ function XpGraph({ days }) {
             <circle key={i}
               cx={ptX(i)} cy={ptY(d.xp)}
               r={hoverIdx === i ? 5 : d.xp > 0 ? 2.5 : 0}
-              fill={hoverIdx === i ? 'var(--purple2)' : 'var(--bg2)'}
-              stroke="var(--purple2)" strokeWidth="1.5"
+              fill={hoverIdx === i ? 'var(--mv-gold)' : 'var(--mv-bg-base)'}
+              stroke="var(--mv-gold)" strokeWidth="1.5"
               style={{ cursor: 'crosshair', transition: 'r 0.1s' }}
             />
           ))}
@@ -670,7 +656,7 @@ function XpGraph({ days }) {
               <text key={d.date}
                 x={ptX(i)} y={VH - 4}
                 textAnchor={i === 0 ? 'start' : i === days.length - 1 ? 'end' : 'middle'}
-                fontSize="7" fill="rgba(232,232,244,0.28)"
+                fontSize="7" fill="rgba(255,255,255,0.28)"
               >{fmtDate(d.date)}</text>
             );
           })}
