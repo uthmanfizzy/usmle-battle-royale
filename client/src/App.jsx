@@ -10,6 +10,7 @@ import JoinLobbyInput from './components/JoinLobbyInput';
 import SubjectSelect from './components/SubjectSelect';
 import RouteErrorBoundary from './components/RouteErrorBoundary';
 import LevelUpOverlay from './components/LevelUpOverlay';
+import WelcomeOverlay from './components/WelcomeOverlay';
 
 // Lazy load heavy components for better initial load performance
 const Lobby = lazy(() => import('./components/Lobby'));
@@ -49,6 +50,8 @@ export default function App() {
   // levelRef mirrors the current level so the socket handler's stale closure
   // can still read it.
   const [levelUpTo, setLevelUpTo] = useState(null);
+  // Non-null = play the welcome overlay for this guest name, then continue.
+  const [guestWelcome, setGuestWelcome] = useState(null);
   const levelRef = useRef(null);
   const [soloSubject, setSoloSubject] = useState('all');
   const [soloKey,  setSoloKey]  = useState(0);
@@ -468,9 +471,19 @@ export default function App() {
 
   // ── Game-flow handlers ─────────────────────────────────────────────────────
 
+  // Guest "sign-in" creates no account — there is no server call here, the name
+  // is just captured client-side (guests pass isGuest:true on socket events).
+  // So the honest trigger point is "the name is confirmed", which is also when
+  // the real username first exists. Destination is the mode_split phase, which
+  // is where this flow has always gone; guests never route to /dashboard.
   function handleGuestLogin(name) {
     setUsername(name);
     setError('');
+    setGuestWelcome(name);
+  }
+
+  function finishGuestLogin() {
+    setGuestWelcome(null);
     connectSocket();
     setPhase('mode_split');
   }
@@ -1162,6 +1175,11 @@ export default function App() {
       {/* Real level-up celebration — see the game_over handler above. No
           reward chips: nothing in the payload reports per-level rewards, and
           inventing numbers would be worse than omitting them. */}
+      {/* Guest welcome — plays after the name is confirmed, before mode_split. */}
+      {guestWelcome && (
+        <WelcomeOverlay username={guestWelcome} onDone={finishGuestLogin} />
+      )}
+
       {levelUpTo != null && (
         <LevelUpOverlay
           level={levelUpTo}

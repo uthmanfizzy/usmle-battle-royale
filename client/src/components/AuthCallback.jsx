@@ -1,7 +1,13 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { setToken, fetchMe } from '../auth';
+import WelcomeOverlay from './WelcomeOverlay';
 
 export default function AuthCallback() {
+  // Set only once fetchMe has returned a real user. `to` is where we go after
+  // the overlay's hold; `username` is empty for a brand-new account that still
+  // has to pick one, which WelcomeOverlay renders as "Your saga begins."
+  const [welcome, setWelcome] = useState(null);
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const token  = params.get('token');
@@ -15,16 +21,26 @@ export default function AuthCallback() {
     setToken(token);
     fetchMe().then(user => {
       if (user) {
-        if (!user.username) {
-          window.location.replace('/username-setup');
-        } else {
-          window.location.replace('/dashboard');
-        }
+        // Auth has genuinely succeeded here — this is the earliest honest
+        // point to welcome them, and the first point the real username exists.
+        setWelcome({
+          username: user.username || '',
+          to: user.username ? '/dashboard' : '/username-setup',
+        });
       } else {
         window.location.replace('/?auth_error=profile_failed');
       }
     });
   }, []);
+
+  if (welcome) {
+    return (
+      <WelcomeOverlay
+        username={welcome.username}
+        onDone={() => window.location.replace(welcome.to)}
+      />
+    );
+  }
 
   return (
     <div className="screen entry-screen">
