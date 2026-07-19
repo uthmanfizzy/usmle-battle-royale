@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
+import { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
 import socket from './socket';
 import * as audio from './audio';
 import { getToken, clearToken, fetchMe, getCachedUser, redirectToGoogle } from './auth';
@@ -9,6 +9,7 @@ import LobbySelect from './components/LobbySelect';
 import JoinLobbyInput from './components/JoinLobbyInput';
 import SubjectSelect from './components/SubjectSelect';
 import RouteErrorBoundary from './components/RouteErrorBoundary';
+import LevelUpOverlay from './components/LevelUpOverlay';
 
 // Lazy load heavy components for better initial load performance
 const Lobby = lazy(() => import('./components/Lobby'));
@@ -43,6 +44,12 @@ export default function App() {
   const [muted,      setMuted]      = useState(false);
   const [difficulty, setDifficulty] = useState('easy');
   const [gameMode,   setGameMode]   = useState('battle_royale');
+  // Level-up celebration. Driven by a real before/after comparison at the one
+  // refresh point that reliably follows an XP award (the game_over fetchMe);
+  // levelRef mirrors the current level so the socket handler's stale closure
+  // can still read it.
+  const [levelUpTo, setLevelUpTo] = useState(null);
+  const levelRef = useRef(null);
   const [soloSubject, setSoloSubject] = useState('all');
   const [soloKey,  setSoloKey]  = useState(0);
   const [trainingTopic, setTrainingTopic] = useState(null);
@@ -363,7 +370,16 @@ export default function App() {
       // Refresh user stats silently after XP is awarded
       if (getToken()) {
         setTimeout(() => {
-          fetchMe().then(me => { if (me) setUser(me); });
+          fetchMe().then(me => {
+            if (!me) return;
+            const before = levelRef.current;
+            setUser(me);
+            // Only celebrate a genuine increase — a null `before` means we
+            // never had a level to compare against, so stay quiet.
+            if (before != null && (me.level || 1) > before) {
+              setLevelUpTo(me.level || 1);
+            }
+          });
         }, 2000); // wait a moment for server to finish writing XP
       }
     });
@@ -754,6 +770,11 @@ export default function App() {
     setToast('');
   }
 
+  // Keep the level mirror in step with whatever last set `user`.
+  useEffect(() => {
+    if (user?.level != null) levelRef.current = user.level;
+  }, [user?.level]);
+
   function toggleMute() {
     const next = !muted;
     setMuted(next);
@@ -1136,6 +1157,17 @@ export default function App() {
           onInitialConsumed={() => setTgInitialSubject(null)}
         />
         </RouteErrorBoundary>
+      )}
+
+      {/* Real level-up celebration — see the game_over handler above. No
+          reward chips: nothing in the payload reports per-level rewards, and
+          inventing numbers would be worse than omitting them. */}
+      {levelUpTo != null && (
+        <LevelUpOverlay
+          level={levelUpTo}
+          username={user?.username || username}
+          onClose={() => setLevelUpTo(null)}
+        />
       )}
       </div>
     </Suspense>

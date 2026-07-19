@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import { authFetch } from '../auth';
 import './PlayPage.css';
 import AnKingMode from './AnKingMode';
@@ -162,6 +162,31 @@ export default function PlayPage({
     });
   }
 
+  // ── PvP Arenas matchmaking overlay ──────────────────────────────────────
+  // Purely a render branch over state PlayPage already receives: `lobbyId` and
+  // `lobbyPlayers` are fed by the existing quick_join ack and lobby_update
+  // socket events. Nothing new is emitted, and every name/avatar shown is a
+  // real player from that list.
+  const [mmSearching, setMmSearching] = useState(false);
+  const mmPlayers = lobbyPlayers || [];
+  const mmFound = mmSearching && mmPlayers.length >= 2;
+
+  // A failed/timed-out quick join surfaces as the `error` prop; drop the
+  // overlay so the message underneath is actually readable.
+  useEffect(() => {
+    if (error) setMmSearching(false);
+  }, [error]);
+
+  function handleQuickJoinClick() {
+    if (selectedMode === 'pvp_duel') setMmSearching(true);
+    handleFindMatch();
+  }
+
+  function handleCancelSearch() {
+    setMmSearching(false);
+    if (onLeaveLobby) onLeaveLobby();
+  }
+
   function handleJoinLobby() {
     if (!lobbyCode.trim()) return;
     setJoinError('');
@@ -203,9 +228,9 @@ export default function PlayPage({
       </div>
 
       <div className="pp-col">
-        <button type="button" className="pp-back" onClick={onBack}>← Back to Dashboard</button>
-        <h1 className="pp-title">Deploy</h1>
-        <p className="pp-subtitle">Choose your battlefield.</p>
+        <button type="button" className="pp-back pp-rise" onClick={onBack}>← Back to Dashboard</button>
+        <h1 className="pp-title pp-rise" style={{ '--pp-delay': '0.04s' }}>Deploy</h1>
+        <p className="pp-subtitle pp-rise" style={{ '--pp-delay': '0.1s' }}>Choose your battlefield.</p>
 
         {selectedMode === 'anking' ? (
           <div className="pp-anking">
@@ -219,7 +244,7 @@ export default function PlayPage({
         ) : (
           <>
             {/* ── Mode grid ─────────────────────────────────────────────── */}
-            <div className="pp-mode-grid">
+            <div className="pp-mode-grid pp-rise" style={{ '--pp-delay': '0.16s' }}>
               {GAME_MODES.map(mode => {
                 const isEnabled = gameModesConfig[mode.id]?.enabled ?? true;
                 const active = selectedMode === mode.id;
@@ -250,7 +275,7 @@ export default function PlayPage({
             </div>
 
             {/* ── Squad Size (Fill Team toggle intentionally dropped) ────── */}
-            <div className="squad-section pp-block">
+            <div className="squad-section pp-block pp-rise" style={{ '--pp-delay': '0.24s' }}>
               <label className="squad-label">SQUAD SIZE</label>
               <div className="squad-options">
                 <button
@@ -282,7 +307,7 @@ export default function PlayPage({
             </div>
 
             {/* ── Loadout bar (read-only; gear has no gameplay effect) ───── */}
-            <div className="loadout-bar pp-block">
+            <div className="loadout-bar pp-block pp-rise" style={{ '--pp-delay': '0.32s' }}>
               <div className="loadout-thumb" aria-hidden="true" />
               <div className="loadout-info">
                 <span className="loadout-items">
@@ -299,7 +324,8 @@ export default function PlayPage({
 
             {/* ── Deploy CTA (red octagon-cut, full width) ──────────────── */}
             <button
-              className="lobby-btn lobby-btn--create pp-deploy"
+              className="lobby-btn lobby-btn--create pp-deploy pp-rise"
+              style={{ '--pp-delay': '0.4s' }}
               onClick={handleCreateLobby}
             >
               <span className="lobby-btn-icon">⚔️</span>
@@ -338,7 +364,7 @@ export default function PlayPage({
                 {joinError && <p className="join-lobby-error">{joinError}</p>}
               </div>
 
-              <button className="pp-quick" onClick={handleFindMatch}>
+              <button className="pp-quick" onClick={handleQuickJoinClick}>
                 🔍 QUICK JOIN
               </button>
             </div>
@@ -346,8 +372,50 @@ export default function PlayPage({
         )}
       </div>
 
+      {/* ── PVP MATCHMAKING OVERLAY ────────────────────────────────────────
+          Replaces the lobby panel for a PvP Arenas quick join: the duel
+          auto-starts the moment a second player arrives, so the lobby's
+          code/start-button UI is never actionable in that flow anyway. */}
+      {mmSearching && (
+        <div className="pp-mm">
+          {mmFound ? (
+            <>
+              <h2 className="pp-mm-title">MATCH FOUND</h2>
+              <div className="pp-mm-found">
+                {mmPlayers.slice(0, 2).map((p, i) => (
+                  <Fragment key={p.id ?? i}>
+                    {i > 0 && <span className="pp-mm-vs">VS</span>}
+                    <div className="pp-mm-player">
+                      {/* lobbyPayload carries no avatar_url, so only the local
+                          player has a picture to show; everyone else falls back
+                          to their real initial rather than a stock face. */}
+                      <div className="pp-mm-avatar">
+                        {p.username === username && user?.avatar_url
+                          ? <img src={user.avatar_url} alt={p.username} referrerPolicy="no-referrer" />
+                          : <span>{p.username?.[0]?.toUpperCase() || '?'}</span>}
+                      </div>
+                      <span className="pp-mm-name">{p.username}</span>
+                    </div>
+                  </Fragment>
+                ))}
+              </div>
+              <p className="pp-mm-sub">Entering the arena…</p>
+            </>
+          ) : (
+            <>
+              <div className="pp-mm-ring" />
+              <h2 className="pp-mm-title">SEARCHING FOR MATCH…</h2>
+              <p className="pp-mm-sub">Waiting for a rival healer to answer the call.</p>
+              <button type="button" className="pp-mm-cancel" onClick={handleCancelSearch}>
+                Cancel search
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
       {/* ── LOBBY OVERLAY — shows when a lobby is active ───────────────────── */}
-      {lobbyId && (
+      {lobbyId && !mmSearching && (
         <div className="lobby-overlay">
           <div className="lobby-panel">
 

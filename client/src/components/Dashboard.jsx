@@ -4,6 +4,7 @@ import FriendsPanel from './FriendsPanel';
 import ProfileModal, { formatStudyTime } from './ProfileModal';
 import NotificationsDropdown from './NotificationsDropdown';
 import ClansPage from './ClansPage';
+import DashboardAmbient from './DashboardAmbient';
 import './Dashboard.css';
 
 // Error Boundary to prevent black screens
@@ -1218,6 +1219,9 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
         )}
         <div className="dashboard-bg-overlay" />
       </div>
+
+      {/* Decorative-only atmosphere (glow blobs, embers, rune, fog) */}
+      <DashboardAmbient />
 
       <div className="dashboard-container">
         {showWelcome && <WelcomePopup announcement={welcomeAnn} onClose={handleWelcomeClose} />}

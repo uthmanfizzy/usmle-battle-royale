@@ -1,0 +1,179 @@
+/* ══════════════════════════════════════════════════════════════════════════════
+   LEVEL-UP CELEBRATION OVERLAY
+   Shown by a real before/after level comparison (see App.jsx game_over), not on
+   a timer. Content below the badge is decorative; the level number and reward
+   chips are only rendered from data the caller actually has.
+   ══════════════════════════════════════════════════════════════════════════════ */
+.lvlup-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(6, 10, 7, 0.82);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  animation: lvlup-fade-in 0.35s ease-out both;
+}
+
+@keyframes lvlup-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.lvlup-rune {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: min(90vh, 760px);
+  height: min(90vh, 760px);
+  margin: calc(min(90vh, 760px) / -2) 0 0 calc(min(90vh, 760px) / -2);
+  opacity: 0.09;
+  pointer-events: none;
+  will-change: transform;
+  animation: lvlup-spin 60s linear infinite;
+}
+
+@keyframes lvlup-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+.lvlup-card {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  max-width: 460px;
+  width: 100%;
+  animation: lvlup-rise 0.55s cubic-bezier(0.16, 1, 0.3, 1) both 0.1s;
+}
+
+@keyframes lvlup-rise {
+  from { opacity: 0; transform: translate3d(0, 26px, 0) scale(0.94); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* ── Badge ───────────────────────────────────────────────────────────────── */
+.lvlup-badge {
+  position: relative;
+  width: 148px;
+  height: 148px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 3px solid var(--mv-gold, #e8b04b);
+  background: radial-gradient(circle at 50% 35%, rgba(232, 176, 75, 0.3), rgba(6, 10, 7, 0.9) 72%);
+  will-change: transform, box-shadow;
+  animation: lvlup-badge-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes lvlup-badge-pulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 26px rgba(232, 176, 75, 0.45), inset 0 0 22px rgba(232, 176, 75, 0.22);
+  }
+  50% {
+    transform: scale(1.045);
+    box-shadow: 0 0 52px rgba(232, 176, 75, 0.75), inset 0 0 30px rgba(232, 176, 75, 0.35);
+  }
+}
+
+.lvlup-badge-num {
+  font-family: var(--mv-font-display, 'Cinzel', serif);
+  font-size: 58px;
+  font-weight: 700;
+  line-height: 1;
+  color: #fff;
+  text-shadow: 0 0 18px rgba(232, 176, 75, 0.9);
+}
+
+/* ── Copy ────────────────────────────────────────────────────────────────── */
+.lvlup-label {
+  margin-top: 22px;
+  font-family: var(--mv-font-display, 'Cinzel', serif);
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: var(--mv-gold, #e8b04b);
+  text-shadow: 0 0 20px rgba(232, 176, 75, 0.5);
+}
+
+.lvlup-headline {
+  margin-top: 10px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.lvlup-sub {
+  margin-top: 6px;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+/* ── Reward chips (only rendered when real reward data exists) ───────────── */
+.lvlup-rewards {
+  display: flex;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.lvlup-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.07);
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.lvlup-chip-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--mv-gold, #e8b04b);
+}
+
+.lvlup-chip--gem .lvlup-chip-dot {
+  border-radius: 2px;
+  background: var(--mv-teal, #4fd1c5);
+  transform: rotate(45deg);
+}
+
+/* ── Continue ────────────────────────────────────────────────────────────── */
+.lvlup-continue {
+  margin-top: 28px;
+  padding: 13px 46px;
+  border: none;
+  cursor: pointer;
+  background: var(--mv-red, #c1291e);
+  color: #fff;
+  font-family: var(--mv-font-display, 'Cinzel', serif);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  transition: filter 0.18s, transform 0.18s, box-shadow 0.18s;
+  /* Octagon cut, matching .mv-btn-cut elsewhere in the app */
+  clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+}
+
+.lvlup-continue:hover {
+  filter: brightness(1.12);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 22px rgba(193, 41, 30, 0.45);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lvlup-rune,
+  .lvlup-badge { animation: none; }
+}

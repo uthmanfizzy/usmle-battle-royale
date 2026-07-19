@@ -2800,3 +2800,170 @@
   color: rgba(120,200,120,0.7) !important;
   cursor: default !important;
 }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   DEPLOY SCREEN — STAGGERED ENTRANCE
+   One shared reveal, sequenced by a per-element --pp-delay. Applied to
+   containers rather than to the mode cards themselves so it can't fight the
+   cards' own hover transforms.
+   ══════════════════════════════════════════════════════════════════════════════ */
+/* `backwards`, not `both`: a forwards-filling animation would keep its final
+   `transform: none` applied at animation priority, permanently beating the
+   hover transforms on .lobby-btn--create and friends. */
+.pp-rise {
+  animation: pp-rise-in 0.55s ease-out backwards;
+  animation-delay: var(--pp-delay, 0s);
+}
+
+@keyframes pp-rise-in {
+  from { opacity: 0; transform: translate3d(0, 18px, 0); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   PVP MATCHMAKING OVERLAY
+   Rendered instead of the lobby panel while a PvP Arenas quick-join is waiting.
+   Every name/avatar below comes from the live `lobby_update` player list — no
+   placeholder opponents.
+   ══════════════════════════════════════════════════════════════════════════════ */
+.pp-mm {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 26px;
+  padding: 24px;
+  background: rgba(6, 10, 7, 0.9);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  animation: pp-mm-fade 0.3s ease-out both;
+}
+
+@keyframes pp-mm-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.pp-mm-ring {
+  width: 92px;
+  height: 92px;
+  border-radius: 50%;
+  border: 3px solid rgba(79, 209, 197, 0.18);
+  border-top-color: var(--mv-teal, #4fd1c5);
+  will-change: transform;
+  animation: pp-mm-spin 1s linear infinite;
+}
+
+@keyframes pp-mm-spin {
+  to { transform: rotate(360deg); }
+}
+
+.pp-mm-title {
+  font-family: var(--mv-font-display, 'Cinzel', serif);
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #fff;
+  margin: 0;
+}
+
+.pp-mm-sub {
+  margin: -14px 0 0;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.pp-mm-cancel {
+  margin-top: 4px;
+  padding: 9px 22px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 20px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.pp-mm-cancel:hover { background: rgba(255, 255, 255, 0.16); }
+
+/* ── Match Found card ────────────────────────────────────────────────────── */
+.pp-mm-found {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  padding: 26px 32px;
+  border: 2px solid var(--mv-teal, #4fd1c5);
+  border-radius: 12px;
+  background: rgba(16, 26, 32, 0.92);
+  will-change: box-shadow;
+  animation:
+    pp-mm-found-in 0.45s cubic-bezier(0.16, 1, 0.3, 1) both,
+    pp-mm-found-glow 1.5s ease-in-out infinite 0.45s;
+}
+
+@keyframes pp-mm-found-in {
+  from { opacity: 0; transform: scale(0.9); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes pp-mm-found-glow {
+  0%, 100% { box-shadow: 0 0 18px rgba(79, 209, 197, 0.3); }
+  50%      { box-shadow: 0 0 44px rgba(79, 209, 197, 0.75); }
+}
+
+.pp-mm-player {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  min-width: 108px;
+}
+
+.pp-mm-avatar {
+  width: 62px;
+  height: 62px;
+  border-radius: 50%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid rgba(79, 209, 197, 0.5);
+  background: rgba(255, 255, 255, 0.08);
+  font-size: 24px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.pp-mm-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.pp-mm-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pp-mm-vs {
+  font-family: var(--mv-font-display, 'Cinzel', serif);
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--mv-red, #c1291e);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pp-rise { animation: none; }
+  .pp-mm-found { animation: pp-mm-found-in 0.45s ease-out both; }
+}
