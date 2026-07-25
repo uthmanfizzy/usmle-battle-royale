@@ -1391,6 +1391,7 @@ async function awardXP(lobby, sorted) {
       // are deliberately not wired yet (separate phases).
       try {
         const { error: actErr } = await supabase.from('activity_sessions').insert({
+          forced_failure_probe_column: 1, // TEMP fail-soft check
           user_id:              sock.userId,   // guests already skipped above
           game_mode:            lobby.gameMode || 'battle_royale', // as game_history
           subject:              lobby.subject,
@@ -3202,6 +3203,7 @@ app.post('/api/training-complete', requireAuth, async (req, res) => {
       const endedAt   = new Date();
       const startedAt = new Date(endedAt.getTime() - seconds * 1000);
       const { error: actErr } = await supabase.from('activity_sessions').insert({
+          forced_failure_probe_column: 1, // TEMP fail-soft check
         user_id:              req.userId,   // requireAuth guarantees a real user
         game_mode:            'training_grounds',
         subject:              subjectId || null,
@@ -7728,6 +7730,7 @@ app.post('/api/journey/complete', requireAuth, async (req, res) => {
       const endedAt   = new Date();
       const startedAt = new Date(endedAt.getTime() - seconds * 1000);
       const { error: actErr } = await supabase.from('activity_sessions').insert({
+          forced_failure_probe_column: 1, // TEMP fail-soft check
         user_id:              req.userId,   // requireAuth guarantees a real user
         game_mode:            'journey',
         subject,
