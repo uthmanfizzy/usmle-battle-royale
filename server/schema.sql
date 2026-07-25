@@ -434,3 +434,37 @@ CREATE POLICY IF NOT EXISTS "server_full_access_game_settings"
 -- ALTER TABLE game_history ADD COLUMN IF NOT EXISTS damage_dealt INTEGER NOT NULL DEFAULT 0;
 -- Written by awardXP for every mode; only pvp_duel produces non-zero values
 -- (PVP_DUEL_DAMAGE_PER_HIT per first-correct answer landed).
+
+-- ── journey/boss question-count RPCs (DOCUMENTATION ONLY) ──────────────────────
+-- Already live in Supabase — created manually in the Supabase SQL editor.
+-- This block documents the live shape so schema.sql stays in sync; do NOT
+-- re-run it.
+--
+-- WHY THESE EXIST: counting questions per level by reading rows in Node
+-- (.select('level_id').in('level_id', [...]) then tallying) is silently wrong at
+-- scale — PostgREST caps every response at max-rows (1000 on this project) and
+-- these scans carry no ORDER BY, so once a subject's question total crossed 1000
+-- the surplus rows were dropped arbitrarily and whole levels reported
+-- question_count 0. A level showing 0 renders as unplayable on the player path
+-- even though its questions were saved correctly. Aggregating inside Postgres
+-- returns one row per level instead of one row per question, so the cap is
+-- unreachable. Never count these tables by scanning rows again.
+--
+-- get_journey_question_counts(p_level_ids UUID[])
+--   RETURNS TABLE(level_id UUID, question_count BIGINT)
+--   SELECT level_id, COUNT(*) FROM journey_questions
+--   WHERE level_id = ANY(p_level_ids) GROUP BY level_id;
+--   Levels with zero questions are ABSENT from the result (GROUP BY yields no
+--   row for them) — callers must apply a `|| 0` fallback.
+--
+-- get_boss_question_counts(p_boss_keys TEXT[])
+--   RETURNS TABLE(boss_key TEXT, question_count BIGINT)
+--   SELECT boss_key, COUNT(*) FROM boss_questions
+--   WHERE boss_key = ANY(p_boss_keys) GROUP BY boss_key;
+--   NOTE: keyed on boss_key ONLY, with no subject parameter. 'chapter:{uuid}'
+--   keys are globally unique so that is exact, but the 'ultimate' key REPEATS
+--   across subjects — passing 'ultimate' here would sum every subject's ultimate
+--   boss. Callers therefore pass only chapter keys to this RPC and count
+--   'ultimate' separately with a subject-scoped exact head count.
+--
+-- Consumed by buildJourneyPath (player path) and GET /admin/journey-counts.

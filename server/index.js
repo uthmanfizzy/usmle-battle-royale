@@ -6579,8 +6579,10 @@ app.delete('/admin/journey-chapters/:id', adminAuth, async (req, res) => {
 });
 
 // Tree counts for the admin in one shot: levels-per-chapter, questions-per-level,
-// questions-per-boss-key. Grouped client-side from 3 id-only scans (one per table) —
-// NOT a per-row N+1. Degrades to empty maps if the journey tables aren't migrated.
+// questions-per-boss-key. Question counts are aggregated inside Postgres by RPC
+// (never by scanning rows here — that hits PostgREST's max-rows cap); levels are
+// grouped from one id-only scan, NOT a per-row N+1.
+// Degrades to empty maps if the journey tables aren't migrated.
 app.get('/admin/journey-counts', adminAuth, async (req, res) => {
   if (!supabase) return res.json({ levels: {}, chapters: {}, bosses: {} });
   const { subject } = req.query;
@@ -6606,22 +6608,35 @@ app.get('/admin/journey-counts', adminAuth, async (req, res) => {
     for (const id of chapterIds) chapters[id] = 0;
     for (const l of levelRows) chapters[l.chapter_id] = (chapters[l.chapter_id] || 0) + 1;
 
-    // level_id -> question count
+    // level_id -> question count. Aggregated inside Postgres by RPC: a plain
+    // .select('level_id').in(...) is capped by PostgREST's max-rows (1000), which
+    // silently dropped counts once a subject's question total crossed the cap.
     const levels = {};
     const levelIds = levelRows.map(l => l.id);
     if (levelIds.length > 0) {
-      const { data: qs, error: qErr } = await supabase
-        .from('journey_questions').select('level_id').in('level_id', levelIds);
+      const { data: qc, error: qErr } = await supabase
+        .rpc('get_journey_question_counts', { p_level_ids: levelIds });
       if (qErr) throw qErr;
-      for (const q of (qs || [])) levels[q.level_id] = (levels[q.level_id] || 0) + 1;
+      // Levels with zero questions are absent from the result; readers use `|| 0`.
+      for (const r of (qc || [])) levels[r.level_id] = r.question_count;
     }
 
-    // boss_key -> question count (chapter bosses + ultimate)
+    // boss_key -> question count (chapter bosses + ultimate), also cap-immune.
+    // 'chapter:{uuid}' keys are globally unique so the RPC needs no subject filter;
+    // 'ultimate' repeats across subjects, so it stays subject-scoped via an exact
+    // head count (returns a count only, so the row cap cannot apply).
     const bosses = {};
-    const { data: bq, error: bErr } = await supabase
-      .from('boss_questions').select('boss_key').eq('subject', subject);
-    if (bErr) throw bErr;
-    for (const b of (bq || [])) bosses[b.boss_key] = (bosses[b.boss_key] || 0) + 1;
+    if (chapterIds.length > 0) {
+      const { data: bc, error: bErr } = await supabase
+        .rpc('get_boss_question_counts', { p_boss_keys: chapterIds.map(id => `chapter:${id}`) });
+      if (bErr) throw bErr;
+      for (const b of (bc || [])) bosses[b.boss_key] = b.question_count;
+    }
+    const { count: ultCount, error: ultErr } = await supabase
+      .from('boss_questions').select('*', { count: 'exact', head: true })
+      .eq('subject', subject).eq('boss_key', 'ultimate');
+    if (ultErr) throw ultErr;
+    if (ultCount) bosses['ultimate'] = ultCount;
 
     res.json({ levels, chapters, bosses });
   } catch (err) {
@@ -7336,12 +7351,16 @@ app.get('/api/videos', async (req, res) => {
 // AUTO-SKIP: a boss with zero authored questions counts as satisfied once its
 // prerequisites are met, so unauthored content never dead-ends players.
 async function buildJourneyPath(userId, subject) {
-  const [chaptersRes, progressRes, bossRes] = await Promise.all([
+  const [chaptersRes, progressRes, ultBossRes] = await Promise.all([
     supabase.from('journey_chapters').select('*').eq('subject', subject)
       .order('sort_order', { ascending: true }).order('name', { ascending: true }),
     supabase.from('journey_progress').select('*')
       .eq('user_id', userId).eq('subject', subject),
-    supabase.from('boss_questions').select('boss_key').eq('subject', subject),
+    // 'ultimate' is the one boss_key reused across subjects, so it stays
+    // subject-scoped. head+exact returns a count with no rows, so the
+    // PostgREST max-rows cap cannot truncate it.
+    supabase.from('boss_questions').select('*', { count: 'exact', head: true })
+      .eq('subject', subject).eq('boss_key', 'ultimate'),
   ]);
   // Journey tables may not be migrated yet — degrade to an empty path
   if (chaptersRes.error) {
@@ -7350,27 +7369,48 @@ async function buildJourneyPath(userId, subject) {
   const chapterRows = chaptersRes.error ? [] : (chaptersRes.data || []);
   const progress    = progressRes.error ? [] : (progressRes.data || []);
   const bossCounts  = {};
-  if (!bossRes.error) {
-    for (const b of (bossRes.data || [])) bossCounts[b.boss_key] = (bossCounts[b.boss_key] || 0) + 1;
+  if (ultBossRes.error) {
+    console.warn('[journey] ultimate boss count unavailable —', ultBossRes.error.message);
+  } else if (ultBossRes.count) {
+    bossCounts['ultimate'] = ultBossRes.count;
   }
 
   // Levels for all chapters, then per-level question counts
   let levelRows = [];
   const levelQCounts = {};
   if (chapterRows.length > 0) {
-    const { data: lvData, error: lvErr } = await supabase.from('journey_levels').select('*')
-      .in('chapter_id', chapterRows.map(c => c.id))
-      .order('sort_order', { ascending: true }).order('name', { ascending: true });
-    if (lvErr) {
-      console.warn('[journey] journey_levels unavailable —', lvErr.message);
+    // Levels, plus chapter-boss counts — independent, so fetched together.
+    // 'chapter:{uuid}' boss keys are globally unique, so the RPC needs no subject.
+    const [lvRes, bcRes] = await Promise.all([
+      supabase.from('journey_levels').select('*')
+        .in('chapter_id', chapterRows.map(c => c.id))
+        .order('sort_order', { ascending: true }).order('name', { ascending: true }),
+      supabase.rpc('get_boss_question_counts', {
+        p_boss_keys: chapterRows.map(c => `chapter:${c.id}`),
+      }),
+    ]);
+    if (lvRes.error) {
+      console.warn('[journey] journey_levels unavailable —', lvRes.error.message);
     } else {
-      levelRows = lvData || [];
+      levelRows = lvRes.data || [];
+    }
+    if (bcRes.error) {
+      console.warn('[journey] get_boss_question_counts failed —', bcRes.error.message);
+    } else {
+      for (const b of (bcRes.data || [])) bossCounts[b.boss_key] = b.question_count;
     }
     if (levelRows.length > 0) {
-      const { data: qData, error: qErr } = await supabase.from('journey_questions')
-        .select('level_id').in('level_id', levelRows.map(l => l.id));
-      if (!qErr) {
-        for (const q of (qData || [])) levelQCounts[q.level_id] = (levelQCounts[q.level_id] || 0) + 1;
+      // Counted inside Postgres. The previous .select('level_id').in(...) was
+      // capped by PostgREST's max-rows (1000), so once a subject's question total
+      // crossed the cap whole levels silently reported 0 and rendered unplayable.
+      const { data: qcData, error: qcErr } = await supabase.rpc('get_journey_question_counts', {
+        p_level_ids: levelRows.map(l => l.id),
+      });
+      if (qcErr) {
+        console.warn('[journey] get_journey_question_counts failed —', qcErr.message);
+      } else {
+        // Levels with zero questions are absent here; the `|| 0` below covers them.
+        for (const r of (qcData || [])) levelQCounts[r.level_id] = r.question_count;
       }
     }
   }
