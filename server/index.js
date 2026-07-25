@@ -1390,9 +1390,7 @@ async function awardXP(lobby, sorted) {
       // pass silently or cost the player their XP row. Journey/Training/Solo
       // are deliberately not wired yet (separate phases).
       try {
-        const { error: actErr } = await supabase.from('activity_sessions').insert({
-          forced_failure_probe_column: 1, // TEMP fail-soft check
-          user_id:              sock.userId,   // guests already skipped above
+        const { error: actErr } = await supabase.from('activity_sessions').insert({          user_id:              sock.userId,   // guests already skipped above
           game_mode:            lobby.gameMode || 'battle_royale', // as game_history
           subject:              lobby.subject,
           journey_chapter_name: null,          // not applicable to multiplayer
@@ -3202,9 +3200,7 @@ app.post('/api/training-complete', requireAuth, async (req, res) => {
 
       const endedAt   = new Date();
       const startedAt = new Date(endedAt.getTime() - seconds * 1000);
-      const { error: actErr } = await supabase.from('activity_sessions').insert({
-          forced_failure_probe_column: 1, // TEMP fail-soft check
-        user_id:              req.userId,   // requireAuth guarantees a real user
+      const { error: actErr } = await supabase.from('activity_sessions').insert({        user_id:              req.userId,   // requireAuth guarantees a real user
         game_mode:            'training_grounds',
         subject:              subjectId || null,
         journey_chapter_name: null,         // no chapter concept in Training Grounds
@@ -4654,29 +4650,6 @@ app.post('/api/lobby/invite', async (req, res) => {
 });
 
 // ── Admin API ──────────────────────────────────────────────────────────────────
-
-// TEMPORARY (Phase 2 verification only — both routes removed after verifying).
-// activity_sessions is not readable with the anon key, and /api/journey/complete
-// + /api/training-complete sit behind requireAuth with a JWT_SECRET only the
-// server knows, so exercising the real auth'd paths needs these two shims.
-app.get('/admin/_tmp_activity_sessions', adminAuth, async (req, res) => {
-  if (!supabase) return res.json({ rows: [], count: 0 });
-  try {
-    const { data, error, count } = await supabase
-      .from('activity_sessions')
-      .select('*', { count: 'exact' })
-      .order('created_at', { ascending: false })
-      .limit(30);
-    if (error) return res.status(500).json({ error: error.message });
-    res.json({ count, rows: data || [] });
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-app.get('/admin/_tmp_token', adminAuth, (req, res) => {
-  const userId = (req.query.user_id || '').toString();
-  if (!userId) return res.status(400).json({ error: 'user_id required' });
-  res.json({ token: jwt.sign({ userId }, JWT_SECRET, { expiresIn: '2h' }) });
-});
 
 app.get('/admin/stats', adminAuth, async (req, res) => {
   const stats = {
@@ -7729,9 +7702,7 @@ app.post('/api/journey/complete', requireAuth, async (req, res) => {
       const { chapterName, levelName } = resolveJourneyNames(path, level_key);
       const endedAt   = new Date();
       const startedAt = new Date(endedAt.getTime() - seconds * 1000);
-      const { error: actErr } = await supabase.from('activity_sessions').insert({
-          forced_failure_probe_column: 1, // TEMP fail-soft check
-        user_id:              req.userId,   // requireAuth guarantees a real user
+      const { error: actErr } = await supabase.from('activity_sessions').insert({        user_id:              req.userId,   // requireAuth guarantees a real user
         game_mode:            'journey',
         subject,
         journey_chapter_name: chapterName,
