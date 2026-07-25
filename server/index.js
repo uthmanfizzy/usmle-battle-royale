@@ -4580,6 +4580,22 @@ app.post('/api/lobby/invite', async (req, res) => {
 
 // ── Admin API ──────────────────────────────────────────────────────────────────
 
+// TEMPORARY (activity-log phase 1 verification only — remove after verifying).
+// Read-only service-key view of activity_sessions; the table is not readable
+// with the anon key, so this is the only way to confirm rows are landing.
+app.get('/admin/_tmp_activity_sessions', adminAuth, async (req, res) => {
+  if (!supabase) return res.json({ rows: [], count: 0 });
+  try {
+    const { data, error, count } = await supabase
+      .from('activity_sessions')
+      .select('*', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .limit(20);
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ count, rows: data || [] });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 app.get('/admin/stats', adminAuth, async (req, res) => {
   const stats = {
     questionsByCategory: {},
