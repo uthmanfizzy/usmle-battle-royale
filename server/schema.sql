@@ -468,3 +468,43 @@ CREATE POLICY IF NOT EXISTS "server_full_access_game_settings"
 --   'ultimate' separately with a subject-scoped exact head count.
 --
 -- Consumed by buildJourneyPath (player path) and GET /admin/journey-counts.
+
+-- ── activity_sessions (DOCUMENTATION ONLY — already live in Supabase) ──────────
+-- Created directly in the Supabase SQL editor and exists in production. This
+-- block documents the live shape so schema.sql stays in sync; do NOT re-run it.
+--
+-- One row per player per finished session — the per-session record that neither
+-- game_history (multiplayer only, no duration) nor study_time_daily (one bare
+-- integer per user per day) can express.
+--
+-- CREATE TABLE IF NOT EXISTS activity_sessions (
+--   id                   UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+--   user_id              UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+--   game_mode            TEXT        NOT NULL,
+--   subject              TEXT,
+--   journey_chapter_name TEXT,       -- Journey only; NULL for multiplayer
+--   journey_level_name   TEXT,       -- Journey only; NULL for multiplayer
+--   outcome_type         TEXT        NOT NULL,  -- 'win_loss' | 'score_pct'
+--   is_win               BOOLEAN,    -- set when outcome_type = 'win_loss'
+--   score_pct            INT,        -- set when outcome_type = 'score_pct'
+--   duration_seconds     INT,
+--   started_at           TIMESTAMPTZ,
+--   ended_at             TIMESTAMPTZ,
+--   created_at           TIMESTAMPTZ NOT NULL DEFAULT NOW()
+-- );
+--
+-- WRITERS (Phase 1 — multiplayer only): awardXP in server/index.js writes one
+-- row per authenticated player for all six multiplayer modes (battle_royale,
+-- scan_master, buzz_fun via endGame; speed_race, trivia_pursuit, pvp_duel via
+-- their own end functions — all four end paths call awardXP). Guests are
+-- skipped by awardXP's existing `if (!sock?.userId) continue` guard, so they
+-- never produce a row. outcome_type is always 'win_loss' here and is_win reuses
+-- awardXP's `placement === 1 && player.alive`, the same value that drives
+-- users.games_won. Timing comes from lobby.sessionStartedAt, stamped at the top
+-- of startGame (the single dispatcher for every mode).
+-- The insert is additive and fail-soft: it is wrapped in its own try/catch and
+-- checks the returned error, so a failure logs and never disturbs the
+-- game_history / XP / mastery / quest writes that precede it.
+--
+-- NOT YET WIRED: Journey, Training Grounds, plain Solo and AnKing (later
+-- phases — none of them has per-attempt tracking today).

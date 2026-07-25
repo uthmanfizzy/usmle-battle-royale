@@ -794,6 +794,11 @@ function processBuzzFunAnswers(lobby) {
 }
 
 function startGame(lobby) {
+  // Wall-clock start for the activity log. Set here, above the mode dispatch,
+  // because this is the ONLY entry point into any mode's start function — so
+  // one assignment covers all six modes. Read by awardXP at game over.
+  lobby.sessionStartedAt = Date.now();
+
   if (lobby.gameMode === 'speed_race')     return startSpeedRace(lobby);
   if (lobby.gameMode === 'trivia_pursuit') return startTriviaPursuit(lobby);
   if (lobby.gameMode === 'buzz_fun')       return startBuzzFun(lobby);
@@ -1261,6 +1266,16 @@ const XP_PER_CORRECT  = 5;
 async function awardXP(lobby, sorted) {
   if (!supabase) return;
 
+  // Activity-log timing, computed once so every player in this match gets
+  // identical started_at/ended_at/duration rather than per-row clock drift.
+  // startGame stamps sessionStartedAt for every mode; the fallback keeps
+  // duration at 0 (never null) if a lobby somehow ended without starting.
+  const endedAtMs       = Date.now();
+  const startedAtMs     = lobby.sessionStartedAt || endedAtMs;
+  const startedAtIso    = new Date(startedAtMs).toISOString();
+  const endedAtIso      = new Date(endedAtMs).toISOString();
+  const durationSeconds = Math.max(0, Math.round((endedAtMs - startedAtMs) / 1000));
+
   for (let i = 0; i < sorted.length; i++) {
     const player = sorted[i];
     const sock   = io.sockets.sockets.get(player.id);
@@ -1344,6 +1359,36 @@ async function awardXP(lobby, sorted) {
         await updateQuestProgress(sock.userId, 'win_speed_race', 1);
       }
       await updateQuestProgress(sock.userId, 'game_mode', 1);
+
+      // ── Daily activity log (Phase 1: multiplayer modes only) ─────────────
+      // Purely additive — game_history, XP, mastery and quests above are
+      // untouched. Isolated in its own try/catch AND checking the returned
+      // error, because supabase-js RESOLVES with { error } on a DB failure
+      // rather than throwing: without both, a bad insert here would either
+      // pass silently or cost the player their XP row. Journey/Training/Solo
+      // are deliberately not wired yet (separate phases).
+      try {
+        const { error: actErr } = await supabase.from('activity_sessions').insert({
+          user_id:              sock.userId,   // guests already skipped above
+          game_mode:            lobby.gameMode || 'battle_royale', // as game_history
+          subject:              lobby.subject,
+          journey_chapter_name: null,          // not applicable to multiplayer
+          journey_level_name:   null,
+          // Every multiplayer mode resolves a real winner via placement 1
+          // (endGame's alive/score/lives sort, or duelPlacements), so they are
+          // all win_loss — none is accuracy-only.
+          outcome_type:         'win_loss',
+          is_win:               isWinner,      // same value that drives games_won
+          duration_seconds:     durationSeconds,
+          started_at:           startedAtIso,
+          ended_at:             endedAtIso,
+        });
+        if (actErr) {
+          console.error(`[activity_sessions] insert failed for ${player.username} —`, actErr.message);
+        }
+      } catch (actEx) {
+        console.error(`[activity_sessions] insert threw for ${player.username} —`, actEx.message);
+      }
 
       console.log(`[XP] ${player.username} +${totalXp} XP (placement ${placement}, level ${newLevel})`);
     } catch (err) {
