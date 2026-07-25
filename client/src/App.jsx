@@ -602,9 +602,12 @@ export default function App() {
     setPhase('solo_game');
   }
 
-  function handleJourneyComplete({ pct }) {
+  function handleJourneyComplete({ pct, activeSeconds }) {
     setJourneyReentry({
       pct,
+      // Carried through so JourneyMode's completion POST can report how long the
+      // attempt actually took (SoloGame unmounts before that POST fires).
+      seconds:     activeSeconds,
       subject:     journeyContext.subject,
       levelKey:    journeyContext.levelKey,
       questionsUrl: journeyContext.questionsUrl,
@@ -620,7 +623,7 @@ export default function App() {
   // POSTs the folder key + pct so the server can record best % / >=85% completion.
   // The category key uniquely identifies the folder (subject/topicId) so the matching
   // folder card in Training Grounds shows the green tick.
-  function handleTrainingComplete({ pct }) {
+  function handleTrainingComplete({ pct, activeSeconds }) {
     if (!trainingTopic) return;
     const token = getToken();
     if (!token) return; // guests don't record completions
@@ -630,7 +633,8 @@ export default function App() {
     fetch('https://usmle-battle-royale-production.up.railway.app/api/training-complete', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ category, pct }),
+      // seconds: active answering time for this run, for the activity log
+      body: JSON.stringify({ category, pct, seconds: activeSeconds }),
     }).catch(() => {});
   }
 

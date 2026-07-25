@@ -472,7 +472,10 @@ export default function JourneyMode({
     fetch(`${SERVER}/api/journey/complete`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
-      body: JSON.stringify({ subject: reentry.subject.id, level_key: reentry.levelKey, score_pct: pct }),
+      body: JSON.stringify({
+        subject: reentry.subject.id, level_key: reentry.levelKey, score_pct: pct,
+        seconds: reentry.seconds,   // active play time, for the activity log
+      }),
     })
       .then(r => r.ok ? r.json() : Promise.reject(r.status))
       .then(data => {
@@ -493,7 +496,10 @@ export default function JourneyMode({
         setInterstitial({
           status: 'save_failed',
           pct,
-          retryPayload: { subject: reentry.subject.id, level_key: reentry.levelKey, score_pct: pct },
+          retryPayload: {
+            subject: reentry.subject.id, level_key: reentry.levelKey, score_pct: pct,
+            seconds: reentry.seconds,
+          },
         });
       });
   }, [journeyReentry]);

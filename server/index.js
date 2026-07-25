@@ -3124,6 +3124,7 @@ app.post('/api/training-complete', requireAuth, async (req, res) => {
   if (!category) return res.status(400).json({ error: 'category required.' });
   if (!Number.isFinite(pct)) return res.status(400).json({ error: 'pct must be a number.' });
   pct = Math.max(0, Math.min(100, Math.round(pct)));
+  const seconds = sanitizeSessionSeconds(req.body?.seconds);
 
   const completed = pct >= 85;
 
@@ -3166,6 +3167,56 @@ app.post('/api/training-complete', requireAuth, async (req, res) => {
         console.warn('[/api/training-complete] insert failed —', insErr.message);
         return res.json({ completed, best_pct: bestPct });
       }
+    }
+
+    // ── Per-attempt activity log (Phase 2) ─────────────────────────────────
+    // Additive: tg_completions above keeps only the best % per folder, so this
+    // row is the only record of an individual attempt. Fires on every completed
+    // run (this endpoint has no pass threshold gate). Note the two early
+    // returns above (tg_completions write failures) skip this by design — the
+    // existing progress flow is left exactly as it was.
+    // category is "<subjectId>/<topicUUID>" or "<subjectId>/group:<groupUUID>";
+    // the id half resolves to a display name via topics.name / topic_groups.name.
+    // started_at is DERIVED as ended_at - duration_seconds (same approximation as
+    // Journey — Training Grounds has no real session start timestamp either).
+    try {
+      const slash     = category.indexOf('/');
+      const subjectId = slash === -1 ? category : category.slice(0, slash);
+      const rest      = slash === -1 ? ''       : category.slice(slash + 1);
+      const isGroup   = rest.startsWith('group:');
+      const lookupId  = isGroup ? rest.slice('group:'.length) : rest;
+
+      // Single-row lookup, same style as the topic/group reads elsewhere in this
+      // file. maybeSingle so a deleted/renamed folder yields null, not a throw.
+      let levelName = null;
+      if (lookupId) {
+        const { data: named, error: nameErr } = await supabase
+          .from(isGroup ? 'topic_groups' : 'topics')
+          .select('name')
+          .eq('id', lookupId)
+          .maybeSingle();
+        if (nameErr) console.error('[activity_sessions] training name lookup failed —', nameErr.message);
+        levelName = named?.name || null;
+      }
+
+      const endedAt   = new Date();
+      const startedAt = new Date(endedAt.getTime() - seconds * 1000);
+      const { error: actErr } = await supabase.from('activity_sessions').insert({
+        user_id:              req.userId,   // requireAuth guarantees a real user
+        game_mode:            'training_grounds',
+        subject:              subjectId || null,
+        journey_chapter_name: null,         // no chapter concept in Training Grounds
+        journey_level_name:   levelName,
+        outcome_type:         'score_pct',
+        score_pct:            pct,
+        is_win:               null,
+        duration_seconds:     seconds,
+        started_at:           startedAt.toISOString(),
+        ended_at:             endedAt.toISOString(),
+      });
+      if (actErr) console.error('[activity_sessions] training insert failed —', actErr.message);
+    } catch (actEx) {
+      console.error('[activity_sessions] training insert threw —', actEx.message);
     }
 
     res.json({ completed: bestPct >= 85, best_pct: bestPct });
@@ -4601,6 +4652,29 @@ app.post('/api/lobby/invite', async (req, res) => {
 });
 
 // ── Admin API ──────────────────────────────────────────────────────────────────
+
+// TEMPORARY (Phase 2 verification only — both routes removed after verifying).
+// activity_sessions is not readable with the anon key, and /api/journey/complete
+// + /api/training-complete sit behind requireAuth with a JWT_SECRET only the
+// server knows, so exercising the real auth'd paths needs these two shims.
+app.get('/admin/_tmp_activity_sessions', adminAuth, async (req, res) => {
+  if (!supabase) return res.json({ rows: [], count: 0 });
+  try {
+    const { data, error, count } = await supabase
+      .from('activity_sessions')
+      .select('*', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .limit(30);
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ count, rows: data || [] });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/admin/_tmp_token', adminAuth, (req, res) => {
+  const userId = (req.query.user_id || '').toString();
+  if (!userId) return res.status(400).json({ error: 'user_id required' });
+  res.json({ token: jwt.sign({ userId }, JWT_SECRET, { expiresIn: '2h' }) });
+});
 
 app.get('/admin/stats', adminAuth, async (req, res) => {
   const stats = {
@@ -7575,6 +7649,45 @@ app.get('/api/journey/:subject', requireAuth, async (req, res) => {
   }
 });
 
+// Player-facing labels for the two boss node types. Mirrors the client strings
+// (JourneyMode.jsx confirm sheet) so the activity log reads the same as the map.
+const JOURNEY_CHAPTER_BOSS_LABEL = '💀 Chapter Boss';
+const JOURNEY_ULTIMATE_BOSS_LABEL = '👑 Ultimate Boss';
+
+// Resolve a level_key to { chapterName, levelName } using the path that this
+// request already built — no extra queries. level_key is one of:
+//   'boss:ultimate'      → no chapter exists; there is no reliable server-side
+//                          subject display name (the journey subject labels live
+//                          in client/src/journeySubjects.js and 11 of 18 ids are
+//                          absent from the subjects table), so chapter stays NULL.
+//   'boss:{chapter_id}'  → that chapter's name + the chapter-boss label.
+//   '{journey_levels.id}'→ the level's own name + its parent chapter's name.
+// Unresolvable keys yield nulls rather than invented text.
+function resolveJourneyNames(path, level_key) {
+  if (level_key === 'boss:ultimate') {
+    return { chapterName: null, levelName: JOURNEY_ULTIMATE_BOSS_LABEL };
+  }
+  const chapters = path?.chapters || [];
+  if (level_key.startsWith('boss:')) {
+    const chapterId = level_key.slice('boss:'.length);
+    const hit = chapters.find(c => c.chapter?.id === chapterId);
+    return { chapterName: hit?.chapter?.name || null, levelName: JOURNEY_CHAPTER_BOSS_LABEL };
+  }
+  for (const c of chapters) {
+    const lvl = (c.levels || []).find(l => l.level_key === level_key);
+    if (lvl) return { chapterName: c.chapter?.name || null, levelName: lvl.name || null };
+  }
+  return { chapterName: null, levelName: null };
+}
+
+// Client-reported active seconds for a session. Absent/malformed never fails the
+// request — the progress write matters more than the activity row.
+function sanitizeSessionSeconds(raw) {
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n < 0) return 0;
+  return Math.min(Math.round(n), 86400); // one day ceiling
+}
+
 app.post('/api/journey/complete', requireAuth, async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
   const { subject, level_key, score_pct } = req.body;
@@ -7583,6 +7696,7 @@ app.post('/api/journey/complete', requireAuth, async (req, res) => {
   }
   const pct       = Math.max(0, Math.min(100, Math.round(score_pct)));
   const threshold = Number(gameSettings.journeyThreshold) || 50;
+  const seconds   = sanitizeSessionSeconds(req.body?.seconds);
   try {
     const { data: existing } = await supabase.from('journey_progress').select('*')
       .eq('user_id', req.userId).eq('subject', subject).eq('level_key', level_key)
@@ -7597,6 +7711,40 @@ app.post('/api/journey/complete', requireAuth, async (req, res) => {
     }, { onConflict: 'user_id,subject,level_key' });
     if (error) throw error;
     const path = await buildJourneyPath(req.userId, subject);
+
+    // ── Per-attempt activity log (Phase 2) ─────────────────────────────────
+    // Additive: journey_progress above keeps only the best score, so a failed or
+    // lower-scoring attempt leaves no trace there. This row records EVERY
+    // completion, pass or fail (this endpoint fires on both).
+    // Names come from `path`, already in memory — no extra queries.
+    // Journey has no real session start timestamp, so started_at is DERIVED as
+    // ended_at - duration_seconds. It is an approximation of when play began,
+    // accurate only insofar as the client's active-seconds total is.
+    // Isolated try/catch + explicit error check: supabase-js resolves with
+    // { error } rather than throwing, and a failure here must never cost the
+    // player their progress upsert.
+    try {
+      const { chapterName, levelName } = resolveJourneyNames(path, level_key);
+      const endedAt   = new Date();
+      const startedAt = new Date(endedAt.getTime() - seconds * 1000);
+      const { error: actErr } = await supabase.from('activity_sessions').insert({
+        user_id:              req.userId,   // requireAuth guarantees a real user
+        game_mode:            'journey',
+        subject,
+        journey_chapter_name: chapterName,
+        journey_level_name:   levelName,
+        outcome_type:         'score_pct',  // percentage model, no winner
+        score_pct:            pct,
+        is_win:               null,
+        duration_seconds:     seconds,
+        started_at:           startedAt.toISOString(),
+        ended_at:             endedAt.toISOString(),
+      });
+      if (actErr) console.error('[activity_sessions] journey insert failed —', actErr.message);
+    } catch (actEx) {
+      console.error('[activity_sessions] journey insert threw —', actEx.message);
+    }
+
     res.json({ passed: pct >= threshold, score_pct: pct, ...path });
   } catch (err) {
     console.error('[/api/journey/complete] error:', err.message);
