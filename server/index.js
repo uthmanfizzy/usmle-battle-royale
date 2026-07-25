@@ -31,6 +31,21 @@ if (process.env.SUPABASE_URL && (process.env.SUPABASE_SERVICE_ROLE_KEY || proces
   }
 }
 
+// ── Fire-and-forget write logging ──────────────────────────────────────────────
+// supabase-js RESOLVES with { error } instead of throwing, so `await supabase
+// .from(x).update(y)` with no destructuring swallows every failure in silence.
+// That is exactly how game_history lost every row from 2026-04-24 (a missing
+// game_mode column) while XP kept incrementing and nothing logged.
+//
+// Wrap writes whose result is otherwise unused: the failure becomes visible in
+// the logs, control flow is unchanged (never throws), and the error is returned
+// for callers that want to branch on it.
+async function logWrite(label, query) {
+  const { error } = await query;
+  if (error) console.error(`[db] ${label} failed —`, error.message);
+  return error || null;
+}
+
 // ── Constants ──────────────────────────────────────────────────────────────────
 
 const PORT       = process.env.PORT       || 3002;
@@ -1313,23 +1328,26 @@ async function awardXP(lobby, sorted) {
       const isWinner   = placement === 1 && player.alive;
 
       // Update user stats
-      await supabase.from('users').update({
+      await logWrite('users.update (match xp/level/games)', supabase.from('users').update({
         xp:          newXp,
         level:       newLevel,
         games_played: user.games_played + 1,
         games_won:   isWinner ? user.games_won + 1 : user.games_won,
-      }).eq('id', sock.userId);
+      }).eq('id', sock.userId));
 
       // Increment clan total_xp if user is in a clan
       if (user.clan_id) {
         const { data: clan } = await supabase.from('clans').select('total_xp').eq('id', user.clan_id).single();
         if (clan) {
-          await supabase.from('clans').update({ total_xp: (clan.total_xp || 0) + totalXp }).eq('id', user.clan_id);
+          await logWrite('clans.update (total_xp)', supabase.from('clans').update({ total_xp: (clan.total_xp || 0) + totalXp }).eq('id', user.clan_id));
         }
       }
 
-      // Record game history
-      await supabase.from('game_history').insert({
+      // Record game history. MUST check the returned error: supabase-js resolves
+      // with { error } instead of throwing, so an unchecked insert fails silently.
+      // A missing game_mode column did exactly that here — every write was lost
+      // from 2026-04-24 until the column was added, while XP kept incrementing.
+      const { error: histErr } = await supabase.from('game_history').insert({
         user_id:         sock.userId,
         lobby_id:        lobby.id,
         subject:         lobby.subject,
@@ -1341,6 +1359,10 @@ async function awardXP(lobby, sorted) {
         // Non-zero only for pvp_duel; every other mode has no duelDamage map
         damage_dealt:    lobby.duelDamage?.get(player.id) || 0,
       });
+      // Logged, never thrown: XP/mastery/quests below must still run.
+      if (histErr) {
+        console.error(`[game_history] insert failed for ${player.username} —`, histErr.message);
+      }
 
       // Update subject mastery
       if (lobby.subject !== 'all') {
@@ -1405,18 +1427,18 @@ async function upsertMastery(userId, subject, attempted, correct) {
   if (existing) {
     const newAttempted = existing.questions_attempted + attempted;
     const newCorrect   = existing.questions_correct   + correct;
-    await supabase.from('subject_mastery').update({
+    await logWrite('subject_mastery.update', supabase.from('subject_mastery').update({
       questions_attempted: newAttempted,
       questions_correct:   newCorrect,
       mastery_percent:     Math.round((newCorrect / newAttempted) * 100),
-    }).eq('id', existing.id);
+    }).eq('id', existing.id));
   } else {
-    await supabase.from('subject_mastery').insert({
+    await logWrite('subject_mastery.insert', supabase.from('subject_mastery').insert({
       user_id: userId, subject,
       questions_attempted: attempted,
       questions_correct:   correct,
       mastery_percent:     attempted > 0 ? Math.round((correct / attempted) * 100) : 0,
-    });
+    }));
   }
 }
 
@@ -7140,7 +7162,7 @@ app.put('/api/tower/progress', requireAuth, async (req, res) => {
   if (!floor || typeof floor !== 'number' || floor < 1 || floor > 101)
     return res.status(400).json({ error: 'Invalid floor' });
   try {
-    await supabase.from('users').update({ tower_floor: floor }).eq('id', req.userId);
+    await logWrite('users.update (tower_floor)', supabase.from('users').update({ tower_floor: floor }).eq('id', req.userId));
     res.json({ ok: true });
   } catch { res.json({ ok: true }); }
 });
@@ -8004,11 +8026,12 @@ async function updateQuestProgress(userId, action, value = 1) {
         .single();
 
       if (!progress) {
-        const { data: newProgress } = await supabase
+        const { data: newProgress, error: npErr } = await supabase
           .from('player_quest_progress')
           .insert({ user_id: userId, quest_id: quest.id, date: today, current_progress: 0 })
           .select()
           .single();
+        if (npErr) console.error('[db] player_quest_progress.insert failed —', npErr.message);
         progress = newProgress;
       }
 
@@ -8025,10 +8048,10 @@ async function updateQuestProgress(userId, action, value = 1) {
           updateData.completed_at = new Date().toISOString();
         }
 
-        await supabase
+        await logWrite('player_quest_progress.update (progress)', supabase
           .from('player_quest_progress')
           .update(updateData)
-          .eq('id', progress.id);
+          .eq('id', progress.id));
 
         if (isComplete && !progress.completed) {
           newlyCompleted.push(quest);
@@ -8041,22 +8064,23 @@ async function updateQuestProgress(userId, action, value = 1) {
             .single();
 
           if (user) {
-            await supabase
+            await logWrite('users.update (quest reward coins/gems/xp)', supabase
               .from('users')
               .update({
                 coins: (user.coins || 0) + (quest.coin_reward || 0),
                 gems: (user.gems || 0) + (quest.gem_reward || 0),
                 xp: (user.xp || 0) + (quest.xp_reward || 0),
               })
-              .eq('id', userId);
+              .eq('id', userId));
 
-            // Mark rewards as claimed
-            await supabase
+            // Mark rewards as claimed. A silent failure here would leave the
+            // quest re-claimable after a successful payout, so it must be logged.
+            await logWrite('player_quest_progress.update (rewards_claimed)', supabase
               .from('player_quest_progress')
               .update({ rewards_claimed: true })
               .eq('user_id', userId)
               .eq('quest_id', quest.id)
-              .eq('date', today);
+              .eq('date', today));
 
             console.log(`[Quest] User ${userId} completed "${quest.name}" - awarded ${quest.coin_reward} coins, ${quest.gem_reward} gems, ${quest.xp_reward} XP`);
           }
@@ -8511,11 +8535,12 @@ app.post('/api/quest-progress/update', requireAuth, async (req, res) => {
         .single();
 
       if (!progress) {
-        const { data: newProgress } = await supabase
+        const { data: newProgress, error: npErr } = await supabase
           .from('player_quest_progress')
           .insert({ user_id: userId, quest_id: quest.id, date: today, current_progress: 0 })
           .select()
           .single();
+        if (npErr) console.error('[db] player_quest_progress.insert failed —', npErr.message);
         progress = newProgress;
       }
 
@@ -8532,12 +8557,13 @@ app.post('/api/quest-progress/update', requireAuth, async (req, res) => {
           updateData.completed_at = new Date().toISOString();
         }
 
-        const { data: updatedProgress } = await supabase
+        const { data: updatedProgress, error: upErr } = await supabase
           .from('player_quest_progress')
           .update(updateData)
           .eq('id', progress.id)
           .select()
           .single();
+        if (upErr) console.error('[db] player_quest_progress.update failed —', upErr.message);
 
         updated.push(updatedProgress);
 
@@ -8558,20 +8584,21 @@ app.post('/api/quest-progress/update', requireAuth, async (req, res) => {
           .single();
 
         if (user) {
-          await supabase
+          await logWrite('users.update (quest reward coins/gems/xp)', supabase
             .from('users')
             .update({
               coins: (user.coins || 0) + (quest.coin_reward || 0),
               gems: (user.gems || 0) + (quest.gem_reward || 0),
               xp: (user.xp || 0) + (quest.xp_reward || 0),
             })
-            .eq('id', userId);
+            .eq('id', userId));
 
-          // Mark rewards as claimed
-          await supabase
+          // Mark rewards as claimed — see the note on the sibling copy above:
+          // losing this write silently makes the reward re-claimable.
+          await logWrite('player_quest_progress.update (rewards_claimed)', supabase
             .from('player_quest_progress')
             .update({ rewards_claimed: true })
-            .eq('id', progress.id);
+            .eq('id', progress.id));
         }
       }
     }
@@ -8781,22 +8808,23 @@ app.post('/api/rewards/claim/:userId', async (req, res) => {
       .maybeSingle();
 
     if (userData) {
-      await supabase
+      await logWrite('users.update (daily chest coins/gems)', supabase
         .from('users')
         .update({
           coins: (userData.coins || 0) + coinsReward,
           gems: (userData.gems || 0) + gemsReward
         })
-        .eq('id', userId);
+        .eq('id', userId));
     }
 
-    // Record claim time
-    await supabase
+    // Record claim time. If this write is lost the chest stays claimable, so a
+    // silent failure would hand out unlimited coins/gems — always log it.
+    await logWrite('game_settings.upsert (last_chest_claim)', supabase
       .from('game_settings')
       .upsert(
         { key: `last_chest_claim_${userId}`, value: new Date().toISOString() },
         { onConflict: 'key' }
-      );
+      ));
 
     res.json({ success: true, coins: coinsReward, gems: gemsReward });
   } catch (err) {
