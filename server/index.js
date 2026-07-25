@@ -1390,7 +1390,8 @@ async function awardXP(lobby, sorted) {
       // pass silently or cost the player their XP row. Journey/Training/Solo
       // are deliberately not wired yet (separate phases).
       try {
-        const { error: actErr } = await supabase.from('activity_sessions').insert({          user_id:              sock.userId,   // guests already skipped above
+        const { error: actErr } = await supabase.from('activity_sessions').insert({
+          user_id:              sock.userId,   // guests already skipped above
           game_mode:            lobby.gameMode || 'battle_royale', // as game_history
           subject:              lobby.subject,
           journey_chapter_name: null,          // not applicable to multiplayer
@@ -3200,7 +3201,8 @@ app.post('/api/training-complete', requireAuth, async (req, res) => {
 
       const endedAt   = new Date();
       const startedAt = new Date(endedAt.getTime() - seconds * 1000);
-      const { error: actErr } = await supabase.from('activity_sessions').insert({        user_id:              req.userId,   // requireAuth guarantees a real user
+      const { error: actErr } = await supabase.from('activity_sessions').insert({
+        user_id:              req.userId,   // requireAuth guarantees a real user
         game_mode:            'training_grounds',
         subject:              subjectId || null,
         journey_chapter_name: null,         // no chapter concept in Training Grounds
@@ -7702,7 +7704,8 @@ app.post('/api/journey/complete', requireAuth, async (req, res) => {
       const { chapterName, levelName } = resolveJourneyNames(path, level_key);
       const endedAt   = new Date();
       const startedAt = new Date(endedAt.getTime() - seconds * 1000);
-      const { error: actErr } = await supabase.from('activity_sessions').insert({        user_id:              req.userId,   // requireAuth guarantees a real user
+      const { error: actErr } = await supabase.from('activity_sessions').insert({
+        user_id:              req.userId,   // requireAuth guarantees a real user
         game_mode:            'journey',
         subject,
         journey_chapter_name: chapterName,
