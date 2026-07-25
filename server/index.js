@@ -1369,7 +1369,6 @@ async function awardXP(lobby, sorted) {
       // are deliberately not wired yet (separate phases).
       try {
         const { error: actErr } = await supabase.from('activity_sessions').insert({
-          forced_failure_probe_column: 1, // TEMP: proves fail-soft isolation
           user_id:              sock.userId,   // guests already skipped above
           game_mode:            lobby.gameMode || 'battle_royale', // as game_history
           subject:              lobby.subject,
