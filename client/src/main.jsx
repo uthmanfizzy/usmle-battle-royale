@@ -16,6 +16,7 @@ const AuthCallback      = lazy(() => import('./components/AuthCallback'));
 const DashboardPage     = lazy(() => import('./components/DashboardPage'));
 const StatsPage         = lazy(() => import('./components/StatsPage'));
 const ProgressPage      = lazy(() => import('./components/ProgressPage'));
+const ActivityPage      = lazy(() => import('./components/ActivityPage'));
 const GuidePage         = lazy(() => import('./components/GuidePage'));
 const SettingsPage      = lazy(() => import('./components/SettingsPage'));
 const QuestsPage        = lazy(() => import('./components/QuestsPage'));
@@ -113,6 +114,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
                 <Route path="/dashboard"      element={<DashboardPage />} />
                 <Route path="/stats"          element={<RouteErrorBoundary name="StatsPage"><StatsPage /></RouteErrorBoundary>} />
                 <Route path="/progress/:userId?" element={<RouteErrorBoundary name="ProgressPage"><ProgressPage /></RouteErrorBoundary>} />
+                <Route path="/activity/:userId?" element={<RouteErrorBoundary name="ActivityPage"><ActivityPage /></RouteErrorBoundary>} />
                 <Route path="/guide"          element={<RouteErrorBoundary name="GuidePage"><GuidePage /></RouteErrorBoundary>} />
                 <Route path="/settings"       element={<RouteErrorBoundary name="SettingsPage"><SettingsPage /></RouteErrorBoundary>} />
                 <Route path="/quests"         element={<RouteErrorBoundary name="QuestsPage"><QuestsPage /></RouteErrorBoundary>} />

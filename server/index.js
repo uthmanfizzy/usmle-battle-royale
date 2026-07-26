@@ -3524,6 +3524,46 @@ app.get('/api/users/:userId/game-stats', async (req, res) => {
   }
 });
 
+// Public per-day activity log — powers the Daily Activity page. No auth, same
+// pattern as /game-stats and /study-stats above.
+//
+// Sessions are bucketed by ended_at, not started_at: every writer sets ended_at
+// from a real clock, whereas started_at is DERIVED (ended_at - duration) for
+// Journey and Training Grounds, so it can drift across a midnight boundary.
+// The day window is UTC, matching the server's own "today".
+// Fail soft: bad date, query error or no rows → { date, sessions: [] } with 200.
+app.get('/api/users/:userId/activity-sessions', async (req, res) => {
+  const { userId } = req.params;
+  const raw     = (req.query.date ?? '').toString();
+  const utcToday = new Date().toISOString().slice(0, 10);
+  // Must be well-formed AND a real calendar date (rejects e.g. 2026-02-31)
+  const valid = /^\d{4}-\d{2}-\d{2}$/.test(raw)
+    && !Number.isNaN(Date.parse(`${raw}T00:00:00Z`))
+    && new Date(`${raw}T00:00:00Z`).toISOString().slice(0, 10) === raw;
+  const date = valid ? raw : utcToday;
+
+  if (!supabase) return res.json({ date, sessions: [] });
+  try {
+    const dayStart = `${date}T00:00:00.000Z`;
+    const dayEnd   = new Date(Date.parse(dayStart) + 86400000).toISOString();
+    const { data, error } = await supabase
+      .from('activity_sessions')
+      .select('id, game_mode, subject, journey_chapter_name, journey_level_name, outcome_type, score_pct, is_win, duration_seconds, started_at, ended_at')
+      .eq('user_id', userId)
+      .gte('ended_at', dayStart)
+      .lt('ended_at', dayEnd)
+      .order('ended_at', { ascending: true });
+    if (error) {
+      console.warn('[/api/users/:userId/activity-sessions] query failed —', error.message);
+      return res.json({ date, sessions: [] });
+    }
+    res.json({ date, sessions: data || [] });
+  } catch (err) {
+    console.warn('[/api/users/:userId/activity-sessions] unavailable —', err.message);
+    res.json({ date, sessions: [] });
+  }
+});
+
 // ── Clan API ───────────────────────────────────────────────────────────────────
 
 app.post('/api/clans', requireAuth, async (req, res) => {

@@ -613,3 +613,24 @@
   .pp-tiles      { grid-template-columns: repeat(2, 1fr); }
   .pp-mile-reward { display: none; }
 }
+
+/* ── Daily Activity link (under the study calendar) ──────────────────── */
+/* The calendar answers "how much did I study"; this leads to the per-session
+   log of what was actually played that day. */
+.pp-activity-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 14px;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  color: var(--mv-gold);
+  background: rgba(232, 176, 75, 0.1);
+  border: 1px solid var(--mv-border-gold);
+  padding: 9px 16px;
+  border-radius: 999px;
+  transition: background 0.15s ease;
+}
+
+.pp-activity-link:hover { background: rgba(232, 176, 75, 0.2); }

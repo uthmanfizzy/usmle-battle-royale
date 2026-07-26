@@ -1,0 +1,351 @@
+/* Daily Activity page — MEDVALE chrome + glass session cards.
+ * Chrome (topbar / back pill / column / 34px Cinzel title) mirrors
+ * QuestsPage.css so the standalone pages stay one system.
+ * All tints are static rgba: color-mix() is deliberately avoided because it
+ * ships broken on older browsers (see designTokens.css notes).
+ */
+
+.da {
+  min-height: 100vh;
+  background: var(--mv-bg-void);
+  color: var(--mv-text);
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  padding: clamp(16px, 4vw, 28px) clamp(16px, 5vw, 36px);
+  box-sizing: border-box;
+  overflow-x: hidden;
+}
+
+/* ── Top bar: wordmark + currency + avatar ───────────────────────────── */
+.da-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 30px;
+}
+
+.da-wordmark {
+  font-family: var(--mv-font-display);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--mv-gold);
+  text-decoration: none;
+}
+
+.da-topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.da-currency {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.da-currency-divider {
+  width: 1px;
+  height: 14px;
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.da-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 1px solid var(--mv-border-gold);
+  background: rgba(255, 255, 255, 0.07);
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.da-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* ── Back pill ───────────────────────────────────────────────────────── */
+.da-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.85);
+  padding: 8px 16px 8px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  margin-bottom: 18px;
+  transition: background 0.15s ease;
+}
+
+.da-back:hover { background: rgba(255, 255, 255, 0.12); }
+
+/* ── Column + title ──────────────────────────────────────────────────── */
+.da-col {
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.da-title {
+  font-family: var(--mv-font-display);
+  font-size: 34px;
+  font-weight: 700;
+  margin: 0 0 6px;
+  color: var(--mv-text);
+}
+
+.da-sub {
+  margin: 0 0 16px;
+  font-size: 13px;
+  color: var(--mv-text-dim-45);
+}
+
+/* ── Day navigation ──────────────────────────────────────────────────── */
+.da-daynav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 18px 0 22px;
+}
+
+.da-daynav-btn {
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--mv-border-gold);
+  color: var(--mv-text);
+  padding: 9px 15px;
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease;
+}
+
+.da-daynav-btn:hover:not(:disabled) { background: rgba(232, 176, 75, 0.14); }
+
+.da-daynav-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.da-daynav-label {
+  text-align: center;
+  min-width: 0;
+}
+
+.da-daynav-day {
+  display: block;
+  font-family: var(--mv-font-display);
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--mv-gold);
+}
+
+.da-daynav-date {
+  display: block;
+  font-size: 11.5px;
+  color: var(--mv-text-dim-45);
+  margin-top: 2px;
+}
+
+/* ── Summary strip ───────────────────────────────────────────────────── */
+.da-summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  margin-bottom: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  font-size: 13px;
+  color: var(--mv-text-dim-45);
+}
+
+.da-summary-item strong { color: var(--mv-text); font-size: 15px; }
+
+.da-summary-divider {
+  width: 1px;
+  height: 14px;
+  background: rgba(255, 255, 255, 0.18);
+}
+
+/* ── Session cards ───────────────────────────────────────────────────── */
+.da-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.da-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  background: var(--mv-glass);
+  border: 1px solid var(--mv-border-gold);
+  border-radius: 14px;
+}
+
+.da-card-icon {
+  font-size: 24px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.da-card-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.da-card-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.da-card-mode {
+  font-weight: 700;
+  font-size: 14.5px;
+  color: var(--mv-text);
+}
+
+.da-card-subject {
+  font-size: 12px;
+  color: var(--mv-text-dim-45);
+}
+
+.da-card-detail {
+  margin-top: 3px;
+  font-size: 12.5px;
+  color: rgba(255, 255, 255, 0.6);
+  overflow-wrap: anywhere;
+}
+
+.da-card-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+  flex-shrink: 0;
+  text-align: right;
+}
+
+.da-tag {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  padding: 3px 9px;
+  border-radius: 999px;
+}
+
+/* Result states, not primary actions: teal for a win, --mv-danger for a loss. */
+.da-tag--win {
+  color: var(--mv-teal);
+  background: rgba(79, 209, 197, 0.14);
+  border: 1px solid rgba(79, 209, 197, 0.4);
+}
+
+.da-tag--loss {
+  color: var(--mv-danger);
+  background: rgba(231, 76, 60, 0.14);
+  border: 1px solid rgba(231, 76, 60, 0.4);
+}
+
+.da-tag--none {
+  color: var(--mv-text-dim-45);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+/* Colour comes from the shared mastery ramp, set inline per score. */
+.da-score {
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.da-card-duration {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.da-card-time {
+  font-size: 11.5px;
+  color: var(--mv-text-dim-45);
+}
+
+/* ── Empty / loading ─────────────────────────────────────────────────── */
+.da-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 46px 20px;
+  background: var(--mv-glass);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  text-align: center;
+}
+
+.da-empty-icon { font-size: 34px; }
+
+.da-empty-text {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--mv-text);
+}
+
+.da-empty-hint {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--mv-text-dim-45);
+  max-width: 340px;
+}
+
+.da-load-ring {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 3px solid rgba(232, 176, 75, 0.22);
+  border-top-color: var(--mv-gold);
+  animation: da-spin 0.8s linear infinite;
+}
+
+@keyframes da-spin { to { transform: rotate(360deg); } }
+
+/* ── Narrow screens ──────────────────────────────────────────────────── */
+@media (max-width: 560px) {
+  .da-daynav { flex-wrap: wrap; }
+  .da-daynav-label { order: -1; width: 100%; }
+  .da-daynav-btn { flex: 1; }
+  .da-card { align-items: flex-start; }
+  .da-card-meta { align-items: flex-end; }
+  .da-title { font-size: 28px; }
+}

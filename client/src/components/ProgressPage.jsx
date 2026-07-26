@@ -378,6 +378,13 @@ export default function ProgressPage() {
           </div>
 
           <StudyCalendar userId={viewedId} />
+
+          {/* The calendar shows how MUCH was studied per day; the activity log
+              shows WHAT was played on a given day. Carries viewedId so the link
+              keeps own-vs-other context. */}
+          <a className="pp-activity-link" href={`/activity/${viewedId}`}>
+            View Daily Activity →
+          </a>
         </div>
 
         {/* Subject mastery */}
