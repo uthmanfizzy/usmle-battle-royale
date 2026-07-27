@@ -3023,6 +3023,41 @@ async function ankingFetchNewCards(userId, limit, subject) {
 }
 
 /**
+ * Attach a { originalFilename -> { url, type } } map to each card.
+ *
+ * The imported HTML still carries ORIGINAL Anki filenames — `<img src="paste-1.jpg">`
+ * and `[sound:foo.mp3]` — because those references are what the deck author wrote.
+ * anking_cards.media_keys holds the corresponding storage keys, and anking_media
+ * maps key -> filename + public_url. Resolving here rather than client-side keeps
+ * the lookup bounded to the ~40 cards in a batch; the alternative (shipping the
+ * whole 9,123-row mapping to every client) is far heavier.
+ */
+async function ankingResolveMedia(cards) {
+  const keys = [...new Set(cards.flatMap((c) => c.media_keys || []))];
+  if (!keys.length) {
+    for (const c of cards) c.media = {};
+    return;
+  }
+  const byKey = new Map();
+  for (let i = 0; i < keys.length; i += 100) {
+    const { data, error } = await supabase
+      .from('anking_media')
+      .select('filename, storage_key, public_url, media_type')
+      .in('storage_key', keys.slice(i, i + 100));
+    if (error) throw error;
+    for (const m of data) byKey.set(m.storage_key, m);
+  }
+  for (const c of cards) {
+    const map = {};
+    for (const k of c.media_keys || []) {
+      const m = byKey.get(k);
+      if (m) map[m.filename] = { url: m.public_url, type: m.media_type };
+    }
+    c.media = map;
+  }
+}
+
+/**
  * GET /api/anking/due-cards?subject=<id>
  *
  * Returns due_reviews and new_cards as SEPARATE arrays so the client chooses how
@@ -3073,6 +3108,9 @@ app.get('/api/anking/due-cards', requireAuth, async (req, res) => {
     const new_cards = remaining > 0
       ? await ankingFetchNewCards(req.userId, remaining, subject)
       : [];
+
+    // Resolve original Anki filenames to Supabase Storage URLs for this batch.
+    await ankingResolveMedia([...due_reviews.map((d) => d.card), ...new_cards]);
 
     res.json({ due_reviews, new_cards, new_cards_remaining_today: remaining });
   } catch (err) {
@@ -3165,6 +3203,63 @@ app.post('/api/anking/review', requireAuth, async (req, res) => {
   } catch (err) {
     console.error('[/api/anking/review] failed —', err.message);
     res.status(500).json({ error: 'Failed to record review.' });
+  }
+});
+
+/**
+ * POST /api/anking/session-complete
+ * body: { cards_reviewed, good_or_easy_count, duration_seconds, subject? }
+ *
+ * Logs one activity_sessions row for a finished review session. Fail soft, in
+ * line with every other activity_sessions writer here: a logging failure is
+ * reported in the response but never breaks it, and never costs the user
+ * anything they already earned.
+ */
+app.post('/api/anking/session-complete', requireAuth, async (req, res) => {
+  const cardsReviewed = Number(req.body?.cards_reviewed);
+  const goodOrEasy    = Number(req.body?.good_or_easy_count);
+  const seconds       = Number(req.body?.duration_seconds);
+  const subject       = (req.body?.subject ?? null) || null; // '' -> null (mixed)
+
+  if (!Number.isFinite(cardsReviewed) || cardsReviewed <= 0) {
+    return res.status(400).json({ error: 'cards_reviewed must be a positive number.' });
+  }
+  if (!Number.isFinite(goodOrEasy) || goodOrEasy < 0 || goodOrEasy > cardsReviewed) {
+    return res.status(400).json({ error: 'good_or_easy_count must be between 0 and cards_reviewed.' });
+  }
+  if (!Number.isFinite(seconds) || seconds < 0) {
+    return res.status(400).json({ error: 'duration_seconds must be a non-negative number.' });
+  }
+  if (!supabase) return res.json({ ok: false });
+
+  // Same 35s/card ceiling the study-time endpoint uses, so a forged or buggy
+  // payload can't credit hours from a 20-card session.
+  const duration = Math.min(Math.round(seconds), Math.round(cardsReviewed) * 35 * 60);
+  const endedAt   = new Date();
+  const startedAt = new Date(endedAt.getTime() - duration * 1000);
+
+  try {
+    const { error } = await supabase.from('activity_sessions').insert({
+      user_id:              req.userId,   // requireAuth guarantees a real user
+      game_mode:            'anking',
+      subject,                            // null when the session was mixed-subject
+      journey_chapter_name: null,         // no chapter concept in AnKing
+      journey_level_name:   null,
+      outcome_type:         'score_pct',  // recall accuracy, not win/loss
+      score_pct:            Math.round((goodOrEasy / cardsReviewed) * 100),
+      is_win:               null,
+      duration_seconds:     duration,
+      started_at:           startedAt.toISOString(),
+      ended_at:             endedAt.toISOString(),
+    });
+    if (error) {
+      console.error('[activity_sessions] anking insert failed —', error.message);
+      return res.json({ ok: false });
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[activity_sessions] anking insert threw —', err.message);
+    res.json({ ok: false });
   }
 });
 

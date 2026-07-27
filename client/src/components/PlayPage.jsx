@@ -238,7 +238,9 @@ export default function PlayPage({
               user={user}
               config={{ limit: 20 }}
               onBack={() => setSelectedMode('battle_royale')}
-              onComplete={(results) => console.log('AnKing session complete:', results)}
+              // AnKingMode logs its own activity_sessions row on Finish/unmount;
+              // this only needs to return the user to the mode grid.
+              onComplete={() => setSelectedMode('battle_royale')}
             />
           </div>
         ) : (

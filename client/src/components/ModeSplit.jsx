@@ -82,15 +82,16 @@ export function StoryMenu({ onBack, onJourney, onTower, onAnKing }) {
           </div>
         </button>
 
-        {/* COMING SOON — temporarily disabled. To re-enable: drop the
-            ms-journey-card--disabled class + ms-soon-chip span and restore
-            onClick={onAnKing}. AnKing and its App.jsx routing are untouched. */}
-        <button className="ms-journey-card ms-journey-card--disabled" disabled>
+        {/* Re-enabled: the mode is real now (27,319 imported cards + spaced
+            repetition), so the COMING SOON gate no longer applies. Re-enabled
+            exactly as the previous comment prescribed — disabled class and
+            ms-soon-chip dropped, onClick={onAnKing} restored. Routing unchanged. */}
+        <button className="ms-journey-card" onClick={onAnKing}>
           <div className="ms-journey-art" aria-hidden="true">
             <span className="ms-journey-art-icon">🃏</span>
           </div>
           <div className="ms-journey-body">
-            <span className="ms-journey-name">ANKING <span className="ms-soon-chip">COMING SOON</span></span>
+            <span className="ms-journey-name">ANKING</span>
             <span className="ms-journey-sub">Master AnKing flashcards</span>
           </div>
         </button>

@@ -1,211 +1,405 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { authFetch } from '../auth';
 import './AnKingMode.css';
 
-const SERVER_URL = 'https://usmle-battle-royale-production.up.railway.app';
+const SESSION_SIZE = 20;
+
+const RATINGS = [
+  { id: 'again', label: 'Again', icon: '↺', hint: '<1 min' },
+  { id: 'hard',  label: 'Hard',  icon: '◔', hint: 'harder' },
+  { id: 'good',  label: 'Good',  icon: '✓', hint: 'on track' },
+  { id: 'easy',  label: 'Easy',  icon: '★', hint: 'too easy' },
+];
+
+/**
+ * Rewrite the original Anki media references the import preserved verbatim into
+ * real Supabase Storage URLs.
+ *
+ * Two forms live in the stored HTML:
+ *   <img src="paste-1.jpg">          -> src swapped for the public URL
+ *   [sound:foo.mp3]                  -> replaced with an <audio controls> element
+ *
+ * `media` is the { filename -> { url, type } } map the due-cards endpoint
+ * resolves per batch. A reference with no entry (11 corpus-wide never made it
+ * into storage) is left alone for <img> — a broken image is better than a
+ * mangled document — and stripped for [sound:] so no literal bracket text shows.
+ */
+function resolveMedia(html, media) {
+  if (!html) return '';
+  let out = html;
+
+  if (media && Object.keys(media).length) {
+    // Swap <img src="..."> — attribute order varies across the corpus, so match
+    // the src attribute itself rather than assuming a position.
+    out = out.replace(/(<img\b[^>]*\bsrc=")([^"]+)(")/gi, (full, pre, src, post) => {
+      const hit = media[src] || media[decodeURIComponent(src)];
+      return hit ? `${pre}${hit.url}${post}` : full;
+    });
+  }
+
+  // [sound:filename] -> audio player (or nothing if unresolvable).
+  out = out.replace(/\[sound:([^\]]+)\]/gi, (full, name) => {
+    const hit = media && (media[name] || media[decodeURIComponent(name)]);
+    if (!hit) return '';
+    return `<audio class="anking-audio" controls preload="none" src="${hit.url}"></audio>`;
+  });
+
+  return out;
+}
+
+/**
+ * For MCQ cards, question_html is the whole original Front field — stem AND the
+ * "A) …/B) …" lines. The parsed options are rendered as real clickable rows
+ * below, so leaving those lines in shows every choice twice. anking_cards has no
+ * separate stem column (the importer parsed one but the table doesn't store it),
+ * so the stem is recovered here by dropping the block-level nodes that are just
+ * an option line.
+ */
+const OPTION_LINE = /^\(?[A-H]\s*[).:]\s*\S/;
+
+function stripMcqOptionLines(html) {
+  if (typeof window === 'undefined' || !html) return html;
+  const host = document.createElement('div');
+  host.innerHTML = html;
+
+  // Top-level blocks first (the corpus wraps each option in its own <div>).
+  for (const node of [...host.childNodes]) {
+    const text = (node.textContent || '').replace(/ /g, ' ').trim();
+    if (text && OPTION_LINE.test(text)) node.remove();
+  }
+  // Options can also arrive as bare text separated by <br> in one block.
+  for (const el of [...host.querySelectorAll('div, p')]) {
+    const text = (el.textContent || '').replace(/ /g, ' ').trim();
+    if (text && OPTION_LINE.test(text) && !el.querySelector('img, audio')) el.remove();
+  }
+  return host.innerHTML;
+}
+
+/** Content is sanitised server-side at import; see the note in the render path. */
+const Html = ({ html, media, className, stripOptions }) => {
+  const out = stripOptions ? stripMcqOptionLines(html) : html;
+  return <div className={className} dangerouslySetInnerHTML={{ __html: resolveMedia(out, media) }} />;
+};
 
 export default function AnKingMode({ user, config, onBack, onComplete }) {
+  const [phase, setPhase] = useState('loading'); // loading | studying | summary | empty | error
   const [cards, setCards] = useState([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [flipped, setFlipped] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [results, setResults] = useState({ again: 0, hard: 0, good: 0, easy: 0 });
-  const [sessionComplete, setSessionComplete] = useState(false);
-  const [showExplanation, setShowExplanation] = useState(false);
-  const [filter, setFilter] = useState({ subject: config?.subject || '', deck: config?.deck || '' });
+  const [index, setIndex] = useState(0);
+  const [revealed, setRevealed] = useState(false);
+  const [picked, setPicked] = useState(null);       // mcq: chosen option letter
+  const [submitting, setSubmitting] = useState(false);
+  const [remainingToday, setRemainingToday] = useState(0);
+  const [batchTally, setBatchTally] = useState({ again: 0, hard: 0, good: 0, easy: 0 });
+  const [errorMsg, setErrorMsg] = useState('');
 
+  // Session-wide totals (persist across "Continue" batches) for the
+  // activity_sessions row. Refs, not state: the unmount flush must read the
+  // latest values without re-subscribing the effect on every rating.
+  const sessionStartRef = useRef(Date.now());
+  const sessionTallyRef = useRef({ again: 0, hard: 0, good: 0, easy: 0 });
+  const sessionSentRef = useRef(false);
+  const subject = config?.subject || null;
+
+  const current = cards[index];
+
+  // ── Session logging ─────────────────────────────────────────────────────────
+  const postSessionComplete = useCallback((useKeepalive = false) => {
+    const t = sessionTallyRef.current;
+    const reviewed = t.again + t.hard + t.good + t.easy;
+    if (reviewed === 0) return;            // nothing studied, nothing to log
+    if (sessionSentRef.current) return;    // exactly once per session
+    sessionSentRef.current = true;
+
+    authFetch('/api/anking/session-complete', {
+      method: 'POST',
+      body: JSON.stringify({
+        cards_reviewed: reviewed,
+        good_or_easy_count: t.good + t.easy,
+        duration_seconds: Math.round((Date.now() - sessionStartRef.current) / 1000),
+        subject,
+      }),
+      // keepalive lets the request survive a hard navigation. sendBeacon can't
+      // set an Authorization header and this endpoint is Bearer-authenticated,
+      // so we follow SoloGame's precedent and use fetch(keepalive) instead.
+      ...(useKeepalive ? { keepalive: true } : {}),
+    }).catch(() => {});
+  }, [subject]);
+
+  const postSessionRef = useRef(postSessionComplete);
+  postSessionRef.current = postSessionComplete;
+
+  // Flush an abandoned session. Two triggers, both funnelled through the
+  // once-only guard: unmount for soft exits (Back sets parent state, React
+  // unmounts), and 'pagehide' for hard exits that never unmount React.
   useEffect(() => {
-    fetchCards();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    const onPageHide = () => { postSessionRef.current(true); };
+    window.addEventListener('pagehide', onPageHide);
+    return () => {
+      window.removeEventListener('pagehide', onPageHide);
+      postSessionRef.current(true);
+    };
+  }, []);
 
-  const fetchCards = async () => {
-    setLoading(true);
+  // ── Batch loading ───────────────────────────────────────────────────────────
+  const loadBatch = useCallback(async () => {
+    setPhase('loading');
+    setErrorMsg('');
     try {
-      const params = new URLSearchParams({
-        limit: config?.limit || 20,
-      });
-      if (filter.subject) params.append('subject', filter.subject);
-      if (filter.deck) params.append('deck', filter.deck);
-
-      const res = await fetch(`${SERVER_URL}/api/questions/anking?${params}`);
+      const qs = subject ? `?subject=${encodeURIComponent(subject)}` : '';
+      const res = await authFetch(`/api/anking/due-cards${qs}`);
       const data = await res.json();
 
-      // Shuffle cards
-      const shuffled = [...(data || [])].sort(() => Math.random() - 0.5);
-      setCards(shuffled);
-    } catch(e) {
-      console.error('Failed to fetch AnKing cards:', e);
+      // Due reviews first — clear overdue material before adding new.
+      const batch = [
+        ...(data.due_reviews || []).map((d) => d.card),
+        ...(data.new_cards || []),
+      ].slice(0, SESSION_SIZE);
+
+      setRemainingToday(data.new_cards_remaining_today ?? 0);
+      setCards(batch);
+      setIndex(0);
+      setRevealed(false);
+      setPicked(null);
+      setBatchTally({ again: 0, hard: 0, good: 0, easy: 0 });
+      setPhase(batch.length ? 'studying' : 'empty');
+    } catch (e) {
+      console.error('[AnKing] failed to load cards:', e);
+      setErrorMsg('Could not load cards. Check your connection and try again.');
+      setPhase('error');
     }
-    setLoading(false);
-  };
+  }, [subject]);
 
-  const currentCard = cards[currentIndex];
-  const progress = cards.length > 0 ? ((currentIndex) / cards.length) * 100 : 0;
+  useEffect(() => { loadBatch(); }, [loadBatch]);
 
-  const handleFlip = () => setFlipped(!flipped);
+  // ── Rating ──────────────────────────────────────────────────────────────────
+  const rate = async (rating) => {
+    if (!current || submitting) return;
+    setSubmitting(true);
+    try {
+      const res = await authFetch('/api/anking/review', {
+        method: 'POST',
+        body: JSON.stringify({ card_id: current.id, rating }),
+      });
+      if (!res.ok) console.error('[AnKing] review rejected:', res.status);
+    } catch (e) {
+      // The card still advances: losing one scheduling update is better than
+      // trapping the user on a card they've already answered.
+      console.error('[AnKing] review failed:', e);
+    }
 
-  const handleRate = (rating) => {
-    setResults(prev => ({ ...prev, [rating]: prev[rating] + 1 }));
+    setBatchTally((t) => ({ ...t, [rating]: t[rating] + 1 }));
+    sessionTallyRef.current[rating] += 1;
 
-    if (currentIndex >= cards.length - 1) {
-      setSessionComplete(true);
+    if (index >= cards.length - 1) {
+      setPhase('summary');
     } else {
-      setCurrentIndex(prev => prev + 1);
-      setFlipped(false);
-      setShowExplanation(false);
+      setIndex((i) => i + 1);
+      setRevealed(false);
+      setPicked(null);
     }
+    setSubmitting(false);
   };
 
-  const handleRestart = () => {
-    setCurrentIndex(0);
-    setFlipped(false);
-    setSessionComplete(false);
-    setResults({ again: 0, hard: 0, good: 0, easy: 0 });
-    setShowExplanation(false);
-    fetchCards();
+  const finish = () => {
+    postSessionComplete(false);
+    onComplete?.({ ...sessionTallyRef.current });
+    onBack?.();
   };
 
-  if (loading) return (
-    <div className="anking-loading">
-      <div className="anking-spinner">🃏</div>
-      <p>Loading AnKing cards...</p>
-    </div>
+  // Keyboard: space/enter reveals, 1-4 rate. Matches Anki's muscle memory.
+  useEffect(() => {
+    if (phase !== 'studying') return;
+    const onKey = (e) => {
+      if (e.target.matches?.('input, textarea, button')) return;
+      if (!revealed && (e.code === 'Space' || e.code === 'Enter')) {
+        e.preventDefault();
+        if (current?.card_type !== 'mcq') setRevealed(true);
+        return;
+      }
+      if (revealed && e.key >= '1' && e.key <= '4') {
+        e.preventDefault();
+        rate(RATINGS[Number(e.key) - 1].id);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }); // no dep array: closes over the live card/revealed each render
+
+  const batchReviewed = useMemo(
+    () => batchTally.again + batchTally.hard + batchTally.good + batchTally.easy,
+    [batchTally]
   );
 
-  if (cards.length === 0) return (
-    <div className="anking-empty">
-      <span>📭</span>
-      <h3>No AnKing Cards Found</h3>
-      <p>Import an AnKing .apkg file in the Admin panel first.</p>
-      <button className="anking-back-btn" onClick={onBack}>← Go Back</button>
-    </div>
-  );
+  // ── Render ──────────────────────────────────────────────────────────────────
+  if (phase === 'loading') {
+    return (
+      <div className="anking-state">
+        <div className="anking-spinner">🃏</div>
+        <p>Shuffling your deck…</p>
+      </div>
+    );
+  }
 
-  if (sessionComplete) return (
-    <div className="anking-complete">
-      <div className="anking-complete-card">
-        <h2>🎉 Session Complete!</h2>
-        <p>You reviewed {cards.length} cards</p>
-
-        <div className="anking-results-grid">
-          <div className="anking-result-item anking-result--again">
-            <span className="anking-result-num">{results.again}</span>
-            <span className="anking-result-label">Again</span>
-          </div>
-          <div className="anking-result-item anking-result--hard">
-            <span className="anking-result-num">{results.hard}</span>
-            <span className="anking-result-label">Hard</span>
-          </div>
-          <div className="anking-result-item anking-result--good">
-            <span className="anking-result-num">{results.good}</span>
-            <span className="anking-result-label">Good</span>
-          </div>
-          <div className="anking-result-item anking-result--easy">
-            <span className="anking-result-num">{results.easy}</span>
-            <span className="anking-result-label">Easy</span>
-          </div>
-        </div>
-
-        <div className="anking-complete-actions">
-          <button className="anking-restart-btn" onClick={handleRestart}>🔄 Study Again</button>
-          <button className="anking-back-btn" onClick={onBack}>← Back to Play</button>
+  if (phase === 'error') {
+    return (
+      <div className="anking-state">
+        <span className="anking-state-icon">⚠️</span>
+        <h3>Something went wrong</h3>
+        <p>{errorMsg}</p>
+        <div className="anking-state-actions">
+          <button className="mv-btn-cut anking-btn-primary" onClick={loadBatch}>Try Again</button>
+          <button className="mv-btn-cut anking-btn-ghost" onClick={onBack}>← Back</button>
         </div>
       </div>
-    </div>
-  );
+    );
+  }
+
+  if (phase === 'empty') {
+    return (
+      <div className="anking-state">
+        <span className="anking-state-icon">🎉</span>
+        <h3>All caught up</h3>
+        <p>
+          No cards are due right now
+          {remainingToday === 0 ? ", and you've hit today's new-card limit." : '.'}
+          {' '}Come back later for your next review.
+        </p>
+        <div className="anking-state-actions">
+          <button className="mv-btn-cut anking-btn-ghost" onClick={onBack}>← Back to Play</button>
+        </div>
+      </div>
+    );
+  }
+
+  if (phase === 'summary') {
+    const accuracy = batchReviewed
+      ? Math.round(((batchTally.good + batchTally.easy) / batchReviewed) * 100)
+      : 0;
+    const t = sessionTallyRef.current;
+    const sessionTotal = t.again + t.hard + t.good + t.easy;
+    return (
+      <div className="anking-state anking-summary">
+        <span className="anking-state-icon">🎯</span>
+        <h3>Batch complete</h3>
+        <p className="anking-summary-line">
+          {batchReviewed} card{batchReviewed === 1 ? '' : 's'} reviewed · {accuracy}% recalled
+        </p>
+        {sessionTotal !== batchReviewed && (
+          <p className="anking-summary-sub">{sessionTotal} this session</p>
+        )}
+
+        <div className="anking-summary-grid">
+          {RATINGS.map((r) => (
+            <div className={`anking-summary-cell anking-rate--${r.id}`} key={r.id}>
+              <span className="anking-summary-num">{batchTally[r.id]}</span>
+              <span className="anking-summary-label">{r.label}</span>
+            </div>
+          ))}
+        </div>
+
+        <div className="anking-state-actions">
+          <button className="mv-btn-cut anking-btn-primary" onClick={loadBatch}>
+            Continue ({remainingToday} new left today)
+          </button>
+          <button className="mv-btn-cut anking-btn-ghost" onClick={finish}>Finish</button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Studying ────────────────────────────────────────────────────────────────
+  const isMcq = current.card_type === 'mcq';
+  const options = Array.isArray(current.mcq_options) ? current.mcq_options : [];
+  const progress = (index / cards.length) * 100;
 
   return (
     <div className="anking-mode">
-
-      {/* Header */}
-      <div className="anking-header">
-        <button className="anking-back-btn-sm" onClick={onBack}>← Back</button>
-        <div className="anking-progress-section">
-          <span className="anking-progress-text">{currentIndex + 1} / {cards.length}</span>
-          <div className="anking-progress-bar">
-            <div className="anking-progress-fill" style={{width: `${progress}%`}} />
+      <div className="anking-topbar">
+        <button className="anking-exit" onClick={finish}>← Exit</button>
+        <div className="anking-progress">
+          <span className="anking-progress-text">Card {index + 1} of {cards.length}</span>
+          <div className="anking-progress-track">
+            <div className="anking-progress-fill" style={{ width: `${progress}%` }} />
           </div>
         </div>
-        <div className="anking-session-stats">
-          <span className="stat-again">↺ {results.again}</span>
-          <span className="stat-hard">😰 {results.hard}</span>
-          <span className="stat-good">👍 {results.good}</span>
-          <span className="stat-easy">⚡ {results.easy}</span>
-        </div>
+        <span className="anking-badge">{current.subject?.replace(/_/g, ' ') || 'mixed'}</span>
       </div>
 
-      {/* Card */}
-      <div className="anking-card-container" onClick={handleFlip}>
-        <div className={`anking-card ${flipped ? 'anking-card--flipped' : ''}`}>
+      <div className="anking-card">
+        {/* Content was sanitised at import time by the cheerio pass in
+            tools/anking-import (tag + attribute allow-list, all script/style
+            subtrees dropped, every on* and style attribute stripped), so it is
+            safe to inject. Escaping it here would show literal markup and break
+            every image, cloze blank and formatting span. */}
+        <Html className="anking-question" html={current.question_html} media={current.media} stripOptions={isMcq} />
 
-          {/* Front */}
-          <div className="anking-card-face anking-card-front">
-            <div className="anking-card-label">QUESTION</div>
-            <div className="anking-card-content">
-              {currentCard?.question}
-            </div>
-            {currentCard?.subject && (
-              <div className="anking-card-subject">{currentCard.subject}</div>
-            )}
-            <div className="anking-card-tap-hint">Tap to reveal answer</div>
-          </div>
-
-          {/* Back */}
-          <div className="anking-card-face anking-card-back">
-            <div className="anking-card-label">ANSWER</div>
-            <div className="anking-card-content">
-              {currentCard?.correct}
-            </div>
-            {currentCard?.explanation && (
-              <div className="anking-explanation-toggle">
+        {isMcq && (
+          <div className="anking-options">
+            {options.map((opt) => {
+              const isCorrect = opt.letter === current.mcq_correct_letter;
+              const state = !picked ? '' : isCorrect ? ' anking-option--correct'
+                : opt.letter === picked ? ' anking-option--wrong' : ' anking-option--muted';
+              return (
                 <button
-                  className="anking-explain-btn"
-                  onClick={(e) => { e.stopPropagation(); setShowExplanation(!showExplanation); }}
+                  key={opt.letter}
+                  className={`anking-option${state}`}
+                  disabled={!!picked}
+                  onClick={() => { setPicked(opt.letter); setRevealed(true); }}
                 >
-                  {showExplanation ? '▲ Hide' : '▼ Explanation'}
+                  <span className="anking-option-letter">{opt.letter}</span>
+                  <span className="anking-option-text">{opt.text}</span>
+                  {picked && isCorrect && <span className="anking-option-mark">✓</span>}
+                  {picked === opt.letter && !isCorrect && <span className="anking-option-mark">✕</span>}
                 </button>
-                {showExplanation && (
-                  <div className="anking-explanation">
-                    {currentCard.explanation}
-                  </div>
-                )}
-              </div>
+              );
+            })}
+          </div>
+        )}
+
+        {revealed && (
+          <div className="anking-reveal">
+            {!isMcq && (
+              <>
+                <div className="anking-divider"><span>Answer</span></div>
+                <Html className="anking-answer" html={current.answer_html} media={current.media} />
+              </>
+            )}
+            {current.extra_html && (
+              <>
+                <div className="anking-divider"><span>Extra</span></div>
+                <Html className="anking-extra" html={current.extra_html} media={current.media} />
+              </>
             )}
           </div>
-
-        </div>
+        )}
       </div>
 
-      {/* Rating buttons - only show when flipped */}
-      {flipped && (
-        <div className="anking-rating-buttons">
-          <button className="anking-rate-btn anking-rate--again" onClick={() => handleRate('again')}>
-            <span>↺</span>
-            <span>Again</span>
+      {!revealed ? (
+        <div className="anking-actions">
+          <button className="mv-btn-cut anking-btn-primary anking-reveal-btn" onClick={() => setRevealed(true)}>
+            Show Answer
           </button>
-          <button className="anking-rate-btn anking-rate--hard" onClick={() => handleRate('hard')}>
-            <span>😰</span>
-            <span>Hard</span>
-          </button>
-          <button className="anking-rate-btn anking-rate--good" onClick={() => handleRate('good')}>
-            <span>👍</span>
-            <span>Good</span>
-          </button>
-          <button className="anking-rate-btn anking-rate--easy" onClick={() => handleRate('easy')}>
-            <span>⚡</span>
-            <span>Easy</span>
-          </button>
+          <p className="anking-kbd-hint">or press <kbd>Space</kbd></p>
+        </div>
+      ) : (
+        <div className="anking-actions">
+          <div className="anking-ratings">
+            {RATINGS.map((r, i) => (
+              <button
+                key={r.id}
+                className={`anking-rate anking-rate--${r.id}`}
+                disabled={submitting}
+                onClick={() => rate(r.id)}
+              >
+                <span className="anking-rate-icon">{r.icon}</span>
+                <span className="anking-rate-label">{r.label}</span>
+                <span className="anking-rate-hint">{r.hint}</span>
+                <span className="anking-rate-key">{i + 1}</span>
+              </button>
+            ))}
+          </div>
         </div>
       )}
-
-      {/* Flip hint when not flipped */}
-      {!flipped && (
-        <div className="anking-flip-hint">
-          <button className="anking-flip-btn" onClick={handleFlip}>
-            🃏 Flip Card
-          </button>
-        </div>
-      )}
-
     </div>
   );
 }
