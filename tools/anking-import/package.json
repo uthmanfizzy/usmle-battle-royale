@@ -1,0 +1,15 @@
+{
+  "name": "anking-import",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Standalone local Anki -> MedVale import tool. Not part of the server.",
+  "type": "commonjs",
+  "scripts": {
+    "dry-run": "node import-anking.js --dry-run"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.110.8",
+    "cheerio": "^1.0.0",
+    "sql.js": "^1.10.3"
+  }
+}

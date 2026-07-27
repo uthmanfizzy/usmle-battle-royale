@@ -15,6 +15,7 @@ const multer     = require('multer');
 const AdmZip     = require('adm-zip');
 const os         = require('os');
 const { fromDb, toDb, toPublicQuestion, answerResultPayload, normalizeImport, withShuffledOptions } = require('./questionMapper');
+const ankingScheduler = require('./ankingScheduler');
 
 // Use sql.js - pure JavaScript SQLite, no native compilation needed
 const initSqlJs = require('sql.js');
@@ -2921,6 +2922,249 @@ app.get('/api/admin/anking/stats', adminAuth, async (req, res) => {
   } catch(e) {
     console.error('[GET /api/admin/anking/stats] error:', e);
     res.status(500).json({ total: 0, easy: 0, hard: 0, subjects: [], topics: [] });
+  }
+});
+
+// ── AnKing Spaced Repetition ───────────────────────────────────────────────────
+// Scheduling maths lives in ./ankingScheduler.js as a pure function so it can be
+// unit-tested without a database. These endpoints only do I/O around it.
+
+const ANKING_CARD_FIELDS =
+  'id, anki_note_id, card_type, cloze_ordinal, question_html, answer_html, extra_html, ' +
+  'mcq_options, mcq_correct_letter, subject, difficulty, media_keys';
+
+/**
+ * How many cards the user saw for the FIRST time today.
+ *
+ * Exact, not approximate: a card counts as "introduced today" only if it has a
+ * log entry today AND no log entry before today. Two queries — today's card_ids,
+ * then which of those were seen earlier — rather than a MIN(reviewed_at) group-by,
+ * which PostgREST cannot express.
+ */
+async function ankingNewCardsSeenToday(userId, now = new Date()) {
+  const dayStart = `${ankingScheduler.toDateString(now)}T00:00:00.000Z`;
+
+  // Page: a heavy session can exceed PostgREST's 1000-row default cap.
+  const todayIds = new Set();
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await supabase
+      .from('anking_review_log')
+      .select('card_id')
+      .eq('user_id', userId)
+      .gte('reviewed_at', dayStart)
+      .range(from, from + 999);
+    if (error) throw error;
+    if (!data.length) break;
+    for (const r of data) todayIds.add(r.card_id);
+    if (data.length < 1000) break;
+  }
+  if (todayIds.size === 0) return 0;
+
+  // Of those, which were already seen before today? Chunked to keep the URL sane.
+  const ids = [...todayIds];
+  const seenBefore = new Set();
+  for (let i = 0; i < ids.length; i += 100) {
+    const chunk = ids.slice(i, i + 100);
+    const { data, error } = await supabase
+      .from('anking_review_log')
+      .select('card_id')
+      .eq('user_id', userId)
+      .lt('reviewed_at', dayStart)
+      .in('card_id', chunk);
+    if (error) throw error;
+    for (const r of data) seenBefore.add(r.card_id);
+  }
+  return ids.filter((id) => !seenBefore.has(id)).length;
+}
+
+/**
+ * Cards this user has never rated, in a stable order, up to `limit`.
+ *
+ * PostgREST has no NOT EXISTS, and a NOT IN over a user's whole history would be
+ * unbounded. Instead: walk anking_cards in a deterministic order, and for each
+ * page ask which of those ids already have a state row. Since limit <= 20, this
+ * settles in a page or two for a new user and degrades gracefully for a veteran.
+ */
+async function ankingFetchNewCards(userId, limit, subject) {
+  const out = [];
+  const PAGE = 200;
+  const MAX_PAGES = 60; // guard: stop rather than scan the whole 27k corpus
+  for (let page = 0; page < MAX_PAGES && out.length < limit; page++) {
+    let q = supabase
+      .from('anking_cards')
+      .select(ANKING_CARD_FIELDS)
+      // Deterministic so the sequence is stable across requests.
+      .order('anki_note_id', { ascending: true })
+      .order('cloze_ordinal', { ascending: true })
+      .order('id', { ascending: true })
+      .range(page * PAGE, page * PAGE + PAGE - 1);
+    if (subject) q = q.eq('subject', subject);
+
+    const { data, error } = await q;
+    if (error) throw error;
+    if (!data.length) break;
+
+    const { data: states, error: sErr } = await supabase
+      .from('anking_review_state')
+      .select('card_id')
+      .eq('user_id', userId)
+      .in('card_id', data.map((c) => c.id));
+    if (sErr) throw sErr;
+
+    const seen = new Set((states || []).map((s) => s.card_id));
+    for (const c of data) {
+      if (seen.has(c.id)) continue;
+      out.push(c);
+      if (out.length >= limit) break;
+    }
+    if (data.length < PAGE) break; // ran out of cards
+  }
+  return out;
+}
+
+/**
+ * GET /api/anking/due-cards?subject=<id>
+ *
+ * Returns due_reviews and new_cards as SEPARATE arrays so the client chooses how
+ * to interleave. If it simply concatenates, due reviews come first — overdue
+ * material should be cleared before new material is introduced.
+ *
+ * Fails soft: any error yields empty arrays with 200, never a 500.
+ */
+app.get('/api/anking/due-cards', requireAuth, async (req, res) => {
+  const empty = { due_reviews: [], new_cards: [], new_cards_remaining_today: 0 };
+  if (!supabase) return res.json(empty);
+
+  const subject = (req.query.subject || '').toString().trim() || null;
+  const now = new Date();
+
+  try {
+    // (a) Due reviews: state rows at or past their due date.
+    let dueQ = supabase
+      .from('anking_review_state')
+      .select(`ease_factor, interval_days, due_date, learning_step, review_count, lapse_count, last_reviewed_at, anking_cards!inner(${ANKING_CARD_FIELDS})`)
+      .eq('user_id', req.userId)
+      .lte('due_date', ankingScheduler.toDateString(now))
+      .order('due_date', { ascending: true });
+    if (subject) dueQ = dueQ.eq('anking_cards.subject', subject);
+
+    const { data: dueRows, error: dueErr } = await dueQ;
+    if (dueErr) throw dueErr;
+
+    const due_reviews = (dueRows || [])
+      // due_date is a DATE, so a card in a 1/10-minute learning step would come
+      // back instantly. Gate those on last_reviewed_at + the step's minutes.
+      .filter((r) => ankingScheduler.isLearningCardDue(r, now))
+      .map((r) => ({
+        card: r.anking_cards,
+        state: {
+          ease_factor: Number(r.ease_factor),
+          interval_days: r.interval_days,
+          due_date: r.due_date,
+          learning_step: r.learning_step,
+          review_count: r.review_count,
+          lapse_count: r.lapse_count,
+        },
+      }));
+
+    // (b) + (c) New cards, capped by what's left of today's allowance.
+    const seenToday = await ankingNewCardsSeenToday(req.userId, now);
+    const remaining = Math.max(0, ankingScheduler.NEW_CARDS_PER_DAY - seenToday);
+    const new_cards = remaining > 0
+      ? await ankingFetchNewCards(req.userId, remaining, subject)
+      : [];
+
+    res.json({ due_reviews, new_cards, new_cards_remaining_today: remaining });
+  } catch (err) {
+    console.error('[/api/anking/due-cards] failed —', err.message);
+    res.json(empty);
+  }
+});
+
+/**
+ * POST /api/anking/review   body: { card_id, rating }
+ * Applies one rating: upserts anking_review_state and logs to anking_review_log.
+ */
+app.post('/api/anking/review', requireAuth, async (req, res) => {
+  const cardId = (req.body?.card_id || '').toString().trim();
+  const rating = (req.body?.rating || '').toString().trim().toLowerCase();
+
+  if (!cardId) return res.status(400).json({ error: 'card_id is required.' });
+  if (!ankingScheduler.RATINGS.includes(rating)) {
+    return res.status(400).json({ error: `rating must be one of: ${ankingScheduler.RATINGS.join(', ')}` });
+  }
+  if (!supabase) return res.status(503).json({ error: 'Database not configured.' });
+
+  try {
+    // (a) Confirm the card exists.
+    const { data: card, error: cardErr } = await supabase
+      .from('anking_cards')
+      .select('id, card_type, subject')
+      .eq('id', cardId)
+      .maybeSingle();
+    if (cardErr) throw cardErr;
+    if (!card) return res.status(404).json({ error: 'Card not found.' });
+
+    // (b) Current state, if the user has rated this card before.
+    const { data: current, error: stateErr } = await supabase
+      .from('anking_review_state')
+      .select('ease_factor, interval_days, learning_step, review_count, lapse_count, last_reviewed_at')
+      .eq('user_id', req.userId)
+      .eq('card_id', cardId)
+      .maybeSingle();
+    if (stateErr) throw stateErr;
+
+    // (c) Pure scheduling step.
+    const next = ankingScheduler.computeNextReview(current, rating);
+
+    // (d) Upsert on the composite PK (user_id, card_id).
+    const { error: upsertErr } = await supabase
+      .from('anking_review_state')
+      .upsert({
+        user_id: req.userId,
+        card_id: cardId,
+        ease_factor: next.ease_factor,
+        interval_days: next.interval_days,
+        due_date: next.due_date,
+        learning_step: next.learning_step,
+        review_count: next.review_count,
+        lapse_count: next.lapse_count,
+        last_reviewed_at: next.last_reviewed_at,
+      }, { onConflict: 'user_id,card_id' });
+    if (upsertErr) throw upsertErr;
+
+    // (e) Log row — fail soft. The state update is what actually matters; a
+    // logging failure must not cost the user their review.
+    try {
+      const { error: logErr } = await supabase.from('anking_review_log').insert({
+        user_id: req.userId,
+        card_id: cardId,
+        rating,
+        previous_interval_days: next.previous_interval_days,
+        new_interval_days: next.interval_days,
+        reviewed_at: next.last_reviewed_at,
+      });
+      if (logErr) console.error('[anking_review_log] insert failed —', logErr.message);
+    } catch (logEx) {
+      console.error('[anking_review_log] insert threw —', logEx.message);
+    }
+
+    // (f) Enough for the client to show "Next review: in N days".
+    res.json({
+      ok: true,
+      card_id: cardId,
+      rating,
+      interval_days: next.interval_days,
+      due_date: next.due_date,
+      ease_factor: next.ease_factor,
+      learning_step: next.learning_step,
+      review_count: next.review_count,
+      lapse_count: next.lapse_count,
+      is_learning: next.interval_days === 0,
+    });
+  } catch (err) {
+    console.error('[/api/anking/review] failed —', err.message);
+    res.status(500).json({ error: 'Failed to record review.' });
   }
 });
 
