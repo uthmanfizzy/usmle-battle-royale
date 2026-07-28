@@ -3245,11 +3245,12 @@ app.get('/api/anking/due-cards', requireAuth, async (req, res) => {
 });
 
 /**
- * GET /api/anking/hard-cards?subject=<id>
+ * GET /api/anking/rated-cards?subject=<id>&rating=again|hard|good|easy
  *
- * A drill deck of what the user currently finds hard: cards whose MOST RECENT
- * rating was 'hard'. A card rated hard last week and good yesterday is not hard
- * any more and does not appear; only the latest rating counts.
+ * A drill deck built from how the user last judged each card: everything whose
+ * MOST RECENT rating matches `rating`. A card rated hard last week and good
+ * yesterday is no longer hard and appears under good instead — only the latest
+ * rating counts, so the four decks are disjoint and always add up.
  *
  * Deliberately ignores due_date and the new-card allowance — this is a practice
  * run the user explicitly asked for, not the daily SRS queue. Ratings made here
@@ -3260,17 +3261,17 @@ app.get('/api/anking/due-cards', requireAuth, async (req, res) => {
  * the first row seen for a card is by definition its latest. That also lets the
  * scan stop as soon as the batch is full.
  *
- * Fails soft: any error yields an empty array with 200, never a 500.
+ * Fails soft once past validation: any error yields an empty array with 200.
  */
-const ANKING_HARD_BATCH = 20;  // matches the client's SESSION_SIZE
+const ANKING_DRILL_BATCH = 20;  // matches the client's SESSION_SIZE
 
-async function ankingFetchHardCardIds(userId, subject, limit) {
+async function ankingFetchRatedCardIds(userId, subject, rating, limit) {
   const settled = new Set();   // cards whose latest rating we have already seen
-  const hard = [];
+  const matched = [];
   const PAGE = 1000;
   const MAX_PAGES = 40;        // 40k log rows deep — far past any real history
 
-  for (let page = 0; page < MAX_PAGES && hard.length < limit; page++) {
+  for (let page = 0; page < MAX_PAGES && matched.length < limit; page++) {
     let q = supabase
       .from('anking_review_log')
       .select(`card_id, rating, reviewed_at${subject ? ', anking_cards!inner(subject)' : ''}`)
@@ -3289,27 +3290,28 @@ async function ankingFetchHardCardIds(userId, subject, limit) {
     for (const row of data) {
       if (settled.has(row.card_id)) continue;   // an older rating for a card already settled
       settled.add(row.card_id);
-      if (row.rating === 'hard') {
-        hard.push(row.card_id);
-        if (hard.length >= limit) break;
+      if (row.rating === rating) {
+        matched.push(row.card_id);
+        if (matched.length >= limit) break;
       }
     }
     if (data.length < PAGE) break;
   }
-  return hard;
+  return matched;
 }
 
-app.get('/api/anking/hard-cards', requireAuth, async (req, res) => {
-  const empty = { cards: [] };
+/** Shared body for the rating drills; `rating` is already validated. */
+async function ankingSendRatedCards(req, res, rating) {
+  const empty = { cards: [], rating };
   if (!supabase) return res.json(empty);
 
   const subject = (req.query.subject || '').toString().trim() || null;
 
   try {
-    const ids = await ankingFetchHardCardIds(req.userId, subject, ANKING_HARD_BATCH);
+    const ids = await ankingFetchRatedCardIds(req.userId, subject, rating, ANKING_DRILL_BATCH);
     if (!ids.length) return res.json(empty);
 
-    // Hydrate, then restore the newest-hard-first order `in` does not preserve.
+    // Hydrate, then restore the newest-first order `in` does not preserve.
     const byId = new Map();
     for (let i = 0; i < ids.length; i += 100) {
       const { data, error } = await supabase
@@ -3322,12 +3324,28 @@ app.get('/api/anking/hard-cards', requireAuth, async (req, res) => {
     const cards = ids.map((id) => byId.get(id)).filter(Boolean);
 
     await ankingResolveMedia(cards);
-    res.json({ cards });
+    res.json({ cards, rating });
   } catch (err) {
-    console.error('[/api/anking/hard-cards] failed —', err.message);
+    console.error(`[/api/anking/rated-cards ${rating}] failed —`, err.message);
     res.json(empty);
   }
+}
+
+app.get('/api/anking/rated-cards', requireAuth, async (req, res) => {
+  const rating = (req.query.rating || '').toString().trim().toLowerCase();
+  if (!ankingScheduler.RATINGS.includes(rating)) {
+    return res.status(400).json({ error: `rating must be one of: ${ankingScheduler.RATINGS.join(', ')}` });
+  }
+  return ankingSendRatedCards(req, res, rating);
 });
+
+/**
+ * GET /api/anking/hard-cards?subject=<id>
+ *
+ * The original Hard-only drill, kept as an alias so anything already pointing
+ * here keeps working. /api/anking/rated-cards?rating=hard is the same thing.
+ */
+app.get('/api/anking/hard-cards', requireAuth, (req, res) => ankingSendRatedCards(req, res, 'hard'));
 
 /**
  * POST /api/anking/review   body: { card_id, rating }

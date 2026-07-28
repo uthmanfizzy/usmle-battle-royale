@@ -18,11 +18,14 @@ const readRevealStyle = () => {
   } catch { return 'flip'; }
 };
 
+// `emptyIcon`/`emptyPraise` are for the drill decks: an empty Again or Hard pile
+// is an achievement, an empty Good or Easy pile just means you have not got
+// there yet, so only the first two get congratulated.
 const RATINGS = [
-  { id: 'again', label: 'Again', icon: '↺', hint: '<1 min' },
-  { id: 'hard',  label: 'Hard',  icon: '◔', hint: 'harder' },
-  { id: 'good',  label: 'Good',  icon: '✓', hint: 'on track' },
-  { id: 'easy',  label: 'Easy',  icon: '★', hint: 'too easy' },
+  { id: 'again', label: 'Again', icon: '↺', hint: '<1 min',   emptyIcon: '💪', emptyPraise: true },
+  { id: 'hard',  label: 'Hard',  icon: '◔', hint: 'harder',   emptyIcon: '💪', emptyPraise: true },
+  { id: 'good',  label: 'Good',  icon: '✓', hint: 'on track', emptyIcon: '📭', emptyPraise: false },
+  { id: 'easy',  label: 'Easy',  icon: '★', hint: 'too easy', emptyIcon: '📭', emptyPraise: false },
 ];
 
 /**
@@ -95,6 +98,40 @@ const Html = ({ html, media, className, stripOptions }) => {
   return <div className={className} dangerouslySetInnerHTML={{ __html: resolveMedia(out, media) }} />;
 };
 
+/**
+ * The per-deck "Drill by rating" control on the picker.
+ *
+ * One menu rather than four buttons: a tile already carries the deck itself,
+ * and four more would swamp it. Open/closed state lives in the parent so only
+ * one tile's menu can be open at a time.
+ */
+const DrillMenu = ({ subj, tileKey, open, onToggle, onPick }) => (
+  <div className="anking-drill">
+    <button
+      className={`anking-drill-btn${open ? ' is-open' : ''}`}
+      aria-expanded={open}
+      onClick={() => onToggle(open ? null : tileKey)}
+    >
+      🎯 Drill by rating <span className="anking-drill-caret" aria-hidden="true">▾</span>
+    </button>
+    {open && (
+      <div className="anking-drill-menu">
+        <div className="anking-drill-title">Cards you last rated…</div>
+        {RATINGS.map((r) => (
+          <button
+            key={r.id}
+            className={`anking-drill-opt anking-rate--${r.id}`}
+            onClick={() => onPick(subj, r.id)}
+          >
+            <span className="anking-drill-opt-icon">{r.icon}</span>
+            <span className="anking-drill-opt-label">{r.label}</span>
+          </button>
+        ))}
+      </div>
+    )}
+  </div>
+);
+
 export default function AnKingMode({ user, config, onBack, onComplete }) {
   // 'picker' is the entry point: choose a subject (or All Subjects) before the
   // first batch is fetched.
@@ -104,9 +141,12 @@ export default function AnKingMode({ user, config, onBack, onComplete }) {
   // null = All Subjects (mixed) — the ?subject= param is then omitted entirely,
   // preserving the original unfiltered behaviour exactly.
   const [subject, setSubject] = useState(config?.subject || null);
-  // 'due' is the normal SRS queue; 'hard' is the drill deck of cards whose
-  // latest rating was Hard, which ignores scheduling entirely.
-  const [sessionMode, setSessionMode] = useState('due');
+  // null = the normal SRS queue. Otherwise a rating id ('again'|'hard'|'good'|
+  // 'easy'): a drill deck of cards whose LATEST rating was that, which ignores
+  // scheduling entirely.
+  const [drillRating, setDrillRating] = useState(null);
+  // Which subject tile has its "Drill by rating" menu open, on the picker.
+  const [openDrill, setOpenDrill] = useState(null);
   const [cards, setCards] = useState([]);
   const [index, setIndex] = useState(0);
   // Two separate ideas: `revealed` latches once the answer has been seen (it is
@@ -198,19 +238,22 @@ export default function AnKingMode({ user, config, onBack, onComplete }) {
   // ── Batch loading ───────────────────────────────────────────────────────────
   // `subj` is passed explicitly rather than read from state so a selection can
   // load immediately, without waiting for a state flush.
-  const loadBatch = useCallback(async (subj = subject, mode = sessionMode) => {
+  const loadBatch = useCallback(async (subj = subject, rating = drillRating) => {
     setPhase('loading');
     setErrorMsg('');
     try {
-      // All Subjects sends no param at all — identical to the original request.
-      const qs = subj ? `?subject=${encodeURIComponent(subj)}` : '';
-      const path = mode === 'hard' ? 'hard-cards' : 'due-cards';
-      const res = await authFetch(`/api/anking/${path}${qs}`);
+      // All Subjects sends no subject param at all — identical to the original
+      // request the endpoint has always taken.
+      const params = new URLSearchParams();
+      if (subj) params.set('subject', subj);
+      if (rating) params.set('rating', rating);
+      const qs = params.toString() ? `?${params}` : '';
+      const res = await authFetch(`/api/anking/${rating ? 'rated-cards' : 'due-cards'}${qs}`);
       const data = await res.json();
 
-      // Hard mode is one flat list. The normal queue puts due reviews first —
+      // A drill is one flat list. The normal queue puts due reviews first —
       // overdue material should be cleared before new material is introduced.
-      const batch = (mode === 'hard'
+      const batch = (rating
         ? (data.cards || [])
         : [...(data.due_reviews || []).map((d) => d.card), ...(data.new_cards || [])]
       ).slice(0, SESSION_SIZE);
@@ -228,20 +271,22 @@ export default function AnKingMode({ user, config, onBack, onComplete }) {
       setErrorMsg('Could not load cards. Check your connection and try again.');
       setPhase('error');
     }
-  }, [subject, sessionMode]);
+  }, [subject, drillRating]);
 
   /**
    * Start (or restart) a study session on a subject. null = All Subjects.
-   * `mode` picks the queue: 'due' (normal SRS) or 'hard' (the drill deck).
+   * `rating` picks the queue: null for the normal SRS run, or a rating id to
+   * drill the cards last judged that way.
    */
-  const startSession = (subj, mode = 'due') => {
+  const startSession = (subj, rating = null) => {
     setSubject(subj);
-    setSessionMode(mode);
+    setDrillRating(rating);
+    setOpenDrill(null);
     sessionSubjectRef.current = subj;
     sessionStartRef.current = Date.now();
     sessionTallyRef.current = { again: 0, hard: 0, good: 0, easy: 0 };
     sessionSentRef.current = false;
-    loadBatch(subj, mode);
+    loadBatch(subj, rating);
   };
 
   /**
@@ -318,6 +363,17 @@ export default function AnKingMode({ user, config, onBack, onComplete }) {
     document.addEventListener('mousedown', onDocClick);
     return () => document.removeEventListener('mousedown', onDocClick);
   }, [menuOpen]);
+
+  // Same, for whichever deck tile has its drill menu open. One listener covers
+  // every tile, so this does not scale with the number of subjects.
+  useEffect(() => {
+    if (!openDrill) return;
+    const onDocClick = (e) => {
+      if (!e.target.closest?.('.anking-drill')) setOpenDrill(null);
+    };
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, [openDrill]);
 
   const finish = () => {
     postSessionComplete(false);
@@ -403,8 +459,10 @@ export default function AnKingMode({ user, config, onBack, onComplete }) {
           </p>
         </div>
 
-        {/* Each deck is a tile, not a single button: the Hard drill is a second
-            action on the same deck, and a button cannot legally nest inside one. */}
+        {/* Each deck is a tile, not a single button: the drills are a second
+            action on the same deck, and a button cannot legally nest inside one.
+            Four ratings would crowd every tile with four more buttons, so they
+            collapse into one menu. */}
         <div className="anking-subject-grid">
           <div className="anking-subject-tile">
             <button
@@ -417,9 +475,8 @@ export default function AnKingMode({ user, config, onBack, onComplete }) {
                 {subjectsLoading ? 'mixed review' : `${totalCards.toLocaleString()} cards · mixed`}
               </div>
             </button>
-            <button className="anking-subject-hard" onClick={() => startSession(null, 'hard')}>
-              🔥 Study Hard Flashcards
-            </button>
+            <DrillMenu subj={null} tileKey="__all__" open={openDrill === '__all__'}
+              onToggle={setOpenDrill} onPick={startSession} />
           </div>
 
           {subjects.map((s) => (
@@ -432,9 +489,8 @@ export default function AnKingMode({ user, config, onBack, onComplete }) {
                 <div className="anking-subject-label">{s.name}</div>
                 <div className="anking-subject-count">{s.count.toLocaleString()} cards</div>
               </button>
-              <button className="anking-subject-hard" onClick={() => startSession(s.id, 'hard')}>
-                🔥 Study Hard Flashcards
-              </button>
+              <DrillMenu subj={s.id} tileKey={s.id} open={openDrill === s.id}
+                onToggle={setOpenDrill} onPick={startSession} />
             </div>
           ))}
         </div>
@@ -468,14 +524,16 @@ export default function AnKingMode({ user, config, onBack, onComplete }) {
 
   if (phase === 'empty') {
     const where = currentSubjectMeta ? currentSubjectMeta.name : 'any subject';
+    const drill = drillRating && RATINGS.find((r) => r.id === drillRating);
     return (
       <div className="anking-state">
-        <span className="anking-state-icon">{sessionMode === 'hard' ? '💪' : '🎉'}</span>
-        <h3>{sessionMode === 'hard' ? 'Nothing marked hard' : 'All caught up'}</h3>
-        {sessionMode === 'hard' ? (
+        <span className="anking-state-icon">{drill ? drill.emptyIcon : '🎉'}</span>
+        <h3>{drill ? `Nothing marked ${drill.label}` : 'All caught up'}</h3>
+        {drill ? (
           <p>
-            No hard cards in {where} right now — nice work! Cards land here when
-            you rate them Hard, and leave again as soon as you rate them better.
+            No {drill.label} cards in {where} right now{drill.emptyPraise ? ' — nice work!' : '.'}{' '}
+            Cards land here when you rate them {drill.label}, and leave as soon
+            as you rate them something else.
           </p>
         ) : (
           <p>
@@ -485,13 +543,13 @@ export default function AnKingMode({ user, config, onBack, onComplete }) {
           </p>
         )}
         <div className="anking-state-actions">
-          {sessionMode === 'hard' && (
+          {drill && (
             <button className="mv-btn-cut anking-btn-primary" onClick={() => startSession(subject)}>
               Study {currentSubjectMeta ? currentSubjectMeta.name : 'All Subjects'} normally
             </button>
           )}
           <button
-            className={`mv-btn-cut ${sessionMode === 'hard' ? 'anking-btn-ghost' : 'anking-btn-primary'}`}
+            className={`mv-btn-cut ${drill ? 'anking-btn-ghost' : 'anking-btn-primary'}`}
             onClick={changeSubject}
           >
             Change Subject
@@ -534,7 +592,7 @@ export default function AnKingMode({ user, config, onBack, onComplete }) {
         <div className="anking-state-actions">
           <button className="mv-btn-cut anking-btn-primary" onClick={() => loadBatch()}>
             {/* hard-cards has no new-card allowance to report. */}
-            {sessionMode === 'hard' ? 'Continue drilling' : `Continue (${remainingToday} new left today)`}
+            {drillRating ? 'Continue drilling' : `Continue (${remainingToday} new left today)`}
           </button>
           <button className="mv-btn-cut anking-btn-ghost" onClick={changeSubject}>Change Subject</button>
           <button className="mv-btn-cut anking-btn-ghost" onClick={finish}>Finish</button>
@@ -583,7 +641,11 @@ export default function AnKingMode({ user, config, onBack, onComplete }) {
         {/* Reflects the card in view, so a mixed session still shows what this
             particular card belongs to. */}
         <span className="anking-badge">{current.subject?.replace(/_/g, ' ') || 'mixed'}</span>
-        {sessionMode === 'hard' && <span className="anking-badge anking-badge--hard">🔥 hard drill</span>}
+        {drillRating && (
+          <span className={`anking-badge anking-badge--drill anking-rate--${drillRating}`}>
+            🎯 {RATINGS.find((r) => r.id === drillRating)?.label} drill
+          </span>
+        )}
 
         {/* Study options, following SoloGame's study-burger convention: a ☰
             button with a dropdown panel that closes on an outside click. */}

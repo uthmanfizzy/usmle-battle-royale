@@ -69,6 +69,21 @@ export function StoryMenu({ onBack, onJourney, onTower, onAnKing }) {
           </div>
         </button>
 
+        {/* Re-enabled: the mode is real now (27,319 imported cards + spaced
+            repetition), so the COMING SOON gate no longer applies. Re-enabled
+            exactly as the previous comment prescribed — disabled class and
+            ms-soon-chip dropped, onClick={onAnKing} restored. Routing unchanged.
+            Sits second, above the still-gated Tower. */}
+        <button className="ms-journey-card" onClick={onAnKing}>
+          <div className="ms-journey-art" aria-hidden="true">
+            <span className="ms-journey-art-icon">🃏</span>
+          </div>
+          <div className="ms-journey-body">
+            <span className="ms-journey-name">ANKING</span>
+            <span className="ms-journey-sub">Master AnKing flashcards</span>
+          </div>
+        </button>
+
         {/* COMING SOON — temporarily disabled. To re-enable: drop the
             ms-journey-card--disabled class + ms-soon-chip span and restore
             onClick={onTower}. TowerMode and its App.jsx routing are untouched. */}
@@ -79,20 +94,6 @@ export function StoryMenu({ onBack, onJourney, onTower, onAnKing }) {
           <div className="ms-journey-body">
             <span className="ms-journey-name">THE TOWER <span className="ms-soon-chip">COMING SOON</span></span>
             <span className="ms-journey-sub">Climb 100 floors of knowledge</span>
-          </div>
-        </button>
-
-        {/* Re-enabled: the mode is real now (27,319 imported cards + spaced
-            repetition), so the COMING SOON gate no longer applies. Re-enabled
-            exactly as the previous comment prescribed — disabled class and
-            ms-soon-chip dropped, onClick={onAnKing} restored. Routing unchanged. */}
-        <button className="ms-journey-card" onClick={onAnKing}>
-          <div className="ms-journey-art" aria-hidden="true">
-            <span className="ms-journey-art-icon">🃏</span>
-          </div>
-          <div className="ms-journey-body">
-            <span className="ms-journey-name">ANKING</span>
-            <span className="ms-journey-sub">Master AnKing flashcards</span>
           </div>
         </button>
       </div>

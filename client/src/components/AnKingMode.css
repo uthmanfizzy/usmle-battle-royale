@@ -54,8 +54,8 @@
   gap: 0.9rem;
 }
 
-/* A deck is a tile holding two actions: study it normally, or drill the cards
-   currently rated Hard. The hard button sits under the main one rather than
+/* A deck is a tile holding two actions: study it normally, or drill one of the
+   four rating piles. The drill control sits under the main button rather than
    inside it — a button cannot nest in a button. */
 .anking-subject-tile {
   display: flex;
@@ -65,24 +65,78 @@
 
 .anking-subject-tile .anking-subject-card { flex: 1; }
 
-.anking-subject-hard {
+/* The tiles deliberately do NOT create stacking contexts of their own, so the
+   menu's z-index competes at the grid level and paints over the tiles below it
+   rather than being trapped inside its own. */
+.anking-drill { position: relative; }
+
+.anking-drill-btn {
   display: block;
   width: 100%;
   padding: 0.45rem 0.6rem;
   font-size: 0.74rem;
   letter-spacing: 0.03em;
-  background: rgba(193, 122, 74, 0.12);
-  border: 1px solid rgba(193, 122, 74, 0.4);
+  background: rgba(232, 176, 75, 0.08);
+  border: 1px solid var(--mv-border-gold);
   border-radius: 8px;
-  color: var(--mv-bronze);
+  color: var(--mv-gold);
   cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
-.anking-subject-hard:hover {
-  background: rgba(193, 122, 74, 0.24);
-  border-color: var(--mv-bronze);
+.anking-drill-btn:hover,
+.anking-drill-btn.is-open {
+  background: rgba(232, 176, 75, 0.2);
+  border-color: var(--mv-gold);
   color: var(--mv-text);
 }
+
+.anking-drill-caret { font-size: 0.66rem; }
+
+.anking-drill-menu {
+  position: absolute;
+  top: calc(100% + 0.35rem);
+  left: 0;
+  right: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.55rem;
+  background: var(--mv-bg-base);
+  border: 1px solid var(--mv-border-gold);
+  border-radius: 10px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.55);
+}
+
+.anking-drill-title {
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--mv-text-dim-45);
+  margin-bottom: 0.1rem;
+}
+
+/* Borrows the .anking-rate--* colours the rating buttons already use, so a
+   pile reads as the same thing here as it does mid-session. */
+.anking-drill-opt {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  text-align: left;
+  padding: 0.4rem 0.55rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--mv-border);
+  border-radius: 7px;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.12s ease;
+}
+.anking-drill-opt:hover { background: rgba(255, 255, 255, 0.1); transform: translateX(2px); }
+
+.anking-drill-opt-icon  { font-size: 0.9rem; line-height: 1; }
+.anking-drill-opt-label { flex: 1; }
 
 .anking-subject-card {
   display: flex;
@@ -179,10 +233,11 @@
   white-space: nowrap;
 }
 
-.anking-badge--hard {
-  color: var(--mv-bronze);
-  border-color: rgba(193, 122, 74, 0.5);
-  background: rgba(193, 122, 74, 0.12);
+/* The drill badge takes its colour from the .anking-rate--* class alongside it,
+   so a Hard drill reads bronze, a Good drill green, and so on. */
+.anking-badge--drill {
+  border-color: currentColor;
+  background: rgba(255, 255, 255, 0.05);
 }
 
 /* ── Study options menu ───────────────────────────────────────────────────────
