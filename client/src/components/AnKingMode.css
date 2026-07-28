@@ -14,6 +14,86 @@
   margin: 0 auto;
 }
 
+/* ── Subject picker ───────────────────────────────────────────────────────────
+   Mirrors the Training Grounds subject grid (glass card, gold border, icon +
+   label + sub-line, lift on hover) but expressed in --mv-* tokens rather than
+   that file's hardcoded colours. */
+.anking-picker {
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.4rem;
+}
+
+.anking-picker-head { text-align: center; position: relative; }
+
+.anking-picker-head .anking-exit {
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+
+.anking-picker-title {
+  margin: 0;
+  font-family: var(--mv-font-display);
+  font-size: 1.6rem;
+  color: var(--mv-gold);
+}
+
+.anking-picker-sub {
+  margin: 0.35rem 0 0;
+  font-size: 0.88rem;
+  color: var(--mv-text-dim-65);
+}
+
+.anking-subject-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 0.9rem;
+}
+
+.anking-subject-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 1.4rem 1rem;
+  background: var(--mv-glass-strong);
+  border: 1px solid var(--mv-border-gold);
+  border-radius: 12px;
+  cursor: pointer;
+  color: var(--mv-text);
+  text-align: center;
+  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.anking-subject-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--mv-gold);
+  box-shadow: 0 8px 20px rgba(232, 176, 75, 0.22);
+}
+
+/* The default/mixed option leads the grid. */
+.anking-subject-card--all {
+  border-color: var(--mv-gold);
+  background: rgba(232, 176, 75, 0.08);
+}
+
+.anking-subject-icon { font-size: 2.2rem; line-height: 1; margin-bottom: 0.3rem; }
+
+.anking-subject-label {
+  font-family: var(--mv-font-display);
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.anking-subject-count {
+  font-size: 0.76rem;
+  color: var(--mv-text-dim-45);
+}
+
 /* ── Top bar ──────────────────────────────────────────────────────────────── */
 .anking-topbar {
   display: flex;

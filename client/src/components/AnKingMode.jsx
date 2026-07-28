@@ -82,7 +82,14 @@ const Html = ({ html, media, className, stripOptions }) => {
 };
 
 export default function AnKingMode({ user, config, onBack, onComplete }) {
-  const [phase, setPhase] = useState('loading'); // loading | studying | summary | empty | error
+  // 'picker' is the entry point: choose a subject (or All Subjects) before the
+  // first batch is fetched.
+  const [phase, setPhase] = useState('picker'); // picker | loading | studying | summary | empty | error
+  const [subjects, setSubjects] = useState([]);
+  const [subjectsLoading, setSubjectsLoading] = useState(true);
+  // null = All Subjects (mixed) — the ?subject= param is then omitted entirely,
+  // preserving the original unfiltered behaviour exactly.
+  const [subject, setSubject] = useState(config?.subject || null);
   const [cards, setCards] = useState([]);
   const [index, setIndex] = useState(0);
   const [revealed, setRevealed] = useState(false);
@@ -98,9 +105,13 @@ export default function AnKingMode({ user, config, onBack, onComplete }) {
   const sessionStartRef = useRef(Date.now());
   const sessionTallyRef = useRef({ again: 0, hard: 0, good: 0, easy: 0 });
   const sessionSentRef = useRef(false);
-  const subject = config?.subject || null;
+  // The subject a session was studied under, captured when the session starts.
+  // Read by the flush instead of `subject` state so that switching subjects
+  // mid-flight can never mislabel the row that is being written.
+  const sessionSubjectRef = useRef(subject);
 
   const current = cards[index];
+  const currentSubjectMeta = subject ? subjects.find((s) => s.id === subject) : null;
 
   // ── Session logging ─────────────────────────────────────────────────────────
   const postSessionComplete = useCallback((useKeepalive = false) => {
@@ -116,14 +127,15 @@ export default function AnKingMode({ user, config, onBack, onComplete }) {
         cards_reviewed: reviewed,
         good_or_easy_count: t.good + t.easy,
         duration_seconds: Math.round((Date.now() - sessionStartRef.current) / 1000),
-        subject,
+        // The subject this session was actually studied under (null = mixed).
+        subject: sessionSubjectRef.current,
       }),
       // keepalive lets the request survive a hard navigation. sendBeacon can't
       // set an Authorization header and this endpoint is Bearer-authenticated,
       // so we follow SoloGame's precedent and use fetch(keepalive) instead.
       ...(useKeepalive ? { keepalive: true } : {}),
     }).catch(() => {});
-  }, [subject]);
+  }, []);
 
   const postSessionRef = useRef(postSessionComplete);
   postSessionRef.current = postSessionComplete;
@@ -140,12 +152,32 @@ export default function AnKingMode({ user, config, onBack, onComplete }) {
     };
   }, []);
 
+  // ── Subjects ────────────────────────────────────────────────────────────────
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const res = await authFetch('/api/anking/subjects');
+        const data = await res.json();
+        if (alive) setSubjects(data.subjects || []);
+      } catch (e) {
+        // Non-fatal: the picker still offers All Subjects.
+        console.error('[AnKing] failed to load subjects:', e);
+      }
+      if (alive) setSubjectsLoading(false);
+    })();
+    return () => { alive = false; };
+  }, []);
+
   // ── Batch loading ───────────────────────────────────────────────────────────
-  const loadBatch = useCallback(async () => {
+  // `subj` is passed explicitly rather than read from state so a selection can
+  // load immediately, without waiting for a state flush.
+  const loadBatch = useCallback(async (subj = subject) => {
     setPhase('loading');
     setErrorMsg('');
     try {
-      const qs = subject ? `?subject=${encodeURIComponent(subject)}` : '';
+      // All Subjects sends no param at all — identical to the original request.
+      const qs = subj ? `?subject=${encodeURIComponent(subj)}` : '';
       const res = await authFetch(`/api/anking/due-cards${qs}`);
       const data = await res.json();
 
@@ -169,7 +201,28 @@ export default function AnKingMode({ user, config, onBack, onComplete }) {
     }
   }, [subject]);
 
-  useEffect(() => { loadBatch(); }, [loadBatch]);
+  /** Start (or restart) a study session on a subject. null = All Subjects. */
+  const startSession = (subj) => {
+    setSubject(subj);
+    sessionSubjectRef.current = subj;
+    sessionStartRef.current = Date.now();
+    sessionTallyRef.current = { again: 0, hard: 0, good: 0, easy: 0 };
+    sessionSentRef.current = false;
+    loadBatch(subj);
+  };
+
+  /**
+   * Return to the picker. Any work already done is flushed FIRST, so it is
+   * logged against the subject it was actually studied under — then the session
+   * counters reset, and picking a subject starts a genuinely new session.
+   */
+  const changeSubject = () => {
+    postSessionComplete(false);
+    sessionTallyRef.current = { again: 0, hard: 0, good: 0, easy: 0 };
+    sessionSentRef.current = false;
+    sessionStartRef.current = Date.now();
+    setPhase('picker');
+  };
 
   // ── Rating ──────────────────────────────────────────────────────────────────
   const rate = async (rating) => {
@@ -231,6 +284,46 @@ export default function AnKingMode({ user, config, onBack, onComplete }) {
   );
 
   // ── Render ──────────────────────────────────────────────────────────────────
+  if (phase === 'picker') {
+    const totalCards = subjects.reduce((n, s) => n + s.count, 0);
+    return (
+      <div className="anking-picker">
+        <div className="anking-picker-head">
+          <button className="anking-exit" onClick={onBack}>← Back</button>
+          <h2 className="anking-picker-title">Choose your deck</h2>
+          <p className="anking-picker-sub">
+            {subjectsLoading ? 'Loading subjects…' : `${totalCards.toLocaleString()} cards across ${subjects.length} subjects`}
+          </p>
+        </div>
+
+        <div className="anking-subject-grid">
+          <button
+            className="anking-subject-card anking-subject-card--all"
+            onClick={() => startSession(null)}
+          >
+            <div className="anking-subject-icon">🃏</div>
+            <div className="anking-subject-label">All Subjects</div>
+            <div className="anking-subject-count">
+              {subjectsLoading ? 'mixed review' : `${totalCards.toLocaleString()} cards · mixed`}
+            </div>
+          </button>
+
+          {subjects.map((s) => (
+            <button
+              key={s.id}
+              className="anking-subject-card"
+              onClick={() => startSession(s.id)}
+            >
+              <div className="anking-subject-icon">{s.icon || '📘'}</div>
+              <div className="anking-subject-label">{s.name}</div>
+              <div className="anking-subject-count">{s.count.toLocaleString()} cards</div>
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   if (phase === 'loading') {
     return (
       <div className="anking-state">
@@ -247,7 +340,8 @@ export default function AnKingMode({ user, config, onBack, onComplete }) {
         <h3>Something went wrong</h3>
         <p>{errorMsg}</p>
         <div className="anking-state-actions">
-          <button className="mv-btn-cut anking-btn-primary" onClick={loadBatch}>Try Again</button>
+          <button className="mv-btn-cut anking-btn-primary" onClick={() => loadBatch()}>Try Again</button>
+          <button className="mv-btn-cut anking-btn-ghost" onClick={changeSubject}>Change Subject</button>
           <button className="mv-btn-cut anking-btn-ghost" onClick={onBack}>← Back</button>
         </div>
       </div>
@@ -260,11 +354,12 @@ export default function AnKingMode({ user, config, onBack, onComplete }) {
         <span className="anking-state-icon">🎉</span>
         <h3>All caught up</h3>
         <p>
-          No cards are due right now
+          No cards are due{currentSubjectMeta ? ` in ${currentSubjectMeta.name}` : ''} right now
           {remainingToday === 0 ? ", and you've hit today's new-card limit." : '.'}
-          {' '}Come back later for your next review.
+          {' '}{subject ? 'Try another subject, or come back later.' : 'Come back later for your next review.'}
         </p>
         <div className="anking-state-actions">
+          <button className="mv-btn-cut anking-btn-primary" onClick={changeSubject}>Change Subject</button>
           <button className="mv-btn-cut anking-btn-ghost" onClick={onBack}>← Back to Play</button>
         </div>
       </div>
@@ -284,6 +379,9 @@ export default function AnKingMode({ user, config, onBack, onComplete }) {
         <p className="anking-summary-line">
           {batchReviewed} card{batchReviewed === 1 ? '' : 's'} reviewed · {accuracy}% recalled
         </p>
+        <p className="anking-summary-sub">
+          {currentSubjectMeta ? `${currentSubjectMeta.icon || ''} ${currentSubjectMeta.name}` : '🃏 All Subjects'}
+        </p>
         {sessionTotal !== batchReviewed && (
           <p className="anking-summary-sub">{sessionTotal} this session</p>
         )}
@@ -298,9 +396,10 @@ export default function AnKingMode({ user, config, onBack, onComplete }) {
         </div>
 
         <div className="anking-state-actions">
-          <button className="mv-btn-cut anking-btn-primary" onClick={loadBatch}>
+          <button className="mv-btn-cut anking-btn-primary" onClick={() => loadBatch()}>
             Continue ({remainingToday} new left today)
           </button>
+          <button className="mv-btn-cut anking-btn-ghost" onClick={changeSubject}>Change Subject</button>
           <button className="mv-btn-cut anking-btn-ghost" onClick={finish}>Finish</button>
         </div>
       </div>
@@ -322,6 +421,8 @@ export default function AnKingMode({ user, config, onBack, onComplete }) {
             <div className="anking-progress-fill" style={{ width: `${progress}%` }} />
           </div>
         </div>
+        {/* Reflects the card in view, so a mixed session still shows what this
+            particular card belongs to. */}
         <span className="anking-badge">{current.subject?.replace(/_/g, ' ') || 'mixed'}</span>
       </div>
 

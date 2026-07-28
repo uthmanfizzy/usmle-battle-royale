@@ -3058,6 +3058,53 @@ async function ankingResolveMedia(cards) {
 }
 
 /**
+ * GET /api/anking/subjects
+ *
+ * Subjects that actually have AnKing content, with a card count each.
+ *
+ * Deliberately NOT /api/subjects: that table holds 22 rows, six of which
+ * (anatomy, ent, genetics, haematology, ophthalmology, pathology) have zero
+ * imported cards, and its `active` flag tracks the quiz modes rather than this
+ * deck. Counts come from head+exact per subject — never by paging rows and
+ * tallying, which silently truncates at the 1000-row cap.
+ *
+ * The deck is static between imports, so the result is cached in-process.
+ */
+let ankingSubjectCache = { at: 0, payload: null };
+const ANKING_SUBJECTS_TTL_MS = 10 * 60 * 1000;
+
+app.get('/api/anking/subjects', async (req, res) => {
+  const empty = { subjects: [], total: 0 };
+  if (!supabase) return res.json(empty);
+
+  if (ankingSubjectCache.payload && Date.now() - ankingSubjectCache.at < ANKING_SUBJECTS_TTL_MS) {
+    return res.json(ankingSubjectCache.payload);
+  }
+
+  try {
+    const { data: rows, error } = await supabase.from('subjects').select('id, name, icon');
+    if (error) throw error;
+
+    const counted = await Promise.all((rows || []).map(async (s) => {
+      const { count } = await supabase
+        .from('anking_cards')
+        .select('*', { count: 'exact', head: true })
+        .eq('subject', s.id);
+      return { id: s.id, name: s.name, icon: s.icon, count: count || 0 };
+    }));
+
+    // Only subjects with real content, biggest first.
+    const subjects = counted.filter((s) => s.count > 0).sort((a, b) => b.count - a.count);
+    const payload = { subjects, total: subjects.reduce((n, s) => n + s.count, 0) };
+    ankingSubjectCache = { at: Date.now(), payload };
+    res.json(payload);
+  } catch (err) {
+    console.error('[/api/anking/subjects] failed —', err.message);
+    res.json(empty); // fail soft: the client falls back to All Subjects
+  }
+});
+
+/**
  * GET /api/anking/due-cards?subject=<id>
  *
  * Returns due_reviews and new_cards as SEPARATE arrays so the client chooses how
