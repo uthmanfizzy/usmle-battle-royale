@@ -178,6 +178,86 @@
   color: var(--mv-text-dim-45);
 }
 
+/* Signals that a deck opens a topic list rather than starting immediately. */
+.anking-subject-more {
+  margin-top: 0.35rem;
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--mv-gold-dim);
+}
+.anking-subject-card:hover .anking-subject-more { color: var(--mv-gold); }
+
+/* ── Topic list ───────────────────────────────────────────────────────────────
+   Step two of the picker. Rows rather than a grid: topic names are long and
+   vary far more in length than subject names, and the counts line up for
+   comparison. Same glass/gold card language as the subject tiles. */
+.anking-topic-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.anking-topic-row {
+  display: flex;
+  align-items: stretch;
+  gap: 0.5rem;
+}
+
+.anking-topic-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 1.1rem;
+  background: var(--mv-glass-strong);
+  border: 1px solid var(--mv-border-gold);
+  border-radius: 12px;
+  color: var(--mv-text);
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+}
+.anking-topic-btn:hover {
+  transform: translateX(3px);
+  border-color: var(--mv-gold);
+  box-shadow: 0 6px 16px rgba(232, 176, 75, 0.18);
+}
+
+/* The whole-deck option leads the list, as All Subjects does on the grid. */
+.anking-topic-row--all .anking-topic-btn {
+  border-color: var(--mv-gold);
+  background: rgba(232, 176, 75, 0.08);
+}
+
+.anking-topic-name {
+  font-family: var(--mv-font-display);
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.anking-topic-count {
+  flex: none;
+  font-size: 0.76rem;
+  color: var(--mv-text-dim-45);
+  white-space: nowrap;
+}
+
+/* Fixed width so every row's drill button lines up down the list. */
+.anking-topic-drill {
+  flex: none;
+  width: 172px;
+  display: flex;
+  align-items: center;
+}
+.anking-topic-drill .anking-drill { width: 100%; }
+
+@media (max-width: 560px) {
+  .anking-topic-row { flex-direction: column; gap: 0.35rem; }
+  .anking-topic-drill { width: 100%; }
+}
+
 /* ── Top bar ──────────────────────────────────────────────────────────────── */
 .anking-topbar {
   display: flex;
@@ -238,6 +318,14 @@
 .anking-badge--drill {
   border-color: currentColor;
   background: rgba(255, 255, 255, 0.05);
+}
+
+/* Topic reads as a sub-label of the subject badge next to it. */
+.anking-badge--topic {
+  color: var(--mv-text-dim-85);
+  border-color: var(--mv-border);
+  text-transform: none;
+  letter-spacing: 0.02em;
 }
 
 /* ── Study options menu ───────────────────────────────────────────────────────

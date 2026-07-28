@@ -2988,7 +2988,8 @@ async function ankingNewCardsSeenToday(userId, now = new Date()) {
  * `columns` lets the round-robin path scan with four cheap columns instead of
  * dragging every card's question/answer HTML across the wire.
  */
-async function ankingScanNewCards(userId, limit, subject, columns = ANKING_CARD_FIELDS, maxPages = 60) {
+async function ankingScanNewCards(userId, limit, subject, opts = {}) {
+  const { topic = null, columns = ANKING_CARD_FIELDS, maxPages = 60 } = opts;
   const out = [];
   const PAGE = 200;
   for (let page = 0; page < maxPages && out.length < limit; page++) {
@@ -3001,6 +3002,8 @@ async function ankingScanNewCards(userId, limit, subject, columns = ANKING_CARD_
       .order('id', { ascending: true })
       .range(page * PAGE, page * PAGE + PAGE - 1);
     if (subject) q = q.eq('subject', subject);
+    // Only ever combined with a subject; see the due-cards handler.
+    if (topic) q = q.eq('topic', topic);
 
     const { data, error } = await q;
     if (error) throw error;
@@ -3054,9 +3057,10 @@ async function ankingFetchNewCardsInterleaved(userId, limit) {
   if (subjects.length < 2) return ankingScanNewCards(userId, limit, null);
 
   // Cheap columns only; the chosen cards are hydrated in full below.
-  const queues = await Promise.all(subjects.map((s) =>
-    ankingScanNewCards(userId, limit, s, 'id, anki_note_id, cloze_ordinal, subject', ANKING_SUBJECT_MAX_PAGES)
-  ));
+  const queues = await Promise.all(subjects.map((s) => ankingScanNewCards(userId, limit, s, {
+    columns: 'id, anki_note_id, cloze_ordinal, subject',
+    maxPages: ANKING_SUBJECT_MAX_PAGES,
+  })));
 
   const picked = [];
   for (let round = 0; picked.length < limit; round++) {
@@ -3087,9 +3091,9 @@ async function ankingFetchNewCardsInterleaved(userId, limit) {
 }
 
 /** New cards for a batch: round-robin across subjects unless one is pinned. */
-function ankingFetchNewCards(userId, limit, subject) {
+function ankingFetchNewCards(userId, limit, subject, topic = null) {
   return subject
-    ? ankingScanNewCards(userId, limit, subject)
+    ? ankingScanNewCards(userId, limit, subject, { topic })
     : ankingFetchNewCardsInterleaved(userId, limit);
 }
 
@@ -3183,19 +3187,96 @@ app.get('/api/anking/subjects', async (req, res) => {
 });
 
 /**
- * GET /api/anking/due-cards?subject=<id>
+ * GET /api/anking/topics?subject=<id>
+ *
+ * The topics inside one subject, with a card count each, biggest first.
+ * Public like /api/anking/subjects — it is deck metadata, not user data.
+ *
+ * Two steps, because PostgREST cannot express SELECT DISTINCT. The names are
+ * discovered by paging the subject's cards (paged properly — a single request
+ * stops at 1000 rows and would silently drop topics), but the COUNTS come from
+ * head+exact per topic, never from tallying the scanned rows.
+ *
+ * Cached in-process for the same 10 minutes as subjects; the deck only changes
+ * on import.
+ */
+const ankingTopicCache = new Map();   // subject -> { at, topics }
+
+async function ankingTopicsForSubject(subject) {
+  const hit = ankingTopicCache.get(subject);
+  if (hit && Date.now() - hit.at < ANKING_SUBJECTS_TTL_MS) return hit.topics;
+
+  // (a) Discover the distinct names.
+  const names = new Set();
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await supabase
+      .from('anking_cards')
+      .select('topic')
+      .eq('subject', subject)
+      .order('id', { ascending: true })
+      .range(from, from + 999);
+    if (error) throw error;
+    for (const r of data) if (r.topic) names.add(r.topic);
+    if (data.length < 1000) break;
+  }
+
+  // (b) Authoritative count per name.
+  const counted = await Promise.all([...names].map(async (topic) => {
+    const { count, error } = await supabase
+      .from('anking_cards')
+      .select('*', { count: 'exact', head: true })
+      .eq('subject', subject)
+      .eq('topic', topic);
+    if (error) throw error;
+    return { topic, count: count || 0 };
+  }));
+
+  const topics = counted
+    .filter((t) => t.count > 0)
+    // Biggest first, name as tie-break so the order is stable between requests.
+    .sort((a, b) => b.count - a.count || a.topic.localeCompare(b.topic));
+  ankingTopicCache.set(subject, { at: Date.now(), topics });
+  return topics;
+}
+
+app.get('/api/anking/topics', async (req, res) => {
+  const empty = { topics: [], total: 0 };
+  if (!supabase) return res.json(empty);
+
+  const subject = (req.query.subject || '').toString().trim();
+  if (!subject) return res.json(empty);   // no subject, no topic list
+
+  try {
+    const topics = await ankingTopicsForSubject(subject);
+    res.json({ subject, topics, total: topics.reduce((n, t) => n + t.count, 0) });
+  } catch (err) {
+    console.error('[/api/anking/topics] failed —', err.message);
+    res.json(empty); // fail soft: the client falls back to All Topics
+  }
+});
+
+/**
+ * GET /api/anking/due-cards?subject=<id>&topic=<name>
  *
  * Returns due_reviews and new_cards as SEPARATE arrays so the client chooses how
  * to interleave. If it simply concatenates, due reviews come first — overdue
  * material should be cleared before new material is introduced.
  *
- * Fails soft: any error yields empty arrays with 200, never a 500.
+ * `topic` narrows within a subject and only means anything alongside one: topic
+ * names repeat across subjects (a dozen have a "Pathology"), so a bare topic
+ * would silently mix decks. That case is rejected rather than ignored.
+ *
+ * Fails soft otherwise: any error yields empty arrays with 200, never a 500.
  */
 app.get('/api/anking/due-cards', requireAuth, async (req, res) => {
   const empty = { due_reviews: [], new_cards: [], new_cards_remaining_today: 0 };
   if (!supabase) return res.json(empty);
 
   const subject = (req.query.subject || '').toString().trim() || null;
+  const topic = (req.query.topic || '').toString().trim() || null;
+  if (topic && !subject) {
+    return res.status(400).json({ error: 'topic requires subject — topic names are not unique across subjects.' });
+  }
   const now = new Date();
 
   try {
@@ -3207,6 +3288,7 @@ app.get('/api/anking/due-cards', requireAuth, async (req, res) => {
       .lte('due_date', ankingScheduler.toDateString(now))
       .order('due_date', { ascending: true });
     if (subject) dueQ = dueQ.eq('anking_cards.subject', subject);
+    if (topic) dueQ = dueQ.eq('anking_cards.topic', topic);
 
     const { data: dueRows, error: dueErr } = await dueQ;
     if (dueErr) throw dueErr;
@@ -3231,7 +3313,7 @@ app.get('/api/anking/due-cards', requireAuth, async (req, res) => {
     const seenToday = await ankingNewCardsSeenToday(req.userId, now);
     const remaining = Math.max(0, ankingScheduler.NEW_CARDS_PER_DAY - seenToday);
     const new_cards = remaining > 0
-      ? await ankingFetchNewCards(req.userId, remaining, subject)
+      ? await ankingFetchNewCards(req.userId, remaining, subject, topic)
       : [];
 
     // Resolve original Anki filenames to Supabase Storage URLs for this batch.
@@ -3265,7 +3347,7 @@ app.get('/api/anking/due-cards', requireAuth, async (req, res) => {
  */
 const ANKING_DRILL_BATCH = 20;  // matches the client's SESSION_SIZE
 
-async function ankingFetchRatedCardIds(userId, subject, rating, limit) {
+async function ankingFetchRatedCardIds(userId, subject, rating, limit, topic = null) {
   const settled = new Set();   // cards whose latest rating we have already seen
   const matched = [];
   const PAGE = 1000;
@@ -3282,6 +3364,9 @@ async function ankingFetchRatedCardIds(userId, subject, rating, limit) {
       .order('id', { ascending: false })
       .range(page * PAGE, page * PAGE + PAGE - 1);
     if (subject) q = q.eq('anking_cards.subject', subject);
+    // A card's topic never changes, so narrowing the log this way cannot disturb
+    // the latest-rating-wins walk — it just removes other topics' cards from it.
+    if (topic) q = q.eq('anking_cards.topic', topic);
 
     const { data, error } = await q;
     if (error) throw error;
@@ -3306,9 +3391,15 @@ async function ankingSendRatedCards(req, res, rating) {
   if (!supabase) return res.json(empty);
 
   const subject = (req.query.subject || '').toString().trim() || null;
+  const topic = (req.query.topic || '').toString().trim() || null;
+  // Same rule as due-cards: topic names repeat across subjects, so a bare topic
+  // would silently mix decks.
+  if (topic && !subject) {
+    return res.status(400).json({ error: 'topic requires subject — topic names are not unique across subjects.' });
+  }
 
   try {
-    const ids = await ankingFetchRatedCardIds(req.userId, subject, rating, ANKING_DRILL_BATCH);
+    const ids = await ankingFetchRatedCardIds(req.userId, subject, rating, ANKING_DRILL_BATCH, topic);
     if (!ids.length) return res.json(empty);
 
     // Hydrate, then restore the newest-first order `in` does not preserve.

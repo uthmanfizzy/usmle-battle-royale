@@ -147,6 +147,15 @@ export default function AnKingMode({ user, config, onBack, onComplete }) {
   const [drillRating, setDrillRating] = useState(null);
   // Which subject tile has its "Drill by rating" menu open, on the picker.
   const [openDrill, setOpenDrill] = useState(null);
+  // null = the whole subject. Otherwise a topic name from /api/anking/topics,
+  // which only ever narrows a specific subject.
+  const [topic, setTopic] = useState(null);
+  // The picker is two steps: pick a subject, then a topic within it.
+  // `topicView` holds the subject whose topic list is showing, or null for the
+  // subject grid.
+  const [topicView, setTopicView] = useState(null);
+  const [topics, setTopics] = useState([]);
+  const [topicsLoading, setTopicsLoading] = useState(false);
   const [cards, setCards] = useState([]);
   const [index, setIndex] = useState(0);
   // Two separate ideas: `revealed` latches once the answer has been seen (it is
@@ -238,7 +247,7 @@ export default function AnKingMode({ user, config, onBack, onComplete }) {
   // ── Batch loading ───────────────────────────────────────────────────────────
   // `subj` is passed explicitly rather than read from state so a selection can
   // load immediately, without waiting for a state flush.
-  const loadBatch = useCallback(async (subj = subject, rating = drillRating) => {
+  const loadBatch = useCallback(async (subj = subject, rating = drillRating, top = topic) => {
     setPhase('loading');
     setErrorMsg('');
     try {
@@ -247,6 +256,8 @@ export default function AnKingMode({ user, config, onBack, onComplete }) {
       const params = new URLSearchParams();
       if (subj) params.set('subject', subj);
       if (rating) params.set('rating', rating);
+      // The server rejects a topic without a subject, so never send one.
+      if (top && subj) params.set('topic', top);
       const qs = params.toString() ? `?${params}` : '';
       const res = await authFetch(`/api/anking/${rating ? 'rated-cards' : 'due-cards'}${qs}`);
       const data = await res.json();
@@ -271,22 +282,23 @@ export default function AnKingMode({ user, config, onBack, onComplete }) {
       setErrorMsg('Could not load cards. Check your connection and try again.');
       setPhase('error');
     }
-  }, [subject, drillRating]);
+  }, [subject, drillRating, topic]);
 
   /**
    * Start (or restart) a study session on a subject. null = All Subjects.
    * `rating` picks the queue: null for the normal SRS run, or a rating id to
    * drill the cards last judged that way.
    */
-  const startSession = (subj, rating = null) => {
+  const startSession = (subj, rating = null, top = null) => {
     setSubject(subj);
     setDrillRating(rating);
+    setTopic(top);
     setOpenDrill(null);
     sessionSubjectRef.current = subj;
     sessionStartRef.current = Date.now();
     sessionTallyRef.current = { again: 0, hard: 0, good: 0, easy: 0 };
     sessionSentRef.current = false;
-    loadBatch(subj, rating);
+    loadBatch(subj, rating, top);
   };
 
   /**
@@ -299,8 +311,32 @@ export default function AnKingMode({ user, config, onBack, onComplete }) {
     sessionTallyRef.current = { again: 0, hard: 0, good: 0, easy: 0 };
     sessionSentRef.current = false;
     sessionStartRef.current = Date.now();
+    // Land back on the topic list of the subject just studied, not the whole
+    // grid — that is where the session was chosen from.
+    setTopicView(subject || null);
     setPhase('picker');
   };
+
+  // ── Topics ──────────────────────────────────────────────────────────────────
+  // Loaded per subject when its topic list opens. Fails soft: an error just
+  // leaves "All Topics", which is exactly the pre-topic behaviour.
+  useEffect(() => {
+    if (!topicView) { setTopics([]); return; }
+    let alive = true;
+    setTopicsLoading(true);
+    (async () => {
+      try {
+        const res = await authFetch(`/api/anking/topics?subject=${encodeURIComponent(topicView)}`);
+        const data = await res.json();
+        if (alive) setTopics(data.topics || []);
+      } catch (e) {
+        console.error('[AnKing] failed to load topics:', e);
+        if (alive) setTopics([]);
+      }
+      if (alive) setTopicsLoading(false);
+    })();
+    return () => { alive = false; };
+  }, [topicView]);
 
   // ── Rating ──────────────────────────────────────────────────────────────────
   const rate = async (rating) => {
@@ -447,6 +483,69 @@ export default function AnKingMode({ user, config, onBack, onComplete }) {
   }, [flipReady, faceH.front]);
 
   // ── Render ──────────────────────────────────────────────────────────────────
+  if (phase === 'picker' && topicView) {
+    const meta = subjects.find((s) => s.id === topicView);
+    const shown = topics.reduce((n, t) => n + t.count, 0);
+    return (
+      <div className="anking-picker">
+        <div className="anking-picker-head">
+          <button className="anking-exit" onClick={() => setTopicView(null)}>← All decks</button>
+          <h2 className="anking-picker-title">
+            {meta?.icon ? `${meta.icon} ` : ''}{meta?.name || topicView.replace(/_/g, ' ')}
+          </h2>
+          <p className="anking-picker-sub">
+            {topicsLoading
+              ? 'Loading topics…'
+              : topics.length
+                ? `${shown.toLocaleString()} cards across ${topics.length} topics`
+                : 'No topic breakdown available — study the whole deck.'}
+          </p>
+        </div>
+
+        <div className="anking-topic-list">
+          {/* Unchanged behaviour: the whole subject, exactly as before topics. */}
+          <div className="anking-topic-row anking-topic-row--all">
+            <button className="anking-topic-btn" onClick={() => startSession(topicView)}>
+              <span className="anking-topic-name">All Topics</span>
+              <span className="anking-topic-count">
+                {meta ? `${meta.count.toLocaleString()} cards · whole deck` : 'whole deck'}
+              </span>
+            </button>
+            <div className="anking-topic-drill">
+              <DrillMenu
+                subj={topicView}
+                tileKey={`${topicView}::__all__`}
+                open={openDrill === `${topicView}::__all__`}
+                onToggle={setOpenDrill}
+                onPick={(s, r) => startSession(s, r)}
+              />
+            </div>
+          </div>
+
+          {topics.map((t) => (
+            <div className="anking-topic-row" key={t.topic}>
+              <button className="anking-topic-btn" onClick={() => startSession(topicView, null, t.topic)}>
+                <span className="anking-topic-name">{t.topic}</span>
+                <span className="anking-topic-count">{t.count.toLocaleString()} cards</span>
+              </button>
+              {/* The rating drills take a topic as cleanly as they take a
+                  subject, so they are offered per topic as well. */}
+              <div className="anking-topic-drill">
+                <DrillMenu
+                  subj={topicView}
+                  tileKey={`${topicView}::${t.topic}`}
+                  open={openDrill === `${topicView}::${t.topic}`}
+                  onToggle={setOpenDrill}
+                  onPick={(s, r) => startSession(s, r, t.topic)}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   if (phase === 'picker') {
     const totalCards = subjects.reduce((n, s) => n + s.count, 0);
     return (
@@ -481,13 +580,16 @@ export default function AnKingMode({ user, config, onBack, onComplete }) {
 
           {subjects.map((s) => (
             <div className="anking-subject-tile" key={s.id}>
+              {/* Opens the subject's topic list rather than starting straight
+                  away; "All Topics" in there is the old one-click behaviour. */}
               <button
                 className="anking-subject-card"
-                onClick={() => startSession(s.id)}
+                onClick={() => setTopicView(s.id)}
               >
                 <div className="anking-subject-icon">{s.icon || '📘'}</div>
                 <div className="anking-subject-label">{s.name}</div>
                 <div className="anking-subject-count">{s.count.toLocaleString()} cards</div>
+                <div className="anking-subject-more">Choose a topic →</div>
               </button>
               <DrillMenu subj={s.id} tileKey={s.id} open={openDrill === s.id}
                 onToggle={setOpenDrill} onPick={startSession} />
@@ -523,7 +625,8 @@ export default function AnKingMode({ user, config, onBack, onComplete }) {
   }
 
   if (phase === 'empty') {
-    const where = currentSubjectMeta ? currentSubjectMeta.name : 'any subject';
+    const subjectName = currentSubjectMeta ? currentSubjectMeta.name : 'any subject';
+    const where = topic ? `${subjectName} · ${topic}` : subjectName;
     const drill = drillRating && RATINGS.find((r) => r.id === drillRating);
     return (
       <div className="anking-state">
@@ -537,22 +640,30 @@ export default function AnKingMode({ user, config, onBack, onComplete }) {
           </p>
         ) : (
           <p>
-            No cards are due{currentSubjectMeta ? ` in ${currentSubjectMeta.name}` : ''} right now
+            No cards are due{currentSubjectMeta ? ` in ${where}` : ''} right now
             {remainingToday === 0 ? ", and you've hit today's new-card limit." : '.'}
-            {' '}{subject ? 'Try another subject, or come back later.' : 'Come back later for your next review.'}
+            {' '}{topic
+              ? 'Try another topic, or come back later.'
+              : subject ? 'Try another subject, or come back later.' : 'Come back later for your next review.'}
           </p>
         )}
         <div className="anking-state-actions">
           {drill && (
+            <button className="mv-btn-cut anking-btn-primary" onClick={() => startSession(subject, null, topic)}>
+              Study {topic || currentSubjectMeta?.name || 'All Subjects'} normally
+            </button>
+          )}
+          {/* A topic ran dry but the rest of the subject may not have. */}
+          {!drill && topic && (
             <button className="mv-btn-cut anking-btn-primary" onClick={() => startSession(subject)}>
-              Study {currentSubjectMeta ? currentSubjectMeta.name : 'All Subjects'} normally
+              Study all of {currentSubjectMeta?.name || 'this deck'}
             </button>
           )}
           <button
-            className={`mv-btn-cut ${drill ? 'anking-btn-ghost' : 'anking-btn-primary'}`}
+            className={`mv-btn-cut ${drill || topic ? 'anking-btn-ghost' : 'anking-btn-primary'}`}
             onClick={changeSubject}
           >
-            Change Subject
+            {topic ? 'Change Topic' : 'Change Subject'}
           </button>
           <button className="mv-btn-cut anking-btn-ghost" onClick={onBack}>← Back to Play</button>
         </div>
@@ -641,6 +752,7 @@ export default function AnKingMode({ user, config, onBack, onComplete }) {
         {/* Reflects the card in view, so a mixed session still shows what this
             particular card belongs to. */}
         <span className="anking-badge">{current.subject?.replace(/_/g, ' ') || 'mixed'}</span>
+        {topic && <span className="anking-badge anking-badge--topic">{topic}</span>}
         {drillRating && (
           <span className={`anking-badge anking-badge--drill anking-rate--${drillRating}`}>
             🎯 {RATINGS.find((r) => r.id === drillRating)?.label} drill
