@@ -3245,6 +3245,91 @@ app.get('/api/anking/due-cards', requireAuth, async (req, res) => {
 });
 
 /**
+ * GET /api/anking/hard-cards?subject=<id>
+ *
+ * A drill deck of what the user currently finds hard: cards whose MOST RECENT
+ * rating was 'hard'. A card rated hard last week and good yesterday is not hard
+ * any more and does not appear; only the latest rating counts.
+ *
+ * Deliberately ignores due_date and the new-card allowance — this is a practice
+ * run the user explicitly asked for, not the daily SRS queue. Ratings made here
+ * still flow through /api/anking/review, so drilling a card reschedules it
+ * normally.
+ *
+ * PostgREST cannot express DISTINCT ON, so the log is walked newest-first and
+ * the first row seen for a card is by definition its latest. That also lets the
+ * scan stop as soon as the batch is full.
+ *
+ * Fails soft: any error yields an empty array with 200, never a 500.
+ */
+const ANKING_HARD_BATCH = 20;  // matches the client's SESSION_SIZE
+
+async function ankingFetchHardCardIds(userId, subject, limit) {
+  const settled = new Set();   // cards whose latest rating we have already seen
+  const hard = [];
+  const PAGE = 1000;
+  const MAX_PAGES = 40;        // 40k log rows deep — far past any real history
+
+  for (let page = 0; page < MAX_PAGES && hard.length < limit; page++) {
+    let q = supabase
+      .from('anking_review_log')
+      .select(`card_id, rating, reviewed_at${subject ? ', anking_cards!inner(subject)' : ''}`)
+      .eq('user_id', userId)
+      .order('reviewed_at', { ascending: false })
+      // Unique tie-break: two rows sharing a timestamp would otherwise be free
+      // to swap places between pages and be counted twice or skipped.
+      .order('id', { ascending: false })
+      .range(page * PAGE, page * PAGE + PAGE - 1);
+    if (subject) q = q.eq('anking_cards.subject', subject);
+
+    const { data, error } = await q;
+    if (error) throw error;
+    if (!data.length) break;
+
+    for (const row of data) {
+      if (settled.has(row.card_id)) continue;   // an older rating for a card already settled
+      settled.add(row.card_id);
+      if (row.rating === 'hard') {
+        hard.push(row.card_id);
+        if (hard.length >= limit) break;
+      }
+    }
+    if (data.length < PAGE) break;
+  }
+  return hard;
+}
+
+app.get('/api/anking/hard-cards', requireAuth, async (req, res) => {
+  const empty = { cards: [] };
+  if (!supabase) return res.json(empty);
+
+  const subject = (req.query.subject || '').toString().trim() || null;
+
+  try {
+    const ids = await ankingFetchHardCardIds(req.userId, subject, ANKING_HARD_BATCH);
+    if (!ids.length) return res.json(empty);
+
+    // Hydrate, then restore the newest-hard-first order `in` does not preserve.
+    const byId = new Map();
+    for (let i = 0; i < ids.length; i += 100) {
+      const { data, error } = await supabase
+        .from('anking_cards')
+        .select(ANKING_CARD_FIELDS)
+        .in('id', ids.slice(i, i + 100));
+      if (error) throw error;
+      for (const c of data) byId.set(c.id, c);
+    }
+    const cards = ids.map((id) => byId.get(id)).filter(Boolean);
+
+    await ankingResolveMedia(cards);
+    res.json({ cards });
+  } catch (err) {
+    console.error('[/api/anking/hard-cards] failed —', err.message);
+    res.json(empty);
+  }
+});
+
+/**
  * POST /api/anking/review   body: { card_id, rating }
  * Applies one rating: upserts anking_review_state and logs to anking_review_log.
  */
