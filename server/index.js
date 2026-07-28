@@ -2984,15 +2984,17 @@ async function ankingNewCardsSeenToday(userId, now = new Date()) {
  * unbounded. Instead: walk anking_cards in a deterministic order, and for each
  * page ask which of those ids already have a state row. Since limit <= 20, this
  * settles in a page or two for a new user and degrades gracefully for a veteran.
+ *
+ * `columns` lets the round-robin path scan with four cheap columns instead of
+ * dragging every card's question/answer HTML across the wire.
  */
-async function ankingFetchNewCards(userId, limit, subject) {
+async function ankingScanNewCards(userId, limit, subject, columns = ANKING_CARD_FIELDS, maxPages = 60) {
   const out = [];
   const PAGE = 200;
-  const MAX_PAGES = 60; // guard: stop rather than scan the whole 27k corpus
-  for (let page = 0; page < MAX_PAGES && out.length < limit; page++) {
+  for (let page = 0; page < maxPages && out.length < limit; page++) {
     let q = supabase
       .from('anking_cards')
-      .select(ANKING_CARD_FIELDS)
+      .select(columns)
       // Deterministic so the sequence is stable across requests.
       .order('anki_note_id', { ascending: true })
       .order('cloze_ordinal', { ascending: true })
@@ -3020,6 +3022,75 @@ async function ankingFetchNewCards(userId, limit, subject) {
     if (data.length < PAGE) break; // ran out of cards
   }
   return out;
+}
+
+// Enough to walk any single subject end to end: the largest (microbiology,
+// ~4.7k cards) is 24 pages of 200, so a subject can never be truncated early.
+const ANKING_SUBJECT_MAX_PAGES = 25;
+
+/**
+ * New cards for the "All Subjects" case, interleaved round-robin across subjects.
+ *
+ * A straight anki_note_id walk is useless here: note ids were assigned deck by
+ * deck, so the lowest ~23 in the corpus are all cardiology and a 20-card batch
+ * never leaves the first deck. So build one unreviewed queue per subject (still
+ * note-id ordered, so each subject's own sequence stays stable) and deal one
+ * card from each in rotation.
+ *
+ * Deterministic per user with no stored cursor: a subject's queue head is simply
+ * its lowest-note-id card that has no anking_review_state row, so the rotation
+ * advances only as the user actually reviews, and repeating the request before
+ * reviewing anything returns the same batch.
+ */
+async function ankingFetchNewCardsInterleaved(userId, limit) {
+  let subjects = [];
+  try {
+    subjects = (await ankingSubjectsWithCards()).map((s) => s.id);
+  } catch (err) {
+    console.error('[anking new cards] subject list failed, falling back —', err.message);
+  }
+  // No usable subject list — fall back to the plain note-id walk rather than
+  // returning nothing.
+  if (subjects.length < 2) return ankingScanNewCards(userId, limit, null);
+
+  // Cheap columns only; the chosen cards are hydrated in full below.
+  const queues = await Promise.all(subjects.map((s) =>
+    ankingScanNewCards(userId, limit, s, 'id, anki_note_id, cloze_ordinal, subject', ANKING_SUBJECT_MAX_PAGES)
+  ));
+
+  const picked = [];
+  for (let round = 0; picked.length < limit; round++) {
+    let dealt = false;
+    for (const queue of queues) {
+      if (round >= queue.length) continue;
+      picked.push(queue[round]);
+      dealt = true;
+      if (picked.length >= limit) break;
+    }
+    if (!dealt) break; // every queue exhausted
+  }
+  if (!picked.length) return [];
+
+  // Hydrate the ~20 winners, then restore the round-robin order (`in` does not
+  // preserve the order of the id list).
+  const byId = new Map();
+  const ids = picked.map((c) => c.id);
+  for (let i = 0; i < ids.length; i += 100) {
+    const { data, error } = await supabase
+      .from('anking_cards')
+      .select(ANKING_CARD_FIELDS)
+      .in('id', ids.slice(i, i + 100));
+    if (error) throw error;
+    for (const c of data) byId.set(c.id, c);
+  }
+  return picked.map((c) => byId.get(c.id)).filter(Boolean);
+}
+
+/** New cards for a batch: round-robin across subjects unless one is pinned. */
+function ankingFetchNewCards(userId, limit, subject) {
+  return subject
+    ? ankingScanNewCards(userId, limit, subject)
+    : ankingFetchNewCardsInterleaved(userId, limit);
 }
 
 /**
@@ -3070,34 +3141,41 @@ async function ankingResolveMedia(cards) {
  *
  * The deck is static between imports, so the result is cached in-process.
  */
-let ankingSubjectCache = { at: 0, payload: null };
+let ankingSubjectCache = { at: 0, subjects: null };
 const ANKING_SUBJECTS_TTL_MS = 10 * 60 * 1000;
+
+/** Subjects that hold at least one AnKing card, biggest first. Cached; throws on failure. */
+async function ankingSubjectsWithCards() {
+  if (ankingSubjectCache.subjects && Date.now() - ankingSubjectCache.at < ANKING_SUBJECTS_TTL_MS) {
+    return ankingSubjectCache.subjects;
+  }
+
+  const { data: rows, error } = await supabase.from('subjects').select('id, name, icon');
+  if (error) throw error;
+
+  const counted = await Promise.all((rows || []).map(async (s) => {
+    const { count } = await supabase
+      .from('anking_cards')
+      .select('*', { count: 'exact', head: true })
+      .eq('subject', s.id);
+    return { id: s.id, name: s.name, icon: s.icon, count: count || 0 };
+  }));
+
+  const subjects = counted
+    .filter((s) => s.count > 0)
+    // Biggest first, id as tie-break so the round-robin rotation is stable.
+    .sort((a, b) => b.count - a.count || a.id.localeCompare(b.id));
+  ankingSubjectCache = { at: Date.now(), subjects };
+  return subjects;
+}
 
 app.get('/api/anking/subjects', async (req, res) => {
   const empty = { subjects: [], total: 0 };
   if (!supabase) return res.json(empty);
 
-  if (ankingSubjectCache.payload && Date.now() - ankingSubjectCache.at < ANKING_SUBJECTS_TTL_MS) {
-    return res.json(ankingSubjectCache.payload);
-  }
-
   try {
-    const { data: rows, error } = await supabase.from('subjects').select('id, name, icon');
-    if (error) throw error;
-
-    const counted = await Promise.all((rows || []).map(async (s) => {
-      const { count } = await supabase
-        .from('anking_cards')
-        .select('*', { count: 'exact', head: true })
-        .eq('subject', s.id);
-      return { id: s.id, name: s.name, icon: s.icon, count: count || 0 };
-    }));
-
-    // Only subjects with real content, biggest first.
-    const subjects = counted.filter((s) => s.count > 0).sort((a, b) => b.count - a.count);
-    const payload = { subjects, total: subjects.reduce((n, s) => n + s.count, 0) };
-    ankingSubjectCache = { at: Date.now(), payload };
-    res.json(payload);
+    const subjects = await ankingSubjectsWithCards();
+    res.json({ subjects, total: subjects.reduce((n, s) => n + s.count, 0) });
   } catch (err) {
     console.error('[/api/anking/subjects] failed —', err.message);
     res.json(empty); // fail soft: the client falls back to All Subjects
