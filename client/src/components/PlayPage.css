@@ -15,6 +15,16 @@
   padding: clamp(14px, 3vw, 24px) clamp(16px, 5vw, 36px) 60px;
 }
 
+/* App.css pins this wrapper to the viewport with `overflow: hidden !important`
+   on desktop (its ≤768px block already restores scrolling), which clips any
+   content taller than the screen. AnKing cards routinely are — several images
+   in the Extra field is normal — so that mode adds this class. Two class names
+   deep so it outranks the !important rule regardless of stylesheet order. */
+.play-page-wrapper.play-page-wrapper--scroll {
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+}
+
 /* ── Top bar (mockup "Deploy" chrome) in the 58px strip above .play-page ── */
 .play-topbar {
   position: fixed;

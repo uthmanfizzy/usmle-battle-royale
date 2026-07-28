@@ -200,9 +200,14 @@ export default function PlayPage({
     });
   }
 
+  // AnKing cards run far past the viewport — several images in the Extra field
+  // is normal — and this wrapper is a fixed, clipped box. Opt that one mode into
+  // scrolling; see .play-page-wrapper--scroll in PlayPage.css.
+  const wrapperClass = `play-page-wrapper${selectedMode === 'anking' ? ' play-page-wrapper--scroll' : ''}`;
+
   return (
     <div
-      className="play-page-wrapper"
+      className={wrapperClass}
       style={{
         backgroundImage: playBgImage ? `url(${playBgImage})` : 'none',
         backgroundSize: 'cover',

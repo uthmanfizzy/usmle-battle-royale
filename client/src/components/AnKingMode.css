@@ -203,6 +203,71 @@
   padding: 0 0.3rem;
 }
 
+/* ── Flip card ─────────────────────────────────────────────────────────────
+   Cloze and basic cards rotate to reveal. The two faces are absolutely stacked
+   so backface-visibility can hide whichever is turned away, which leaves the
+   container with no natural height — AnKingMode.jsx measures the showing face
+   and sets it. Only transform and height animate; nothing here repaints. */
+.anking-flip {
+  position: relative;
+  /* Deliberately distant. A revealed card with several Extra images runs to
+     ~2000px, and a close perspective makes a box that tall swing right across
+     the progress bar on its way round. This keeps the depth cue but holds the
+     rotation inside its own lane. */
+  perspective: 5200px;
+}
+
+.anking-flip-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
+/* Transitions are enabled only after the first measured paint (see the
+   is-animated class), so a freshly mounted card snaps to size. */
+.anking-flip.is-animated { transition: height 0.45s cubic-bezier(0.22, 0.7, 0.3, 1); }
+.anking-flip.is-animated .anking-flip-inner {
+  transition: transform 0.45s cubic-bezier(0.22, 0.7, 0.3, 1);
+}
+
+.anking-flip.is-flipped .anking-flip-inner { transform: rotateY(180deg); }
+
+.anking-face {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  box-sizing: border-box;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.anking-face--front { cursor: pointer; }
+.anking-face--back  { transform: rotateY(180deg); }
+
+@media (prefers-reduced-motion: reduce) {
+  .anking-flip.is-animated,
+  .anking-flip.is-animated .anking-flip-inner { transition: none; }
+}
+
+.anking-flip-hint {
+  display: block;
+  margin-top: 1.2rem;
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--mv-text-dim-45);
+}
+
+/* Basic cards echo the question above the answer; it is context, not the point
+   of the side, so it sits back a step. */
+.anking-question--echo {
+  font-size: 0.95rem;
+  color: var(--mv-text-dim-65);
+}
+
 .anking-reveal { animation: anking-fade 0.18s ease; }
 
 @keyframes anking-fade {

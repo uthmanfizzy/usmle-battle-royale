@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from 'react';
 import { authFetch } from '../auth';
 import './AnKingMode.css';
 
@@ -283,6 +283,41 @@ export default function AnKingMode({ user, config, onBack, onComplete }) {
     [batchTally]
   );
 
+  // ── Card flip ───────────────────────────────────────────────────────────────
+  // backface-visibility needs the two faces stacked, so both are absolutely
+  // positioned and the flip container has no natural height — it takes the
+  // height of whichever face is showing. A ResizeObserver keeps that correct
+  // when the imported <img>s finish loading and a face grows, which is the norm
+  // on this deck rather than the exception.
+  const frontRef = useRef(null);
+  const backRef = useRef(null);
+  const [faceH, setFaceH] = useState({ front: 0, back: 0 });
+  const [flipReady, setFlipReady] = useState(false);
+
+  useLayoutEffect(() => {
+    setFlipReady(false);
+    const measure = () => {
+      const front = frontRef.current?.offsetHeight || 0;
+      const back = backRef.current?.offsetHeight || 0;
+      // Bail on no-op updates so the observer can't feed itself.
+      setFaceH((h) => (h.front === front && h.back === back ? h : { front, back }));
+    };
+    measure();
+    if (typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(measure);
+    if (frontRef.current) ro.observe(frontRef.current);
+    if (backRef.current) ro.observe(backRef.current);
+    return () => ro.disconnect();
+  }, [current?.id, phase]);
+
+  // Transitions stay off until the first measured paint, so a new card snaps to
+  // its size instead of animating up from zero.
+  useEffect(() => {
+    if (flipReady || !faceH.front) return;
+    const id = requestAnimationFrame(() => setFlipReady(true));
+    return () => cancelAnimationFrame(id);
+  }, [flipReady, faceH.front]);
+
   // ── Render ──────────────────────────────────────────────────────────────────
   if (phase === 'picker') {
     const totalCards = subjects.reduce((n, s) => n + s.count, 0);
@@ -411,10 +446,30 @@ export default function AnKingMode({ user, config, onBack, onComplete }) {
   const options = Array.isArray(current.mcq_options) ? current.mcq_options : [];
   const progress = (index / cards.length) * 100;
 
+  // MCQ keeps its in-place reveal. Its answer text refers back to the lettered
+  // options ("Answer is: B"), and the graded correct/wrong states live on those
+  // option rows — rotating them out of view would destroy the feedback the
+  // click-to-select flow exists to give. Cloze and basic flip.
+  const canFlip = !isMcq;
+  // Cloze answer_html is the whole sentence with the blank filled in, so it
+  // stands alone. Basic answer_html is only the answer, so the back echoes the
+  // question above it the way Anki's own {{FrontSide}} back template does.
+  const echoQuestion = current.card_type === 'basic';
+  const flipH = revealed ? faceH.back : faceH.front;
+
+  // Clicking the question flips it. Links, audio players and buttons inside the
+  // imported HTML keep their own behaviour.
+  const onFaceClick = (e) => {
+    if (e.target.closest?.('a, audio, button, input')) return;
+    setRevealed(true);
+  };
+
   return (
     <div className="anking-mode">
       <div className="anking-topbar">
-        <button className="anking-exit" onClick={finish}>← Exit</button>
+        {/* Exit returns to the deck picker, flushing whatever was studied first.
+            Leaving AnKing altogether is the picker's own "← Back". */}
+        <button className="anking-exit" onClick={changeSubject}>← Exit to Decks</button>
         <div className="anking-progress">
           <span className="anking-progress-text">Card {index + 1} of {cards.length}</span>
           <div className="anking-progress-track">
@@ -426,15 +481,51 @@ export default function AnKingMode({ user, config, onBack, onComplete }) {
         <span className="anking-badge">{current.subject?.replace(/_/g, ' ') || 'mixed'}</span>
       </div>
 
-      <div className="anking-card">
-        {/* Content was sanitised at import time by the cheerio pass in
-            tools/anking-import (tag + attribute allow-list, all script/style
-            subtrees dropped, every on* and style attribute stripped), so it is
-            safe to inject. Escaping it here would show literal markup and break
-            every image, cloze blank and formatting span. */}
-        <Html className="anking-question" html={current.question_html} media={current.media} stripOptions={isMcq} />
+      {/* Content was sanitised at import time by the cheerio pass in
+          tools/anking-import (tag + attribute allow-list, all script/style
+          subtrees dropped, every on* and style attribute stripped), so it is
+          safe to inject. Escaping it here would show literal markup and break
+          every image, cloze blank and formatting span. */}
+      {canFlip ? (
+        // Keyed on the card so a new one mounts fresh: the height is applied on
+        // that first render, which never animates.
+        <div
+          key={current.id}
+          className={`anking-flip${flipReady ? ' is-animated' : ''}${revealed ? ' is-flipped' : ''}`}
+          style={flipH ? { height: `${flipH}px` } : undefined}
+        >
+          <div className="anking-flip-inner">
+            <div
+              className="anking-card anking-face anking-face--front"
+              ref={frontRef}
+              aria-hidden={revealed}
+              onClick={onFaceClick}
+            >
+              <Html className="anking-question" html={current.question_html} media={current.media} />
+              <span className="anking-flip-hint" aria-hidden="true">Click the card to flip</span>
+            </div>
 
-        {isMcq && (
+            <div className="anking-card anking-face anking-face--back" ref={backRef} aria-hidden={!revealed}>
+              {echoQuestion && (
+                <>
+                  <Html className="anking-question anking-question--echo" html={current.question_html} media={current.media} />
+                  <div className="anking-divider"><span>Answer</span></div>
+                </>
+              )}
+              <Html className="anking-answer" html={current.answer_html} media={current.media} />
+              {current.extra_html && (
+                <>
+                  <div className="anking-divider"><span>Extra</span></div>
+                  <Html className="anking-extra" html={current.extra_html} media={current.media} />
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="anking-card">
+          <Html className="anking-question" html={current.question_html} media={current.media} stripOptions />
+
           <div className="anking-options">
             {options.map((opt) => {
               const isCorrect = opt.letter === current.mcq_correct_letter;
@@ -455,25 +546,15 @@ export default function AnKingMode({ user, config, onBack, onComplete }) {
               );
             })}
           </div>
-        )}
 
-        {revealed && (
-          <div className="anking-reveal">
-            {!isMcq && (
-              <>
-                <div className="anking-divider"><span>Answer</span></div>
-                <Html className="anking-answer" html={current.answer_html} media={current.media} />
-              </>
-            )}
-            {current.extra_html && (
-              <>
-                <div className="anking-divider"><span>Extra</span></div>
-                <Html className="anking-extra" html={current.extra_html} media={current.media} />
-              </>
-            )}
-          </div>
-        )}
-      </div>
+          {revealed && current.extra_html && (
+            <div className="anking-reveal">
+              <div className="anking-divider"><span>Extra</span></div>
+              <Html className="anking-extra" html={current.extra_html} media={current.media} />
+            </div>
+          )}
+        </div>
+      )}
 
       {!revealed ? (
         <div className="anking-actions">
