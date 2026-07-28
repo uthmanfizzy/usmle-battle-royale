@@ -2929,9 +2929,11 @@ app.get('/api/admin/anking/stats', adminAuth, async (req, res) => {
 // Scheduling maths lives in ./ankingScheduler.js as a pure function so it can be
 // unit-tested without a database. These endpoints only do I/O around it.
 
+// `topic` rides along with `subject`: a batch now interleaves topics, so a card
+// has to be able to say which one it came from.
 const ANKING_CARD_FIELDS =
   'id, anki_note_id, card_type, cloze_ordinal, question_html, answer_html, extra_html, ' +
-  'mcq_options, mcq_correct_letter, subject, difficulty, media_keys';
+  'mcq_options, mcq_correct_letter, subject, topic, difficulty, media_keys';
 
 /**
  * How many cards the user saw for the FIRST time today.
@@ -3031,36 +3033,18 @@ async function ankingScanNewCards(userId, limit, subject, opts = {}) {
 // ~4.7k cards) is 24 pages of 200, so a subject can never be truncated early.
 const ANKING_SUBJECT_MAX_PAGES = 25;
 
-/**
- * New cards for the "All Subjects" case, interleaved round-robin across subjects.
- *
- * A straight anki_note_id walk is useless here: note ids were assigned deck by
- * deck, so the lowest ~23 in the corpus are all cardiology and a 20-card batch
- * never leaves the first deck. So build one unreviewed queue per subject (still
- * note-id ordered, so each subject's own sequence stays stable) and deal one
- * card from each in rotation.
- *
- * Deterministic per user with no stored cursor: a subject's queue head is simply
- * its lowest-note-id card that has no anking_review_state row, so the rotation
- * advances only as the user actually reviews, and repeating the request before
- * reviewing anything returns the same batch.
- */
-async function ankingFetchNewCardsInterleaved(userId, limit) {
-  let subjects = [];
-  try {
-    subjects = (await ankingSubjectsWithCards()).map((s) => s.id);
-  } catch (err) {
-    console.error('[anking new cards] subject list failed, falling back —', err.message);
-  }
-  // No usable subject list — fall back to the plain note-id walk rather than
-  // returning nothing.
-  if (subjects.length < 2) return ankingScanNewCards(userId, limit, null);
+/** The cheap columns the interleave scans with; winners are hydrated after. */
+const ANKING_QUEUE_FIELDS = 'id, anki_note_id, cloze_ordinal, subject, topic';
 
-  // Cheap columns only; the chosen cards are hydrated in full below.
-  const queues = await Promise.all(subjects.map((s) => ankingScanNewCards(userId, limit, s, {
-    columns: 'id, anki_note_id, cloze_ordinal, subject',
-    maxPages: ANKING_SUBJECT_MAX_PAGES,
-  })));
+/**
+ * Deal one card from each queue in rotation until the batch is full, then
+ * hydrate the winners.
+ *
+ * `scanFor(bucket)` returns that bucket's unreviewed cards, note-id ordered.
+ * Nothing here knows what a bucket is — subjects and topics both use it.
+ */
+async function ankingDealRoundRobin(limit, buckets, scanFor) {
+  const queues = await Promise.all(buckets.map(scanFor));
 
   const picked = [];
   for (let round = 0; picked.length < limit; round++) {
@@ -3090,11 +3074,74 @@ async function ankingFetchNewCardsInterleaved(userId, limit) {
   return picked.map((c) => byId.get(c.id)).filter(Boolean);
 }
 
-/** New cards for a batch: round-robin across subjects unless one is pinned. */
+/**
+ * New cards for the "All Subjects" case, interleaved round-robin across subjects.
+ *
+ * A straight anki_note_id walk is useless here: note ids were assigned deck by
+ * deck, so the lowest ~23 in the corpus are all cardiology and a 20-card batch
+ * never leaves the first deck. So build one unreviewed queue per subject (still
+ * note-id ordered, so each subject's own sequence stays stable) and deal one
+ * card from each in rotation.
+ *
+ * Deterministic per user with no stored cursor: a subject's queue head is simply
+ * its lowest-note-id card that has no anking_review_state row, so the rotation
+ * advances only as the user actually reviews, and repeating the request before
+ * reviewing anything returns the same batch.
+ */
+async function ankingFetchNewCardsInterleaved(userId, limit) {
+  let subjects = [];
+  try {
+    subjects = (await ankingSubjectsWithCards()).map((s) => s.id);
+  } catch (err) {
+    console.error('[anking new cards] subject list failed, falling back —', err.message);
+  }
+  // No usable subject list — fall back to the plain note-id walk rather than
+  // returning nothing.
+  if (subjects.length < 2) return ankingScanNewCards(userId, limit, null);
+
+  return ankingDealRoundRobin(limit, subjects, (s) => ankingScanNewCards(userId, limit, s, {
+    columns: ANKING_QUEUE_FIELDS,
+    maxPages: ANKING_SUBJECT_MAX_PAGES,
+  }));
+}
+
+/**
+ * The same fix one level down: "All Topics" within a single subject.
+ *
+ * Note ids cluster by topic just as they cluster by subject — cardiology's
+ * lowest ids are all heart-sounds cards, so a fresh 20-card batch was entirely
+ * Physiology before any Pathology or Pharm appeared. One unreviewed queue per
+ * topic, dealt in rotation, with the same cursor-free determinism.
+ */
+async function ankingFetchNewCardsByTopic(userId, limit, subject) {
+  let topics = [];
+  try {
+    topics = (await ankingTopicsForSubject(subject)).map((t) => t.topic);
+  } catch (err) {
+    console.error('[anking new cards] topic list failed, falling back —', err.message);
+  }
+  // One topic (or none known) is just the plain walk — there is nothing to
+  // rotate between.
+  if (topics.length < 2) return ankingScanNewCards(userId, limit, subject);
+
+  return ankingDealRoundRobin(limit, topics, (t) => ankingScanNewCards(userId, limit, subject, {
+    topic: t,
+    columns: ANKING_QUEUE_FIELDS,
+    // A topic is a subset of its subject, so the subject bound covers it.
+    maxPages: ANKING_SUBJECT_MAX_PAGES,
+  }));
+}
+
+/**
+ * New cards for a batch, at whichever granularity is left unpinned:
+ *   no subject          -> rotate across subjects
+ *   subject, no topic   -> rotate across that subject's topics
+ *   subject and topic   -> a single queue, plain note-id order
+ */
 function ankingFetchNewCards(userId, limit, subject, topic = null) {
-  return subject
-    ? ankingScanNewCards(userId, limit, subject, { topic })
-    : ankingFetchNewCardsInterleaved(userId, limit);
+  if (!subject) return ankingFetchNewCardsInterleaved(userId, limit);
+  if (!topic) return ankingFetchNewCardsByTopic(userId, limit, subject);
+  return ankingScanNewCards(userId, limit, subject, { topic });
 }
 
 /**
