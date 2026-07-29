@@ -171,6 +171,10 @@ export default function AnKingMode({ user, config, onBack, onComplete }) {
   const [picked, setPicked] = useState(null);       // mcq: chosen option letter
   const [submitting, setSubmitting] = useState(false);
   const [remainingToday, setRemainingToday] = useState(0);
+  // Whether the CURRENT scope still holds unreviewed cards that today's spent
+  // allowance is withholding. Distinguishes "come back tomorrow" from "you have
+  // finished this deck" on the empty screen — an empty batch means both.
+  const [moreTomorrow, setMoreTomorrow] = useState(false);
   const [batchTally, setBatchTally] = useState({ again: 0, hard: 0, good: 0, easy: 0 });
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -258,8 +262,22 @@ export default function AnKingMode({ user, config, onBack, onComplete }) {
       if (rating) params.set('rating', rating);
       // The server rejects a topic without a subject, so never send one.
       if (top && subj) params.set('topic', top);
+      // The daily new-card boundary is the STUDENT's day, not the server's UTC
+      // day — same local YYYY-MM-DD convention as /api/study-time, plus the zone
+      // offset, because an allowance needs the day's start INSTANT and the date
+      // alone does not give one. Only the SRS queue has an allowance, so the
+      // drills do not need either.
+      if (!rating) {
+        const now = new Date();
+        params.set('local_date', now.toLocaleDateString('en-CA'));   // local YYYY-MM-DD
+        params.set('tz_offset', String(now.getTimezoneOffset()));
+      }
       const qs = params.toString() ? `?${params}` : '';
       const res = await authFetch(`/api/anking/${rating ? 'rated-cards' : 'due-cards'}${qs}`);
+      // A failed request must never read as an empty pile: both endpoints answer
+      // errors with JSON that simply lacks the card arrays, which used to fall
+      // straight through to "All caught up" and hide the failure completely.
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
 
       // A drill is one flat list. The normal queue puts due reviews first —
@@ -270,6 +288,7 @@ export default function AnKingMode({ user, config, onBack, onComplete }) {
       ).slice(0, SESSION_SIZE);
 
       setRemainingToday(data.new_cards_remaining_today ?? 0);
+      setMoreTomorrow(Boolean(data.has_more_new_cards_available_tomorrow));
       setCards(batch);
       setIndex(0);
       setRevealed(false);
@@ -279,7 +298,7 @@ export default function AnKingMode({ user, config, onBack, onComplete }) {
       setPhase(batch.length ? 'studying' : 'empty');
     } catch (e) {
       console.error('[AnKing] failed to load cards:', e);
-      setErrorMsg('Could not load cards. Check your connection and try again.');
+      setErrorMsg('Something went wrong loading cards — try again.');
       setPhase('error');
     }
   }, [subject, drillRating, topic]);
@@ -627,24 +646,42 @@ export default function AnKingMode({ user, config, onBack, onComplete }) {
   if (phase === 'empty') {
     const subjectName = currentSubjectMeta ? currentSubjectMeta.name : 'any subject';
     const where = topic ? `${subjectName} · ${topic}` : subjectName;
+    const scope = topic || (currentSubjectMeta ? currentSubjectMeta.name : null);
     const drill = drillRating && RATINGS.find((r) => r.id === drillRating);
+    // Two very different empty piles, and they used to read identically. The
+    // allowance is per scope, so "spent" is about THIS topic and says come back
+    // tomorrow; "finished" means there is genuinely nothing left here to learn.
+    const limitHit = !drill && remainingToday === 0 && moreTomorrow;
     return (
       <div className="anking-state">
-        <span className="anking-state-icon">{drill ? drill.emptyIcon : '🎉'}</span>
-        <h3>{drill ? `Nothing marked ${drill.label}` : 'All caught up'}</h3>
+        <span className="anking-state-icon">{drill ? drill.emptyIcon : limitHit ? '🌙' : '🎉'}</span>
+        <h3>
+          {drill
+            ? `Nothing marked ${drill.label}`
+            : limitHit
+              ? `Today's new cards are done${scope ? ` in ${scope}` : ''}`
+              : 'All caught up'}
+        </h3>
         {drill ? (
           <p>
             No {drill.label} cards in {where} right now{drill.emptyPraise ? ' — nice work!' : '.'}{' '}
             Cards land here when you rate them {drill.label}, and leave as soon
             as you rate them something else.
           </p>
+        ) : limitHit ? (
+          <p>
+            You've reached today's new-card limit{scope ? ` for ${scope}` : ''}, and
+            nothing is due for review here yet. Come back tomorrow for more
+            {scope ? ` ${scope}` : ''}, or{' '}
+            {topic ? 'study a different topic' : subject ? 'study a different subject' : 'review something else'}{' '}
+            — each {topic ? 'topic' : 'deck'} has its own daily allowance.
+          </p>
         ) : (
           <p>
-            No cards are due{currentSubjectMeta ? ` in ${where}` : ''} right now
-            {remainingToday === 0 ? ", and you've hit today's new-card limit." : '.'}
-            {' '}{topic
-              ? 'Try another topic, or come back later.'
-              : subject ? 'Try another subject, or come back later.' : 'Come back later for your next review.'}
+            You've reviewed every card{currentSubjectMeta ? ` in ${where}` : ''} —
+            there are none left to learn here. {topic
+              ? 'Try another topic, or come back when these are due again.'
+              : subject ? 'Try another subject, or come back when these are due again.' : 'Come back later for your next review.'}
           </p>
         )}
         <div className="anking-state-actions">

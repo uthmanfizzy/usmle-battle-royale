@@ -2936,25 +2936,104 @@ const ANKING_CARD_FIELDS =
   'mcq_options, mcq_correct_letter, subject, topic, difficulty, media_keys';
 
 /**
- * How many cards the user saw for the FIRST time today.
+ * The date to treat as "today", preferring the client's own local date.
+ *
+ * Server UTC is the wrong boundary for anything a student experiences as a day:
+ * at 00:09 BST the server is still on yesterday's date, so a card introduced at
+ * 13:10 UTC yesterday would keep eating today's allowance. Same convention (and
+ * same ±1 day plausibility guard) as /api/study-time — a claimed date is only
+ * honoured if it is within one day of server UTC, so a forged value cannot
+ * unlock an unlimited number of new cards by jumping to a distant date.
+ */
+function resolveLocalDate(claimed, now = new Date()) {
+  const utcToday = ankingScheduler.toDateString(now);
+  const c = (claimed ?? '').toString();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(c)) return utcToday;
+  const diffMs = Math.abs(Date.parse(`${c}T00:00:00Z`) - Date.parse(`${utcToday}T00:00:00Z`));
+  return diffMs <= 24 * 60 * 60 * 1000 ? c : utcToday;
+}
+
+/**
+ * The UTC instant at which the user's own day began.
+ *
+ * study_time_daily only ever needs the date LABEL, so resolveLocalDate is the
+ * whole story there. A daily allowance needs a WINDOW, and the label alone
+ * cannot locate one: "2026-07-30" begins at 23:00Z on the 29th in BST and at
+ * 10:00Z on the 29th in UTC+14. So the client sends its getTimezoneOffset()
+ * alongside the date and the pair pins the instant exactly.
+ *
+ * Guarded like resolveLocalDate: the day must have actually begun, and no more
+ * than about 25 hours ago, so a skewed clock or a garbled param cannot park the
+ * window somewhere absurd. Anything missing or implausible falls back to server
+ * UTC midnight. This is a plausibility check, not a security boundary — the
+ * allowance is a study aid, and a user determined to forge the pair is only
+ * granting themselves more of their own flashcards.
+ */
+function resolveDayStart(claimedDate, claimedOffsetMin, now = new Date()) {
+  const utcMidnight = `${ankingScheduler.toDateString(now)}T00:00:00.000Z`;
+  const date = (claimedDate ?? '').toString();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return utcMidnight;
+
+  // getTimezoneOffset() is the minutes to ADD to local time to reach UTC, so BST
+  // reports -60. Real zones span -840..+720; treat anything else as absent.
+  const off = Number(claimedOffsetMin);
+  if (!Number.isFinite(off) || Math.abs(off) > 840) return utcMidnight;
+
+  const startMs = Date.parse(`${date}T00:00:00Z`) + off * 60000;
+  if (!Number.isFinite(startMs)) return utcMidnight;
+  const age = now.getTime() - startMs;
+  if (age < 0 || age > 25 * 60 * 60 * 1000) return utcMidnight;
+  return new Date(startMs).toISOString();
+}
+
+/**
+ * How many cards the user saw for the FIRST time today, within one scope.
+ *
+ * The allowance is scoped to whatever filter the user is actually looking at,
+ * because a global count made the limit behave like a bug: 20 cards of
+ * cardiology/Physiology emptied every one of the other 88 topics for the rest of
+ * the day, each of which then claimed to be "all caught up" while holding
+ * thousands of untouched cards. `subject`/`topic` narrow the count exactly as
+ * they narrow the batch; both null is the unfiltered All Subjects scope, which
+ * is just this same function with nothing to narrow by.
  *
  * Exact, not approximate: a card counts as "introduced today" only if it has a
  * log entry today AND no log entry before today. Two queries — today's card_ids,
  * then which of those were seen earlier — rather than a MIN(reviewed_at) group-by,
- * which PostgREST cannot express.
+ * which PostgREST cannot express. Scoping rides on the same embedded !inner join
+ * the due query uses, so the database does the filtering.
+ *
+ * `dayStart` is the UTC instant the user's day began (see resolveDayStart), so
+ * the boundary is the student's own midnight rather than the server's. The window
+ * is open-ended — `>= dayStart`, no upper bound — because nothing is logged in
+ * the future, so an accurate claim counts exactly that day while a stale one
+ * widens the window and OVER-counts. That withholds cards rather than handing out
+ * extra ones, which is the safe direction for a limit to fail in.
  */
-async function ankingNewCardsSeenToday(userId, now = new Date()) {
-  const dayStart = `${ankingScheduler.toDateString(now)}T00:00:00.000Z`;
+async function ankingNewCardsSeenToday(userId, opts = {}) {
+  const {
+    subject = null,
+    topic = null,
+    dayStart = `${ankingScheduler.toDateString(new Date())}T00:00:00.000Z`,
+  } = opts;
+  // Only narrow through the join when there is something to narrow by: the
+  // unfiltered scope must not pay for an !inner join it does not need.
+  const scoped = Boolean(subject);
+  const select = scoped ? 'card_id, anking_cards!inner(subject, topic)' : 'card_id';
 
   // Page: a heavy session can exceed PostgREST's 1000-row default cap.
   const todayIds = new Set();
   for (let from = 0; ; from += 1000) {
-    const { data, error } = await supabase
+    let q = supabase
       .from('anking_review_log')
-      .select('card_id')
+      .select(select)
       .eq('user_id', userId)
       .gte('reviewed_at', dayStart)
       .range(from, from + 999);
+    if (subject) q = q.eq('anking_cards.subject', subject);
+    if (topic) q = q.eq('anking_cards.topic', topic);
+
+    const { data, error } = await q;
     if (error) throw error;
     if (!data.length) break;
     for (const r of data) todayIds.add(r.card_id);
@@ -2963,6 +3042,8 @@ async function ankingNewCardsSeenToday(userId, now = new Date()) {
   if (todayIds.size === 0) return 0;
 
   // Of those, which were already seen before today? Chunked to keep the URL sane.
+  // No scope filter needed here: these ids are already inside the scope, and an
+  // earlier review of one of them counts wherever it happened.
   const ids = [...todayIds];
   const seenBefore = new Set();
   for (let i = 0; i < ids.length; i += 100) {
@@ -3145,6 +3226,20 @@ function ankingFetchNewCards(userId, limit, subject, topic = null) {
 }
 
 /**
+ * Does this scope hold ANY card the user has never rated?
+ *
+ * Separate from the allowance, and the only way the client can tell "your 20 for
+ * today are spent" from "you have genuinely finished this topic" — an empty
+ * new_cards array means both. Asks for exactly one card with one cheap column,
+ * so it settles in the first page for anyone who has not nearly cleared the
+ * scope; no interleaving, since which card comes back does not matter.
+ */
+async function ankingHasUnreviewedCards(userId, subject, topic) {
+  const found = await ankingScanNewCards(userId, 1, subject, { topic, columns: 'id' });
+  return found.length > 0;
+}
+
+/**
  * Attach a { originalFilename -> { url, type } } map to each card.
  *
  * The imported HTML still carries ORIGINAL Anki filenames — `<img src="paste-1.jpg">`
@@ -3313,10 +3408,24 @@ app.get('/api/anking/topics', async (req, res) => {
  * names repeat across subjects (a dozen have a "Pathology"), so a bare topic
  * would silently mix decks. That case is rejected rather than ignored.
  *
+ * `local_date` + `tz_offset` are the client's own calendar date and
+ * getTimezoneOffset() (see resolveDayStart) and set the boundary for today's
+ * new-card allowance. Optional, falling back to server UTC midnight.
+ *
+ * The allowance is SCOPED to the same subject/topic filter as the batch, so
+ * clearing one topic's 20 leaves every other topic's 20 untouched.
+ * `new_cards_remaining_today` therefore describes this scope, not the deck.
+ * `has_more_new_cards_available_tomorrow` says whether an empty new_cards means
+ * "allowance spent" (true) or "nothing left to learn here" (false) — the client
+ * cannot tell those apart from the array alone.
+ *
  * Fails soft otherwise: any error yields empty arrays with 200, never a 500.
  */
 app.get('/api/anking/due-cards', requireAuth, async (req, res) => {
-  const empty = { due_reviews: [], new_cards: [], new_cards_remaining_today: 0 };
+  const empty = {
+    due_reviews: [], new_cards: [], new_cards_remaining_today: 0,
+    has_more_new_cards_available_tomorrow: false,
+  };
   if (!supabase) return res.json(empty);
 
   const subject = (req.query.subject || '').toString().trim() || null;
@@ -3325,6 +3434,7 @@ app.get('/api/anking/due-cards', requireAuth, async (req, res) => {
     return res.status(400).json({ error: 'topic requires subject — topic names are not unique across subjects.' });
   }
   const now = new Date();
+  const dayStart = resolveDayStart(req.query.local_date, req.query.tz_offset, now);
 
   try {
     // (a) Due reviews: state rows at or past their due date.
@@ -3356,17 +3466,28 @@ app.get('/api/anking/due-cards', requireAuth, async (req, res) => {
         },
       }));
 
-    // (b) + (c) New cards, capped by what's left of today's allowance.
-    const seenToday = await ankingNewCardsSeenToday(req.userId, now);
+    // (b) + (c) New cards, capped by what's left of THIS SCOPE's allowance today.
+    const seenToday = await ankingNewCardsSeenToday(req.userId, { subject, topic, dayStart });
     const remaining = Math.max(0, ankingScheduler.NEW_CARDS_PER_DAY - seenToday);
     const new_cards = remaining > 0
       ? await ankingFetchNewCards(req.userId, remaining, subject, topic)
       : [];
 
+    // Only worth asking when the allowance is what emptied the batch: a
+    // non-empty batch already proves cards remain, and with allowance left an
+    // empty batch already proves none do.
+    const has_more_new_cards_available_tomorrow = remaining === 0
+      ? await ankingHasUnreviewedCards(req.userId, subject, topic)
+      : false;
+
     // Resolve original Anki filenames to Supabase Storage URLs for this batch.
     await ankingResolveMedia([...due_reviews.map((d) => d.card), ...new_cards]);
 
-    res.json({ due_reviews, new_cards, new_cards_remaining_today: remaining });
+    res.json({
+      due_reviews, new_cards,
+      new_cards_remaining_today: remaining,
+      has_more_new_cards_available_tomorrow,
+    });
   } catch (err) {
     console.error('[/api/anking/due-cards] failed —', err.message);
     res.json(empty);
@@ -3982,13 +4103,7 @@ app.post('/api/study-time', requireAuth, async (req, res) => {
   // "Today" = the client's local date when plausible (within ±1 day of server
   // UTC today), so a late-night session credits the student's own day.
   // Anything missing/invalid/further off uses server UTC today instead.
-  const utcToday = new Date().toISOString().slice(0, 10);
-  let studyDate = utcToday;
-  const claimed = (req.body?.date ?? '').toString();
-  if (/^\d{4}-\d{2}-\d{2}$/.test(claimed)) {
-    const diffMs = Math.abs(Date.parse(`${claimed}T00:00:00Z`) - Date.parse(`${utcToday}T00:00:00Z`));
-    if (diffMs <= 24 * 60 * 60 * 1000) studyDate = claimed;
-  }
+  const studyDate = resolveLocalDate(req.body?.date);
 
   try {
     const { error } = await supabase.rpc('add_study_time', {
