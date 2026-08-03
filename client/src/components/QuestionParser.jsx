@@ -55,7 +55,10 @@ E. Vitamin B12 deficiency - Causes macrocytic megaloblastic anaemia, not microcy
 // customImport (optional): async (parsedQuestions) => ({ imported, failed, errors }).
 // When provided, it replaces the built-in /admin/questions/bulk import entirely;
 // when absent, behavior is unchanged.
-export default function QuestionParser({ activeFolder, selectedTopic, selectedDifficulty, onImport, onClose, customImport }) {
+//
+// validSubjects (optional): the real subject ids a built-in import may write to.
+// Only the built-in bulk path needs it — see SUBJECT_GUARD below.
+export default function QuestionParser({ activeFolder, selectedTopic, selectedDifficulty, onImport, onClose, customImport, validSubjects }) {
   const [rawText, setRawText] = useState('');
   const [parsed, setParsed] = useState([]);
   const [errors, setErrors] = useState([]);
@@ -268,7 +271,31 @@ export default function QuestionParser({ activeFolder, selectedTopic, selectedDi
     }
   };
 
+  // ── SUBJECT_GUARD ────────────────────────────────────────────────────────────
+  // The built-in bulk import sends `category: activeFolder` and the server falls
+  // back to the literal string 'general' when that is null (normalizeImport).
+  // 'general' is not a real subject id, so those rows are invisible to
+  // /api/questions/unseen and every subject-filtered view — silently orphaned,
+  // with nothing to tell the admin it happened. Block that import instead.
+  //
+  // Only applies to the built-in path: a customImport caller (Journey levels,
+  // boss questions, the round-trip updater) never sends `category` at all, so
+  // there is nothing to guard and those flows are untouched.
+  const resolvedCategory = activeFolder && activeFolder !== 'all' ? activeFolder : null;
+  // Without validSubjects this catches the 'all'/empty case only. With it, the
+  // special folders ('__images__', 'buzz_fun') are caught too — they would write
+  // their own folder id as the category, orphaning rows exactly the same way.
+  const categoryIsReal = !!resolvedCategory
+    && (!Array.isArray(validSubjects) || validSubjects.includes(resolvedCategory));
+  const subjectBlocked = !customImport && !categoryIsReal;
+  const SUBJECT_BLOCKED_MSG = "Select a specific subject folder before bulk-importing — questions imported from 'All Questions' won't be assigned a real subject and will be invisible everywhere.";
+
   const handleImport = async () => {
+    // Belt and braces: the button is disabled, but never let this fire.
+    if (subjectBlocked) {
+      setErrors(prev => (prev.includes(SUBJECT_BLOCKED_MSG) ? prev : [...prev, SUBJECT_BLOCKED_MSG]));
+      return;
+    }
     setImporting(true);
     try {
       if (customImport) {
@@ -429,6 +456,15 @@ export default function QuestionParser({ activeFolder, selectedTopic, selectedDi
                   {rawText.length.toLocaleString()} chars · ~{Math.max(1, rawText.split(/\n{2,}/).length)} question block{rawText.split(/\n{2,}/).length !== 1 ? 's' : ''} detected
                 </p>
               )}
+              {/* SUBJECT_GUARD: surfaced up front so the admin fixes the folder
+                  before pasting, not after parsing. Parsing itself stays
+                  enabled — it is local and harmless; only importing is blocked. */}
+              {subjectBlocked && (
+                <div className="qp-errors qp-subject-block">
+                  <p className="qp-errors-title">⚠️ No subject selected</p>
+                  <p className="qp-error-item">• {SUBJECT_BLOCKED_MSG}</p>
+                </div>
+              )}
               {errors.length > 0 && (
                 <div className="qp-errors">
                   <p className="qp-errors-title">⚠️ Parse Errors:</p>
@@ -576,6 +612,15 @@ export default function QuestionParser({ activeFolder, selectedTopic, selectedDi
               ))}
             </div>
 
+            {/* SUBJECT_GUARD: shown before anything can be sent, so the admin
+                sees why the button is dead rather than importing orphans. */}
+            {subjectBlocked && (
+              <div className="qp-errors qp-subject-block">
+                <p className="qp-errors-title">⚠️ No subject selected</p>
+                <ul><li>{SUBJECT_BLOCKED_MSG}</li></ul>
+              </div>
+            )}
+
             <div className="qp-footer">
               <span className="qp-footer-info">
                 {parsed.length} question{parsed.length !== 1 ? 's' : ''} ready to import
@@ -583,7 +628,8 @@ export default function QuestionParser({ activeFolder, selectedTopic, selectedDi
               <button
                 className="qp-import-btn"
                 onClick={handleImport}
-                disabled={importing || parsed.length === 0}
+                disabled={importing || parsed.length === 0 || subjectBlocked}
+                title={subjectBlocked ? SUBJECT_BLOCKED_MSG : undefined}
               >
                 {importing ? '⏳ Importing...' : `📥 Import ${parsed.length} Questions`}
               </button>

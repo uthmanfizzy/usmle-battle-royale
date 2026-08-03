@@ -362,6 +362,15 @@ function QuestionModal({ question, defaultSubject = 'cardiology', onSave, onClos
 
   async function handleSubmit(e) {
     e.preventDefault();
+    // Defensive twin of QuestionParser's SUBJECT_GUARD. The dropdown below only
+    // offers real subject ids today, so this cannot fire — but a question saved
+    // with anything else lands on a category no view filters by (the server
+    // stores `subject` verbatim as `category`), and would be silently invisible
+    // rather than rejected. Cheap insurance if the options ever change.
+    if (!SUBJECTS.includes(form.subject)) {
+      setError(`"${form.subject}" is not a real subject — pick one from the list, or the question will be invisible everywhere.`);
+      return;
+    }
     setSaving(true);
     setError('');
     const payload = {
@@ -2669,6 +2678,9 @@ function QuestionsPanel({ subjects = [] }) {
           activeFolder={activeFolder}
           selectedTopic={selectedTopic}
           selectedDifficulty={selectedDifficulty}
+          // Only the built-in bulk path writes `category`, so only it needs the
+          // real-subject list to validate the active folder against.
+          validSubjects={SUBJECTS}
           onImport={handleImportDone}
           onClose={() => setShowParser(false)}
         />

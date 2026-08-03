@@ -681,3 +681,27 @@
   .qp-textarea { min-height: 200px !important; }
   .qp-modal { max-width: 100% !important; max-height: 96vh !important; border-radius: 12px !important; }
 }
+
+/* SUBJECT_GUARD — the "no real subject selected" block. Amber rather than the
+   red used for parse errors: nothing is broken, the admin just has to pick a
+   folder first. Reuses .qp-errors for layout. */
+.qp-subject-block {
+  background: rgba(52, 38, 8, 0.8);
+  border-color: rgba(200, 150, 50, 0.4);
+}
+
+.qp-subject-block .qp-errors-title {
+  color: rgba(230, 180, 80, 0.9);
+}
+
+.qp-subject-block ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.qp-subject-block li,
+.qp-subject-block .qp-error-item {
+  color: rgba(255, 226, 170, 0.9);
+  font-size: 12px;
+  line-height: 1.5;
+}

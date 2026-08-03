@@ -306,7 +306,12 @@
       "Bash(mkdir -p C:/Users/faiza/AppData/Local/Temp/claude/C--Users-faiza-usmle-battle-royale/4195dfd4-9cfe-464c-8db6-f05c06fa3fd9/scratchpad/mock4)",
       "Bash(unzip -o -q \"C:/Users/faiza/Downloads/Medvale landing page wireframe \\(4\\).zip\")",
       "Bash(grep -oiE 'uworld[^<\"]{0,60}' 'C:/Users/faiza/AppData/Local/Temp/claude/C--Users-faiza-usmle-battle-royale/4195dfd4-9cfe-464c-8db6-f05c06fa3fd9/scratchpad/mock4/Medvale Story Mode.dc.html')",
-      "PowerShell(Get-NetTCPConnection -LocalPort 3002,4173 -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique | ForEach-Object { try { Stop-Process -Id $_ -Force -ErrorAction Stop; \"stopped $_\" } catch {} }; Start-Sleep -Seconds 2; if \\(Get-NetTCPConnection -LocalPort 3002,4173 -State Listen -ErrorAction SilentlyContinue\\) { \"still listening\" } else { \"test servers stopped\" })"
+      "PowerShell(Get-NetTCPConnection -LocalPort 3002,4173 -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique | ForEach-Object { try { Stop-Process -Id $_ -Force -ErrorAction Stop; \"stopped $_\" } catch {} }; Start-Sleep -Seconds 2; if \\(Get-NetTCPConnection -LocalPort 3002,4173 -State Listen -ErrorAction SilentlyContinue\\) { \"still listening\" } else { \"test servers stopped\" })",
+      "Bash(sed -n \"/^\\\\.qp-errors {/,/^}/p\" QuestionParser.css)",
+      "Bash(sed -n \"/^\\\\.qp-errors-title {/,/^}/p\" QuestionParser.css)",
+      "Bash(VITE_SUPABASE_URL=\"https://placeholder.supabase.co\" VITE_SUPABASE_ANON_KEY=\"dummy-anon-key-for-local-admin-test\" npm run build)",
+      "Bash(sed -i \"s/btns.slice\\(0, 30\\)/btns.slice\\(19\\)/\" nav.js)",
+      "Bash(sed -i \"s|/Easy/i|/Hard Mode/i|\" nav.js)"
     ]
   }
 }
