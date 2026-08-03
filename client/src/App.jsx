@@ -876,6 +876,9 @@ export default function App() {
           onJourney={() => setPhase('journey')}
           onTower={() => { setGameMode('tower'); setPhase('tower'); }}
           onAnKing={() => { setPlayInitialMode('anking'); setPhase('play_page'); }}
+          // A real route, not a phase — same navigation style as the /dashboard
+          // links above.
+          onUWorld={() => { window.location.href = '/uworld-adventure'; }}
         />
         </RouteErrorBoundary>
       )}

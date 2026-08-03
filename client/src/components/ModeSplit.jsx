@@ -39,7 +39,7 @@ export default function ModeSplit({ onStory, onOnline, onTraining, onBack }) {
 
 // Story menu: First Aid Journey emphasized per the mockup (wide campaign
 // card), Tower/AnKing keep their existing coming-soon treatment below.
-export function StoryMenu({ onBack, onJourney, onTower, onAnKing }) {
+export function StoryMenu({ onBack, onJourney, onTower, onAnKing, onUWorld }) {
   return (
     <div className="ms-screen">
       <button className="ms-back-btn" onClick={onBack}>← Back</button>
@@ -50,7 +50,7 @@ export function StoryMenu({ onBack, onJourney, onTower, onAnKing }) {
         <div className="ms-title-rule" />
       </div>
 
-      {/* All three campaigns share the wide ms-journey-card layout (art panel
+      {/* All four campaigns share the wide ms-journey-card layout (art panel
           left, name/description right) so they read as siblings in one list.
           Art areas are INERT striped placeholders (no per-campaign art asset
           exists); the mockup's progress row + "Chapter X of Y" is intentionally
@@ -81,6 +81,22 @@ export function StoryMenu({ onBack, onJourney, onTower, onAnKing }) {
           <div className="ms-journey-body">
             <span className="ms-journey-name">ANKING</span>
             <span className="ms-journey-sub">Master AnKing flashcards</span>
+          </div>
+        </button>
+
+        {/* Real and fully functional (pacing over the 708-question main bank),
+            so it gets normal active styling — no disabled class, no
+            ms-soon-chip. Unlike its siblings this is a standalone ROUTE, not a
+            phase, so onUWorld navigates rather than setting phase; the card
+            stays presentational either way. Sits above the still-gated Tower,
+            keeping every playable mode before the coming-soon one. */}
+        <button className="ms-journey-card" onClick={onUWorld}>
+          <div className="ms-journey-art" aria-hidden="true">
+            <span className="ms-journey-art-icon">📊</span>
+          </div>
+          <div className="ms-journey-body">
+            <span className="ms-journey-name">UWORLD ADVENTURE</span>
+            <span className="ms-journey-sub">Pace your board-review questions</span>
           </div>
         </button>
 

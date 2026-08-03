@@ -9,13 +9,24 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  /* Centered while the content fits, top-anchored once it doesn't. Plain
+     `justify-content: center` overflows a scroll container in BOTH directions,
+     so the top of the list (the Back button) becomes unreachable — scrollTop
+     cannot go negative. The auto margins below absorb free space only when
+     there IS some, giving identical centering on tall viewports and a normal
+     scroll on short ones. Surfaced by the fourth campaign card; `safe center`
+     fixes the same thing but is too new to rely on here. */
+  justify-content: flex-start;
   padding: 40px 20px;
   overflow-y: auto;
   background:
     radial-gradient(ellipse at center, rgba(15, 22, 12, 0.92) 0%, rgba(0, 0, 0, 0.97) 75%);
   animation: ms-backdrop-in 0.3s ease both;
 }
+
+/* The other half of the centering fix above (see .ms-screen). */
+.ms-screen > :first-child { margin-top: auto; }
+.ms-screen > :last-child  { margin-bottom: auto; }
 
 @keyframes ms-backdrop-in {
   from { opacity: 0; }

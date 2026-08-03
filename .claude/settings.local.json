@@ -296,7 +296,12 @@
       "Bash(node -e ' *)",
       "Bash(echo \"server starting, pid $!\")",
       "Bash(grep -iE \"^socket.io-client$|^socket.io$\")",
-      "Bash(ps -W)"
+      "Bash(ps -W)",
+      "Bash(grep -rl \"usmle-battle-royale-production.up.railway.app\" .)",
+      "Bash(xargs -a /tmp/urlfiles2.txt sed -i \"s|https://usmle-battle-royale-production.up.railway.app|http://localhost:3002|g\")",
+      "Bash(sed -n \"/^\\\\.ms-back-btn {/,/^}/p\" ModeSplit.css)",
+      "Bash(sed -n \"/^\\\\.ms-banner {/,/^}/p\" ModeSplit.css)",
+      "PowerShell(Stop-Process -Id 10496 -Force -Confirm:$false -ErrorAction SilentlyContinue; Get-NetTCPConnection -LocalPort 4173 -State Listen -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -Confirm:$false -ErrorAction SilentlyContinue }; Start-Sleep -Seconds 2; if \\(Get-NetTCPConnection -LocalPort 3002,4173 -State Listen -ErrorAction SilentlyContinue\\) { \"still listening\" } else { \"test servers stopped\" })"
     ]
   }
 }
