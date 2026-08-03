@@ -508,3 +508,59 @@ CREATE POLICY IF NOT EXISTS "server_full_access_game_settings"
 --
 -- NOT YET WIRED: Journey, Training Grounds, plain Solo and AnKing (later
 -- phases — none of them has per-attempt tracking today).
+
+-- ── user_question_seen (DOCUMENTATION ONLY — already live in Supabase) ─────────
+-- Created directly in the Supabase SQL editor and exists in production. This
+-- block documents the live shape so schema.sql stays in sync; do NOT re-run it.
+--
+-- One row per (user, main-bank question): the "have I met this question before"
+-- memory the game never had. Every mode picks questions by shuffling the whole
+-- in-memory questionBank, so before this table nothing anywhere recorded that a
+-- specific user had already been served a specific question.
+--
+-- CREATE TABLE IF NOT EXISTS user_question_seen (
+--   user_id     UUID        NOT NULL REFERENCES users(id)     ON DELETE CASCADE,
+--   question_id UUID        NOT NULL REFERENCES questions(id) ON DELETE CASCADE,
+--   answered    BOOLEAN     NOT NULL DEFAULT true,
+--   correct     BOOLEAN     NOT NULL DEFAULT false,
+--   seen_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+--   PRIMARY KEY (user_id, question_id)
+-- );
+--
+-- KEY SHAPE TRAP: question_id references questions.id (the UUID surrogate key),
+-- NOT questions.question_id (the 'BS-011' business key). The internal question
+-- shape INVERTS those names — questionMapper.fromDb maps row.question_id -> `id`
+-- and row.id -> `_supabase_id` — so server and client code must write
+-- `_supabase_id`. Writing `q.id` fails with 'invalid input syntax for type uuid'.
+--
+-- The questions FK is also the boundary that keeps other banks out:
+-- journey_questions and anking_cards rows are absent from `questions`, so their
+-- ids are rejected by Postgres. Both already track themselves (journey_progress,
+-- anking_review_state / anking_review_log).
+--
+-- The composite PK is the upsert conflict target ('user_id,question_id'):
+-- re-answering a question overwrites its row with the latest verdict rather than
+-- accumulating duplicates. `answered` separates a real submission from a
+-- timeout/skip — the player saw the question either way, which is what "seen"
+-- means, but only one of those is an attempt.
+--
+-- WRITERS (all additive, fail-soft, never awaited by game code):
+--   - Multiplayer, server-side, at each mode's own grading point so the recorded
+--     verdict is the same value the game scored: processAnswers (battle_royale,
+--     scan_master), processBuzzFunAnswers, processPvpDuelAnswers,
+--     processTriviaAnswer, advanceSpeedPlayer. All route through
+--     trackPlayerAnswer, whose io.sockets.sockets.get(id)?.userId lookup drops
+--     bots (no socket) and guests (socket, no userId).
+--   - Solo / Training Grounds, via POST /api/questions/seen. Those modes grade
+--     entirely on the CLIENT, so the server cannot observe individual questions
+--     on its own; SoloGame posts one row per answer. The endpoint validates every
+--     id against `questions` before writing, so a client cannot record a
+--     foreign-bank id and one bad id cannot fail the batch.
+--
+-- READERS: GET /api/users/:userId/question-bank-progress (head+exact counts —
+-- never row scans, per the 1000-row cap lesson above) and GET
+-- /api/questions/unseen (page-scan anti-join, same pattern as ankingScanNewCards
+-- since PostgREST has no NOT EXISTS).
+--
+-- NOT YET WIRED: no client UI consumes the two read endpoints yet — this is the
+-- tracking layer only, waiting on enough question content to be worth surfacing.

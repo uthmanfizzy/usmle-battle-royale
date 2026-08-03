@@ -24,6 +24,32 @@ function stripLetterPrefix(text) {
   return String(text ?? '').replace(/^\s*[A-J][.):]\s+/, '');
 }
 
+// Tell the server this main-bank question has now been met.
+//
+// Multiplayer records exposure server-side (it grades there), but Solo and
+// Training Grounds grade ENTIRELY on the client — the server ships whole
+// questions and only ever hears back an aggregate percentage — so this call is
+// the only way it learns which individual questions were served.
+//
+// Sends `_supabase_id`, the questions.id UUID. Anything without one is skipped,
+// which is exactly the right filter: the local questions.js fallback has no id,
+// and so does Journey, whose levels play through this same component but come
+// from journey_questions and track themselves via journey_progress.
+//
+// Fire-and-forget and guest-guarded, same contract as postStudyTime below — the
+// run never waits on it and a failure is invisible to the player.
+function postQuestionSeen(q, { answered, correct }) {
+  const questionId = q?._supabase_id;
+  if (!questionId) return;
+  const token = getToken();
+  if (!token) return; // guests are never tracked
+  fetch(`${SERVER_URL}/api/questions/seen`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ seen: [{ question_id: questionId, answered, correct }] }),
+  }).catch(() => {});
+}
+
 function getHi(subject) {
   try { return parseInt(localStorage.getItem(`usmle-hs-${subject}`) || '0', 10); } catch { return 0; }
 }
@@ -360,6 +386,8 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
       match: label === q.correct
     });
     const correct = label === q.correct;
+    // Additive: a timeout (label === null) still counts as SEEN, just not answered.
+    postQuestionSeen(q, { answered: label !== null, correct });
     const tl = timeLeftRef.current;
     setTimeSpent(defaultTimer - tl);   // Layer 1: additive only — no flow/timer/scoring change
     // Study time: accumulate this question's active time (inherently capped at

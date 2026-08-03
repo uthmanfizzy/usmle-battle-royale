@@ -772,6 +772,7 @@ function processBuzzFunAnswers(lobby) {
 
     const sr = updateStreak(lobby, player.id, correct);
     results.push({ id: player.id, username: player.username, answered: answer !== undefined, correct, lives: 3, alive: true, streak: sr.streak });
+    trackPlayerAnswer(player.id, q, { answered: answer !== undefined, correct });
 
     const explanation = (lobby.difficulty === 'hard' ? gameSettings.hardModeHideExplanations : gameSettings.easyModeHideExplanations)
       ? ''
@@ -933,6 +934,10 @@ function processAnswers(lobby) {
       onFire  = sr.onFire;
       correct = isCorrectAnswer;
     }
+
+    // A skipped/frozen/timed-out player still SAW the question; only a real
+    // submission counts as an attempt.
+    trackPlayerAnswer(player.id, q, { answered: !isSkip && answer !== undefined, correct });
 
     if (correct && lobby.pendingDoubleXp?.has(player.id)) {
       lobby.powerupXpBonus.set(player.id, (lobby.powerupXpBonus.get(player.id) || 0) + XP_PER_CORRECT);
@@ -1145,6 +1150,7 @@ function processPvpDuelAnswers(lobby) {
   }));
   for (const g of graded) {
     if (g.correct) lobby.duelCorrects.set(g.p.id, (lobby.duelCorrects.get(g.p.id) || 0) + 1);
+    trackPlayerAnswer(g.p.id, q, { answered: g.answer !== undefined, correct: g.correct });
   }
 
   // First correct (by server-received timestamp) deals the damage — exactly
@@ -1443,6 +1449,68 @@ async function upsertMastery(userId, subject, attempted, correct) {
   }
 }
 
+// ── Question exposure tracking (user_question_seen) ────────────────────────────
+// One row per (user, main-bank question): the "have I met this question before"
+// memory that question delivery — a plain Fisher-Yates shuffle over questionBank
+// in every mode — has never had. Purely additive: nothing here gates, delays, or
+// alters scoring, timing, or which question is served.
+//
+// KEYED ON questions.id (UUID), NOT questions.question_id ('BS-011'). The table's
+// FK is user_question_seen.question_id -> questions(id), while the internal
+// question shape INVERTS those names (fromDb: `id` = the TEXT business key,
+// `_supabase_id` = the UUID). So `_supabase_id` is the only correct value to
+// write; passing `q.id` fails with 'invalid input syntax for type uuid'.
+//
+// That FK is also what keeps the wrong banks out: journey_questions and
+// anking_cards rows do not exist in `questions`, so their ids are rejected by
+// Postgres even if a caller tried — and both already have their own tracking
+// (journey_progress, anking_review_state/_log). Questions coming from the local
+// questions.js fallback carry no _supabase_id and are skipped for the same reason.
+const QUESTION_SEEN_TABLE = 'user_question_seen';
+
+/**
+ * Record that `userId` has now met `question`. Fail-soft by construction: it
+ * never throws and is never awaited by game code, so a tracking failure logs and
+ * leaves the round untouched (same discipline as the activity_sessions insert).
+ *
+ * `answered` distinguishes a real submission from a timeout/skip — the player saw
+ * the question either way, which is what "seen" means, but only one of those is
+ * an attempt. Re-answering an already-seen question overwrites the row with the
+ * latest verdict (composite PK on user_id+question_id).
+ */
+async function recordQuestionSeen(userId, question, { answered, correct }) {
+  if (!supabase || !userId) return;          // no DB, or a guest — never a row
+  const questionId = question?._supabase_id; // main-bank questions only (see above)
+  if (!questionId) return;
+  try {
+    await logWrite(`${QUESTION_SEEN_TABLE}.upsert`, supabase
+      .from(QUESTION_SEEN_TABLE)
+      .upsert({
+        user_id:     userId,
+        question_id: questionId,
+        answered:    !!answered,
+        correct:     !!correct,
+        seen_at:     new Date().toISOString(),
+      }, { onConflict: 'user_id,question_id' }));
+  } catch (err) {
+    console.error(`[${QUESTION_SEEN_TABLE}] upsert threw —`, err.message);
+  }
+}
+
+/**
+ * Lobby-player variant. Resolves the user the same way awardXP does
+ * (`io.sockets.sockets.get(id)?.userId`), so bots — which have no socket at all —
+ * and guests — which have a socket but no userId — both fall out silently.
+ *
+ * Deliberately NOT awaited at any call site: exposure tracking must never sit in
+ * front of a player's answer being graded and emitted.
+ */
+function trackPlayerAnswer(playerId, question, { answered, correct }) {
+  const userId = io.sockets.sockets.get(playerId)?.userId;
+  if (!userId) return;
+  void recordQuestionSeen(userId, question, { answered, correct });
+}
+
 // ── Speed Race ─────────────────────────────────────────────────────────────────
 
 const SPEED_RACE_TIMEOUT = 10 * 60 * 1000; // 10 min
@@ -1552,6 +1620,10 @@ function advanceSpeedPlayer(lobby, playerId, answer) {
   const isSkip = answer === '__skip__';
   const isCorrectAnswer = !isSkip && answer !== null && isAnswerCorrect(answer, q);
   const correct = isCorrectAnswer;
+
+  // Tracked against `q` — the per-player shuffled clone this player was actually
+  // served — so the recorded verdict matches the order they saw.
+  trackPlayerAnswer(playerId, q, { answered: !isSkip && answer !== null, correct });
   const { streak, onFire } = isSkip
     ? { streak: lobby.streaks?.get(playerId) || 0, onFire: false }
     : updateStreak(lobby, playerId, isCorrectAnswer);
@@ -1901,6 +1973,9 @@ function processTriviaAnswer(lobby, answer) {
   let earnedWedge = false;
 
   const { streak, onFire } = updateStreak(lobby, sid, correct);
+
+  // Only the player whose turn it is ever answers a Trivia Pursuit question.
+  trackPlayerAnswer(sid, q, { answered: answer !== null && answer !== undefined, correct });
 
   if (correct && canEarnWedge) {
     const wedges = lobby.triviaWedges.get(sid);
@@ -2451,6 +2526,140 @@ io.on('connection', (socket) => {
 });
 
 // ── REST API ───────────────────────────────────────────────────────────────────
+
+// Largest batch of seen-rows accepted in one POST, and the biggest unseen page
+// a caller can ask for. Both bound the work a single request can cause.
+const QUESTION_SEEN_MAX_BATCH = 100;
+const UNSEEN_DEFAULT_LIMIT    = 20;
+const UNSEEN_MAX_LIMIT        = 100;
+
+/**
+ * POST /api/questions/seen
+ *
+ * The Solo / Training Grounds counterpart to the multiplayer tracking that
+ * trackPlayerAnswer does server-side. Those modes grade ENTIRELY on the client —
+ * /api/questions ships the full question objects and /api/training-complete
+ * reports only an aggregate pct — so the server otherwise never learns which
+ * individual questions a player met. This is the one channel that tells it.
+ *
+ * Body: { seen: [{ question_id: <questions.id UUID>, answered?: bool, correct?: bool }] }
+ *
+ * Ids are validated against the `questions` table before writing, so a client
+ * cannot record a journey_questions / anking_cards id (those have their own
+ * tracking) — and one bad id can't fail the whole batch, which is what an
+ * unchecked upsert would do given the FK. Fails soft: always 200 with a count.
+ */
+app.post('/api/questions/seen', requireAuth, async (req, res) => {
+  if (!supabase) return res.json({ recorded: 0 });
+
+  const raw = Array.isArray(req.body?.seen) ? req.body.seen : [];
+  if (raw.length === 0) return res.json({ recorded: 0 });
+
+  // Dedupe within the batch: a repeated id would make one upsert statement hit
+  // the same row twice, which Postgres rejects outright.
+  const byId = new Map();
+  for (const row of raw.slice(0, QUESTION_SEEN_MAX_BATCH)) {
+    const id = typeof row?.question_id === 'string' ? row.question_id.trim() : '';
+    if (!id) continue;
+    byId.set(id, { answered: !!row.answered, correct: !!row.correct });
+  }
+  if (byId.size === 0) return res.json({ recorded: 0 });
+
+  try {
+    // Keep only ids that are really in the main bank (bounded by the batch cap).
+    const { data: valid, error: vErr } = await supabase
+      .from('questions')
+      .select('id')
+      .in('id', [...byId.keys()]);
+    if (vErr) {
+      console.error('[/api/questions/seen] id validation failed —', vErr.message);
+      return res.json({ recorded: 0 });
+    }
+
+    const rows = (valid || []).map((q) => ({
+      user_id:     req.userId,
+      question_id: q.id,
+      answered:    byId.get(q.id).answered,
+      correct:     byId.get(q.id).correct,
+      seen_at:     new Date().toISOString(),
+    }));
+    if (rows.length === 0) return res.json({ recorded: 0 });
+
+    const err = await logWrite(`${QUESTION_SEEN_TABLE}.upsert.batch`, supabase
+      .from(QUESTION_SEEN_TABLE)
+      .upsert(rows, { onConflict: 'user_id,question_id' }));
+    res.json({ recorded: err ? 0 : rows.length });
+  } catch (e) {
+    console.error('[/api/questions/seen] threw —', e.message);
+    res.json({ recorded: 0 });
+  }
+});
+
+/**
+ * GET /api/questions/unseen?subject=<id>&limit=<n>
+ *
+ * Up to `limit` main-bank questions in `subject` that this user has NO
+ * user_question_seen row for. Fewer than `limit` (including zero) is a valid
+ * answer — it means the subject is exhausted. It deliberately does NOT wrap
+ * around to already-seen questions; what should happen once a user finishes a
+ * subject is a product decision, not this endpoint's to invent.
+ *
+ * PostgREST has no NOT EXISTS, and a NOT IN over a user's whole history would be
+ * unbounded, so this uses the same page-scan anti-join as ankingScanNewCards:
+ * walk `questions` in a deterministic order and ask, per page, which of those ids
+ * the user has already seen. With 708 questions today the whole bank is four
+ * pages, so it settles immediately.
+ *
+ * Returns the same internal question shape as /api/questions (via fromDb) so a
+ * future caller can hand these straight to SoloGame. Fails soft to [].
+ */
+app.get('/api/questions/unseen', requireAuth, async (req, res) => {
+  if (!supabase) return res.json({ questions: [] });
+
+  const subject = (req.query.subject || '').toString().trim();
+  const parsed  = parseInt(req.query.limit, 10);
+  const limit   = Math.min(
+    UNSEEN_MAX_LIMIT,
+    Math.max(1, Number.isFinite(parsed) ? parsed : UNSEEN_DEFAULT_LIMIT),
+  );
+
+  try {
+    const out  = [];
+    const PAGE = 200;
+    for (let page = 0; out.length < limit; page++) {
+      let q = supabase
+        .from('questions')
+        .select('*')
+        // Deterministic, so the sequence is stable across requests.
+        .order('question_id', { ascending: true })
+        .range(page * PAGE, page * PAGE + PAGE - 1);
+      if (subject) q = q.eq('category', subject);
+
+      const { data, error } = await q;
+      if (error) throw error;
+      if (!data.length) break;
+
+      const { data: seenRows, error: sErr } = await supabase
+        .from(QUESTION_SEEN_TABLE)
+        .select('question_id')
+        .eq('user_id', req.userId)
+        .in('question_id', data.map((r) => r.id));
+      if (sErr) throw sErr;
+
+      const seen = new Set((seenRows || []).map((s) => s.question_id));
+      for (const row of data) {
+        if (seen.has(row.id)) continue;
+        out.push(fromDb(row));
+        if (out.length >= limit) break;
+      }
+      if (data.length < PAGE) break; // ran out of questions
+    }
+    res.json({ questions: out });
+  } catch (err) {
+    console.error('[/api/questions/unseen] failed —', err.message);
+    res.json({ questions: [] });
+  }
+});
 
 // Get question counts per topic (for Training Grounds topic selection)
 app.get('/api/questions/counts', (req, res) => {
@@ -4119,6 +4328,66 @@ app.post('/api/study-time', requireAuth, async (req, res) => {
   } catch (err) {
     console.warn('[/api/study-time] unavailable —', err.message);
     res.json({ ok: false });
+  }
+});
+
+/**
+ * GET /api/users/:userId/question-bank-progress?subject=<id>
+ *
+ * How much of the main question bank this user has met: { total, seen, unseen }.
+ * With no `subject`, it spans every ACTIVE subject (the four that actually hold
+ * questions today) rather than the full 22-row subjects table, so `total`
+ * matches what a player can really be served.
+ *
+ * Both numbers are head+exact COUNTS, never row scans: PostgREST caps responses
+ * at 1000 rows and returns HTTP 200 for the truncated page, so tallying rows
+ * silently under-reports the moment a subject crosses the cap. `seen` counts
+ * through an inner join to `questions` because user_question_seen holds no
+ * subject of its own.
+ *
+ * requireAuth'd but takes a :userId — like the other per-user stat endpoints, any
+ * signed-in user may read another's progress. Fails soft to zeros.
+ */
+app.get('/api/users/:userId/question-bank-progress', requireAuth, async (req, res) => {
+  const zeros = { total: 0, seen: 0, unseen: 0 };
+  if (!supabase) return res.json(zeros);
+
+  const subject = (req.query.subject || '').toString().trim();
+
+  try {
+    // Scope: one subject, or every active one.
+    let subjects = subject ? [subject] : null;
+    if (!subjects) {
+      const { data: active, error: aErr } = await supabase
+        .from('subjects')
+        .select('id')
+        .eq('active', true);
+      if (aErr) throw aErr;
+      subjects = (active || []).map((s) => s.id);
+      if (subjects.length === 0) return res.json(zeros);
+    }
+
+    const totalQ = supabase
+      .from('questions')
+      .select('*', { count: 'exact', head: true })
+      .in('category', subjects);
+
+    const seenQ = supabase
+      .from(QUESTION_SEEN_TABLE)
+      .select('question_id, questions!inner(category)', { count: 'exact', head: true })
+      .eq('user_id', req.params.userId)
+      .in('questions.category', subjects);
+
+    const [totalRes, seenRes] = await Promise.all([totalQ, seenQ]);
+    if (totalRes.error) throw totalRes.error;
+    if (seenRes.error) throw seenRes.error;
+
+    const total = totalRes.count || 0;
+    const seen  = Math.min(seenRes.count || 0, total);
+    res.json({ total, seen, unseen: Math.max(0, total - seen) });
+  } catch (err) {
+    console.error('[/api/users/:userId/question-bank-progress] failed —', err.message);
+    res.json(zeros);
   }
 });
 
