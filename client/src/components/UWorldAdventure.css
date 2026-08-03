@@ -1,0 +1,381 @@
+/* UWorldAdventure — standalone /uworld-adventure route. Own lazy chunk, so
+   nothing else's CSS loads here: everything is self-scoped, same precedent as
+   QuestsPage/SettingsPage. Built on the shared --mv-* tokens; tints are static
+   rgba values, never color-mix (which ships broken to older browsers). */
+
+.uwa {
+  min-height: 100vh;
+  background: var(--mv-bg-void);
+  color: var(--mv-text);
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  padding: clamp(16px, 4vw, 28px) clamp(16px, 5vw, 36px);
+  box-sizing: border-box;
+  overflow-x: hidden;
+}
+
+/* ── Top bar: wordmark + currency + avatar ───────────────────────────── */
+.uwa-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 30px;
+}
+
+.uwa-wordmark {
+  font-family: var(--mv-font-display);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: var(--mv-text);
+  text-decoration: none;
+}
+
+.uwa-topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.uwa-currency {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 20px;
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.uwa-currency-divider {
+  width: 1px;
+  height: 14px;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.uwa-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mv-font-display);
+  font-size: 14px;
+  color: var(--mv-gold);
+  flex-shrink: 0;
+}
+
+.uwa-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* ── Back pill ───────────────────────────────────────────────────────── */
+.uwa-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.85);
+  padding: 8px 16px 8px 12px;
+  border-radius: 20px;
+  cursor: pointer;
+  margin-bottom: 22px;
+  transition: background 0.15s;
+}
+
+.uwa-back:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* ── Column + title ──────────────────────────────────────────────────── */
+.uwa-col {
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.uwa-title {
+  font-family: var(--mv-font-display);
+  font-size: 34px;
+  font-weight: 700;
+  margin: 0 0 6px;
+  color: var(--mv-text);
+}
+
+.uwa-sub {
+  margin: 0 0 26px;
+  font-size: 14px;
+  color: var(--mv-text-dim-65);
+}
+
+.uwa-section-label {
+  font-family: 'Cinzel', serif;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--mv-text-dim-65);
+  margin-bottom: 12px;
+}
+
+.uwa-empty {
+  font-size: 14px;
+  color: var(--mv-text-dim-65);
+  margin: 12px 0;
+}
+
+.uwa-error {
+  font-size: 14px;
+  color: var(--mv-danger);
+  background: var(--mv-danger-bg);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin: 16px 0 0;
+}
+
+/* ── Subject picker ──────────────────────────────────────────────────── */
+.uwa-subjects {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin-bottom: 26px;
+}
+
+.uwa-subject {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 18px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  color: var(--mv-text-dim-85);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.18s, border-color 0.18s, transform 0.18s;
+}
+
+.uwa-subject:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.22);
+  transform: translateY(-2px);
+}
+
+.uwa-subject--active {
+  background: rgba(212, 175, 55, 0.12);
+  border-color: var(--mv-border-gold);
+  color: var(--mv-text);
+}
+
+.uwa-subject-icon {
+  font-size: 26px;
+  line-height: 1;
+}
+
+.uwa-subject-name {
+  text-align: center;
+  line-height: 1.3;
+}
+
+/* ── Real counts ─────────────────────────────────────────────────────── */
+.uwa-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.uwa-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 16px 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+}
+
+.uwa-stat--accent {
+  background: rgba(212, 175, 55, 0.1);
+  border-color: var(--mv-border-gold);
+}
+
+.uwa-stat-val {
+  font-family: var(--mv-font-display);
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--mv-text);
+}
+
+.uwa-stat--accent .uwa-stat-val {
+  color: var(--mv-gold);
+}
+
+.uwa-stat-label {
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--mv-text-dim-65);
+  text-align: center;
+}
+
+.uwa-bar {
+  height: 8px;
+  background: rgba(255, 255, 255, 0.07);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-bottom: 26px;
+}
+
+.uwa-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--mv-gold-dim), var(--mv-gold));
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
+/* ── Pace card ───────────────────────────────────────────────────────── */
+.uwa-card {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 20px;
+}
+
+.uwa-pace-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.uwa-pace-label {
+  font-family: 'Cinzel', serif;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--mv-text-dim-65);
+}
+
+.uwa-pace-value {
+  font-family: var(--mv-font-display);
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--mv-gold);
+}
+
+.uwa-pace-value span {
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--mv-text-dim-65);
+}
+
+.uwa-slider {
+  width: 100%;
+  appearance: none;
+  -webkit-appearance: none;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  outline: none;
+  cursor: pointer;
+}
+
+.uwa-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--mv-gold);
+  border: 2px solid var(--mv-bg-void);
+  cursor: pointer;
+}
+
+.uwa-slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--mv-gold);
+  border: 2px solid var(--mv-bg-void);
+  cursor: pointer;
+}
+
+.uwa-slider-ends {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--mv-text-dim-45);
+  margin-top: 6px;
+}
+
+/* ── Projection ──────────────────────────────────────────────────────── */
+.uwa-projection {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.uwa-proj {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  text-align: center;
+}
+
+.uwa-proj-val {
+  font-family: var(--mv-font-display);
+  font-size: 30px;
+  font-weight: 700;
+  color: var(--mv-text);
+  line-height: 1.1;
+}
+
+.uwa-proj-val--date {
+  font-size: 17px;
+}
+
+.uwa-proj-label {
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--mv-text-dim-65);
+}
+
+/* ── Start button ────────────────────────────────────────────────────── */
+.uwa-start {
+  width: 100%;
+  margin-top: 22px;
+}
+
+.uwa-start:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (max-width: 520px) {
+  .uwa-stats { grid-template-columns: 1fr; }
+  .uwa-projection { grid-template-columns: 1fr; }
+}

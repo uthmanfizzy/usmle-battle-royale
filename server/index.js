@@ -4391,6 +4391,125 @@ app.get('/api/users/:userId/question-bank-progress', requireAuth, async (req, re
   }
 });
 
+// ── UWorld Adventure pacing (user_prep_pace) ──────────────────────────────────
+// How many questions per day a user has committed to for a given subject. A
+// personal setting, not a public stat — so unlike study-stats / mastery, both
+// endpoints are own-data-only: a :userId that isn't the caller is 403, never
+// silently answered for someone else.
+const PREP_PACE_MIN = 1;
+const PREP_PACE_MAX = 200;
+
+/**
+ * GET /api/users/:userId/prep-pace?subject=<id>
+ * -> { daily_target: <n> | null }. null means "never set one" — the client picks
+ * its own default rather than the server inventing a number.
+ */
+app.get('/api/users/:userId/prep-pace', requireAuth, async (req, res) => {
+  if (req.params.userId !== req.userId) return res.status(403).json({ error: 'Forbidden' });
+  if (!supabase) return res.json({ daily_target: null });
+
+  const subject = (req.query.subject || '').toString().trim();
+  if (!subject) return res.status(400).json({ error: 'subject required.' });
+
+  try {
+    const { data, error } = await supabase
+      .from('user_prep_pace')
+      .select('daily_target')
+      .eq('user_id', req.userId)
+      .eq('subject', subject)
+      .maybeSingle();   // no row is the normal first-visit case, not an error
+    if (error) throw error;
+    res.json({ daily_target: data ? Number(data.daily_target) : null });
+  } catch (err) {
+    console.warn('[/api/users/:userId/prep-pace] unavailable —', err.message);
+    res.json({ daily_target: null });
+  }
+});
+
+/**
+ * POST /api/prep-pace  { subject, daily_target }
+ *
+ * Fail-soft on purpose: a pace is a low-stakes preference, so a write failure
+ * answers { ok: false } and lets the page keep working with the value the user
+ * already sees, rather than throwing an error at them. Genuinely bad input
+ * (missing subject, out-of-range target) is still a 400 — that's a caller bug,
+ * not a transient failure.
+ */
+app.post('/api/prep-pace', requireAuth, async (req, res) => {
+  const subject = (req.body?.subject ?? '').toString().trim();
+  const target  = Number(req.body?.daily_target);
+  if (!subject) return res.status(400).json({ error: 'subject required.' });
+  if (!Number.isFinite(target) || !Number.isInteger(target) || target < PREP_PACE_MIN || target > PREP_PACE_MAX) {
+    return res.status(400).json({ error: `daily_target must be an integer ${PREP_PACE_MIN}-${PREP_PACE_MAX}.` });
+  }
+  if (!supabase) return res.json({ ok: false });
+
+  try {
+    // updated_at has no trigger on this table — stamp it explicitly or it would
+    // keep reporting the row's creation time forever.
+    const err = await logWrite('user_prep_pace.upsert', supabase
+      .from('user_prep_pace')
+      .upsert({
+        user_id:      req.userId,
+        subject,
+        daily_target: target,
+        updated_at:   new Date().toISOString(),
+      }, { onConflict: 'user_id,subject' }));
+    res.json({ ok: !err, daily_target: target });
+  } catch (e) {
+    console.warn('[/api/prep-pace] unavailable —', e.message);
+    res.json({ ok: false });
+  }
+});
+
+/**
+ * POST /api/question-bank-session  { subject, pct, seconds }
+ *
+ * One activity_sessions row per finished UWorld Adventure run. Same additive,
+ * fail-soft shape as the Training Grounds / Journey inserts: its own try/catch,
+ * the returned error is checked, and a failure logs without disturbing the
+ * completion flow the client has already shown the player.
+ *
+ * Study time is NOT written here — SoloGame already posts its own active
+ * seconds to /api/study-time at game-over for every mode, so doing it again
+ * would double-count.
+ */
+app.post('/api/question-bank-session', requireAuth, async (req, res) => {
+  if (!supabase) return res.json({ ok: false });
+
+  const subject = (req.body?.subject ?? '').toString().trim() || null;
+  let pct = Number(req.body?.pct);
+  if (!Number.isFinite(pct)) return res.status(400).json({ error: 'pct must be a number.' });
+  pct = Math.max(0, Math.min(100, Math.round(pct)));
+  const seconds = sanitizeSessionSeconds(req.body?.seconds);
+
+  try {
+    // started_at is DERIVED as ended_at - duration (the same approximation
+    // Training Grounds and Journey use — there is no real session-start stamp).
+    const endedAt   = new Date();
+    const startedAt = new Date(endedAt.getTime() - seconds * 1000);
+    const err = await logWrite('activity_sessions.question_bank', supabase
+      .from('activity_sessions')
+      .insert({
+        user_id:              req.userId,   // requireAuth guarantees a real user
+        game_mode:            'question_bank_practice',
+        subject,
+        journey_chapter_name: null,
+        journey_level_name:   null,
+        outcome_type:         'score_pct',
+        score_pct:            pct,
+        is_win:               null,
+        duration_seconds:     seconds,
+        started_at:           startedAt.toISOString(),
+        ended_at:             endedAt.toISOString(),
+      }));
+    res.json({ ok: !err });
+  } catch (e) {
+    console.error('[/api/question-bank-session] threw —', e.message);
+    res.json({ ok: false });
+  }
+});
+
 // Public (no auth) like /api/leaderboard/players — anyone viewing a profile
 // sees these stats. Fails soft to zeros so a profile view never breaks.
 app.get('/api/users/:userId/study-stats', async (req, res) => {

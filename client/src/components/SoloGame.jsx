@@ -57,7 +57,7 @@ function saveHi(subject, score) {
   try { localStorage.setItem(`usmle-hs-${subject}`, String(score)); } catch {}
 }
 
-export default function SoloGame({ subject, username, difficulty, onBack, onTryAgain, onChangeSubject, onBackToTopics, topicId, questionsUrl, onComplete, levelLabel, isJourney }) {
+export default function SoloGame({ subject, username, difficulty, onBack, onTryAgain, onChangeSubject, onBackToTopics, topicId, questionsUrl, onComplete, levelLabel, isJourney, providedQuestions }) {
   const { settings } = useGameSettings();
   const { study: studyPref } = useTheme();   // Layer 1 chrome renders only when study mode is on
   // Journey ALWAYS renders the full study-layout chrome (burger menu, header
@@ -98,7 +98,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   const [timeLeft, setTimeLeft] = useState(defaultTimer);
   // Pause (Training Grounds + First Aid Journey only — never plain solo, and Battle
   // Royale uses GameRoom not SoloGame). Freezes the countdown + covers the question.
-  const canPause = isJourney || !!topicId || !!questionsUrl;
+  const canPause = isJourney || !!topicId || !!questionsUrl || !!providedQuestions;
   const [isPaused, setIsPaused] = useState(false);
   const [selected, setSelected] = useState(null);
   const [revealed, setRevealed] = useState(false);
@@ -316,6 +316,25 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   }, [musicOn, isPaused, loading, gameOver]);
 
   useEffect(() => {
+    // Pre-fetched pool (UWorld Adventure): play exactly this array and skip the
+    // fetch entirely. The caller owns the selection — which questions, in which
+    // order — so nothing here re-derives it.
+    //
+    // The array reference MUST be stable across renders (UWorldAdventure holds it
+    // in state, set once per session start); a freshly-built array every render
+    // would re-fire this effect and reset the run mid-question.
+    if (providedQuestions) {
+      if (providedQuestions.length === 0) {
+        setNoQuestionsFound(true);
+        setNoQuestionsMessage('No unseen questions left for this subject. You have finished the bank!');
+        setLoading(false);
+        return;
+      }
+      setQuestions(providedQuestions);
+      setLoading(false);
+      return;
+    }
+
     let url = questionsUrl || (topicId
       ? `${SERVER_URL}/api/questions?topic_id=${topicId}`
       : `${SERVER_URL}/api/questions?subject=${subject}`);
@@ -359,7 +378,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
         setFetchError('Failed to load questions. Check your connection.');
         setLoading(false);
       });
-  }, [subject, topicId, difficulty, questionsUrl]);
+  }, [subject, topicId, difficulty, questionsUrl, providedQuestions]);
 
   const processAnswerRef = useRef(null);
 

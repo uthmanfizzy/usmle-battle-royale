@@ -562,5 +562,44 @@ CREATE POLICY IF NOT EXISTS "server_full_access_game_settings"
 -- /api/questions/unseen (page-scan anti-join, same pattern as ankingScanNewCards
 -- since PostgREST has no NOT EXISTS).
 --
--- NOT YET WIRED: no client UI consumes the two read endpoints yet — this is the
--- tracking layer only, waiting on enough question content to be worth surfacing.
+-- CONSUMED BY: the UWorld Adventure page (/uworld-adventure) — see
+-- user_prep_pace below.
+
+-- ── user_prep_pace (DOCUMENTATION ONLY — already live in Supabase) ─────────────
+-- Created directly in the Supabase SQL editor and exists in production. This
+-- block documents the live shape so schema.sql stays in sync; do NOT re-run it.
+--
+-- One row per (user, subject): how many questions per day that user has
+-- committed to for the UWorld Adventure pacing page. A personal preference, not
+-- a stat — nothing else reads it and nothing is derived from it server-side.
+--
+-- CREATE TABLE IF NOT EXISTS user_prep_pace (
+--   user_id      UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+--   subject      TEXT        NOT NULL,
+--   daily_target INTEGER     NOT NULL,
+--   created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+--   updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+--   PRIMARY KEY (user_id, subject)
+-- );
+--
+-- The composite PK is the upsert conflict target ('user_id,subject'). NOTE:
+-- updated_at has NO trigger on this table — POST /api/prep-pace stamps it
+-- explicitly, or it would report the row's creation time forever.
+--
+-- `subject` is a plain subjects.id string with no FK, matching subject_mastery
+-- and activity_sessions. Range (1-200) is enforced in the endpoint, not by a
+-- CHECK constraint.
+--
+-- READ  by GET  /api/users/:userId/prep-pace?subject= (own data only — 403 on a
+--       mismatched :userId, unlike the public study-stats/mastery endpoints,
+--       because a pace is a personal setting rather than a shown-off stat).
+-- WRITE by POST /api/prep-pace, debounced client-side so a slider drag saves
+--       once at rest. Fail-soft: a lost write returns { ok: false } and the page
+--       keeps working with the value already on screen.
+--
+-- The UWorld Adventure page pairs this with the user_question_seen readers above
+-- (question-bank-progress for real total/seen/unseen, /api/questions/unseen for
+-- the day's set) and writes one activity_sessions row per finished run via POST
+-- /api/question-bank-session (game_mode 'question_bank_practice'). It shows the
+-- four ACTIVE subjects only, fetched live from /api/subjects, and deliberately
+-- has no "Systems" facet — no real data backs one.
