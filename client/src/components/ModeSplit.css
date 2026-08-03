@@ -120,6 +120,27 @@
   box-shadow: 0 0 28px rgba(193, 41, 30, 0.45);
 }
 
+/* Blue variant — UWorld Adventure. The mockup deliberately sets this campaign
+   apart from its red siblings: blue rule + glow, blue title, and cooler stripes
+   in the art panel. Same geometry as the base card, colour only. Kept in step
+   with the /uworld-adventure page, which is blue end to end. */
+.ms-journey-card--blue {
+  border-color: #3f7fd6;
+  box-shadow: 0 0 18px rgba(47, 111, 209, 0.2);
+}
+
+.ms-journey-card--blue:hover {
+  box-shadow: 0 0 28px rgba(47, 111, 209, 0.45);
+}
+
+.ms-journey-card--blue .ms-journey-name {
+  color: #7fb0e0;
+}
+
+.ms-journey-card--blue .ms-journey-art {
+  background: repeating-linear-gradient(45deg, #182430, #182430 10px, #131d27 10px, #131d27 20px);
+}
+
 /* Coming-soon state: dimmed + neutral border (same plain-card language as
    Deploy's disabled mode cards), no red glow, no hover lift.
    animation:none is required — ms-card-up's fill:both end state is

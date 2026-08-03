@@ -1,58 +1,59 @@
-/* UWorldAdventure — standalone /uworld-adventure route. Own lazy chunk, so
-   nothing else's CSS loads here: everything is self-scoped, same precedent as
-   QuestsPage/SettingsPage. Built on the shared --mv-* tokens; tints are static
-   rgba values, never color-mix (which ships broken to older browsers). */
+/* UWorldAdventure — standalone /uworld-adventure route, styled to
+   `Medvale UWorld Adventure.dc.html`. Own lazy chunk, so nothing else's CSS
+   loads here and everything is self-scoped (same precedent as QuestsPage /
+   SettingsPage).
+
+   THE BLUE THEME: this page is the one surface in the app that is blue rather
+   than the usual red/gold. The palette below is lifted straight from the
+   mockup, and the Story Mode card that leads here carries the matching
+   .ms-journey-card--blue variant. Every tint is a static rgba — never
+   color-mix(), which ships broken to older browsers. */
 
 .uwa {
+  --uwa-blue: #3f7fd6;         /* primary rule / accent */
+  --uwa-blue-light: #7fb0e0;   /* headings, figures, letters */
+  --uwa-blue-hover: #a4c9ec;
+  --uwa-void: #05080c;         /* page base */
+  --uwa-card: rgba(10, 16, 24, 0.6);
+  --uwa-card-soft: rgba(10, 16, 24, 0.5);
+  --uwa-rule: rgba(63, 127, 214, 0.35);
+  --uwa-rule-strong: rgba(63, 127, 214, 0.5);
+  --uwa-tint: rgba(63, 127, 214, 0.15);
+  --uwa-tint-strong: rgba(63, 127, 214, 0.25);
+  --uwa-glow: 0 0 18px rgba(47, 111, 209, 0.2);
+
   min-height: 100vh;
-  background: var(--mv-bg-void);
-  color: var(--mv-text);
+  /* Mockup layers a dark wash over a background image; no dashboard_bg exists
+     in prod (admin → Homepage Images serves only icon_* keys), so the wash is
+     rendered on its own as a soft blue vignette rather than referencing an
+     asset that would 404. */
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(47, 111, 209, 0.13) 0%, rgba(5, 8, 12, 0) 60%),
+    var(--uwa-void);
+  color: #fff;
   font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
   padding: clamp(16px, 4vw, 28px) clamp(16px, 5vw, 36px);
   box-sizing: border-box;
   overflow-x: hidden;
 }
 
-/* ── Top bar: wordmark + currency + avatar ───────────────────────────── */
+/* ── Top bar: wordmark + avatar (mockup carries no currency pills here) ─── */
 .uwa-topbar {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
   gap: 16px;
-  margin-bottom: 30px;
+  margin-bottom: 34px;
 }
 
 .uwa-wordmark {
-  font-family: var(--mv-font-display);
+  font-family: var(--mv-font-display), 'Cinzel', serif;
   font-size: 22px;
   font-weight: 700;
   letter-spacing: 1.5px;
-  color: var(--mv-text);
+  color: #fff;
   text-decoration: none;
-}
-
-.uwa-topbar-right {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.uwa-currency {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 20px;
-  padding: 7px 14px;
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.uwa-currency-divider {
-  width: 1px;
-  height: 14px;
-  background: rgba(255, 255, 255, 0.2);
 }
 
 .uwa-avatar {
@@ -65,20 +66,25 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: var(--mv-font-display);
+  font-family: var(--mv-font-display), 'Cinzel', serif;
   font-size: 14px;
-  color: var(--mv-gold);
+  color: var(--uwa-blue-light);
   flex-shrink: 0;
 }
 
-.uwa-avatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+.uwa-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+/* ── Header row: back pill left, title optically centred ─────────────────── */
+.uwa-headrow {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 22px;
 }
 
-/* ── Back pill ───────────────────────────────────────────────────────── */
 .uwa-back {
+  justify-self: start;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -91,291 +97,262 @@
   padding: 8px 16px 8px 12px;
   border-radius: 20px;
   cursor: pointer;
-  margin-bottom: 22px;
+  white-space: nowrap;
   transition: background 0.15s;
 }
 
-.uwa-back:hover {
-  background: rgba(255, 255, 255, 0.12);
-}
-
-/* ── Column + title ──────────────────────────────────────────────────── */
-.uwa-col {
-  max-width: 720px;
-  margin: 0 auto;
-}
+.uwa-back:hover { background: rgba(255, 255, 255, 0.12); }
 
 .uwa-title {
-  font-family: var(--mv-font-display);
-  font-size: 34px;
+  font-family: var(--mv-font-display), 'Cinzel', serif;
+  font-size: 22px;
   font-weight: 700;
-  margin: 0 0 6px;
-  color: var(--mv-text);
+  color: #fff;
+  margin: 0;
+  white-space: nowrap;
 }
 
-.uwa-sub {
-  margin: 0 0 26px;
+/* ── Column ──────────────────────────────────────────────────────────────── */
+.uwa-col { max-width: 900px; margin: 0 auto; }
+
+.uwa-intro {
   font-size: 14px;
-  color: var(--mv-text-dim-65);
+  color: rgba(255, 255, 255, 0.6);
+  margin: 0 0 28px;
+  line-height: 1.55;
 }
 
-.uwa-section-label {
-  font-family: 'Cinzel', serif;
-  font-size: 12px;
+.uwa-section-title {
+  font-family: var(--mv-font-display), 'Cinzel', serif;
+  font-size: 18px;
   font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--mv-text-dim-65);
-  margin-bottom: 12px;
+  margin: 0 0 14px;
+  color: #fff;
 }
 
 .uwa-empty {
   font-size: 14px;
-  color: var(--mv-text-dim-65);
+  color: rgba(255, 255, 255, 0.55);
   margin: 12px 0;
 }
 
 .uwa-error {
   font-size: 14px;
-  color: var(--mv-danger);
-  background: var(--mv-danger-bg);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
+  color: #ffb4ad;
+  background: rgba(193, 41, 30, 0.14);
+  border: 1px solid rgba(193, 41, 30, 0.4);
+  border-radius: 8px;
   padding: 10px 14px;
-  margin: 16px 0 0;
+  margin: 18px 0 0;
 }
 
-/* ── Subject picker ──────────────────────────────────────────────────── */
-.uwa-subjects {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 12px;
-  margin-bottom: 26px;
+/* ── Pace card ───────────────────────────────────────────────────────────── */
+.uwa-card {
+  background: var(--uwa-card);
+  border: 1.5px solid var(--uwa-blue);
+  box-shadow: var(--uwa-glow);
+  border-radius: 8px;
+  padding: 24px 28px;
+  margin-bottom: 36px;
 }
 
-.uwa-subject {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  padding: 18px 12px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 14px;
-  color: var(--mv-text-dim-85);
-  font-family: inherit;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.18s, border-color 0.18s, transform 0.18s;
-}
-
-.uwa-subject:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.22);
-  transform: translateY(-2px);
-}
-
-.uwa-subject--active {
-  background: rgba(212, 175, 55, 0.12);
-  border-color: var(--mv-border-gold);
-  color: var(--mv-text);
-}
-
-.uwa-subject-icon {
-  font-size: 26px;
-  line-height: 1;
-}
-
-.uwa-subject-name {
-  text-align: center;
-  line-height: 1.3;
-}
-
-/* ── Real counts ─────────────────────────────────────────────────────── */
-.uwa-stats {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
-  margin-bottom: 12px;
-}
-
-.uwa-stat {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  padding: 16px 10px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-}
-
-.uwa-stat--accent {
-  background: rgba(212, 175, 55, 0.1);
-  border-color: var(--mv-border-gold);
-}
-
-.uwa-stat-val {
-  font-family: var(--mv-font-display);
-  font-size: 26px;
+.uwa-card-title {
+  font-family: var(--mv-font-display), 'Cinzel', serif;
+  font-size: 16px;
   font-weight: 700;
-  color: var(--mv-text);
+  color: var(--uwa-blue-light);
+  margin-bottom: 4px;
 }
 
-.uwa-stat--accent .uwa-stat-val {
-  color: var(--mv-gold);
+.uwa-card-sub {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.55);
+  margin-bottom: 18px;
 }
 
-.uwa-stat-label {
+.uwa-slider-row {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+
+.uwa-slider {
+  flex: 1;
+  min-width: 180px;
+  accent-color: var(--uwa-blue);
+  height: 6px;
+  cursor: pointer;
+}
+
+.uwa-pace-chip {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  background: var(--uwa-tint);
+  border: 1px solid rgba(63, 127, 214, 0.4);
+  padding: 8px 16px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+.uwa-pace-num {
+  font-family: var(--mv-font-display), 'Cinzel', serif;
+  font-size: 20px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.uwa-pace-unit { font-size: 12px; color: rgba(255, 255, 255, 0.6); }
+
+.uwa-projection {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.uwa-proj-label {
+  display: block;
   font-size: 11px;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--mv-text-dim-65);
-  text-align: center;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  color: rgba(255, 255, 255, 0.5);
+  white-space: nowrap;
+  margin-bottom: 8px;
 }
+
+.uwa-proj-val {
+  display: block;
+  font-family: var(--mv-font-display), 'Cinzel', serif;
+  font-size: 20px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.uwa-proj-val--blue { color: var(--uwa-blue-light); }
+
+/* Real progress figures — no mockup counterpart (it is a static design), so
+   they reuse the pace card's own vocabulary rather than inventing a new one. */
+.uwa-counts {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+  padding-top: 16px;
+  margin-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.uwa-count-val {
+  display: block;
+  font-family: var(--mv-font-display), 'Cinzel', serif;
+  font-size: 20px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.uwa-count-val--blue { color: var(--uwa-blue-light); }
 
 .uwa-bar {
-  height: 8px;
-  background: rgba(255, 255, 255, 0.07);
+  height: 6px;
+  background: rgba(255, 255, 255, 0.08);
   border-radius: 999px;
   overflow: hidden;
-  margin-bottom: 26px;
+  margin-top: 16px;
 }
 
 .uwa-bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--mv-gold-dim), var(--mv-gold));
+  background: linear-gradient(90deg, rgba(63, 127, 214, 0.7), var(--uwa-blue-light));
   border-radius: 999px;
   transition: width 0.3s ease;
 }
 
-/* ── Pace card ───────────────────────────────────────────────────────── */
-.uwa-card {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 16px;
-  padding: 20px;
-}
-
-.uwa-pace-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 14px;
-}
-
-.uwa-pace-label {
-  font-family: 'Cinzel', serif;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--mv-text-dim-65);
-}
-
-.uwa-pace-value {
-  font-family: var(--mv-font-display);
-  font-size: 28px;
-  font-weight: 700;
-  color: var(--mv-gold);
-}
-
-.uwa-pace-value span {
-  font-size: 13px;
-  font-family: inherit;
-  color: var(--mv-text-dim-65);
-}
-
-.uwa-slider {
-  width: 100%;
-  appearance: none;
-  -webkit-appearance: none;
-  height: 6px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.12);
-  outline: none;
-  cursor: pointer;
-}
-
-.uwa-slider::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: var(--mv-gold);
-  border: 2px solid var(--mv-bg-void);
-  cursor: pointer;
-}
-
-.uwa-slider::-moz-range-thumb {
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: var(--mv-gold);
-  border: 2px solid var(--mv-bg-void);
-  cursor: pointer;
-}
-
-.uwa-slider-ends {
-  display: flex;
-  justify-content: space-between;
-  font-size: 11px;
-  color: var(--mv-text-dim-45);
-  margin-top: 6px;
-}
-
-/* ── Projection ──────────────────────────────────────────────────────── */
-.uwa-projection {
+/* ── Subject grid ────────────────────────────────────────────────────────── */
+.uwa-subjects {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
-  margin-top: 20px;
-  padding-top: 18px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px;
+  margin-bottom: 36px;
 }
 
-.uwa-proj {
+.uwa-subject {
+  background: var(--uwa-card-soft);
+  border: 1px solid var(--uwa-rule);
+  border-radius: 8px;
+  padding: 16px 18px;
   display: flex;
   flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+  text-align: left;
+  font-family: inherit;
+  color: #fff;
+  cursor: pointer;
+  transition: border-color 0.18s, background 0.18s, transform 0.18s;
+}
+
+.uwa-subject:hover {
+  border-color: var(--uwa-rule-strong);
+  background: rgba(16, 26, 40, 0.65);
+  transform: translateY(-2px);
+}
+
+.uwa-subject--active {
+  border-color: var(--uwa-blue);
+  background: rgba(63, 127, 214, 0.12);
+  box-shadow: var(--uwa-glow);
+}
+
+.uwa-subject-badge {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--uwa-tint-strong);
+  border: 1px solid var(--uwa-rule-strong);
+  display: flex;
   align-items: center;
-  gap: 5px;
-  text-align: center;
+  justify-content: center;
+  font-family: var(--mv-font-display), 'Cinzel', serif;
+  font-size: 15px;
+  line-height: 1;
+  color: var(--uwa-blue-light);
+  flex-shrink: 0;
 }
 
-.uwa-proj-val {
-  font-family: var(--mv-font-display);
-  font-size: 30px;
-  font-weight: 700;
-  color: var(--mv-text);
-  line-height: 1.1;
-}
+.uwa-subject-name { font-size: 14px; font-weight: 700; }
 
-.uwa-proj-val--date {
-  font-size: 17px;
-}
+.uwa-subject-meta { font-size: 12px; color: rgba(255, 255, 255, 0.5); }
 
-.uwa-proj-label {
-  font-size: 11px;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--mv-text-dim-65);
-}
-
-/* ── Start button ────────────────────────────────────────────────────── */
+/* ── Start button — blue sibling of the shared cut-corner button ─────────── */
 .uwa-start {
   width: 100%;
-  margin-top: 22px;
+  padding: 14px 20px;
+  font-family: var(--mv-font-display), 'Cinzel', serif;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #fff;
+  background: rgba(63, 127, 214, 0.22);
+  border: 1.5px solid var(--uwa-blue);
+  box-shadow: var(--uwa-glow);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.18s, box-shadow 0.18s, transform 0.18s;
 }
 
-.uwa-start:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+.uwa-start:hover:not(:disabled) {
+  background: rgba(63, 127, 214, 0.34);
+  box-shadow: 0 0 28px rgba(47, 111, 209, 0.45);
+  transform: translateY(-2px);
 }
 
-@media (max-width: 520px) {
-  .uwa-stats { grid-template-columns: 1fr; }
-  .uwa-projection { grid-template-columns: 1fr; }
+.uwa-start:disabled { opacity: 0.5; cursor: not-allowed; }
+
+@media (max-width: 560px) {
+  .uwa-headrow { grid-template-columns: 1fr; }
+  .uwa-title { justify-self: start; white-space: normal; }
+  .uwa-card { padding: 20px 18px; }
 }

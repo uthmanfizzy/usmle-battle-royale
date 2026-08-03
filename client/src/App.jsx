@@ -111,6 +111,7 @@ export default function App() {
     const authError = params.get('auth_error');
     const autoPlay  = params.get('play') === '1';
     const autoTraining = params.get('training') === '1';
+    const autoStory = params.get('story') === '1';
 
     if (authError) {
       window.history.replaceState({}, '', '/');
@@ -134,6 +135,28 @@ export default function App() {
       } else {
         fetchMe().then(me => {
           if (me) { setUser(me); setUsername(me.username); connectSocket(); setPhase('mode_split'); }
+          else { setPhase('entry'); }
+        });
+      }
+      return;
+    }
+
+    if (autoStory) {
+      // Arrived from the /uworld-adventure "Back to Story Mode" pill → land on
+      // the story menu itself. Same shape as the play/training bridges above;
+      // Story Mode is a phase, not a route, so it needs one of these to be
+      // linkable from a real page.
+      window.history.replaceState({}, '', '/');
+      if (!token) { setPhase('entry'); return; }
+      const cached = getCachedUser();
+      if (cached) {
+        setUser(cached);
+        setUsername(cached.username);
+        connectSocket();
+        setPhase('story_menu');
+      } else {
+        fetchMe().then(me => {
+          if (me) { setUser(me); setUsername(me.username); connectSocket(); setPhase('story_menu'); }
           else { setPhase('entry'); }
         });
       }

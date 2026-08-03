@@ -301,7 +301,12 @@
       "Bash(xargs -a /tmp/urlfiles2.txt sed -i \"s|https://usmle-battle-royale-production.up.railway.app|http://localhost:3002|g\")",
       "Bash(sed -n \"/^\\\\.ms-back-btn {/,/^}/p\" ModeSplit.css)",
       "Bash(sed -n \"/^\\\\.ms-banner {/,/^}/p\" ModeSplit.css)",
-      "PowerShell(Stop-Process -Id 10496 -Force -Confirm:$false -ErrorAction SilentlyContinue; Get-NetTCPConnection -LocalPort 4173 -State Listen -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -Confirm:$false -ErrorAction SilentlyContinue }; Start-Sleep -Seconds 2; if \\(Get-NetTCPConnection -LocalPort 3002,4173 -State Listen -ErrorAction SilentlyContinue\\) { \"still listening\" } else { \"test servers stopped\" })"
+      "PowerShell(Stop-Process -Id 10496 -Force -Confirm:$false -ErrorAction SilentlyContinue; Get-NetTCPConnection -LocalPort 4173 -State Listen -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -Confirm:$false -ErrorAction SilentlyContinue }; Start-Sleep -Seconds 2; if \\(Get-NetTCPConnection -LocalPort 3002,4173 -State Listen -ErrorAction SilentlyContinue\\) { \"still listening\" } else { \"test servers stopped\" })",
+      "Bash(ls -d \"C:/Users/faiza/Downloads\"/*design* \"C:/Users/faiza/Downloads\"/*mockup* \"C:/Users/faiza/Downloads\"/*handoff* 2>/dev/null | head -20)",
+      "Bash(mkdir -p C:/Users/faiza/AppData/Local/Temp/claude/C--Users-faiza-usmle-battle-royale/4195dfd4-9cfe-464c-8db6-f05c06fa3fd9/scratchpad/mock4)",
+      "Bash(unzip -o -q \"C:/Users/faiza/Downloads/Medvale landing page wireframe \\(4\\).zip\")",
+      "Bash(grep -oiE 'uworld[^<\"]{0,60}' 'C:/Users/faiza/AppData/Local/Temp/claude/C--Users-faiza-usmle-battle-royale/4195dfd4-9cfe-464c-8db6-f05c06fa3fd9/scratchpad/mock4/Medvale Story Mode.dc.html')",
+      "PowerShell(Get-NetTCPConnection -LocalPort 3002,4173 -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique | ForEach-Object { try { Stop-Process -Id $_ -Force -ErrorAction Stop; \"stopped $_\" } catch {} }; Start-Sleep -Seconds 2; if \\(Get-NetTCPConnection -LocalPort 3002,4173 -State Listen -ErrorAction SilentlyContinue\\) { \"still listening\" } else { \"test servers stopped\" })"
     ]
   }
 }

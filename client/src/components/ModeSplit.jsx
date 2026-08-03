@@ -90,13 +90,15 @@ export function StoryMenu({ onBack, onJourney, onTower, onAnKing, onUWorld }) {
             phase, so onUWorld navigates rather than setting phase; the card
             stays presentational either way. Sits above the still-gated Tower,
             keeping every playable mode before the coming-soon one. */}
-        <button className="ms-journey-card" onClick={onUWorld}>
+        <button className="ms-journey-card ms-journey-card--blue" onClick={onUWorld}>
           <div className="ms-journey-art" aria-hidden="true">
             <span className="ms-journey-art-icon">📊</span>
           </div>
           <div className="ms-journey-body">
             <span className="ms-journey-name">UWORLD ADVENTURE</span>
-            <span className="ms-journey-sub">Pace your board-review questions</span>
+            <span className="ms-journey-sub">
+              A high-yield board-review expedition through the wards of Medvale.
+            </span>
           </div>
         </button>
 

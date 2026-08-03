@@ -22,8 +22,9 @@ function shuffle(arr) {
   return a;
 }
 
+// Mockup's format: "March 14, 2027".
 function formatDate(d) {
-  return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+  return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 }
 
 /**
@@ -69,7 +70,12 @@ export default function UWorldAdventure() {
       .then(r => r.json())
       .then(data => {
         if (cancelled) return;
-        setSubjects((data.subjects || []).filter(s => s.active));
+        const active = (data.subjects || []).filter(s => s.active);
+        setSubjects(active);
+        // Open on the first subject so the pace card is populated on arrival,
+        // the way the mockup shows it — an empty card above a subject grid
+        // reads as broken. Picking another subject just re-points it.
+        setSelected(prev => prev || (active[0]?.id ?? null));
       })
       .catch(() => { if (!cancelled) setSubjectsError(true); });
     return () => { cancelled = true; };
@@ -179,6 +185,7 @@ export default function UWorldAdventure() {
     );
   }
 
+  const activeName = subjects.find(s => s.id === selected)?.name || '';
   const unseen = progress?.unseen ?? 0;
   const daysToFinish = unseen > 0 ? Math.ceil(unseen / pace) : 0;
   const completionDate = new Date();
@@ -187,34 +194,122 @@ export default function UWorldAdventure() {
 
   return (
     <div className="uwa">
+      {/* Mockup's top bar is deliberately minimal here — wordmark and avatar
+          only, no currency pills. */}
       <div className="uwa-topbar">
         <a className="uwa-wordmark" href="/dashboard">MEDVALE</a>
-        <div className="uwa-topbar-right">
-          <div className="uwa-currency" aria-label="Currency">
-            <span>🪙 {user?.coins ?? 0}</span>
-            <span className="uwa-currency-divider" aria-hidden="true" />
-            <span>💎 {user?.gems ?? 0}</span>
-          </div>
-          <div className="uwa-avatar" title={user?.username || 'Player'}>
-            {user?.avatar_url
-              ? <img src={user.avatar_url} alt={user.username} referrerPolicy="no-referrer" />
-              : <span>{user?.username?.[0]?.toUpperCase() || '?'}</span>}
-          </div>
+        <div className="uwa-avatar" title={user?.username || 'Player'}>
+          {user?.avatar_url
+            ? <img src={user.avatar_url} alt={user.username} referrerPolicy="no-referrer" />
+            : <span>{user?.username?.[0]?.toUpperCase() || '?'}</span>}
         </div>
       </div>
 
-      <button type="button" className="uwa-back" onClick={() => { window.location.href = '/dashboard'; }}>
-        ← Back to Dashboard
-      </button>
+      <div className="uwa-headrow">
+        <button type="button" className="uwa-back" onClick={() => { window.location.href = '/?story=1'; }}>
+          ← Back to Story Mode
+        </button>
+        <h1 className="uwa-title">UWorld Adventure</h1>
+        <div />
+      </div>
 
       <div className="uwa-col">
-        <h1 className="uwa-title">UWorld Adventure</h1>
-        <p className="uwa-sub">
-          Pick a subject, set a daily pace, and see exactly when you'll finish the bank.
+        {/* Mockup reads "3,659 questions across every USMLE subject and system";
+            that figure is a design placeholder and there are no system-tagged
+            questions, so this states the REAL total for the subjects that
+            actually have content. */}
+        <p className="uwa-intro">
+          A high-yield board-review expedition through the wards of Medvale
+          {progress ? ` — ${progress.total.toLocaleString()} questions in ${activeName || 'this subject'}.` : '.'}
         </p>
 
-        <div className="uwa-section-label">Subjects</div>
-        {subjectsError && <p className="uwa-empty">Couldn't load subjects — check your connection.</p>}
+        {/* ── Set Your Pace ─────────────────────────────────────────────── */}
+        <div className="uwa-card">
+          <div className="uwa-card-title">Set Your Pace</div>
+          <div className="uwa-card-sub">How many questions do you want to answer per day?</div>
+
+          <div className="uwa-slider-row">
+            <input
+              className="uwa-slider"
+              type="range"
+              min={PACE_MIN}
+              max={PACE_MAX}
+              step={1}
+              value={pace}
+              onChange={e => setPace(Number(e.target.value))}
+              aria-label="Questions per day"
+            />
+            <div className="uwa-pace-chip">
+              <span className="uwa-pace-num">{pace}</span>
+              <span className="uwa-pace-unit">questions/day</span>
+            </div>
+          </div>
+
+          <div className="uwa-projection">
+            <div>
+              <span className="uwa-proj-label">DAYS TO FINISH</span>
+              <span className="uwa-proj-val uwa-proj-val--blue">
+                {unseen > 0 ? `${daysToFinish} days` : '—'}
+              </span>
+            </div>
+            <div>
+              <span className="uwa-proj-label">ESTIMATED COMPLETION</span>
+              <span className="uwa-proj-val">
+                {unseen > 0 ? formatDate(completionDate) : 'Complete'}
+              </span>
+            </div>
+          </div>
+
+          {/* Real progress — the mockup is a static design and has no equivalent,
+              so these borrow the projection row's own treatment. */}
+          {progress && (
+            <>
+              <div className="uwa-counts">
+                <div>
+                  <span className="uwa-proj-label">TOTAL QUESTIONS</span>
+                  <span className="uwa-count-val">{progress.total}</span>
+                </div>
+                <div>
+                  <span className="uwa-proj-label">ALREADY ANSWERED</span>
+                  <span className="uwa-count-val">{progress.seen}</span>
+                </div>
+                <div>
+                  <span className="uwa-proj-label">REMAINING</span>
+                  <span className="uwa-count-val uwa-count-val--blue">{progress.unseen}</span>
+                </div>
+              </div>
+              <div
+                className="uwa-bar"
+                role="img"
+                aria-label={`${progress.seen} of ${progress.total} questions answered`}
+              >
+                <div
+                  className="uwa-bar-fill"
+                  style={{ width: `${progress.total ? (progress.seen / progress.total) * 100 : 0}%` }}
+                />
+              </div>
+            </>
+          )}
+
+          {startError && <p className="uwa-error">{startError}</p>}
+
+          <button
+            type="button"
+            className="uwa-start"
+            onClick={startSession}
+            disabled={starting || loadingSubject || unseen === 0}
+            style={{ marginTop: 22 }}
+          >
+            {starting ? 'Loading…'
+              : loadingSubject ? 'Loading…'
+              : unseen === 0 ? 'Subject Complete'
+              : `Start Today's Questions (${todaysCount})`}
+          </button>
+        </div>
+
+        {/* ── Subjects ──────────────────────────────────────────────────── */}
+        <h2 className="uwa-section-title">Subjects</h2>
+        {subjectsError && <p className="uwa-empty">Couldn&apos;t load subjects — check your connection.</p>}
         {!subjectsError && subjects.length === 0 && <p className="uwa-empty">Loading subjects…</p>}
         <div className="uwa-subjects">
           {subjects.map(s => (
@@ -223,88 +318,19 @@ export default function UWorldAdventure() {
               type="button"
               className={`uwa-subject${selected === s.id ? ' uwa-subject--active' : ''}`}
               onClick={() => setSelected(s.id)}
+              aria-pressed={selected === s.id}
             >
-              <span className="uwa-subject-icon">{s.icon || '📚'}</span>
+              {/* Mockup uses the subject's first letter in this badge; the real
+                  subjects carry their own icons AND two of the four both start
+                  with "B", so the icon goes in the mockup's circle instead. */}
+              <span className="uwa-subject-badge" aria-hidden="true">{s.icon || s.name[0]}</span>
               <span className="uwa-subject-name">{s.name}</span>
+              {selected === s.id && progress && (
+                <span className="uwa-subject-meta">{progress.unseen} left</span>
+              )}
             </button>
           ))}
         </div>
-
-        {selected && loadingSubject && <p className="uwa-empty">Loading your progress…</p>}
-
-        {selected && !loadingSubject && progress && (
-          <>
-            <div className="uwa-stats">
-              <div className="uwa-stat">
-                <span className="uwa-stat-val">{progress.total}</span>
-                <span className="uwa-stat-label">Total Questions</span>
-              </div>
-              <div className="uwa-stat">
-                <span className="uwa-stat-val">{progress.seen}</span>
-                <span className="uwa-stat-label">Already Answered</span>
-              </div>
-              <div className="uwa-stat uwa-stat--accent">
-                <span className="uwa-stat-val">{progress.unseen}</span>
-                <span className="uwa-stat-label">Remaining</span>
-              </div>
-            </div>
-
-            <div className="uwa-bar" role="img"
-                 aria-label={`${progress.seen} of ${progress.total} questions answered`}>
-              <div
-                className="uwa-bar-fill"
-                style={{ width: `${progress.total ? (progress.seen / progress.total) * 100 : 0}%` }}
-              />
-            </div>
-
-            <div className="uwa-card">
-              <div className="uwa-pace-head">
-                <span className="uwa-pace-label">Daily Pace</span>
-                <span className="uwa-pace-value">{pace} <span>/ day</span></span>
-              </div>
-              <input
-                className="uwa-slider"
-                type="range"
-                min={PACE_MIN}
-                max={PACE_MAX}
-                step={1}
-                value={pace}
-                onChange={e => setPace(Number(e.target.value))}
-                aria-label="Questions per day"
-              />
-              <div className="uwa-slider-ends">
-                <span>{PACE_MIN}</span>
-                <span>{PACE_MAX}</span>
-              </div>
-
-              <div className="uwa-projection">
-                <div className="uwa-proj">
-                  <span className="uwa-proj-val">{unseen > 0 ? daysToFinish : '—'}</span>
-                  <span className="uwa-proj-label">Days to Finish</span>
-                </div>
-                <div className="uwa-proj">
-                  <span className="uwa-proj-val uwa-proj-val--date">
-                    {unseen > 0 ? formatDate(completionDate) : 'Complete'}
-                  </span>
-                  <span className="uwa-proj-label">Estimated Completion</span>
-                </div>
-              </div>
-            </div>
-
-            {startError && <p className="uwa-error">{startError}</p>}
-
-            <button
-              type="button"
-              className="mv-btn-cut mv-btn-cut--lg uwa-start"
-              onClick={startSession}
-              disabled={starting || unseen === 0}
-            >
-              {starting ? 'Loading…'
-                : unseen === 0 ? 'Subject Complete'
-                : `Start Today's Questions (${todaysCount})`}
-            </button>
-          </>
-        )}
       </div>
     </div>
   );
