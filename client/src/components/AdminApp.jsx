@@ -270,7 +270,7 @@ function StatsPanel() {
 
 // ── Question Form Modal ────────────────────────────────────────────────────────
 
-function QuestionModal({ question, defaultSubject = 'cardiology', onSave, onClose, topics = [], defaultTopicId = '', defaultDifficulty = 'easy' }) {
+function QuestionModal({ question, defaultSubject = 'cardiology', onSave, onClose, topics = [], defaultTopicId = '', defaultDifficulty = 'easy', extraGameModes = null }) {
   const isEdit = !!question;
   // A SPECIAL folder id is not a subject. Passing one straight through pre-fills
   // the form with a value the subject dropdown does not offer, and (before the
@@ -280,13 +280,18 @@ function QuestionModal({ question, defaultSubject = 'cardiology', onSave, onClos
   const SPECIAL_NOT_A_SUBJECT = ['all', '__images__', 'buzz_fun', 'scan_master', UWORLD_MODE];
   const defaultSubjectResolved = SPECIAL_NOT_A_SUBJECT.includes(defaultSubject) ? 'cardiology' : defaultSubject;
 
-  // Adding from the UWorld folder pre-ticks the UWorld tag. Buzz Fun does not do
-  // this, which is exactly how a question gets added to that folder and is then
-  // invisible to the mode: the admin forgets the checkbox and nothing says so.
-  // Still just a default — it can be unticked like any other mode.
-  const defaultGameModes = defaultSubject === UWORLD_MODE
-    ? ['battle_royale', 'speed_race', 'trivia_pursuit', UWORLD_MODE]
-    : ['battle_royale', 'speed_race', 'trivia_pursuit'];
+  // Adding from a mode's own surface pre-ticks that mode's tag — either its
+  // folder in Question Manager (defaultSubject) or its dedicated tab
+  // (extraGameModes, where the folder is a subject and carries no such hint).
+  // Buzz Fun does neither, which is exactly how a question gets added to that
+  // folder and is then invisible to the mode: the admin forgets the checkbox and
+  // nothing says so. Still just a default — it unticks like any other mode.
+  const BASE_MODES = ['battle_royale', 'speed_race', 'trivia_pursuit'];
+  const impliedModes = [
+    ...(defaultSubject === UWORLD_MODE ? [UWORLD_MODE] : []),
+    ...(extraGameModes || []),
+  ];
+  const defaultGameModes = [...new Set([...BASE_MODES, ...impliedModes])];
 
   const [form, setForm] = useState(() => question ? {
     subject:      question.subject,
@@ -1148,7 +1153,16 @@ function RowImageDrop({ questionId, field, label, url, onUploaded }) {
   );
 }
 
-function QuestionsPanel({ subjects = [] }) {
+/**
+ * scopeTag (optional): a game_modes value. When set the panel becomes a
+ * dedicated view of that mode's content — the working set is narrowed to
+ * questions carrying the tag, and the sidebar drops the game-mode/deactivated
+ * sections so it reads as one folder per SUBJECT. Everything else (list, edit,
+ * delete, bulk actions, parser) is the shared machinery, unchanged.
+ *
+ * With scopeTag null this component behaves exactly as before.
+ */
+function QuestionsPanel({ subjects = [], scopeTag = null }) {
   // ─── Data ────────────────────────────────────────────────────────────────────
   const [questions,     setQuestions]     = useState([]);
   const [loading,       setLoading]       = useState(true);
@@ -1220,7 +1234,10 @@ function QuestionsPanel({ subjects = [] }) {
   useEffect(() => { loadQuestions(); }, []);
 
   useEffect(() => {
-    if (isCatFolder(activeFolder)) {
+    // Scoped views go straight to the question list. The difficulty ->
+    // topics drill-down exists to make a 300-question subject navigable; a
+    // tagged pool is a fraction of that, so the extra clicks would only hide it.
+    if (!scopeTag && isCatFolder(activeFolder)) {
       setView('difficulty');
       setSelectedDifficulty(null);
       setSelectedTopic(null);
@@ -1759,23 +1776,30 @@ function QuestionsPanel({ subjects = [] }) {
   };
 
   // ─── Derived ─────────────────────────────────────────────────────────────────
+  // Step 0 — scope. In a tagged view every count and list below works from this
+  // narrowed set, so "All Questions" means all TAGGED questions and each subject
+  // folder holds only that subject's tagged ones.
+  const scoped = scopeTag
+    ? questions.filter(q => (q.game_modes || []).includes(scopeTag))
+    : questions;
+
   const folderCounts = FOLDERS.reduce((acc, f) => {
     if (f.separator) {
       acc[f.id] = 0;
     } else if (f.id === 'all') {
-      acc[f.id] = questions.length;
+      acc[f.id] = scoped.length;
     } else if (f.id === '__images__') {
-      acc[f.id] = questions.filter(q => q.image_url).length;
+      acc[f.id] = scoped.filter(q => q.image_url).length;
     } else if (f.id === 'buzz_fun') {
-      acc[f.id] = questions.filter(q => (q.game_modes || []).includes('buzz_fun')).length;
+      acc[f.id] = scoped.filter(q => (q.game_modes || []).includes('buzz_fun')).length;
     } else if (f.id === UWORLD_MODE) {
       // Counted by TAG, mirroring Buzz Fun. Scan Master has no branch here and
       // so falls through to the category matcher below, which is why its count
       // is permanently 0 — deliberately not copied.
-      acc[f.id] = questions.filter(q => (q.game_modes || []).includes(UWORLD_MODE)).length;
+      acc[f.id] = scoped.filter(q => (q.game_modes || []).includes(UWORLD_MODE)).length;
     } else {
       // Use the EXACT same filter logic as catQuestions below
-      acc[f.id] = questions.filter(q => {
+      acc[f.id] = scoped.filter(q => {
         if (q.subject === f.id) return true;
         if (q.category === f.id) return true;
         if (q.category?.toLowerCase() === f.id?.toLowerCase()) return true;
@@ -1787,11 +1811,11 @@ function QuestionsPanel({ subjects = [] }) {
   }, {});
 
   // Step 1 — category filter. 'all' always passes through every question.
-  const catQuestions = activeFolder === 'all'        ? questions
-    : activeFolder === '__images__'                  ? questions.filter(q => q.image_url)
-    : activeFolder === 'buzz_fun'                    ? questions.filter(q => (q.game_modes || []).includes('buzz_fun'))
-    : activeFolder === UWORLD_MODE                   ? questions.filter(q => (q.game_modes || []).includes(UWORLD_MODE))
-    : questions.filter(q => {
+  const catQuestions = activeFolder === 'all'        ? scoped
+    : activeFolder === '__images__'                  ? scoped.filter(q => q.image_url)
+    : activeFolder === 'buzz_fun'                    ? scoped.filter(q => (q.game_modes || []).includes('buzz_fun'))
+    : activeFolder === UWORLD_MODE                   ? scoped.filter(q => (q.game_modes || []).includes(UWORLD_MODE))
+    : scoped.filter(q => {
         // Match by subject or category field
         if (q.subject === activeFolder) return true;
         if (q.category === activeFolder) return true;
@@ -1925,6 +1949,10 @@ function QuestionsPanel({ subjects = [] }) {
             }
           })()}
 
+          {/* Everything below is the Question Manager's cross-mode navigation:
+              game-mode folders, the Journey link, and the deactivated subjects.
+              A scoped view is already one mode, so it shows subjects only. */}
+          {!scopeTag && <>
           {/* Game Modes separator */}
           <div className="ap-sidebar-separator">Game Modes</div>
 
@@ -1979,6 +2007,7 @@ function QuestionsPanel({ subjects = [] }) {
               return <div style={{color:'red', padding:'10px'}}>Error loading deactivated subjects: {e.message}</div>;
             }
           })()}
+          </>}
 
         </aside>
 
@@ -2244,8 +2273,10 @@ function QuestionsPanel({ subjects = [] }) {
                 </div>
               )}
 
-              {/* Anki Importer */}
-              {activeFolder === 'all' && (
+              {/* Anki Importer — a Question Manager tool. Hidden in a scoped view:
+                  an .apkg import carries no game_modes tag, so anything it added
+                  would land outside the very pool this tab exists to show. */}
+              {activeFolder === 'all' && !scopeTag && (
                 <div className="anki-importer">
                   <h3>📦 Import Anki Deck (.apkg)</h3>
                   <p className="admin-help-text">Upload an .apkg file to bulk import cards into your questions database.</p>
@@ -2713,6 +2744,7 @@ function QuestionsPanel({ subjects = [] }) {
           defaultTopicId={selectedTopic && selectedTopic !== 'unassigned' ? selectedTopic.id : ''}
           defaultDifficulty={selectedDifficulty || 'easy'}
           topics={isCatFolder(activeFolder) ? topics : []}
+          extraGameModes={scopeTag ? [scopeTag] : null}
           onSave={handleSaved}
           onClose={() => setModal(null)}
         />
@@ -2744,6 +2776,7 @@ function QuestionsPanel({ subjects = [] }) {
           // Only the built-in bulk path writes `category`, so only it needs the
           // real-subject list to validate the active folder against.
           validSubjects={SUBJECTS}
+          defaultGameModes={scopeTag ? ['battle_royale', 'speed_race', 'trivia_pursuit', scopeTag] : undefined}
           onImport={handleImportDone}
           onClose={() => setShowParser(false)}
         />
@@ -8713,6 +8746,9 @@ export default function AdminApp() {
         <button className={`ap-nav-btn ${tab === 'anking'        ? 'active' : ''}`} onClick={() => setTab('anking')}>
           🃏 AnKing
         </button>
+        <button className={`ap-nav-btn ${tab === 'uworld'        ? 'active' : ''}`} onClick={() => setTab('uworld')}>
+          🌍 UWorld Adventure
+        </button>
       </nav>
 
       <main className="ap-main">
@@ -8736,6 +8772,16 @@ export default function AdminApp() {
         {tab === 'homepage'      && <HomePagePanel />}
         {tab === 'settings'      && <SettingsPanel />}
         {tab === 'anking'        && <AnKingAdmin />}
+        {/* Same panel as Question Manager, scoped to the UWorld tag: its sidebar
+            becomes one folder per SUBJECT holding that subject's tagged
+            questions. Reusing the panel means the whole question CRUD surface
+            (list, add/edit, delete, bulk actions, parser) comes along instead of
+            being duplicated and left to drift. */}
+        {tab === 'uworld'        && (
+          <ErrorBoundary>
+            <QuestionsPanel subjects={sharedSubjects} scopeTag={UWORLD_MODE} />
+          </ErrorBoundary>
+        )}
       </main>
     </div>
   );

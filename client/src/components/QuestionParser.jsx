@@ -58,7 +58,7 @@ E. Vitamin B12 deficiency - Causes macrocytic megaloblastic anaemia, not microcy
 //
 // validSubjects (optional): the real subject ids a built-in import may write to.
 // Only the built-in bulk path needs it — see SUBJECT_GUARD below.
-export default function QuestionParser({ activeFolder, selectedTopic, selectedDifficulty, onImport, onClose, customImport, validSubjects }) {
+export default function QuestionParser({ activeFolder, selectedTopic, selectedDifficulty, onImport, onClose, customImport, validSubjects, defaultGameModes }) {
   const [rawText, setRawText] = useState('');
   const [parsed, setParsed] = useState([]);
   const [errors, setErrors] = useState([]);
@@ -66,7 +66,13 @@ export default function QuestionParser({ activeFolder, selectedTopic, selectedDi
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState(null); // customImport's { imported, failed, errors }
   const [difficulty, setDifficulty] = useState(selectedDifficulty || 'easy');
-  const [gameModes, setGameModes] = useState(['battle_royale', 'speed_race', 'trivia_pursuit']);
+  // Pre-ticked modes. A mode's dedicated tab passes its own tag so a bulk import
+  // started there carries it without the admin having to remember the toggle.
+  const [gameModes, setGameModes] = useState(
+    Array.isArray(defaultGameModes) && defaultGameModes.length
+      ? defaultGameModes
+      : ['battle_royale', 'speed_race', 'trivia_pursuit'],
+  );
   const [copied, setCopied] = useState(false);
 
   const parseQuestions = () => {
