@@ -42,7 +42,14 @@ const GAME_MODES = [
   { id: 'scan_master',    label: 'Scan Master',    icon: '🔬', color: '#00b894' },
   { id: 'tower',          label: 'The Tower',      icon: '🏰', color: '#f5c518' },
   { id: 'buzz_fun',       label: 'Buzz Fun',       icon: '⚡', color: '#e67e22' },
+  // /uworld-adventure serves ONLY questions carrying this tag — see
+  // UWORLD_MODE below and the game_modes filter on GET /api/questions/unseen.
+  { id: 'uworld_adventure', label: 'UWorld Adventure', icon: '🌍', color: '#3f7fd6' },
 ];
+
+// The game_modes tag and its matching special folder id are the SAME string;
+// keeping one constant makes the folder/tag pairing impossible to desync.
+const UWORLD_MODE = 'uworld_adventure';
 
 const TOWER_ZONE_LABELS = [
   'Zone 1 — Biochemistry',
@@ -68,6 +75,7 @@ const FOLDERS = [
   { id: '__images__',       label: 'Image Questions',              icon: '🖼️', prefix: null,  special: true  },
   { id: 'buzz_fun',         label: 'Buzz Fun',                     icon: '⚡', prefix: 'BF',  special: true  },
   { id: 'scan_master',      label: 'Scan Master',                  icon: '🔬', prefix: 'SM',  special: true  },
+  { id: 'uworld_adventure', label: 'UWorld Adventure',             icon: '🌍', prefix: null,  special: true  },
   { id: 'cardiology',       label: 'Cardiology',                   icon: '❤️',  prefix: 'CA',  special: false },
   { id: 'neurology',        label: 'Neurology',                    icon: '🧠', prefix: 'NE',  special: false },
   { id: 'pharmacology',     label: 'Pharmacology',                 icon: '💊', prefix: 'PH',  special: false },
@@ -264,7 +272,21 @@ function StatsPanel() {
 
 function QuestionModal({ question, defaultSubject = 'cardiology', onSave, onClose, topics = [], defaultTopicId = '', defaultDifficulty = 'easy' }) {
   const isEdit = !!question;
-  const defaultSubjectResolved = (defaultSubject === 'all' || defaultSubject === '__images__') ? 'cardiology' : defaultSubject;
+  // A SPECIAL folder id is not a subject. Passing one straight through pre-fills
+  // the form with a value the subject dropdown does not offer, and (before the
+  // save-time guard) would store it verbatim as `category` — an orphaned row no
+  // view can find. Resolve every special folder to a real subject, not just the
+  // two that were handled before.
+  const SPECIAL_NOT_A_SUBJECT = ['all', '__images__', 'buzz_fun', 'scan_master', UWORLD_MODE];
+  const defaultSubjectResolved = SPECIAL_NOT_A_SUBJECT.includes(defaultSubject) ? 'cardiology' : defaultSubject;
+
+  // Adding from the UWorld folder pre-ticks the UWorld tag. Buzz Fun does not do
+  // this, which is exactly how a question gets added to that folder and is then
+  // invisible to the mode: the admin forgets the checkbox and nothing says so.
+  // Still just a default — it can be unticked like any other mode.
+  const defaultGameModes = defaultSubject === UWORLD_MODE
+    ? ['battle_royale', 'speed_race', 'trivia_pursuit', UWORLD_MODE]
+    : ['battle_royale', 'speed_race', 'trivia_pursuit'];
 
   const [form, setForm] = useState(() => question ? {
     subject:      question.subject,
@@ -306,7 +328,7 @@ function QuestionModal({ question, defaultSubject = 'cardiology', onSave, onClos
     image_url:    '',
     explanation_image_url: '',
     questionType: 'text',
-    game_modes:   ['battle_royale', 'speed_race', 'trivia_pursuit'],
+    game_modes:   defaultGameModes,
     tower_floor:  '',
     buzz_type:    'BUZZWORD',
     topic_id:     defaultTopicId,
@@ -1743,6 +1765,11 @@ function QuestionsPanel({ subjects = [] }) {
       acc[f.id] = questions.filter(q => q.image_url).length;
     } else if (f.id === 'buzz_fun') {
       acc[f.id] = questions.filter(q => (q.game_modes || []).includes('buzz_fun')).length;
+    } else if (f.id === UWORLD_MODE) {
+      // Counted by TAG, mirroring Buzz Fun. Scan Master has no branch here and
+      // so falls through to the category matcher below, which is why its count
+      // is permanently 0 — deliberately not copied.
+      acc[f.id] = questions.filter(q => (q.game_modes || []).includes(UWORLD_MODE)).length;
     } else {
       // Use the EXACT same filter logic as catQuestions below
       acc[f.id] = questions.filter(q => {
@@ -1760,6 +1787,7 @@ function QuestionsPanel({ subjects = [] }) {
   const catQuestions = activeFolder === 'all'        ? questions
     : activeFolder === '__images__'                  ? questions.filter(q => q.image_url)
     : activeFolder === 'buzz_fun'                    ? questions.filter(q => (q.game_modes || []).includes('buzz_fun'))
+    : activeFolder === UWORLD_MODE                   ? questions.filter(q => (q.game_modes || []).includes(UWORLD_MODE))
     : questions.filter(q => {
         // Match by subject or category field
         if (q.subject === activeFolder) return true;

@@ -406,7 +406,12 @@ export default function QuestionParser({ activeFolder, selectedTopic, selectedDi
                     {[
                       { id: 'battle_royale', label: '⚔️ Battle Royale' },
                       { id: 'speed_race', label: '🏎️ Speed Race' },
-                      { id: 'trivia_pursuit', label: '🎯 Trivia' }
+                      { id: 'trivia_pursuit', label: '🎯 Trivia' },
+                      // /uworld-adventure serves ONLY questions carrying this
+                      // tag, and its folder cannot be bulk-imported into (no
+                      // subject — see SUBJECT_GUARD), so tagging from inside a
+                      // real subject folder is the only bulk route in.
+                      { id: 'uworld_adventure', label: '🌍 UWorld' },
                     ].map(mode => (
                       <button
                         key={mode.id}

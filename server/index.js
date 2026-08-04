@@ -2533,6 +2533,20 @@ const QUESTION_SEEN_MAX_BATCH = 100;
 const UNSEEN_DEFAULT_LIMIT    = 20;
 const UNSEEN_MAX_LIMIT        = 100;
 
+// The game_modes tag that scopes the UWorld Adventure pool. Both readers below
+// (/api/questions/unseen and question-bank-progress) MUST apply it — if only one
+// did, the pacing maths would count a pool the session never serves. Mirrors the
+// admin's UWORLD_MODE constant and its special folder id.
+const UWORLD_MODE = 'uworld_adventure';
+
+// JSONB CONTAINMENT TRAP: `game_modes` is jsonb, and supabase-js serializes a
+// JS array argument as a POSTGRES array literal ({x}) — which errors against a
+// jsonb column and silently matches nothing through an embed. The value has to
+// be pre-serialized as JSON (["x"]) instead. Verified both ways against the live
+// table: the array form errors, this form matches. Use this constant for every
+// game_modes containment filter; never pass a bare array.
+const UWORLD_MODE_JSON = JSON.stringify([UWORLD_MODE]);
+
 /**
  * POST /api/questions/seen
  *
@@ -2630,6 +2644,12 @@ app.get('/api/questions/unseen', requireAuth, async (req, res) => {
       let q = supabase
         .from('questions')
         .select('*')
+        // EXCLUSIVE to tagged content: a question must carry the UWorld tag AND
+        // match the subject. Untagged questions are invisible here even when
+        // their category matches, so the mode's pool is only what an admin has
+        // deliberately put in it. JSONB containment, served by the existing
+        // idx_questions_game_modes GIN index.
+        .contains('game_modes', UWORLD_MODE_JSON)
         // Deterministic, so the sequence is stable across requests.
         .order('question_id', { ascending: true })
         .range(page * PAGE, page * PAGE + PAGE - 1);
@@ -4367,15 +4387,23 @@ app.get('/api/users/:userId/question-bank-progress', requireAuth, async (req, re
       if (subjects.length === 0) return res.json(zeros);
     }
 
+    // Both counts carry the SAME tag filter /api/questions/unseen applies, so
+    // the pacing maths describes the pool a session will actually serve. Without
+    // it, "days to finish" would be computed from every question in the subject
+    // while the session only ever draws from the tagged subset.
     const totalQ = supabase
       .from('questions')
       .select('*', { count: 'exact', head: true })
+      .contains('game_modes', UWORLD_MODE_JSON)
       .in('category', subjects);
 
+    // The tag lives on the embedded `questions` row, so the filter is applied
+    // through the inner join rather than on user_question_seen itself.
     const seenQ = supabase
       .from(QUESTION_SEEN_TABLE)
-      .select('question_id, questions!inner(category)', { count: 'exact', head: true })
+      .select('question_id, questions!inner(category, game_modes)', { count: 'exact', head: true })
       .eq('user_id', req.params.userId)
+      .contains('questions.game_modes', UWORLD_MODE_JSON)
       .in('questions.category', subjects);
 
     const [totalRes, seenRes] = await Promise.all([totalQ, seenQ]);
