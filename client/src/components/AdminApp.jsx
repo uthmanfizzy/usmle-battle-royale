@@ -1181,6 +1181,9 @@ function QuestionsPanel({ subjects = [] }) {
   const [deleteId,       setDeleteId]       = useState(null);
   const [bulkMsg,        setBulkMsg]        = useState('');
   const [gameModeFilter, setGameModeFilter] = useState('all');
+  // Subject axis only — this data has a single flat subject/category field and
+  // no separate "system" dimension, so there is deliberately no second dropdown.
+  const [subjectFilter,  setSubjectFilter]  = useState('all');
   const [search,         setSearch]         = useState('');
 
   // ─── Bulk Assign ─────────────────────────────────────────────────────────────
@@ -1830,9 +1833,24 @@ function QuestionsPanel({ subjects = [] }) {
     : topicFiltered;
 
   // Step 5 — game-mode filter
-  const filtered = gameModeFilter === 'all'
+  const modeFiltered = gameModeFilter === 'all'
     ? searched
     : searched.filter(q => (q.game_modes || []).includes(gameModeFilter));
+
+  // Step 6 — subject filter. ANDs with everything above, so the special folders
+  // stay useful: "UWorld Adventure + Biochemistry" narrows the tagged pool to
+  // one subject rather than replacing the folder's own filter.
+  // Matches on subject OR category with the same case-insensitive fallbacks the
+  // Step 1 folder matcher uses — the two must agree on what "is this subject"
+  // means, and the admin list carries both field names.
+  const matchesSubject = (q, id) =>
+    q.subject === id || q.category === id ||
+    q.subject?.toLowerCase() === id?.toLowerCase() ||
+    q.category?.toLowerCase() === id?.toLowerCase();
+
+  const filtered = subjectFilter === 'all'
+    ? modeFiltered
+    : modeFiltered.filter(q => matchesSubject(q, subjectFilter));
 
   // Diagnostic: log when questions exist but none are showing
   if (questions.length > 0 && filtered.length === 0 && view === 'questions') {
@@ -1842,12 +1860,14 @@ function QuestionsPanel({ subjects = [] }) {
       step2_diff: diffFiltered.length,
       step3_topic: topicFiltered.length,
       step4_search: searched.length,
-      step5_mode: filtered.length,
+      step5_mode: modeFiltered.length,
+      step6_subject: filtered.length,
       folder: activeFolder,
       view,
       selectedDifficulty,
       selectedTopic: selectedTopic === 'unassigned' ? 'unassigned' : (selectedTopic?.id ?? null),
       gameModeFilter,
+      subjectFilter,
       search,
     });
   }
@@ -2334,6 +2354,21 @@ function QuestionsPanel({ subjects = [] }) {
                     {GAME_MODES.map(gm => (
                       <option key={gm.id} value={gm.id}>{gm.icon} {gm.label}</option>
                     ))}
+                  </select>
+                  {/* Subject filter — same control as the mode filter beside it.
+                      Options come from SUBJECTS (the FOLDERS-derived list the Add
+                      Question dropdown also uses), so a new subject shows up in
+                      both at once and the two can never drift apart. */}
+                  <select
+                    className="ap-gm-filter"
+                    value={subjectFilter}
+                    onChange={e => setSubjectFilter(e.target.value)}
+                  >
+                    <option value="all">All Subjects</option>
+                    {SUBJECTS.map(id => {
+                      const f = FOLDERS.find(fl => fl.id === id);
+                      return <option key={id} value={id}>{f?.icon} {f?.label || id}</option>;
+                    })}
                   </select>
                   <input
                     className="ap-search-input"
