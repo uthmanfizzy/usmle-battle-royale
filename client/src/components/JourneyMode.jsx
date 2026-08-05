@@ -58,6 +58,22 @@ export default function JourneyMode({
   const [bgUrl,       setBgUrl]       = useState(null);       // admin-set backdrop (landing-images slot 'journey_bg')
   const [activeIds,   setActiveIds]   = useState(null);       // Set of active subject ids; null = not loaded → show all
 
+  // Question order for a run: 'random' (the long-standing behaviour, kept as the
+  // default) or 'sequential' — exactly as the level was authored. Stored per-user
+  // in localStorage like the other player prefs (hints, highlight visibility), so
+  // it sticks between sessions without needing a column on `users`.
+  const [questionOrder, setQuestionOrder] = useState(() => {
+    try { return localStorage.getItem('mr_journey_q_order') === 'sequential' ? 'sequential' : 'random'; }
+    catch { return 'random'; }
+  });
+  function chooseQuestionOrder(v) {
+    setQuestionOrder(v);
+    try { localStorage.setItem('mr_journey_q_order', v); } catch {}
+  }
+  // Every play route (level, chapter boss, ultimate boss) funnels through the
+  // confirm card, so tagging the URL here covers all three.
+  const withOrder = (url) => `${url}${url.includes('?') ? '&' : '?'}order=${questionOrder}`;
+
   // Admin-overridable UI text: { text_key: value }. Empty → every t() returns its default,
   // so with no overrides the page is byte-identical to the hardcoded version.
   const [overrides,   setOverrides]   = useState({});
@@ -784,6 +800,30 @@ export default function JourneyMode({
               {confirmNode.bestPct > 0 && <span>Best: {confirmNode.bestPct}%</span>}
             </div>
             <p className="jm-confirm-threshold">Pass with ≥{threshold}% to unlock the next {confirmNode.kind === 'level' ? 'level' : 'stage'}</p>
+
+            {/* Question order — read at PLAY time, so switching here applies to
+                this run without reopening the card. */}
+            <div className="jm-confirm-order">
+              <span className="jm-confirm-order-label" {...ek('confirm.orderLabel')}>
+                {t('confirm.orderLabel', 'Question order')}
+              </span>
+              <div className="jm-order-toggle" role="group" aria-label="Question order">
+                <button
+                  type="button"
+                  className={`jm-order-btn${questionOrder === 'sequential' ? ' jm-order-btn--on' : ''}`}
+                  aria-pressed={questionOrder === 'sequential'}
+                  onClick={() => chooseQuestionOrder('sequential')}
+                  {...ek('confirm.orderInOrder')}
+                >{t('confirm.orderInOrder', '📖 In order')}</button>
+                <button
+                  type="button"
+                  className={`jm-order-btn${questionOrder === 'random' ? ' jm-order-btn--on' : ''}`}
+                  aria-pressed={questionOrder === 'random'}
+                  onClick={() => chooseQuestionOrder('random')}
+                  {...ek('confirm.orderRandom')}
+                >{t('confirm.orderRandom', '🎲 Random')}</button>
+              </div>
+            </div>
             {confirmNode.videoUrl && (() => {
               const parsed = parseShortUrl(confirmNode.videoUrl);
               const src = parsed.error ? null : embedUrlStatic(parsed.platform, parsed.video_id);
@@ -818,7 +858,7 @@ export default function JourneyMode({
                 onPlayLevel({
                   subject,
                   levelKey:    confirmNode.levelKey,
-                  questionsUrl: confirmNode.questionsUrl,
+                  questionsUrl: withOrder(confirmNode.questionsUrl),
                   levelLabel:  confirmNode.name,
                   wasMastery:  !!path?.mastery, // pre-play snapshot → drives Full Mastery flip
                 });

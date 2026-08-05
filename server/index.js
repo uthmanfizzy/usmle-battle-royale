@@ -9010,6 +9010,7 @@ app.get('/api/journey-questions', async (req, res) => {
   if (!supabase) return res.json({ questions: [] });
   const { level_id } = req.query;
   if (!level_id) return res.status(400).json({ error: 'level_id required', questions: [] });
+  const sequential = req.query.order === 'sequential';
   try {
     const { data, error } = await supabase.from('journey_questions').select('*')
       .eq('level_id', level_id)
@@ -9029,8 +9030,10 @@ app.get('/api/journey-questions', async (req, res) => {
     if (questions.length === 0) {
       return res.json({ questions: [], empty: true, message: 'No questions authored for this level yet.' });
     }
-    // Journey-only: randomise question order each play (correct answer travels with q)
-    res.json({ questions: shuffle(questions), empty: false });
+    // Player's choice (?order=sequential|random, default random — the long-standing
+    // behaviour). Sequential serves them exactly as authored: the query above
+    // already sorts by sort_order then created_at, so it just skips the shuffle.
+    res.json({ questions: sequential ? questions : shuffle(questions), empty: false });
   } catch (err) {
     // Table may not exist yet (manual migration) — degrade to empty list
     console.warn('[/api/journey-questions] unavailable, returning questions: [] —', err.message);
@@ -9043,6 +9046,7 @@ app.get('/api/boss-questions', async (req, res) => {
   if (!supabase) return res.json({ questions: [] });
   const { subject, boss_key } = req.query;
   if (!subject || !boss_key) return res.status(400).json({ error: 'subject and boss_key required', questions: [] });
+  const sequential = req.query.order === 'sequential';
   try {
     const { data, error } = await supabase.from('boss_questions').select('*')
       .eq('subject', subject)
@@ -9063,8 +9067,8 @@ app.get('/api/boss-questions', async (req, res) => {
     if (questions.length === 0) {
       return res.json({ questions: [], empty: true, message: 'No boss questions authored yet.' });
     }
-    // Journey-only: randomise question order each play (correct answer travels with q)
-    res.json({ questions: shuffle(questions), empty: false });
+    // Same player choice as levels — bosses are part of the same run.
+    res.json({ questions: sequential ? questions : shuffle(questions), empty: false });
   } catch (err) {
     // Table may not exist yet (manual migration) — degrade to empty list
     console.warn('[/api/boss-questions] unavailable, returning questions: [] —', err.message);
