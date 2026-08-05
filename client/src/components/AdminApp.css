@@ -4919,3 +4919,68 @@
 .ap-root[data-admin-theme="light"] .ap-nav {
   box-shadow: 0 1px 0 rgba(40,50,90,0.06);
 }
+
+/* ── Journey editor: multi-select question delete ─────────────────────────── */
+.je-qbulk {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 6px 12px 10px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.je-qbulk-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-dim, rgba(255, 255, 255, 0.65));
+  cursor: pointer;
+  user-select: none;
+}
+
+.je-qbulk-count {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--gold, #e8b04b);
+}
+
+/* .ap-topic-del-btn is a bare icon button — transparent with no colour — so the
+   added "Delete N" label was near-invisible on it. Give this one real danger
+   styling since it carries text and is the destructive action on the bar. */
+.je-qbulk-del {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 5px 12px;
+  color: #ffb4ad;
+  background: rgba(193, 41, 30, 0.18) !important;
+  border: 1px solid rgba(193, 41, 30, 0.55) !important;
+  border-radius: 6px;
+}
+
+.je-qbulk-del:hover {
+  background: rgba(193, 41, 30, 0.3) !important;
+  color: #fff;
+}
+
+.je-qbulk-clear {
+  font-size: 12px;
+  padding: 5px 12px;
+}
+
+.je-qcheck {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: var(--gold, #e8b04b);
+}
+
+/* Selected rows read as a set at a glance before confirming. */
+.ap-journey-q-row--sel {
+  background: rgba(232, 176, 75, 0.12);
+  border-color: rgba(232, 176, 75, 0.5);
+}

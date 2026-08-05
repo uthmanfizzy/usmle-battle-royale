@@ -7900,6 +7900,19 @@ app.delete('/admin/boss-questions/:id', adminAuth, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// Bosses share the Journey editor's question list, so they get the same
+// multi-select delete. See the journey-questions twin above.
+app.post('/admin/boss-questions/bulk-delete', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  const ids = Array.isArray(req.body?.ids) ? req.body.ids.filter(id => typeof id === 'string' && id) : [];
+  if (ids.length === 0) return res.status(400).json({ error: 'No ids provided' });
+  try {
+    const { error } = await supabase.from('boss_questions').delete().in('id', ids);
+    if (error) throw error;
+    res.json({ ok: true, deleted: ids.length });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // ── First Aid Journey: chapters (admin) ───────────────────────────────────────
 
 app.get('/admin/journey-chapters', adminAuth, async (req, res) => {
@@ -8351,6 +8364,20 @@ app.delete('/admin/journey-questions/:id', adminAuth, async (req, res) => {
     const { error } = await supabase.from('journey_questions').delete().eq('id', req.params.id);
     if (error) throw error;
     res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Bulk delete for the Journey editor's multi-select. Same shape as
+// /admin/questions/bulk-delete: { ids: [...] } -> one DELETE ... IN (...), so
+// clearing a level is a single round trip rather than one per question.
+app.post('/admin/journey-questions/bulk-delete', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  const ids = Array.isArray(req.body?.ids) ? req.body.ids.filter(id => typeof id === 'string' && id) : [];
+  if (ids.length === 0) return res.status(400).json({ error: 'No ids provided' });
+  try {
+    const { error } = await supabase.from('journey_questions').delete().in('id', ids);
+    if (error) throw error;
+    res.json({ ok: true, deleted: ids.length });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

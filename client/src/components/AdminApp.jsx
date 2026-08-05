@@ -4611,7 +4611,13 @@ function JourneyPanel() {
 
   // Inline create/rename: { kind: 'chapter'|'level', id: null=new, chapterId?, value }
   const [nameEdit,   setNameEdit]   = useState(null);
-  const [deleteItem, setDeleteItem] = useState(null); // { kind: 'chapter'|'level'|'question', row, chapterId? }
+  const [deleteItem, setDeleteItem] = useState(null); // { kind: 'chapter'|'level'|'question'|'questions-bulk', row?, chapterId?, ids? }
+  // Multi-select for bulk question delete. Only one level/boss is open at a time
+  // here, so a plain Set of ids is enough; it resets whenever the target changes.
+  const [qSel, setQSel] = useState(new Set());
+  function toggleQSel(id) {
+    setQSel(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  }
 
   // Editor view: null | { kind: 'level', level, chapter } | { kind: 'boss', chapter } | { kind: 'ultimate' }
   const [selected, setSelected] = useState(null);
@@ -4896,6 +4902,22 @@ function JourneyPanel() {
           const levels = { ...c.levels }; delete levels[row.id];
           return { ...c, levels, chapters: { ...c.chapters, [chapterId]: Math.max(0, (c.chapters[chapterId] || 0) - 1) } };
         });
+      } else if (kind === 'questions-bulk') {
+        const base = selected?.kind === 'level' ? '/admin/journey-questions' : '/admin/boss-questions';
+        const res  = await apiCall(`${base}/bulk-delete`, { method: 'POST', body: JSON.stringify({ ids: deleteItem.ids }) });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to delete questions');
+        const gone = new Set(deleteItem.ids);
+        if (selected?.kind === 'level') {
+          setLevelQs(qs => qs.filter(q => !gone.has(q.id)));
+          const lid = selected.level.id;
+          setCounts(c => ({ ...c, levels: { ...c.levels, [lid]: Math.max(0, (c.levels[lid] || 0) - deleteItem.ids.length) } }));
+        } else {
+          setBossQs(qs => qs.filter(q => !gone.has(q.id)));
+        }
+        // An open editor whose row just vanished would save into nothing.
+        if (editing && gone.has(editing.id)) resetForm();
+        setQSel(new Set());
       } else {
         const base = selected?.kind === 'level' ? '/admin/journey-questions' : '/admin/boss-questions';
         const res  = await apiCall(`${base}/${row.id}`, { method: 'DELETE' });
@@ -4925,6 +4947,7 @@ function JourneyPanel() {
     setError('');
     resetForm();
     setSelected({ kind: 'level', level, chapter });
+    setQSel(new Set());   // selection belongs to the target you were viewing
     setLevelQs([]);
     try {
       const res  = await apiCall(`/admin/journey-questions?level_id=${level.id}`);
@@ -4933,8 +4956,8 @@ function JourneyPanel() {
     } catch { setLevelQs([]); }
   }
 
-  function openBoss(chapter) { setError(''); resetForm(); setSelected({ kind: 'boss', chapter }); }
-  function openUltimate()    { setError(''); resetForm(); setSelected({ kind: 'ultimate' }); }
+  function openBoss(chapter) { setError(''); resetForm(); setQSel(new Set()); setSelected({ kind: 'boss', chapter }); }
+  function openUltimate()    { setError(''); resetForm(); setQSel(new Set()); setSelected({ kind: 'ultimate' }); }
 
   const bossKeyFor = (sel) => sel.kind === 'ultimate' ? 'ultimate' : `chapter:${sel.chapter.id}`;
   const editorQuestions = !selected ? [] :
@@ -5543,8 +5566,43 @@ function JourneyPanel() {
               <p className="ap-journey-q-caption">
                 {editorQuestions.length} question{editorQuestions.length !== 1 ? 's' : ''}
               </p>
+              {/* Multi-select bar — select-all always available, delete appears
+                  once something is ticked. */}
+              <div className="je-qbulk">
+                <label className="je-qbulk-all">
+                  <input
+                    type="checkbox"
+                    checked={qSel.size === editorQuestions.length && editorQuestions.length > 0}
+                    ref={el => { if (el) el.indeterminate = qSel.size > 0 && qSel.size < editorQuestions.length; }}
+                    onChange={() => setQSel(qSel.size === editorQuestions.length
+                      ? new Set()
+                      : new Set(editorQuestions.map(q => q.id)))}
+                  />
+                  <span>Select all</span>
+                </label>
+                {qSel.size > 0 && (
+                  <>
+                    <span className="je-qbulk-count">{qSel.size} selected</span>
+                    <button
+                      type="button"
+                      className="ap-topic-del-btn je-qbulk-del"
+                      onClick={() => setDeleteItem({ kind: 'questions-bulk', ids: [...qSel] })}
+                    >
+                      🗑️ Delete {qSel.size}
+                    </button>
+                    <button type="button" className="ap-btn-sec je-qbulk-clear" onClick={() => setQSel(new Set())}>Clear</button>
+                  </>
+                )}
+              </div>
               {editorQuestions.map(q => (
-                <div className="ap-journey-q-row" key={q.id}>
+                <div className={`ap-journey-q-row${qSel.has(q.id) ? ' ap-journey-q-row--sel' : ''}`} key={q.id}>
+                  <input
+                    type="checkbox"
+                    className="je-qcheck"
+                    checked={qSel.has(q.id)}
+                    onChange={() => toggleQSel(q.id)}
+                    aria-label="Select question"
+                  />
                   <span className="ap-journey-q-correct">{q.correct}</span>
                   <span className="ap-journey-q-text">{q.question}</span>
                   <div className="ap-video-row-actions">
@@ -5565,18 +5623,24 @@ function JourneyPanel() {
             <h3>
               {deleteItem.kind === 'chapter' ? `Delete chapter "${deleteItem.row.name}"?`
                 : deleteItem.kind === 'level' ? `Delete level "${deleteItem.row.name}"?`
-                : 'Delete this question?'}
+                : deleteItem.kind === 'questions-bulk'
+                  ? `Delete ${deleteItem.ids.length} question${deleteItem.ids.length === 1 ? '' : 's'}?`
+                  : 'Delete this question?'}
             </h3>
             <p>
               {deleteItem.kind === 'chapter'
                 ? 'Deletes this chapter, all its levels and their questions, and its boss questions.'
                 : deleteItem.kind === 'level'
                   ? 'Deletes this level and all its questions.'
-                  : `"${deleteItem.row.question.slice(0, 80)}${deleteItem.row.question.length > 80 ? '…' : ''}"`}
+                  : deleteItem.kind === 'questions-bulk'
+                    ? 'The selected questions are removed permanently. This cannot be undone.'
+                    : `"${deleteItem.row.question.slice(0, 80)}${deleteItem.row.question.length > 80 ? '…' : ''}"`}
             </p>
             <div className="ap-modal-foot">
               <button className="ap-btn-sec" onClick={() => setDeleteItem(null)}>Cancel</button>
-              <button className="ap-btn-danger" onClick={handleDeleteItem}>Delete</button>
+              <button className="ap-btn-danger" onClick={handleDeleteItem}>
+                {deleteItem.kind === 'questions-bulk' ? `Delete ${deleteItem.ids.length}` : 'Delete'}
+              </button>
             </div>
           </div>
         </div>
@@ -5668,7 +5732,28 @@ function JourneyEditor() {
 
   // Inline create/rename: { kind:'chapter'|'level', id, chapterId?, value }
   const [nameEdit,   setNameEdit]   = useState(null);
-  const [deleteItem, setDeleteItem] = useState(null); // { kind, row, chapterId?, target? }
+  const [deleteItem, setDeleteItem] = useState(null); // { kind, row, chapterId?, target?, ids? }
+  // Multi-select for bulk question delete. Scoped to ONE target at a time
+  // (key = targetKey): several levels can be expanded at once, and a selection
+  // spanning them would make "delete 12 questions" impossible to sanity-check
+  // before confirming. Ticking a row in another target moves the selection there.
+  const [qSel, setQSel] = useState({ key: null, ids: new Set() });
+
+  const selCount = (key) => (qSel.key === key ? qSel.ids.size : 0);
+  function toggleQSel(key, id) {
+    setQSel(prev => {
+      const ids = prev.key === key ? new Set(prev.ids) : new Set();
+      if (ids.has(id)) ids.delete(id); else ids.add(id);
+      return { key, ids };
+    });
+  }
+  function toggleQSelAll(key, rows) {
+    setQSel(prev => {
+      const all = prev.key === key && prev.ids.size === rows.length;
+      return { key, ids: all ? new Set() : new Set(rows.map(r => r.id)) };
+    });
+  }
+  const clearQSel = () => setQSel({ key: null, ids: new Set() });
 
   // One shared question form across targets (only one open at a time)
   const [qEditor, setQEditor] = useState(null); // { targetKey, target, mode:'add'|'edit', id? }
@@ -5773,9 +5858,29 @@ function JourneyEditor() {
 
   // ── Deletes (chapter / level / question share one confirm modal) ──────────────
   async function handleDeleteItem() {
-    const { kind, row, chapterId, target } = deleteItem;
+    const { kind, row, chapterId, target, ids } = deleteItem;
     setError('');
     try {
+      if (kind === 'questions-bulk') {
+        const t = target;
+        const res  = await apiCall(`${targetBase(t)}/bulk-delete`, {
+          method: 'POST', body: JSON.stringify({ ids }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Bulk delete failed');
+        const gone = new Set(ids);
+        if (t.kind === 'level') {
+          setQuestionsByLevel(prev => ({ ...prev, [t.levelId]: (prev[t.levelId] || []).filter(q => !gone.has(q.id)) }));
+          setCounts(c => ({ ...c, levels: { ...c.levels, [t.levelId]: Math.max(0, (c.levels[t.levelId] || 0) - ids.length) } }));
+        } else {
+          setBossQs(qs => qs.filter(q => !gone.has(q.id)));
+        }
+        // An open editor whose row just vanished would save into nothing.
+        if (qEditor?.mode === 'edit' && gone.has(qEditor.id)) closeForm();
+        clearQSel();
+        setDeleteItem(null);
+        return;
+      }
       if (kind === 'chapter') {
         const res  = await apiCall(`/admin/journey-chapters/${row.id}`, { method: 'DELETE' });
         const data = await res.json(); if (!res.ok) throw new Error(data.error || 'Delete failed');
@@ -5990,8 +6095,41 @@ function JourneyEditor() {
           <div className="ap-jtree-note">No questions yet{target.kind === 'level' ? ' — players cannot pass an empty level.' : ' — this boss auto-skips in game until you add some.'}</div>
         ) : (
           <div className="je-qlist">
+            {/* Multi-select bar — select-all always available, delete appears
+                once something is ticked. */}
+            <div className="je-qbulk">
+              <label className="je-qbulk-all">
+                <input
+                  type="checkbox"
+                  checked={selCount(key) === qs.length && qs.length > 0}
+                  ref={el => { if (el) el.indeterminate = selCount(key) > 0 && selCount(key) < qs.length; }}
+                  onChange={() => toggleQSelAll(key, qs)}
+                />
+                <span>Select all</span>
+              </label>
+              {selCount(key) > 0 && (
+                <>
+                  <span className="je-qbulk-count">{selCount(key)} selected</span>
+                  <button
+                    type="button"
+                    className="ap-topic-del-btn je-qbulk-del"
+                    onClick={() => setDeleteItem({ kind: 'questions-bulk', target, ids: [...qSel.ids] })}
+                  >
+                    🗑️ Delete {selCount(key)}
+                  </button>
+                  <button type="button" className="ap-btn-sec je-qbulk-clear" onClick={clearQSel}>Clear</button>
+                </>
+              )}
+            </div>
             {qs.map(q => (
-              <div className="ap-journey-q-row" key={q.id}>
+              <div className={`ap-journey-q-row${qSel.key === key && qSel.ids.has(q.id) ? ' ap-journey-q-row--sel' : ''}`} key={q.id}>
+                <input
+                  type="checkbox"
+                  className="je-qcheck"
+                  checked={qSel.key === key && qSel.ids.has(q.id)}
+                  onChange={() => toggleQSel(key, q.id)}
+                  aria-label="Select question"
+                />
                 <span className="ap-journey-q-correct">{q.correct}</span>
                 <span className="ap-journey-q-text">{q.question}</span>
                 <div className="ap-video-row-actions">
@@ -6157,18 +6295,24 @@ function JourneyEditor() {
             <h3>
               {deleteItem.kind === 'chapter' ? `Delete chapter "${deleteItem.row.name}"?`
                 : deleteItem.kind === 'level' ? `Delete level "${deleteItem.row.name}"?`
-                : 'Delete this question?'}
+                : deleteItem.kind === 'questions-bulk'
+                  ? `Delete ${deleteItem.ids.length} question${deleteItem.ids.length === 1 ? '' : 's'}?`
+                  : 'Delete this question?'}
             </h3>
             <p>
               {deleteItem.kind === 'chapter'
                 ? 'Deletes this chapter, all its levels and their questions, and its boss questions.'
                 : deleteItem.kind === 'level'
                   ? 'Deletes this level and all its questions.'
-                  : `"${deleteItem.row.question.slice(0, 80)}${deleteItem.row.question.length > 80 ? '…' : ''}"`}
+                  : deleteItem.kind === 'questions-bulk'
+                    ? 'The selected questions are removed permanently. This cannot be undone.'
+                    : `"${deleteItem.row.question.slice(0, 80)}${deleteItem.row.question.length > 80 ? '…' : ''}"`}
             </p>
             <div className="ap-modal-foot">
               <button className="ap-btn-sec" onClick={() => setDeleteItem(null)}>Cancel</button>
-              <button className="ap-btn-danger" onClick={handleDeleteItem}>Delete</button>
+              <button className="ap-btn-danger" onClick={handleDeleteItem}>
+                {deleteItem.kind === 'questions-bulk' ? `Delete ${deleteItem.ids.length}` : 'Delete'}
+              </button>
             </div>
           </div>
         </div>
