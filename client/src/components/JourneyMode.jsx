@@ -459,6 +459,7 @@ export default function JourneyMode({
       questionsUrl: reentry.questionsUrl,
       levelLabel:  reentry.levelLabel,
       wasMastery:  reentry.wasMastery,
+      questionOrder: reentry.questionOrder,
     };
     onReentryConsumedRef.current();
 
@@ -859,6 +860,10 @@ export default function JourneyMode({
                   subject,
                   levelKey:    confirmNode.levelKey,
                   questionsUrl: withOrder(confirmNode.questionsUrl),
+                  // "In order" means as AUTHORED — which covers the A/B/C/D
+                  // order too, not just the question sequence. SoloGame
+                  // otherwise reshuffles the options on every appearance.
+                  questionOrder,
                   levelLabel:  confirmNode.name,
                   wasMastery:  !!path?.mastery, // pre-play snapshot → drives Full Mastery flip
                 });

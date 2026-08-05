@@ -57,7 +57,7 @@ function saveHi(subject, score) {
   try { localStorage.setItem(`usmle-hs-${subject}`, String(score)); } catch {}
 }
 
-export default function SoloGame({ subject, username, difficulty, onBack, onTryAgain, onChangeSubject, onBackToTopics, topicId, questionsUrl, onComplete, levelLabel, isJourney, providedQuestions }) {
+export default function SoloGame({ subject, username, difficulty, onBack, onTryAgain, onChangeSubject, onBackToTopics, topicId, questionsUrl, onComplete, levelLabel, isJourney, providedQuestions, shuffleOptions = true }) {
   const { settings } = useGameSettings();
   const { study: studyPref } = useTheme();   // Layer 1 chrome renders only when study mode is on
   // Journey ALWAYS renders the full study-layout chrome (burger menu, header
@@ -580,8 +580,13 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   // identity). Re-renders from the timer don't change qIdx, so the memo stays
   // stable — no reshuffle mid-question. A fresh question (or refetch) gets a fresh
   // order. This shuffled clone drives both render AND processAnswer (via the ref).
+  // shuffleOptions=false serves the choices exactly as authored (Journey's "In
+  // order"). The ref is still populated the same way so processAnswer and the
+  // render keep reading one identical object — only the ordering differs.
   if (shuffledQRef.current.qIdx !== qIdx || shuffledQRef.current.base !== baseQ) {
-    const { options, correct } = shuffleQuestionOptions(baseQ.options || [], baseQ.correct);
+    const { options, correct } = shuffleOptions
+      ? shuffleQuestionOptions(baseQ.options || [], baseQ.correct)
+      : { options: baseQ.options || [], correct: baseQ.correct };
     shuffledQRef.current = { qIdx, base: baseQ, q: { ...baseQ, options, correct } };
   }
   const q = shuffledQRef.current.q;

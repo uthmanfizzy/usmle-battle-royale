@@ -620,8 +620,8 @@ export default function App() {
     setPhase('solo_game');
   }
 
-  function handlePlayJourneyLevel({ subject, levelKey, questionsUrl, levelLabel, wasMastery }) {
-    setJourneyContext({ subject, levelKey, questionsUrl, levelLabel, wasMastery });
+  function handlePlayJourneyLevel({ subject, levelKey, questionsUrl, levelLabel, wasMastery, questionOrder }) {
+    setJourneyContext({ subject, levelKey, questionsUrl, levelLabel, wasMastery, questionOrder });
     setPhase('solo_game');
   }
 
@@ -636,6 +636,9 @@ export default function App() {
       questionsUrl: journeyContext.questionsUrl,
       levelLabel:  journeyContext.levelLabel,
       wasMastery:  journeyContext.wasMastery,
+      // Kept so "Try Again" replays under the same order choice — the URL
+      // already carries the question order, this carries the option order.
+      questionOrder: journeyContext.questionOrder,
     });
     setJourneyContext(null);
     setPhase('journey');
@@ -1165,6 +1168,9 @@ export default function App() {
           onComplete={journeyContext       ? handleJourneyComplete : (trainingTopic ? handleTrainingComplete : undefined)}
           levelLabel={journeyContext?.levelLabel}
           isJourney={!!journeyContext}
+          // Journey's "In order" means as authored, options included. Every
+          // other mode keeps the anti-memorisation shuffle.
+          shuffleOptions={journeyContext?.questionOrder !== 'sequential'}
         />
         </RouteErrorBoundary>
       )}
