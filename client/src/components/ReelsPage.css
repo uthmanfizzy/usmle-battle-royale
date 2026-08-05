@@ -1,0 +1,47 @@
+/* ReelsPage — standalone /reels host for ShortsFeed. Own lazy chunk, self-scoped
+   like the other standalone pages. */
+
+.reels-page {
+  /* ShortsFeed sizes its slides as 100dvh minus --dn-nav-h, which exists because
+     DashboardNew keeps a bottom nav under it. There is no bottom nav here, so
+     zero it out and the feed fills the viewport exactly. */
+  --dn-nav-h: 0px;
+  position: relative;
+  height: 100dvh;
+  overflow: hidden;
+  background: #000;
+}
+
+/* Floats over the video — the slides are edge-to-edge, so this is the only exit. */
+.reels-back {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  z-index: 30;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.85);
+  padding: 8px 16px 8px 12px;
+  border-radius: 20px;
+  cursor: pointer;
+  white-space: nowrap;
+  /* The feed is dark and busy; keep the control legible over any frame. */
+  backdrop-filter: blur(6px);
+  transition: background 0.15s;
+}
+
+.reels-back:hover { background: rgba(255, 255, 255, 0.12); }
+
+/* Clear of iOS's home indicator / notch when the feed runs edge-to-edge. */
+@supports (padding: env(safe-area-inset-top)) {
+  .reels-back {
+    top: calc(20px + env(safe-area-inset-top, 0px));
+    left: calc(20px + env(safe-area-inset-left, 0px));
+  }
+}

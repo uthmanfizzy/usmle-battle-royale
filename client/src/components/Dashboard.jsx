@@ -1429,6 +1429,21 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
                       <span className="dash-nav-card-sub">LATEST UPDATES</span>
                     </span>
                   </button>
+                  {/* REELS — the mockup's last nav card. Unlike its siblings this
+                      is a standalone route rather than a dash tab: ShortsFeed is a
+                      full-viewport scroll-snap feed, and .dash-tab-wrap's header
+                      clearance would crop every slide. */}
+                  <button type="button" className="dash-nav-card" onClick={() => { window.location.href = '/reels'; }}>
+                    <span className="dash-nav-card-icon">
+                      {homeImages.icon_reels
+                        ? <img loading="lazy" src={homeImages.icon_reels} alt="" />
+                        : '▶'}
+                    </span>
+                    <span className="dash-nav-card-text">
+                      <span className="dash-nav-card-name">REELS</span>
+                      <span className="dash-nav-card-sub">CLIPS &amp; CHRONICLES</span>
+                    </span>
+                  </button>
                 </>
               }
             />
