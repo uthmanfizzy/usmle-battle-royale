@@ -116,6 +116,35 @@ const DEFAULT_TOWER_ZONES = [
   { name: 'The Summit',         desc: 'The final ten floors. Boss encounters on every level. Only legends reach the top.' },
 ];
 
+/**
+ * Delete many questions, preferring the single-round-trip bulk route.
+ *
+ * DEPLOY SKEW: the client (Vercel) and the API (Railway) ship separately, so a
+ * new UI regularly reaches users minutes before the endpoint it calls exists.
+ * A missing route answers with Express's HTML 404, which blows up as
+ * "Unexpected token '<' ... is not valid JSON" and the delete silently fails.
+ * So: try bulk, and on a 404 fall back to the per-row DELETE that every server
+ * version has. Same outcome either way, just N requests instead of one.
+ */
+async function bulkDeleteQuestions(base, ids) {
+  const res = await apiCall(`${base}/bulk-delete`, {
+    method: 'POST', body: JSON.stringify({ ids }),
+  });
+  if (res.ok) return;
+  if (res.status !== 404) {
+    // A real failure — parse defensively, the body may not be JSON.
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || 'Failed to delete questions');
+  }
+  for (const id of ids) {
+    const r = await apiCall(`${base}/${id}`, { method: 'DELETE' });
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      throw new Error(d.error || 'Failed to delete questions');
+    }
+  }
+}
+
 function apiCall(path, options = {}) {
   return fetch(`${API}${path}`, {
     ...options,
@@ -4904,9 +4933,7 @@ function JourneyPanel() {
         });
       } else if (kind === 'questions-bulk') {
         const base = selected?.kind === 'level' ? '/admin/journey-questions' : '/admin/boss-questions';
-        const res  = await apiCall(`${base}/bulk-delete`, { method: 'POST', body: JSON.stringify({ ids: deleteItem.ids }) });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Failed to delete questions');
+        await bulkDeleteQuestions(base, deleteItem.ids);
         const gone = new Set(deleteItem.ids);
         if (selected?.kind === 'level') {
           setLevelQs(qs => qs.filter(q => !gone.has(q.id)));
@@ -5863,11 +5890,7 @@ function JourneyEditor() {
     try {
       if (kind === 'questions-bulk') {
         const t = target;
-        const res  = await apiCall(`${targetBase(t)}/bulk-delete`, {
-          method: 'POST', body: JSON.stringify({ ids }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Bulk delete failed');
+        await bulkDeleteQuestions(targetBase(t), ids);
         const gone = new Set(ids);
         if (t.kind === 'level') {
           setQuestionsByLevel(prev => ({ ...prev, [t.levelId]: (prev[t.levelId] || []).filter(q => !gone.has(q.id)) }));
