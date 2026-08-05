@@ -1850,10 +1850,10 @@
 }
 
 @media (max-width: 600px) {
-  /* Phones: the fixed header's icon bubbles stack to ~165px on the right,
-     same clearance .dash-main / .clan-page used */
+  /* Tracks .dash-main's clearance — the header is one band tall now that the
+     icon bubbles sit in a row rather than stacking. */
   .dash-tab-wrap {
-    padding-top: 170px;
+    padding-top: 112px;
   }
 
   .dash-back-pill {
@@ -2265,12 +2265,28 @@
     gap: 7px;
   }
 
-  /* Top padding clears the fixed header's vertically stacked icon bubbles
-     (three 48px bubbles from 16px = ~172px on phones) so they never cover the
-     PLAY nav card */
+  /* Clears the fixed header. The icons are a ROW now, so the header is one band
+     (~103px) rather than the ~172px the old vertical stack needed — this used to
+     be 184px, and the difference was dead space above the PLAY card. */
   .dash-main {
-    padding: 184px 16px 20px;
+    padding: 118px 16px 20px;
     gap: 16px;
+  }
+
+  /* Row of three bubbles must clear the profile card on narrow phones. */
+  .header-icon-bubble {
+    width: 44px !important;
+    height: 44px !important;
+  }
+
+  .header-icon-bubble .header-icon-img {
+    width: 26px !important;
+    height: 26px !important;
+  }
+
+  .settings-btn .header-icon-img {
+    width: 40px !important;
+    height: 40px !important;
   }
 
   .parchment-panel {
@@ -4082,10 +4098,15 @@
 
 @media (max-width: 768px) {
 
-  /* Stack icons vertically */
+  /* Icons sit in a ROW beside the profile card.
+     They used to stack vertically here, which made the fixed header ~172px tall
+     on phones and forced every page below it to reserve that much clearance —
+     hence the large empty band between the currency pills and the PLAY card.
+     A row keeps the header one band tall and gives that space back. Bubbles step
+     down below (52 -> 44 -> 38px) so the row always clears the profile card. */
   .header-icon-group {
     display: flex !important;
-    flex-direction: column !important;
+    flex-direction: row !important;
     align-items: center !important;
     gap: 6px !important;
     position: fixed !important;
@@ -4459,4 +4480,30 @@ button.settings-btn img,
   text-transform: none !important;
   font-variant: normal !important;
   letter-spacing: normal !important;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   NARROW PHONES — keep the header on one line
+   The icon row and the profile card share the header band, so below ~400px the
+   bubbles step down once more rather than colliding with the username panel.
+   ══════════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 400px) {
+  .header-icon-group {
+    gap: 4px !important;
+  }
+
+  .header-icon-bubble {
+    width: 38px !important;
+    height: 38px !important;
+  }
+
+  .header-icon-bubble .header-icon-img {
+    width: 22px !important;
+    height: 22px !important;
+  }
+
+  .settings-btn .header-icon-img {
+    width: 34px !important;
+    height: 34px !important;
+  }
 }
