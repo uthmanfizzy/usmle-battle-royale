@@ -11,6 +11,18 @@ const PACE_MAX = 100;
 const PACE_DEFAULT = 15;
 const PACE_SAVE_DEBOUNCE_MS = 600;
 
+// Star field for the ambient backdrop — position, size and animation offsets
+// straight from the mockup. Static data, so it lives outside the component and
+// never re-creates on render.
+const UWA_STARS = [
+  { top: '12%', left: '20%', '--s': '3px', '--dur': '4s',   '--delay': '0s'   },
+  { top: '22%', left: '70%', '--s': '2px', '--dur': '5.5s', '--delay': '0.8s' },
+  { top: '60%', left: '82%', '--s': '3px', '--dur': '3.6s', '--delay': '1.4s' },
+  { top: '75%', left: '12%', '--s': '2px', '--dur': '4.8s', '--delay': '2.1s' },
+  { top: '45%', left: '8%',  '--s': '2px', '--dur': '5s',   '--delay': '0.4s' },
+  { top: '85%', left: '55%', '--s': '3px', '--dur': '4.2s', '--delay': '1.8s' },
+];
+
 // Fisher-Yates. /api/questions/unseen returns a DETERMINISTIC order (stable
 // pagination), so without this every session would play in the same sequence.
 function shuffle(arr) {
@@ -194,6 +206,20 @@ export default function UWorldAdventure() {
 
   return (
     <div className="uwa">
+      {/* Ambient backdrop: three drifting blurred blobs + a scatter of twinkling
+          stars. Purely decorative — inert to pointers, hidden from assistive
+          tech, and clipped by its own layer so the oversized blobs never add a
+          scrollbar. Animates transform/opacity only (compositor-friendly), and
+          stops entirely under prefers-reduced-motion. */}
+      <div className="uwa-decor" aria-hidden="true">
+        <span className="uwa-blob uwa-blob--1" />
+        <span className="uwa-blob uwa-blob--2" />
+        <span className="uwa-blob uwa-blob--3" />
+        {UWA_STARS.map((s, i) => (
+          <span key={i} className="uwa-star" style={s} />
+        ))}
+      </div>
+
       {/* Mockup's top bar is deliberately minimal here — wordmark and avatar
           only, no currency pills. */}
       <div className="uwa-topbar">

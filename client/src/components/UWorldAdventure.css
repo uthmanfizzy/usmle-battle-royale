@@ -23,18 +23,110 @@
   --uwa-glow: 0 0 18px rgba(47, 111, 209, 0.2);
 
   min-height: 100vh;
-  /* Mockup layers a dark wash over a background image; no dashboard_bg exists
-     in prod (admin → Homepage Images serves only icon_* keys), so the wash is
-     rendered on its own as a soft blue vignette rather than referencing an
-     asset that would 404. */
-  background:
-    radial-gradient(ellipse at 50% 0%, rgba(47, 111, 209, 0.13) 0%, rgba(5, 8, 12, 0) 60%),
-    var(--uwa-void);
+  /* Flat base — the depth comes from the animated .uwa-decor layer below. */
+  background: var(--uwa-void);
   color: #fff;
+  position: relative;
   font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
   padding: clamp(16px, 4vw, 28px) clamp(16px, 5vw, 36px);
   box-sizing: border-box;
   overflow-x: hidden;
+}
+
+/* ── Ambient backdrop ────────────────────────────────────────────────────────
+   Drifting blobs + twinkling stars. The layer clips its own children, so the
+   deliberately oversized blobs (55–60vw, offset past the edges) can never widen
+   the page. Only transform/opacity animate, so this stays on the compositor and
+   off the layout/paint path. */
+.uwa-decor {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Everything that isn't the backdrop sits above it. */
+.uwa > *:not(.uwa-decor) { position: relative; z-index: 1; }
+
+.uwa-blob {
+  position: absolute;
+  border-radius: 50%;
+  display: block;
+}
+
+.uwa-blob--1 {
+  top: -10%;
+  left: -5%;
+  width: 55vw;
+  height: 55vw;
+  background: radial-gradient(circle, rgba(63, 127, 214, 0.35), transparent 70%);
+  filter: blur(40px);
+  animation: uwa-drift-1 26s ease-in-out infinite;
+}
+
+.uwa-blob--2 {
+  bottom: -15%;
+  right: -10%;
+  width: 60vw;
+  height: 60vw;
+  background: radial-gradient(circle, rgba(79, 163, 255, 0.28), transparent 70%);
+  filter: blur(50px);
+  animation: uwa-drift-2 32s ease-in-out infinite;
+}
+
+.uwa-blob--3 {
+  top: 35%;
+  left: 45%;
+  width: 35vw;
+  height: 35vw;
+  background: radial-gradient(circle, rgba(127, 176, 224, 0.22), transparent 70%);
+  filter: blur(35px);
+  animation: uwa-pulse 9s ease-in-out infinite;
+}
+
+/* Per-star size/timing come from inline --s / --dur / --delay custom props. */
+.uwa-star {
+  position: absolute;
+  width: var(--s, 2px);
+  height: var(--s, 2px);
+  border-radius: 50%;
+  background: var(--uwa-blue-light);
+  box-shadow: 0 0 6px 1px var(--uwa-blue-light);
+  animation: uwa-twinkle var(--dur, 4s) ease-in-out infinite var(--delay, 0s);
+}
+
+.uwa-star:nth-child(even) {
+  background: var(--uwa-blue-hover);
+  box-shadow: 0 0 6px 1px var(--uwa-blue-hover);
+}
+
+@keyframes uwa-drift-1 {
+  0%, 100% { transform: translate(-10%, -8%) scale(1); }
+  50%      { transform: translate(8%, 10%) scale(1.15); }
+}
+
+@keyframes uwa-drift-2 {
+  0%, 100% { transform: translate(6%, 8%) scale(1); }
+  50%      { transform: translate(-10%, -6%) scale(1.2); }
+}
+
+@keyframes uwa-pulse {
+  0%, 100% { opacity: 0.5; }
+  50%      { opacity: 0.9; }
+}
+
+@keyframes uwa-twinkle {
+  0%, 100% { opacity: 0.15; }
+  50%      { opacity: 0.8; }
+}
+
+/* Motion is decorative here — hold the composition still when it's unwelcome. */
+@media (prefers-reduced-motion: reduce) {
+  .uwa-blob,
+  .uwa-star { animation: none; }
+  .uwa-blob--3 { opacity: 0.7; }
+  .uwa-star { opacity: 0.5; }
 }
 
 /* ── Top bar: wordmark + avatar (mockup carries no currency pills here) ─── */
