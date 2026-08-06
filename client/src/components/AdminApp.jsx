@@ -1610,7 +1610,13 @@ function QuestionsPanel({ subjects = [], scopeTag = null }) {
 
   // ─── Import done callback ─────────────────────────────────────────────────────
   async function handleImportDone(data, topic) {
-    const updatedNote = data.updated ? `, ${data.updated} updated` : '';
+    // "Updated" means the question text already existed in the bank, so the
+    // import refreshed that row (including its game modes) instead of making a
+    // duplicate. That is the normal outcome when tagging existing questions for
+    // a mode — say so, because "Added 0" on its own reads like nothing happened.
+    const updatedNote = data.updated
+      ? `, ${data.updated} already in the bank — updated in place${scopeTag ? ' and tagged' : ''}`
+      : '';
     const skippedNote = data.skipped ? `, ${data.skipped} skipped` : '';
     const topicNote   = topic ? ` into ${topic.name}` : '';
 
@@ -1945,7 +1951,28 @@ function QuestionsPanel({ subjects = [], scopeTag = null }) {
   );
 
   return (
-    <div className="ap-questions">
+    <div className={`ap-questions${scopeTag ? ' ap-uworld' : ''}`}>
+      {/* A scoped tab is a different job from Question Manager — one mode's
+          content, not the whole bank — so it says what it is and wears the
+          mode's own colour rather than looking like a second Question Manager. */}
+      {scopeTag && (
+        <div className="ap-uw-head">
+          <div className="ap-uw-head-main">
+            <span className="ap-uw-head-icon" aria-hidden="true">🌍</span>
+            <div>
+              <h2 className="ap-uw-head-title">UWorld Adventure</h2>
+              <p className="ap-uw-head-sub">
+                Questions tagged <code>uworld_adventure</code>. Players only ever see these here —
+                tagging an existing question adds it, it is never copied.
+              </p>
+            </div>
+          </div>
+          <div className="ap-uw-head-stat">
+            <span className="ap-uw-head-num">{scoped.length}</span>
+            <span className="ap-uw-head-lbl">tagged</span>
+          </div>
+        </div>
+      )}
       <div className="ap-qm-layout">
 
         {/* ── Folder Sidebar ───────────────────────────────────────── */}
@@ -2405,31 +2432,36 @@ function QuestionsPanel({ subjects = [], scopeTag = null }) {
                     </span>
                     <span className="ap-fh-count">{filtered.length}</span>
                   </div>
-                  <select
-                    className="ap-gm-filter"
-                    value={gameModeFilter}
-                    onChange={e => setGameModeFilter(e.target.value)}
-                  >
-                    <option value="all">All Modes</option>
-                    {GAME_MODES.map(gm => (
-                      <option key={gm.id} value={gm.id}>{gm.icon} {gm.label}</option>
-                    ))}
-                  </select>
-                  {/* Subject filter — same control as the mode filter beside it.
-                      Options come from SUBJECTS (the FOLDERS-derived list the Add
-                      Question dropdown also uses), so a new subject shows up in
-                      both at once and the two can never drift apart. */}
-                  <select
-                    className="ap-gm-filter"
-                    value={subjectFilter}
-                    onChange={e => setSubjectFilter(e.target.value)}
-                  >
-                    <option value="all">All Subjects</option>
-                    {SUBJECTS.map(id => {
-                      const f = FOLDERS.find(fl => fl.id === id);
-                      return <option key={id} value={id}>{f?.icon} {f?.label || id}</option>;
-                    })}
-                  </select>
+                  {/* Both filters are dead weight in a scoped tab: every row is
+                      already the same mode, and the sidebar IS the subject
+                      filter. Left to Question Manager, where they do work. */}
+                  {!scopeTag && <>
+                    <select
+                      className="ap-gm-filter"
+                      value={gameModeFilter}
+                      onChange={e => setGameModeFilter(e.target.value)}
+                    >
+                      <option value="all">All Modes</option>
+                      {GAME_MODES.map(gm => (
+                        <option key={gm.id} value={gm.id}>{gm.icon} {gm.label}</option>
+                      ))}
+                    </select>
+                    {/* Subject filter — same control as the mode filter beside it.
+                        Options come from SUBJECTS (the FOLDERS-derived list the Add
+                        Question dropdown also uses), so a new subject shows up in
+                        both at once and the two can never drift apart. */}
+                    <select
+                      className="ap-gm-filter"
+                      value={subjectFilter}
+                      onChange={e => setSubjectFilter(e.target.value)}
+                    >
+                      <option value="all">All Subjects</option>
+                      {SUBJECTS.map(id => {
+                        const f = FOLDERS.find(fl => fl.id === id);
+                        return <option key={id} value={id}>{f?.icon} {f?.label || id}</option>;
+                      })}
+                    </select>
+                  </>}
                   <input
                     className="ap-search-input"
                     type="text"
@@ -2442,32 +2474,38 @@ function QuestionsPanel({ subjects = [], scopeTag = null }) {
                   {bulkMsg && (
                     <span className={`ap-bulk-msg ${bulkMsg.startsWith('✓') ? 'ok' : 'err'}`}>{bulkMsg}</span>
                   )}
-                  <button
-                    className="ap-btn-sec"
-                    onClick={handleExportQuestions}
-                    title={`Export ${filtered.length} question${filtered.length !== 1 ? 's' : ''} as JSON`}
-                  >
-                    📤 Export
-                  </button>
-                  <button
-                    className="ap-btn-sec"
-                    onClick={handleCopyQuestions}
-                    title={`Copy ${filtered.length} question${filtered.length !== 1 ? 's' : ''} as editable ID-tagged text (round-trip)`}
-                  >
-                    📋 Copy Questions
-                  </button>
-                  <button
-                    className="ap-btn-sec"
-                    onClick={() => setUpdateParser(true)}
-                    title="Paste edited questions back — updates by ID, adds new ones to this folder"
-                  >
-                    ♻️ Update Questions
-                  </button>
-                  <button className="ap-btn-sec" onClick={() => setImportModal(true)}>
-                    📥 Bulk Import
-                  </button>
+                  {/* Question Manager's authoring tools (export, round-trip
+                      copy/update, JSON import) belong to the whole bank. A mode
+                      tab only needs the two ways to put questions IN it, so the
+                      rest stay behind in the Manager rather than crowding this. */}
+                  {!scopeTag && <>
+                    <button
+                      className="ap-btn-sec"
+                      onClick={handleExportQuestions}
+                      title={`Export ${filtered.length} question${filtered.length !== 1 ? 's' : ''} as JSON`}
+                    >
+                      📤 Export
+                    </button>
+                    <button
+                      className="ap-btn-sec"
+                      onClick={handleCopyQuestions}
+                      title={`Copy ${filtered.length} question${filtered.length !== 1 ? 's' : ''} as editable ID-tagged text (round-trip)`}
+                    >
+                      📋 Copy Questions
+                    </button>
+                    <button
+                      className="ap-btn-sec"
+                      onClick={() => setUpdateParser(true)}
+                      title="Paste edited questions back — updates by ID, adds new ones to this folder"
+                    >
+                      ♻️ Update Questions
+                    </button>
+                    <button className="ap-btn-sec" onClick={() => setImportModal(true)}>
+                      📥 Bulk Import
+                    </button>
+                  </>}
                   <button className="ap-btn-sec" onClick={() => setShowParser(true)}>
-                    📋 Paste & Parse
+                    📋 Paste &amp; Parse
                   </button>
                   <button className="ap-btn-pri" onClick={() => setModal('add')}>+ Add Question</button>
                 </div>
@@ -5621,7 +5659,7 @@ function JourneyPanel() {
                   </>
                 )}
               </div>
-              {editorQuestions.map(q => (
+              {editorQuestions.map((q, qi) => (
                 <div className={`ap-journey-q-row${qSel.has(q.id) ? ' ap-journey-q-row--sel' : ''}`} key={q.id}>
                   <input
                     type="checkbox"
@@ -5630,6 +5668,10 @@ function JourneyPanel() {
                     onChange={() => toggleQSel(q.id)}
                     aria-label="Select question"
                   />
+                  {/* Position in the authored order. The list is sorted by
+                      sort_order then created_at — the exact sequence a player
+                      gets when they pick "In order", so these numbers match. */}
+                  <span className="ap-journey-q-num">{qi + 1}</span>
                   <span className="ap-journey-q-correct">{q.correct}</span>
                   <span className="ap-journey-q-text">{q.question}</span>
                   <div className="ap-video-row-actions">
@@ -6144,7 +6186,7 @@ function JourneyEditor() {
                 </>
               )}
             </div>
-            {qs.map(q => (
+            {qs.map((q, qi) => (
               <div className={`ap-journey-q-row${qSel.key === key && qSel.ids.has(q.id) ? ' ap-journey-q-row--sel' : ''}`} key={q.id}>
                 <input
                   type="checkbox"
@@ -6153,6 +6195,9 @@ function JourneyEditor() {
                   onChange={() => toggleQSel(key, q.id)}
                   aria-label="Select question"
                 />
+                {/* Position in the authored order — matches the player's
+                    "In order" sequence (sort_order, then created_at). */}
+                <span className="ap-journey-q-num">{qi + 1}</span>
                 <span className="ap-journey-q-correct">{q.correct}</span>
                 <span className="ap-journey-q-text">{q.question}</span>
                 <div className="ap-video-row-actions">

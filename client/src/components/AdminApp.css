@@ -166,7 +166,13 @@
 /* Tab Nav */
 .ap-nav {
   display: flex;
+  /* 17 tabs are ~1600px wide. Without wrapping this row just overflows the
+     viewport, and since nothing scrolls horizontally the tabs past the edge
+     become unclickable — below ~1610px that silently hid the last tab. Wrapping
+     keeps every tab reachable at any width; the header grows a row instead. */
+  flex-wrap: wrap;
   gap: 4px;
+  row-gap: 6px;
   padding: 12px 28px;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
@@ -4983,4 +4989,128 @@
 .ap-journey-q-row--sel {
   background: rgba(232, 176, 75, 0.12);
   border-color: rgba(232, 176, 75, 0.5);
+}
+
+/* ── Journey question numbering ───────────────────────────────────────────── */
+/* Position in the authored order — the same sequence a player gets in
+   "In order" mode, so these numbers are the ones they'll actually see. */
+.ap-journey-q-num {
+  flex-shrink: 0;
+  min-width: 24px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   UWORLD ADVENTURE TAB — blue, to match the player page and to read at a glance
+   as a different job from Question Manager. Scoped under .ap-uworld so nothing
+   here can leak into the Manager.
+   ══════════════════════════════════════════════════════════════════════════════ */
+.ap-uworld {
+  --uw-blue: #3f7fd6;
+  --uw-blue-light: #7fb0e0;
+}
+
+.ap-uw-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+  background: rgba(10, 16, 24, 0.6);
+  border: 1.5px solid var(--uw-blue);
+  box-shadow: 0 0 18px rgba(47, 111, 209, 0.2);
+  border-radius: 10px;
+  padding: 16px 20px;
+  margin-bottom: 18px;
+}
+
+.ap-uw-head-main {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.ap-uw-head-icon { font-size: 26px; line-height: 1; flex-shrink: 0; }
+
+.ap-uw-head-title {
+  margin: 0 0 3px;
+  font-family: 'Cinzel', serif;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--uw-blue-light);
+}
+
+.ap-uw-head-sub {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.ap-uw-head-sub code {
+  font-size: 11px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(63, 127, 214, 0.18);
+  color: var(--uw-blue-light);
+}
+
+.ap-uw-head-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+  padding: 6px 18px;
+  border-radius: 8px;
+  background: rgba(63, 127, 214, 0.12);
+  border: 1px solid rgba(63, 127, 214, 0.4);
+}
+
+.ap-uw-head-num {
+  font-family: 'Cinzel', serif;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--uw-blue-light);
+  line-height: 1.1;
+}
+
+.ap-uw-head-lbl {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* Recolour the reused Question Manager chrome from red/gold to the mode's blue. */
+.ap-uworld .ap-folder-btn.active {
+  background: rgba(63, 127, 214, 0.16) !important;
+  border-color: var(--uw-blue) !important;
+}
+
+.ap-uworld .ap-folder-count {
+  background: rgba(63, 127, 214, 0.2);
+  color: var(--uw-blue-light);
+}
+
+.ap-uworld .ap-fh-count {
+  background: rgba(63, 127, 214, 0.2);
+  color: var(--uw-blue-light);
+}
+
+.ap-uworld .ap-btn-pri {
+  background: rgba(63, 127, 214, 0.9);
+  border-color: var(--uw-blue);
+  color: #fff;
+}
+
+.ap-uworld .ap-btn-pri:hover { background: var(--uw-blue); }
+
+@media (max-width: 700px) {
+  .ap-uw-head { padding: 14px 16px; }
+  .ap-uw-head-sub { font-size: 11px; }
 }
