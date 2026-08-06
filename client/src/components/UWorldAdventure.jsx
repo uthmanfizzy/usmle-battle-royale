@@ -74,6 +74,14 @@ const PACE_SAVE_MAX = 200;
 // max() below means an over-full bank already ignores it.
 const UWA_TARGET_TOTAL = 3659;
 
+// user_prep_pace is keyed (user_id, subject), but the plan this page shows is
+// adventure-wide — so the pace is stored ONCE under a reserved key rather than
+// per subject. Switching subjects used to load that subject's own saved pace and
+// silently move the slider, which read as the page changing your mind for you.
+// `subject` has no FK and is validated only as a non-empty string, so a sentinel
+// is safe here.
+const PACE_SCOPE = '__adventure__';
+
 /**
  * UWorld Adventure — pick a subject, commit to a daily pace, and see honestly
  * how long the remaining question bank will take at that rate.
@@ -114,7 +122,7 @@ export default function UWorldAdventure() {
   const [sessionQuestions, setSessionQuestions] = useState(null);
 
   const saveTimerRef = useRef(null);
-  const paceLoadedForRef = useRef(null); // guards the save-on-change effect
+  const paceLoadedRef = useRef(false); // guards the save-on-change effect
 
   // Same own-identity guard the other authed pages use.
   useEffect(() => {
@@ -165,51 +173,54 @@ export default function UWorldAdventure() {
     return () => { cancelled = true; };
   }, [user?.id, loadOverall]);
 
-  // Selecting a subject pulls its real counts and any saved pace together.
+  // The pace is loaded ONCE per visit, not per subject — it belongs to the
+  // adventure, so switching subjects must leave the slider exactly where the
+  // player put it.
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+    authFetch(`/api/users/${user.id}/prep-pace?subject=${encodeURIComponent(PACE_SCOPE)}`)
+      .then(r => r.json())
+      .then(data => {
+        if (cancelled) return;
+        const saved = Number(data?.daily_target);
+        if (Number.isFinite(saved) && saved > 0) {
+          setPace(Math.min(PACE_SAVE_MAX, Math.max(PACE_MIN, saved)));
+        }
+        paceLoadedRef.current = true;
+      })
+      .catch(() => { if (!cancelled) paceLoadedRef.current = true; });
+    return () => { cancelled = true; };
+  }, [user?.id]);
+
+  // Selecting a subject pulls its real counts. The pace is untouched here.
   useEffect(() => {
     if (!selected || !user?.id) return;
     let cancelled = false;
     setLoadingSubject(true);
-    paceLoadedForRef.current = null; // suppress the save effect until this lands
 
-    Promise.all([
-      loadProgress(selected),
-      authFetch(`/api/users/${user.id}/prep-pace?subject=${encodeURIComponent(selected)}`).then(r => r.json()),
-    ])
-      .then(([prog, paceData]) => {
-        if (cancelled) return;
-        setProgress(prog || { total: 0, seen: 0, unseen: 0 });
-        const saved = Number(paceData?.daily_target);
-        setPace(Number.isFinite(saved) && saved > 0
-          ? Math.min(PACE_MAX, Math.max(PACE_MIN, saved))
-          : PACE_DEFAULT);
-        paceLoadedForRef.current = selected;
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setProgress({ total: 0, seen: 0, unseen: 0 });
-        setPace(PACE_DEFAULT);
-        paceLoadedForRef.current = selected;
-      })
+    loadProgress(selected)
+      .then(prog => { if (!cancelled) setProgress(prog || { total: 0, seen: 0, unseen: 0 }); })
+      .catch(() => { if (!cancelled) setProgress({ total: 0, seen: 0, unseen: 0 }); })
       .finally(() => { if (!cancelled) setLoadingSubject(false); });
 
     return () => { cancelled = true; };
   }, [selected, user?.id, loadProgress]);
 
   // Persist the pace, debounced — a slider drag fires this once at rest, not per
-  // pixel. Skipped until the saved pace for THIS subject has loaded, so the
-  // fetched value is never immediately overwritten by its own arrival.
+  // pixel. Skipped until the saved pace has loaded, so the fetched value is
+  // never immediately overwritten by its own arrival.
   useEffect(() => {
-    if (!selected || paceLoadedForRef.current !== selected) return;
+    if (!paceLoadedRef.current) return;
     clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(() => {
       authFetch('/api/prep-pace', {
         method: 'POST',
-        body: JSON.stringify({ subject: selected, daily_target: pace }),
+        body: JSON.stringify({ subject: PACE_SCOPE, daily_target: pace }),
       }).catch(() => {}); // a lost preference must never interrupt the page
     }, PACE_SAVE_DEBOUNCE_MS);
     return () => clearTimeout(saveTimerRef.current);
-  }, [pace, selected]);
+  }, [pace]);
 
   async function startSession() {
     if (!selected || starting) return;
@@ -488,10 +499,10 @@ export default function UWorldAdventure() {
               key={s.id}
               type="button"
               className={`uwa-subject${selected === s.id ? ' uwa-subject--active' : ''}`}
-              // A different subject has a different remaining pool, so the old
-              // deadline no longer describes anything — drop back to the
-              // projection rather than showing a stale date.
-              onClick={() => { setSelected(s.id); setPickedDate(null); setDeadlineWarning(''); }}
+              // Picking a subject changes only what TODAY draws from. The plan
+              // spans the whole adventure, so the pace and any chosen deadline
+              // deliberately survive the switch.
+              onClick={() => setSelected(s.id)}
               aria-pressed={selected === s.id}
             >
               {/* Mockup uses the subject's first letter in this badge; the real
