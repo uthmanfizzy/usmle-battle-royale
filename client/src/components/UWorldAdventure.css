@@ -262,6 +262,69 @@
   margin-bottom: 18px;
 }
 
+/* Plan-by toggle: the same plan read from either end — set a daily pace and
+   be told the finish date, or set a finish date and be told the pace. */
+.uwa-planby {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  margin-bottom: 16px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.uwa-planby-btn {
+  padding: 7px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.6);
+  transition: background 0.14s ease, color 0.14s ease;
+}
+
+.uwa-planby-btn:hover { color: rgba(255, 255, 255, 0.85); }
+
+.uwa-planby-btn.on {
+  background: var(--uwa-tint);
+  border: 1px solid rgba(63, 127, 214, 0.5);
+  padding: 6px 13px;
+  color: #cfe2ff;
+}
+
+/* Deadline input. Sits in the slider's row so switching modes does not reflow
+   the card — same height, same gap, chip stays put. */
+.uwa-date {
+  flex: 1;
+  min-width: 180px;
+  padding: 9px 14px;
+  font-size: 14px;
+  font-family: inherit;
+  color: #eaf1ff;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(63, 127, 214, 0.4);
+  border-radius: 6px;
+  color-scheme: dark;
+}
+
+.uwa-date:focus { outline: none; border-color: var(--uwa-blue); }
+.uwa-date:disabled { opacity: 0.5; }
+
+.uwa-warn {
+  font-size: 13px;
+  line-height: 1.45;
+  color: #ffd9a3;
+  background: rgba(214, 148, 40, 0.13);
+  border: 1px solid rgba(214, 148, 40, 0.38);
+  border-radius: 8px;
+  padding: 9px 13px;
+  margin: -6px 0 16px;
+}
+
 .uwa-slider-row {
   display: flex;
   align-items: center;

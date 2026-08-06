@@ -39,6 +39,31 @@ function formatDate(d) {
   return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 }
 
+// <input type="date"> wants yyyy-mm-dd in LOCAL time. toISOString() would shift
+// the day for anyone west of UTC, so build it from the local parts.
+function toInputDate(d) {
+  const p = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+// Study days from today to a yyyy-mm-dd string, INCLUSIVE of both ends — today
+// is day 1, so "finish by tomorrow" is two days of work, not one. That has to
+// match the projection's `today + days - 1` or the two directions disagree by a
+// day. Floor 1: "finish by today" and any past date both mean one sitting.
+function daysUntil(inputDate) {
+  const [y, m, d] = inputDate.split('-').map(Number);
+  if (!y || !m || !d) return null;
+  const target = new Date(y, m - 1, d);
+  const today  = new Date();
+  target.setHours(0, 0, 0, 0);
+  today.setHours(0, 0, 0, 0);
+  return Math.max(1, Math.round((target - today) / 86400000) + 1);
+}
+
+// The pace endpoint validates 1-200, so a deadline that demands more than that
+// cannot be saved — it is reported as out of reach instead of silently clamped.
+const PACE_SAVE_MAX = 200;
+
 /**
  * UWorld Adventure — pick a subject, commit to a daily pace, and see honestly
  * how long the remaining question bank will take at that rate.
@@ -60,6 +85,18 @@ export default function UWorldAdventure() {
   const [loadingSubject, setLoadingSubject] = useState(false);
   const [starting, setStarting] = useState(false);
   const [startError, setStartError] = useState('');
+  // Which way round the player is planning: set a daily pace and be told the
+  // finish date, or name a finish date and be told the daily pace. Both write to
+  // the SAME `pace` state — the deadline input just solves for it — so the two
+  // views can never drift apart or disagree about when you finish.
+  const [planBy, setPlanBy] = useState('pace');   // 'pace' | 'date'
+  const [deadlineWarning, setDeadlineWarning] = useState('');
+  // The date the player actually picked. Kept separately from the projection so
+  // the field does not snap under them: whole questions per day rarely divide a
+  // pool evenly (177 in 31 days is 6/day, which really finishes in 30), so the
+  // honest finish date can land a day or two EARLY. That truth belongs in the
+  // projection row below, not in the box they just typed in.
+  const [pickedDate, setPickedDate] = useState(null);
 
   // The live session. Held in state and set ONCE per start so the array
   // reference stays stable — SoloGame's fetch effect depends on it.
@@ -201,7 +238,10 @@ export default function UWorldAdventure() {
   const unseen = progress?.unseen ?? 0;
   const daysToFinish = unseen > 0 ? Math.ceil(unseen / pace) : 0;
   const completionDate = new Date();
-  completionDate.setDate(completionDate.getDate() + daysToFinish);
+  // Day 1 is TODAY, so a one-day plan finishes today — not tomorrow. This also
+  // makes the deadline picker round-trip exactly: pick a date, get a pace, and
+  // that pace projects back to the date you picked.
+  completionDate.setDate(completionDate.getDate() + Math.max(0, daysToFinish - 1));
   const todaysCount = Math.min(pace, unseen);
 
   return (
@@ -252,30 +292,82 @@ export default function UWorldAdventure() {
         {/* ── Set Your Pace ─────────────────────────────────────────────── */}
         <div className="uwa-card">
           <div className="uwa-card-title">Set Your Pace</div>
-          <div className="uwa-card-sub">How many questions do you want to answer per day?</div>
-
-          <div className="uwa-slider-row">
-            <input
-              className="uwa-slider"
-              type="range"
-              min={PACE_MIN}
-              max={PACE_MAX}
-              step={1}
-              value={pace}
-              onChange={e => setPace(Number(e.target.value))}
-              aria-label="Questions per day"
-            />
-            <div className="uwa-pace-chip">
-              <span className="uwa-pace-num">{pace}</span>
-              <span className="uwa-pace-unit">questions/day</span>
-            </div>
+          <div className="uwa-card-sub">
+            {planBy === 'pace'
+              ? 'How many questions do you want to answer per day?'
+              : 'When do you want to finish? We work out the daily pace.'}
           </div>
+
+          <div className="uwa-planby" role="tablist" aria-label="Plan by">
+            <button
+              type="button" role="tab" aria-selected={planBy === 'pace'}
+              className={`uwa-planby-btn ${planBy === 'pace' ? 'on' : ''}`}
+              onClick={() => { setPlanBy('pace'); setDeadlineWarning(''); setPickedDate(null); }}
+            >Questions per day</button>
+            <button
+              type="button" role="tab" aria-selected={planBy === 'date'}
+              className={`uwa-planby-btn ${planBy === 'date' ? 'on' : ''}`}
+              onClick={() => { setPlanBy('date'); setDeadlineWarning(''); setPickedDate(null); }}
+            >Finish by a date</button>
+          </div>
+
+          {planBy === 'pace' ? (
+            <div className="uwa-slider-row">
+              <input
+                className="uwa-slider"
+                type="range"
+                min={PACE_MIN}
+                max={PACE_MAX}
+                step={1}
+                value={Math.min(pace, PACE_MAX)}
+                onChange={e => { setPace(Number(e.target.value)); setDeadlineWarning(''); }}
+                aria-label="Questions per day"
+              />
+              <div className="uwa-pace-chip">
+                <span className="uwa-pace-num">{pace}</span>
+                <span className="uwa-pace-unit">questions/day</span>
+              </div>
+            </div>
+          ) : (
+            <div className="uwa-slider-row">
+              <input
+                className="uwa-date"
+                type="date"
+                min={toInputDate(new Date())}
+                value={pickedDate || toInputDate(completionDate)}
+                disabled={unseen === 0}
+                onChange={e => {
+                  const days = daysUntil(e.target.value);
+                  if (!days) return;
+                  setPickedDate(e.target.value);
+                  const needed = Math.ceil(unseen / days);
+                  if (needed > PACE_SAVE_MAX) {
+                    setDeadlineWarning(
+                      `That would need ${needed} questions a day. The most you can set is ${PACE_SAVE_MAX}/day — pick a later date.`
+                    );
+                    setPace(PACE_SAVE_MAX);
+                  } else {
+                    setDeadlineWarning('');
+                    // Floor at PACE_MIN: a very distant date solves to 1/day, and
+                    // the projection row then honestly shows the earlier finish.
+                    setPace(Math.max(PACE_MIN, needed));
+                  }
+                }}
+                aria-label="Target completion date"
+              />
+              <div className="uwa-pace-chip">
+                <span className="uwa-pace-num">{pace}</span>
+                <span className="uwa-pace-unit">questions/day</span>
+              </div>
+            </div>
+          )}
+          {deadlineWarning && <p className="uwa-warn">{deadlineWarning}</p>}
 
           <div className="uwa-projection">
             <div>
               <span className="uwa-proj-label">DAYS TO FINISH</span>
               <span className="uwa-proj-val uwa-proj-val--blue">
-                {unseen > 0 ? `${daysToFinish} days` : '—'}
+                {unseen > 0 ? `${daysToFinish} ${daysToFinish === 1 ? 'day' : 'days'}` : '—'}
               </span>
             </div>
             <div>
@@ -343,7 +435,10 @@ export default function UWorldAdventure() {
               key={s.id}
               type="button"
               className={`uwa-subject${selected === s.id ? ' uwa-subject--active' : ''}`}
-              onClick={() => setSelected(s.id)}
+              // A different subject has a different remaining pool, so the old
+              // deadline no longer describes anything — drop back to the
+              // projection rather than showing a stale date.
+              onClick={() => { setSelected(s.id); setPickedDate(null); setDeadlineWarning(''); }}
               aria-pressed={selected === s.id}
             >
               {/* Mockup uses the subject's first letter in this badge; the real

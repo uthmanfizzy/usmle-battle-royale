@@ -2444,7 +2444,17 @@ function QuestionsPanel({ subjects = [], scopeTag = null }) {
           {/* ════ QUESTION LEVEL ═════════════════════════════════════ */}
           {view === 'questions' && (
             <>
-              {isCatFolder(activeFolder) && (
+              {/* A scoped tab skips the difficulty -> topic drill-down entirely
+                  (see the activeFolder effect), so it has no difficulty or topic
+                  to name — the full trail would read "Hard Mode › undefined". */}
+              {isCatFolder(activeFolder) && scopeTag && (
+                <div className="ap-breadcrumb">
+                  <span className="ap-bc-item">UWorld Adventure</span>
+                  <span className="ap-bc-sep">›</span>
+                  <span className="ap-bc-item ap-bc-cur">{curFolder?.icon} {curFolder?.label}</span>
+                </div>
+              )}
+              {isCatFolder(activeFolder) && !scopeTag && (
                 <div className="ap-breadcrumb">
                   <span className="ap-bc-item">Question Manager</span>
                   <span className="ap-bc-sep">›</span>
