@@ -465,3 +465,69 @@
     width: 380px;
   }
 }
+
+/* ── Flashcards category: card opens an inline deck list ─────────────────── */
+.ms-flash-caret {
+  align-self: center;
+  padding-right: 18px;
+  font-size: 15px;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.ms-journey-card--open { border-color: var(--mv-gold, #e8b04b); }
+.ms-journey-card--open .ms-flash-caret { color: var(--mv-gold, #e8b04b); }
+
+/* Indented under the parent card so the nesting reads without a header. */
+.ms-flash-decks {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 640px;
+  max-width: 92vw;
+  padding-left: 28px;
+  box-sizing: border-box;
+}
+
+.ms-flash-deck {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 14px 18px;
+  cursor: pointer;
+  text-align: left;
+  font-family: 'Cinzel', serif;
+  color: #fff;
+  background: rgba(6, 10, 7, 0.55);
+  border: 1.5px solid rgba(232, 176, 75, 0.45);
+  border-radius: 8px;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.ms-flash-deck:hover:not(:disabled) {
+  border-color: var(--mv-gold, #e8b04b);
+  background: rgba(232, 176, 75, 0.1);
+}
+
+.ms-flash-deck--disabled {
+  cursor: default;
+  opacity: 0.5;
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.ms-flash-deck-icon { font-size: 24px; flex-shrink: 0; }
+
+.ms-flash-deck-body { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0; }
+
+.ms-flash-deck-name {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+}
+
+.ms-flash-deck-sub {
+  font-family: var(--mv-font-body, 'Inter', system-ui, sans-serif);
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+  letter-spacing: 0;
+}

@@ -259,3 +259,27 @@
 @media (min-width: 900px) {
   .sf-media { border-radius: 12px; overflow: hidden; }
 }
+
+/* Sound toggle. Fixed to the feed (not a slide) so it stays put while slides
+   snap past, and sits under the counter's top-right corner. */
+.sf-sound {
+  position: fixed;
+  top: 56px;
+  right: 14px;
+  z-index: 6;
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 17px;
+  line-height: 1;
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 999px;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(6px);
+  transition: background 0.14s ease;
+}
+.sf-sound:hover { background: rgba(0, 0, 0, 0.65); }

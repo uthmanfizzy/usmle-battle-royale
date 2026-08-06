@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import './ModeSplit.css';
 
 // Animated Story/Online reveal shown after clicking Play.
@@ -16,7 +17,7 @@ export default function ModeSplit({ onStory, onOnline, onTraining, onBack }) {
         <button className="ms-card ms-card--story" onClick={onStory}>
           <span className="ms-card-icon">📖</span>
           <span className="ms-card-name">STORY MODE</span>
-          <span className="ms-card-sub">Solo campaigns — Tower, AnKing &amp; more</span>
+          <span className="ms-card-sub">Solo campaigns — Journey, Flashcards &amp; more</span>
         </button>
         <button className="ms-card ms-card--online" onClick={onOnline}>
           <span className="ms-card-icon">⚔️</span>
@@ -38,8 +39,12 @@ export default function ModeSplit({ onStory, onOnline, onTraining, onBack }) {
 }
 
 // Story menu: First Aid Journey emphasized per the mockup (wide campaign
-// card), Tower/AnKing keep their existing coming-soon treatment below.
+// card), Tower keeps its existing coming-soon treatment below.
 export function StoryMenu({ onBack, onJourney, onTower, onAnKing, onUWorld }) {
+  // Whether the Flashcards deck list is expanded. Local — nothing outside this
+  // menu cares which category is open.
+  const [flashOpen, setFlashOpen] = useState(false);
+
   return (
     <div className="ms-screen">
       <button className="ms-back-btn" onClick={onBack}>← Back</button>
@@ -69,20 +74,50 @@ export function StoryMenu({ onBack, onJourney, onTower, onAnKing, onUWorld }) {
           </div>
         </button>
 
-        {/* Re-enabled: the mode is real now (27,319 imported cards + spaced
-            repetition), so the COMING SOON gate no longer applies. Re-enabled
-            exactly as the previous comment prescribed — disabled class and
-            ms-soon-chip dropped, onClick={onAnKing} restored. Routing unchanged.
-            Sits second, above the still-gated Tower. */}
-        <button className="ms-journey-card" onClick={onAnKing}>
+        {/* FLASHCARDS is a category, not a mode: it opens in place to reveal
+            the decks underneath. An accordion rather than a new screen because
+            there are two entries — a whole phase and a back button for that
+            would be more chrome than content. */}
+        <button
+          className={`ms-journey-card${flashOpen ? ' ms-journey-card--open' : ''}`}
+          onClick={() => setFlashOpen(o => !o)}
+          aria-expanded={flashOpen}
+        >
           <div className="ms-journey-art" aria-hidden="true">
             <span className="ms-journey-art-icon">🃏</span>
           </div>
           <div className="ms-journey-body">
-            <span className="ms-journey-name">ANKING</span>
-            <span className="ms-journey-sub">Master AnKing flashcards</span>
+            <span className="ms-journey-name">FLASHCARDS</span>
+            <span className="ms-journey-sub">Spaced-repetition decks — pick your source.</span>
           </div>
+          <span className="ms-flash-caret" aria-hidden="true">{flashOpen ? '▾' : '▸'}</span>
         </button>
+
+        {flashOpen && (
+          <div className="ms-flash-decks">
+            {/* Real: 27,319 imported cards with spaced repetition. */}
+            <button className="ms-flash-deck" onClick={onAnKing}>
+              <span className="ms-flash-deck-icon" aria-hidden="true">🃏</span>
+              <span className="ms-flash-deck-body">
+                <span className="ms-flash-deck-name">ANKING</span>
+                <span className="ms-flash-deck-sub">Master the AnKing deck</span>
+              </span>
+            </button>
+
+            {/* COMING SOON — no HY deck exists yet. anking_cards is the only
+                flashcard table and it has no HY source, so there is nothing to
+                route to. To enable: give it its own source/deck filter, then
+                drop the disabled class + chip and wire onClick. */}
+            <button className="ms-flash-deck ms-flash-deck--disabled" disabled>
+              <span className="ms-flash-deck-icon" aria-hidden="true">⭐</span>
+              <span className="ms-flash-deck-body">
+                <span className="ms-flash-deck-name">HY FLASHCARDS</span>
+                <span className="ms-flash-deck-sub">High-yield rapid review</span>
+              </span>
+              <span className="ms-soon-chip">COMING SOON</span>
+            </button>
+          </div>
+        )}
 
         {/* Real and fully functional (pacing over the 708-question main bank),
             so it gets normal active styling — no disabled class, no

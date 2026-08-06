@@ -48,7 +48,12 @@ export function parseShortUrl(url) {
 // (Instagram = 2c — the feed shows a tap-to-open card instead).
 export function embedUrl(platform, videoId) {
   if (platform === 'youtube') {
-    return `https://www.youtube-nocookie.com/embed/${videoId}?playsinline=1&autoplay=1&mute=1&rel=0`;
+    // Still starts MUTED, deliberately: every browser blocks autoplay with
+    // sound in a document the user has not interacted with, and an unmuted
+    // src would simply not start — worse than starting quiet. The feed turns
+    // sound on via the postMessage API the moment it is allowed to, which is
+    // what `enablejsapi` is here for.
+    return `https://www.youtube-nocookie.com/embed/${videoId}?playsinline=1&autoplay=1&mute=1&rel=0&enablejsapi=1`;
   }
   if (platform === 'tiktok') {
     // Direct, script-free iframe endpoint. No reliable muted-autoplay — the
