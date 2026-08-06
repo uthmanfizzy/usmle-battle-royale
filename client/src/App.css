@@ -954,6 +954,13 @@ html[data-study="on"] .solo-body .stem-table td { color: #1c2030; }
 }
 .mod-retire-btn:hover:not(:disabled) { background: rgba(255, 77, 77, 0.18); }
 .mod-retire-btn:disabled { opacity: 0.6; cursor: default; }
+.mod-retire-err {
+  display: inline-block;
+  margin-left: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #ff9a9a;
+}
 .mod-retire-done {
   display: inline-block;
   font-size: 12px;

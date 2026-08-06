@@ -221,26 +221,44 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
 
   // Retiring a question mid-game.
   const [retireState, setRetireState] = useState(null);   // null | 'saving' | 'done'
+  const [retireError, setRetireError] = useState('');
+  // One click, no dialog. There was a window.prompt for an optional reason here,
+  // and it made the button look broken: Chrome returns null from prompt() when
+  // it suppresses dialogs (after one has been dismissed, and in embedded
+  // contexts), which this read as "cancelled" and silently did nothing.
+  // Retiring is reversible from the admin Permissions tab, so a confirm step
+  // buys nothing either.
   function retireQuestion(questionId) {
-    const reason = window.prompt('Pull this question from circulation. Reason (optional):', '');
-    if (reason === null) return;   // cancelled
+    if (!questionId || retireState === 'saving') return;
     setRetireState('saving');
+    // Send BOTH credentials when we have them. moderatorFrom tries the password
+    // first and falls through to the JWT, so this survives a stale or wrong
+    // usmle_admin_session in localStorage — which previously sent only the bad
+    // password and 403'd a user who was a perfectly good moderator.
+    const token = getToken();
     const headers = { 'Content-Type': 'application/json' };
     if (adminSession) headers['x-admin-password'] = adminSession;
-    else headers['Authorization'] = `Bearer ${getToken()}`;
+    if (token)        headers['Authorization'] = `Bearer ${token}`;
     fetch(`${SERVER_URL}/api/questions/${encodeURIComponent(questionId)}/retire`, {
-      method: 'POST', headers, body: JSON.stringify({ reason: reason.trim() }),
+      method: 'POST', headers, body: JSON.stringify({}),
     })
-      .then(r => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
+      .then(async (r) => {
+        if (r.ok) return r.json();
+        // Say WHY it failed, on screen. A generic "try again" on a permission
+        // or lookup error just sends the moderator round the same loop.
+        let detail = `HTTP ${r.status}`;
+        try { const e = await r.json(); detail = e.error || detail; } catch {}
+        throw new Error(detail);
+      })
       .then(() => setRetireState('done'))
       .catch(err => {
         console.error('[retire] failed:', err.message);
+        setRetireError(err.message);
         setRetireState(null);
-        alert('Could not retire that question — please try again.');
       });
   }
   // Reset the banner when the question changes.
-  useEffect(() => { setRetireState(null); }, [qIdx]);
+  useEffect(() => { setRetireState(null); setRetireError(''); }, [qIdx]);
 
   // Layer 1/2 (study mode only): explanation pane layout, time-spent, burger menu
   const [explLayout, setExplLayout] = useState(() => localStorage.getItem('mr_solo_expl_layout') || 'right');
@@ -721,9 +739,10 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
     };
     setHighlights(hs => [...hs, optimistic]);
     const headers = { 'Content-Type': 'application/json' };
-    // The owner proves itself with the password; a granted moderator with its JWT.
+    // Both when available — the server tries the password, then the JWT, so a
+    // stale stored password can't lock out a genuine moderator.
     if (official && adminSession) headers['x-admin-password'] = adminSession;
-    else headers['Authorization'] = `Bearer ${token}`;
+    if (token) headers['Authorization'] = `Bearer ${token}`;
     const body = {
       start_offset: payload.start, end_offset: payload.end,
       region, scope: official ? 'official' : 'user',
@@ -769,7 +788,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
     deletable.forEach(h => {
       const headers = {};
       if (h.scope === 'official' && adminSession) headers['x-admin-password'] = adminSession;
-      else headers['Authorization'] = `Bearer ${token}`;
+      if (token) headers['Authorization'] = `Bearer ${token}`;
       fetch(`${SERVER_URL}/api/questions/${encodeURIComponent(q.id)}/highlights/${encodeURIComponent(h.id)}`, {
         method: 'DELETE', headers,
       }).catch(() => {});
@@ -1111,15 +1130,18 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
                       the admin Permissions tab if that was a mistake.
                     </span>
                   ) : (
-                    <button
-                      type="button"
-                      className="mod-retire-btn"
-                      disabled={retireState === 'saving'}
-                      onClick={() => retireQuestion(q.id)}
-                      title="Pull this question out of circulation for review"
-                    >
-                      {retireState === 'saving' ? 'Removing…' : '🚫 Flag as a bad question'}
-                    </button>
+                    <>
+                      <button
+                        type="button"
+                        className="mod-retire-btn"
+                        disabled={retireState === 'saving'}
+                        onClick={() => retireQuestion(q.id)}
+                        title="Pull this question out of circulation for review"
+                      >
+                        {retireState === 'saving' ? 'Removing…' : '🚫 Flag as a bad question'}
+                      </button>
+                      {retireError && <span className="mod-retire-err">Couldn&apos;t remove it — {retireError}</span>}
+                    </>
                   )}
                 </div>
               )}
