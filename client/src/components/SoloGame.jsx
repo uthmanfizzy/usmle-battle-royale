@@ -181,6 +181,45 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
     try { localStorage.setItem('mr_dev_highlight_mode', 'true'); } catch {}
   }
 
+  // Moderator = a signed-in account the owner has granted the flag to. It buys
+  // exactly two powers: authoring OFFICIAL highlights, and pulling a bad question
+  // out of circulation mid-game. The server re-checks both — this only decides
+  // whether the controls render.
+  const [isModerator, setIsModerator] = useState(false);
+  useEffect(() => {
+    const token = getToken();
+    if (!token) { setIsModerator(false); return; }
+    let alive = true;
+    fetch(`${SERVER_URL}/api/me/permissions`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => { if (alive) setIsModerator(!!d?.moderator); })
+      .catch(() => {});   // fail closed: no flag, no controls
+    return () => { alive = false; };
+  }, []);
+
+  // Retiring a question mid-game.
+  const [retireState, setRetireState] = useState(null);   // null | 'saving' | 'done'
+  function retireQuestion(questionId) {
+    const reason = window.prompt('Pull this question from circulation. Reason (optional):', '');
+    if (reason === null) return;   // cancelled
+    setRetireState('saving');
+    const headers = { 'Content-Type': 'application/json' };
+    if (adminSession) headers['x-admin-password'] = adminSession;
+    else headers['Authorization'] = `Bearer ${getToken()}`;
+    fetch(`${SERVER_URL}/api/questions/${encodeURIComponent(questionId)}/retire`, {
+      method: 'POST', headers, body: JSON.stringify({ reason: reason.trim() }),
+    })
+      .then(r => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
+      .then(() => setRetireState('done'))
+      .catch(err => {
+        console.error('[retire] failed:', err.message);
+        setRetireState(null);
+        alert('Could not retire that question — please try again.');
+      });
+  }
+  // Reset the banner when the question changes.
+  useEffect(() => { setRetireState(null); }, [qIdx]);
+
   // Layer 1/2 (study mode only): explanation pane layout, time-spent, burger menu
   const [explLayout, setExplLayout] = useState(() => localStorage.getItem('mr_solo_expl_layout') || 'right');
   const [timeSpent, setTimeSpent] = useState(null);
@@ -596,7 +635,8 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   // Admin session (the admin password) enables developer mode. The server is the
   // real gate — this only decides whether the toggle/UI shows. `adminSession` is
   // state (above), so the in-game `?dev=1` unlock reflects immediately.
-  const isAdminSession = !!adminSession;
+  // A granted moderator counts the same as an admin session for these controls.
+  const isAdminSession = !!adminSession || isModerator;
   // Authoring OFFICIAL (global) highlights only when an admin has dev mode ON.
   const authoringOfficial = isAdminSession && devHlMode;
   // The toolbar is usable by logged-in students (private) and admins (official).
@@ -638,7 +678,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
     const token = getToken();
     const isFormat = payload.format != null;
     const official = isFormat || region === 'question' || authoringOfficial;
-    if (official && !adminSession) return;   // official authoring needs admin session
+    if (official && !isAdminSession) return; // official authoring needs admin/moderator
     if (!official && !token) return;         // students need a token for their own
     const tmpId = `tmp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     const optimistic = {
@@ -649,7 +689,8 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
     };
     setHighlights(hs => [...hs, optimistic]);
     const headers = { 'Content-Type': 'application/json' };
-    if (official) headers['x-admin-password'] = adminSession;
+    // The owner proves itself with the password; a granted moderator with its JWT.
+    if (official && adminSession) headers['x-admin-password'] = adminSession;
     else headers['Authorization'] = `Bearer ${token}`;
     const body = {
       start_offset: payload.start, end_offset: payload.end,
@@ -688,14 +729,14 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
       h => h.start < end && h.end > start && !String(h.id).startsWith('tmp-')
     );
     const deletable = targets.filter(
-      h => (h.scope === 'user' && token) || (h.scope === 'official' && adminSession)
+      h => (h.scope === 'user' && token) || (h.scope === 'official' && isAdminSession)
     );
     if (!deletable.length) return;
     const ids = deletable.map(h => h.id);
     setHighlights(hs => hs.filter(h => !ids.includes(h.id)));
     deletable.forEach(h => {
       const headers = {};
-      if (h.scope === 'official') headers['x-admin-password'] = adminSession;
+      if (h.scope === 'official' && adminSession) headers['x-admin-password'] = adminSession;
       else headers['Authorization'] = `Bearer ${token}`;
       fetch(`${SERVER_URL}/api/questions/${encodeURIComponent(q.id)}/highlights/${encodeURIComponent(h.id)}`, {
         method: 'DELETE', headers,
@@ -998,6 +1039,26 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
                       ? '✏️ ON — new highlights are OFFICIAL (everyone sees them)'
                       : '👤 OFF — new highlights are personal · tap to author OFFICIAL'}
                   </button>
+                </div>
+              )}
+              {isAdminSession && (
+                <div className="mod-retire-bar">
+                  {retireState === 'done' ? (
+                    <span className="mod-retire-done">
+                      ✅ Pulled from circulation — it will not be served again. Restore it from
+                      the admin Permissions tab if that was a mistake.
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      className="mod-retire-btn"
+                      disabled={retireState === 'saving'}
+                      onClick={() => retireQuestion(q.id)}
+                      title="Pull this question out of circulation for review"
+                    >
+                      {retireState === 'saving' ? 'Removing…' : '🚫 Flag as a bad question'}
+                    </button>
+                  )}
                 </div>
               )}
               {!hideExplanations && q.explanation_image_url && (

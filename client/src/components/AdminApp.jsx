@@ -145,6 +145,143 @@ async function bulkDeleteQuestions(base, ids) {
   }
 }
 
+/**
+ * Permissions — owner-only. Two halves:
+ *   • Moderators: hand out (or take back) the flag that lets an account author
+ *     official highlights and pull bad questions mid-game.
+ *   • Review queue: everything moderators have pulled. Restore puts it back in
+ *     circulation; nothing is ever hard-deleted from here, so a mis-tap during
+ *     a game is always recoverable.
+ */
+function PermissionsPanel() {
+  const [q, setQ] = useState('');
+  const [users, setUsers] = useState([]);
+  const [uErr, setUErr] = useState('');
+  const [searching, setSearching] = useState(false);
+  const [retired, setRetired] = useState([]);
+  const [busy, setBusy] = useState(null);   // id currently being written
+
+  async function searchUsers(term) {
+    setSearching(true); setUErr('');
+    try {
+      const r = await apiCall(`/admin/users?q=${encodeURIComponent(term)}`);
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
+      setUsers(d.users || []);
+    } catch (err) {
+      setUsers([]);
+      setUErr(`${err.message} — if this mentions "is_admin", the migration has not been run yet.`);
+    } finally { setSearching(false); }
+  }
+
+  async function loadRetired() {
+    try {
+      const r = await apiCall('/admin/retired-questions');
+      const d = await r.json().catch(() => ({}));
+      setRetired(d.questions || []);
+    } catch { setRetired([]); }
+  }
+
+  useEffect(() => { searchUsers(''); loadRetired(); }, []);   // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function setAdmin(user, value) {
+    setBusy(user.id);
+    try {
+      const r = await apiCall(`/admin/users/${user.id}/admin`, {
+        method: 'PUT', body: JSON.stringify({ is_admin: value }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
+      setUsers(us => us.map(u => (u.id === user.id ? { ...u, is_admin: d.is_admin } : u)));
+    } catch (err) { alert(`Could not update permissions: ${err.message}`); }
+    finally { setBusy(null); }
+  }
+
+  async function restore(row) {
+    if (!window.confirm(`Put "${(row.question || '').slice(0, 80)}…" back into circulation?`)) return;
+    setBusy(row.id);
+    try {
+      const r = await apiCall(`/admin/retired-questions/${row.id}/restore`, { method: 'POST' });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      setRetired(rs => rs.filter(x => x.id !== row.id));
+    } catch (err) { alert(`Could not restore: ${err.message}`); }
+    finally { setBusy(null); }
+  }
+
+  return (
+    <div className="ap-ann-panel">
+      <h2 className="ap-ann-title">🛡️ Permissions</h2>
+      <p className="perm-hint">
+        A moderator can do two things: author <strong>official highlights</strong>, and
+        pull a question out of circulation mid-game. Everything else stays owner-only.
+      </p>
+
+      <div className="perm-search">
+        <input
+          className="perm-input"
+          placeholder="Search users by username…"
+          value={q}
+          onChange={e => setQ(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') searchUsers(q); }}
+        />
+        <button className="perm-btn" onClick={() => searchUsers(q)} disabled={searching}>
+          {searching ? 'Searching…' : 'Search'}
+        </button>
+      </div>
+      {uErr && <div className="ap-error">{uErr}</div>}
+
+      <div className="perm-list">
+        {users.length === 0 && !uErr && <div className="perm-hint">No users found.</div>}
+        {users.map(u => (
+          <div key={u.id} className={`perm-row ${u.is_admin ? 'is-mod' : ''}`}>
+            <div className="perm-who">
+              <span className="perm-name">{u.username}</span>
+              {u.email && <span className="perm-email">{u.email}</span>}
+            </div>
+            {u.is_admin && <span className="perm-badge">MODERATOR</span>}
+            <button
+              className={`perm-btn ${u.is_admin ? 'danger' : ''}`}
+              disabled={busy === u.id}
+              onClick={() => setAdmin(u, !u.is_admin)}
+            >
+              {busy === u.id ? '…' : u.is_admin ? 'Revoke' : 'Make moderator'}
+            </button>
+          </div>
+        ))}
+      </div>
+
+      <h3 className="ap-ann-title" style={{ marginTop: 28 }}>
+        🚫 Pulled questions {retired.length > 0 && <span className="perm-count">{retired.length}</span>}
+      </h3>
+      <p className="perm-hint">
+        Flagged by a moderator during play. These are not being served anywhere. Restore
+        puts one straight back; to remove one for good, delete it from Question Manager.
+      </p>
+      {retired.length === 0 ? (
+        <div className="perm-hint">Nothing has been pulled.</div>
+      ) : (
+        <div className="perm-list">
+          {retired.map(r => (
+            <div key={r.id} className="perm-row perm-retired">
+              <div className="perm-who">
+                <span className="perm-name">{(r.question || '').slice(0, 140)}</span>
+                <span className="perm-email">
+                  {r.category || 'Uncategorised'} · pulled by {r.retired_by_name}
+                  {r.retired_at ? ` on ${new Date(r.retired_at).toLocaleDateString()}` : ''}
+                  {r.retired_reason ? ` — "${r.retired_reason}"` : ''}
+                </span>
+              </div>
+              <button className="perm-btn" disabled={busy === r.id} onClick={() => restore(r)}>
+                {busy === r.id ? '…' : 'Restore'}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function apiCall(path, options = {}) {
   return fetch(`${API}${path}`, {
     ...options,
@@ -8963,6 +9100,9 @@ export default function AdminApp() {
         <button className={`ap-nav-btn ${tab === 'uworld'        ? 'active' : ''}`} onClick={() => setTab('uworld')}>
           🌍 UWorld Adventure
         </button>
+        <button className={`ap-nav-btn ${tab === 'permissions'   ? 'active' : ''}`} onClick={() => setTab('permissions')}>
+          🛡️ Permissions
+        </button>
       </nav>
 
       <main className="ap-main">
@@ -8996,6 +9136,7 @@ export default function AdminApp() {
             <QuestionsPanel subjects={sharedSubjects} scopeTag={UWORLD_MODE} />
           </ErrorBoundary>
         )}
+        {tab === 'permissions'   && <PermissionsPanel />}
       </main>
     </div>
   );

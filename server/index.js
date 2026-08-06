@@ -152,6 +152,19 @@ const io = new Server(server, {
 // ── Question bank from Supabase (with fallback to local file) ──────────────────
 
 let questionBank = [];
+
+// Do the retirement columns exist yet? Optimistic until a query proves otherwise
+// (see loadQuestionsFromDB), so the feature works the moment the migration runs
+// without needing a redeploy. Postgres 42703 = undefined_column; PostgREST also
+// reports unknown columns as PGRST204 / "does not exist".
+let hasRetirement = true;
+function isMissingColumn(error) {
+  if (!error) return false;
+  const msg = `${error.message || ''} ${error.details || ''}`.toLowerCase();
+  return error.code === '42703' || error.code === 'PGRST204' ||
+         (msg.includes('retired_at') && msg.includes('does not exist')) ||
+         (msg.includes('column') && msg.includes('retired'));
+}
 let questionsLastLoaded = 0;
 const QUESTIONS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
@@ -164,10 +177,24 @@ async function loadQuestionsFromDB() {
   }
 
   try {
-    const { data, error } = await supabase
-      .from('questions')
-      .select('*')
-      .order('question_id');
+    // Retired questions are out of circulation everywhere. questionBank feeds
+    // every multiplayer mode plus Solo/Training Grounds, so filtering here is
+    // the single choke point that keeps a flagged question out of play.
+    //
+    // Deploy-order safety: this ships before the ALTER TABLE is run, and an
+    // unknown column fails the WHOLE select — which would silently drop the app
+    // back to the tiny local questions.js. So on a missing column we flip
+    // hasRetirement off and retry unfiltered. Nothing is retired yet in that
+    // state, so serving everything is exactly right.
+    let { data, error } = await supabase
+      .from('questions').select('*').is('retired_at', null).order('question_id');
+    if (error && isMissingColumn(error)) {
+      hasRetirement = false;
+      console.warn('[Questions] retired_at column not present — run the migration in schema.sql');
+      ({ data, error } = await supabase.from('questions').select('*').order('question_id'));
+    } else if (!error) {
+      hasRetirement = true;
+    }
 
     if (error) throw error;
 
@@ -476,6 +503,37 @@ function requireAuth(req, res, next) {
   if (!decoded) return res.status(401).json({ error: 'Invalid or expired token' });
   req.userId = decoded.userId;
   next();
+}
+
+// ── Per-user moderator permission ─────────────────────────────────────────────
+// Two ways to be trusted, deliberately kept separate:
+//   OWNER      — the x-admin-password header. Unlocks the whole admin panel,
+//                including granting/revoking the flag below. Unchanged.
+//   MODERATOR  — a signed-in user with users.is_admin. Deliberately NOT panel
+//                access: exactly two powers, official highlights and retiring a
+//                bad question. Nothing here can reach settings, users, imports
+//                or anything else, so a compromised moderator account can only
+//                affect question content — and retiring is reversible.
+//
+// Never trust a client-supplied flag: the token carries only a userId, so the
+// permission is read from the row every time.
+async function moderatorFrom(req) {
+  if (req.headers['x-admin-password'] === ADMIN_PASSWORD) {
+    return { ok: true, userId: null, via: 'owner' };
+  }
+  const auth = req.headers.authorization;
+  const decoded = auth?.startsWith('Bearer ') ? verifyToken(auth.slice(7)) : null;
+  if (!decoded || !supabase) return { ok: false };
+  try {
+    const { data, error } = await supabase
+      .from('users').select('is_admin').eq('id', decoded.userId).maybeSingle();
+    // Column missing (migration not run yet) or lookup failed → not a moderator.
+    // Fail CLOSED: never widen permission because a check errored.
+    if (error || !data?.is_admin) return { ok: false, userId: decoded.userId };
+    return { ok: true, userId: decoded.userId, via: 'moderator' };
+  } catch {
+    return { ok: false, userId: decoded.userId };
+  }
 }
 
 // ── Passport Google OAuth ──────────────────────────────────────────────────────
@@ -2653,6 +2711,9 @@ app.get('/api/questions/unseen', requireAuth, async (req, res) => {
         // Deterministic, so the sequence is stable across requests.
         .order('question_id', { ascending: true })
         .range(page * PAGE, page * PAGE + PAGE - 1);
+      // A moderator-retired question is out of play everywhere. Skipped entirely
+      // before the migration runs, when nothing can be retired anyway.
+      if (hasRetirement) q = q.is('retired_at', null);
       if (subject) q = q.eq('category', subject);
 
       const { data, error } = await q;
@@ -2679,6 +2740,125 @@ app.get('/api/questions/unseen', requireAuth, async (req, res) => {
     console.error('[/api/questions/unseen] failed —', err.message);
     res.json({ questions: [] });
   }
+});
+
+/**
+ * POST /api/questions/:questionId/retire   { reason? }
+ *
+ * A moderator pulling a bad question mid-game. Sets retired_at rather than
+ * deleting: the question stops being served everywhere immediately, but the row
+ * survives for the owner to restore or delete for good from the review queue.
+ * That matters because this is tapped during play — a mis-tap must cost nothing.
+ *
+ * :questionId is the TEXT business key (questions.question_id) because that is
+ * what the client holds mid-game; `id` is the UUID. See the shape trap noted on
+ * user_question_seen.
+ */
+app.post('/api/questions/:questionId/retire', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Unavailable' });
+  const mod = await moderatorFrom(req);
+  if (!mod.ok) return res.status(403).json({ error: 'Moderator permission required' });
+
+  const reason = (req.body?.reason ?? '').toString().trim().slice(0, 500) || null;
+  try {
+    const { data, error } = await supabase
+      .from('questions')
+      .update({ retired_at: new Date().toISOString(), retired_by: mod.userId, retired_reason: reason })
+      .eq('question_id', req.params.questionId)
+      .select('id, question_id')
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) return res.status(404).json({ error: 'Question not found' });
+
+    // Drop it from the in-memory bank too, or every mode keeps serving it until
+    // the 5-minute cache expires.
+    questionBank = questionBank.filter(q => q.id !== data.question_id);
+    console.log(`[retire] ${data.question_id} by ${mod.via}${mod.userId ? ' ' + mod.userId : ''}${reason ? ` — ${reason}` : ''}`);
+    res.json({ ok: true, question_id: data.question_id });
+  } catch (err) {
+    console.error('[/api/questions/:questionId/retire] failed —', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/** Does the caller hold the moderator flag? Drives whether the in-game control renders. */
+app.get('/api/me/permissions', async (req, res) => {
+  const mod = await moderatorFrom(req);
+  res.json({ moderator: mod.ok, via: mod.via || null });
+});
+
+// ── Review queue + role management (OWNER ONLY — the admin password) ──────────
+// Deliberately adminAuth, not moderatorFrom: a moderator can take a question out
+// of play, but only the owner decides what happens to it next, and only the
+// owner can hand out the flag.
+
+app.get('/admin/retired-questions', adminAuth, async (req, res) => {
+  if (!supabase) return res.json({ questions: [] });
+  try {
+    const { data, error } = await supabase
+      .from('questions')
+      .select('id, question_id, question, category, difficulty, retired_at, retired_by, retired_reason')
+      .not('retired_at', 'is', null)
+      .order('retired_at', { ascending: false });
+    if (error) throw error;
+
+    // Attach who retired each one, in a single bounded lookup.
+    const ids = [...new Set((data || []).map(r => r.retired_by).filter(Boolean))];
+    let names = {};
+    if (ids.length) {
+      const { data: users } = await supabase.from('users').select('id, username').in('id', ids);
+      names = Object.fromEntries((users || []).map(u => [u.id, u.username]));
+    }
+    res.json({ questions: (data || []).map(r => ({ ...r, retired_by_name: names[r.retired_by] || (r.retired_by ? 'Unknown' : 'Owner') })) });
+  } catch (err) {
+    console.warn('[/admin/retired-questions] unavailable —', err.message);
+    res.json({ questions: [] });
+  }
+});
+
+/** Put a retired question back into circulation. */
+app.post('/admin/retired-questions/:id/restore', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Unavailable' });
+  try {
+    const { error } = await supabase
+      .from('questions')
+      .update({ retired_at: null, retired_by: null, retired_reason: null })
+      .eq('id', req.params.id);
+    if (error) throw error;
+    await forceRefreshQuestions();   // back into the served bank
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/admin/users', adminAuth, async (req, res) => {
+  if (!supabase) return res.json({ users: [] });
+  const q = (req.query.q || '').toString().trim();
+  try {
+    let query = supabase.from('users').select('id, username, email, is_admin').order('username');
+    if (q) query = query.ilike('username', `%${q}%`);
+    const { data, error } = await query.limit(50);
+    if (error) throw error;
+    res.json({ users: data || [] });
+  } catch (err) {
+    // Most likely the is_admin column does not exist yet.
+    console.warn('[/admin/users] unavailable —', err.message);
+    res.status(500).json({ error: err.message, users: [] });
+  }
+});
+
+/** Grant or revoke the moderator flag. Owner only. */
+app.put('/admin/users/:id/admin', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Unavailable' });
+  const isAdmin = !!req.body?.is_admin;
+  try {
+    const { data, error } = await supabase
+      .from('users').update({ is_admin: isAdmin }).eq('id', req.params.id)
+      .select('id, username, is_admin').maybeSingle();
+    if (error) throw error;
+    if (!data) return res.status(404).json({ error: 'User not found' });
+    console.log(`[permissions] ${data.username} is_admin=${data.is_admin}`);
+    res.json(data);
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // Get question counts per topic (for Training Grounds topic selection)
@@ -2873,7 +3053,9 @@ app.post('/api/questions/:questionId/highlights', async (req, res) => {
   if (hasColor  && !HL_COLORS.includes(color))   return res.status(400).json({ error: 'Invalid color' });
   if (hasFormat && !HL_FORMATS.includes(format)) return res.status(400).json({ error: 'Invalid format' });
 
-  const isAdmin = req.headers['x-admin-password'] === ADMIN_PASSWORD;
+  // Owner password OR a user carrying the moderator flag — official highlights
+  // are one of the two powers that flag grants.
+  const isAdmin = (await moderatorFrom(req)).ok;
   const auth = req.headers.authorization;
   const decoded = auth?.startsWith('Bearer ') ? verifyToken(auth.slice(7)) : null;
 
@@ -2932,7 +3114,9 @@ app.post('/api/questions/:questionId/highlights', async (req, res) => {
 app.delete('/api/questions/:questionId/highlights/:id', async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Highlights unavailable' });
   const { id } = req.params;
-  const isAdmin = req.headers['x-admin-password'] === ADMIN_PASSWORD;
+  // Owner password OR a user carrying the moderator flag — official highlights
+  // are one of the two powers that flag grants.
+  const isAdmin = (await moderatorFrom(req)).ok;
   const auth = req.headers.authorization;
   const decoded = auth?.startsWith('Bearer ') ? verifyToken(auth.slice(7)) : null;
   try {
@@ -4391,7 +4575,7 @@ app.get('/api/users/:userId/question-bank-progress', requireAuth, async (req, re
     // the pacing maths describes the pool a session will actually serve. Without
     // it, "days to finish" would be computed from every question in the subject
     // while the session only ever draws from the tagged subset.
-    const totalQ = supabase
+    let totalQ = supabase
       .from('questions')
       .select('*', { count: 'exact', head: true })
       .contains('game_modes', UWORLD_MODE_JSON)
@@ -4399,12 +4583,20 @@ app.get('/api/users/:userId/question-bank-progress', requireAuth, async (req, re
 
     // The tag lives on the embedded `questions` row, so the filter is applied
     // through the inner join rather than on user_question_seen itself.
-    const seenQ = supabase
+    let seenQ = supabase
       .from(QUESTION_SEEN_TABLE)
       .select('question_id, questions!inner(category, game_modes)', { count: 'exact', head: true })
       .eq('user_id', req.params.userId)
       .contains('questions.game_modes', UWORLD_MODE_JSON)
       .in('questions.category', subjects);
+
+    // Retirement must be applied to BOTH counts or neither: a retired question
+    // left both pools, so counting it as seen against a total that excludes it
+    // would push progress past 100%.
+    if (hasRetirement) {
+      totalQ = totalQ.is('retired_at', null);
+      seenQ  = seenQ.is('questions.retired_at', null);
+    }
 
     const [totalRes, seenRes] = await Promise.all([totalQ, seenQ]);
     if (totalRes.error) throw totalRes.error;

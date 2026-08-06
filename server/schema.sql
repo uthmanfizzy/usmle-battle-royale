@@ -603,3 +603,37 @@ CREATE POLICY IF NOT EXISTS "server_full_access_game_settings"
 -- /api/question-bank-session (game_mode 'question_bank_practice'). It shows the
 -- four ACTIVE subjects only, fetched live from /api/subjects, and deliberately
 -- has no "Systems" facet — no real data backs one.
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- MODERATOR PERMISSIONS + QUESTION RETIREMENT (doc-only — run in the SQL editor)
+-- ─────────────────────────────────────────────────────────────────────────────
+-- ALTER TABLE users     ADD COLUMN IF NOT EXISTS is_admin       BOOLEAN NOT NULL DEFAULT false;
+-- ALTER TABLE questions ADD COLUMN IF NOT EXISTS retired_at     TIMESTAMPTZ;
+-- ALTER TABLE questions ADD COLUMN IF NOT EXISTS retired_by     UUID REFERENCES users(id) ON DELETE SET NULL;
+-- ALTER TABLE questions ADD COLUMN IF NOT EXISTS retired_reason TEXT;
+-- CREATE INDEX IF NOT EXISTS idx_questions_retired ON questions(retired_at);
+--
+-- users.is_admin is the MODERATOR flag. It buys exactly two powers, both
+-- re-checked server-side by moderatorFrom(req):
+--   1. authoring/removing OFFICIAL highlights (previously admin-password only)
+--   2. POST /api/questions/:questionId/retire — pulling a bad question mid-game
+-- Everything else in /admin stays behind adminAuth (the owner password), so a
+-- moderator cannot edit content, change settings, or hand out the flag.
+-- moderatorFrom FAILS CLOSED: an unreadable users row means no permission, so a
+-- missing is_admin column degrades to "nobody is a moderator" rather than
+-- "everybody is".
+--
+-- retired_at is a SOFT retire, not a delete: this is tapped during a live game,
+-- so a mis-tap must cost nothing. loadQuestionsFromDB() filters `.is('retired_at',
+-- null)`, which is the single choke point feeding questionBank — every
+-- multiplayer mode plus Solo/Training Grounds. The two endpoints that query
+-- `questions` directly rather than through the bank (/api/questions/unseen and
+-- question-bank-progress) carry the same filter explicitly, on BOTH the total and
+-- the seen count, or progress would exceed a total that no longer includes it.
+--
+-- READ  by GET  /admin/retired-questions (owner only; joins users for the name).
+-- WRITE by POST /api/questions/:questionId/retire (moderator or owner) and
+--       POST /admin/retired-questions/:id/restore (owner; clears all three
+--       columns and force-refreshes the bank).
+-- Note the retire route keys on questions.question_id (the TEXT business key)
+-- because that is the id the client holds mid-game — `id` is the UUID.

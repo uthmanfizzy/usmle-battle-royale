@@ -936,6 +936,32 @@ html[data-study="on"] .solo-body .stem-table td { color: #1c2030; }
   color: #ffd700;
 }
 
+/* Moderator: pull a bad question mid-game. Deliberately understated and red —
+   it sits next to study controls and must never be mistaken for "Next". */
+.mod-retire-bar {
+  margin-top: 10px;
+}
+.mod-retire-btn {
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 8px;
+  cursor: pointer;
+  color: #ff9a9a;
+  background: rgba(255, 77, 77, 0.08);
+  border: 1px solid rgba(255, 77, 77, 0.35);
+  transition: background 0.12s ease;
+}
+.mod-retire-btn:hover:not(:disabled) { background: rgba(255, 77, 77, 0.18); }
+.mod-retire-btn:disabled { opacity: 0.6; cursor: default; }
+.mod-retire-done {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.45;
+  color: #9ae6b4;
+}
+
 /* In-game ?dev=1 unlock button — fixed, prominent, so it's easy to find. */
 .dev-hl-unlock {
   position: fixed;
