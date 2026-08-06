@@ -269,6 +269,7 @@ export default function UWorldAdventure() {
         username={user?.username}
         difficulty="easy"
         providedQuestions={sessionQuestions}
+        uworldSkin
         onComplete={handleComplete}
         onBack={endSession}
         levelLabel={`Daily Set · ${subjects.find(s => s.id === selected)?.name || selected}`}

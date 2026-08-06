@@ -13,6 +13,7 @@ import { useScrollToTopOnChange } from '../utils/useScrollToTopOnChange';
 import { toVisibleText, resolveHighlights, normalizeHighlightRow } from '../utils/explanationHighlights';
 import { getToken } from '../auth';
 import './SoloGameJourney.css';
+import './SoloGameUWorld.css';
 
 const LABELS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
 const SERVER_URL = 'https://usmle-battle-royale-production.up.railway.app';
@@ -57,7 +58,7 @@ function saveHi(subject, score) {
   try { localStorage.setItem(`usmle-hs-${subject}`, String(score)); } catch {}
 }
 
-export default function SoloGame({ subject, username, difficulty, onBack, onTryAgain, onChangeSubject, onBackToTopics, topicId, questionsUrl, onComplete, levelLabel, isJourney, providedQuestions, shuffleOptions = true }) {
+export default function SoloGame({ subject, username, difficulty, onBack, onTryAgain, onChangeSubject, onBackToTopics, topicId, questionsUrl, onComplete, levelLabel, isJourney, providedQuestions, shuffleOptions = true, uworldSkin = false }) {
   const { settings } = useGameSettings();
   const { study: studyPref } = useTheme();   // Layer 1 chrome renders only when study mode is on
   // Journey ALWAYS renders the full study-layout chrome (burger menu, header
@@ -66,10 +67,28 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   // look. SoloGameJourney.css replicates the layout rules (which normally live
   // behind html[data-study="on"]) under .jm-vibrant and overrides the study
   // colours at higher specificity. Solo/training still respect the preference.
-  const study = isJourney ? true : studyPref;
-  // Journey-only skin gate: SoloGameJourney.css styles apply solely under this
-  // class, so solo/training/BR keep their normal (dark or study) look.
-  const screenClass = `screen solo-screen${isJourney ? ' jm-vibrant' : ''}`;
+  // UWorld Adventure renders the same chrome for the same reason — the exam
+  // layout IS the mockup's layout (item counter, timer, prev/pause/next footer,
+  // Lab Values + Calculator), so it only needs re-skinning, not rebuilding.
+  const study = (isJourney || uworldSkin) ? true : studyPref;
+  // Per-mode skin gates: SoloGameJourney.css / SoloGameUWorld.css apply solely
+  // under their class, so solo/training/BR keep their normal (dark or study) look.
+  const screenClass = `screen solo-screen${isJourney ? ' jm-vibrant' : ''}${uworldSkin ? ' uw-exam' : ''}`;
+
+  // The study LAYOUT rules live behind html[data-study="on"], which follows the
+  // user's preference. Journey duplicates them under .jm-vibrant; this mode
+  // instead turns the attribute on for the length of the session and puts it
+  // back afterwards, so there is one copy of the layout rather than three.
+  useEffect(() => {
+    if (!uworldSkin) return;
+    const root = document.documentElement;
+    const had = root.dataset.study;
+    root.dataset.study = 'on';
+    return () => {
+      if (had) root.dataset.study = had;
+      else delete root.dataset.study;
+    };
+  }, [uworldSkin]);
 
   // Hard mode and easy mode each use their own admin-configured timer / explanation
   // time / hide-explanations setting (falling back to legacy generic keys, then literals)
@@ -104,6 +123,9 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   const [revealed, setRevealed] = useState(false);
   const [bonusPoints, setBonusPoints] = useState(0);
   const [gameOver, setGameOver] = useState(false);
+  // Exam skin only: items flagged for review. Session-scoped — surfaced on the
+  // results screen rather than persisted, since there is no review pass yet.
+  const [marked, setMarked] = useState(() => new Set());
   const [finalScore, setFinalScore] = useState(0);
   const [finalBestStreak, setFinalBestStreak] = useState(0);
   const [isNewHi, setIsNewHi] = useState(false);
@@ -466,7 +488,10 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
       if (newStreak > newBest) newBest = newStreak;
       audio.playCorrect();
     } else {
-      newLives = Math.max(0, newLives - 1);
+      // A question bank is not a survival game: in the exam skin a wrong answer
+      // costs nothing but the mark, and the block runs to its last item. Without
+      // this, a player's daily set could end three questions in.
+      if (!uworldSkin) newLives = Math.max(0, newLives - 1);
       newStreak = 0;
       if (label !== null) audio.playWrong();
       if (newLives === 0) audio.playEliminated();
@@ -587,7 +612,14 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
     return (
       <div className={screenClass}>
         <div className="solo-gameover">
-          <h2>Game Over</h2>
+          {/* "Game Over" is a survival-game word, and nothing was survived here
+              — the block simply ran out of items. */}
+          <h2>{uworldSkin ? 'Block Complete' : 'Game Over'}</h2>
+          {uworldSkin && marked.size > 0 && (
+            <p className="sgo-level-label">
+              ⚑ {marked.size} item{marked.size === 1 ? '' : 's'} marked for review
+            </p>
+          )}
           {levelLabel && <p className="sgo-level-label">{levelLabel}</p>}
           {isNewHi && <div className="new-hi-badge">🏆 New High Score!</div>}
           <div className="sgo-stats">
@@ -773,7 +805,10 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
 
       {!study && streak >= 2 && <div className="streak-badge">🔥 {streak} streak!</div>}
 
-      <div className="solo-body" data-expl-layout={study ? explLayout : undefined}>
+      {/* The exam skin is always the full-width sheet of the mockup: the
+          explanation appears BELOW the item after answering rather than taking
+          half the width while the stem is still being read. */}
+      <div className="solo-body" data-expl-layout={study ? (uworldSkin ? 'below' : explLayout) : undefined}>
         {study && (
           <div className="study-header">
             <div className="shd-left">
@@ -852,7 +887,23 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
               <div className="shd-meta">
                 <span className="stb-count">Item {qIdx + 1} of {questions.length}</span>
                 {isJourney && levelLabel && <span className="stb-id">{levelLabel}</span>}
+                {uworldSkin && q?.id && <span className="stb-id">Question Id: {q.id}</span>}
               </div>
+              {uworldSkin && (
+                <button
+                  type="button"
+                  className={`uw-mark${marked.has(qIdx) ? ' is-marked' : ''}`}
+                  onClick={() => setMarked(m => {
+                    const next = new Set(m);
+                    if (next.has(qIdx)) next.delete(qIdx); else next.add(qIdx);
+                    return next;
+                  })}
+                  title="Mark this item for review"
+                >
+                  <span className="uw-mark-flag" aria-hidden="true">⚑</span>
+                  Mark
+                </button>
+              )}
             </div>
             <div className="shd-center">
               {!revealed && (
@@ -865,18 +916,29 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
               )}
             </div>
             <div className="shd-right">
-              {streak >= 2 && (
-                <span className="study-streak-pill" title={`${streak} in a row`}>
-                  <span className="ssp-flame">🔥</span>{streak}
-                </span>
+              {/* No hearts in the exam skin — they would be lying, since a wrong
+                  answer costs nothing here. End Block replaces them. */}
+              {uworldSkin ? (
+                <button type="button" className="uw-endblock" onClick={onBack} title="End this block">
+                  <span className="uw-endblock-icon" aria-hidden="true">⬢</span>
+                  End Block
+                </button>
+              ) : (
+                <>
+                  {streak >= 2 && (
+                    <span className="study-streak-pill" title={`${streak} in a row`}>
+                      <span className="ssp-flame">🔥</span>{streak}
+                    </span>
+                  )}
+                  <div className="lives-bar">
+                    {Array.from({ length: maxLives }, (_, k) => k + 1).map(i => (
+                      <span key={i} className={`heart-icon ${i > lives ? 'dead' : ''}`}>
+                        {i <= lives ? '❤️' : '🖤'}
+                      </span>
+                    ))}
+                  </div>
+                </>
               )}
-              <div className="lives-bar">
-                {Array.from({ length: maxLives }, (_, k) => k + 1).map(i => (
-                  <span key={i} className={`heart-icon ${i > lives ? 'dead' : ''}`}>
-                    {i <= lives ? '❤️' : '🖤'}
-                  </span>
-                ))}
-              </div>
             </div>
           </div>
         )}

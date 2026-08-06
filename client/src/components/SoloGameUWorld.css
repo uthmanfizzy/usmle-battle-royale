@@ -1,0 +1,395 @@
+/* ── UWorld Adventure exam skin ─────────────────────────────────────────────
+   Re-skins SoloGame to `Medvale UWorld Adventure Question.dc.html`: a light
+   exam sheet between two navy bars.
+
+   Every rule is gated on `.uw-exam`, which SoloGame only adds when
+   `uworldSkin` is set — solo, training, Battle Royale and Journey are all
+   untouched by this file.
+
+   Prefixed with html[data-study="on"] to outrank study.css's own
+   `html[data-study="on"] .option-btn` rules (0,3,1 beats 0,2,1). SoloGame turns
+   that attribute on for the length of the session, so the study grid does the
+   layout and this file only does the paint. */
+
+html[data-study="on"] .screen.solo-screen.uw-exam {
+  --uwq-navy-top: #0f2a52;
+  --uwq-navy-bot: #0c2242;
+  --uwq-page:     #eef1f5;
+  --uwq-ink:      #1a2233;
+  --uwq-rule:     #e4e8ee;
+  --uwq-blue:     #2f6fc9;
+  --uwq-blue-lt:  #3f7fd6;
+  --uwq-ring:     #c3cbd6;
+  --uwq-sel-bg:   #eaf1fb;
+
+  background: var(--uwq-page);
+  color: var(--uwq-ink);
+  font-family: 'Lato', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+}
+
+/* The two bars run the full width of the viewport, edge to edge, while the
+   sheet between them stays centred. */
+html[data-study="on"] .screen.solo-screen.uw-exam .solo-body {
+  background: var(--uwq-page);
+  max-width: none;
+  padding: 0;
+  gap: 0;
+}
+
+/* ── Header bar ──────────────────────────────────────────────────────────── */
+html[data-study="on"] .screen.solo-screen.uw-exam .study-header {
+  background: linear-gradient(180deg, var(--uwq-navy-top), var(--uwq-navy-bot));
+  color: #fff;
+  border: 0;
+  border-radius: 0;
+  padding: 14px 28px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+html[data-study="on"] .screen.solo-screen.uw-exam .shd-left { gap: 22px; }
+
+html[data-study="on"] .screen.solo-screen.uw-exam .stb-count {
+  font-size: 15px;
+  font-weight: 700;
+  color: #fff;
+}
+
+html[data-study="on"] .screen.solo-screen.uw-exam .stb-id {
+  font-size: 12px;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.65);
+  background: none;
+  border: 0;
+  padding: 0;
+}
+
+html[data-study="on"] .screen.solo-screen.uw-exam .shd-burger {
+  background: none;
+  border: 0;
+  color: #fff;
+  font-size: 20px;
+}
+
+html[data-study="on"] .screen.solo-screen.uw-exam .uw-mark,
+html[data-study="on"] .screen.solo-screen.uw-exam .uw-endblock {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: 0;
+  padding: 4px;
+  color: #fff;
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  opacity: 0.9;
+}
+
+html[data-study="on"] .screen.solo-screen.uw-exam .uw-mark:hover,
+html[data-study="on"] .screen.solo-screen.uw-exam .uw-endblock:hover { opacity: 1; }
+
+html[data-study="on"] .screen.solo-screen.uw-exam .uw-mark-flag {
+  font-size: 15px;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+/* A marked item reads at a glance — filled flag, brighter label. */
+html[data-study="on"] .screen.solo-screen.uw-exam .uw-mark.is-marked { opacity: 1; font-weight: 700; }
+html[data-study="on"] .screen.solo-screen.uw-exam .uw-mark.is-marked .uw-mark-flag { color: #ffc963; }
+
+html[data-study="on"] .screen.solo-screen.uw-exam .uw-endblock {
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+}
+html[data-study="on"] .screen.solo-screen.uw-exam .uw-endblock-icon { font-size: 17px; color: #e2572b; }
+
+/* Timer: the mockup's stacked "Time Remaining:" / clock / bar. */
+html[data-study="on"] .screen.solo-screen.uw-exam .shd-center .timer-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 220px;
+}
+
+/* The mockup's caption. The markup has no element for it, and adding one to
+   shared JSX for one skin's sake is not worth it. */
+html[data-study="on"] .screen.solo-screen.uw-exam .shd-center .timer-wrap::before {
+  content: 'Time Remaining:';
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+html[data-study="on"] .screen.solo-screen.uw-exam .timer-number,
+html[data-study="on"] .screen.solo-screen.uw-exam .timer-number.green,
+html[data-study="on"] .screen.solo-screen.uw-exam .timer-number.yellow {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: #fff;
+  text-shadow: none;
+  margin-bottom: 0;
+  animation: none;
+}
+
+html[data-study="on"] .screen.solo-screen.uw-exam .timer-track {
+  width: 100%;
+  height: 5px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.25);
+  overflow: hidden;
+}
+
+html[data-study="on"] .screen.solo-screen.uw-exam .timer-fill,
+html[data-study="on"] .screen.solo-screen.uw-exam .timer-fill.green,
+html[data-study="on"] .screen.solo-screen.uw-exam .timer-fill.yellow {
+  background: var(--uwq-blue-lt);
+  box-shadow: none;
+}
+
+/* The last few seconds still turn red — a countdown that hides its own urgency
+   to stay on-palette would be a worse page. */
+html[data-study="on"] .screen.solo-screen.uw-exam .timer-number.red {
+  color: #ff9d8a;
+  text-shadow: none;
+  animation: none;
+}
+html[data-study="on"] .screen.solo-screen.uw-exam .timer-fill.red { background: #e2572b; }
+
+/* ── The sheet ───────────────────────────────────────────────────────────── */
+/* The exam sheet is the page, not a floating white card — the mockup's content
+   area simply inherits the body colour. !important is unavoidable: study.css
+   paints these three panes `#ffffff !important`, so specificity alone loses. */
+html[data-study="on"] .screen.solo-screen.uw-exam .question-card {
+  background: var(--uwq-page) !important;
+  border: 0 !important;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 44px 64px;
+  max-width: 1100px;
+}
+
+html[data-study="on"] .screen.solo-screen.uw-exam .question-text,
+html[data-study="on"] .screen.solo-screen.uw-exam .stem-text {
+  font-size: 17px;
+  line-height: 1.75;
+  color: var(--uwq-ink);
+  margin-bottom: 34px;
+  text-align: left;
+}
+
+/* Options are rules-and-radios, not cards — the mockup separates them with a
+   single hairline and nothing else. */
+html[data-study="on"] .screen.solo-screen.uw-exam .options {
+  display: block;
+  gap: 0;
+}
+
+html[data-study="on"] .screen.solo-screen.uw-exam .option-btn {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  width: 100%;
+  padding: 18px 6px;
+  border: 0;
+  border-top: 1px solid var(--uwq-rule);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  text-align: left;
+  transform: none;
+}
+
+html[data-study="on"] .screen.solo-screen.uw-exam .option-btn:last-child { border-bottom: 1px solid var(--uwq-rule); }
+
+html[data-study="on"] .screen.solo-screen.uw-exam .option-btn:hover:not(:disabled) {
+  background: #f2f6fc;
+  transform: none;
+}
+
+/* The radio dot the mockup draws before each letter. */
+html[data-study="on"] .screen.solo-screen.uw-exam .option-btn::before {
+  content: '';
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid var(--uwq-ring);
+  background: transparent;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+html[data-study="on"] .screen.solo-screen.uw-exam .option-btn .opt-label {
+  font-weight: 700;
+  color: var(--uwq-blue);
+  min-width: 18px;
+  background: none;
+  border: 0;
+  padding: 0;
+  font-size: 16px;
+}
+
+html[data-study="on"] .screen.solo-screen.uw-exam .option-btn .opt-text {
+  font-size: 16px;
+  color: var(--uwq-ink);
+}
+
+html[data-study="on"] .screen.solo-screen.uw-exam .option-btn.selected {
+  background: var(--uwq-sel-bg);
+  border-top-color: var(--uwq-rule);
+}
+html[data-study="on"] .screen.solo-screen.uw-exam .option-btn.selected::before {
+  border-color: var(--uwq-blue);
+  background: var(--uwq-blue);
+  box-shadow: inset 0 0 0 3px var(--uwq-sel-bg);
+}
+
+/* Right/wrong still read clearly once answered — the mockup only draws the
+   unanswered state, but hiding the result would make the page useless. */
+html[data-study="on"] .screen.solo-screen.uw-exam .option-btn.correct {
+  background: #e8f6ec;
+}
+html[data-study="on"] .screen.solo-screen.uw-exam .option-btn.correct::before {
+  border-color: #2e7d43;
+  background: #2e7d43;
+  box-shadow: inset 0 0 0 3px #e8f6ec;
+}
+html[data-study="on"] .screen.solo-screen.uw-exam .option-btn.correct .opt-label { color: #2e7d43; }
+
+html[data-study="on"] .screen.solo-screen.uw-exam .option-btn.wrong {
+  background: #fdecea;
+}
+html[data-study="on"] .screen.solo-screen.uw-exam .option-btn.wrong::before {
+  border-color: #c0392b;
+  background: #c0392b;
+  box-shadow: inset 0 0 0 3px #fdecea;
+}
+html[data-study="on"] .screen.solo-screen.uw-exam .option-btn.wrong .opt-label { color: #c0392b; }
+
+/* The mockup has no in-sheet tool buttons — they live in the footer bar. */
+html[data-study="on"] .screen.solo-screen.uw-exam .calculator-toggle-btn,
+html[data-study="on"] .screen.solo-screen.uw-exam .lab-values-toggle-btn { display: none; }
+
+/* ── Footer bar ──────────────────────────────────────────────────────────── */
+html[data-study="on"] .screen.solo-screen.uw-exam .study-statusbar {
+  background: linear-gradient(180deg, var(--uwq-navy-top), var(--uwq-navy-bot));
+  border: 0;
+  border-radius: 0;
+  padding: 12px 28px;
+  color: #fff;
+}
+
+html[data-study="on"] .screen.solo-screen.uw-exam .study-statusbar .ssb-home,
+html[data-study="on"] .screen.solo-screen.uw-exam .study-statusbar .ssb-calc {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: 0;
+  color: #fff;
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+html[data-study="on"] .screen.solo-screen.uw-exam .ssb-arrows { gap: 12px; }
+
+html[data-study="on"] .screen.solo-screen.uw-exam .stb-arrow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  /* study.css sizes these as 40x34 icon squares; the mockup's are labelled
+     pills, so the fixed box has to go or the label lands on the arrow. */
+  width: auto;
+  height: auto;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 6px;
+  padding: 8px 18px;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+}
+
+html[data-study="on"] .screen.solo-screen.uw-exam .stb-arrow:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+html[data-study="on"] .screen.solo-screen.uw-exam .stb-arrow:disabled {
+  color: rgba(255, 255, 255, 0.35);
+  border-color: rgba(255, 255, 255, 0.2);
+  opacity: 1;
+}
+
+/* The mockup labels its nav buttons; the shared markup is arrows only. Labels
+   are added here rather than in JSX because they are purely this skin's, and
+   every button already carries a title for assistive tech.
+   NOTE: Previous stays disabled — SoloGame has no backwards navigation, and a
+   button that looks live but does nothing is worse than an honest dead one. */
+html[data-study="on"] .screen.solo-screen.uw-exam .stb-arrow:not(.stb-next):not(.stb-pause)::after { content: 'Previous'; }
+html[data-study="on"] .screen.solo-screen.uw-exam .stb-arrow.stb-pause::after { content: 'Pause'; }
+html[data-study="on"] .screen.solo-screen.uw-exam .stb-arrow.stb-next::after  { content: 'Next'; }
+
+/* ── Explanation ─────────────────────────────────────────────────────────── */
+/* The mockup stops at the unanswered item, so this keeps the study layout's
+   explanation pane and just brings it onto the exam palette. */
+html[data-study="on"] .screen.solo-screen.uw-exam .round-result,
+html[data-study="on"] .screen.solo-screen.uw-exam .study-expl-placeholder {
+  background: #fff !important;
+  border: 1px solid var(--uwq-rule) !important;
+  border-radius: 6px;
+  color: var(--uwq-ink);
+  max-width: 1100px;
+}
+
+html[data-study="on"] .screen.solo-screen.uw-exam .round-result.correct-bg,
+html[data-study="on"] .screen.solo-screen.uw-exam .round-result.wrong-bg { background: #fff; }
+
+html[data-study="on"] .screen.solo-screen.uw-exam .study-result-strip {
+  border-radius: 6px;
+  border: 1px solid var(--uwq-rule);
+  /* Matches the sheet, or the strip runs the full viewport while everything
+     above and below it stops at 1100. */
+  max-width: 1100px;
+}
+
+/* The shared explanation styling is built for the red/gold app; on the exam
+   sheet its purple heading and red Next button read as another product. */
+html[data-study="on"] .screen.solo-screen.uw-exam .rr-explanation strong,
+html[data-study="on"] .screen.solo-screen.uw-exam .round-result .rr-label {
+  color: var(--uwq-blue) !important;
+}
+
+html[data-study="on"] .screen.solo-screen.uw-exam .rr-skip-btn {
+  background: var(--uwq-blue);
+  border: 1px solid var(--uwq-blue);
+  color: #fff;
+  border-radius: 6px;
+  box-shadow: none;
+  text-shadow: none;
+}
+html[data-study="on"] .screen.solo-screen.uw-exam .rr-skip-btn:hover {
+  background: var(--uwq-blue-lt);
+  border-color: var(--uwq-blue-lt);
+}
+html[data-study="on"] .screen.solo-screen.uw-exam .study-result-strip.is-correct { background: #e8f6ec; color: #2e7d43; }
+html[data-study="on"] .screen.solo-screen.uw-exam .study-result-strip.is-wrong   { background: #fdecea; color: #c0392b; }
+
+/* ── Mobile ──────────────────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  html[data-study="on"] .screen.solo-screen.uw-exam .study-header { padding: 10px 14px; gap: 8px; }
+  html[data-study="on"] .screen.solo-screen.uw-exam .shd-left     { gap: 12px; }
+  html[data-study="on"] .screen.solo-screen.uw-exam .stb-id       { display: none; }
+  /* "Item 1 of 5" wrapping to two lines makes the bar jump a row taller. */
+  html[data-study="on"] .screen.solo-screen.uw-exam .stb-count    { white-space: nowrap; font-size: 14px; }
+  html[data-study="on"] .screen.solo-screen.uw-exam .shd-center .timer-wrap { min-width: 0; }
+  html[data-study="on"] .screen.solo-screen.uw-exam .question-card { padding: 22px 16px; }
+  html[data-study="on"] .screen.solo-screen.uw-exam .question-text,
+  html[data-study="on"] .screen.solo-screen.uw-exam .stem-text     { font-size: 15px; line-height: 1.6; }
+  html[data-study="on"] .screen.solo-screen.uw-exam .option-btn    { padding: 14px 2px; gap: 10px; }
+  html[data-study="on"] .screen.solo-screen.uw-exam .option-btn .opt-text { font-size: 14px; }
+  html[data-study="on"] .screen.solo-screen.uw-exam .study-statusbar { padding: 10px 14px; gap: 8px; }
+  html[data-study="on"] .screen.solo-screen.uw-exam .stb-arrow     { padding: 7px 12px; font-size: 13px; gap: 4px; }
+}
