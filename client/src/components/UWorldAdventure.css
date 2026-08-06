@@ -314,6 +314,13 @@
 .uwa-date:focus { outline: none; border-color: var(--uwa-blue); }
 .uwa-date:disabled { opacity: 0.5; }
 
+.uwa-note {
+  font-size: 12px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.5);
+  margin: 12px 0 0;
+}
+
 .uwa-warn {
   font-size: 13px;
   line-height: 1.45;

@@ -64,6 +64,16 @@ function daysUntil(inputDate) {
 // cannot be saved — it is reported as out of reach instead of silently clamped.
 const PACE_SAVE_MAX = 200;
 
+// The finished size of UWorld Adventure. Upload is still in progress, so the
+// live bank is smaller — but a plan is only useful if it covers the whole
+// journey, and a player pacing against today's partial bank would be told they
+// finish in a week. So PLANNING uses this number while PLAYING uses whatever is
+// really there.
+//
+// Delete this and plan against the real total once the upload is complete; the
+// max() below means an over-full bank already ignores it.
+const UWA_TARGET_TOTAL = 3659;
+
 /**
  * UWorld Adventure — pick a subject, commit to a daily pace, and see honestly
  * how long the remaining question bank will take at that rate.
@@ -80,7 +90,8 @@ export default function UWorldAdventure() {
   const [subjects, setSubjects] = useState([]);
   const [subjectsError, setSubjectsError] = useState(false);
   const [selected, setSelected] = useState(null);       // subject id
-  const [progress, setProgress] = useState(null);       // { total, seen, unseen }
+  const [progress, setProgress] = useState(null);       // selected subject: { total, seen, unseen }
+  const [overall, setOverall]   = useState(null);       // every subject, same shape
   const [pace, setPace] = useState(PACE_DEFAULT);
   const [loadingSubject, setLoadingSubject] = useState(false);
   const [starting, setStarting] = useState(false);
@@ -135,6 +146,24 @@ export default function UWorldAdventure() {
     const res = await authFetch(`/api/users/${user.id}/question-bank-progress?subject=${encodeURIComponent(subjectId)}`);
     return res.json();
   }, [user?.id]);
+
+  // Whole-adventure progress: the same endpoint with NO subject sums every
+  // active subject. The pace card plans against this, not the open subject —
+  // "when do I finish UWorld Adventure" is a question about all of it.
+  const loadOverall = useCallback(async () => {
+    if (!user?.id) return null;
+    const res = await authFetch(`/api/users/${user.id}/question-bank-progress`);
+    return res.json();
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+    loadOverall()
+      .then(o => { if (!cancelled && o) setOverall(o); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [user?.id, loadOverall]);
 
   // Selecting a subject pulls its real counts and any saved pace together.
   useEffect(() => {
@@ -218,6 +247,8 @@ export default function UWorldAdventure() {
     if (selected) {
       loadProgress(selected).then(p => { if (p) setProgress(p); }).catch(() => {});
     }
+    // The adventure-wide count moved too, so the projection shortens visibly.
+    loadOverall().then(o => { if (o) setOverall(o); }).catch(() => {});
   }
 
   if (sessionQuestions) {
@@ -235,8 +266,18 @@ export default function UWorldAdventure() {
   }
 
   const activeName = subjects.find(s => s.id === selected)?.name || '';
+
+  // Two different numbers, deliberately kept apart:
+  //   unseen  — what the OPEN SUBJECT can actually serve right now. Governs the
+  //             Start button and the session. Always real.
+  //   planned — the whole adventure at its finished size. Governs the pace
+  //             projection and the deadline solver.
   const unseen = progress?.unseen ?? 0;
-  const daysToFinish = unseen > 0 ? Math.ceil(unseen / pace) : 0;
+  // If the bank ever outgrows the target, the target stops mattering.
+  const plannedTotal     = Math.max(UWA_TARGET_TOTAL, overall?.total ?? 0);
+  const plannedSeen      = Math.min(overall?.seen ?? 0, plannedTotal);
+  const plannedRemaining = Math.max(0, plannedTotal - plannedSeen);
+  const daysToFinish = plannedRemaining > 0 ? Math.ceil(plannedRemaining / pace) : 0;
   const completionDate = new Date();
   // Day 1 is TODAY, so a one-day plan finishes today — not tomorrow. This also
   // makes the deadline picker round-trip exactly: pick a date, get a pace, and
@@ -280,13 +321,9 @@ export default function UWorldAdventure() {
       </div>
 
       <div className="uwa-col">
-        {/* Mockup reads "3,659 questions across every USMLE subject and system";
-            that figure is a design placeholder and there are no system-tagged
-            questions, so this states the REAL total for the subjects that
-            actually have content. */}
         <p className="uwa-intro">
           A high-yield board-review expedition through the wards of Medvale
-          {progress ? ` — ${progress.total.toLocaleString()} questions in ${activeName || 'this subject'}.` : '.'}
+          {` — ${plannedTotal.toLocaleString()} questions across every USMLE subject.`}
         </p>
 
         {/* ── Set Your Pace ─────────────────────────────────────────────── */}
@@ -335,12 +372,12 @@ export default function UWorldAdventure() {
                 type="date"
                 min={toInputDate(new Date())}
                 value={pickedDate || toInputDate(completionDate)}
-                disabled={unseen === 0}
+                disabled={plannedRemaining === 0}
                 onChange={e => {
                   const days = daysUntil(e.target.value);
                   if (!days) return;
                   setPickedDate(e.target.value);
-                  const needed = Math.ceil(unseen / days);
+                  const needed = Math.ceil(plannedRemaining / days);
                   if (needed > PACE_SAVE_MAX) {
                     setDeadlineWarning(
                       `That would need ${needed} questions a day. The most you can set is ${PACE_SAVE_MAX}/day — pick a later date.`
@@ -367,45 +404,55 @@ export default function UWorldAdventure() {
             <div>
               <span className="uwa-proj-label">DAYS TO FINISH</span>
               <span className="uwa-proj-val uwa-proj-val--blue">
-                {unseen > 0 ? `${daysToFinish} ${daysToFinish === 1 ? 'day' : 'days'}` : '—'}
+                {plannedRemaining > 0 ? `${daysToFinish} ${daysToFinish === 1 ? 'day' : 'days'}` : '—'}
               </span>
             </div>
             <div>
               <span className="uwa-proj-label">ESTIMATED COMPLETION</span>
               <span className="uwa-proj-val">
-                {unseen > 0 ? formatDate(completionDate) : 'Complete'}
+                {plannedRemaining > 0 ? formatDate(completionDate) : 'Complete'}
               </span>
             </div>
           </div>
 
-          {/* Real progress — the mockup is a static design and has no equivalent,
-              so these borrow the projection row's own treatment. */}
-          {progress && (
+          {/* Whole-adventure progress. These MUST describe the same journey the
+              projection above does — a "days to finish" computed from 3,659
+              sitting over a total of 708 would just look broken. "Already
+              answered" is your real count across every subject. */}
+          {overall && (
             <>
               <div className="uwa-counts">
                 <div>
                   <span className="uwa-proj-label">TOTAL QUESTIONS</span>
-                  <span className="uwa-count-val">{progress.total}</span>
+                  <span className="uwa-count-val">{plannedTotal.toLocaleString()}</span>
                 </div>
                 <div>
                   <span className="uwa-proj-label">ALREADY ANSWERED</span>
-                  <span className="uwa-count-val">{progress.seen}</span>
+                  <span className="uwa-count-val">{plannedSeen.toLocaleString()}</span>
                 </div>
                 <div>
                   <span className="uwa-proj-label">REMAINING</span>
-                  <span className="uwa-count-val uwa-count-val--blue">{progress.unseen}</span>
+                  <span className="uwa-count-val uwa-count-val--blue">{plannedRemaining.toLocaleString()}</span>
                 </div>
               </div>
               <div
                 className="uwa-bar"
                 role="img"
-                aria-label={`${progress.seen} of ${progress.total} questions answered`}
+                aria-label={`${plannedSeen} of ${plannedTotal} questions answered`}
               >
                 <div
                   className="uwa-bar-fill"
-                  style={{ width: `${progress.total ? (progress.seen / progress.total) * 100 : 0}%` }}
+                  style={{ width: `${plannedTotal ? (plannedSeen / plannedTotal) * 100 : 0}%` }}
                 />
               </div>
+              {/* Says plainly why the plan is bigger than what is playable today,
+                  so the gap reads as "still uploading" rather than a bug. */}
+              {overall.total < plannedTotal && (
+                <p className="uwa-note">
+                  Planning against the full {plannedTotal.toLocaleString()}-question adventure.
+                  {' '}{overall.total.toLocaleString()} are in the bank so far — the rest are still being added.
+                </p>
+              )}
             </>
           )}
 
@@ -418,9 +465,15 @@ export default function UWorldAdventure() {
             disabled={starting || loadingSubject || unseen === 0}
             style={{ marginTop: 22 }}
           >
+            {/* The count in brackets is what will REALLY be served, which can be
+                short of the pace while the bank is still filling — better a
+                small honest number than a promise of 80 that delivers 1. */}
             {starting ? 'Loading…'
               : loadingSubject ? 'Loading…'
-              : unseen === 0 ? 'Subject Complete'
+              : unseen === 0
+                ? (overall && overall.total < plannedTotal
+                    ? `No ${activeName || 'subject'} questions left yet`
+                    : 'Subject Complete')
               : `Start Today's Questions (${todaysCount})`}
           </button>
         </div>
