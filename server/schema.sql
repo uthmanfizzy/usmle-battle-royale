@@ -637,3 +637,39 @@ CREATE POLICY IF NOT EXISTS "server_full_access_game_settings"
 --       columns and force-refreshes the bank).
 -- Note the retire route keys on questions.question_id (the TEXT business key)
 -- because that is the id the client holds mid-game — `id` is the UUID.
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- JOURNEY/BOSS QUESTION RETIREMENT (doc-only — run in the SQL editor)
+-- ─────────────────────────────────────────────────────────────────────────────
+-- ALTER TABLE journey_questions ADD COLUMN IF NOT EXISTS retired_at     TIMESTAMPTZ;
+-- ALTER TABLE journey_questions ADD COLUMN IF NOT EXISTS retired_by     UUID REFERENCES users(id) ON DELETE SET NULL;
+-- ALTER TABLE journey_questions ADD COLUMN IF NOT EXISTS retired_reason TEXT;
+-- ALTER TABLE boss_questions    ADD COLUMN IF NOT EXISTS retired_at     TIMESTAMPTZ;
+-- ALTER TABLE boss_questions    ADD COLUMN IF NOT EXISTS retired_by     UUID REFERENCES users(id) ON DELETE SET NULL;
+-- ALTER TABLE boss_questions    ADD COLUMN IF NOT EXISTS retired_reason TEXT;
+--
+-- The main-bank retire feature above (users.is_admin / moderatorFrom) shipped
+-- first and only covered the `questions` table. A moderator flagging a bad
+-- question while playing First Aid Journey got a hard 404 — journey_questions
+-- and boss_questions are SEPARATE tables with their own UUID id space, and the
+-- client was correctly sending that UUID, but the retire route only ever
+-- matched against `questions.question_id`, which the id was never a member of.
+--
+-- Fix: journey_questions and boss_questions get their own retired_at/by/reason
+-- columns and their own retire routes, keyed on `id` directly (these tables
+-- have no separate business-key column) —
+--   POST /api/journey-questions/:id/retire
+--   POST /api/boss-questions/:id/retire
+-- both moderatorFrom-gated exactly like the main route. GET /api/journey-
+-- questions and GET /api/boss-questions filter `.is('retired_at', null)`,
+-- guarded by hasJourneyRetirement/hasBossRetirement — the same deploy-order
+-- safety as the main bank's hasRetirement: an unknown column would otherwise
+-- fail the WHOLE select and silently empty a live level before this migration
+-- runs, so a missing-column error flips the flag off and retries unfiltered.
+--
+-- GET /admin/retired-questions now unions all three tables (tagged `source`:
+-- 'main' | 'journey' | 'boss') into ONE review queue — a moderator can pull
+-- from any of them, so the owner needs one place to see and undo all of it.
+-- POST /admin/retired-questions/:id/restore takes ?source= to route the update
+-- to the right table; only 'main' triggers forceRefreshQuestions() afterward,
+-- since journey/boss questions are read live per-request and were never cached.

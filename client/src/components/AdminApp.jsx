@@ -201,11 +201,20 @@ function PermissionsPanel() {
     if (!window.confirm(`Put "${(row.question || '').slice(0, 80)}…" back into circulation?`)) return;
     setBusy(row.id);
     try {
-      const r = await apiCall(`/admin/retired-questions/${row.id}/restore`, { method: 'POST' });
+      // Three source tables (main bank, Journey levels, Journey bosses) share
+      // this one queue — the source tag says which one to write back to.
+      const r = await apiCall(`/admin/retired-questions/${row.id}/restore?source=${row.source || 'main'}`, { method: 'POST' });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       setRetired(rs => rs.filter(x => x.id !== row.id));
     } catch (err) { alert(`Could not restore: ${err.message}`); }
     finally { setBusy(null); }
+  }
+
+  const SOURCE_LABELS = { main: 'Main bank', journey: 'First Aid Journey', boss: 'Journey boss' };
+  function sourceLine(r) {
+    if (r.source === 'boss') return `${SOURCE_LABELS.boss} · ${r.subject || '?'}/${r.boss_key || '?'}`;
+    if (r.source === 'journey') return SOURCE_LABELS.journey;
+    return `${SOURCE_LABELS.main} · ${r.category || 'Uncategorised'}`;
   }
 
   return (
@@ -254,8 +263,9 @@ function PermissionsPanel() {
         🚫 Pulled questions {retired.length > 0 && <span className="perm-count">{retired.length}</span>}
       </h3>
       <p className="perm-hint">
-        Flagged by a moderator during play. These are not being served anywhere. Restore
-        puts one straight back; to remove one for good, delete it from Question Manager.
+        Flagged by a moderator during play — from the main bank, First Aid Journey, or a
+        Journey boss. These are not being served anywhere. Restore puts one straight back;
+        to remove one for good, delete it from the matching admin tab.
       </p>
       {retired.length === 0 ? (
         <div className="perm-hint">Nothing has been pulled.</div>
@@ -266,7 +276,7 @@ function PermissionsPanel() {
               <div className="perm-who">
                 <span className="perm-name">{(r.question || '').slice(0, 140)}</span>
                 <span className="perm-email">
-                  {r.category || 'Uncategorised'} · pulled by {r.retired_by_name}
+                  {sourceLine(r)} · pulled by {r.retired_by_name}
                   {r.retired_at ? ` on ${new Date(r.retired_at).toLocaleDateString()}` : ''}
                   {r.retired_reason ? ` — "${r.retired_reason}"` : ''}
                 </span>

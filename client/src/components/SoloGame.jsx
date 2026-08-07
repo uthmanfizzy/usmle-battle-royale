@@ -222,6 +222,20 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   // Retiring a question mid-game.
   const [retireState, setRetireState] = useState(null);   // null | 'saving' | 'done'
   const [retireError, setRetireError] = useState('');
+  // Journey levels and bosses are SEPARATE tables (journey_questions,
+  // boss_questions) with their own UUID id space — a journey/boss question's
+  // id never matches anything in `questions.question_id`, so retiring it
+  // through the main-bank route always 404'd with "Question not found". This
+  // is the one signal available client-side to tell them apart: questionsUrl
+  // is the fetch URL JourneyMode hands SoloGame, and it names its own endpoint.
+  // Everything else (plain subject Solo, Training Grounds by topic, UWorld
+  // Adventure's providedQuestions) reads from the main `questions` table.
+  const retireEndpoint = questionsUrl?.includes('boss-questions')
+    ? 'boss-questions'
+    : questionsUrl?.includes('journey-questions')
+      ? 'journey-questions'
+      : 'questions';
+
   // One click, no dialog. There was a window.prompt for an optional reason here,
   // and it made the button look broken: Chrome returns null from prompt() when
   // it suppresses dialogs (after one has been dismissed, and in embedded
@@ -239,7 +253,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
     const headers = { 'Content-Type': 'application/json' };
     if (adminSession) headers['x-admin-password'] = adminSession;
     if (token)        headers['Authorization'] = `Bearer ${token}`;
-    fetch(`${SERVER_URL}/api/questions/${encodeURIComponent(questionId)}/retire`, {
+    fetch(`${SERVER_URL}/api/${retireEndpoint}/${encodeURIComponent(questionId)}/retire`, {
       method: 'POST', headers, body: JSON.stringify({}),
     })
       .then(async (r) => {

@@ -165,6 +165,14 @@ function isMissingColumn(error) {
          (msg.includes('retired_at') && msg.includes('does not exist')) ||
          (msg.includes('column') && msg.includes('retired'));
 }
+
+// journey_questions and boss_questions get the SAME retired_at/by/reason columns,
+// via their own migration (they are not part of the `questions` table, so the
+// main hasRetirement flag says nothing about them). Same deploy-order safety:
+// optimistic until a query proves the columns are missing.
+let hasJourneyRetirement = true;
+let hasBossRetirement = true;
+
 let questionsLastLoaded = 0;
 const QUESTIONS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
@@ -2781,6 +2789,44 @@ app.post('/api/questions/:questionId/retire', async (req, res) => {
   }
 });
 
+/**
+ * POST /api/journey-questions/:id/retire   { reason? }
+ * POST /api/boss-questions/:id/retire      { reason? }
+ *
+ * Journey and boss questions live in their OWN tables, not `questions` — a
+ * question flagged mid-Journey was 404'ing against the main-bank retire route
+ * because its id is a journey_questions/boss_questions UUID, which never
+ * matches anything in `questions.question_id`. These are the same soft-retire
+ * as the main route, just pointed at the right table. Keyed on `id` (the UUID),
+ * not a business key — these tables have no separate one.
+ */
+function makeSideTableRetire(table) {
+  return async (req, res) => {
+    if (!supabase) return res.status(503).json({ error: 'Unavailable' });
+    const mod = await moderatorFrom(req);
+    if (!mod.ok) return res.status(403).json({ error: 'Moderator permission required' });
+
+    const reason = (req.body?.reason ?? '').toString().trim().slice(0, 500) || null;
+    try {
+      const { data, error } = await supabase
+        .from(table)
+        .update({ retired_at: new Date().toISOString(), retired_by: mod.userId, retired_reason: reason })
+        .eq('id', req.params.id)
+        .select('id')
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) return res.status(404).json({ error: 'Question not found' });
+      console.log(`[retire:${table}] ${data.id} by ${mod.via}${mod.userId ? ' ' + mod.userId : ''}${reason ? ` — ${reason}` : ''}`);
+      res.json({ ok: true, id: data.id });
+    } catch (err) {
+      console.error(`[/api/${table}/:id/retire] failed —`, err.message);
+      res.status(500).json({ error: err.message });
+    }
+  };
+}
+app.post('/api/journey-questions/:id/retire', makeSideTableRetire('journey_questions'));
+app.post('/api/boss-questions/:id/retire', makeSideTableRetire('boss_questions'));
+
 /** Does the caller hold the moderator flag? Drives whether the in-game control renders. */
 app.get('/api/me/permissions', async (req, res) => {
   const mod = await moderatorFrom(req);
@@ -2792,40 +2838,54 @@ app.get('/api/me/permissions', async (req, res) => {
 // of play, but only the owner decides what happens to it next, and only the
 // owner can hand out the flag.
 
+// One review queue across all three question tables — a moderator can pull
+// from any of them (main bank, Journey levels, Journey bosses), so the owner
+// needs one place to see and undo all of it, not three.
+const RETIRE_SOURCES = {
+  main:    { table: 'questions',         cols: 'id, question_id, question, category, difficulty, retired_at, retired_by, retired_reason' },
+  journey: { table: 'journey_questions', cols: 'id, question, retired_at, retired_by, retired_reason' },
+  boss:    { table: 'boss_questions',    cols: 'id, question, subject, boss_key, retired_at, retired_by, retired_reason' },
+};
+
 app.get('/admin/retired-questions', adminAuth, async (req, res) => {
   if (!supabase) return res.json({ questions: [] });
   try {
-    const { data, error } = await supabase
-      .from('questions')
-      .select('id, question_id, question, category, difficulty, retired_at, retired_by, retired_reason')
-      .not('retired_at', 'is', null)
-      .order('retired_at', { ascending: false });
-    if (error) throw error;
+    const rows = [];
+    for (const [source, { table, cols }] of Object.entries(RETIRE_SOURCES)) {
+      const { data, error } = await supabase.from(table).select(cols).not('retired_at', 'is', null);
+      // A table missing its retired_at column (migration not run for that
+      // table yet) contributes nothing rather than failing the whole queue.
+      if (error) { if (!isMissingColumn(error)) console.warn(`[/admin/retired-questions] ${table} —`, error.message); continue; }
+      for (const r of (data || [])) rows.push({ ...r, source });
+    }
+    rows.sort((a, b) => new Date(b.retired_at) - new Date(a.retired_at));
 
-    // Attach who retired each one, in a single bounded lookup.
-    const ids = [...new Set((data || []).map(r => r.retired_by).filter(Boolean))];
+    // Attach who retired each one, in a single bounded lookup across all sources.
+    const ids = [...new Set(rows.map(r => r.retired_by).filter(Boolean))];
     let names = {};
     if (ids.length) {
       const { data: users } = await supabase.from('users').select('id, username').in('id', ids);
       names = Object.fromEntries((users || []).map(u => [u.id, u.username]));
     }
-    res.json({ questions: (data || []).map(r => ({ ...r, retired_by_name: names[r.retired_by] || (r.retired_by ? 'Unknown' : 'Owner') })) });
+    res.json({ questions: rows.map(r => ({ ...r, retired_by_name: names[r.retired_by] || (r.retired_by ? 'Unknown' : 'Owner') })) });
   } catch (err) {
     console.warn('[/admin/retired-questions] unavailable —', err.message);
     res.json({ questions: [] });
   }
 });
 
-/** Put a retired question back into circulation. */
+/** Put a retired question back into circulation. ?source=main|journey|boss (default main). */
 app.post('/admin/retired-questions/:id/restore', adminAuth, async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Unavailable' });
+  const source = RETIRE_SOURCES[req.query.source] ? req.query.source : 'main';
   try {
     const { error } = await supabase
-      .from('questions')
+      .from(RETIRE_SOURCES[source].table)
       .update({ retired_at: null, retired_by: null, retired_reason: null })
       .eq('id', req.params.id);
     if (error) throw error;
-    await forceRefreshQuestions();   // back into the served bank
+    if (source === 'main') await forceRefreshQuestions();   // back into the served bank
+    // journey/boss are read live per-request, not cached — nothing to refresh.
     res.json({ ok: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -9231,10 +9291,18 @@ app.get('/api/journey-questions', async (req, res) => {
   if (!level_id) return res.status(400).json({ error: 'level_id required', questions: [] });
   const sequential = req.query.order === 'sequential';
   try {
-    const { data, error } = await supabase.from('journey_questions').select('*')
-      .eq('level_id', level_id)
-      .order('sort_order', { ascending: true })
-      .order('created_at', { ascending: true });
+    // Same deploy-order safety as the main bank: an unknown retired_at column
+    // fails the WHOLE select, which would silently empty a live level. Retry
+    // unfiltered on that specific failure and remember it, rather than erroring
+    // every request until the migration runs.
+    let query = supabase.from('journey_questions').select('*').eq('level_id', level_id);
+    if (hasJourneyRetirement) query = query.is('retired_at', null);
+    let { data, error } = await query.order('sort_order', { ascending: true }).order('created_at', { ascending: true });
+    if (error && isMissingColumn(error)) {
+      hasJourneyRetirement = false;
+      ({ data, error } = await supabase.from('journey_questions').select('*').eq('level_id', level_id)
+        .order('sort_order', { ascending: true }).order('created_at', { ascending: true }));
+    }
     if (error) throw error;
     const questions = (data || []).map(q => ({
       id: q.id,
@@ -9267,11 +9335,14 @@ app.get('/api/boss-questions', async (req, res) => {
   if (!subject || !boss_key) return res.status(400).json({ error: 'subject and boss_key required', questions: [] });
   const sequential = req.query.order === 'sequential';
   try {
-    const { data, error } = await supabase.from('boss_questions').select('*')
-      .eq('subject', subject)
-      .eq('boss_key', boss_key)
-      .order('sort_order', { ascending: true })
-      .order('created_at', { ascending: true });
+    let query = supabase.from('boss_questions').select('*').eq('subject', subject).eq('boss_key', boss_key);
+    if (hasBossRetirement) query = query.is('retired_at', null);
+    let { data, error } = await query.order('sort_order', { ascending: true }).order('created_at', { ascending: true });
+    if (error && isMissingColumn(error)) {
+      hasBossRetirement = false;
+      ({ data, error } = await supabase.from('boss_questions').select('*').eq('subject', subject).eq('boss_key', boss_key)
+        .order('sort_order', { ascending: true }).order('created_at', { ascending: true }));
+    }
     if (error) throw error;
     const questions = (data || []).map(q => ({
       id: q.id,
