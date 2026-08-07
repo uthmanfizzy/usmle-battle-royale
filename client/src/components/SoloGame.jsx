@@ -1070,6 +1070,13 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
           <div className={`study-result-strip ${selected === q.correct ? 'is-correct' : 'is-wrong'}`}>
             <span className="srs-mark">{selected === q.correct ? '✓ Correct' : '✗ Incorrect'}</span>
             {timeSpent != null && <span className="srs-time">Time spent: {timeSpent}s</span>}
+            {/* Reuses rr-skip-btn so every skin's existing theming (base/Journey/
+                UWorld) applies for free; .srs-next-btn only adds the push to the
+                far right (the strip is already a flex row in every skin). Same
+                handler as the button below the explanation — this is just a
+                closer way to reach it without scrolling past the explanation
+                first. */}
+            <button className="rr-skip-btn srs-next-btn" onClick={handleSkip}>Next Question →</button>
           </div>
         )}
 

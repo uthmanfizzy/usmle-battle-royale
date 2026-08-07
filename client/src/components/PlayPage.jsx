@@ -23,15 +23,6 @@ const GAME_MODES = [
     supportsSolo: false,
   },
   {
-    id: 'trivia_pursuit',
-    name: 'TRIVIA PURSUIT',
-    icon: '🎯',
-    shortDesc: 'Collect all 6 subject wedges',
-    meta: 'Multiplayer',
-    longDescription: 'Take turns answering questions across 6 medical subjects. Earn a wedge for each correct answer. First player to collect all 6 subject wedges wins the game.',
-    supportsSolo: false,
-  },
-  {
     id: 'scan_master',
     name: 'SCAN MASTER',
     icon: '🔬',

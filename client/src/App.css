@@ -1049,6 +1049,11 @@ body.dev-mode-banner-active { padding-top: 40px; }
   margin-top: 10px;
 }
 
+/* Pushes the strip's own copy of this button to the far right — the strip
+   is a flex row in every skin (base study, Journey vibrant, UWorld exam), so
+   one rule covers all three. */
+.srs-next-btn { margin-left: auto; flex-shrink: 0; }
+
 .rr-skip-btn {
   background: rgba(255,255,255,0.06);
   border: 1px solid rgba(255,255,255,0.15);

@@ -39,8 +39,10 @@ export default function ModeSplit({ onStory, onOnline, onTraining, onBack }) {
 }
 
 // Story menu: First Aid Journey emphasized per the mockup (wide campaign
-// card), Tower keeps its existing coming-soon treatment below.
-export function StoryMenu({ onBack, onJourney, onTower, onAnKing, onUWorld }) {
+// card). The Tower campaign was removed from this list — TowerMode.jsx and its
+// App.jsx phase/route are untouched (unreachable, not deleted) in case it
+// comes back.
+export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld }) {
   // Whether the Flashcards deck list is expanded. Local — nothing outside this
   // menu cares which category is open.
   const [flashOpen, setFlashOpen] = useState(false);
@@ -123,8 +125,8 @@ export function StoryMenu({ onBack, onJourney, onTower, onAnKing, onUWorld }) {
             so it gets normal active styling — no disabled class, no
             ms-soon-chip. Unlike its siblings this is a standalone ROUTE, not a
             phase, so onUWorld navigates rather than setting phase; the card
-            stays presentational either way. Sits above the still-gated Tower,
-            keeping every playable mode before the coming-soon one. */}
+            stays presentational either way. Last in the list — every entry
+            here is a playable mode now. */}
         <button className="ms-journey-card ms-journey-card--blue" onClick={onUWorld}>
           <div className="ms-journey-art" aria-hidden="true">
             <span className="ms-journey-art-icon">📊</span>
@@ -134,19 +136,6 @@ export function StoryMenu({ onBack, onJourney, onTower, onAnKing, onUWorld }) {
             <span className="ms-journey-sub">
               A high-yield board-review expedition through the wards of Medvale.
             </span>
-          </div>
-        </button>
-
-        {/* COMING SOON — temporarily disabled. To re-enable: drop the
-            ms-journey-card--disabled class + ms-soon-chip span and restore
-            onClick={onTower}. TowerMode and its App.jsx routing are untouched. */}
-        <button className="ms-journey-card ms-journey-card--disabled" disabled>
-          <div className="ms-journey-art" aria-hidden="true">
-            <span className="ms-journey-art-icon">🏰</span>
-          </div>
-          <div className="ms-journey-body">
-            <span className="ms-journey-name">THE TOWER <span className="ms-soon-chip">COMING SOON</span></span>
-            <span className="ms-journey-sub">Climb 100 floors of knowledge</span>
           </div>
         </button>
       </div>
