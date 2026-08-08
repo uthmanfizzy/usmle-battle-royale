@@ -1042,6 +1042,41 @@
 .jm-confirm-play { min-width: 180px; }
 .jm-confirm-play:disabled { opacity: 0.55; cursor: default; }
 
+/* ── Bonus round entry point on the level confirm card ───────────────────── */
+.jm-confirm-bonus-btn {
+  margin-top: 8px;
+  min-width: 180px;
+  border-color: rgba(232, 176, 75, 0.55);
+  color: var(--mv-gold, #e8b04b);
+}
+.jm-confirm-bonus-btn:hover { background: rgba(232, 176, 75, 0.12); }
+
+.jm-confirm-bonus-locked {
+  margin: 8px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-soft);
+  line-height: 1.5;
+}
+
+/* Star badge for an earned bonus round — opposite corner from the ✓ badge so
+   a completed level with bonus available shows both without overlap. */
+.jm-node-bonus-badge {
+  position: absolute;
+  top: -5px;
+  left: -5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  font-size: 12px;
+  background: linear-gradient(180deg, #fde68a, var(--mv-gold, #e8b04b));
+  border: 2px solid #0b0630;
+  box-shadow: 0 3px 8px rgba(8, 4, 24, 0.45);
+}
+
 /* ── Optional recommended video on the level confirm screen ─────────────────── */
 .jm-confirm-card--video { width: 460px; }
 

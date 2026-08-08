@@ -5319,6 +5319,23 @@ function JourneyPanel() {
     });
   }
 
+  // Bonus is a LEVEL-only concept (boss rounds don't have one), so this is only
+  // ever called with a level question. One PUT, optimistic-free — the row
+  // updates from whatever the server actually saved, not from a guess.
+  async function toggleBonus(q) {
+    try {
+      const res = await apiCall(`/admin/journey-questions/${q.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ is_bonus: !q.is_bonus }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      setLevelQs(qs => qs.map(x => (x.id === data.id ? data : x)));
+    } catch (err) {
+      alert(`Could not update: ${err.message}`);
+    }
+  }
+
   // Letters offered by the correct-select: A-D always, E/F once filled
   const offeredLetters = BOSS_LETTERS.filter((l, i) => i < 4 || form[`option${l}`].trim() !== '');
   const assembledOptions = BOSS_LETTERS.map(l => form[`option${l}`].trim()).filter(o => o !== '');
@@ -5817,7 +5834,7 @@ function JourneyPanel() {
                 )}
               </div>
               {editorQuestions.map((q, qi) => (
-                <div className={`ap-journey-q-row${qSel.has(q.id) ? ' ap-journey-q-row--sel' : ''}`} key={q.id}>
+                <div className={`ap-journey-q-row${qSel.has(q.id) ? ' ap-journey-q-row--sel' : ''}${q.is_bonus ? ' ap-journey-q-row--bonus' : ''}`} key={q.id}>
                   <input
                     type="checkbox"
                     className="je-qcheck"
@@ -5832,6 +5849,15 @@ function JourneyPanel() {
                   <span className="ap-journey-q-correct">{q.correct}</span>
                   <span className="ap-journey-q-text">{q.question}</span>
                   <div className="ap-video-row-actions">
+                    {/* Bonus is a level-only reward round — boss questions have
+                        no such thing, so the toggle only appears there. */}
+                    {selected.kind === 'level' && (
+                      <button
+                        className={`ap-bonus-toggle${q.is_bonus ? ' is-bonus' : ''}`}
+                        onClick={() => toggleBonus(q)}
+                        title={q.is_bonus ? 'Bonus question — click to unmark' : 'Mark as a bonus question'}
+                      >⭐</button>
+                    )}
                     <button className="ap-topic-edit-btn" onClick={() => startEdit(q)} title="Edit">✏️</button>
                     <button className="ap-topic-del-btn" onClick={() => setDeleteItem({ kind: 'question', row: q })} title="Delete">🗑️</button>
                   </div>
@@ -6137,6 +6163,21 @@ function JourneyEditor() {
     } catch (err) { setError(err.message); setDeleteItem(null); }
   }
 
+  // Bonus is a LEVEL-only concept — only ever called for a level target.
+  async function toggleBonus(target, q) {
+    try {
+      const res = await apiCall(`/admin/journey-questions/${q.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ is_bonus: !q.is_bonus }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      setQuestionsByLevel(prev => ({ ...prev, [target.levelId]: (prev[target.levelId] || []).map(x => (x.id === data.id ? data : x)) }));
+    } catch (err) {
+      alert(`Could not update: ${err.message}`);
+    }
+  }
+
   // ── Question form ─────────────────────────────────────────────────────────────
   function closeForm() { setQEditor(null); setForm(BOSS_EMPTY_FORM); }
   function openAdd(target) { setError(''); setForm(BOSS_EMPTY_FORM); setQEditor({ targetKey: targetKey(target), target, mode: 'add' }); }
@@ -6344,7 +6385,7 @@ function JourneyEditor() {
               )}
             </div>
             {qs.map((q, qi) => (
-              <div className={`ap-journey-q-row${qSel.key === key && qSel.ids.has(q.id) ? ' ap-journey-q-row--sel' : ''}`} key={q.id}>
+              <div className={`ap-journey-q-row${qSel.key === key && qSel.ids.has(q.id) ? ' ap-journey-q-row--sel' : ''}${q.is_bonus ? ' ap-journey-q-row--bonus' : ''}`} key={q.id}>
                 <input
                   type="checkbox"
                   className="je-qcheck"
@@ -6358,6 +6399,15 @@ function JourneyEditor() {
                 <span className="ap-journey-q-correct">{q.correct}</span>
                 <span className="ap-journey-q-text">{q.question}</span>
                 <div className="ap-video-row-actions">
+                  {/* Bonus is a level-only reward round — boss questions have
+                      no such thing, so the toggle only appears there. */}
+                  {target.kind === 'level' && (
+                    <button
+                      className={`ap-bonus-toggle${q.is_bonus ? ' is-bonus' : ''}`}
+                      onClick={() => toggleBonus(target, q)}
+                      title={q.is_bonus ? 'Bonus question — click to unmark' : 'Mark as a bonus question'}
+                    >⭐</button>
+                  )}
                   <button className="ap-topic-edit-btn" onClick={() => openEdit(target, q)} title="Edit">✏️</button>
                   <button className="ap-topic-del-btn" onClick={() => setDeleteItem({ kind: 'question', row: q, target })} title="Delete">🗑️</button>
                 </div>

@@ -173,6 +173,10 @@ function isMissingColumn(error) {
 let hasJourneyRetirement = true;
 let hasBossRetirement = true;
 
+// journey_questions.is_bonus — same deploy-order safety. Optimistic until a
+// query proves it missing.
+let hasJourneyBonus = true;
+
 let questionsLastLoaded = 0;
 const QUESTIONS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
@@ -8586,7 +8590,7 @@ app.put('/admin/journey-questions/:id', adminAuth, async (req, res) => {
     if (getErr || !existing) return res.status(404).json({ error: 'Journey question not found' });
 
     const updates = {};
-    for (const k of ['level_id', 'question', 'options', 'correct', 'explanation', 'why_others_wrong', 'image_url', 'explanation_image_url']) {
+    for (const k of ['level_id', 'question', 'options', 'correct', 'explanation', 'why_others_wrong', 'image_url', 'explanation_image_url', 'is_bonus']) {
       if (k in req.body) updates[k] = req.body[k];
     }
     if (Number.isFinite(req.body.sort_order)) updates.sort_order = req.body.sort_order;
@@ -9023,6 +9027,12 @@ app.get('/api/videos', async (req, res) => {
 //   needs the previous chapter's boss; ultimate needs all chapter bosses.
 // AUTO-SKIP: a boss with zero authored questions counts as satisfied once its
 // prerequisites are met, so unauthored content never dead-ends players.
+// A level's bonus round unlocks once the player's BEST score on that level
+// beats this. Strictly greater-than, not >= — matches "more than 80%" as
+// asked, and keeps it visibly distinct from the pass threshold below (which
+// is >=, admin-configurable, and gates PROGRESSION rather than a reward).
+const JOURNEY_BONUS_THRESHOLD_PCT = 80;
+
 async function buildJourneyPath(userId, subject) {
   const [chaptersRes, progressRes, ultBossRes] = await Promise.all([
     supabase.from('journey_chapters').select('*').eq('subject', subject)
@@ -9051,6 +9061,7 @@ async function buildJourneyPath(userId, subject) {
   // Levels for all chapters, then per-level question counts
   let levelRows = [];
   const levelQCounts = {};
+  const levelBonusCounts = {};
   if (chapterRows.length > 0) {
     // Levels, plus chapter-boss counts — independent, so fetched together.
     // 'chapter:{uuid}' boss keys are globally unique, so the RPC needs no subject.
@@ -9085,6 +9096,19 @@ async function buildJourneyPath(userId, subject) {
         // Levels with zero questions are absent here; the `|| 0` below covers them.
         for (const r of (qcData || [])) levelQCounts[r.level_id] = r.question_count;
       }
+
+      // Same RPC shape, is_bonus-filtered. A missing function or missing
+      // is_bonus column (migration not run) both degrade to "no bonus
+      // questions anywhere" — the bonus button simply doesn't appear, rather
+      // than erroring the whole path.
+      const { data: bnData, error: bnErr } = await supabase.rpc('get_journey_bonus_counts', {
+        p_level_ids: levelRows.map(l => l.id),
+      });
+      if (bnErr) {
+        console.warn('[journey] get_journey_bonus_counts unavailable —', bnErr.message);
+      } else {
+        for (const r of (bnData || [])) levelBonusCounts[r.level_id] = r.question_count;
+      }
     }
   }
 
@@ -9108,14 +9132,20 @@ async function buildJourneyPath(userId, subject) {
       const completed = isDone(l.id);
       const unlocked  = prevSatisfied || completed;
       prevSatisfied   = completed;
+      const bestPct = best(l.id);
       return {
         level_key: l.id,
         name: l.name,
         question_count: levelQCounts[l.id] || 0,
         completed,
-        best_score_pct: best(l.id),
+        best_score_pct: bestPct,
         unlocked,
         video_url: l.video_url || null,   // optional recommended video for the confirm screen
+        // Bonus is earned on THIS level's own best score, independent of the
+        // unlock chain above — a level can be bonus-eligible before or after
+        // it gates the next one.
+        bonus_question_count: levelBonusCounts[l.id] || 0,
+        bonus_unlocked: bestPct > JOURNEY_BONUS_THRESHOLD_PCT,
       };
     });
 
@@ -9164,6 +9194,7 @@ async function buildJourneyPath(userId, subject) {
   return {
     subject,
     threshold: Number(gameSettings.journeyThreshold) || 50,
+    bonus_threshold: JOURNEY_BONUS_THRESHOLD_PCT,
     chapters,
     ultimate,
     mastery: ultCompleted || ultAutoSkipped,
@@ -9290,18 +9321,37 @@ app.get('/api/journey-questions', async (req, res) => {
   const { level_id } = req.query;
   if (!level_id) return res.status(400).json({ error: 'level_id required', questions: [] });
   const sequential = req.query.order === 'sequential';
+  // Bonus is a SEPARATE, exclusive pool: normal play (bonus=false/absent) never
+  // shows a question tagged is_bonus, and a bonus round shows ONLY those — a
+  // player who earned the bonus round wants the bonus content, not the level
+  // they already just played reshuffled in with it.
+  const wantBonus = req.query.bonus === '1';
+  // Once a request has proven is_bonus missing, EVERY later bonus request must
+  // keep returning empty — not just the one that discovered it. Falling
+  // through to "query without the flag" here would serve the level's normal
+  // questions as if they were the exclusive bonus pool.
+  if (wantBonus && !hasJourneyBonus) {
+    return res.json({ questions: [], empty: true, message: 'No bonus questions authored for this level yet.' });
+  }
   try {
-    // Same deploy-order safety as the main bank: an unknown retired_at column
-    // fails the WHOLE select, which would silently empty a live level. Retry
-    // unfiltered on that specific failure and remember it, rather than erroring
-    // every request until the migration runs.
+    // Same deploy-order safety as the main bank: an unknown column fails the
+    // WHOLE select, which would silently empty a live level. Retry without
+    // that filter on that specific failure and remember it, rather than
+    // erroring every request until the migration runs.
     let query = supabase.from('journey_questions').select('*').eq('level_id', level_id);
     if (hasJourneyRetirement) query = query.is('retired_at', null);
+    if (hasJourneyBonus) query = query.eq('is_bonus', wantBonus);
     let { data, error } = await query.order('sort_order', { ascending: true }).order('created_at', { ascending: true });
     if (error && isMissingColumn(error)) {
-      hasJourneyRetirement = false;
-      ({ data, error } = await supabase.from('journey_questions').select('*').eq('level_id', level_id)
-        .order('sort_order', { ascending: true }).order('created_at', { ascending: true }));
+      hasJourneyBonus = false;
+      // A bonus round with no is_bonus column has no bonus content to serve —
+      // return empty rather than falling back to "everything" (that would
+      // leak the whole level into what is supposed to be an exclusive pool).
+      // A NORMAL fetch falls back to unfiltered, matching today's behaviour.
+      if (wantBonus) return res.json({ questions: [], empty: true, message: 'No bonus questions authored for this level yet.' });
+      let fallback = supabase.from('journey_questions').select('*').eq('level_id', level_id);
+      if (hasJourneyRetirement) fallback = fallback.is('retired_at', null);
+      ({ data, error } = await fallback.order('sort_order', { ascending: true }).order('created_at', { ascending: true }));
     }
     if (error) throw error;
     const questions = (data || []).map(q => ({
@@ -9315,7 +9365,10 @@ app.get('/api/journey-questions', async (req, res) => {
       explanation_image_url: q.explanation_image_url || null,
     }));
     if (questions.length === 0) {
-      return res.json({ questions: [], empty: true, message: 'No questions authored for this level yet.' });
+      return res.json({
+        questions: [], empty: true,
+        message: wantBonus ? 'No bonus questions authored for this level yet.' : 'No questions authored for this level yet.',
+      });
     }
     // Player's choice (?order=sequential|random, default random — the long-standing
     // behaviour). Sequential serves them exactly as authored: the query above

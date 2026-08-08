@@ -481,6 +481,16 @@ export default function JourneyMode({
       loadPath(reentry.subject).then(data => { if (data) landOn(data); });
       return;
     }
+    if (reentry.isBonus) {
+      // Bonus rounds are a side reward, not a second progression track: no
+      // POST to /api/journey/complete, no effect on progress/unlocks/mastery.
+      // The path never changed, so land using what's already loaded rather
+      // than refetching.
+      setSubject(reentry.subject);
+      landOn(path);
+      setInterstitial({ status: 'bonus', pct: reentry.pct });
+      return;
+    }
     const pct = reentry.pct;
     setSubject(reentry.subject);
     landOn(path); // immediate best guess from the pre-play path (refined below)
@@ -632,6 +642,7 @@ export default function JourneyMode({
 
   // ----- Pathway -----
   const threshold = path?.threshold || 50;
+  const bonusThreshold = path?.bonus_threshold ?? 80;
   const chapters  = path?.chapters || [];
   const ultimate  = path?.ultimate;
 
@@ -701,6 +712,7 @@ export default function JourneyMode({
       empty ? 'jm-node--empty' : '',
     ].join(' ');
     const segState = l.completed ? 'done' : isFrontier ? 'current' : 'todo';
+    const hasBonus = (l.bonus_question_count || 0) > 0;
     return (
       <Fragment key={l.level_key}>
         {showSeg && trailSeg(side, segState)}
@@ -714,12 +726,18 @@ export default function JourneyMode({
               levelKey: l.level_key,
               videoUrl: l.video_url || null,
               questionsUrl: `${SERVER}/api/journey-questions?level_id=${l.level_key}`,
+              bonusQuestionCount: l.bonus_question_count || 0,
+              bonusUnlocked: !!l.bonus_unlocked,
             })}
           >
             <span className="jm-node-face">
               {!l.unlocked ? '🔒' : (li + 1)}
             </span>
             {l.completed && <span className="jm-node-badge" aria-hidden="true">✓</span>}
+            {/* Earned, not just authored: a star only shows once THIS player's
+                best score has cleared the bonus threshold, so it reads as a
+                reward rather than an ad for content they can't reach yet. */}
+            {hasBonus && l.bonus_unlocked && <span className="jm-node-bonus-badge" aria-hidden="true">⭐</span>}
           </button>
           <div className="jm-node-caption">
             <span className="jm-node-name" {...en('level', l.level_key, l.name)}>{l.name}</span>
@@ -871,6 +889,36 @@ export default function JourneyMode({
               }}
               {...ek('confirm.play')}
             >{t('confirm.play', '▶ PLAY')}</button>
+
+            {/* Bonus is level-only (kind check) and only worth showing once
+                the admin has actually authored some. */}
+            {confirmNode.kind === 'level' && confirmNode.bonusQuestionCount > 0 && (
+              confirmNode.bonusUnlocked ? (
+                <button
+                  type="button"
+                  className="btn-secondary jm-confirm-bonus-btn"
+                  onClick={() => {
+                    onPlayLevel({
+                      subject,
+                      levelKey:    confirmNode.levelKey,
+                      questionsUrl: withOrder(`${confirmNode.questionsUrl}&bonus=1`),
+                      questionOrder,
+                      levelLabel:  `⭐ ${confirmNode.name} — Bonus`,
+                      wasMastery:  !!path?.mastery,
+                      isBonus:     true,
+                    });
+                    setConfirmNode(null);
+                  }}
+                  {...ek('confirm.bonusPlay')}
+                >{t('confirm.bonusPlay', `⭐ Play ${confirmNode.bonusQuestionCount} Bonus Question${confirmNode.bonusQuestionCount === 1 ? '' : 's'}`)}</button>
+              ) : (
+                <p className="jm-confirm-bonus-locked" {...ek('confirm.bonusLocked')}>
+                  {t('confirm.bonusLocked',
+                    `⭐ Score over ${bonusThreshold}% to unlock ${confirmNode.bonusQuestionCount} bonus question${confirmNode.bonusQuestionCount === 1 ? '' : 's'}`)}
+                </p>
+              )
+            )}
+
             <button className="btn-secondary" onClick={() => setConfirmNode(null)} {...ek('confirm.cancel')}>{t('confirm.cancel', 'Cancel')}</button>
           </div>
         </div>
@@ -897,6 +945,16 @@ export default function JourneyMode({
                   </span>
                 </p>
                 <button className="btn-start" onClick={() => setInterstitial(null)} {...ek('inter.continue')}>{t('inter.continue', 'Continue')}</button>
+              </>
+            )}
+            {interstitial.status === 'bonus' && (
+              <>
+                <span className="jm-interstitial-icon">⭐</span>
+                <h2 className="jm-interstitial-heading" {...ek('inter.bonus.title')}>{t('inter.bonus.title', 'Bonus Round Complete!')}</h2>
+                {/* No stars, no pass/fail language — bonus doesn't grade you,
+                    it's just a treat for having already passed. */}
+                <p className="jm-interstitial-score">{interstitial.pct}% correct</p>
+                <button className="btn-start" onClick={() => setInterstitial(null)} {...ek('inter.bonus.continue')}>{t('inter.bonus.continue', 'Continue')}</button>
               </>
             )}
             {interstitial.status === 'tryagain' && (

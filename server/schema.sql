@@ -673,3 +673,54 @@ CREATE POLICY IF NOT EXISTS "server_full_access_game_settings"
 -- POST /admin/retired-questions/:id/restore takes ?source= to route the update
 -- to the right table; only 'main' triggers forceRefreshQuestions() afterward,
 -- since journey/boss questions are read live per-request and were never cached.
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- FIRST AID JOURNEY BONUS QUESTIONS (run in the SQL editor)
+-- ─────────────────────────────────────────────────────────────────────────────
+-- ALTER TABLE journey_questions ADD COLUMN IF NOT EXISTS is_bonus BOOLEAN NOT NULL DEFAULT false;
+--
+-- CREATE OR REPLACE FUNCTION get_journey_bonus_counts(p_level_ids UUID[])
+-- RETURNS TABLE(level_id UUID, question_count BIGINT)
+-- LANGUAGE sql STABLE
+-- AS $$
+--   SELECT level_id, COUNT(*) AS question_count
+--   FROM journey_questions
+--   WHERE level_id = ANY(p_level_ids) AND is_bonus = true
+--   GROUP BY level_id;
+-- $$;
+--
+-- Mirrors get_journey_question_counts exactly (see the block above) and exists
+-- for the SAME reason: counting by scanning rows in Node is capped at
+-- PostgREST's max-rows (1000) and silently under-reports past it. Levels with
+-- no bonus questions are ABSENT from the result — buildJourneyPath applies the
+-- same `|| 0` fallback it already uses for the main count.
+--
+-- WHY BONUS QUESTIONS: an admin-curated reward round per level. A question is
+-- marked is_bonus from the Journey admin (a toggle per question in
+-- JourneyPanel/JourneyEditor, PUT /admin/journey-questions/:id). Bonus is an
+-- EXCLUSIVE pool, never mixed into normal play: GET /api/journey-questions
+-- filters `is_bonus = false` by default and `is_bonus = true` only when the
+-- request explicitly asks with ?bonus=1. A level's bonus round unlocks once
+-- the player's best_score_pct on THAT level exceeds JOURNEY_BONUS_THRESHOLD_PCT
+-- (80, server constant — "more than 80%" per the original ask, strictly
+-- greater-than and deliberately separate from the admin-configurable PASS
+-- threshold used for progression).
+--
+-- Bonus rounds do NOT write journey_progress and do not affect the unlock
+-- chain, mastery, or stars — they are a side pool for a player who already
+-- passed, not a second progression track. The client marks a bonus run with
+-- isBonus in journeyContext/journeyReentry, and JourneyMode's reentry effect
+-- short-circuits before the /api/journey/complete POST when it sees that flag,
+-- showing its own lightweight "Bonus Round Complete" card instead of the
+-- normal pass/fail interstitial.
+--
+-- Deploy-order safety, same shape as the retirement columns: an unknown
+-- is_bonus column would otherwise fail the WHOLE journey-questions select and
+-- silently empty a live level. hasJourneyBonus tracks whether the column has
+-- been proven to exist; a normal (non-bonus) request that hits the missing
+-- column falls back to unfiltered (today's behaviour), while a bonus request
+-- returns an honest empty list rather than leaking the whole level into what
+-- is supposed to be an exclusive pool. Once the flag flips false, EVERY later
+-- bonus request short-circuits to empty before querying at all — falling
+-- through to "query without the filter" for a bonus request would serve the
+-- level's normal questions as if they were the bonus set.

@@ -59,8 +59,8 @@ export default function App() {
   // When returning to Training Grounds via game-over "Back to Topics", auto-open the
   // subject whose topic was just practiced (so we land on its topic list, not the grid).
   const [tgInitialSubject, setTgInitialSubject] = useState(null);
-  const [journeyContext,  setJourneyContext]  = useState(null); // { subject, levelKey, questionsUrl, levelLabel }
-  const [journeyReentry,  setJourneyReentry]  = useState(null); // { pct, subject, levelKey?, questionsUrl?, levelLabel? }
+  const [journeyContext,  setJourneyContext]  = useState(null); // { subject, levelKey, questionsUrl, levelLabel, isBonus? }
+  const [journeyReentry,  setJourneyReentry]  = useState(null); // { pct, subject, levelKey?, questionsUrl?, levelLabel?, isBonus? }
   const [playInitialMode, setPlayInitialMode] = useState(null); // Story→AnKing passes 'anking'; Online leaves null
 
   const [raceProgress, setRaceProgress] = useState([]);
@@ -620,8 +620,8 @@ export default function App() {
     setPhase('solo_game');
   }
 
-  function handlePlayJourneyLevel({ subject, levelKey, questionsUrl, levelLabel, wasMastery, questionOrder }) {
-    setJourneyContext({ subject, levelKey, questionsUrl, levelLabel, wasMastery, questionOrder });
+  function handlePlayJourneyLevel({ subject, levelKey, questionsUrl, levelLabel, wasMastery, questionOrder, isBonus }) {
+    setJourneyContext({ subject, levelKey, questionsUrl, levelLabel, wasMastery, questionOrder, isBonus });
     setPhase('solo_game');
   }
 
@@ -639,6 +639,10 @@ export default function App() {
       // Kept so "Try Again" replays under the same order choice — the URL
       // already carries the question order, this carries the option order.
       questionOrder: journeyContext.questionOrder,
+      // A bonus run never reaches /api/journey/complete — it doesn't touch
+      // progress, unlocks, or mastery. JourneyMode's reentry effect checks
+      // this flag before it does anything else.
+      isBonus: !!journeyContext.isBonus,
     });
     setJourneyContext(null);
     setPhase('journey');
