@@ -7845,10 +7845,67 @@ async function resolveVideoAttachment({ topic_id, category, difficulty }) {
 // needs none of it.
 //
 // hy_flashcards: { id, subject, topic_id (nullable — NULL = general/subject-
-// wide), front, back, sort_order, created_at }. topic_id reuses the SAME
-// `topics` table Training Grounds already has — a subject's topics are
-// authored there, not duplicated here; this feature only tags cards onto
-// topics that already exist. See schema.sql for the table + counts RPC.
+// wide), front, back, sort_order, created_at }. topic_id points at
+// hy_flashcard_topics, a topic list OWNED BY this feature — deliberately NOT
+// the `topics` table Training Grounds/Solo use. Those topics are a different
+// game mode's authoring surface; reusing them here made every other mode's
+// topic list appear in the HY Flashcards picker, which is exactly what an
+// admin curating a separate deck does not want. See schema.sql for both
+// tables + the counts RPC.
+
+// Admin: the topic list itself. A subject's HY-flashcard topics are authored
+// here, one flat list per subject (no grouping) — simple on purpose, since
+// this is a much smaller catalogue than Training Grounds' topic tree.
+app.get('/admin/hy-flashcard-topics', adminAuth, async (req, res) => {
+  if (!supabase) return res.json({ topics: [] });
+  const { subject } = req.query;
+  if (!subject) return res.status(400).json({ error: 'subject required', topics: [] });
+  try {
+    const { data, error } = await supabase
+      .from('hy_flashcard_topics').select('*').eq('subject', subject)
+      .order('sort_order', { ascending: true }).order('name', { ascending: true });
+    if (error) throw error;
+    res.json({ topics: data || [] });
+  } catch (err) {
+    console.warn('[/admin/hy-flashcard-topics] unavailable, returning topics: [] —', err.message);
+    res.json({ topics: [] });
+  }
+});
+
+app.post('/admin/hy-flashcard-topics', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  const { subject, name } = req.body || {};
+  if (!subject) return res.status(400).json({ error: 'subject required' });
+  if (!name?.trim()) return res.status(400).json({ error: 'name required' });
+  try {
+    const { data, error } = await supabase
+      .from('hy_flashcard_topics').insert({ subject, name: name.trim() }).select().single();
+    if (error) throw error;
+    res.json(data);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.put('/admin/hy-flashcard-topics/:id', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  if (!req.body?.name?.trim()) return res.status(400).json({ error: 'name required' });
+  try {
+    const { data, error } = await supabase
+      .from('hy_flashcard_topics').update({ name: req.body.name.trim() }).eq('id', req.params.id).select().single();
+    if (error) throw error;
+    res.json(data);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Deleting a topic does NOT delete its cards — the FK is ON DELETE SET NULL,
+// so they fall back to General rather than vanishing.
+app.delete('/admin/hy-flashcard-topics/:id', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  try {
+    const { error } = await supabase.from('hy_flashcard_topics').delete().eq('id', req.params.id);
+    if (error) throw error;
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
 
 // Admin: browse ONE bucket at a time (a specific topic, or General) so editing
 // is never ambiguous about which pool a card belongs to. topic_id absent/empty
@@ -7999,11 +8056,12 @@ app.get('/api/hy-flashcards/menu', async (req, res) => {
     }
 
     // Topic names: one query for every topic_id that actually has cards,
-    // across all subjects at once.
+    // across all subjects at once. hy_flashcard_topics, NOT the shared
+    // `topics` table — this feature's topics are its own.
     const topicIds = [...new Set(counts.map(c => c.topic_id).filter(Boolean))];
     let topicNames = {};
     if (topicIds.length) {
-      const { data: topicRows } = await supabase.from('topics').select('id, name').in('id', topicIds);
+      const { data: topicRows } = await supabase.from('hy_flashcard_topics').select('id, name').in('id', topicIds);
       topicNames = Object.fromEntries((topicRows || []).map(t => [t.id, t.name]));
     }
 

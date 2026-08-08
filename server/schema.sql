@@ -731,7 +731,7 @@ CREATE POLICY IF NOT EXISTS "server_full_access_game_settings"
 -- CREATE TABLE IF NOT EXISTS hy_flashcards (
 --   id         UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
 --   subject    TEXT        NOT NULL,
---   topic_id   UUID        REFERENCES topics(id) ON DELETE SET NULL,
+--   topic_id   UUID        REFERENCES hy_flashcard_topics(id) ON DELETE SET NULL,  -- SUPERSEDED, see below
 --   front      TEXT        NOT NULL,
 --   back       TEXT        NOT NULL,
 --   sort_order INT         NOT NULL DEFAULT 0,
@@ -759,9 +759,9 @@ CREATE POLICY IF NOT EXISTS "server_full_access_game_settings"
 -- student to browse them in order. hy_flashcards is deliberately its own small
 -- table rather than bolting a second, unrelated content type onto AnKing's.
 --
--- topic_id reuses the SAME topics table Training Grounds already has — a
--- flashcard is tagged onto a topic that already exists there, never authored
--- fresh here. topic_id NULL = "General" (subject-wide, no specific topic).
+-- topic_id originally reused the SAME topics table Training Grounds has — see
+-- the SUPERSEDED note below for why that changed. topic_id NULL = "General"
+-- (subject-wide, no specific topic).
 --
 -- get_hy_flashcard_counts exists for the same reason the Journey counts RPCs
 -- do: counting by scanning rows in Node is capped at PostgREST's max-rows
@@ -781,3 +781,46 @@ CREATE POLICY IF NOT EXISTS "server_full_access_game_settings"
 --   POST /api/hy-flashcards/session-complete (requireAuth): mirrors
 --     /api/anking/session-complete exactly — one activity_sessions row plus an
 --     add_study_time credit, so flashcard study counts toward Study Time too.
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- HY FLASHCARD TOPICS — dedicated topic list (run in the SQL editor)
+-- ─────────────────────────────────────────────────────────────────────────────
+-- CREATE TABLE IF NOT EXISTS hy_flashcard_topics (
+--   id         UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+--   subject    TEXT        NOT NULL,
+--   name       TEXT        NOT NULL,
+--   sort_order INT         NOT NULL DEFAULT 0,
+--   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+-- );
+-- CREATE INDEX IF NOT EXISTS idx_hy_flashcard_topics_subject ON hy_flashcard_topics(subject);
+-- ALTER TABLE hy_flashcard_topics ENABLE ROW LEVEL SECURITY;
+-- DROP POLICY IF EXISTS "server_full_access_hy_flashcard_topics" ON hy_flashcard_topics;
+-- CREATE POLICY "server_full_access_hy_flashcard_topics"
+--   ON hy_flashcard_topics FOR ALL USING (true) WITH CHECK (true);
+--
+-- -- Repoint hy_flashcards.topic_id at the new table instead of `topics`. Ran
+-- -- while hy_flashcards held zero rows, so no backfill/cleanup was needed —
+-- -- if you are running this later with real cards already tagged onto a
+-- -- Training Grounds topic, null those out FIRST (they will not resolve to
+-- -- anything in hy_flashcard_topics):
+-- --   UPDATE hy_flashcards SET topic_id = NULL;
+-- ALTER TABLE hy_flashcards DROP CONSTRAINT IF EXISTS hy_flashcards_topic_id_fkey;
+-- ALTER TABLE hy_flashcards ADD CONSTRAINT hy_flashcards_topic_id_fkey
+--   FOREIGN KEY (topic_id) REFERENCES hy_flashcard_topics(id) ON DELETE SET NULL;
+--
+-- WHY: hy_flashcards.topic_id originally pointed at the shared `topics` table
+-- (Training Grounds/Solo's topic list), on the assumption that "a topic" was
+-- one thing across the app. In practice that meant the HY Flashcards topic
+-- picker showed every OTHER game mode's topics too — an admin curating HY
+-- Flashcards had to wade through Training Grounds' whole topic tree to find
+-- (or realise they needed to make) a topic of their own. hy_flashcard_topics
+-- is a topic list OWNED BY this feature: one flat list per subject, authored
+-- from the HY Flashcards admin tab itself (GET/POST/PUT/DELETE
+-- /admin/hy-flashcard-topics), never shown to or shared with any other mode.
+-- Deleting a topic does not delete its cards — ON DELETE SET NULL drops them
+-- back to General.
+--
+-- get_hy_flashcard_counts and GET /api/hy-flashcards/menu are UNCHANGED by
+-- this — they only ever stored/looked up a topic_id and a count, never cared
+-- which table that id belonged to. The menu's topic-name lookup now reads
+-- hy_flashcard_topics instead of topics; that is the only touched query.

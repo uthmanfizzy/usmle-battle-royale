@@ -301,11 +301,14 @@ function PermissionsPanel() {
  */
 function HYFlashcardsAdmin({ subjects }) {
   const [subject, setSubject] = useState(subjects?.[0]?.id || '');
-  const [topics, setTopics] = useState([]);         // this subject's topics, from the SHARED topics table
+  const [topics, setTopics] = useState([]);         // this subject's OWN HY Flashcards topics — never Training Grounds'
   const [bucket, setBucket] = useState(null);        // null = General, else a topic id
   const [cards, setCards] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const [newTopicName, setNewTopicName] = useState('');
+  const [addingTopic, setAddingTopic] = useState(false);
 
   const [form, setForm] = useState({ front: '', back: '' });
   const [editing, setEditing] = useState(null);       // card being edited, or null = add mode
@@ -324,15 +327,45 @@ function HYFlashcardsAdmin({ subjects }) {
     if (!subject && subjects?.length) setSubject(subjects[0].id);
   }, [subjects, subject]);
 
-  useEffect(() => {
+  const loadTopics = useCallback(() => {
     if (!subject) return;
-    setBucket(null);
-    setQSel(new Set());
-    fetch(`${API}/api/topics?category=${encodeURIComponent(subject)}`)
+    apiCall(`/admin/hy-flashcard-topics?subject=${encodeURIComponent(subject)}`)
       .then(r => r.json())
       .then(d => setTopics(d.topics || []))
       .catch(() => setTopics([]));
   }, [subject]);
+
+  useEffect(() => {
+    if (!subject) return;
+    setBucket(null);
+    setQSel(new Set());
+    loadTopics();
+  }, [subject, loadTopics]);
+
+  async function handleAddTopic(e) {
+    e.preventDefault();
+    if (!newTopicName.trim()) return;
+    setAddingTopic(true); setError('');
+    try {
+      const res = await apiCall('/admin/hy-flashcard-topics', { method: 'POST', body: JSON.stringify({ subject, name: newTopicName.trim() }) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Could not create topic');
+      setTopics(ts => [...ts, data].sort((a, b) => a.name.localeCompare(b.name)));
+      setBucket(data.id);
+      setNewTopicName('');
+    } catch (err) { setError(err.message); }
+    finally { setAddingTopic(false); }
+  }
+
+  async function handleDeleteTopic(t) {
+    if (!window.confirm(`Delete topic "${t.name}"? Its cards move back to General — they are not deleted.`)) return;
+    try {
+      const res = await apiCall(`/admin/hy-flashcard-topics/${t.id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Could not delete topic');
+      setTopics(ts => ts.filter(x => x.id !== t.id));
+      if (bucket === t.id) setBucket(null);
+    } catch (err) { setError(err.message); }
+  }
 
   const loadCards = useCallback(() => {
     if (!subject) return;
@@ -427,8 +460,8 @@ function HYFlashcardsAdmin({ subjects }) {
         <h2 className="ap-ann-title">🎴 HY Flashcards</h2>
       </div>
       <p className="perm-hint">
-        High-yield front/back cards, separate from AnKing. Pick a subject, then a bucket —
-        General or an existing Training Grounds topic — and author or paste cards into it.
+        High-yield front/back cards, separate from AnKing. These topics belong ONLY to HY
+        Flashcards — they are not shared with Training Grounds or any other game mode.
       </p>
 
       <div className="hyf-pickers">
@@ -439,15 +472,24 @@ function HYFlashcardsAdmin({ subjects }) {
           <option value="">General (no topic)</option>
           {topics.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
         </select>
+        {bucket && (
+          <button type="button" className="ap-topic-del-btn" title="Delete this topic" onClick={() => handleDeleteTopic(topics.find(t => t.id === bucket))}>
+            🗑️
+          </button>
+        )}
       </div>
 
-      {topics.length === 0 && (
-        <p className="perm-hint">
-          No Training Grounds topics exist for this subject yet — cards can still be
-          authored under General. Add topics from the Question Manager's Subjects area
-          if you want to split this subject's flashcards by topic.
-        </p>
-      )}
+      <form className="hyf-newtopic" onSubmit={handleAddTopic}>
+        <input
+          className="perm-input"
+          placeholder="New topic name (e.g. Cardiac Physiology)"
+          value={newTopicName}
+          onChange={e => setNewTopicName(e.target.value)}
+        />
+        <button type="submit" className="ap-btn-sec" disabled={addingTopic || !newTopicName.trim()}>
+          {addingTopic ? 'Adding…' : '+ New Topic'}
+        </button>
+      </form>
 
       {error && <div className="ap-error">{error}</div>}
 

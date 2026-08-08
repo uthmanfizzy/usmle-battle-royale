@@ -5234,6 +5234,14 @@
 }
 .hyf-pickers select { flex: 1 1 220px; }
 
+.hyf-newtopic {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.hyf-newtopic input { flex: 1 1 260px; }
+
 .hyf-form {
   display: flex;
   flex-direction: column;
