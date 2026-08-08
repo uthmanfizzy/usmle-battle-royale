@@ -321,7 +321,7 @@ function HYFlashcardsAdmin({ subjects }) {
   const [newTopicNames, setNewTopicNames] = useState({});
   const [addingTopicFor, setAddingTopicFor] = useState(null); // chapterId currently submitting
 
-  const [form, setForm] = useState({ front: '', back: '' });
+  const [form, setForm] = useState({ front: '', back: '', explanation: '' });
   const [editing, setEditing] = useState(null);       // card being edited, or null = add mode
   const [saving, setSaving] = useState(false);
 
@@ -455,8 +455,8 @@ function HYFlashcardsAdmin({ subjects }) {
 
   useEffect(() => { loadCards(); }, [loadCards]);
 
-  function resetForm() { setForm({ front: '', back: '' }); setEditing(null); }
-  function startEdit(c) { setEditing(c); setForm({ front: c.front, back: c.back }); }
+  function resetForm() { setForm({ front: '', back: '', explanation: '' }); setEditing(null); }
+  function startEdit(c) { setEditing(c); setForm({ front: c.front, back: c.back, explanation: c.explanation || '' }); }
 
   async function handleSave(e) {
     e.preventDefault();
@@ -496,18 +496,22 @@ function HYFlashcardsAdmin({ subjects }) {
     setDeleteItem(null);
   }
 
-  // Paste format: one card per line, front and back split on the FIRST tab or
-  // pipe — a tab matches Anki's own plain-text export verbatim (paste straight
-  // from an Anki deck), pipe covers a hand-typed "Front | Back" list. Lines
-  // that don't split into two non-empty halves are silently dropped; the
-  // preview count is what actually shows in the box below, so nothing is a
-  // surprise before Import is clicked.
+  // Paste format: one card per line, split on tab or pipe — a tab matches
+  // Anki's own plain-text export verbatim (paste straight from an Anki deck),
+  // pipe covers a hand-typed "Front | Back" list. A THIRD field is an optional
+  // explanation: "Front | Back | Explanation". Lines that don't split into at
+  // least two non-empty halves are silently dropped; the preview count is
+  // what actually shows in the box below, so nothing is a surprise before
+  // Import is clicked.
   const parsedPreview = pasteText.split('\n').map(line => {
     const m = line.split(/\t|\s\|\s|\|/);
     if (m.length < 2) return null;
     const front = m[0].trim();
-    const back = m.slice(1).join('|').trim();
-    return front && back ? { front, back } : null;
+    const back = m[1].trim();
+    // Anything past the second field is the explanation — rejoined in case it
+    // contains a pipe of its own.
+    const explanation = m.slice(2).join('|').trim() || undefined;
+    return front && back ? { front, back, explanation } : null;
   }).filter(Boolean);
 
   async function handleImport() {
@@ -647,6 +651,12 @@ function HYFlashcardsAdmin({ subjects }) {
               value={form.back}
               onChange={e => setForm(f => ({ ...f, back: e.target.value }))}
             />
+            <textarea
+              className="hyf-textarea"
+              placeholder="Explanation (optional) — a brief why, shown under the answer"
+              value={form.explanation}
+              onChange={e => setForm(f => ({ ...f, explanation: e.target.value }))}
+            />
             <div className="hyf-form-actions">
               {editing && <button type="button" className="ap-btn-sec" onClick={resetForm}>Cancel Edit</button>}
               <button type="submit" className="ap-btn-pri" disabled={saving || !form.front.trim() || !form.back.trim()}>
@@ -658,12 +668,13 @@ function HYFlashcardsAdmin({ subjects }) {
           <details className="hyf-import">
             <summary>📋 Bulk import (paste front/back pairs)</summary>
             <p className="perm-hint">
-              One card per line — <code>Front[TAB]Back</code> or <code>Front | Back</code>.
+              One card per line — <code>Front[TAB]Back</code> or <code>Front | Back</code>, with an
+              optional third field for an explanation: <code>Front | Back | Explanation</code>.
               Pasting straight from an Anki plain-text export works as-is.
             </p>
             <textarea
               className="hyf-textarea hyf-paste"
-              placeholder={'Aortic stenosis murmur | Crescendo-decrescendo systolic\nMitral regurgitation murmur | Holosystolic, radiates to axilla'}
+              placeholder={'Aortic stenosis murmur | Crescendo-decrescendo systolic | Turbulent flow across a narrowed valve\nMitral regurgitation murmur | Holosystolic, radiates to axilla'}
               value={pasteText}
               onChange={e => { setPasteText(e.target.value); setImportResult(null); }}
             />
@@ -711,6 +722,7 @@ function HYFlashcardsAdmin({ subjects }) {
                   <span className="hyf-row-front">{c.front}</span>
                   <span className="hyf-row-arrow" aria-hidden="true">→</span>
                   <span className="hyf-row-back">{c.back}</span>
+                  {c.explanation && <span className="hyf-row-expl-badge" title={c.explanation}>📝</span>}
                   <div className="ap-video-row-actions">
                     <button className="ap-topic-edit-btn" onClick={() => startEdit(c)} title="Edit">✏️</button>
                     <button className="ap-topic-del-btn" onClick={() => setDeleteItem({ kind: 'card', row: c })} title="Delete">🗑️</button>

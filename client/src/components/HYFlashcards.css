@@ -301,6 +301,13 @@
   border: 1.5px solid rgba(61, 220, 132, 0.4);
   box-shadow: 0 0 22px rgba(61, 220, 132, 0.12);
   transform: rotateY(180deg);
+  /* Answer + optional explanation can outgrow the card's fixed height — the
+     whole face scrolls as one block rather than each piece separately.
+     `safe center` keeps the scrolled-past-top content reachable instead of
+     the classic flex centering + overflow trap that clips it; unsupported
+     browsers just keep plain `center` from .hyf-face above. */
+  overflow-y: auto;
+  justify-content: safe center;
 }
 .hyf-face-label {
   font-size: 11px;
@@ -313,8 +320,22 @@
   font-size: clamp(16px, 2.6vw, 20px);
   line-height: 1.5;
   margin: 0;
-  max-height: 100%;
-  overflow-y: auto;
+}
+.hyf-face-explanation {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  padding-top: 14px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.15);
+  width: 100%;
+}
+.hyf-face-expl-text {
+  font-size: 13px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.75);
+  margin: 0;
 }
 .hyf-face-hint {
   font-size: 11px;

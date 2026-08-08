@@ -177,6 +177,11 @@ let hasBossRetirement = true;
 // query proves it missing.
 let hasJourneyBonus = true;
 
+// hy_flashcards.explanation — same deploy-order safety, for the same reason:
+// selecting an unknown column fails the WHOLE query, which would empty a
+// student's deck rather than just omitting the explanation section.
+let hasHyExplanation = true;
+
 let questionsLastLoaded = 0;
 const QUESTIONS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
@@ -7987,7 +7992,7 @@ app.get('/admin/hy-flashcards', adminAuth, async (req, res) => {
 
 app.post('/admin/hy-flashcards', adminAuth, async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
-  const { subject, topic_id, front, back, sort_order } = req.body || {};
+  const { subject, topic_id, front, back, explanation, sort_order } = req.body || {};
   if (!subject) return res.status(400).json({ error: 'subject required' });
   if (!front?.trim() || !back?.trim()) return res.status(400).json({ error: 'front and back are both required' });
   try {
@@ -7998,6 +8003,9 @@ app.post('/admin/hy-flashcards', adminAuth, async (req, res) => {
         topic_id: topic_id || null,
         front: front.trim(),
         back: back.trim(),
+        // Optional — a blank/whitespace explanation is stored as no explanation
+        // at all, not an empty string the player would see as a blank section.
+        explanation: explanation?.trim() || null,
         sort_order: Number.isFinite(sort_order) ? sort_order : 0,
       })
       .select()
@@ -8016,6 +8024,9 @@ app.put('/admin/hy-flashcards/:id', adminAuth, async (req, res) => {
       updates[k] = req.body[k].trim();
     }
   }
+  // Explanation may legitimately be cleared to blank — unlike front/back it
+  // has no "cannot be empty" rule.
+  if ('explanation' in req.body) updates.explanation = req.body.explanation?.trim() || null;
   // 'in' check so an explicit topic_id: null (move to General) is distinguishable from "not provided"
   if ('topic_id' in req.body) updates.topic_id = req.body.topic_id || null;
   if (Number.isFinite(req.body.sort_order)) updates.sort_order = req.body.sort_order;
@@ -8049,13 +8060,16 @@ app.post('/admin/hy-flashcards/bulk-delete', adminAuth, async (req, res) => {
 });
 
 /**
- * POST /admin/hy-flashcards/bulk-import  { subject, topic_id, cards: [{front, back}] }
+ * POST /admin/hy-flashcards/bulk-import
+ *   { subject, topic_id, cards: [{front, back, explanation?}] }
  *
  * ONE insert for the whole paste, not N sequential POSTs — unlike Journey's
  * import (which validates each question against bossQuestionError and reports
  * per-row failures), a front/back pair has nothing to validate beyond
  * "both non-empty", so there is no partial-failure story worth a loop over.
  * Invalid rows are silently dropped and the response says how many were kept.
+ * explanation is optional per row — the client parser omits it entirely when
+ * a pasted line only had two fields.
  */
 app.post('/admin/hy-flashcards/bulk-import', adminAuth, async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
@@ -8063,7 +8077,11 @@ app.post('/admin/hy-flashcards/bulk-import', adminAuth, async (req, res) => {
   const cards = Array.isArray(req.body?.cards) ? req.body.cards : [];
   if (!subject) return res.status(400).json({ error: 'subject required' });
   const clean = cards
-    .map(c => ({ front: (c?.front ?? '').toString().trim(), back: (c?.back ?? '').toString().trim() }))
+    .map(c => ({
+      front: (c?.front ?? '').toString().trim(),
+      back: (c?.back ?? '').toString().trim(),
+      explanation: (c?.explanation ?? '').toString().trim() || null,
+    }))
     .filter(c => c.front && c.back);
   if (clean.length === 0) return res.status(400).json({ error: 'No valid front/back pairs found in the pasted text.' });
   try {
@@ -8076,7 +8094,7 @@ app.post('/admin/hy-flashcards/bulk-import', adminAuth, async (req, res) => {
     const { data, error } = await supabase
       .from('hy_flashcards')
       .insert(clean.map((c, i) => ({
-        subject, topic_id: topic_id || null, front: c.front, back: c.back, sort_order: base + i,
+        subject, topic_id: topic_id || null, front: c.front, back: c.back, explanation: c.explanation, sort_order: base + i,
       })))
       .select('id');
     if (error) throw error;
@@ -8182,9 +8200,16 @@ app.get('/api/hy-flashcards', async (req, res) => {
   const { subject, topic_id } = req.query;
   if (!subject) return res.status(400).json({ error: 'subject required', cards: [] });
   try {
-    let query = supabase.from('hy_flashcards').select('id, front, back, topic_id').eq('subject', subject);
+    const cols = hasHyExplanation ? 'id, front, back, explanation, topic_id' : 'id, front, back, topic_id';
+    let query = supabase.from('hy_flashcards').select(cols).eq('subject', subject);
     if (topic_id) query = query.eq('topic_id', topic_id);
-    const { data, error } = await query.order('sort_order', { ascending: true }).order('created_at', { ascending: true });
+    let { data, error } = await query.order('sort_order', { ascending: true }).order('created_at', { ascending: true });
+    if (error && isMissingColumn(error)) {
+      hasHyExplanation = false;
+      let fallback = supabase.from('hy_flashcards').select('id, front, back, topic_id').eq('subject', subject);
+      if (topic_id) fallback = fallback.eq('topic_id', topic_id);
+      ({ data, error } = await fallback.order('sort_order', { ascending: true }).order('created_at', { ascending: true }));
+    }
     if (error) throw error;
     res.json({ cards: data || [] });
   } catch (err) {

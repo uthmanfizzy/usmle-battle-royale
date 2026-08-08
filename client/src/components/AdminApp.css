@@ -5353,3 +5353,4 @@
   white-space: nowrap;
 }
 .hyf-row-arrow { flex-shrink: 0; opacity: 0.5; }
+.hyf-row-expl-badge { flex-shrink: 0; font-size: 12px; opacity: 0.7; cursor: help; }

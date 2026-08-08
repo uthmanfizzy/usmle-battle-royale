@@ -875,3 +875,17 @@ CREATE POLICY IF NOT EXISTS "server_full_access_game_settings"
 -- rule the topic level already followed. get_hy_flashcard_counts is
 -- UNCHANGED (still just subject/topic_id/count); the menu now does one extra
 -- join (topic -> its chapter) to build the nesting.
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- HY FLASHCARD EXPLANATIONS (run in the SQL editor)
+-- ─────────────────────────────────────────────────────────────────────────────
+-- ALTER TABLE hy_flashcards ADD COLUMN IF NOT EXISTS explanation TEXT;
+--
+-- Optional third field alongside front (question) and back (answer) — a brief
+-- "why" shown under the answer once a card is flipped. Nullable: existing and
+-- future cards with no explanation behave exactly as before, the section
+-- simply does not render.
+--
+-- Bulk import gains a third pipe/tab-separated field: "Front | Back |
+-- Explanation" (or the Anki-export tab equivalent). The explanation segment
+-- is optional — a two-field line still imports exactly as before.

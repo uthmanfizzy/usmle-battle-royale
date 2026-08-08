@@ -298,6 +298,12 @@ function Player({ deck, onExit }) {
             <div className="hyf-face hyf-face--back">
               <span className="hyf-face-label">ANSWER</span>
               <p className="hyf-face-text">{card.back}</p>
+              {card.explanation && (
+                <div className="hyf-face-explanation">
+                  <span className="hyf-face-label">EXPLANATION</span>
+                  <p className="hyf-face-expl-text">{card.explanation}</p>
+                </div>
+              )}
               <span className="hyf-face-hint">Tap to flip back</span>
             </div>
           </div>
