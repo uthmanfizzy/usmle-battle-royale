@@ -824,3 +824,54 @@ CREATE POLICY IF NOT EXISTS "server_full_access_game_settings"
 -- this — they only ever stored/looked up a topic_id and a count, never cared
 -- which table that id belonged to. The menu's topic-name lookup now reads
 -- hy_flashcard_topics instead of topics; that is the only touched query.
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- HY FLASHCARD CHAPTERS — chapters now sit above topics (run in the SQL editor)
+-- ─────────────────────────────────────────────────────────────────────────────
+-- CREATE TABLE IF NOT EXISTS hy_flashcard_chapters (
+--   id         UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+--   subject    TEXT        NOT NULL,
+--   name       TEXT        NOT NULL,
+--   sort_order INT         NOT NULL DEFAULT 0,
+--   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+-- );
+-- CREATE INDEX IF NOT EXISTS idx_hy_flashcard_chapters_subject ON hy_flashcard_chapters(subject);
+-- ALTER TABLE hy_flashcard_chapters ENABLE ROW LEVEL SECURITY;
+-- DROP POLICY IF EXISTS "server_full_access_hy_flashcard_chapters" ON hy_flashcard_chapters;
+-- CREATE POLICY "server_full_access_hy_flashcard_chapters"
+--   ON hy_flashcard_chapters FOR ALL USING (true) WITH CHECK (true);
+--
+-- -- hy_flashcard_topics REPOINTED: a topic now belongs to a chapter, not
+-- -- directly to a subject (subject is derived by joining through the
+-- -- chapter). Ran while hy_flashcard_topics held zero rows (this table
+-- -- shipped the session before and nothing had been created into it yet), so
+-- -- there was nothing to migrate — the old `subject` column is simply
+-- -- dropped. If you are ever running this against a database that ALREADY
+-- -- has real topics in it, back them up first; there is no automatic mapping
+-- -- from "a topic with a subject" to "a topic inside some chapter".
+-- ALTER TABLE hy_flashcard_topics DROP COLUMN IF EXISTS subject;
+-- ALTER TABLE hy_flashcard_topics ADD COLUMN IF NOT EXISTS chapter_id UUID;
+-- ALTER TABLE hy_flashcard_topics
+--   ADD CONSTRAINT hy_flashcard_topics_chapter_id_fkey
+--   FOREIGN KEY (chapter_id) REFERENCES hy_flashcard_chapters(id) ON DELETE CASCADE;
+-- ALTER TABLE hy_flashcard_topics ALTER COLUMN chapter_id SET NOT NULL;
+-- CREATE INDEX IF NOT EXISTS idx_hy_flashcard_topics_chapter ON hy_flashcard_topics(chapter_id);
+--
+-- WHY: "allow me to create chapters and then within the chapter I can create
+-- topics" — mirrors First Aid Journey's own chapter -> level shape
+-- (journey_chapters -> journey_levels), just with a topic holding many
+-- flashcards instead of a level holding questions directly. General
+-- (hy_flashcards.topic_id IS NULL) is UNCHANGED — it stays a subject-wide
+-- catch-all that sits ALONGSIDE chapters, not nested inside one; there is no
+-- "chapter with no topic" bucket.
+--
+-- Deleting a chapter CASCADEs to its topics, which in turn drop their cards
+-- back to General via hy_flashcards.topic_id's existing ON DELETE SET NULL —
+-- a chapter delete removes organisation, never content.
+--
+-- GET /api/hy-flashcards/menu now returns, per subject: general_count, and
+-- chapters: [{ id, name, topics: [{ id, name, count }] }] — a chapter with no
+-- topic that has a card is simply absent, same "if there is a topic made"
+-- rule the topic level already followed. get_hy_flashcard_counts is
+-- UNCHANGED (still just subject/topic_id/count); the menu now does one extra
+-- join (topic -> its chapter) to build the nesting.

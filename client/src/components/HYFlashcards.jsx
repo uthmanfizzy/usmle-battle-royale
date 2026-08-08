@@ -31,6 +31,7 @@ export default function HYFlashcards() {
 
   const [deck, setDeck] = useState(null);           // { subject, subjectName, topicId, topicName, cards }
   const [order, setOrder] = useState('inorder');    // 'inorder' | 'random'
+  const [openChapter, setOpenChapter] = useState(null); // chapter id whose topic list is expanded
 
   // Same own-identity guard the other signed-in pages use.
   useEffect(() => {
@@ -122,7 +123,7 @@ export default function HYFlashcards() {
                   type="button"
                   className="hyf-subject-head"
                   disabled={!hasCards}
-                  onClick={() => setOpenSubject(isOpen ? null : s.id)}
+                  onClick={() => { setOpenSubject(isOpen ? null : s.id); setOpenChapter(null); }}
                 >
                   <span className="hyf-subject-icon" aria-hidden="true">{s.icon}</span>
                   <span className="hyf-subject-name">{s.name}</span>
@@ -135,26 +136,50 @@ export default function HYFlashcards() {
                 {isOpen && hasCards && (
                   <div className="hyf-decks">
                     {/* "Study All" is the broad option — every card in the
-                        subject regardless of topic, matching the same
+                        subject regardless of chapter/topic, matching the same
                         GET /api/hy-flashcards?subject= (no topic_id) call
                         Training Grounds' "study whole folder" mirrors. */}
                     <button className="hyf-deck" onClick={() => openBucket(s, null, null)}>
                       <span className="hyf-deck-name">Study All — {s.name}</span>
                       <span className="hyf-deck-sub">
                         {s.total_count} card{s.total_count === 1 ? '' : 's'}
-                        {s.topics.length > 0 ? ' across all topics' : ''}
+                        {s.chapters.length > 0 ? ' across all chapters' : ''}
                       </span>
                     </button>
-                    {/* Per-topic decks — only topics an admin has actually put
-                        cards under show up here, per the original ask: "if
-                        there is a topic made then they can do the HY
-                        Flashcards of that". */}
-                    {s.topics.map(t => (
-                      <button key={t.id} className="hyf-deck hyf-deck--topic" onClick={() => openBucket(s, t.id, t.name)}>
-                        <span className="hyf-deck-name">{t.name}</span>
-                        <span className="hyf-deck-sub">{t.count} card{t.count === 1 ? '' : 's'}</span>
-                      </button>
-                    ))}
+                    {/* Chapters — only ones with at least one topic that has a
+                        card show up here at all (see the menu endpoint). Each
+                        expands to its own topics; there is no "study whole
+                        chapter" shortcut, since a chapter holds no cards of
+                        its own, only its topics do. */}
+                    {s.chapters.map(ch => {
+                      const chOpen = openChapter === ch.id;
+                      return (
+                        <div key={ch.id} className={`hyf-chapter${chOpen ? ' is-open' : ''}`}>
+                          <button
+                            type="button"
+                            className="hyf-chapter-head"
+                            onClick={() => setOpenChapter(chOpen ? null : ch.id)}
+                          >
+                            <span className="hyf-chapter-name">📂 {ch.name}</span>
+                            <span className="hyf-chapter-caret" aria-hidden="true">{chOpen ? '▾' : '▸'}</span>
+                          </button>
+                          {chOpen && (
+                            <div className="hyf-topics">
+                              {/* Per-topic decks — only topics an admin has
+                                  actually put cards under show up here, per
+                                  the original ask: "if there is a topic made
+                                  then they can do the HY Flashcards of that". */}
+                              {ch.topics.map(t => (
+                                <button key={t.id} className="hyf-deck hyf-deck--topic" onClick={() => openBucket(s, t.id, t.name)}>
+                                  <span className="hyf-deck-name">{t.name}</span>
+                                  <span className="hyf-deck-sub">{t.count} card{t.count === 1 ? '' : 's'}</span>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>

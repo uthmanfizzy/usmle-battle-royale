@@ -7846,23 +7846,75 @@ async function resolveVideoAttachment({ topic_id, category, difficulty }) {
 //
 // hy_flashcards: { id, subject, topic_id (nullable — NULL = general/subject-
 // wide), front, back, sort_order, created_at }. topic_id points at
-// hy_flashcard_topics, a topic list OWNED BY this feature — deliberately NOT
-// the `topics` table Training Grounds/Solo use. Those topics are a different
-// game mode's authoring surface; reusing them here made every other mode's
-// topic list appear in the HY Flashcards picker, which is exactly what an
-// admin curating a separate deck does not want. See schema.sql for both
-// tables + the counts RPC.
+// hy_flashcard_topics, which now nests under hy_flashcard_chapters — a
+// three-level authoring tree OWNED entirely by this feature (Subject →
+// Chapter → Topic → cards), deliberately NOT the `topics` table Training
+// Grounds/Solo use. General (topic_id NULL) sits alongside chapters as a
+// subject-wide catch-all, not nested inside one — there is no "chapter with
+// no topic" bucket. See schema.sql for all three tables + the counts RPC.
 
-// Admin: the topic list itself. A subject's HY-flashcard topics are authored
-// here, one flat list per subject (no grouping) — simple on purpose, since
-// this is a much smaller catalogue than Training Grounds' topic tree.
-app.get('/admin/hy-flashcard-topics', adminAuth, async (req, res) => {
-  if (!supabase) return res.json({ topics: [] });
+// Admin: chapters, one flat list per subject (no further nesting above this).
+app.get('/admin/hy-flashcard-chapters', adminAuth, async (req, res) => {
+  if (!supabase) return res.json({ chapters: [] });
   const { subject } = req.query;
-  if (!subject) return res.status(400).json({ error: 'subject required', topics: [] });
+  if (!subject) return res.status(400).json({ error: 'subject required', chapters: [] });
   try {
     const { data, error } = await supabase
-      .from('hy_flashcard_topics').select('*').eq('subject', subject)
+      .from('hy_flashcard_chapters').select('*').eq('subject', subject)
+      .order('sort_order', { ascending: true }).order('name', { ascending: true });
+    if (error) throw error;
+    res.json({ chapters: data || [] });
+  } catch (err) {
+    console.warn('[/admin/hy-flashcard-chapters] unavailable, returning chapters: [] —', err.message);
+    res.json({ chapters: [] });
+  }
+});
+
+app.post('/admin/hy-flashcard-chapters', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  const { subject, name } = req.body || {};
+  if (!subject) return res.status(400).json({ error: 'subject required' });
+  if (!name?.trim()) return res.status(400).json({ error: 'name required' });
+  try {
+    const { data, error } = await supabase
+      .from('hy_flashcard_chapters').insert({ subject, name: name.trim() }).select().single();
+    if (error) throw error;
+    res.json(data);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.put('/admin/hy-flashcard-chapters/:id', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  if (!req.body?.name?.trim()) return res.status(400).json({ error: 'name required' });
+  try {
+    const { data, error } = await supabase
+      .from('hy_flashcard_chapters').update({ name: req.body.name.trim() }).eq('id', req.params.id).select().single();
+    if (error) throw error;
+    res.json(data);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Deleting a chapter cascades to its topics (ON DELETE CASCADE), which in turn
+// drops those topics' cards back to General (ON DELETE SET NULL on
+// hy_flashcards.topic_id) — the cards themselves are never deleted.
+app.delete('/admin/hy-flashcard-chapters/:id', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  try {
+    const { error } = await supabase.from('hy_flashcard_chapters').delete().eq('id', req.params.id);
+    if (error) throw error;
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Admin: topics WITHIN one chapter. A topic no longer belongs to a subject
+// directly — it belongs to a chapter, which belongs to a subject.
+app.get('/admin/hy-flashcard-topics', adminAuth, async (req, res) => {
+  if (!supabase) return res.json({ topics: [] });
+  const { chapter_id } = req.query;
+  if (!chapter_id) return res.status(400).json({ error: 'chapter_id required', topics: [] });
+  try {
+    const { data, error } = await supabase
+      .from('hy_flashcard_topics').select('*').eq('chapter_id', chapter_id)
       .order('sort_order', { ascending: true }).order('name', { ascending: true });
     if (error) throw error;
     res.json({ topics: data || [] });
@@ -7874,12 +7926,12 @@ app.get('/admin/hy-flashcard-topics', adminAuth, async (req, res) => {
 
 app.post('/admin/hy-flashcard-topics', adminAuth, async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
-  const { subject, name } = req.body || {};
-  if (!subject) return res.status(400).json({ error: 'subject required' });
+  const { chapter_id, name } = req.body || {};
+  if (!chapter_id) return res.status(400).json({ error: 'chapter_id required' });
   if (!name?.trim()) return res.status(400).json({ error: 'name required' });
   try {
     const { data, error } = await supabase
-      .from('hy_flashcard_topics').insert({ subject, name: name.trim() }).select().single();
+      .from('hy_flashcard_topics').insert({ chapter_id, name: name.trim() }).select().single();
     if (error) throw error;
     res.json(data);
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -8029,12 +8081,14 @@ app.post('/admin/hy-flashcards/bulk-import', adminAuth, async (req, res) => {
 /**
  * GET /api/hy-flashcards/menu
  *
- * Everything the subject/topic picker needs in one round trip: every active
- * subject, its General-bucket count, and every topic IN THAT SUBJECT that has
- * at least one card. Built from get_hy_flashcard_counts() (Postgres-side
- * GROUP BY) rather than scanning hy_flashcards rows in Node for the same
- * reason the Journey counts are RPCs — PostgREST caps a row-scan response at
- * 1000, and counting by scanning silently under-reports past that.
+ * Everything the subject/chapter/topic picker needs in one round trip: every
+ * active subject, its General-bucket count, and every CHAPTER that has at
+ * least one topic with at least one card (with those topics nested inside),
+ * so an empty chapter never shows up as something to tap into. Built from
+ * get_hy_flashcard_counts() (Postgres-side GROUP BY) rather than scanning
+ * hy_flashcards rows in Node for the same reason the Journey counts are RPCs
+ * — PostgREST caps a row-scan response at 1000, and counting by scanning
+ * silently under-reports past that.
  */
 app.get('/api/hy-flashcards/menu', async (req, res) => {
   if (!supabase) return res.json({ subjects: [] });
@@ -8055,31 +8109,48 @@ app.get('/api/hy-flashcards/menu', async (req, res) => {
       counts = cntRes.data || [];
     }
 
-    // Topic names: one query for every topic_id that actually has cards,
-    // across all subjects at once. hy_flashcard_topics, NOT the shared
-    // `topics` table — this feature's topics are its own.
+    // Topics WITH content, plus which chapter each belongs to — one query for
+    // every topic_id that actually has cards, across all subjects at once.
     const topicIds = [...new Set(counts.map(c => c.topic_id).filter(Boolean))];
-    let topicNames = {};
+    let topicRows = [];
     if (topicIds.length) {
-      const { data: topicRows } = await supabase.from('hy_flashcard_topics').select('id, name').in('id', topicIds);
-      topicNames = Object.fromEntries((topicRows || []).map(t => [t.id, t.name]));
+      const { data } = await supabase.from('hy_flashcard_topics').select('id, name, chapter_id').in('id', topicIds);
+      topicRows = data || [];
+    }
+    const topicById = Object.fromEntries(topicRows.map(t => [t.id, t]));
+
+    // Chapter names for every chapter referenced by one of those topics.
+    const chapterIds = [...new Set(topicRows.map(t => t.chapter_id).filter(Boolean))];
+    let chapterNames = {};
+    if (chapterIds.length) {
+      const { data: chapterRows } = await supabase.from('hy_flashcard_chapters').select('id, name, subject').in('id', chapterIds);
+      chapterNames = Object.fromEntries((chapterRows || []).map(c => [c.id, c]));
     }
 
+    // subject -> { general_count, chaptersById: { chapterId -> { name, topics[] } } }
     const bySubject = {};
     for (const c of counts) {
-      const bucket = (bySubject[c.subject] ||= { general_count: 0, topics: [] });
-      if (c.topic_id) bucket.topics.push({ id: c.topic_id, name: topicNames[c.topic_id] || 'Untitled topic', count: c.card_count });
-      else bucket.general_count = c.card_count;
+      const bucket = (bySubject[c.subject] ||= { general_count: 0, chaptersById: {} });
+      if (!c.topic_id) { bucket.general_count = c.card_count; continue; }
+      const topic = topicById[c.topic_id];
+      const chapter = topic && chapterNames[topic.chapter_id];
+      if (!topic || !chapter) continue; // orphaned row (topic/chapter deleted since) — skip rather than crash
+      const chBucket = (bucket.chaptersById[chapter.id] ||= { id: chapter.id, name: chapter.name, topics: [] });
+      chBucket.topics.push({ id: c.topic_id, name: topic.name, count: c.card_count });
     }
 
     res.json({
       subjects: subjects.map(s => {
-        const b = bySubject[s.id] || { general_count: 0, topics: [] };
+        const b = bySubject[s.id] || { general_count: 0, chaptersById: {} };
+        const chapters = Object.values(b.chaptersById)
+          .map(ch => ({ ...ch, topics: ch.topics.sort((a, b2) => a.name.localeCompare(b2.name)) }))
+          .sort((a, b2) => a.name.localeCompare(b2.name));
+        const chapterCardTotal = chapters.reduce((sum, ch) => sum + ch.topics.reduce((s2, t) => s2 + t.count, 0), 0);
         return {
           id: s.id, name: s.name, icon: s.icon || '📚',
           general_count: b.general_count,
-          topics: b.topics.sort((a, b2) => a.name.localeCompare(b2.name)),
-          total_count: b.general_count + b.topics.reduce((sum, t) => sum + t.count, 0),
+          chapters,
+          total_count: b.general_count + chapterCardTotal,
         };
       }),
     });
