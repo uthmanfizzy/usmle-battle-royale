@@ -106,17 +106,14 @@ export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld }) {
               </span>
             </button>
 
-            {/* COMING SOON — no HY deck exists yet. anking_cards is the only
-                flashcard table and it has no HY source, so there is nothing to
-                route to. To enable: give it its own source/deck filter, then
-                drop the disabled class + chip and wire onClick. */}
-            <button className="ms-flash-deck ms-flash-deck--disabled" disabled>
+            {/* Real: its own hy_flashcards table + admin tab, a standalone
+                route like UWorld Adventure rather than a phase. */}
+            <button className="ms-flash-deck" onClick={() => { window.location.href = '/hy-flashcards'; }}>
               <span className="ms-flash-deck-icon" aria-hidden="true">⭐</span>
               <span className="ms-flash-deck-body">
                 <span className="ms-flash-deck-name">HY FLASHCARDS</span>
                 <span className="ms-flash-deck-sub">High-yield rapid review</span>
               </span>
-              <span className="ms-soon-chip">COMING SOON</span>
             </button>
           </div>
         )}

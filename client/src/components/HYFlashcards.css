@@ -1,0 +1,328 @@
+/* HYFlashcards — standalone /hy-flashcards route. Own lazy chunk, self-scoped
+   (same precedent as UWorldAdventure/QuestsPage/SettingsPage). Uses the app's
+   normal red/gold palette (--mv-red / --mv-gold) rather than inventing a new
+   theme — unlike UWorld Adventure, this isn't a flagship distinct surface. */
+
+.hyf-page {
+  min-height: 100vh;
+  background: #0b0710;
+  color: #fff;
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  padding: clamp(16px, 4vw, 28px) clamp(16px, 5vw, 36px);
+  box-sizing: border-box;
+}
+
+.hyf-page--center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hyf-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 30px;
+}
+.hyf-wordmark {
+  font-family: var(--mv-font-display, 'Cinzel', serif);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: #fff;
+  text-decoration: none;
+}
+.hyf-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mv-font-display, 'Cinzel', serif);
+  font-size: 14px;
+  color: var(--mv-gold, #e8b04b);
+  flex-shrink: 0;
+}
+.hyf-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+.hyf-headrow {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 22px;
+}
+.hyf-back {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.85);
+  padding: 8px 16px 8px 12px;
+  border-radius: 20px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+.hyf-back:hover { background: rgba(255, 255, 255, 0.12); }
+.hyf-title {
+  font-family: var(--mv-font-display, 'Cinzel', serif);
+  font-size: 22px;
+  font-weight: 700;
+  color: #fff;
+  margin: 0;
+  white-space: nowrap;
+  justify-self: center;
+}
+
+.hyf-col { max-width: 720px; margin: 0 auto; }
+.hyf-intro {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.6);
+  margin: 0 0 18px;
+  line-height: 1.55;
+}
+
+/* ── In order / Random toggle — same shape as Journey's own ─────────────── */
+.hyf-order-toggle {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  margin-bottom: 22px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.hyf-order-btn {
+  padding: 7px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.6);
+  transition: background 0.14s ease, color 0.14s ease;
+}
+.hyf-order-btn:hover { color: rgba(255, 255, 255, 0.85); }
+.hyf-order-btn.is-on {
+  background: rgba(232, 176, 75, 0.18);
+  border: 1px solid rgba(232, 176, 75, 0.5);
+  padding: 6px 13px;
+  color: var(--mv-gold, #e8b04b);
+}
+
+.hyf-empty {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+/* ── Subject list ─────────────────────────────────────────────────────────── */
+.hyf-subjects { display: flex; flex-direction: column; gap: 10px; }
+
+.hyf-subject {
+  border-radius: 10px;
+  border: 1.5px solid rgba(232, 176, 75, 0.25);
+  background: rgba(6, 10, 7, 0.55);
+  overflow: hidden;
+}
+.hyf-subject.is-open { border-color: rgba(232, 176, 75, 0.55); }
+.hyf-subject.is-empty { opacity: 0.5; }
+
+.hyf-subject-head {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: none;
+  border: 0;
+  color: #fff;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+}
+.hyf-subject-head:disabled { cursor: default; }
+.hyf-subject-icon { font-size: 20px; flex-shrink: 0; }
+.hyf-subject-name {
+  font-family: var(--mv-font-display, 'Cinzel', serif);
+  font-size: 15px;
+  font-weight: 700;
+  flex: 1;
+}
+.hyf-subject-count {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+}
+.hyf-subject-caret { color: var(--mv-gold, #e8b04b); font-size: 13px; }
+
+.hyf-decks {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 14px 14px;
+}
+.hyf-deck {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.03);
+  color: #fff;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+  transition: border-color 0.14s ease, background 0.14s ease;
+}
+.hyf-deck:hover { border-color: rgba(232, 176, 75, 0.5); background: rgba(232, 176, 75, 0.08); }
+.hyf-deck-name { font-size: 14px; font-weight: 700; }
+.hyf-deck-sub { font-size: 12px; color: rgba(255, 255, 255, 0.55); }
+.hyf-deck--topic .hyf-deck-name::before { content: '📁 '; }
+
+/* ── Player ───────────────────────────────────────────────────────────────── */
+.hyf-page--player { display: flex; flex-direction: column; }
+
+.hyf-player-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  max-width: 560px;
+  width: 100%;
+  margin: 0 auto 24px;
+}
+.hyf-player-title {
+  font-family: var(--mv-font-display, 'Cinzel', serif);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--mv-gold, #e8b04b);
+  text-align: center;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hyf-player-count {
+  font-size: 13px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.6);
+  flex-shrink: 0;
+}
+
+.hyf-card-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px 0 30px;
+}
+
+/* Simple 3D flip — perspective on the wrapper, rotateY on the inner pair. */
+.hyf-flip {
+  perspective: 1400px;
+  width: min(92vw, 560px);
+  height: min(56vw, 320px);
+  cursor: pointer;
+}
+.hyf-flip-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transition: transform 0.5s cubic-bezier(0.4, 0.2, 0.2, 1);
+  transform-style: preserve-3d;
+}
+.hyf-flip.is-flipped .hyf-flip-inner { transform: rotateY(180deg); }
+
+.hyf-face {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 32px;
+  box-sizing: border-box;
+  border-radius: 16px;
+  backface-visibility: hidden;
+  text-align: center;
+}
+.hyf-face--front {
+  background: linear-gradient(160deg, rgba(20, 12, 10, 0.9), rgba(8, 5, 4, 0.95));
+  border: 1.5px solid rgba(232, 176, 75, 0.4);
+  box-shadow: 0 0 22px rgba(232, 176, 75, 0.12);
+}
+.hyf-face--back {
+  background: linear-gradient(160deg, rgba(12, 18, 12, 0.92), rgba(5, 8, 5, 0.96));
+  border: 1.5px solid rgba(61, 220, 132, 0.4);
+  box-shadow: 0 0 22px rgba(61, 220, 132, 0.12);
+  transform: rotateY(180deg);
+}
+.hyf-face-label {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: rgba(255, 255, 255, 0.4);
+}
+.hyf-face--back .hyf-face-label { color: rgba(61, 220, 132, 0.6); }
+.hyf-face-text {
+  font-size: clamp(16px, 2.6vw, 20px);
+  line-height: 1.5;
+  margin: 0;
+  max-height: 100%;
+  overflow-y: auto;
+}
+.hyf-face-hint {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.hyf-player-nav {
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+  max-width: 560px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* ── Deck-complete card ───────────────────────────────────────────────────── */
+.hyf-done-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 40px 36px;
+  border-radius: 16px;
+  background: rgba(20, 12, 10, 0.85);
+  border: 1.5px solid rgba(232, 176, 75, 0.4);
+  text-align: center;
+}
+.hyf-done-icon { font-size: 40px; margin-bottom: 6px; }
+.hyf-done-card h2 {
+  font-family: var(--mv-font-display, 'Cinzel', serif);
+  margin: 0;
+  color: #fff;
+}
+.hyf-done-sub { color: var(--mv-gold, #e8b04b); font-size: 13px; margin: 0; }
+.hyf-done-count { color: rgba(255, 255, 255, 0.7); font-size: 14px; margin: 6px 0 18px; }
+.hyf-done-actions { display: flex; gap: 12px; }
+
+@media (max-width: 640px) {
+  .hyf-headrow { grid-template-columns: auto 1fr; }
+  .hyf-title { display: none; }
+  .hyf-flip { height: min(70vw, 320px); }
+}

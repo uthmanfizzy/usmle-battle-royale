@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import './AdminApp.css';
 import PlayPageAdmin from './admin/PlayPageAdmin';
 import AnKingAdmin from './admin/AnKingAdmin';
@@ -286,6 +286,278 @@ function PermissionsPanel() {
               </button>
             </div>
           ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * HY Flashcards admin — author or paste-import front/back cards, one subject
+ * and one bucket (General or a specific topic) at a time. Deliberately one
+ * level of nesting (subject → bucket → cards), not Journey's two — a
+ * flashcard has no chapter/level structure of its own, just an optional tag
+ * onto a topic that Training Grounds already owns.
+ */
+function HYFlashcardsAdmin({ subjects }) {
+  const [subject, setSubject] = useState(subjects?.[0]?.id || '');
+  const [topics, setTopics] = useState([]);         // this subject's topics, from the SHARED topics table
+  const [bucket, setBucket] = useState(null);        // null = General, else a topic id
+  const [cards, setCards] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const [form, setForm] = useState({ front: '', back: '' });
+  const [editing, setEditing] = useState(null);       // card being edited, or null = add mode
+  const [saving, setSaving] = useState(false);
+
+  const [pasteText, setPasteText] = useState('');
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState(null);
+
+  const [qSel, setQSel] = useState(new Set());
+  const [deleteItem, setDeleteItem] = useState(null); // { kind: 'card'|'bulk', row?, ids? }
+
+  // Subjects can arrive after this component mounts (shared state fetched by
+  // the parent) — adopt the first one once they show up if nothing is picked.
+  useEffect(() => {
+    if (!subject && subjects?.length) setSubject(subjects[0].id);
+  }, [subjects, subject]);
+
+  useEffect(() => {
+    if (!subject) return;
+    setBucket(null);
+    setQSel(new Set());
+    fetch(`${API}/api/topics?category=${encodeURIComponent(subject)}`)
+      .then(r => r.json())
+      .then(d => setTopics(d.topics || []))
+      .catch(() => setTopics([]));
+  }, [subject]);
+
+  const loadCards = useCallback(() => {
+    if (!subject) return;
+    setLoading(true); setError('');
+    const url = `/admin/hy-flashcards?subject=${encodeURIComponent(subject)}${bucket ? `&topic_id=${encodeURIComponent(bucket)}` : ''}`;
+    apiCall(url)
+      .then(r => r.json())
+      .then(d => setCards(d.cards || []))
+      .catch(() => setError('Failed to load cards.'))
+      .finally(() => setLoading(false));
+  }, [subject, bucket]);
+
+  useEffect(() => { loadCards(); }, [loadCards]);
+
+  function resetForm() { setForm({ front: '', back: '' }); setEditing(null); }
+  function startEdit(c) { setEditing(c); setForm({ front: c.front, back: c.back }); }
+
+  async function handleSave(e) {
+    e.preventDefault();
+    if (!form.front.trim() || !form.back.trim()) return;
+    setSaving(true); setError('');
+    try {
+      const res = editing
+        ? await apiCall(`/admin/hy-flashcards/${editing.id}`, { method: 'PUT', body: JSON.stringify(form) })
+        : await apiCall('/admin/hy-flashcards', { method: 'POST', body: JSON.stringify({ subject, topic_id: bucket, ...form }) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Save failed');
+      setCards(cs => editing ? cs.map(c => (c.id === data.id ? data : c)) : [...cs, data]);
+      resetForm();
+    } catch (err) { setError(err.message); }
+    finally { setSaving(false); }
+  }
+
+  function toggleSel(id) {
+    setQSel(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  }
+
+  async function handleDelete() {
+    if (!deleteItem) return;
+    try {
+      if (deleteItem.kind === 'card') {
+        const res = await apiCall(`/admin/hy-flashcards/${deleteItem.row.id}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error('Delete failed');
+        setCards(cs => cs.filter(c => c.id !== deleteItem.row.id));
+      } else {
+        const res = await apiCall('/admin/hy-flashcards/bulk-delete', { method: 'POST', body: JSON.stringify({ ids: deleteItem.ids }) });
+        if (!res.ok) throw new Error('Delete failed');
+        const gone = new Set(deleteItem.ids);
+        setCards(cs => cs.filter(c => !gone.has(c.id)));
+        setQSel(new Set());
+      }
+    } catch (err) { setError(err.message); }
+    setDeleteItem(null);
+  }
+
+  // Paste format: one card per line, front and back split on the FIRST tab or
+  // pipe — a tab matches Anki's own plain-text export verbatim (paste straight
+  // from an Anki deck), pipe covers a hand-typed "Front | Back" list. Lines
+  // that don't split into two non-empty halves are silently dropped; the
+  // preview count is what actually shows in the box below, so nothing is a
+  // surprise before Import is clicked.
+  const parsedPreview = pasteText.split('\n').map(line => {
+    const m = line.split(/\t|\s\|\s|\|/);
+    if (m.length < 2) return null;
+    const front = m[0].trim();
+    const back = m.slice(1).join('|').trim();
+    return front && back ? { front, back } : null;
+  }).filter(Boolean);
+
+  async function handleImport() {
+    if (parsedPreview.length === 0) return;
+    setImporting(true); setImportResult(null); setError('');
+    try {
+      const res = await apiCall('/admin/hy-flashcards/bulk-import', {
+        method: 'POST',
+        body: JSON.stringify({ subject, topic_id: bucket, cards: parsedPreview }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Import failed');
+      setImportResult(data);
+      setPasteText('');
+      loadCards();
+    } catch (err) { setError(err.message); }
+    finally { setImporting(false); }
+  }
+
+  const bucketLabel = bucket ? (topics.find(t => t.id === bucket)?.name || 'Topic') : 'General';
+
+  return (
+    <div className="ap-ann-panel">
+      <div className="ap-ann-toolbar">
+        <h2 className="ap-ann-title">🎴 HY Flashcards</h2>
+      </div>
+      <p className="perm-hint">
+        High-yield front/back cards, separate from AnKing. Pick a subject, then a bucket —
+        General or an existing Training Grounds topic — and author or paste cards into it.
+      </p>
+
+      <div className="hyf-pickers">
+        <select className="perm-input" value={subject} onChange={e => setSubject(e.target.value)}>
+          {(subjects || []).map(s => <option key={s.id} value={s.id}>{s.icon} {s.name}</option>)}
+        </select>
+        <select className="perm-input" value={bucket || ''} onChange={e => setBucket(e.target.value || null)}>
+          <option value="">General (no topic)</option>
+          {topics.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+        </select>
+      </div>
+
+      {topics.length === 0 && (
+        <p className="perm-hint">
+          No Training Grounds topics exist for this subject yet — cards can still be
+          authored under General. Add topics from the Question Manager's Subjects area
+          if you want to split this subject's flashcards by topic.
+        </p>
+      )}
+
+      {error && <div className="ap-error">{error}</div>}
+
+      <form className="hyf-form" onSubmit={handleSave}>
+        <textarea
+          className="hyf-textarea"
+          placeholder="Front (question / term)"
+          value={form.front}
+          onChange={e => setForm(f => ({ ...f, front: e.target.value }))}
+        />
+        <textarea
+          className="hyf-textarea"
+          placeholder="Back (answer / definition)"
+          value={form.back}
+          onChange={e => setForm(f => ({ ...f, back: e.target.value }))}
+        />
+        <div className="hyf-form-actions">
+          {editing && <button type="button" className="ap-btn-sec" onClick={resetForm}>Cancel Edit</button>}
+          <button type="submit" className="ap-btn-pri" disabled={saving || !form.front.trim() || !form.back.trim()}>
+            {saving ? 'Saving…' : editing ? 'Save Changes' : `+ Add to ${bucketLabel}`}
+          </button>
+        </div>
+      </form>
+
+      <details className="hyf-import">
+        <summary>📋 Bulk import (paste front/back pairs)</summary>
+        <p className="perm-hint">
+          One card per line — <code>Front[TAB]Back</code> or <code>Front | Back</code>.
+          Pasting straight from an Anki plain-text export works as-is.
+        </p>
+        <textarea
+          className="hyf-textarea hyf-paste"
+          placeholder={'Aortic stenosis murmur | Crescendo-decrescendo systolic\nMitral regurgitation murmur | Holosystolic, radiates to axilla'}
+          value={pasteText}
+          onChange={e => { setPasteText(e.target.value); setImportResult(null); }}
+        />
+        <div className="hyf-form-actions">
+          <span className="perm-hint" style={{ margin: 0 }}>
+            {pasteText.trim() ? `${parsedPreview.length} card${parsedPreview.length === 1 ? '' : 's'} recognised` : ''}
+          </span>
+          <button
+            type="button" className="ap-btn-pri"
+            disabled={importing || parsedPreview.length === 0}
+            onClick={handleImport}
+          >{importing ? 'Importing…' : `Import ${parsedPreview.length || ''} into ${bucketLabel}`}</button>
+        </div>
+        {importResult && (
+          <p className="perm-hint">
+            ✅ Imported {importResult.imported}{importResult.skipped > 0 ? `, skipped ${importResult.skipped} unreadable line${importResult.skipped === 1 ? '' : 's'}` : ''}.
+          </p>
+        )}
+      </details>
+
+      <div className="hyf-list-head">
+        <h3 className="ap-ann-title" style={{ fontSize: 15 }}>
+          {bucketLabel} <span className="perm-count">{cards.length}</span>
+        </h3>
+        {qSel.size > 0 && (
+          <>
+            <span className="je-qbulk-count">{qSel.size} selected</span>
+            <button className="ap-topic-del-btn je-qbulk-del" onClick={() => setDeleteItem({ kind: 'bulk', ids: [...qSel] })}>
+              🗑️ Delete {qSel.size}
+            </button>
+            <button type="button" className="ap-btn-sec je-qbulk-clear" onClick={() => setQSel(new Set())}>Clear</button>
+          </>
+        )}
+      </div>
+
+      {loading ? (
+        <div className="ap-loading">Loading…</div>
+      ) : cards.length === 0 ? (
+        <p className="perm-hint">No cards in {bucketLabel} yet.</p>
+      ) : (
+        <div className="je-qlist">
+          {cards.map(c => (
+            <div className={`ap-journey-q-row${qSel.has(c.id) ? ' ap-journey-q-row--sel' : ''}`} key={c.id}>
+              <input type="checkbox" className="je-qcheck" checked={qSel.has(c.id)} onChange={() => toggleSel(c.id)} aria-label="Select card" />
+              <span className="hyf-row-front">{c.front}</span>
+              <span className="hyf-row-arrow" aria-hidden="true">→</span>
+              <span className="hyf-row-back">{c.back}</span>
+              <div className="ap-video-row-actions">
+                <button className="ap-topic-edit-btn" onClick={() => startEdit(c)} title="Edit">✏️</button>
+                <button className="ap-topic-del-btn" onClick={() => setDeleteItem({ kind: 'card', row: c })} title="Delete">🗑️</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {deleteItem && (
+        <div className="ap-backdrop" onClick={() => setDeleteItem(null)}>
+          <div className="ap-confirm" onClick={e => e.stopPropagation()}>
+            <div className="ap-confirm-icon">🎴</div>
+            <h3>
+              {deleteItem.kind === 'bulk'
+                ? `Delete ${deleteItem.ids.length} card${deleteItem.ids.length === 1 ? '' : 's'}?`
+                : 'Delete this card?'}
+            </h3>
+            <p>
+              {deleteItem.kind === 'bulk'
+                ? 'The selected cards are removed permanently. This cannot be undone.'
+                : `"${deleteItem.row.front.slice(0, 80)}${deleteItem.row.front.length > 80 ? '…' : ''}"`}
+            </p>
+            <div className="ap-modal-foot">
+              <button className="ap-btn-sec" onClick={() => setDeleteItem(null)}>Cancel</button>
+              <button className="ap-btn-danger" onClick={handleDelete}>
+                {deleteItem.kind === 'bulk' ? `Delete ${deleteItem.ids.length}` : 'Delete'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -9170,6 +9442,9 @@ export default function AdminApp() {
         <button className={`ap-nav-btn ${tab === 'uworld'        ? 'active' : ''}`} onClick={() => setTab('uworld')}>
           🌍 UWorld Adventure
         </button>
+        <button className={`ap-nav-btn ${tab === 'hyflashcards'  ? 'active' : ''}`} onClick={() => setTab('hyflashcards')}>
+          🎴 HY Flashcards
+        </button>
         <button className={`ap-nav-btn ${tab === 'permissions'   ? 'active' : ''}`} onClick={() => setTab('permissions')}>
           🛡️ Permissions
         </button>
@@ -9206,6 +9481,7 @@ export default function AdminApp() {
             <QuestionsPanel subjects={sharedSubjects} scopeTag={UWORLD_MODE} />
           </ErrorBoundary>
         )}
+        {tab === 'hyflashcards'  && <HYFlashcardsAdmin subjects={sharedSubjects} />}
         {tab === 'permissions'   && <PermissionsPanel />}
       </main>
     </div>

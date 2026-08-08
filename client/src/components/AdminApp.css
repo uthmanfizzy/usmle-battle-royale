@@ -5224,3 +5224,71 @@
   background: rgba(155, 89, 182, 0.10);
   border-color: rgba(155, 89, 182, 0.45);
 }
+
+/* ── HY Flashcards admin ─────────────────────────────────────────────────── */
+.hyf-pickers {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+.hyf-pickers select { flex: 1 1 220px; }
+
+.hyf-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 18px;
+  padding: 12px;
+  border-radius: 10px;
+  background: var(--card);
+  border: 1px solid var(--border);
+}
+.hyf-textarea {
+  width: 100%;
+  min-height: 60px;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  resize: vertical;
+  box-sizing: border-box;
+}
+.hyf-form-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.hyf-import {
+  margin-bottom: 18px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--card);
+  border: 1px solid var(--border);
+}
+.hyf-import summary { cursor: pointer; font-weight: 700; font-size: 13px; }
+.hyf-import[open] summary { margin-bottom: 10px; }
+.hyf-paste { min-height: 100px; font-family: monospace; font-size: 12px; }
+
+.hyf-list-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 0 10px;
+}
+
+.hyf-row-front, .hyf-row-back {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hyf-row-arrow { flex-shrink: 0; opacity: 0.5; }

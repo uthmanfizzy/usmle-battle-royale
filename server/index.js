@@ -7836,6 +7836,292 @@ async function resolveVideoAttachment({ topic_id, category, difficulty }) {
   return { topic_id: null, category, difficulty };
 }
 
+// ── HY Flashcards ────────────────────────────────────────────────────────────
+// Admin-authored high-yield flashcards. Deliberately NOT built on anking_cards
+// or its spaced-repetition machinery — this is a much simpler content type
+// (an admin types or pastes front/back pairs; a student browses them straight
+// through), so it gets its own small table rather than borrowing AnKing's SRS
+// state, cloze parsing, and scan-for-new-cards complexity for a feature that
+// needs none of it.
+//
+// hy_flashcards: { id, subject, topic_id (nullable — NULL = general/subject-
+// wide), front, back, sort_order, created_at }. topic_id reuses the SAME
+// `topics` table Training Grounds already has — a subject's topics are
+// authored there, not duplicated here; this feature only tags cards onto
+// topics that already exist. See schema.sql for the table + counts RPC.
+
+// Admin: browse ONE bucket at a time (a specific topic, or General) so editing
+// is never ambiguous about which pool a card belongs to. topic_id absent/empty
+// = General (topic_id IS NULL); topic_id=<uuid> = that topic only.
+app.get('/admin/hy-flashcards', adminAuth, async (req, res) => {
+  if (!supabase) return res.json({ cards: [] });
+  const { subject, topic_id } = req.query;
+  if (!subject) return res.status(400).json({ error: 'subject required', cards: [] });
+  try {
+    let query = supabase.from('hy_flashcards').select('*').eq('subject', subject)
+      .order('sort_order', { ascending: true }).order('created_at', { ascending: true });
+    query = topic_id ? query.eq('topic_id', topic_id) : query.is('topic_id', null);
+    const { data, error } = await query;
+    if (error) throw error;
+    res.json({ cards: data || [] });
+  } catch (err) {
+    console.warn('[/admin/hy-flashcards] unavailable, returning cards: [] —', err.message);
+    res.json({ cards: [] });
+  }
+});
+
+app.post('/admin/hy-flashcards', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  const { subject, topic_id, front, back, sort_order } = req.body || {};
+  if (!subject) return res.status(400).json({ error: 'subject required' });
+  if (!front?.trim() || !back?.trim()) return res.status(400).json({ error: 'front and back are both required' });
+  try {
+    const { data, error } = await supabase
+      .from('hy_flashcards')
+      .insert({
+        subject,
+        topic_id: topic_id || null,
+        front: front.trim(),
+        back: back.trim(),
+        sort_order: Number.isFinite(sort_order) ? sort_order : 0,
+      })
+      .select()
+      .single();
+    if (error) throw error;
+    res.json(data);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.put('/admin/hy-flashcards/:id', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  const updates = {};
+  for (const k of ['front', 'back']) {
+    if (k in req.body) {
+      if (!req.body[k]?.trim()) return res.status(400).json({ error: `${k} cannot be empty` });
+      updates[k] = req.body[k].trim();
+    }
+  }
+  // 'in' check so an explicit topic_id: null (move to General) is distinguishable from "not provided"
+  if ('topic_id' in req.body) updates.topic_id = req.body.topic_id || null;
+  if (Number.isFinite(req.body.sort_order)) updates.sort_order = req.body.sort_order;
+  if (Object.keys(updates).length === 0) return res.status(400).json({ error: 'nothing to update' });
+  try {
+    const { data, error } = await supabase
+      .from('hy_flashcards').update(updates).eq('id', req.params.id).select().single();
+    if (error) throw error;
+    res.json(data);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.delete('/admin/hy-flashcards/:id', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  try {
+    const { error } = await supabase.from('hy_flashcards').delete().eq('id', req.params.id);
+    if (error) throw error;
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/admin/hy-flashcards/bulk-delete', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  const ids = Array.isArray(req.body?.ids) ? req.body.ids.filter(id => typeof id === 'string' && id) : [];
+  if (ids.length === 0) return res.status(400).json({ error: 'No ids provided' });
+  try {
+    const { error } = await supabase.from('hy_flashcards').delete().in('id', ids);
+    if (error) throw error;
+    res.json({ ok: true, deleted: ids.length });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+/**
+ * POST /admin/hy-flashcards/bulk-import  { subject, topic_id, cards: [{front, back}] }
+ *
+ * ONE insert for the whole paste, not N sequential POSTs — unlike Journey's
+ * import (which validates each question against bossQuestionError and reports
+ * per-row failures), a front/back pair has nothing to validate beyond
+ * "both non-empty", so there is no partial-failure story worth a loop over.
+ * Invalid rows are silently dropped and the response says how many were kept.
+ */
+app.post('/admin/hy-flashcards/bulk-import', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  const { subject, topic_id } = req.body || {};
+  const cards = Array.isArray(req.body?.cards) ? req.body.cards : [];
+  if (!subject) return res.status(400).json({ error: 'subject required' });
+  const clean = cards
+    .map(c => ({ front: (c?.front ?? '').toString().trim(), back: (c?.back ?? '').toString().trim() }))
+    .filter(c => c.front && c.back);
+  if (clean.length === 0) return res.status(400).json({ error: 'No valid front/back pairs found in the pasted text.' });
+  try {
+    // sort_order continues from whatever is already in this bucket, so a
+    // second paste into the same topic appends rather than interleaving.
+    let existingQuery = supabase.from('hy_flashcards').select('*', { count: 'exact', head: true }).eq('subject', subject);
+    existingQuery = topic_id ? existingQuery.eq('topic_id', topic_id) : existingQuery.is('topic_id', null);
+    const { count: existing } = await existingQuery;
+    const base = existing || 0;
+    const { data, error } = await supabase
+      .from('hy_flashcards')
+      .insert(clean.map((c, i) => ({
+        subject, topic_id: topic_id || null, front: c.front, back: c.back, sort_order: base + i,
+      })))
+      .select('id');
+    if (error) throw error;
+    res.json({ ok: true, imported: data?.length || 0, skipped: cards.length - clean.length });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+/**
+ * GET /api/hy-flashcards/menu
+ *
+ * Everything the subject/topic picker needs in one round trip: every active
+ * subject, its General-bucket count, and every topic IN THAT SUBJECT that has
+ * at least one card. Built from get_hy_flashcard_counts() (Postgres-side
+ * GROUP BY) rather than scanning hy_flashcards rows in Node for the same
+ * reason the Journey counts are RPCs — PostgREST caps a row-scan response at
+ * 1000, and counting by scanning silently under-reports past that.
+ */
+app.get('/api/hy-flashcards/menu', async (req, res) => {
+  if (!supabase) return res.json({ subjects: [] });
+  try {
+    const [subjRes, cntRes] = await Promise.all([
+      supabase.from('subjects').select('id, name, icon').eq('active', true).order('name'),
+      supabase.rpc('get_hy_flashcard_counts'),
+    ]);
+    if (subjRes.error) throw subjRes.error;
+    const subjects = subjRes.data || [];
+
+    // Missing table/RPC (pre-migration) degrades to "no cards anywhere yet" —
+    // every subject still lists with a 0 total rather than the whole menu 500ing.
+    let counts = [];
+    if (cntRes.error) {
+      console.warn('[hy-flashcards] get_hy_flashcard_counts unavailable —', cntRes.error.message);
+    } else {
+      counts = cntRes.data || [];
+    }
+
+    // Topic names: one query for every topic_id that actually has cards,
+    // across all subjects at once.
+    const topicIds = [...new Set(counts.map(c => c.topic_id).filter(Boolean))];
+    let topicNames = {};
+    if (topicIds.length) {
+      const { data: topicRows } = await supabase.from('topics').select('id, name').in('id', topicIds);
+      topicNames = Object.fromEntries((topicRows || []).map(t => [t.id, t.name]));
+    }
+
+    const bySubject = {};
+    for (const c of counts) {
+      const bucket = (bySubject[c.subject] ||= { general_count: 0, topics: [] });
+      if (c.topic_id) bucket.topics.push({ id: c.topic_id, name: topicNames[c.topic_id] || 'Untitled topic', count: c.card_count });
+      else bucket.general_count = c.card_count;
+    }
+
+    res.json({
+      subjects: subjects.map(s => {
+        const b = bySubject[s.id] || { general_count: 0, topics: [] };
+        return {
+          id: s.id, name: s.name, icon: s.icon || '📚',
+          general_count: b.general_count,
+          topics: b.topics.sort((a, b2) => a.name.localeCompare(b2.name)),
+          total_count: b.general_count + b.topics.reduce((sum, t) => sum + t.count, 0),
+        };
+      }),
+    });
+  } catch (err) {
+    console.error('[/api/hy-flashcards/menu] failed —', err.message);
+    res.json({ subjects: [] });
+  }
+});
+
+/**
+ * GET /api/hy-flashcards?subject=X[&topic_id=Y]
+ *
+ * Student-facing, and deliberately asymmetric with the admin GET above:
+ * subject ALONE means "every card in this subject" (any topic, including
+ * General) — the broad "study the whole subject" option — while topic_id
+ * narrows to just that topic. Admin browsing needs the opposite default
+ * (explicit General bucket) because it is editing one specific pool; a
+ * student choosing "study Biochemistry" expects everything, the way Training
+ * Grounds' "study whole folder" already works.
+ */
+app.get('/api/hy-flashcards', async (req, res) => {
+  if (!supabase) return res.json({ cards: [] });
+  const { subject, topic_id } = req.query;
+  if (!subject) return res.status(400).json({ error: 'subject required', cards: [] });
+  try {
+    let query = supabase.from('hy_flashcards').select('id, front, back, topic_id').eq('subject', subject);
+    if (topic_id) query = query.eq('topic_id', topic_id);
+    const { data, error } = await query.order('sort_order', { ascending: true }).order('created_at', { ascending: true });
+    if (error) throw error;
+    res.json({ cards: data || [] });
+  } catch (err) {
+    console.warn('[/api/hy-flashcards] unavailable, returning cards: [] —', err.message);
+    res.json({ cards: [] });
+  }
+});
+
+/**
+ * POST /api/hy-flashcards/session-complete  { subject, topic_id?, cards_reviewed, duration_seconds, date }
+ *
+ * Mirrors /api/anking/session-complete exactly: one activity_sessions row for
+ * the activity feed, plus a credit to the SAME study_time_daily table Solo/
+ * Training Grounds/Journey/UWorld/AnKing all feed — flashcard study is study
+ * time too, and a student who only ever does HY Flashcards should not show a
+ * hollow "Study Time" stat.
+ */
+app.post('/api/hy-flashcards/session-complete', requireAuth, async (req, res) => {
+  const cardsReviewed = Number(req.body?.cards_reviewed);
+  const seconds       = Number(req.body?.duration_seconds);
+  const subject       = (req.body?.subject ?? '').toString().trim();
+  const topicId       = req.body?.topic_id || null;
+  if (!subject) return res.status(400).json({ error: 'subject required' });
+  if (!Number.isFinite(cardsReviewed) || cardsReviewed <= 0) {
+    return res.status(400).json({ error: 'cards_reviewed must be a positive number.' });
+  }
+  if (!Number.isFinite(seconds) || seconds < 0) {
+    return res.status(400).json({ error: 'duration_seconds must be a non-negative number.' });
+  }
+  if (!supabase) return res.json({ ok: false });
+
+  // Same ceiling philosophy as AnKing's own endpoint: a per-card cap generous
+  // enough for genuine reading, tight enough that a forged payload can't
+  // credit hours from a handful of cards.
+  const duration = Math.min(Math.round(seconds), Math.round(cardsReviewed) * 60);
+  const endedAt   = new Date();
+  const startedAt = new Date(endedAt.getTime() - duration * 1000);
+
+  try {
+    const { error } = await supabase.from('activity_sessions').insert({
+      user_id:              req.userId,
+      game_mode:            'hy_flashcards',
+      subject,
+      journey_chapter_name: null,
+      journey_level_name:   null,
+      outcome_type:         null,   // browsing, not scored
+      score_pct:            null,
+      is_win:               null,
+      duration_seconds:     duration,
+      started_at:           startedAt.toISOString(),
+      ended_at:             endedAt.toISOString(),
+    });
+    if (error) {
+      console.error('[activity_sessions] hy_flashcards insert failed —', error.message);
+      return res.json({ ok: false });
+    }
+    if (duration > 0) {
+      const studyDate = resolveLocalDate(req.body?.date);
+      const { error: stErr } = await supabase.rpc('add_study_time', {
+        p_user_id: req.userId,
+        p_date:    studyDate,
+        p_seconds: duration,
+      });
+      if (stErr) console.warn('[hy-flashcards] add_study_time failed —', stErr.message);
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[activity_sessions] hy_flashcards insert threw —', err.message);
+    res.json({ ok: false });
+  }
+});
+
 app.get('/admin/videos', adminAuth, async (req, res) => {
   if (!supabase) return res.json({ videos: [] });
   const { category, difficulty, topic_id } = req.query;

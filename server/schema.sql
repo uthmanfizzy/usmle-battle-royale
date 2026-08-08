@@ -724,3 +724,60 @@ CREATE POLICY IF NOT EXISTS "server_full_access_game_settings"
 -- bonus request short-circuits to empty before querying at all — falling
 -- through to "query without the filter" for a bonus request would serve the
 -- level's normal questions as if they were the bonus set.
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- HY FLASHCARDS (run in the SQL editor)
+-- ─────────────────────────────────────────────────────────────────────────────
+-- CREATE TABLE IF NOT EXISTS hy_flashcards (
+--   id         UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+--   subject    TEXT        NOT NULL,
+--   topic_id   UUID        REFERENCES topics(id) ON DELETE SET NULL,
+--   front      TEXT        NOT NULL,
+--   back       TEXT        NOT NULL,
+--   sort_order INT         NOT NULL DEFAULT 0,
+--   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+-- );
+-- CREATE INDEX IF NOT EXISTS idx_hy_flashcards_subject ON hy_flashcards(subject);
+-- CREATE INDEX IF NOT EXISTS idx_hy_flashcards_topic   ON hy_flashcards(topic_id);
+-- ALTER TABLE hy_flashcards ENABLE ROW LEVEL SECURITY;
+-- DROP POLICY IF EXISTS "server_full_access_hy_flashcards" ON hy_flashcards;
+-- CREATE POLICY "server_full_access_hy_flashcards"
+--   ON hy_flashcards FOR ALL USING (true) WITH CHECK (true);
+--
+-- CREATE OR REPLACE FUNCTION get_hy_flashcard_counts()
+-- RETURNS TABLE(subject TEXT, topic_id UUID, card_count BIGINT)
+-- LANGUAGE sql STABLE
+-- AS $$
+--   SELECT subject, topic_id, COUNT(*) AS card_count
+--   FROM hy_flashcards
+--   GROUP BY subject, topic_id;
+-- $$;
+--
+-- WHY NOT anking_cards: that table carries AnKing's whole spaced-repetition
+-- apparatus (cloze ordinals, anki_note_id, per-user review state) for a
+-- feature that just needs an admin to type or paste front/back pairs and a
+-- student to browse them in order. hy_flashcards is deliberately its own small
+-- table rather than bolting a second, unrelated content type onto AnKing's.
+--
+-- topic_id reuses the SAME topics table Training Grounds already has — a
+-- flashcard is tagged onto a topic that already exists there, never authored
+-- fresh here. topic_id NULL = "General" (subject-wide, no specific topic).
+--
+-- get_hy_flashcard_counts exists for the same reason the Journey counts RPCs
+-- do: counting by scanning rows in Node is capped at PostgREST's max-rows
+-- (1000) and silently under-reports past it. GET /api/hy-flashcards/menu is
+-- the ONE place that needs a global count and is the only caller.
+--
+-- Endpoints:
+--   Admin (adminAuth): GET/POST/PUT/DELETE /admin/hy-flashcards[/:id],
+--     POST .../bulk-delete { ids }, POST .../bulk-import { subject, topic_id,
+--     cards: [{front,back}] } — one insert for the whole paste, not N POSTs,
+--     since a front/back pair has nothing to validate beyond "both non-empty".
+--   Student (public): GET /api/hy-flashcards/menu (subject/topic picker data),
+--     GET /api/hy-flashcards?subject=&topic_id= (topic_id ABSENT means every
+--     card in the subject — the broad "study it all" option — present narrows
+--     to that topic; the admin GET defaults the opposite way on purpose, since
+--     it is always editing one specific bucket).
+--   POST /api/hy-flashcards/session-complete (requireAuth): mirrors
+--     /api/anking/session-complete exactly — one activity_sessions row plus an
+--     add_study_time credit, so flashcard study counts toward Study Time too.
