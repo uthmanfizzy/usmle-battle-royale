@@ -313,7 +313,8 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   const correctCountRef    = useRef(0);
   const completionFiredRef = useRef(false);
   const onCompleteRef      = useRef(onComplete);
-  const activeSecondsRef   = useRef(0);     // sum of per-question active answer time (s)
+  const activeSecondsRef   = useRef(0);     // sum of per-question active time (s): answering + explanation
+  const revealedAtRef      = useRef(0);     // Date.now() when the explanation was shown, for the line below
   const answeredCountRef   = useRef(0);     // questions answered or timed out this run
   const studyTimeSentRef   = useRef(false); // study-time POST fired for this run
 
@@ -488,6 +489,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
     if (!q) return;
 
     revealedRef.current = true;
+    revealedAtRef.current = Date.now(); // explanation is on screen from this instant
     setRevealed(true);
     setSelected(label);
 
@@ -502,8 +504,10 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
     postQuestionSeen(q, { answered: label !== null, correct });
     const tl = timeLeftRef.current;
     setTimeSpent(defaultTimer - tl);   // Layer 1: additive only — no flow/timer/scoring change
-    // Study time: accumulate this question's active time (inherently capped at
-    // defaultTimer, so an idle/backgrounded question can't log a huge value).
+    // Study time, answering phase: inherently capped at defaultTimer, so an
+    // idle/backgrounded question can't log a huge value. The EXPLANATION phase
+    // is added separately in doAdvance below, once we know how long it was
+    // actually on screen (auto-advance vs an early manual skip both end there).
     activeSecondsRef.current += (defaultTimer - tl);
     answeredCountRef.current += 1;
     let newLives = livesRef.current;
@@ -541,6 +545,14 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
     const doAdvance = () => {
       skipTimerRef.current  = null;
       skipActionRef.current = null;
+      // Explanation phase: however long it was actually on screen, whether the
+      // timeout fired naturally or the player hit Next early. revealedAtRef is
+      // stamped the instant the explanation appears, a few lines up. Clamped to
+      // the delay auto-advance itself uses — a tab left open and walked away
+      // from can't inflate this past what the UI ever intended to show, same
+      // spirit as the answer phase being capped at defaultTimer.
+      const explanationSecs = (Date.now() - revealedAtRef.current) / 1000;
+      activeSecondsRef.current += Math.max(0, Math.min(explanationSecs, explanationDelay / 1000));
       if (newLives === 0 || exhausted) {
         audio.stopGameMusic();
         const hi    = getHi(subject);

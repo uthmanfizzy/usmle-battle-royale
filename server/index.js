@@ -4196,8 +4196,8 @@ app.post('/api/anking/session-complete', requireAuth, async (req, res) => {
   }
   if (!supabase) return res.json({ ok: false });
 
-  // Same 35s/card ceiling the study-time endpoint uses, so a forged or buggy
-  // payload can't credit hours from a 20-card session.
+  // Ceiling of 35 MINUTES per card reviewed, so a forged or buggy payload
+  // can't credit hours from a 20-card session.
   const duration = Math.min(Math.round(seconds), Math.round(cardsReviewed) * 35 * 60);
   const endedAt   = new Date();
   const startedAt = new Date(endedAt.getTime() - duration * 1000);
@@ -4219,6 +4219,20 @@ app.post('/api/anking/session-complete', requireAuth, async (req, res) => {
     if (error) {
       console.error('[activity_sessions] anking insert failed —', error.message);
       return res.json({ ok: false });
+    }
+    // AnKing now counts toward Study Time too, not just the activity log —
+    // same add_study_time RPC and local-date resolution as /api/study-time,
+    // so a flashcard session and a solo run land on the same total the same
+    // way. Fire-and-forget-ish: a failed credit here must not turn a
+    // successfully-logged session into an error response.
+    if (duration > 0) {
+      const studyDate = resolveLocalDate(req.body?.date);
+      const { error: stErr } = await supabase.rpc('add_study_time', {
+        p_user_id: req.userId,
+        p_date:    studyDate,
+        p_seconds: duration,
+      });
+      if (stErr) console.warn('[anking] add_study_time failed —', stErr.message);
     }
     res.json({ ok: true });
   } catch (err) {
@@ -4572,9 +4586,12 @@ app.post('/api/study-time', requireAuth, async (req, res) => {
 
   if (!supabase) return res.json({ ok: false });
 
-  // Cap at 35s per answered question (per-question timer max is 30s) so a
-  // forged or buggy payload can't credit hours in one request.
-  const capped = Math.min(Math.round(seconds), Math.round(questions) * 35);
+  // Per-question ceiling covers BOTH phases the client now tallies: answering
+  // (admin-configurable timer, up to 120s in Hard Mode) plus the explanation
+  // screen (up to 60s in Hard Mode) plus its fixed 2.5s auto-advance buffer —
+  // worst case 182.5s. 185 leaves a little headroom without opening the door
+  // to a forged or buggy payload crediting hours in one request.
+  const capped = Math.min(Math.round(seconds), Math.round(questions) * 185);
   if (capped <= 0) return res.json({ ok: true });
 
   // "Today" = the client's local date when plausible (within ±1 day of server

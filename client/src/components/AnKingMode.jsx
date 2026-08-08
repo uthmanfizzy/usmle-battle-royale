@@ -208,6 +208,10 @@ export default function AnKingMode({ user, config, onBack, onComplete }) {
         duration_seconds: Math.round((Date.now() - sessionStartRef.current) / 1000),
         // The subject this session was actually studied under (null = mixed).
         subject: sessionSubjectRef.current,
+        // Same local YYYY-MM-DD convention as /api/study-time — the server now
+        // also credits this session's time to Study Time, and a late-night
+        // session should land on the student's own day, not server UTC's.
+        date: new Date().toLocaleDateString('en-CA'),
       }),
       // keepalive lets the request survive a hard navigation. sendBeacon can't
       // set an Authorization header and this endpoint is Bearer-authenticated,
