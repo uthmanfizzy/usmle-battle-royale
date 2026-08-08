@@ -7908,6 +7908,12 @@ app.delete('/admin/hy-flashcard-chapters/:id', adminAuth, async (req, res) => {
 
 // Admin: topics WITHIN one chapter. A topic no longer belongs to a subject
 // directly — it belongs to a chapter, which belongs to a subject.
+//
+// Ordered most-recently-added FIRST (created_at descending) rather than
+// alphabetically — an admin actively building out a chapter wants their last
+// addition easy to find at the top, not buried wherever its name happens to
+// sort. sort_order still exists on the row for a future manual-reorder
+// feature, but nothing writes it today, so ordering by it would be a no-op.
 app.get('/admin/hy-flashcard-topics', adminAuth, async (req, res) => {
   if (!supabase) return res.json({ topics: [] });
   const { chapter_id } = req.query;
@@ -7915,7 +7921,7 @@ app.get('/admin/hy-flashcard-topics', adminAuth, async (req, res) => {
   try {
     const { data, error } = await supabase
       .from('hy_flashcard_topics').select('*').eq('chapter_id', chapter_id)
-      .order('sort_order', { ascending: true }).order('name', { ascending: true });
+      .order('created_at', { ascending: false });
     if (error) throw error;
     res.json({ topics: data || [] });
   } catch (err) {

@@ -417,7 +417,9 @@ function HYFlashcardsAdmin({ subjects }) {
       const res = await apiCall('/admin/hy-flashcard-topics', { method: 'POST', body: JSON.stringify({ chapter_id: chapterId, name }) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Could not create topic');
-      setTopicsByChapter(prev => ({ ...prev, [chapterId]: [...(prev[chapterId] || []), data].sort((a, b) => a.name.localeCompare(b.name)) }));
+      // Prepend, matching the server's newest-first order — no refetch needed
+      // to see a just-added topic land exactly where it now belongs: the top.
+      setTopicsByChapter(prev => ({ ...prev, [chapterId]: [data, ...(prev[chapterId] || [])] }));
       setNewTopicNames(prev => ({ ...prev, [chapterId]: '' }));
       setActive({ chapterId, topicId: data.id }); // jump straight into what was just made
     } catch (err) { setError(err.message); }
