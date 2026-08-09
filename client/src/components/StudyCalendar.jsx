@@ -11,12 +11,15 @@ const MONTHS = [
 // Monday-first week (study-planner convention)
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-// Heatmap tiers: 0 none · 1 under 30min · 2 30min–2h · 3 over 2h
+// Heatmap tiers: 0 none · 1 under 30min · 2 30min–2h · 3 2h–3h ·
+// 4 3h–4h (green, a genuinely strong day) · 5 over 4h (turquoise, the top tier)
 function intensity(seconds) {
   if (!seconds || seconds <= 0) return 0;
   if (seconds < 30 * 60) return 1;
   if (seconds <= 2 * 3600) return 2;
-  return 3;
+  if (seconds <= 3 * 3600) return 3;
+  if (seconds <= 4 * 3600) return 4;
+  return 5;
 }
 
 // From-scratch month-grid heatmap of study_time_daily (no calendar lib is
@@ -120,7 +123,9 @@ export default function StudyCalendar({ userId }) {
             <span className="sc-legend-swatch sc-lvl-0" /> none
             <span className="sc-legend-swatch sc-lvl-1" /> &lt;30m
             <span className="sc-legend-swatch sc-lvl-2" /> 30m–2h
-            <span className="sc-legend-swatch sc-lvl-3" /> 2h+
+            <span className="sc-legend-swatch sc-lvl-3" /> 2h–3h
+            <span className="sc-legend-swatch sc-lvl-4" /> 3h+
+            <span className="sc-legend-swatch sc-lvl-5" /> 4h+
           </span>
         )}
       </div>
