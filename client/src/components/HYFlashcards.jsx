@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { getToken, fetchMe, getCachedUser } from '../auth';
+import * as audio from '../audio';
 import './HYFlashcards.css';
 
 const SERVER_URL = 'https://usmle-battle-royale-production.up.railway.app';
@@ -45,6 +46,21 @@ export default function HYFlashcards() {
     return next;
   });
   const themeClass = theme === 'light' ? ' is-light' : '';
+
+  // Own ambient study track — a slow chord-pad loop, distinct from the
+  // quiz-show music every other mode uses, since flashcard review isn't
+  // timed or competitive. Plays for as long as this page is mounted.
+  const [musicOn, setMusicOn] = useState(() => localStorage.getItem('hyf-music') !== 'off');
+  const toggleMusic = () => setMusicOn(m => {
+    const next = !m;
+    localStorage.setItem('hyf-music', next ? 'on' : 'off');
+    return next;
+  });
+  useEffect(() => {
+    if (musicOn) audio.startStudyMusic();
+    else audio.stopStudyMusic();
+    return () => audio.stopStudyMusic();
+  }, [musicOn]);
 
   const [deck, setDeck] = useState(null);           // { subject, subjectName, topicId, topicName, cards }
   const [order, setOrder] = useState('inorder');    // 'inorder' | 'random'
@@ -110,6 +126,8 @@ export default function HYFlashcards() {
         onExit={() => setDeck(null)}
         theme={theme}
         onToggleTheme={toggleTheme}
+        musicOn={musicOn}
+        onToggleMusic={toggleMusic}
       />
     );
   }
@@ -125,6 +143,8 @@ export default function HYFlashcards() {
         onBack={() => setPendingBucket(null)}
         theme={theme}
         onToggleTheme={toggleTheme}
+        musicOn={musicOn}
+        onToggleMusic={toggleMusic}
       />
     );
   }
@@ -134,6 +154,7 @@ export default function HYFlashcards() {
       <div className="hyf-topbar">
         <a className="hyf-wordmark" href="/dashboard">MEDVALE</a>
         <div className="hyf-topbar-right">
+          <MusicToggle musicOn={musicOn} onToggle={toggleMusic} />
           <ThemeToggle theme={theme} onToggle={toggleTheme} />
           <div className="hyf-avatar" title={user?.username || 'Player'}>
             {user?.avatar_url
@@ -263,6 +284,20 @@ function ThemeToggle({ theme, onToggle }) {
   );
 }
 
+function MusicToggle({ musicOn, onToggle }) {
+  return (
+    <button
+      type="button"
+      className="hyf-theme-toggle"
+      onClick={onToggle}
+      title={musicOn ? 'Mute study music' : 'Unmute study music'}
+      aria-label={musicOn ? 'Mute study music' : 'Unmute study music'}
+    >
+      {musicOn ? '🎵' : '🔇'}
+    </button>
+  );
+}
+
 /**
  * "Which pile do you want to study?" — shown after picking a bucket, before
  * any cards are shown. Built entirely from cards already fetched (each
@@ -270,7 +305,7 @@ function ThemeToggle({ theme, onToggle }) {
  * round trip. A pile with zero cards is disabled rather than hidden, so a
  * student can see at a glance that e.g. they have no Careless Misses left.
  */
-function PilePicker({ bucket, onChoose, onBack, theme, onToggleTheme }) {
+function PilePicker({ bucket, onChoose, onBack, theme, onToggleTheme, musicOn, onToggleMusic }) {
   const cards = bucket.cards;
   const countFor = (key) => {
     if (key === null) return cards.length;
@@ -294,7 +329,10 @@ function PilePicker({ bucket, onChoose, onBack, theme, onToggleTheme }) {
       <div className="hyf-headrow">
         <button type="button" className="hyf-back" onClick={onBack}>← Back</button>
         <h1 className="hyf-title">{bucket.topicName || bucket.subject.name}</h1>
-        <div className="hyf-headrow-right"><ThemeToggle theme={theme} onToggle={onToggleTheme} /></div>
+        <div className="hyf-headrow-right">
+          <MusicToggle musicOn={musicOn} onToggle={onToggleMusic} />
+          <ThemeToggle theme={theme} onToggle={onToggleTheme} />
+        </div>
       </div>
 
       <div className="hyf-col">
@@ -327,15 +365,26 @@ function PilePicker({ bucket, onChoose, onBack, theme, onToggleTheme }) {
 
 /** The actual flip-through session. Its own tiny component so the flip/index
  * state resets cleanly every time a new deck is opened (mounted fresh). */
-function Player({ deck, onExit, theme, onToggleTheme }) {
+function Player({ deck, onExit, theme, onToggleTheme, musicOn, onToggleMusic }) {
   const [idx, setIdx] = useState(0);
   const [flipped, setFlipped] = useState(false);
   const [seenCount, setSeenCount] = useState(0);   // cards actually flipped to their back
   const [done, setDone] = useState(false);
 
   const seenRef = useRef(new Set());
-  const startRef = useRef(Date.now());
   const sentRef = useRef(false);
+
+  // Active study time, summed per-card and capped at 60s each — a card left
+  // open while the student is AFK (or the tab is backgrounded) can't inflate
+  // the total past a minute for that card. Same cap-per-phase approach
+  // SoloGame uses for its answer/explanation phases.
+  const activeSecondsRef = useRef(0);
+  const cardStartRef = useRef(Date.now());
+  const bankCardTime = useCallback(() => {
+    const spent = (Date.now() - cardStartRef.current) / 1000;
+    activeSecondsRef.current += Math.max(0, Math.min(spent, 60));
+    cardStartRef.current = Date.now();
+  }, []);
 
   const card = deck.cards[idx];
   const total = deck.cards.length;
@@ -367,6 +416,7 @@ function Player({ deck, onExit, theme, onToggleTheme }) {
 
   const postSession = useCallback((useKeepalive = false) => {
     if (sentRef.current) return;
+    bankCardTime(); // catch whatever card was on screen when the session ended
     const reviewed = seenRef.current.size;
     if (reviewed === 0) return;
     sentRef.current = true;
@@ -379,12 +429,12 @@ function Player({ deck, onExit, theme, onToggleTheme }) {
         subject: deck.subject,
         topic_id: deck.topicId,
         cards_reviewed: reviewed,
-        duration_seconds: Math.round((Date.now() - startRef.current) / 1000),
+        duration_seconds: Math.round(activeSecondsRef.current),
         date: new Date().toLocaleDateString('en-CA'),
       }),
       ...(useKeepalive ? { keepalive: true } : {}),
     }).catch(() => {});
-  }, [deck]);
+  }, [deck, bankCardTime]);
 
   // Same hard-exit safety net SoloGame/AnKing use: 'pagehide' catches a full
   // navigation (Home button sets window.location), unmount cleanup catches a
@@ -414,12 +464,14 @@ function Player({ deck, onExit, theme, onToggleTheme }) {
   }
 
   function next() {
+    bankCardTime();
     if (idx + 1 >= total) { setDone(true); postSession(); return; }
     setIdx(i => i + 1);
     setFlipped(false);
   }
   function prev() {
     if (idx === 0) return;
+    bankCardTime();
     setIdx(i => i - 1);
     setFlipped(false);
   }
@@ -433,7 +485,7 @@ function Player({ deck, onExit, theme, onToggleTheme }) {
           <p className="hyf-done-sub">{deck.topicName || deck.subjectName}</p>
           <p className="hyf-done-count">{seenCount} of {total} cards reviewed</p>
           <div className="hyf-done-actions">
-            <button className="btn-start" onClick={() => { setIdx(0); setFlipped(false); setDone(false); seenRef.current = new Set(); setSeenCount(0); startRef.current = Date.now(); sentRef.current = false; }}>
+            <button className="btn-start" onClick={() => { setIdx(0); setFlipped(false); setDone(false); seenRef.current = new Set(); setSeenCount(0); activeSecondsRef.current = 0; cardStartRef.current = Date.now(); sentRef.current = false; }}>
               Study Again
             </button>
             <button className="btn-secondary" onClick={onExit}>Back to Subjects</button>
@@ -450,6 +502,7 @@ function Player({ deck, onExit, theme, onToggleTheme }) {
         <span className="hyf-player-title">{deck.topicName || `${deck.subjectName} — All`}</span>
         <div className="hyf-player-right">
           <span className="hyf-player-count">{idx + 1} / {total}</span>
+          <MusicToggle musicOn={musicOn} onToggle={onToggleMusic} />
           <ThemeToggle theme={theme} onToggle={onToggleTheme} />
         </div>
       </div>

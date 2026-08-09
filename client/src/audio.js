@@ -17,6 +17,72 @@ export function setMuted(val) {
   muted = val;
   if (bgGain) bgGain.gain.value = val ? 0 : 0.07;
   if (gameGain) gameGain.gain.value = val ? 0 : 0.09625;
+  if (studyGain) studyGain.gain.value = val ? 0 : 0.05;
+}
+
+// ── HY Flashcards study music — slow ambient chord pads, deliberately
+// distinct from the quiz-show melody+bass(+drums) sequencer used for the
+// lobby/game music elsewhere. No melody or rhythm section, just overlapping
+// sustained triangle-wave chords with a slow attack/release ("pad" envelope)
+// cycling through a gentle four-chord loop, plus a very quiet high sparkle
+// note so it doesn't feel completely static — a calmer backdrop for reading
+// flashcards rather than something built to feel urgent or competitive.
+const STUDY_CHORDS = [
+  [261.63, 329.63, 392.00],  // C major
+  [220.00, 261.63, 329.63],  // A minor
+  [174.61, 220.00, 261.63],  // F major
+  [196.00, 246.94, 293.66],  // G major
+];
+const STUDY_SPARKLE = [523.25, 659.25, 783.99, 587.33];
+
+let studyGain = null;
+let studyInterval = null;
+let studyBar = 0;
+
+function playStudyPad(c, dest, freqs, t, dur) {
+  freqs.forEach(freq => {
+    const osc = c.createOscillator();
+    const gn = c.createGain();
+    osc.type = 'triangle';
+    osc.frequency.value = freq;
+    gn.gain.setValueAtTime(0.0001, t);
+    gn.gain.exponentialRampToValueAtTime(0.5, t + dur * 0.4);   // slow swell in
+    gn.gain.setValueAtTime(0.5, t + dur * 0.6);
+    gn.gain.exponentialRampToValueAtTime(0.0001, t + dur);      // slow fade out
+    osc.connect(gn); gn.connect(dest);
+    osc.start(t); osc.stop(t + dur + 0.05);
+  });
+}
+
+export function startStudyMusic() {
+  stopBgMusic();
+  stopGameMusic();
+  stopStudyMusic();
+  if (muted) return;
+  const c = getCtx();
+  studyGain = c.createGain();
+  studyGain.gain.value = 0.05; // quiet, meant to sit under reading, not compete with it
+  studyGain.connect(c.destination);
+  studyBar = 0;
+
+  const barDur = 4.4; // slow, unhurried — a full loop takes ~17.6s
+  const scheduleBar = () => {
+    if (!studyGain) return;
+    const t = c.currentTime + 0.05;
+    playStudyPad(c, studyGain, STUDY_CHORDS[studyBar % STUDY_CHORDS.length], t, barDur);
+    // Sparkle note on the "and" of the bar, quieter and higher — every other bar only.
+    if (studyBar % 2 === 1) {
+      schedNote(c, studyGain, STUDY_SPARKLE[studyBar % STUDY_SPARKLE.length], 'sine', 0.06, t + barDur * 0.5, 1.2);
+    }
+    studyBar++;
+  };
+  scheduleBar();
+  studyInterval = setInterval(scheduleBar, barDur * 1000);
+}
+
+export function stopStudyMusic() {
+  if (studyInterval) { clearInterval(studyInterval); studyInterval = null; }
+  if (studyGain) { studyGain.disconnect(); studyGain = null; }
 }
 
 export function playClick() {
