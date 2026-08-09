@@ -37,6 +37,13 @@ export default function HYFlashcards() {
   const [menu, setMenu] = useState(null);           // null = loading, [] = loaded-but-empty never happens (always all active subjects)
   const [menuError, setMenuError] = useState(false);
   const [openSubject, setOpenSubject] = useState(null); // subject id whose bucket list is expanded
+  const [theme, setTheme] = useState(() => (localStorage.getItem('hyf-theme') === 'light' ? 'light' : 'dark'));
+  const toggleTheme = () => setTheme(t => {
+    const next = t === 'light' ? 'dark' : 'light';
+    localStorage.setItem('hyf-theme', next);
+    return next;
+  });
+  const themeClass = theme === 'light' ? ' is-light' : '';
 
   const [deck, setDeck] = useState(null);           // { subject, subjectName, topicId, topicName, cards }
   const [order, setOrder] = useState('inorder');    // 'inorder' | 'random'
@@ -100,6 +107,8 @@ export default function HYFlashcards() {
       <Player
         deck={deck}
         onExit={() => setDeck(null)}
+        theme={theme}
+        onToggleTheme={toggleTheme}
       />
     );
   }
@@ -113,18 +122,23 @@ export default function HYFlashcards() {
           setPendingBucket(null);
         }}
         onBack={() => setPendingBucket(null)}
+        theme={theme}
+        onToggleTheme={toggleTheme}
       />
     );
   }
 
   return (
-    <div className="hyf-page">
+    <div className={`hyf-page${themeClass}`}>
       <div className="hyf-topbar">
         <a className="hyf-wordmark" href="/dashboard">MEDVALE</a>
-        <div className="hyf-avatar" title={user?.username || 'Player'}>
-          {user?.avatar_url
-            ? <img src={user.avatar_url} alt={user.username} referrerPolicy="no-referrer" />
-            : <span>{user?.username?.[0]?.toUpperCase() || '?'}</span>}
+        <div className="hyf-topbar-right">
+          <ThemeToggle theme={theme} onToggle={toggleTheme} />
+          <div className="hyf-avatar" title={user?.username || 'Player'}>
+            {user?.avatar_url
+              ? <img src={user.avatar_url} alt={user.username} referrerPolicy="no-referrer" />
+              : <span>{user?.username?.[0]?.toUpperCase() || '?'}</span>}
+          </div>
         </div>
       </div>
 
@@ -233,6 +247,21 @@ export default function HYFlashcards() {
   );
 }
 
+function ThemeToggle({ theme, onToggle }) {
+  const isLight = theme === 'light';
+  return (
+    <button
+      type="button"
+      className="hyf-theme-toggle"
+      onClick={onToggle}
+      title={isLight ? 'Switch to dark theme' : 'Switch to light theme'}
+      aria-label={isLight ? 'Switch to dark theme' : 'Switch to light theme'}
+    >
+      {isLight ? '🌙' : '☀️'}
+    </button>
+  );
+}
+
 /**
  * "Which pile do you want to study?" — shown after picking a bucket, before
  * any cards are shown. Built entirely from cards already fetched (each
@@ -240,7 +269,7 @@ export default function HYFlashcards() {
  * round trip. A pile with zero cards is disabled rather than hidden, so a
  * student can see at a glance that e.g. they have no Careless Misses left.
  */
-function PilePicker({ bucket, onChoose, onBack }) {
+function PilePicker({ bucket, onChoose, onBack, theme, onToggleTheme }) {
   const cards = bucket.cards;
   const countFor = (key) => {
     if (key === null) return cards.length;
@@ -260,11 +289,11 @@ function PilePicker({ bucket, onChoose, onBack }) {
   ];
 
   return (
-    <div className="hyf-page">
+    <div className={`hyf-page${theme === 'light' ? ' is-light' : ''}`}>
       <div className="hyf-headrow">
         <button type="button" className="hyf-back" onClick={onBack}>← Back</button>
         <h1 className="hyf-title">{bucket.topicName || bucket.subject.name}</h1>
-        <div />
+        <div className="hyf-headrow-right"><ThemeToggle theme={theme} onToggle={onToggleTheme} /></div>
       </div>
 
       <div className="hyf-col">
@@ -297,7 +326,7 @@ function PilePicker({ bucket, onChoose, onBack }) {
 
 /** The actual flip-through session. Its own tiny component so the flip/index
  * state resets cleanly every time a new deck is opened (mounted fresh). */
-function Player({ deck, onExit }) {
+function Player({ deck, onExit, theme, onToggleTheme }) {
   const [idx, setIdx] = useState(0);
   const [flipped, setFlipped] = useState(false);
   const [seenCount, setSeenCount] = useState(0);   // cards actually flipped to their back
@@ -396,7 +425,7 @@ function Player({ deck, onExit }) {
 
   if (done) {
     return (
-      <div className="hyf-page hyf-page--center">
+      <div className={`hyf-page hyf-page--center${theme === 'light' ? ' is-light' : ''}`}>
         <div className="hyf-done-card">
           <span className="hyf-done-icon" aria-hidden="true">🎉</span>
           <h2>Deck Complete!</h2>
@@ -414,11 +443,14 @@ function Player({ deck, onExit }) {
   }
 
   return (
-    <div className="hyf-page hyf-page--player">
+    <div className={`hyf-page hyf-page--player${theme === 'light' ? ' is-light' : ''}`}>
       <div className="hyf-player-head">
         <button type="button" className="hyf-back" onClick={onExit}>← Exit</button>
         <span className="hyf-player-title">{deck.topicName || `${deck.subjectName} — All`}</span>
-        <span className="hyf-player-count">{idx + 1} / {total}</span>
+        <div className="hyf-player-right">
+          <span className="hyf-player-count">{idx + 1} / {total}</span>
+          <ThemeToggle theme={theme} onToggle={onToggleTheme} />
+        </div>
       </div>
 
       <div className="hyf-card-wrap">
