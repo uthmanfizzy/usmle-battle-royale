@@ -889,3 +889,40 @@ CREATE POLICY IF NOT EXISTS "server_full_access_game_settings"
 -- Bulk import gains a third pipe/tab-separated field: "Front | Back |
 -- Explanation" (or the Anki-export tab equivalent). The explanation segment
 -- is optional — a two-field line still imports exactly as before.
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- HY FLASHCARD SELF-RATINGS (run in the SQL editor)
+-- ─────────────────────────────────────────────────────────────────────────────
+-- CREATE TABLE IF NOT EXISTS hy_flashcard_ratings (
+--   id         UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+--   user_id    UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+--   card_id    UUID        NOT NULL REFERENCES hy_flashcards(id) ON DELETE CASCADE,
+--   rating     TEXT        NOT NULL CHECK (rating IN ('knowledge_gap','careless_miss','lucky_guess','fully_understood')),
+--   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+-- );
+-- CREATE UNIQUE INDEX IF NOT EXISTS idx_hy_flashcard_ratings_user_card ON hy_flashcard_ratings(user_id, card_id);
+-- ALTER TABLE hy_flashcard_ratings ENABLE ROW LEVEL SECURITY;
+-- DROP POLICY IF EXISTS "server_full_access_hy_flashcard_ratings" ON hy_flashcard_ratings;
+-- CREATE POLICY "server_full_access_hy_flashcard_ratings"
+--   ON hy_flashcard_ratings FOR ALL USING (true) WITH CHECK (true);
+--
+-- WHY: after flipping a card, the student judges their OWN recall — not a
+-- right/wrong grade, since flashcards aren't scored — into one of four
+-- buckets: Knowledge Gap, Careless Miss, Lucky Guess, Fully Understood. One
+-- row per (user, card): a rating always reflects the student's MOST RECENT
+-- judgement of that card, there is no history — re-rating on a later study
+-- pass just moves the card between piles via the UNIQUE(user_id, card_id)
+-- upsert (onConflict: 'user_id,card_id').
+--
+-- Restudying a topic offers a pile picker built from these ratings — "Study
+-- All", one option per rating, plus "Not Yet Rated" — so a student can focus
+-- specifically on, say, their Careless Miss pile instead of the whole topic.
+--
+-- WRITE by POST /api/hy-flashcards/:cardId/rate { rating } (requireAuth).
+-- READ  by GET  /api/hy-flashcards/ratings?subject=&topic_id= (requireAuth) —
+-- same subject/topic_id scoping as the public GET /api/hy-flashcards, so the
+-- pile picker computes counts from cards it already fetched, no per-pile
+-- round trip. Deleting a card or a user cascades its ratings away; deleting a
+-- topic/chapter does NOT touch ratings (cards move to General, keep their
+-- ratings — a rating belongs to the card, not to wherever it's currently
+-- organised).

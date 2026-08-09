@@ -351,6 +351,60 @@
   margin: 0 auto;
 }
 
+.hyf-flip-reminder {
+  text-align: center;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.4);
+  margin: 0 0 16px;
+}
+
+/* ── Self-rating buttons, shown once a card is flipped ───────────────────── */
+.hyf-rate-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  max-width: 620px;
+  width: 100%;
+  margin: 0 auto 16px;
+}
+.hyf-rate-btn {
+  flex: 1 1 130px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  font-family: inherit;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color 0.14s ease, background 0.14s ease;
+}
+.hyf-rate-btn:hover { background: rgba(255, 255, 255, 0.1); }
+/* Each pile gets a colour echoing its icon, so the row reads at a glance. */
+.hyf-rate-btn--knowledge_gap:hover,
+.hyf-rate-btn--knowledge_gap.is-current { border-color: rgba(231, 76, 60, 0.6); background: rgba(231, 76, 60, 0.14); }
+.hyf-rate-btn--careless_miss:hover,
+.hyf-rate-btn--careless_miss.is-current { border-color: rgba(232, 176, 75, 0.6); background: rgba(232, 176, 75, 0.14); }
+.hyf-rate-btn--lucky_guess:hover,
+.hyf-rate-btn--lucky_guess.is-current { border-color: rgba(90, 170, 230, 0.6); background: rgba(90, 170, 230, 0.14); }
+.hyf-rate-btn--fully_understood:hover,
+.hyf-rate-btn--fully_understood.is-current { border-color: rgba(61, 220, 132, 0.6); background: rgba(61, 220, 132, 0.14); }
+
+/* ── Pile picker (choose which cards to (re)study) ───────────────────────── */
+.hyf-pile-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.hyf-pile.is-disabled { opacity: 0.4; cursor: default; }
+.hyf-pile.is-disabled:hover { border-color: rgba(255, 255, 255, 0.12); background: rgba(255, 255, 255, 0.03); }
+
 /* ── Deck-complete card ───────────────────────────────────────────────────── */
 .hyf-done-card {
   display: flex;

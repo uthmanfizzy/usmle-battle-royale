@@ -8218,6 +8218,69 @@ app.get('/api/hy-flashcards', async (req, res) => {
   }
 });
 
+// Self-assessment after flipping a card — "why did that go the way it did",
+// not a right/wrong grade (the student judges their own recall, there is no
+// scoring). One row per (user, card): rating always reflects the MOST RECENT
+// judgement, there is no history — restudying a topic and re-rating a card
+// simply moves it between piles.
+const HY_RATINGS = ['knowledge_gap', 'careless_miss', 'lucky_guess', 'fully_understood'];
+
+app.post('/api/hy-flashcards/:cardId/rate', requireAuth, async (req, res) => {
+  const rating = (req.body?.rating ?? '').toString();
+  if (!HY_RATINGS.includes(rating)) {
+    return res.status(400).json({ error: `rating must be one of: ${HY_RATINGS.join(', ')}` });
+  }
+  if (!supabase) return res.json({ ok: false });
+  try {
+    const { error } = await supabase.from('hy_flashcard_ratings').upsert({
+      user_id: req.userId,
+      card_id: req.params.cardId,
+      rating,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'user_id,card_id' });
+    if (error) throw error;
+    res.json({ ok: true });
+  } catch (err) {
+    console.warn('[hy-flashcards rate] failed —', err.message);
+    res.json({ ok: false });
+  }
+});
+
+/**
+ * GET /api/hy-flashcards/ratings?subject=X[&topic_id=Y]
+ *
+ * This user's ratings for the SAME card set /api/hy-flashcards would return
+ * for the same query — same subject/topic_id semantics (subject alone = every
+ * card in the subject). Lets the "which pile do you want to study" screen
+ * compute counts from cards it already has in hand, no second per-pile fetch.
+ * requireAuth (unlike the public cards/menu endpoints) because a rating is
+ * inherently per-user.
+ */
+app.get('/api/hy-flashcards/ratings', requireAuth, async (req, res) => {
+  const { subject, topic_id } = req.query;
+  if (!subject) return res.status(400).json({ error: 'subject required', ratings: {} });
+  if (!supabase) return res.json({ ratings: {} });
+  try {
+    let cardQuery = supabase.from('hy_flashcards').select('id').eq('subject', subject);
+    if (topic_id) cardQuery = cardQuery.eq('topic_id', topic_id);
+    const { data: cardRows, error: cardErr } = await cardQuery;
+    if (cardErr) throw cardErr;
+    const cardIds = (cardRows || []).map(c => c.id);
+    if (cardIds.length === 0) return res.json({ ratings: {} });
+
+    const { data, error } = await supabase
+      .from('hy_flashcard_ratings')
+      .select('card_id, rating')
+      .eq('user_id', req.userId)
+      .in('card_id', cardIds);
+    if (error) throw error;
+    res.json({ ratings: Object.fromEntries((data || []).map(r => [r.card_id, r.rating])) });
+  } catch (err) {
+    console.warn('[hy-flashcards ratings] unavailable —', err.message);
+    res.json({ ratings: {} });
+  }
+});
+
 /**
  * POST /api/hy-flashcards/session-complete  { subject, topic_id?, cards_reviewed, duration_seconds, date }
  *

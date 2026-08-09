@@ -14,6 +14,15 @@ function shuffle(arr) {
   return a;
 }
 
+// The four self-assessment buckets a card can be rated into after flipping.
+// Order here is the order the buttons render in.
+const HY_RATINGS = [
+  { key: 'knowledge_gap',    label: 'Knowledge Gap',    icon: '🧠' },
+  { key: 'careless_miss',    label: 'Careless Miss',    icon: '😅' },
+  { key: 'lucky_guess',      label: 'Lucky Guess',      icon: '🍀' },
+  { key: 'fully_understood', label: 'Fully Understood', icon: '✅' },
+];
+
 /**
  * /hy-flashcards — subject/topic picker, then a straight-through card flipper.
  *
@@ -32,6 +41,12 @@ export default function HYFlashcards() {
   const [deck, setDeck] = useState(null);           // { subject, subjectName, topicId, topicName, cards }
   const [order, setOrder] = useState('inorder');    // 'inorder' | 'random'
   const [openChapter, setOpenChapter] = useState(null); // chapter id whose topic list is expanded
+
+  // Set the instant a bucket is clicked, cleared once a pile is chosen (which
+  // hands off to `deck`) or the student backs out. Holds every card in the
+  // bucket WITH this user's rating attached, so the pile picker can show
+  // counts without a second round trip per pile.
+  const [pendingBucket, setPendingBucket] = useState(null); // { subject, topicId, topicName, cards }
 
   // Same own-identity guard the other signed-in pages use.
   useEffect(() => {
@@ -59,11 +74,25 @@ export default function HYFlashcards() {
     });
   }
 
+  // Fetches the bucket's cards AND this user's ratings for them in one go, so
+  // the pile picker (below) has everything it needs to show counts without
+  // a fetch per pile. Ratings are requireAuth'd; the page already redirects
+  // guests away at the top, so a token always exists here.
   async function openBucket(subject, topicId, topicName) {
-    const url = `${SERVER_URL}/api/hy-flashcards?subject=${encodeURIComponent(subject.id)}${topicId ? `&topic_id=${encodeURIComponent(topicId)}` : ''}`;
-    const res = await fetch(url).catch(() => null);
-    const data = res ? await res.json().catch(() => ({})) : {};
-    startDeck(subject, topicId, topicName, data.cards || []);
+    const params = `subject=${encodeURIComponent(subject.id)}${topicId ? `&topic_id=${encodeURIComponent(topicId)}` : ''}`;
+    const token = getToken();
+    const [cardsRes, ratingsRes] = await Promise.all([
+      fetch(`${SERVER_URL}/api/hy-flashcards?${params}`).catch(() => null),
+      token
+        ? fetch(`${SERVER_URL}/api/hy-flashcards/ratings?${params}`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => null)
+        : Promise.resolve(null),
+    ]);
+    const cardsData = cardsRes ? await cardsRes.json().catch(() => ({})) : {};
+    const ratingsData = ratingsRes ? await ratingsRes.json().catch(() => ({})) : {};
+    const ratingsMap = ratingsData.ratings || {};
+    const cards = (cardsData.cards || []).map(c => ({ ...c, rating: ratingsMap[c.id] || null }));
+    if (cards.length === 0) return;
+    setPendingBucket({ subject, topicId, topicName, cards });
   }
 
   if (deck) {
@@ -71,6 +100,19 @@ export default function HYFlashcards() {
       <Player
         deck={deck}
         onExit={() => setDeck(null)}
+      />
+    );
+  }
+
+  if (pendingBucket) {
+    return (
+      <PilePicker
+        bucket={pendingBucket}
+        onChoose={(cards) => {
+          startDeck(pendingBucket.subject, pendingBucket.topicId, pendingBucket.topicName, cards);
+          setPendingBucket(null);
+        }}
+        onBack={() => setPendingBucket(null)}
       />
     );
   }
@@ -191,6 +233,68 @@ export default function HYFlashcards() {
   );
 }
 
+/**
+ * "Which pile do you want to study?" — shown after picking a bucket, before
+ * any cards are shown. Built entirely from cards already fetched (each
+ * carrying this user's rating or null), so every count is free — no per-pile
+ * round trip. A pile with zero cards is disabled rather than hidden, so a
+ * student can see at a glance that e.g. they have no Careless Misses left.
+ */
+function PilePicker({ bucket, onChoose, onBack }) {
+  const cards = bucket.cards;
+  const countFor = (key) => {
+    if (key === null) return cards.length;
+    if (key === 'unrated') return cards.filter(c => !c.rating).length;
+    return cards.filter(c => c.rating === key).length;
+  };
+  const cardsFor = (key) => {
+    if (key === null) return cards;
+    if (key === 'unrated') return cards.filter(c => !c.rating);
+    return cards.filter(c => c.rating === key);
+  };
+
+  const piles = [
+    { key: null, label: 'Study All', icon: '📚' },
+    ...HY_RATINGS,
+    { key: 'unrated', label: 'Not Yet Rated', icon: '◻️' },
+  ];
+
+  return (
+    <div className="hyf-page">
+      <div className="hyf-headrow">
+        <button type="button" className="hyf-back" onClick={onBack}>← Back</button>
+        <h1 className="hyf-title">{bucket.topicName || bucket.subject.name}</h1>
+        <div />
+      </div>
+
+      <div className="hyf-col">
+        <p className="hyf-intro">
+          Choose which cards to study — restudying lets you focus on, say, just the
+          ones you marked a Careless Miss last time.
+        </p>
+        <div className="hyf-pile-list">
+          {piles.map(p => {
+            const count = countFor(p.key);
+            const disabled = count === 0;
+            return (
+              <button
+                key={p.key ?? 'all'}
+                type="button"
+                className={`hyf-deck hyf-pile${disabled ? ' is-disabled' : ''}`}
+                disabled={disabled}
+                onClick={() => onChoose(cardsFor(p.key))}
+              >
+                <span className="hyf-deck-name">{p.icon} {p.label}</span>
+                <span className="hyf-deck-sub">{count} card{count === 1 ? '' : 's'}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /** The actual flip-through session. Its own tiny component so the flip/index
  * state resets cleanly every time a new deck is opened (mounted fresh). */
 function Player({ deck, onExit }) {
@@ -205,6 +309,31 @@ function Player({ deck, onExit }) {
 
   const card = deck.cards[idx];
   const total = deck.cards.length;
+
+  // Local copy of ratings, seeded from what the pile picker already fetched.
+  // Kept separately from `deck` (a prop) so rating a card during THIS session
+  // updates its button state immediately if the student goes back to it via
+  // Previous, without needing to mutate the parent's data.
+  const [ratings, setRatings] = useState(() => Object.fromEntries(deck.cards.map(c => [c.id, c.rating || null])));
+
+  function postRating(cardId, rating) {
+    const token = getToken();
+    if (!token) return; // guests can't reach this page at all, but stay defensive
+    fetch(`${SERVER_URL}/api/hy-flashcards/${cardId}/rate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ rating }),
+    }).catch(() => {}); // fire-and-forget — a lost rating never blocks the deck
+  }
+
+  // Rating a card doubles as "seen" (same as flipping — you can't rate
+  // without having flipped) and advances, so the flow is: flip, read,
+  // rate-and-move-on in one tap.
+  function rate(ratingKey) {
+    setRatings(prev => ({ ...prev, [card.id]: ratingKey }));
+    postRating(card.id, ratingKey);
+    next();
+  }
 
   const postSession = useCallback((useKeepalive = false) => {
     if (sentRef.current) return;
@@ -310,9 +439,30 @@ function Player({ deck, onExit }) {
         </div>
       </div>
 
+      {flipped ? (
+        <div className="hyf-rate-row" role="group" aria-label="Rate your recall">
+          {HY_RATINGS.map(r => (
+            <button
+              key={r.key}
+              type="button"
+              className={`hyf-rate-btn hyf-rate-btn--${r.key}${ratings[card.id] === r.key ? ' is-current' : ''}`}
+              onClick={() => rate(r.key)}
+            >
+              <span aria-hidden="true">{r.icon}</span> {r.label}
+            </button>
+          ))}
+        </div>
+      ) : (
+        <p className="hyf-flip-reminder">Flip the card to rate your recall</p>
+      )}
+
       <div className="hyf-player-nav">
         <button type="button" className="btn-secondary" onClick={prev} disabled={idx === 0}>← Previous</button>
-        <button type="button" className="btn-start" onClick={next}>{idx + 1 >= total ? 'Finish ✓' : 'Next →'}</button>
+        {/* Rating IS the "next" action once flipped — Skip covers changing
+            your mind and moving on without judging this card at all. */}
+        {!flipped && (
+          <button type="button" className="btn-secondary" onClick={next}>{idx + 1 >= total ? 'Finish (skip) ✓' : 'Skip →'}</button>
+        )}
       </div>
     </div>
   );
