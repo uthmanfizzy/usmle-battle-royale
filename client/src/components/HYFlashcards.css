@@ -261,11 +261,16 @@
   padding: 20px 0 30px;
 }
 
-/* Simple 3D flip — perspective on the wrapper, rotateY on the inner pair. */
+/* Simple 3D flip — perspective on the wrapper, rotateY on the inner pair.
+   Height keyed off viewport HEIGHT rather than width — on a normal desktop
+   window the old `56vw` cap landed at its 320px ceiling almost immediately,
+   so the card stayed small regardless of how much vertical room the page
+   actually had, and a longer explanation had nowhere to go but a tiny
+   internal scrollbar. */
 .hyf-flip {
   perspective: 1400px;
-  width: min(92vw, 560px);
-  height: min(56vw, 320px);
+  width: min(92vw, 720px);
+  height: min(68vh, 520px);
   cursor: pointer;
 }
 .hyf-flip-inner {

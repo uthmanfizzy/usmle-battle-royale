@@ -368,14 +368,19 @@ function Player({ deck, onExit }) {
     };
   }, [postSession]);
 
+  // Toggles both ways — it used to only ever flip TO the back and silently do
+  // nothing on a second tap, which broke the "Tap to flip back" hint on the
+  // back face. "Seen" is still recorded only the first time it flips to the
+  // back, so flipping back and forth doesn't inflate anything.
   function flip() {
-    if (!flipped) {
-      setFlipped(true);
-      if (!seenRef.current.has(idx)) {
+    setFlipped(f => {
+      const next = !f;
+      if (next && !seenRef.current.has(idx)) {
         seenRef.current.add(idx);
         setSeenCount(seenRef.current.size);
       }
-    }
+      return next;
+    });
   }
 
   function next() {
