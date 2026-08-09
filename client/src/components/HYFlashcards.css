@@ -352,7 +352,7 @@
 .hyf-flip {
   perspective: 1400px;
   width: min(92vw, 720px);
-  height: min(68vh, 520px);
+  height: min(76vh, 620px);
   cursor: pointer;
 }
 .hyf-flip-inner {
@@ -525,5 +525,5 @@
 @media (max-width: 640px) {
   .hyf-headrow { grid-template-columns: auto 1fr; }
   .hyf-title { display: none; }
-  .hyf-flip { height: min(70vw, 320px); }
+  .hyf-flip { height: min(78vh, 460px); }
 }
