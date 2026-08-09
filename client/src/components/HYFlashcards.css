@@ -488,6 +488,8 @@
 .hyf-rate-btn--careless_miss.is-current { border-color: rgba(232, 176, 75, 0.6); background: rgba(232, 176, 75, 0.14); }
 .hyf-rate-btn--lucky_guess:hover,
 .hyf-rate-btn--lucky_guess.is-current { border-color: rgba(90, 170, 230, 0.6); background: rgba(90, 170, 230, 0.14); }
+.hyf-rate-btn--somewhat_know:hover,
+.hyf-rate-btn--somewhat_know.is-current { border-color: rgba(209, 130, 47, 0.6); background: rgba(209, 130, 47, 0.14); }
 .hyf-rate-btn--fully_understood:hover,
 .hyf-rate-btn--fully_understood.is-current { border-color: rgba(61, 220, 132, 0.6); background: rgba(61, 220, 132, 0.14); }
 

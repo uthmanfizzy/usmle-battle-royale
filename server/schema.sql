@@ -897,7 +897,7 @@ CREATE POLICY IF NOT EXISTS "server_full_access_game_settings"
 --   id         UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
 --   user_id    UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 --   card_id    UUID        NOT NULL REFERENCES hy_flashcards(id) ON DELETE CASCADE,
---   rating     TEXT        NOT NULL CHECK (rating IN ('knowledge_gap','careless_miss','lucky_guess','fully_understood')),
+--   rating     TEXT        NOT NULL CHECK (rating IN ('knowledge_gap','careless_miss','lucky_guess','somewhat_know','fully_understood')),
 --   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 -- );
 -- CREATE UNIQUE INDEX IF NOT EXISTS idx_hy_flashcard_ratings_user_card ON hy_flashcard_ratings(user_id, card_id);
@@ -905,6 +905,12 @@ CREATE POLICY IF NOT EXISTS "server_full_access_game_settings"
 -- DROP POLICY IF EXISTS "server_full_access_hy_flashcard_ratings" ON hy_flashcard_ratings;
 -- CREATE POLICY "server_full_access_hy_flashcard_ratings"
 --   ON hy_flashcard_ratings FOR ALL USING (true) WITH CHECK (true);
+--
+-- Table already live? Widen the existing CHECK constraint instead of
+-- recreating the table (run in the SQL editor):
+--   ALTER TABLE hy_flashcard_ratings DROP CONSTRAINT hy_flashcard_ratings_rating_check;
+--   ALTER TABLE hy_flashcard_ratings ADD CONSTRAINT hy_flashcard_ratings_rating_check
+--     CHECK (rating IN ('knowledge_gap','careless_miss','lucky_guess','somewhat_know','fully_understood'));
 --
 -- WHY: after flipping a card, the student judges their OWN recall — not a
 -- right/wrong grade, since flashcards aren't scored — into one of four

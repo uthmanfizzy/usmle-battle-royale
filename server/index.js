@@ -8223,7 +8223,7 @@ app.get('/api/hy-flashcards', async (req, res) => {
 // scoring). One row per (user, card): rating always reflects the MOST RECENT
 // judgement, there is no history — restudying a topic and re-rating a card
 // simply moves it between piles.
-const HY_RATINGS = ['knowledge_gap', 'careless_miss', 'lucky_guess', 'fully_understood'];
+const HY_RATINGS = ['knowledge_gap', 'careless_miss', 'lucky_guess', 'somewhat_know', 'fully_understood'];
 
 app.post('/api/hy-flashcards/:cardId/rate', requireAuth, async (req, res) => {
   const rating = (req.body?.rating ?? '').toString();

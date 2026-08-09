@@ -141,6 +141,28 @@
   background: repeating-linear-gradient(45deg, #182430, #182430 10px, #131d27 10px, #131d27 20px);
 }
 
+/* Orange variant — Flashcards. Same treatment as the blue UWorld variant:
+   coloured rule + glow, coloured title, warmer stripes in the art panel. */
+.ms-journey-card--orange {
+  border-color: #d6813f;
+  box-shadow: 0 0 18px rgba(209, 130, 47, 0.2);
+}
+
+.ms-journey-card--orange:hover {
+  box-shadow: 0 0 28px rgba(209, 130, 47, 0.45);
+}
+
+.ms-journey-card--orange .ms-journey-name {
+  color: #f0a860;
+}
+
+.ms-journey-card--orange.ms-journey-card--open { border-color: #f0a860; }
+.ms-journey-card--orange.ms-journey-card--open .ms-flash-caret { color: #f0a860; }
+
+.ms-journey-card--orange .ms-journey-art {
+  background: repeating-linear-gradient(45deg, #302016, #302016 10px, #271a10 10px, #271a10 20px);
+}
+
 /* Coming-soon state: dimmed + neutral border (same plain-card language as
    Deploy's disabled mode cards), no red glow, no hover lift.
    animation:none is required — ms-card-up's fill:both end state is

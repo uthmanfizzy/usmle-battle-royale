@@ -81,7 +81,7 @@ export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld }) {
             there are two entries — a whole phase and a back button for that
             would be more chrome than content. */}
         <button
-          className={`ms-journey-card${flashOpen ? ' ms-journey-card--open' : ''}`}
+          className={`ms-journey-card ms-journey-card--orange${flashOpen ? ' ms-journey-card--open' : ''}`}
           onClick={() => setFlashOpen(o => !o)}
           aria-expanded={flashOpen}
         >
