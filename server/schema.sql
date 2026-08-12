@@ -932,3 +932,36 @@ CREATE POLICY IF NOT EXISTS "server_full_access_game_settings"
 -- topic/chapter does NOT touch ratings (cards move to General, keep their
 -- ratings — a rating belongs to the card, not to wherever it's currently
 -- organised).
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- DAILY ACTIVITY GAP NOTES (run in the SQL editor)
+-- ─────────────────────────────────────────────────────────────────────────────
+-- CREATE TABLE IF NOT EXISTS activity_gap_notes (
+--   id         UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+--   user_id    UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+--   gap_start  TIMESTAMPTZ NOT NULL,
+--   note       TEXT        NOT NULL,
+--   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+-- );
+-- CREATE UNIQUE INDEX IF NOT EXISTS idx_activity_gap_notes_user_gap ON activity_gap_notes(user_id, gap_start);
+-- ALTER TABLE activity_gap_notes ENABLE ROW LEVEL SECURITY;
+-- DROP POLICY IF EXISTS "server_full_access_activity_gap_notes" ON activity_gap_notes;
+-- CREATE POLICY "server_full_access_activity_gap_notes"
+--   ON activity_gap_notes FOR ALL USING (true) WITH CHECK (true);
+--
+-- WHY: the Daily Activity page renders a vertical timeline of one day's
+-- activity_sessions, with a "break" block wherever two consecutive sessions are
+-- more than 10 minutes apart. This table lets the OWNER annotate a break with
+-- why it happened ("work shift", "sick", "revised on paper") so the day reads
+-- as a story rather than a set of unexplained holes.
+--
+-- KEYED BY gap_start: the instant the gap begins, which is the end of the
+-- session before it. Not by (date, index) — an index would shift the moment a
+-- backfilled session lands earlier in the day, silently re-pointing every note.
+-- If a gap later SPLITS because a session lands inside it, the first half keeps
+-- the same start instant, so the note stays with it.
+--
+-- PRIVACY: /activity/:userId is a public page, but "why I didn't study" is
+-- personal. Both endpoints are requireAuth and scoped to req.userId — notes are
+-- never returned for anyone but their author, and the client only renders the
+-- editor when you are viewing your own timeline.

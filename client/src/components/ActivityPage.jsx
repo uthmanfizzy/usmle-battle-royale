@@ -29,6 +29,11 @@ const MODE_META = {
   pvp_duel:         { icon: '🤺', label: 'PvP Duel'        },
   journey:          { icon: '🚑', label: 'First Aid Journey' },
   training_grounds: { icon: '🎯', label: 'Training Grounds'  },
+  // The three study-only writers. They emit activity_sessions rows too, so
+  // without these they'd fall through to the generic 🎮 "Hy Flashcards" title.
+  anking:                 { icon: '🃏', label: 'AnKing Flashcards' },
+  hy_flashcards:          { icon: '⭐', label: 'HY Flashcards'     },
+  question_bank_practice: { icon: '📚', label: 'Question Bank'     },
 };
 const modeMeta = (m) =>
   MODE_META[m] || {
@@ -85,6 +90,66 @@ function clockTime(iso) {
   return d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
 }
 
+const clockMs = (ms) =>
+  new Date(ms).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+
+// "1h 25m" / "40m". Breaks are hours-scale, so formatDuration's minutes-only
+// output ("145m") would be unreadable here.
+function formatGap(totalSeconds) {
+  const mins = Math.max(0, Math.round(totalSeconds / 60));
+  if (mins < 60) return `${mins}m`;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return m === 0 ? `${h}h` : `${h}h ${m}m`;
+}
+
+// Anything under this between two sessions is just the pause between clicking
+// "next" — not a break worth drawing a block for.
+const GAP_MIN_MS = 10 * 60 * 1000;
+
+/**
+ * Turn a flat session list into an ordered timeline of session + gap entries.
+ *
+ * Sessions are ordered by START, not ended_at (which is how the server sorts
+ * them) — a long session begun at 1pm should sit above a short one begun at
+ * 2pm even if they finish in the other order. started_at is derived
+ * (ended_at - duration) for some writers, so it's reconstructed here when absent.
+ *
+ * Gaps use a running `cursor` of "latest end seen so far" rather than the
+ * previous session's end, so an overlapping or fully-nested session can't
+ * manufacture a negative or phantom gap.
+ */
+function buildTimeline(sessions) {
+  const norm = [];
+  for (const s of sessions) {
+    const end = Date.parse(s.ended_at);
+    if (!Number.isFinite(end)) continue;
+    const durMs = (Number(s.duration_seconds) || 0) * 1000;
+    const parsedStart = s.started_at ? Date.parse(s.started_at) : NaN;
+    const start = Number.isFinite(parsedStart) ? parsedStart : end - durMs;
+    norm.push({ s, start, end: Math.max(start, end) });
+  }
+  norm.sort((a, b) => a.start - b.start || a.end - b.end);
+
+  const items = [];
+  let cursor = null;
+  for (const x of norm) {
+    if (cursor !== null && x.start - cursor >= GAP_MIN_MS) {
+      items.push({
+        type: 'gap',
+        key: `gap-${cursor}`,
+        gapStart: new Date(cursor).toISOString(), // note key — see server comment
+        start: cursor,
+        end: x.start,
+        seconds: Math.round((x.start - cursor) / 1000),
+      });
+    }
+    items.push({ type: 'session', key: x.s.id || `s-${x.start}`, ...x });
+    cursor = cursor === null ? x.end : Math.max(cursor, x.end);
+  }
+  return items;
+}
+
 // Score colouring reuses the shared mastery gold-ramp so a 78% here reads the
 // same tier as a 78% on Progress. Journey/Training scores are percentages of the
 // same kind, so the ramp transfers directly.
@@ -107,7 +172,8 @@ function SessionOutcome({ s }) {
   return <span className="da-tag da-tag--none">—</span>;
 }
 
-function SessionRow({ s }) {
+function SessionRow({ item }) {
+  const { s, start, end } = item;
   const meta = modeMeta(s.game_mode);
   const subj = subjectLabel(s.subject);
 
@@ -121,19 +187,108 @@ function SessionRow({ s }) {
   }
 
   return (
-    <li className="da-card">
-      <span className="da-card-icon" aria-hidden="true">{meta.icon}</span>
-      <div className="da-card-main">
-        <div className="da-card-head">
-          <span className="da-card-mode">{meta.label}</span>
-          {subj && <span className="da-card-subject">{subj}</span>}
-        </div>
-        {detail && <div className="da-card-detail">{detail}</div>}
+    <li className="da-item da-item--session">
+      <div className="da-rail" aria-hidden="true">
+        <span className="da-rail-dot" />
       </div>
-      <div className="da-card-meta">
-        <SessionOutcome s={s} />
-        <span className="da-card-duration">{formatDuration(s.duration_seconds)}</span>
-        <span className="da-card-time">{clockTime(s.started_at || s.ended_at)}</span>
+      <div className="da-item-body">
+        <span className="da-when">{clockMs(start)} – {clockMs(end)}</span>
+        <div className="da-card">
+          <span className="da-card-icon" aria-hidden="true">{meta.icon}</span>
+          <div className="da-card-main">
+            <div className="da-card-head">
+              <span className="da-card-mode">{meta.label}</span>
+              {subj && <span className="da-card-subject">{subj}</span>}
+            </div>
+            {detail && <div className="da-card-detail">{detail}</div>}
+          </div>
+          <div className="da-card-meta">
+            <SessionOutcome s={s} />
+            <span className="da-card-duration">{formatDuration(s.duration_seconds)}</span>
+          </div>
+        </div>
+      </div>
+    </li>
+  );
+}
+
+/**
+ * A break between two sessions. When you're looking at your OWN timeline it
+ * doubles as a note field — "why wasn't I studying here" — which is the whole
+ * point of surfacing gaps rather than just closing them up. On someone else's
+ * timeline it renders as a plain gap: notes are private to their author.
+ */
+function GapRow({ item, editable, note, onSave }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft]     = useState(note || '');
+  const [saving, setSaving]   = useState(false);
+
+  // A note arriving from the server after mount (the notes fetch resolves
+  // independently of the sessions fetch) must not clobber an open draft.
+  useEffect(() => { if (!editing) setDraft(note || ''); }, [note, editing]);
+
+  async function commit() {
+    setSaving(true);
+    await onSave(item.gapStart, draft.trim());
+    setSaving(false);
+    setEditing(false);
+  }
+
+  return (
+    <li className="da-item da-item--gap">
+      <div className="da-rail" aria-hidden="true">
+        <span className="da-rail-gap" />
+      </div>
+      <div className="da-item-body">
+        <span className="da-when da-when--gap">{clockMs(item.start)} – {clockMs(item.end)}</span>
+        <div className="da-gap">
+          <div className="da-gap-head">
+            <span className="da-gap-icon" aria-hidden="true">☕</span>
+            <span className="da-gap-len">{formatGap(item.seconds)} break</span>
+          </div>
+
+          {editing ? (
+            <div className="da-note-edit">
+              <textarea
+                className="da-note-input"
+                value={draft}
+                onChange={e => setDraft(e.target.value)}
+                placeholder="What were you doing? e.g. work shift, lectures, rest day…"
+                maxLength={500}
+                rows={2}
+                autoFocus
+              />
+              <div className="da-note-actions">
+                <button type="button" className="da-note-btn da-note-btn--save" onClick={commit} disabled={saving}>
+                  {saving ? 'Saving…' : 'Save'}
+                </button>
+                <button
+                  type="button"
+                  className="da-note-btn"
+                  onClick={() => { setDraft(note || ''); setEditing(false); }}
+                  disabled={saving}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : note ? (
+            <button
+              type="button"
+              className={`da-note${editable ? '' : ' da-note--ro'}`}
+              onClick={() => editable && setEditing(true)}
+              disabled={!editable}
+              title={editable ? 'Edit this note' : undefined}
+            >
+              <span className="da-note-text">{note}</span>
+              {editable && <span className="da-note-pencil" aria-hidden="true">✎</span>}
+            </button>
+          ) : editable ? (
+            <button type="button" className="da-note-add" onClick={() => setEditing(true)}>
+              ＋ Add a reason
+            </button>
+          ) : null}
+        </div>
       </div>
     </li>
   );
@@ -146,6 +301,9 @@ export default function ActivityPage() {
   const [date, setDate]         = useState(todayUTC);
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading]   = useState(true);
+  const [notes, setNotes]       = useState({});   // gap_start ISO -> note
+
+  const isOwn = !!viewedId && !!me?.id && viewedId === me.id;
 
   // Same own-identity resolution ProgressPage uses: no :userId → my own log;
   // token check, cached user, then fetchMe; guests go back to the landing page.
@@ -181,9 +339,49 @@ export default function ActivityPage() {
     return () => { cancelled = true; };
   }, [viewedId, date]);
 
+  // Gap notes are owner-only on the server, so there's nothing to fetch when
+  // viewing someone else — skipping the call keeps the page working for guests.
+  useEffect(() => {
+    if (!isOwn) { setNotes({}); return; }
+    const token = getToken();
+    if (!token) { setNotes({}); return; }
+    let cancelled = false;
+    fetch(`${SERVER_URL}/api/activity/gap-notes?date=${date}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => { if (!cancelled) setNotes(d?.notes || {}); })
+      .catch(() => { if (!cancelled) setNotes({}); });
+    return () => { cancelled = true; };
+  }, [isOwn, date]);
+
+  // Optimistic: the row closes its editor immediately. A failed write leaves
+  // the note visible locally but absent on reload — acceptable for an
+  // annotation, and the alternative (blocking the UI on the round trip) is
+  // worse for something typed in passing.
+  async function saveNote(gapStart, text) {
+    setNotes(prev => {
+      const next = { ...prev };
+      if (text) next[gapStart] = text;
+      else delete next[gapStart];
+      return next;
+    });
+    const token = getToken();
+    if (!token) return;
+    try {
+      await fetch(`${SERVER_URL}/api/activity/gap-notes`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ gap_start: gapStart, note: text }),
+      });
+    } catch { /* keep the local value; nothing actionable to show here */ }
+  }
+
   const isToday = date === todayUTC();
-  const isOwn   = !!viewedId && !!me?.id && viewedId === me.id;
   const totalSeconds = sessions.reduce((a, s) => a + (Number(s.duration_seconds) || 0), 0);
+  const timeline = buildTimeline(sessions);
+  const breaks = timeline.filter(i => i.type === 'gap');
+  const breakSeconds = breaks.reduce((a, g) => a + g.seconds, 0);
 
   return (
     <div className="da">
@@ -252,7 +450,8 @@ export default function ActivityPage() {
             <span className="da-empty-icon" aria-hidden="true">🗓️</span>
             <p className="da-empty-text">No activity recorded on this day.</p>
             <p className="da-empty-hint">
-              Games, Journey levels and Training Grounds runs show up here once played.
+              Games, Journey levels, Training Grounds runs and flashcard sessions
+              show up here once played.
             </p>
           </div>
         ) : (
@@ -265,9 +464,34 @@ export default function ActivityPage() {
               <span className="da-summary-item">
                 <strong>{formatDuration(totalSeconds)}</strong> active
               </span>
+              {breaks.length > 0 && (
+                <>
+                  <span className="da-summary-divider" aria-hidden="true" />
+                  <span className="da-summary-item">
+                    <strong>{breaks.length}</strong> break{breaks.length === 1 ? '' : 's'} ({formatGap(breakSeconds)})
+                  </span>
+                </>
+              )}
             </div>
-            <ul className="da-list">
-              {sessions.map((s, i) => <SessionRow key={s.id || i} s={s} />)}
+
+            <ul className="da-timeline">
+              {timeline.map(item =>
+                item.type === 'gap' ? (
+                  <GapRow
+                    key={item.key}
+                    item={item}
+                    editable={isOwn}
+                    note={notes[item.gapStart] || ''}
+                    onSave={saveNote}
+                  />
+                ) : (
+                  <SessionRow key={item.key} item={item} />
+                )
+              )}
+              <li className="da-item da-item--end">
+                <div className="da-rail" aria-hidden="true"><span className="da-rail-cap" /></div>
+                <span className="da-end-label">End of day</span>
+              </li>
             </ul>
           </>
         )}

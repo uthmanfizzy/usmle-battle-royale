@@ -5078,6 +5078,104 @@ app.get('/api/users/:userId/activity-sessions', async (req, res) => {
   }
 });
 
+// ── Daily Activity gap notes ──────────────────────────────────────────────────
+// The Daily Activity timeline renders a "break" between two consecutive
+// sessions; these endpoints let the OWNER annotate why a break happened
+// ("work shift", "sick", "revision on paper"). A note is keyed by the instant
+// the gap starts — i.e. the end of the session before it — so if that gap later
+// splits because a session lands inside it, the note stays with the first half
+// rather than being orphaned.
+//
+// Deliberately owner-only, both read and write: /activity/:userId is a PUBLIC
+// page, and "why I didn't study" is personal (illness, work, family). Notes are
+// never returned for anyone but the requesting user.
+let hasGapNotes = true;
+function isMissingTable(error) {
+  if (!error) return false;
+  const msg = `${error.message || ''} ${error.details || ''}`.toLowerCase();
+  return error.code === '42P01' || error.code === 'PGRST205' ||
+         (msg.includes('activity_gap_notes') && msg.includes('does not exist')) ||
+         (msg.includes('could not find the table') && msg.includes('activity_gap_notes'));
+}
+
+const GAP_NOTE_MAX = 500;
+
+app.get('/api/activity/gap-notes', requireAuth, async (req, res) => {
+  const raw = (req.query.date ?? '').toString();
+  const valid = /^\d{4}-\d{2}-\d{2}$/.test(raw)
+    && !Number.isNaN(Date.parse(`${raw}T00:00:00Z`))
+    && new Date(`${raw}T00:00:00Z`).toISOString().slice(0, 10) === raw;
+  const date = valid ? raw : new Date().toISOString().slice(0, 10);
+
+  if (!supabase || !hasGapNotes) return res.json({ date, notes: {} });
+  try {
+    const dayStart = `${date}T00:00:00.000Z`;
+    const dayEnd   = new Date(Date.parse(dayStart) + 86400000).toISOString();
+    const { data, error } = await supabase
+      .from('activity_gap_notes')
+      .select('gap_start, note')
+      .eq('user_id', req.userId)
+      .gte('gap_start', dayStart)
+      .lt('gap_start', dayEnd);
+    if (error) {
+      if (isMissingTable(error)) {
+        hasGapNotes = false;
+        console.warn('[gap-notes] activity_gap_notes table missing — run the migration in schema.sql');
+      }
+      return res.json({ date, notes: {} });
+    }
+    // Keyed by the gap's start instant, normalised to ISO so the client can
+    // look a note up by the same key it computes for the gap.
+    const notes = {};
+    for (const row of data || []) {
+      notes[new Date(row.gap_start).toISOString()] = row.note;
+    }
+    res.json({ date, notes });
+  } catch (err) {
+    console.warn('[gap-notes] unavailable —', err.message);
+    res.json({ date, notes: {} });
+  }
+});
+
+// Upsert (or, on an empty note, delete) the note for one gap. Always writes
+// against req.userId — a client cannot annotate someone else's timeline.
+app.put('/api/activity/gap-notes', requireAuth, async (req, res) => {
+  const gapStartRaw = (req.body?.gap_start ?? '').toString();
+  const ts = Date.parse(gapStartRaw);
+  if (Number.isNaN(ts)) return res.status(400).json({ error: 'gap_start must be an ISO timestamp' });
+  const gapStart = new Date(ts).toISOString();
+  const note = (req.body?.note ?? '').toString().trim().slice(0, GAP_NOTE_MAX);
+
+  if (!supabase || !hasGapNotes) return res.json({ ok: false });
+  try {
+    if (!note) {
+      const { error } = await supabase
+        .from('activity_gap_notes')
+        .delete()
+        .eq('user_id', req.userId)
+        .eq('gap_start', gapStart);
+      if (error) throw error;
+      return res.json({ ok: true, note: '' });
+    }
+    const { error } = await supabase.from('activity_gap_notes').upsert({
+      user_id: req.userId,
+      gap_start: gapStart,
+      note,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'user_id,gap_start' });
+    if (error) throw error;
+    res.json({ ok: true, note });
+  } catch (err) {
+    if (isMissingTable(err)) {
+      hasGapNotes = false;
+      console.warn('[gap-notes] activity_gap_notes table missing — run the migration in schema.sql');
+    } else {
+      console.warn('[gap-notes write] failed —', err.message);
+    }
+    res.json({ ok: false });
+  }
+});
+
 // ── Clan API ───────────────────────────────────────────────────────────────────
 
 app.post('/api/clans', requireAuth, async (req, res) => {

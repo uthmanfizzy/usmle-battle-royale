@@ -191,16 +191,239 @@
   background: rgba(255, 255, 255, 0.18);
 }
 
-/* ── Session cards ───────────────────────────────────────────────────── */
-.da-list {
+/* ── Timeline ────────────────────────────────────────────────────────────
+ * Two columns: a narrow rail carrying a continuous vertical spine, and the
+ * entry body. The spine is drawn per-item (::before spanning the full item
+ * height) rather than once behind the whole list, so it can change character
+ * between entry types — solid gold through a session, dashed grey through a
+ * break — while still reading as one unbroken line down the day.
+ */
+.da-timeline {
   list-style: none;
   margin: 0;
   padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
 }
 
+.da-item {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
+  gap: 14px;
+}
+
+.da-rail {
+  position: relative;
+  display: flex;
+  justify-content: center;
+}
+
+.da-rail::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 2px;
+  background: rgba(232, 176, 75, 0.28);
+}
+
+/* A break is time NOT spent studying — the spine goes dashed and colourless
+   so the eye reads straight past it to the next session. */
+.da-item--gap .da-rail::before {
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.22) 0 5px,
+    transparent 5px 11px
+  );
+}
+
+/* Terminator: a stub of spine, then the marker — nothing continues below. */
+.da-item--end .da-rail::before { bottom: auto; height: 15px; }
+
+.da-rail-dot,
+.da-rail-gap,
+.da-rail-cap {
+  position: relative;
+  z-index: 1;
+  margin-top: 3px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* The bg-coloured ring punches the spine out from behind each marker. */
+.da-rail-dot {
+  width: 11px;
+  height: 11px;
+  background: var(--mv-gold);
+  box-shadow: 0 0 0 3px var(--mv-bg-void), 0 0 10px rgba(232, 176, 75, 0.55);
+}
+
+.da-rail-gap {
+  width: 9px;
+  height: 9px;
+  background: var(--mv-bg-void);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+.da-rail-cap {
+  width: 9px;
+  height: 9px;
+  background: rgba(255, 255, 255, 0.25);
+  box-shadow: 0 0 0 3px var(--mv-bg-void);
+}
+
+.da-item-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-bottom: 16px;
+  min-width: 0;
+}
+
+.da-when {
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--mv-gold);
+}
+
+.da-when--gap {
+  font-weight: 500;
+  color: var(--mv-text-dim-45);
+}
+
+.da-end-label {
+  padding-top: 1px;
+  font-size: 11.5px;
+  color: var(--mv-text-dim-45);
+}
+
+/* ── Break block ─────────────────────────────────────────────────────── */
+.da-gap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 11px 14px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px dashed rgba(255, 255, 255, 0.18);
+  border-radius: 12px;
+}
+
+.da-gap-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.da-gap-icon { font-size: 15px; line-height: 1; }
+
+.da-gap-len {
+  font-size: 13px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.66);
+}
+
+/* ── Gap notes ───────────────────────────────────────────────────────── */
+.da-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+  box-sizing: border-box;
+  text-align: left;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.82);
+  background: rgba(232, 176, 75, 0.08);
+  border: 1px solid rgba(232, 176, 75, 0.28);
+  border-left: 3px solid var(--mv-gold);
+  border-radius: 8px;
+  padding: 9px 11px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.da-note:hover:not(:disabled) { background: rgba(232, 176, 75, 0.14); }
+.da-note--ro { cursor: default; }
+.da-note-text { flex: 1; overflow-wrap: anywhere; }
+
+.da-note-pencil {
+  flex-shrink: 0;
+  font-size: 12px;
+  opacity: 0.5;
+}
+
+.da-note-add {
+  align-self: flex-start;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--mv-text-dim-45);
+  background: transparent;
+  border: 1px dashed rgba(255, 255, 255, 0.22);
+  border-radius: 999px;
+  padding: 6px 13px;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.da-note-add:hover {
+  color: var(--mv-gold);
+  border-color: rgba(232, 176, 75, 0.5);
+  background: rgba(232, 176, 75, 0.08);
+}
+
+.da-note-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.da-note-input {
+  width: 100%;
+  box-sizing: border-box;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--mv-text);
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(232, 176, 75, 0.35);
+  border-radius: 8px;
+  padding: 9px 11px;
+  resize: vertical;
+}
+
+.da-note-input:focus { outline: none; border-color: var(--mv-gold); }
+.da-note-input::placeholder { color: rgba(255, 255, 255, 0.3); }
+
+.da-note-actions { display: flex; gap: 8px; }
+
+.da-note-btn {
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 7px 15px;
+  border-radius: 999px;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: var(--mv-text);
+  transition: background 0.15s ease;
+}
+
+.da-note-btn:hover:not(:disabled) { background: rgba(255, 255, 255, 0.12); }
+.da-note-btn:disabled { opacity: 0.5; cursor: default; }
+
+.da-note-btn--save {
+  background: rgba(232, 176, 75, 0.18);
+  border-color: rgba(232, 176, 75, 0.5);
+  color: var(--mv-gold);
+}
+
+.da-note-btn--save:hover:not(:disabled) { background: rgba(232, 176, 75, 0.3); }
+
+/* ── Session cards ───────────────────────────────────────────────────── */
 .da-card {
   display: flex;
   align-items: center;
@@ -348,4 +571,6 @@
   .da-card { align-items: flex-start; }
   .da-card-meta { align-items: flex-end; }
   .da-title { font-size: 28px; }
+  .da-item { grid-template-columns: 18px minmax(0, 1fr); gap: 10px; }
+  .da-summary { flex-wrap: wrap; row-gap: 6px; }
 }
