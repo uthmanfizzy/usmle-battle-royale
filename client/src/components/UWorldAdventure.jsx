@@ -253,6 +253,20 @@ export default function UWorldAdventure() {
   const remainingToday = Math.max(0, pace - doneToday);
   const blockSize      = remainingToday > 0 ? remainingToday : pace;
 
+  // Whole-adventure projection — computed here (not just below, alongside the
+  // setup page) because the End Block confirm dialog needs it too, and that
+  // dialog renders from the early `sessionQuestions` return below.
+  // If the bank ever outgrows the target, the target stops mattering.
+  const plannedTotal     = Math.max(UWA_TARGET_TOTAL, overall?.total ?? 0);
+  const plannedSeen      = Math.min(overall?.seen ?? 0, plannedTotal);
+  const plannedRemaining = Math.max(0, plannedTotal - plannedSeen);
+  const daysToFinish = plannedRemaining > 0 ? Math.ceil(plannedRemaining / pace) : 0;
+  const completionDate = new Date();
+  // Day 1 is TODAY, so a one-day plan finishes today — not tomorrow. This also
+  // makes the deadline picker round-trip exactly: pick a date, get a pace, and
+  // that pace projects back to the date you picked.
+  completionDate.setDate(completionDate.getDate() + Math.max(0, daysToFinish - 1));
+
   async function startSession() {
     if (!selected || starting) return;
     setStarting(true);
@@ -305,6 +319,13 @@ export default function UWorldAdventure() {
         onComplete={handleComplete}
         onBack={endSession}
         levelLabel={`Daily Set · ${subjects.find(s => s.id === selected)?.name || selected}`}
+        // End Block's own confirm dialog needs to say "you'll have N left
+        // today, to finish by <date>" — SoloGame has no idea about the
+        // adventure-wide pace/projection, so it's handed down as of this
+        // block's start. SoloGame subtracts its own live answered-count from
+        // uwaRemainingToday to keep the number accurate as the block plays.
+        uwaRemainingToday={remainingToday}
+        uwaCompletionLabel={plannedRemaining > 0 ? formatDate(completionDate) : null}
       />
     );
   }
@@ -317,16 +338,6 @@ export default function UWorldAdventure() {
   //   planned — the whole adventure at its finished size. Governs the pace
   //             projection and the deadline solver.
   const unseen = progress?.unseen ?? 0;
-  // If the bank ever outgrows the target, the target stops mattering.
-  const plannedTotal     = Math.max(UWA_TARGET_TOTAL, overall?.total ?? 0);
-  const plannedSeen      = Math.min(overall?.seen ?? 0, plannedTotal);
-  const plannedRemaining = Math.max(0, plannedTotal - plannedSeen);
-  const daysToFinish = plannedRemaining > 0 ? Math.ceil(plannedRemaining / pace) : 0;
-  const completionDate = new Date();
-  // Day 1 is TODAY, so a one-day plan finishes today — not tomorrow. This also
-  // makes the deadline picker round-trip exactly: pick a date, get a pace, and
-  // that pace projects back to the date you picked.
-  completionDate.setDate(completionDate.getDate() + Math.max(0, daysToFinish - 1));
   const todaysCount = Math.min(blockSize, unseen);
   const goalMetToday = doneToday > 0 && remainingToday === 0;
 

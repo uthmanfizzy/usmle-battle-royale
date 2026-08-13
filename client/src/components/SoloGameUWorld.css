@@ -377,6 +377,52 @@ html[data-study="on"] .screen.solo-screen.uw-exam .rr-skip-btn:hover {
 html[data-study="on"] .screen.solo-screen.uw-exam .study-result-strip.is-correct { background: #e8f6ec; color: #2e7d43; }
 html[data-study="on"] .screen.solo-screen.uw-exam .study-result-strip.is-wrong   { background: #fdecea; color: #c0392b; }
 
+/* ── End Block confirm dialog ────────────────────────────────────────────── */
+.uw-endblock-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1400;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(15, 20, 30, 0.55);
+  backdrop-filter: blur(3px);
+}
+
+.uw-endblock-card {
+  width: 380px;
+  max-width: 92vw;
+  padding: 26px 24px;
+  border-radius: 14px;
+  background: #fff;
+  color: var(--uwq-ink, #1a2233);
+  box-shadow: 0 24px 56px rgba(8, 4, 24, 0.35);
+}
+
+.uw-endblock-title {
+  margin: 0 0 10px;
+  font-size: 19px;
+  font-weight: 800;
+  color: var(--uwq-ink, #1a2233);
+}
+
+.uw-endblock-msg {
+  margin: 0 0 20px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #4a5568;
+}
+
+.uw-endblock-actions {
+  display: flex;
+  gap: 10px;
+}
+.uw-endblock-actions .btn-secondary,
+.uw-endblock-actions .uw-endblock-confirm-btn {
+  flex: 1;
+}
+
 /* ── Mobile ──────────────────────────────────────────────────────────────── */
 @media (max-width: 640px) {
   html[data-study="on"] .screen.solo-screen.uw-exam .study-header { padding: 10px 14px; gap: 8px; }

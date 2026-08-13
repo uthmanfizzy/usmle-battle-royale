@@ -58,7 +58,7 @@ function saveHi(subject, score) {
   try { localStorage.setItem(`usmle-hs-${subject}`, String(score)); } catch {}
 }
 
-export default function SoloGame({ subject, username, difficulty, onBack, onTryAgain, onChangeSubject, onBackToTopics, topicId, questionsUrl, onComplete, levelLabel, isJourney, providedQuestions, shuffleOptions = true, uworldSkin = false }) {
+export default function SoloGame({ subject, username, difficulty, onBack, onTryAgain, onChangeSubject, onBackToTopics, topicId, questionsUrl, onComplete, levelLabel, isJourney, providedQuestions, shuffleOptions = true, uworldSkin = false, uwaRemainingToday = 0, uwaCompletionLabel = null }) {
   const { settings } = useGameSettings();
   const { study: studyPref } = useTheme();   // Layer 1 chrome renders only when study mode is on
   // Journey ALWAYS renders the full study-layout chrome (burger menu, header
@@ -133,6 +133,9 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   // Exam skin only: items flagged for review. Session-scoped — surfaced on the
   // results screen rather than persisted, since there is no review pass yet.
   const [marked, setMarked] = useState(() => new Set());
+  // Exam skin only: "End Block" asks for confirmation first — a stray tap used
+  // to lose the rest of the block instantly, with no way back.
+  const [showEndBlockConfirm, setShowEndBlockConfirm] = useState(false);
   const [finalScore, setFinalScore] = useState(0);
   const [finalBestStreak, setFinalBestStreak] = useState(0);
   const [isNewHi, setIsNewHi] = useState(false);
@@ -378,6 +381,35 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
       postStudyTimeRef.current(true);
     };
   }, []);
+
+  // End Block, confirmed: this is the ONLY early-exit path that fires
+  // onComplete. Natural game-over already does (doAdvance, on the last
+  // question or out of lives) — this covers leaving mid-block, which
+  // previously fired NEITHER onComplete nor an activity_sessions row, so a
+  // block ended early never showed up in UWorld Adventure's daily activity
+  // even though its answers were already tracked (postQuestionSeen fires
+  // per-question, independent of this). Partial pct is scored against what
+  // was actually ANSWERED so far, not the full block size. Guarded by the
+  // same completionFiredRef natural completion uses, so finishing normally
+  // right after cannot double-post.
+  function confirmEndBlock() {
+    setShowEndBlockConfirm(false);
+    if (uworldSkin && !completionFiredRef.current && answeredCountRef.current > 0) {
+      completionFiredRef.current = true;
+      postStudyTimeRef.current();
+      if (onCompleteRef.current) {
+        const total = answeredCountRef.current;
+        const c = correctCountRef.current;
+        onCompleteRef.current({
+          correct: c,
+          total,
+          pct: total ? Math.round((c / total) * 100) : 0,
+          activeSeconds: activeSecondsRef.current,
+        });
+      }
+    }
+    onBack();
+  }
 
   // Stable per-question id (survives the option shuffle — shuffle keeps `id`).
   const currentQid = questions[qIdx]?.id;
@@ -971,7 +1003,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
               {/* No hearts in the exam skin — they would be lying, since a wrong
                   answer costs nothing here. End Block replaces them. */}
               {uworldSkin ? (
-                <button type="button" className="uw-endblock" onClick={onBack} title="End this block">
+                <button type="button" className="uw-endblock" onClick={() => setShowEndBlockConfirm(true)} title="End this block">
                   <span className="uw-endblock-icon" aria-hidden="true">⬢</span>
                   End Block
                 </button>
@@ -991,6 +1023,37 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
                   </div>
                 </>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* End Block confirm — live remaining-today is uwaRemainingToday (the
+            adventure's daily pace still owed as of this block's START) minus
+            what THIS block has answered so far, so it stays accurate as the
+            block plays without another server round trip. */}
+        {uworldSkin && showEndBlockConfirm && (
+          <div className="uw-endblock-overlay" onClick={() => setShowEndBlockConfirm(false)}>
+            <div className="uw-endblock-card" onClick={e => e.stopPropagation()}>
+              <h3 className="uw-endblock-title">End this block?</h3>
+              <p className="uw-endblock-msg">
+                {(() => {
+                  const remaining = Math.max(0, uwaRemainingToday - answeredCountRef.current);
+                  if (remaining === 0) {
+                    return "You've already hit today's goal — nice work! Ending now won't change that.";
+                  }
+                  return uwaCompletionLabel
+                    ? <>You'll have <strong>{remaining}</strong> question{remaining === 1 ? '' : 's'} left today to stay on pace to finish by <strong>{uwaCompletionLabel}</strong>.</>
+                    : <>You'll have <strong>{remaining}</strong> question{remaining === 1 ? '' : 's'} left to hit today's goal.</>;
+                })()}
+              </p>
+              <div className="uw-endblock-actions">
+                <button type="button" className="btn-secondary" onClick={() => setShowEndBlockConfirm(false)}>
+                  Keep Going
+                </button>
+                <button type="button" className="btn-start uw-endblock-confirm-btn" onClick={confirmEndBlock}>
+                  End Block
+                </button>
+              </div>
             </div>
           </div>
         )}
