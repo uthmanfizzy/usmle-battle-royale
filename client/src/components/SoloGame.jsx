@@ -18,6 +18,18 @@ import './SoloGameUWorld.css';
 const LABELS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
 const SERVER_URL = 'https://usmle-battle-royale-production.up.railway.app';
 
+// Self-assessment buckets shown below the explanation on every UWorld
+// Adventure question — same five categories and exact value strings as HY
+// Flashcards' own rating picker, kept identical for a familiar UX. Order
+// here is the order the buttons render in.
+const UWORLD_RATINGS = [
+  { key: 'knowledge_gap',    label: 'Knowledge Gap',    icon: '🧠' },
+  { key: 'careless_miss',    label: 'Careless Miss',    icon: '😅' },
+  { key: 'lucky_guess',      label: 'Lucky Guess',      icon: '🍀' },
+  { key: 'somewhat_know',    label: 'Somewhat Know',    icon: '🤔' },
+  { key: 'fully_understood', label: 'Fully Understood', icon: '✅' },
+];
+
 // Strip a single baked-in letter prefix ("A. ", "B) ", "C: " …) from stored
 // option text so the DISPLAY letter we prepend doesn't produce "B. C. text".
 // Display-only — never touches answer-check logic.
@@ -51,6 +63,22 @@ function postQuestionSeen(q, { answered, correct }) {
   }).catch(() => {});
 }
 
+// UWorld Adventure only: the self-assessment rating chosen below the
+// explanation. Fire-and-forget, same contract as postQuestionSeen — a lost
+// rating never blocks advancing (the button that triggers this has already
+// advanced by the time the request settles).
+function postQuestionRating(q, rating) {
+  const questionId = q?._supabase_id;
+  if (!questionId) return;
+  const token = getToken();
+  if (!token) return;
+  fetch(`${SERVER_URL}/api/uworld-questions/${questionId}/rate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ rating }),
+  }).catch(() => {});
+}
+
 function getHi(subject) {
   try { return parseInt(localStorage.getItem(`usmle-hs-${subject}`) || '0', 10); } catch { return 0; }
 }
@@ -58,7 +86,7 @@ function saveHi(subject, score) {
   try { localStorage.setItem(`usmle-hs-${subject}`, String(score)); } catch {}
 }
 
-export default function SoloGame({ subject, username, difficulty, onBack, onTryAgain, onChangeSubject, onBackToTopics, topicId, questionsUrl, onComplete, levelLabel, isJourney, providedQuestions, shuffleOptions = true, uworldSkin = false, uwaRemainingToday = 0, uwaCompletionLabel = null }) {
+export default function SoloGame({ subject, username, difficulty, onBack, onTryAgain, onChangeSubject, onBackToTopics, topicId, questionsUrl, onComplete, levelLabel, isJourney, providedQuestions, shuffleOptions = true, uworldSkin = false, uwaRemainingToday = 0, uwaCompletionLabel = null, uwaReview = false }) {
   const { settings } = useGameSettings();
   const { study: studyPref } = useTheme();   // Layer 1 chrome renders only when study mode is on
   // Journey ALWAYS renders the full study-layout chrome (burger menu, header
@@ -136,6 +164,9 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   // Exam skin only: "End Block" asks for confirmation first — a stray tap used
   // to lose the rest of the block instantly, with no way back.
   const [showEndBlockConfirm, setShowEndBlockConfirm] = useState(false);
+  // Exam skin only: has the CURRENT question been rated yet? Gates advancing —
+  // see ratedRef below.
+  const [rated, setRated] = useState(false);
   const [finalScore, setFinalScore] = useState(0);
   const [finalBestStreak, setFinalBestStreak] = useState(0);
   const [isNewHi, setIsNewHi] = useState(false);
@@ -327,6 +358,15 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   const revealedAtRef      = useRef(0);     // Date.now() when the explanation was shown, for the line below
   const answeredCountRef   = useRef(0);     // questions answered or timed out this run
   const studyTimeSentRef   = useRef(false); // study-time POST fired for this run
+  // Exam skin only. ratedRef mirrors `rated` state but is readable synchronously
+  // from doAdvance's closure (avoids a stale-closure read of the state value).
+  // doAdvanceRef holds the CURRENT question's doAdvance closure independently of
+  // skipActionRef/skipTimerRef, which doAdvance nulls out at its own first line —
+  // rate() needs a handle that survives that so it can trigger the same advance
+  // logic (explanation-time accounting, game-over check, etc.) after the auto
+  // timer has already fired and paused on an unrated question.
+  const ratedRef      = useRef(false);
+  const doAdvanceRef  = useRef(null);
 
   revealedRef.current = revealed;
   pausedRef.current = isPaused;
@@ -531,6 +571,10 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
     revealedAtRef.current = Date.now(); // explanation is on screen from this instant
     setRevealed(true);
     setSelected(label);
+    // Exam skin only: a fresh question always starts unrated, regardless of
+    // whatever the previous question's rated state left behind.
+    ratedRef.current = false;
+    setRated(false);
 
     // q.correct is now stored as letter (A, B, C...), label is also letter
     console.log('[SoloGame] Answer check:', {
@@ -540,7 +584,10 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
     });
     const correct = label === q.correct;
     // Additive: a timeout (label === null) still counts as SEEN, just not answered.
-    postQuestionSeen(q, { answered: label !== null, correct });
+    // Skipped entirely during a review pass (uwaReview) — reviewing an
+    // already-rated question must never move the 3,659-question completion
+    // total or the daily pace, and this POST is the only thing that would.
+    if (!uwaReview) postQuestionSeen(q, { answered: label !== null, correct });
     const tl = timeLeftRef.current;
     setTimeSpent(defaultTimer - tl);   // Layer 1: additive only — no flow/timer/scoring change
     // Study time, answering phase: inherently capped at defaultTimer, so an
@@ -582,6 +629,12 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
     const exhausted = nextIdx >= questionsRef.current.length;
 
     const doAdvance = () => {
+      // Exam skin only: an unrated question never advances on its own — the
+      // explanation timer expiring just stops here (no further countdown,
+      // nothing else changes) rather than moving on, and the rating row is
+      // the only way to actually leave. rate() calls doAdvanceRef.current()
+      // directly once a rating is picked, re-entering this same closure.
+      if (uworldSkin && !ratedRef.current) return;
       skipTimerRef.current  = null;
       skipActionRef.current = null;
       // Explanation phase: however long it was actually on screen, whether the
@@ -625,6 +678,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
     };
 
     skipActionRef.current = doAdvance;
+    doAdvanceRef.current  = doAdvance;
     // Use admin-configured explanation display time (hard/easy mode specific) + 2.5s buffer
     const explanationDelay = explanationTime * 1000 + 2500;
     skipTimerRef.current  = setTimeout(doAdvance, explanationDelay);
@@ -658,6 +712,27 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
     if (skipTimerRef.current) { clearTimeout(skipTimerRef.current); skipTimerRef.current = null; }
     const fn = skipActionRef.current;
     if (fn) { skipActionRef.current = null; fn(); }
+  }
+
+  // Exam skin only: rating IS the advance action, same as HY Flashcards' own
+  // rate() — there is no separate Next button once revealed. Posts the rating
+  // (independent of postQuestionSeen/uwaReview — a rating never affects the
+  // 3,659 completion total either way, it is purely the student's own
+  // judgement) then re-enters the SAME doAdvance closure the auto-timer
+  // already paused on, via doAdvanceRef rather than skipActionRef (which
+  // doAdvance's own early-return left unconsumed, still pointing at itself,
+  // but going through the same ref two different call sites use would be
+  // fragile — doAdvanceRef is the one guaranteed not to have been nulled).
+  function rate(ratingKey) {
+    if (ratedRef.current) return; // ignore a double-tap while already advancing
+    ratedRef.current = true;
+    setRated(true);
+    const q = (shuffledQRef.current && shuffledQRef.current.qIdx === qIdxRef.current && shuffledQRef.current.q)
+      ? shuffledQRef.current.q
+      : questionsRef.current[qIdxRef.current];
+    postQuestionRating(q, ratingKey);
+    if (skipTimerRef.current) { clearTimeout(skipTimerRef.current); skipTimerRef.current = null; }
+    doAdvanceRef.current?.();
   }
 
   if (loading) {
@@ -1003,9 +1078,9 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
               {/* No hearts in the exam skin — they would be lying, since a wrong
                   answer costs nothing here. End Block replaces them. */}
               {uworldSkin ? (
-                <button type="button" className="uw-endblock" onClick={() => setShowEndBlockConfirm(true)} title="End this block">
+                <button type="button" className="uw-endblock" onClick={() => setShowEndBlockConfirm(true)} title={uwaReview ? 'End this review' : 'End this block'}>
                   <span className="uw-endblock-icon" aria-hidden="true">⬢</span>
-                  End Block
+                  {uwaReview ? 'End Review' : 'End Block'}
                 </button>
               ) : (
                 <>
@@ -1034,9 +1109,17 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
         {uworldSkin && showEndBlockConfirm && (
           <div className="uw-endblock-overlay" onClick={() => setShowEndBlockConfirm(false)}>
             <div className="uw-endblock-card" onClick={e => e.stopPropagation()}>
-              <h3 className="uw-endblock-title">End this block?</h3>
+              <h3 className="uw-endblock-title">{uwaReview ? 'End this review?' : 'End this block?'}</h3>
               <p className="uw-endblock-msg">
                 {(() => {
+                  // A review pass never touches the daily pace (uwaReview skips
+                  // postQuestionSeen entirely), so the remaining-today math
+                  // below would be true but misleading here — say so plainly
+                  // instead, echoing the "doesn't count" guarantee the pile
+                  // picker already promises.
+                  if (uwaReview) {
+                    return "Reviewing doesn't count toward today's pace or your overall progress — end whenever you like.";
+                  }
                   const remaining = Math.max(0, uwaRemainingToday - answeredCountRef.current);
                   if (remaining === 0) {
                     return "You've already hit today's goal — nice work! Ending now won't change that.";
@@ -1051,7 +1134,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
                   Keep Going
                 </button>
                 <button type="button" className="btn-start uw-endblock-confirm-btn" onClick={confirmEndBlock}>
-                  End Block
+                  {uwaReview ? 'End Review' : 'End Block'}
                 </button>
               </div>
             </div>
@@ -1171,8 +1254,12 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
                 far right (the strip is already a flex row in every skin). Same
                 handler as the button below the explanation — this is just a
                 closer way to reach it without scrolling past the explanation
-                first. */}
-            <button className="rr-skip-btn srs-next-btn" onClick={handleSkip}>Next Question →</button>
+                first. Omitted in the exam skin: rating (below the explanation)
+                is the only way to advance there, so a shortcut past it would
+                defeat the point. */}
+            {!uworldSkin && (
+              <button className="rr-skip-btn srs-next-btn" onClick={handleSkip}>Next Question →</button>
+            )}
           </div>
         )}
 
@@ -1268,9 +1355,34 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
                 </div>
               </div>
             )}
-            <div className="rr-skip-row">
-              <button className="rr-skip-btn" onClick={handleSkip}>Next Question →</button>
-            </div>
+            {/* Exam skin: rating replaces the Next button entirely — picking a
+                rating IS the advance action (rate()), same as HY Flashcards.
+                An unrated question also never auto-advances (doAdvance's own
+                guard), so this row is the only way off the screen. */}
+            {uworldSkin ? (
+              <div className="uw-rate-row" role="group" aria-label="Rate your recall">
+                <p className="uw-rate-prompt">
+                  {rated ? '✓ Rated — advancing…' : 'Rate your recall to continue'}
+                </p>
+                <div className="uw-rate-buttons">
+                  {UWORLD_RATINGS.map(r => (
+                    <button
+                      key={r.key}
+                      type="button"
+                      className={`uw-rate-btn uw-rate-btn--${r.key}`}
+                      disabled={rated}
+                      onClick={() => rate(r.key)}
+                    >
+                      <span aria-hidden="true">{r.icon}</span> {r.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="rr-skip-row">
+                <button className="rr-skip-btn" onClick={handleSkip}>Next Question →</button>
+              </div>
+            )}
           </div>
         )}
 

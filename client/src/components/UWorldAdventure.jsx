@@ -11,6 +11,24 @@ const PACE_MAX = 100;
 const PACE_DEFAULT = 15;
 const PACE_SAVE_DEBOUNCE_MS = 600;
 
+// "Review Rated Questions" pile picker — same five self-assessment buckets
+// SoloGame's rating row writes (see UWORLD_RATINGS there and server-side),
+// plus two synthetic piles the server's by-rating endpoint also understands:
+// 'all' (every UWorld question this user has ever been served) and 'unrated'
+// (served, never rated). Order here is render order.
+const UWORLD_RATING_PILES = [
+  { key: 'all',               label: 'Study All',       icon: '📚' },
+  { key: 'knowledge_gap',     label: 'Knowledge Gap',    icon: '🧠' },
+  { key: 'careless_miss',     label: 'Careless Miss',    icon: '😅' },
+  { key: 'lucky_guess',       label: 'Lucky Guess',      icon: '🍀' },
+  { key: 'somewhat_know',     label: 'Somewhat Know',    icon: '🤔' },
+  { key: 'fully_understood',  label: 'Fully Understood', icon: '✅' },
+  { key: 'unrated',           label: 'Not Yet Rated',    icon: '⬜' },
+];
+// A review pull is capped the same as any other session request — see
+// UNSEEN_MAX_LIMIT server-side.
+const UWORLD_REVIEW_LIMIT = 100;
+
 // Star field for the ambient backdrop — position, size and animation offsets
 // straight from the mockup. Static data, so it lives outside the component and
 // never re-creates on render.
@@ -133,6 +151,17 @@ export default function UWorldAdventure() {
   // The live session. Held in state and set ONCE per start so the array
   // reference stays stable — SoloGame's fetch effect depends on it.
   const [sessionQuestions, setSessionQuestions] = useState(null);
+  // Set alongside sessionQuestions when the current session came from a
+  // rating-group pile rather than "Start Today's Questions" — tells SoloGame
+  // to skip seen-tracking (uwaReview) and changes the level label / End
+  // Block copy so a review reads as one, not a fresh daily block.
+  const [reviewSession, setReviewSession] = useState(false);
+  const [reviewLabel,   setReviewLabel]   = useState('');
+  const [reviewLoading, setReviewLoading] = useState(null); // pile key currently loading, or null
+  const [reviewError,   setReviewError]   = useState('');
+  // { total, unrated, knowledge_gap, careless_miss, lucky_guess, somewhat_know,
+  // fully_understood } — counts for the "Review Rated Questions" pile list.
+  const [ratingCounts, setRatingCounts] = useState(null);
 
   const saveTimerRef = useRef(null);
   const paceLoadedRef = useRef(false); // guards the save-on-change effect
@@ -194,6 +223,24 @@ export default function UWorldAdventure() {
       .catch(() => {});
     return () => { cancelled = true; };
   }, [user?.id, loadOverall]);
+
+  // Rating-pile counts for "Review Rated Questions" — adventure-wide, same
+  // scope as the pace/projection above (one set of piles for the whole
+  // adventure, not one per subject).
+  const loadRatingCounts = useCallback(async () => {
+    if (!user?.id) return null;
+    const res = await authFetch('/api/uworld-questions/rating-counts');
+    return res.json();
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+    loadRatingCounts()
+      .then(c => { if (!cancelled && c) setRatingCounts(c); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [user?.id, loadRatingCounts]);
 
   // The pace is loaded ONCE per visit, not per subject — it belongs to the
   // adventure, so switching subjects must leave the slider exactly where the
@@ -280,6 +327,7 @@ export default function UWorldAdventure() {
         setStarting(false);
         return;
       }
+      setReviewSession(false);
       // set once: stable reference for SoloGame
       setSessionQuestions(questionOrder === 'random' ? shuffle(qs) : qs);
     } catch {
@@ -288,8 +336,37 @@ export default function UWorldAdventure() {
     setStarting(false);
   }
 
+  // Rating-group review: pulls up to UWORLD_REVIEW_LIMIT questions from one
+  // pile and plays them through the SAME exam skin, minus its consequences —
+  // SoloGame's uwaReview prop skips postQuestionSeen entirely for this
+  // session, so nothing here can move the 3,659-question total or the daily
+  // pace either way, no matter how many times a pile is replayed.
+  async function startReview(ratingKey, label) {
+    if (reviewLoading) return;
+    setReviewLoading(ratingKey);
+    setReviewError('');
+    try {
+      const res = await authFetch(`/api/uworld-questions/by-rating?rating=${encodeURIComponent(ratingKey)}&limit=${UWORLD_REVIEW_LIMIT}`);
+      const data = await res.json();
+      const qs = data.questions || [];
+      if (qs.length === 0) {
+        setReviewError('No questions in this group yet.');
+        setReviewLoading(null);
+        return;
+      }
+      setReviewLabel(label);
+      setReviewSession(true);
+      setSessionQuestions(shuffle(qs)); // set once: stable reference for SoloGame
+    } catch {
+      setReviewError('Could not load these questions. Check your connection and try again.');
+    }
+    setReviewLoading(null);
+  }
+
   // Game-over side effect. Mirrors handleTrainingComplete: fire-and-forget, and
-  // the player's results screen never waits on it.
+  // the player's results screen never waits on it. Fires for review sessions
+  // too (still worth an activity_sessions row so a review shows up in Daily
+  // Activity) — it's only the SEEN-tracking that a review skips.
   function handleComplete({ pct, activeSeconds }) {
     authFetch('/api/question-bank-session', {
       method: 'POST',
@@ -298,14 +375,17 @@ export default function UWorldAdventure() {
   }
 
   // Leaving the session: back to setup with FRESH counts — the questions just
-  // answered are now marked seen, so the remaining pool visibly shrinks.
+  // answered are now marked seen (unless this was a review), so the remaining
+  // pool and the rating piles both visibly update.
   function endSession() {
     setSessionQuestions(null);
+    setReviewSession(false);
     if (selected) {
       loadProgress(selected).then(p => { if (p) setProgress(p); }).catch(() => {});
     }
     // The adventure-wide count moved too, so the projection shortens visibly.
     loadOverall().then(o => { if (o) setOverall(o); }).catch(() => {});
+    loadRatingCounts().then(c => { if (c) setRatingCounts(c); }).catch(() => {});
   }
 
   if (sessionQuestions) {
@@ -316,14 +396,17 @@ export default function UWorldAdventure() {
         difficulty="easy"
         providedQuestions={sessionQuestions}
         uworldSkin
+        uwaReview={reviewSession}
         onComplete={handleComplete}
         onBack={endSession}
-        levelLabel={`Daily Set · ${subjects.find(s => s.id === selected)?.name || selected}`}
+        levelLabel={reviewSession ? `Review · ${reviewLabel}` : `Daily Set · ${subjects.find(s => s.id === selected)?.name || selected}`}
         // End Block's own confirm dialog needs to say "you'll have N left
         // today, to finish by <date>" — SoloGame has no idea about the
         // adventure-wide pace/projection, so it's handed down as of this
         // block's start. SoloGame subtracts its own live answered-count from
         // uwaRemainingToday to keep the number accurate as the block plays.
+        // Ignored entirely when uwaReview is set (SoloGame shows a different
+        // message there instead — a review never touches either number).
         uwaRemainingToday={remainingToday}
         uwaCompletionLabel={plannedRemaining > 0 ? formatDate(completionDate) : null}
       />
@@ -603,6 +686,38 @@ export default function UWorldAdventure() {
               )}
             </button>
           ))}
+        </div>
+
+        {/* ── Review Rated Questions ───────────────────────────────────────
+            Revisit already-answered questions grouped by self-rating. Always
+            adventure-wide (not scoped to the open subject) — matches the
+            single adventure-wide pace above. Reviewing never touches the
+            3,659-question total or today's pace (SoloGame's uwaReview skips
+            seen-tracking), so a pile can be replayed as often as useful. */}
+        <h2 className="uwa-section-title">Review Rated Questions</h2>
+        <p className="uwa-intro" style={{ marginBottom: 14 }}>
+          Revisit questions you&apos;ve already answered, grouped by how well you knew them.
+          Reviewing doesn&apos;t count toward the {plannedTotal.toLocaleString()}-question total or today&apos;s pace.
+        </p>
+        {reviewError && <p className="uwa-error">{reviewError}</p>}
+        <div className="uwa-pile-list">
+          {UWORLD_RATING_PILES.map(p => {
+            const count = ratingCounts ? (ratingCounts[p.key === 'all' ? 'total' : p.key] ?? 0) : 0;
+            const loadingThis = reviewLoading === p.key;
+            const disabled = !ratingCounts || count === 0 || !!reviewLoading;
+            return (
+              <button
+                key={p.key}
+                type="button"
+                className={`uwa-pile${count === 0 ? ' is-disabled' : ''}`}
+                disabled={disabled}
+                onClick={() => startReview(p.key, p.label)}
+              >
+                <span className="uwa-pile-name">{p.icon} {p.label}</span>
+                <span className="uwa-pile-sub">{loadingThis ? 'Loading…' : `${count} question${count === 1 ? '' : 's'}`}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
     </div>

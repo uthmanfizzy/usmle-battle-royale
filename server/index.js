@@ -2622,6 +2622,12 @@ const UWORLD_MODE = 'uworld_adventure';
 // game_modes containment filter; never pass a bare array.
 const UWORLD_MODE_JSON = JSON.stringify([UWORLD_MODE]);
 
+// Self-assessment buckets a UWorld Adventure question can be rated into after
+// answering — same five categories (and exact value strings) HY Flashcards
+// already uses for its own rating pile picker, kept identical for a familiar
+// UX and because the client renders both from the same icon/label list.
+const UWORLD_RATINGS = ['knowledge_gap', 'careless_miss', 'lucky_guess', 'somewhat_know', 'fully_understood'];
+
 /**
  * POST /api/questions/seen
  *
@@ -2755,6 +2761,188 @@ app.get('/api/questions/unseen', requireAuth, async (req, res) => {
     res.json({ questions: out });
   } catch (err) {
     console.error('[/api/questions/unseen] failed —', err.message);
+    res.json({ questions: [] });
+  }
+});
+
+/**
+ * POST /api/uworld-questions/:questionId/rate   { rating }
+ *
+ * Self-assessment rating for a UWorld Adventure question, shown on the
+ * confirm-style prompt below the explanation. One row per (user, question) —
+ * re-rating overwrites in place (no history), same design as
+ * hy_flashcard_ratings: a rating always reflects the student's MOST RECENT
+ * judgement, and re-rating on a later review pass just moves the question
+ * between piles.
+ *
+ * :questionId is questions.id (the UUID), matching /api/questions/seen's
+ * shape — the client sends q._supabase_id, never the TEXT business key.
+ * Relies on the FK to `questions` to reject a foreign-bank id rather than
+ * pre-validating (this is a single write, not a batch, so there is nothing
+ * else in the request that a bad id could take down with it).
+ */
+app.post('/api/uworld-questions/:questionId/rate', requireAuth, async (req, res) => {
+  const rating = (req.body?.rating ?? '').toString();
+  if (!UWORLD_RATINGS.includes(rating)) {
+    return res.status(400).json({ error: `rating must be one of: ${UWORLD_RATINGS.join(', ')}` });
+  }
+  if (!supabase) return res.json({ ok: false });
+  try {
+    const err = await logWrite('uworld_question_ratings.upsert', supabase
+      .from('uworld_question_ratings')
+      .upsert({
+        user_id:     req.userId,
+        question_id: req.params.questionId,
+        rating,
+        updated_at:  new Date().toISOString(),
+      }, { onConflict: 'user_id,question_id' }));
+    res.json({ ok: !err });
+  } catch (err) {
+    console.warn('[/api/uworld-questions/:questionId/rate] failed —', err.message);
+    res.json({ ok: false });
+  }
+});
+
+/**
+ * GET /api/uworld-questions/rating-counts
+ *
+ * How many UWorld Adventure questions this user has rated into each bucket,
+ * for the "Review Rated Questions" pile picker — { total, unrated,
+ * knowledge_gap, careless_miss, lucky_guess, somewhat_know, fully_understood }.
+ * Adventure-wide (no subject filter), matching the daily pace's own scope —
+ * there is one pace and one set of piles for the whole adventure, not one
+ * per subject.
+ *
+ * `total` is every UWorld-tagged question this user has ever been served
+ * (same definition question-bank-progress's `seen` uses). `unrated` is
+ * derived (total minus the sum of the five rated buckets) rather than
+ * queried directly, since "no row in uworld_question_ratings" has nothing
+ * to count against.
+ *
+ * All counts are head+exact — never row scans, per the 1000-row-cap lesson
+ * (see question-bank-progress above): a heavy user's rated set can run past
+ * PostgREST's row cap long before their COUNT does.
+ */
+app.get('/api/uworld-questions/rating-counts', requireAuth, async (req, res) => {
+  const zeros = { total: 0, unrated: 0, knowledge_gap: 0, careless_miss: 0, lucky_guess: 0, somewhat_know: 0, fully_understood: 0 };
+  if (!supabase) return res.json(zeros);
+  try {
+    let totalQ = supabase
+      .from(QUESTION_SEEN_TABLE)
+      .select('question_id, questions!inner(game_modes)', { count: 'exact', head: true })
+      .eq('user_id', req.userId)
+      .contains('questions.game_modes', UWORLD_MODE_JSON);
+    if (hasRetirement) totalQ = totalQ.is('questions.retired_at', null);
+
+    const bucketQueries = UWORLD_RATINGS.map((r) => {
+      let q = supabase
+        .from('uworld_question_ratings')
+        .select('question_id, questions!inner(game_modes)', { count: 'exact', head: true })
+        .eq('user_id', req.userId)
+        .eq('rating', r)
+        .contains('questions.game_modes', UWORLD_MODE_JSON);
+      if (hasRetirement) q = q.is('questions.retired_at', null);
+      return q;
+    });
+
+    const [totalRes, ...bucketRes] = await Promise.all([totalQ, ...bucketQueries]);
+    if (totalRes.error) throw totalRes.error;
+    const total = totalRes.count || 0;
+    const counts = { total };
+    let ratedSum = 0;
+    UWORLD_RATINGS.forEach((r, i) => {
+      if (bucketRes[i].error) throw bucketRes[i].error;
+      const c = bucketRes[i].count || 0;
+      counts[r] = c;
+      ratedSum += c;
+    });
+    counts.unrated = Math.max(0, total - ratedSum);
+    res.json(counts);
+  } catch (err) {
+    console.warn('[/api/uworld-questions/rating-counts] failed —', err.message);
+    res.json(zeros);
+  }
+});
+
+/**
+ * GET /api/uworld-questions/by-rating?rating=<key>&limit=<n>
+ *
+ * Up to `limit` questions for one pile of the "Review Rated Questions"
+ * picker. `rating` is one of the five UWORLD_RATINGS keys, or the two
+ * synthetic buckets the client's picker also shows: 'all' (every UWorld
+ * question ever served to this user, rated or not) and 'unrated' (served,
+ * never rated). Adventure-wide, same as rating-counts.
+ *
+ * 'all'/'unrated' page through user_question_seen the same anti-join way
+ * /api/questions/unseen pages through the UNSEEN pool — the only DB-side
+ * concept of "questions this user has met" is that table, ordered by
+ * seen_at since it has no other stable column of its own. A specific
+ * rating key instead queries uworld_question_ratings directly (bounded by
+ * how much this one user has actually rated, no pagination needed).
+ *
+ * Deliberately returns full question objects (fromDb shape), not ids — the
+ * caller hands these straight to SoloGame as providedQuestions, exactly
+ * like /api/questions/unseen already does for a fresh block.
+ */
+app.get('/api/uworld-questions/by-rating', requireAuth, async (req, res) => {
+  if (!supabase) return res.json({ questions: [] });
+  const rating = (req.query.rating || '').toString();
+  const validKeys = ['all', 'unrated', ...UWORLD_RATINGS];
+  if (!validKeys.includes(rating)) return res.status(400).json({ error: 'invalid rating', questions: [] });
+  const parsed = parseInt(req.query.limit, 10);
+  const limit  = Math.min(UNSEEN_MAX_LIMIT, Math.max(1, Number.isFinite(parsed) ? parsed : UNSEEN_DEFAULT_LIMIT));
+
+  try {
+    if (rating === 'all' || rating === 'unrated') {
+      const out  = [];
+      const PAGE = 200;
+      for (let page = 0; out.length < limit; page++) {
+        let q = supabase
+          .from(QUESTION_SEEN_TABLE)
+          .select('question_id, questions!inner(*)')
+          .eq('user_id', req.userId)
+          .contains('questions.game_modes', UWORLD_MODE_JSON)
+          .order('seen_at', { ascending: true })
+          .range(page * PAGE, page * PAGE + PAGE - 1);
+        if (hasRetirement) q = q.is('questions.retired_at', null);
+        const { data, error } = await q;
+        if (error) throw error;
+        if (!data.length) break;
+
+        let ratedSet = new Set();
+        if (rating === 'unrated') {
+          const { data: ratedRows, error: rErr } = await supabase
+            .from('uworld_question_ratings')
+            .select('question_id')
+            .eq('user_id', req.userId)
+            .in('question_id', data.map((r) => r.question_id));
+          if (rErr) throw rErr;
+          ratedSet = new Set((ratedRows || []).map((r) => r.question_id));
+        }
+        for (const row of data) {
+          if (rating === 'unrated' && ratedSet.has(row.question_id)) continue;
+          out.push(fromDb(row.questions));
+          if (out.length >= limit) break;
+        }
+        if (data.length < PAGE) break;
+      }
+      return res.json({ questions: out });
+    }
+
+    let q = supabase
+      .from('uworld_question_ratings')
+      .select('question_id, updated_at, questions!inner(*)')
+      .eq('user_id', req.userId)
+      .eq('rating', rating)
+      .contains('questions.game_modes', UWORLD_MODE_JSON)
+      .order('updated_at', { ascending: true })
+      .range(0, limit - 1);
+    if (hasRetirement) q = q.is('questions.retired_at', null);
+    const { data, error } = await q;
+    if (error) throw error;
+    res.json({ questions: (data || []).map((r) => fromDb(r.questions)) });
+  } catch (err) {
+    console.error('[/api/uworld-questions/by-rating] failed —', err.message);
     res.json({ questions: [] });
   }
 });

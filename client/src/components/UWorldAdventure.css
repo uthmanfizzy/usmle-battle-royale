@@ -26,7 +26,11 @@
      — only these two card surfaces and their own text/controls flip light). */
   --uwa-panel:        rgba(240, 245, 252, 0.97);
   --uwa-panel-soft:   rgba(240, 245, 252, 0.92);
-  --uwa-panel-hover:  rgba(63, 127, 214, 0.08);
+  /* Solid-ish, NOT a low-opacity wash: .uwa-subject/.uwa-pile sit directly on
+     the dark page with no light ancestor behind them, so a translucent hover
+     tint here would show the dark page through it instead of reading as a
+     lighter panel — same bug the --active state hit before this was caught. */
+  --uwa-panel-hover:  rgba(226, 236, 250, 0.95);
   --uwa-panel-border: rgba(63, 127, 214, 0.4);
   --uwa-ink:          #16233a;              /* body text on a light panel */
   --uwa-ink-soft:     rgba(22, 35, 58, 0.65);
@@ -502,6 +506,56 @@
 .uwa-subject-name { font-size: 14px; font-weight: 700; }
 
 .uwa-subject-meta { font-size: 12px; color: var(--uwa-ink-dim); }
+
+/* ── Review Rated Questions: pile list ──────────────────────────────────────
+   Same light-panel treatment as .uwa-subject and for the same reason — these
+   rows sit directly on the dark page with no light ancestor, so (like the
+   .uwa-subject--active fix above) they need a properly opaque light
+   background rather than a translucent wash. */
+.uwa-pile-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 36px;
+}
+
+.uwa-pile {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 18px;
+  border-radius: 8px;
+  background: var(--uwa-panel-soft);
+  border: 1px solid var(--uwa-panel-border);
+  color: var(--uwa-ink);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.18s, background 0.18s, transform 0.18s;
+}
+
+.uwa-pile:hover:not(:disabled) {
+  border-color: var(--uwa-blue);
+  background: var(--uwa-panel-hover);
+  transform: translateY(-2px);
+}
+
+.uwa-pile.is-disabled,
+.uwa-pile:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.uwa-pile.is-disabled:hover,
+.uwa-pile:disabled:hover {
+  border-color: var(--uwa-panel-border);
+  background: var(--uwa-panel-soft);
+  transform: none;
+}
+
+.uwa-pile-name { font-size: 14px; font-weight: 700; }
+.uwa-pile-sub  { font-size: 12px; color: var(--uwa-ink-dim); white-space: nowrap; }
 
 /* ── Start button — solid on the light card, so it still reads over a
    translucent blue wash (the card behind it is now light, not dark). ────── */

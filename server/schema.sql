@@ -638,6 +638,40 @@ CREATE POLICY IF NOT EXISTS "server_full_access_game_settings"
 -- four ACTIVE subjects only, fetched live from /api/subjects, and deliberately
 -- has no "Systems" facet — no real data backs one.
 
+-- ── uworld_question_ratings ─────────────────────────────────────────────────
+-- Self-assessment rating shown below the explanation on every UWorld Adventure
+-- question (Knowledge Gap / Careless Miss / Lucky Guess / Somewhat Know /
+-- Fully Understood), whether the question was just answered fresh or is being
+-- reviewed again from the "Review Rated Questions" pile picker. Deliberately
+-- the exact same shape and rating strings as hy_flashcard_ratings: one row
+-- per (user, question), upserted — a rating always reflects the student's
+-- MOST RECENT judgement, there is no history, and re-rating on a later pass
+-- just moves the question between piles.
+--
+-- Reviewing a rated question does NOT create a new user_question_seen row
+-- (SoloGame skips that POST entirely when uwaReview is set) — since a
+-- question can only ever have a rating after it has already been served
+-- once through the normal unseen flow, review sessions can never move the
+-- 3,659-question completion total either way.
+
+CREATE TABLE IF NOT EXISTS uworld_question_ratings (
+  id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id     UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  question_id UUID        NOT NULL REFERENCES questions(id) ON DELETE CASCADE,
+  rating      TEXT        NOT NULL CHECK (rating IN ('knowledge_gap', 'careless_miss', 'lucky_guess', 'somewhat_know', 'fully_understood')),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_uworld_question_ratings_user_q ON uworld_question_ratings(user_id, question_id);
+-- Powers the rating-group filters (rating-counts, by-rating) without a table scan.
+CREATE INDEX IF NOT EXISTS idx_uworld_question_ratings_user_rating ON uworld_question_ratings(user_id, rating);
+
+ALTER TABLE uworld_question_ratings ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "server_full_access_uworld_question_ratings" ON uworld_question_ratings;
+CREATE POLICY "server_full_access_uworld_question_ratings"
+  ON uworld_question_ratings FOR ALL USING (true) WITH CHECK (true);
+
 -- ─────────────────────────────────────────────────────────────────────────────
 -- MODERATOR PERMISSIONS + QUESTION RETIREMENT (doc-only — run in the SQL editor)
 -- ─────────────────────────────────────────────────────────────────────────────
