@@ -91,16 +91,23 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   }, [uworldSkin]);
 
   // Hard mode and easy mode each use their own admin-configured timer / explanation
-  // time / hide-explanations setting (falling back to legacy generic keys, then literals)
+  // time / hide-explanations setting (falling back to legacy generic keys, then literals).
+  // UWorld Adventure gets its own fixed, exam-paced timings instead — it always runs
+  // with difficulty="easy", so it would otherwise share (and be skewed by) whatever
+  // admins configure for easy mode across Solo/Training.
   const isHardMode = difficulty === 'hard';
-  const defaultTimer = isHardMode
-    ? (settings.hardModeTimer || 30)
-    : (settings.easyModeTimer || settings.timerDefault || 20);
+  const defaultTimer = uworldSkin
+    ? 70
+    : isHardMode
+      ? (settings.hardModeTimer || 30)
+      : (settings.easyModeTimer || settings.timerDefault || 20);
   const defaultLives = isJourney ? 5 : (settings.battleRoyaleLives || 3);
   const maxLives = defaultLives;   // heart slots shown = max lives for this mode (5 in journey)
-  const explanationTime = isHardMode
-    ? (settings.hardModeExplanationTime || 20)
-    : (settings.easyModeExplanationTime || settings.explanationTime || 5);
+  const explanationTime = uworldSkin
+    ? 60
+    : isHardMode
+      ? (settings.hardModeExplanationTime || 20)
+      : (settings.easyModeExplanationTime || settings.explanationTime || 5);
   const hideExplanations = isHardMode
     ? !!settings.hardModeHideExplanations
     : !!settings.easyModeHideExplanations;
