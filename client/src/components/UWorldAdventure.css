@@ -11,16 +11,26 @@
 
 .uwa {
   --uwa-blue: #3f7fd6;         /* primary rule / accent */
-  --uwa-blue-light: #7fb0e0;   /* headings, figures, letters */
+  --uwa-blue-deep: #2f6fc9;    /* text-weight blue — used ON light panels, where
+                                  --uwa-blue-light fails contrast */
+  --uwa-blue-light: #7fb0e0;   /* headings, figures, letters — on the dark page */
   --uwa-blue-hover: #a4c9ec;
   --uwa-void: #05080c;         /* page base */
-  --uwa-card: rgba(10, 16, 24, 0.6);
-  --uwa-card-soft: rgba(10, 16, 24, 0.5);
-  --uwa-rule: rgba(63, 127, 214, 0.35);
   --uwa-rule-strong: rgba(63, 127, 214, 0.5);
   --uwa-tint: rgba(63, 127, 214, 0.15);
   --uwa-tint-strong: rgba(63, 127, 214, 0.25);
   --uwa-glow: 0 0 18px rgba(47, 111, 209, 0.2);
+
+  /* Light panel tokens: the pace card + subject cards float as light surfaces
+     over the dark animated backdrop (page base, blobs and stars are untouched
+     — only these two card surfaces and their own text/controls flip light). */
+  --uwa-panel:        rgba(240, 245, 252, 0.97);
+  --uwa-panel-soft:   rgba(240, 245, 252, 0.92);
+  --uwa-panel-hover:  rgba(63, 127, 214, 0.08);
+  --uwa-panel-border: rgba(63, 127, 214, 0.4);
+  --uwa-ink:          #16233a;              /* body text on a light panel */
+  --uwa-ink-soft:     rgba(22, 35, 58, 0.65);
+  --uwa-ink-dim:      rgba(22, 35, 58, 0.5);
 
   min-height: 100vh;
   /* Flat base — the depth comes from the animated .uwa-decor layer below. */
@@ -230,35 +240,36 @@
 
 .uwa-error {
   font-size: 14px;
-  color: #ffb4ad;
-  background: rgba(193, 41, 30, 0.14);
-  border: 1px solid rgba(193, 41, 30, 0.4);
+  color: #a3241a;
+  background: rgba(193, 41, 30, 0.1);
+  border: 1px solid rgba(193, 41, 30, 0.35);
   border-radius: 8px;
   padding: 10px 14px;
   margin: 18px 0 0;
 }
 
-/* ── Pace card ───────────────────────────────────────────────────────────── */
+/* ── Pace card — a light panel floating on the dark animated backdrop ──────── */
 .uwa-card {
-  background: var(--uwa-card);
+  background: var(--uwa-panel);
   border: 1.5px solid var(--uwa-blue);
   box-shadow: var(--uwa-glow);
   border-radius: 8px;
   padding: 24px 28px;
   margin-bottom: 36px;
+  color: var(--uwa-ink);
 }
 
 .uwa-card-title {
   font-family: var(--mv-font-display), 'Cinzel', serif;
   font-size: 16px;
   font-weight: 700;
-  color: var(--uwa-blue-light);
+  color: var(--uwa-blue-deep);
   margin-bottom: 4px;
 }
 
 .uwa-card-sub {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.55);
+  color: var(--uwa-ink-soft);
   margin-bottom: 18px;
 }
 
@@ -270,8 +281,8 @@
   padding: 4px;
   margin-bottom: 16px;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(63, 127, 214, 0.08);
+  border: 1px solid rgba(63, 127, 214, 0.22);
 }
 
 .uwa-planby-btn {
@@ -283,17 +294,17 @@
   border-radius: 6px;
   cursor: pointer;
   background: transparent;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--uwa-ink-dim);
   transition: background 0.14s ease, color 0.14s ease;
 }
 
-.uwa-planby-btn:hover { color: rgba(255, 255, 255, 0.85); }
+.uwa-planby-btn:hover { color: var(--uwa-ink); }
 
 .uwa-planby-btn.on {
   background: var(--uwa-tint);
   border: 1px solid rgba(63, 127, 214, 0.5);
   padding: 6px 13px;
-  color: #cfe2ff;
+  color: var(--uwa-blue-deep);
 }
 
 /* Deadline input. Sits in the slider's row so switching modes does not reflow
@@ -304,11 +315,11 @@
   padding: 9px 14px;
   font-size: 14px;
   font-family: inherit;
-  color: #eaf1ff;
-  background: rgba(255, 255, 255, 0.06);
+  color: var(--uwa-ink);
+  background: #fff;
   border: 1px solid rgba(63, 127, 214, 0.4);
   border-radius: 6px;
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 .uwa-date:focus { outline: none; border-color: var(--uwa-blue); }
@@ -317,15 +328,15 @@
 .uwa-note {
   font-size: 12px;
   line-height: 1.5;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--uwa-ink-dim);
   margin: 12px 0 0;
 }
 
 .uwa-warn {
   font-size: 13px;
   line-height: 1.45;
-  color: #ffd9a3;
-  background: rgba(214, 148, 40, 0.13);
+  color: #8a5a12;
+  background: rgba(214, 148, 40, 0.16);
   border: 1px solid rgba(214, 148, 40, 0.38);
   border-radius: 8px;
   padding: 9px 13px;
@@ -363,17 +374,17 @@
   font-family: var(--mv-font-display), 'Cinzel', serif;
   font-size: 20px;
   font-weight: 700;
-  color: #fff;
+  color: var(--uwa-blue-deep);
 }
 
-.uwa-pace-unit { font-size: 12px; color: rgba(255, 255, 255, 0.6); }
+.uwa-pace-unit { font-size: 12px; color: var(--uwa-ink-soft); }
 
 .uwa-projection {
   display: flex;
   gap: 24px;
   flex-wrap: wrap;
   padding-top: 16px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-top: 1px solid rgba(63, 127, 214, 0.22);
 }
 
 .uwa-proj-label {
@@ -381,7 +392,7 @@
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.4px;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--uwa-ink-dim);
   white-space: nowrap;
   margin-bottom: 8px;
 }
@@ -391,10 +402,10 @@
   font-family: var(--mv-font-display), 'Cinzel', serif;
   font-size: 20px;
   font-weight: 700;
-  color: #fff;
+  color: var(--uwa-ink);
 }
 
-.uwa-proj-val--blue { color: var(--uwa-blue-light); }
+.uwa-proj-val--blue { color: var(--uwa-blue-deep); }
 
 /* Real progress figures — no mockup counterpart (it is a static design), so
    they reuse the pace card's own vocabulary rather than inventing a new one. */
@@ -404,7 +415,7 @@
   flex-wrap: wrap;
   padding-top: 16px;
   margin-top: 16px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-top: 1px solid rgba(63, 127, 214, 0.22);
 }
 
 .uwa-count-val {
@@ -412,14 +423,14 @@
   font-family: var(--mv-font-display), 'Cinzel', serif;
   font-size: 20px;
   font-weight: 700;
-  color: #fff;
+  color: var(--uwa-ink);
 }
 
-.uwa-count-val--blue { color: var(--uwa-blue-light); }
+.uwa-count-val--blue { color: var(--uwa-blue-deep); }
 
 .uwa-bar {
   height: 6px;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(63, 127, 214, 0.14);
   border-radius: 999px;
   overflow: hidden;
   margin-top: 16px;
@@ -441,8 +452,8 @@
 }
 
 .uwa-subject {
-  background: var(--uwa-card-soft);
-  border: 1px solid var(--uwa-rule);
+  background: var(--uwa-panel-soft);
+  border: 1px solid var(--uwa-panel-border);
   border-radius: 8px;
   padding: 16px 18px;
   display: flex;
@@ -451,20 +462,24 @@
   align-items: flex-start;
   text-align: left;
   font-family: inherit;
-  color: #fff;
+  color: var(--uwa-ink);
   cursor: pointer;
   transition: border-color 0.18s, background 0.18s, transform 0.18s;
 }
 
 .uwa-subject:hover {
-  border-color: var(--uwa-rule-strong);
-  background: rgba(16, 26, 40, 0.65);
+  border-color: var(--uwa-blue);
+  background: var(--uwa-panel-hover);
   transform: translateY(-2px);
 }
 
 .uwa-subject--active {
   border-color: var(--uwa-blue);
-  background: rgba(63, 127, 214, 0.12);
+  /* Solid-ish light blue, NOT a low-opacity wash: unlike the tint chips inside
+     .uwa-card, this card sits directly on the dark page with no light ancestor
+     behind it — a translucent background here would show the dark page
+     through it instead of reading as a selected light card. */
+  background: rgba(219, 234, 254, 0.95);
   box-shadow: var(--uwa-glow);
 }
 
@@ -480,15 +495,16 @@
   font-family: var(--mv-font-display), 'Cinzel', serif;
   font-size: 15px;
   line-height: 1;
-  color: var(--uwa-blue-light);
+  color: var(--uwa-blue-deep);
   flex-shrink: 0;
 }
 
 .uwa-subject-name { font-size: 14px; font-weight: 700; }
 
-.uwa-subject-meta { font-size: 12px; color: rgba(255, 255, 255, 0.5); }
+.uwa-subject-meta { font-size: 12px; color: var(--uwa-ink-dim); }
 
-/* ── Start button — blue sibling of the shared cut-corner button ─────────── */
+/* ── Start button — solid on the light card, so it still reads over a
+   translucent blue wash (the card behind it is now light, not dark). ────── */
 .uwa-start {
   width: 100%;
   padding: 14px 20px;
@@ -497,8 +513,8 @@
   font-weight: 700;
   letter-spacing: 0.08em;
   color: #fff;
-  background: rgba(63, 127, 214, 0.22);
-  border: 1.5px solid var(--uwa-blue);
+  background: linear-gradient(180deg, var(--uwa-blue), var(--uwa-blue-deep));
+  border: 1.5px solid var(--uwa-blue-deep);
   box-shadow: var(--uwa-glow);
   border-radius: 8px;
   cursor: pointer;
@@ -506,7 +522,7 @@
 }
 
 .uwa-start:hover:not(:disabled) {
-  background: rgba(63, 127, 214, 0.34);
+  background: linear-gradient(180deg, var(--uwa-blue-hover), var(--uwa-blue));
   box-shadow: 0 0 28px rgba(47, 111, 209, 0.45);
   transform: translateY(-2px);
 }

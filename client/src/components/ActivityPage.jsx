@@ -33,7 +33,7 @@ const MODE_META = {
   // without these they'd fall through to the generic 🎮 "Hy Flashcards" title.
   anking:                 { icon: '🃏', label: 'AnKing Flashcards' },
   hy_flashcards:          { icon: '⭐', label: 'HY Flashcards'     },
-  question_bank_practice: { icon: '📚', label: 'Question Bank'     },
+  question_bank_practice: { icon: '📚', label: 'UWorld Adventure'  },
 };
 const modeMeta = (m) =>
   MODE_META[m] || {
