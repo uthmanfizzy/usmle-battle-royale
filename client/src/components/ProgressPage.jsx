@@ -296,6 +296,41 @@ export default function ProgressPage() {
           </div>
         </div>
 
+        {/* Study time */}
+        <div className="pp-panel">
+          <div className="pp-panel-hd">
+            <h2 className="pp-panel-title">📚 Study Time</h2>
+            <span className="pp-panel-note">Active time answering questions</span>
+          </div>
+          <div className="pp-stats-grid">
+            <div className="pp-stat">
+              <span className="pp-stat-value">{formatStudyTime(study?.total_seconds)}</span>
+              <span className="pp-stat-key">Total</span>
+            </div>
+            <div className="pp-stat">
+              <span className="pp-stat-value">{formatStudyTime(study?.today_seconds)}</span>
+              <span className="pp-stat-key">Today</span>
+            </div>
+            <div className="pp-stat">
+              <span className="pp-stat-value">{formatStudyTime(study?.week_seconds)}</span>
+              <span className="pp-stat-key">This Week</span>
+            </div>
+            <div className="pp-stat">
+              <span className="pp-stat-value">🔥 {study?.streak_days || 0}d</span>
+              <span className="pp-stat-key">Streak</span>
+            </div>
+          </div>
+
+          <StudyCalendar userId={viewedId} />
+
+          {/* The calendar shows how MUCH was studied per day; the activity log
+              shows WHAT was played on a given day. Carries viewedId so the link
+              keeps own-vs-other context. */}
+          <a className="pp-activity-link" href={`/activity/${viewedId}`}>
+            View Daily Activity →
+          </a>
+        </div>
+
         {/* Gear Collection — real owned items from the shop (public endpoint,
             works for any viewed profile). Collection display only: no prices,
             no buying here, and gear has no gameplay/visual effect anywhere. */}
@@ -350,41 +385,6 @@ export default function ProgressPage() {
               </div>
             ))
           )}
-        </div>
-
-        {/* Study time */}
-        <div className="pp-panel">
-          <div className="pp-panel-hd">
-            <h2 className="pp-panel-title">📚 Study Time</h2>
-            <span className="pp-panel-note">Active time answering questions</span>
-          </div>
-          <div className="pp-stats-grid">
-            <div className="pp-stat">
-              <span className="pp-stat-value">{formatStudyTime(study?.total_seconds)}</span>
-              <span className="pp-stat-key">Total</span>
-            </div>
-            <div className="pp-stat">
-              <span className="pp-stat-value">{formatStudyTime(study?.today_seconds)}</span>
-              <span className="pp-stat-key">Today</span>
-            </div>
-            <div className="pp-stat">
-              <span className="pp-stat-value">{formatStudyTime(study?.week_seconds)}</span>
-              <span className="pp-stat-key">This Week</span>
-            </div>
-            <div className="pp-stat">
-              <span className="pp-stat-value">🔥 {study?.streak_days || 0}d</span>
-              <span className="pp-stat-key">Streak</span>
-            </div>
-          </div>
-
-          <StudyCalendar userId={viewedId} />
-
-          {/* The calendar shows how MUCH was studied per day; the activity log
-              shows WHAT was played on a given day. Carries viewedId so the link
-              keeps own-vs-other context. */}
-          <a className="pp-activity-link" href={`/activity/${viewedId}`}>
-            View Daily Activity →
-          </a>
         </div>
 
         {/* Subject mastery */}
