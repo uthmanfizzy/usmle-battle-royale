@@ -423,6 +423,13 @@
 
 .da-note-btn--save:hover:not(:disabled) { background: rgba(232, 176, 75, 0.3); }
 
+.da-note-error {
+  margin: 8px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #ff9b8f;
+}
+
 /* ── Session cards ───────────────────────────────────────────────────── */
 .da-card {
   display: flex;

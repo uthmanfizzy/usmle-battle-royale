@@ -222,6 +222,7 @@ function GapRow({ item, editable, note, onSave }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft]     = useState(note || '');
   const [saving, setSaving]   = useState(false);
+  const [error,  setError]    = useState(false);
 
   // A note arriving from the server after mount (the notes fetch resolves
   // independently of the sessions fetch) must not clobber an open draft.
@@ -229,9 +230,14 @@ function GapRow({ item, editable, note, onSave }) {
 
   async function commit() {
     setSaving(true);
-    await onSave(item.gapStart, draft.trim());
+    setError(false);
+    const ok = await onSave(item.gapStart, draft.trim());
     setSaving(false);
-    setEditing(false);
+    // On failure, stay in editing mode with the draft intact — closing here
+    // would silently discard what they typed, which is the exact bug this
+    // is fixing.
+    if (ok) setEditing(false);
+    else setError(true);
   }
 
   return (
@@ -265,12 +271,13 @@ function GapRow({ item, editable, note, onSave }) {
                 <button
                   type="button"
                   className="da-note-btn"
-                  onClick={() => { setDraft(note || ''); setEditing(false); }}
+                  onClick={() => { setDraft(note || ''); setEditing(false); setError(false); }}
                   disabled={saving}
                 >
                   Cancel
                 </button>
               </div>
+              {error && <p className="da-note-error">Couldn&apos;t save — check your connection and try again.</p>}
             </div>
           ) : note ? (
             <button
@@ -355,26 +362,35 @@ export default function ActivityPage() {
     return () => { cancelled = true; };
   }, [isOwn, date]);
 
-  // Optimistic: the row closes its editor immediately. A failed write leaves
-  // the note visible locally but absent on reload — acceptable for an
-  // annotation, and the alternative (blocking the UI on the round trip) is
-  // worse for something typed in passing.
+  // Confirm-then-reflect, NOT optimistic: local `notes` state only updates
+  // once the server has actually accepted the write. The previous optimistic
+  // version updated local state immediately and never checked the response —
+  // a failed write (e.g. the activity_gap_notes migration not having been run
+  // yet) still showed the note as saved, right up until the next reload
+  // silently dropped it. Returns true/false so GapRow can keep its editor
+  // open (draft intact) and show an error on failure, instead of closing on
+  // a save that never actually happened.
   async function saveNote(gapStart, text) {
-    setNotes(prev => {
-      const next = { ...prev };
-      if (text) next[gapStart] = text;
-      else delete next[gapStart];
-      return next;
-    });
     const token = getToken();
-    if (!token) return;
+    if (!token) return false;
     try {
-      await fetch(`${SERVER_URL}/api/activity/gap-notes`, {
+      const res = await fetch(`${SERVER_URL}/api/activity/gap-notes`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ gap_start: gapStart, note: text }),
       });
-    } catch { /* keep the local value; nothing actionable to show here */ }
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.ok) return false;
+      setNotes(prev => {
+        const next = { ...prev };
+        if (text) next[gapStart] = text;
+        else delete next[gapStart];
+        return next;
+      });
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   const isToday = date === todayUTC();
