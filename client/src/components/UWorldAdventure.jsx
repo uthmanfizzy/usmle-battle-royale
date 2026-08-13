@@ -117,6 +117,19 @@ export default function UWorldAdventure() {
   // projection row below, not in the box they just typed in.
   const [pickedDate, setPickedDate] = useState(null);
 
+  // Question order for a block: 'random' (the long-standing behaviour, kept as
+  // the default) or 'sequential' — /api/questions/unseen's own deterministic
+  // pagination order. Stored per-user in localStorage like Journey's own order
+  // toggle, so it sticks between visits.
+  const [questionOrder, setQuestionOrder] = useState(() => {
+    try { return localStorage.getItem('mr_uwa_q_order') === 'sequential' ? 'sequential' : 'random'; }
+    catch { return 'random'; }
+  });
+  function chooseQuestionOrder(v) {
+    setQuestionOrder(v);
+    try { localStorage.setItem('mr_uwa_q_order', v); } catch {}
+  }
+
   // The live session. Held in state and set ONCE per start so the array
   // reference stays stable — SoloGame's fetch effect depends on it.
   const [sessionQuestions, setSessionQuestions] = useState(null);
@@ -157,10 +170,19 @@ export default function UWorldAdventure() {
 
   // Whole-adventure progress: the same endpoint with NO subject sums every
   // active subject. The pace card plans against this, not the open subject —
-  // "when do I finish UWorld Adventure" is a question about all of it.
+  // "when do I finish UWorld Adventure" is a question about all of it. Also
+  // carries the client's own local date + zone offset, so `done_today` (how
+  // much of today's pace is already spent) is bucketed by the player's own
+  // calendar day rather than server UTC — same convention AnKing's daily new-
+  // card allowance uses.
   const loadOverall = useCallback(async () => {
     if (!user?.id) return null;
-    const res = await authFetch(`/api/users/${user.id}/question-bank-progress`);
+    const now = new Date();
+    const params = new URLSearchParams({
+      local_date: now.toLocaleDateString('en-CA'),
+      tz_offset:  String(now.getTimezoneOffset()),
+    });
+    const res = await authFetch(`/api/users/${user.id}/question-bank-progress?${params}`);
     return res.json();
   }, [user?.id]);
 
@@ -222,12 +244,21 @@ export default function UWorldAdventure() {
     return () => clearTimeout(saveTimerRef.current);
   }, [pace]);
 
+  // Adventure-wide, not per-subject — the pace itself is adventure-wide (see
+  // PACE_SCOPE), so finishing 20 of an 80/day goal in Anatomy this morning must
+  // leave only 60 owed this afternoon, in Pharmacology or anywhere else. Once
+  // the day's goal is met, a block reverts to serving a full `pace` again
+  // rather than refusing to start — the goal is a target, not a lockout.
+  const doneToday      = overall?.done_today ?? 0;
+  const remainingToday = Math.max(0, pace - doneToday);
+  const blockSize      = remainingToday > 0 ? remainingToday : pace;
+
   async function startSession() {
     if (!selected || starting) return;
     setStarting(true);
     setStartError('');
     try {
-      const res = await authFetch(`/api/questions/unseen?subject=${encodeURIComponent(selected)}&limit=${pace}`);
+      const res = await authFetch(`/api/questions/unseen?subject=${encodeURIComponent(selected)}&limit=${blockSize}`);
       const data = await res.json();
       const qs = data.questions || [];
       if (qs.length === 0) {
@@ -235,7 +266,8 @@ export default function UWorldAdventure() {
         setStarting(false);
         return;
       }
-      setSessionQuestions(shuffle(qs)); // set once: stable reference for SoloGame
+      // set once: stable reference for SoloGame
+      setSessionQuestions(questionOrder === 'random' ? shuffle(qs) : qs);
     } catch {
       setStartError('Could not load your questions. Check your connection and try again.');
     }
@@ -295,7 +327,8 @@ export default function UWorldAdventure() {
   // makes the deadline picker round-trip exactly: pick a date, get a pace, and
   // that pace projects back to the date you picked.
   completionDate.setDate(completionDate.getDate() + Math.max(0, daysToFinish - 1));
-  const todaysCount = Math.min(pace, unseen);
+  const todaysCount = Math.min(blockSize, unseen);
+  const goalMetToday = doneToday > 0 && remainingToday === 0;
 
   return (
     <div className="uwa">
@@ -465,8 +498,49 @@ export default function UWorldAdventure() {
                   {' '}{overall.total.toLocaleString()} are in the bank so far — the rest are still being added.
                 </p>
               )}
+
+              {/* Today's slice of the daily pace — resets at the player's own
+                  midnight (see done_today on question-bank-progress). A block
+                  started later today is capped at what's still owed, not a
+                  fresh `pace`, so ending a block early and coming back finishes
+                  the day rather than restarting it. */}
+              <div className="uwa-counts" style={{ marginTop: 20 }}>
+                <div>
+                  <span className="uwa-proj-label">TODAY'S PROGRESS</span>
+                  <span className="uwa-count-val">{Math.min(doneToday, pace)} / {pace}</span>
+                </div>
+              </div>
+              <div
+                className="uwa-bar"
+                role="img"
+                aria-label={`${doneToday} of ${pace} questions answered today`}
+              >
+                <div
+                  className="uwa-bar-fill"
+                  style={{ width: `${pace ? Math.min(100, (doneToday / pace) * 100) : 0}%` }}
+                />
+              </div>
+              {goalMetToday && (
+                <p className="uwa-note">🎉 Today's goal is complete — starting another block goes beyond it.</p>
+              )}
             </>
           )}
+
+          {/* Question order for the block about to start. 'Random' is the
+              long-standing default; 'In order' plays the server's own stable
+              pagination order, unshuffled. */}
+          <div className="uwa-planby" role="tablist" aria-label="Question order" style={{ marginTop: 18 }}>
+            <button
+              type="button" role="tab" aria-selected={questionOrder === 'random'}
+              className={`uwa-planby-btn ${questionOrder === 'random' ? 'on' : ''}`}
+              onClick={() => chooseQuestionOrder('random')}
+            >🎲 Random</button>
+            <button
+              type="button" role="tab" aria-selected={questionOrder === 'sequential'}
+              className={`uwa-planby-btn ${questionOrder === 'sequential' ? 'on' : ''}`}
+              onClick={() => chooseQuestionOrder('sequential')}
+            >📖 In Order</button>
+          </div>
 
           {startError && <p className="uwa-error">{startError}</p>}
 
@@ -486,6 +560,8 @@ export default function UWorldAdventure() {
                 ? (overall && overall.total < plannedTotal
                     ? `No ${activeName || 'subject'} questions left yet`
                     : 'Subject Complete')
+              : goalMetToday
+                ? `🎉 Keep Going Beyond Today's Goal (${todaysCount})`
               : `Start Today's Questions (${todaysCount})`}
           </button>
         </div>

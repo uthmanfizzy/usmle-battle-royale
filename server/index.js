@@ -4622,27 +4622,35 @@ app.post('/api/study-time', requireAuth, async (req, res) => {
 });
 
 /**
- * GET /api/users/:userId/question-bank-progress?subject=<id>
+ * GET /api/users/:userId/question-bank-progress?subject=<id>&local_date=&tz_offset=
  *
- * How much of the main question bank this user has met: { total, seen, unseen }.
- * With no `subject`, it spans every ACTIVE subject (the four that actually hold
- * questions today) rather than the full 22-row subjects table, so `total`
- * matches what a player can really be served.
+ * How much of the main question bank this user has met: { total, seen, unseen,
+ * done_today }. With no `subject`, it spans every ACTIVE subject (the four that
+ * actually hold questions today) rather than the full 22-row subjects table, so
+ * `total` matches what a player can really be served.
  *
- * Both numbers are head+exact COUNTS, never row scans: PostgREST caps responses
- * at 1000 rows and returns HTTP 200 for the truncated page, so tallying rows
- * silently under-reports the moment a subject crosses the cap. `seen` counts
- * through an inner join to `questions` because user_question_seen holds no
- * subject of its own.
+ * `done_today` is how many of those seen questions were first served TODAY (the
+ * client's own calendar day — see resolveDayStart), scoped the same way as
+ * `total`/`seen`. Called with no `subject`, this is the adventure-wide count the
+ * daily pace (set once for the whole adventure, not per subject) is planned
+ * against — UWorldAdventure uses it to cap a session at the pace still owed
+ * today rather than re-issuing the full daily pace on every block.
+ *
+ * All three counts are head+exact COUNTS, never row scans: PostgREST caps
+ * responses at 1000 rows and returns HTTP 200 for the truncated page, so
+ * tallying rows silently under-reports the moment a subject crosses the cap.
+ * `seen`/`done_today` count through an inner join to `questions` because
+ * user_question_seen holds no subject of its own.
  *
  * requireAuth'd but takes a :userId — like the other per-user stat endpoints, any
  * signed-in user may read another's progress. Fails soft to zeros.
  */
 app.get('/api/users/:userId/question-bank-progress', requireAuth, async (req, res) => {
-  const zeros = { total: 0, seen: 0, unseen: 0 };
+  const zeros = { total: 0, seen: 0, unseen: 0, done_today: 0 };
   if (!supabase) return res.json(zeros);
 
   const subject = (req.query.subject || '').toString().trim();
+  const dayStart = resolveDayStart(req.query.local_date, req.query.tz_offset);
 
   try {
     // Scope: one subject, or every active one.
@@ -4657,10 +4665,10 @@ app.get('/api/users/:userId/question-bank-progress', requireAuth, async (req, re
       if (subjects.length === 0) return res.json(zeros);
     }
 
-    // Both counts carry the SAME tag filter /api/questions/unseen applies, so
-    // the pacing maths describes the pool a session will actually serve. Without
-    // it, "days to finish" would be computed from every question in the subject
-    // while the session only ever draws from the tagged subset.
+    // All three counts carry the SAME tag filter /api/questions/unseen applies,
+    // so the pacing maths describes the pool a session will actually serve.
+    // Without it, "days to finish" would be computed from every question in the
+    // subject while the session only ever draws from the tagged subset.
     let totalQ = supabase
       .from('questions')
       .select('*', { count: 'exact', head: true })
@@ -4676,21 +4684,37 @@ app.get('/api/users/:userId/question-bank-progress', requireAuth, async (req, re
       .contains('questions.game_modes', UWORLD_MODE_JSON)
       .in('questions.category', subjects);
 
-    // Retirement must be applied to BOTH counts or neither: a retired question
-    // left both pools, so counting it as seen against a total that excludes it
+    // Same shape as seenQ, narrowed to rows seen since the user's local midnight.
+    // A question is served here through /api/questions/unseen exactly once ever
+    // (it excludes anything already seen), so seen_at IS its first exposure —
+    // no separate "seen before today" check is needed, unlike AnKing's repeat
+    // reviews.
+    let todayQ = supabase
+      .from(QUESTION_SEEN_TABLE)
+      .select('question_id, questions!inner(category, game_modes)', { count: 'exact', head: true })
+      .eq('user_id', req.params.userId)
+      .gte('seen_at', dayStart)
+      .contains('questions.game_modes', UWORLD_MODE_JSON)
+      .in('questions.category', subjects);
+
+    // Retirement must be applied across all three or none: a retired question
+    // left every pool, so counting it as seen against a total that excludes it
     // would push progress past 100%.
     if (hasRetirement) {
       totalQ = totalQ.is('retired_at', null);
       seenQ  = seenQ.is('questions.retired_at', null);
+      todayQ = todayQ.is('questions.retired_at', null);
     }
 
-    const [totalRes, seenRes] = await Promise.all([totalQ, seenQ]);
+    const [totalRes, seenRes, todayRes] = await Promise.all([totalQ, seenQ, todayQ]);
     if (totalRes.error) throw totalRes.error;
     if (seenRes.error) throw seenRes.error;
+    if (todayRes.error) throw todayRes.error;
 
     const total = totalRes.count || 0;
     const seen  = Math.min(seenRes.count || 0, total);
-    res.json({ total, seen, unseen: Math.max(0, total - seen) });
+    const doneToday = Math.min(todayRes.count || 0, seen);
+    res.json({ total, seen, unseen: Math.max(0, total - seen), done_today: doneToday });
   } catch (err) {
     console.error('[/api/users/:userId/question-bank-progress] failed —', err.message);
     res.json(zeros);
