@@ -1077,17 +1077,19 @@
   box-shadow: 0 3px 8px rgba(8, 4, 24, 0.45);
 }
 
-/* ── Optional recommended video on the level confirm screen ─────────────────── */
-.jm-confirm-card--video { width: 460px; }
-
-.jm-confirm-video {
-  display: flex;
-  flex-direction: column;
+/* ── Recommended-videos button on the level confirm screen ──────────────────── */
+.jm-confirm-video-btn {
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
+  gap: 6px;
   width: 100%;
-  margin: 2px 0 8px;
+  min-width: 180px;
+  margin: 2px 0 4px;
+  border-color: rgba(34, 211, 238, 0.55);
+  color: var(--cyan);
 }
+.jm-confirm-video-btn:hover { background: rgba(34, 211, 238, 0.12); }
 
 .jm-confirm-video-msg {
   margin: 0;
@@ -1141,8 +1143,83 @@
 }
 .jm-confirm-video-link:hover { filter: brightness(1.06); }
 
-@media (max-width: 520px) {
-  .jm-confirm-card--video { width: 350px; }
+/* ── Recommended-videos modal: list of videos opened from the confirm card ──── */
+
+.jm-video-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1150;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(8, 4, 24, 0.78);
+  backdrop-filter: blur(4px);
+  animation: jm-fade-in 0.2s ease both;
+}
+
+.jm-video-modal-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 460px;
+  max-width: 92vw;
+  max-height: 86vh;
+  overflow-y: auto;
+  padding: 22px;
+  border-radius: 24px;
+  color: var(--text);
+  background:
+    radial-gradient(ellipse 100% 45% at 50% 0%, rgba(168, 85, 247, 0.22), transparent 65%),
+    linear-gradient(170deg, #2b1670, #1a0d45);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 24px 56px rgba(8, 4, 24, 0.65), 0 0 40px rgba(124, 58, 237, 0.25);
+  animation: jm-card-rise 0.25s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.jm-video-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.jm-video-modal-head h3 {
+  margin: 0;
+  font-family: 'Baloo 2', sans-serif;
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.jm-video-modal-close {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text);
+  font-size: 14px;
+  cursor: pointer;
+}
+.jm-video-modal-close:hover { background: rgba(255, 255, 255, 0.16); }
+
+.jm-video-modal-list {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.jm-video-modal-item-title {
+  margin: 0 0 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--cyan);
 }
 
 /* ── Interstitial: result card over the path after a game ──────────────────── */

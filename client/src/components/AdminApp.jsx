@@ -5223,69 +5223,123 @@ function ExplanationImageField({ value, onChange }) {
   );
 }
 
-// Optional per-level recommended video. Paste a URL → validated with the shared
-// shorts embed parser (same source of truth as the Shorts feed + player), saved
-// on the level via PUT /admin/journey-levels/:id. Empty clears it. Keyed by
-// level.id at the call site so it reseeds when the admin switches levels.
-function LevelVideoField({ level, onSaved }) {
-  const [url,    setUrl]    = useState(level.video_url || '');
-  const [saving, setSaving] = useState(false);
-  const [msg,    setMsg]    = useState('');
+// Recommended videos for a level's confirm screen — multiple per level, each
+// validated with the shared shorts embed parser (same source of truth as the
+// Shorts feed + player). Backed by journey_level_videos. Keyed by level.id at
+// the call site so it reloads when the admin switches levels.
+function LevelVideosField({ levelId }) {
+  const [videos,  setVideos]  = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [url,     setUrl]     = useState('');
+  const [title,   setTitle]   = useState('');
+  const [busy,    setBusy]    = useState(false);
+  const [msg,     setMsg]     = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    apiCall(`/admin/journey-level-videos?level_id=${levelId}`)
+      .then(res => res.json())
+      .then(data => { if (!cancelled) { setVideos(data.videos || []); setLoading(false); } })
+      .catch(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [levelId]);
 
   const trimmed = url.trim();
   const parsed  = trimmed ? parseShortUrl(trimmed) : null;
   const valid   = !!parsed && !parsed.error;
-  const dirty   = trimmed !== (level.video_url || '');
-  const canSave = dirty && (!trimmed || valid);   // allow saving a valid URL or clearing to empty
 
-  async function doSave(value) {
-    setSaving(true); setMsg('');
+  async function addVideo() {
+    if (!valid) return;
+    setBusy(true); setMsg('');
     try {
-      const res  = await apiCall(`/admin/journey-levels/${level.id}`, {
-        method: 'PUT',
-        body: JSON.stringify({ video_url: value }),
+      const res  = await apiCall('/admin/journey-level-videos', {
+        method: 'POST',
+        body: JSON.stringify({ level_id: levelId, url: trimmed, title: title.trim() || null, sort_order: videos.length }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Save failed');
-      onSaved(data.video_url || '');
-      setUrl(data.video_url || '');
-      setMsg('✓ Saved');
-      setTimeout(() => setMsg(''), 2000);
+      setVideos(v => [...v, data]);
+      setUrl(''); setTitle('');
     } catch (e) { setMsg('⚠ ' + e.message); }
-    setSaving(false);
+    setBusy(false);
+  }
+
+  async function removeVideo(id) {
+    setBusy(true); setMsg('');
+    try {
+      const res = await apiCall(`/admin/journey-level-videos/${id}`, { method: 'DELETE' });
+      if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Delete failed'); }
+      setVideos(v => v.filter(x => x.id !== id));
+    } catch (e) { setMsg('⚠ ' + e.message); }
+    setBusy(false);
+  }
+
+  async function move(i, dir) {
+    const j = i + dir;
+    if (j < 0 || j >= videos.length) return;
+    const next = [...videos];
+    [next[i], next[j]] = [next[j], next[i]];
+    const normalized = next.map((v, idx) => ({ ...v, sort_order: idx }));
+    setVideos(normalized);
+    try {
+      await Promise.all([videos[i], videos[j]].map(v =>
+        apiCall(`/admin/journey-level-videos/${v.id}`, {
+          method: 'PUT',
+          body: JSON.stringify({ sort_order: normalized.find(n => n.id === v.id).sort_order }),
+        })
+      ));
+    } catch (e) { setMsg('⚠ ' + e.message); }
   }
 
   return (
     <div className="ap-field ap-journey-video-field">
       <label>
-        Level Video <span className="ap-field-opt">(optional · shown on the player's confirm screen with a "recommended to watch" note)</span>
+        Recommended Videos <span className="ap-field-opt">(optional · shown behind a "Watch Recommended Videos" button on the player's confirm screen)</span>
       </label>
+
+      {!loading && videos.length > 0 && (
+        <ul className="ap-journey-video-list">
+          {videos.map((v, i) => {
+            const p = parseShortUrl(v.url);
+            return (
+              <li key={v.id} className="ap-journey-video-item">
+                {!p.error && shortThumbnailUrl(p.platform, p.video_id) && (
+                  <img src={shortThumbnailUrl(p.platform, p.video_id)} alt="" className="ap-journey-video-thumb" />
+                )}
+                <span className="ap-journey-video-item-meta">
+                  {!p.error && <>{PLATFORM_ICONS[p.platform]} {PLATFORM_LABELS[p.platform]} · </>}
+                  {v.title || v.url}
+                </span>
+                <button type="button" className="ap-btn-sec ap-btn-sm" disabled={busy || i === 0} onClick={() => move(i, -1)}>↑</button>
+                <button type="button" className="ap-btn-sec ap-btn-sm" disabled={busy || i === videos.length - 1} onClick={() => move(i, 1)}>↓</button>
+                <button type="button" className="ap-btn-sec ap-btn-sm" disabled={busy} onClick={() => removeVideo(v.id)}>✕</button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
       <div className="ap-journey-video-row">
+        <input
+          type="text"
+          value={title}
+          onChange={e => setTitle(e.target.value)}
+          placeholder="Title (optional)"
+          className="ap-input-plain"
+        />
         <input
           type="url"
           value={url}
           onChange={e => setUrl(e.target.value)}
-          placeholder="Paste a YouTube / TikTok / Instagram video URL"
+          placeholder="Paste a YouTube / Shorts / TikTok / Reels URL"
           className="ap-input-plain"
         />
-        <button type="button" className="ap-btn-pri ap-btn-sm" disabled={!canSave || saving} onClick={() => doSave(trimmed)}>
-          {saving ? '…' : 'Save'}
+        <button type="button" className="ap-btn-pri ap-btn-sm" disabled={!valid || busy} onClick={addVideo}>
+          {busy ? '…' : '+ Add'}
         </button>
-        {level.video_url && (
-          <button type="button" className="ap-btn-sec ap-btn-sm" disabled={saving} onClick={() => doSave('')}>
-            Clear
-          </button>
-        )}
       </div>
       {trimmed && parsed?.error && <div className="ap-error">{parsed.error}</div>}
-      {valid && (
-        <div className="ap-journey-video-preview">
-          {shortThumbnailUrl(parsed.platform, parsed.video_id) && (
-            <img src={shortThumbnailUrl(parsed.platform, parsed.video_id)} alt="" className="ap-journey-video-thumb" />
-          )}
-          <span>{PLATFORM_ICONS[parsed.platform]} {PLATFORM_LABELS[parsed.platform]} video linked</span>
-        </div>
-      )}
       {msg && <div className="ap-journey-video-status">{msg}</div>}
     </div>
   );
@@ -6159,20 +6213,7 @@ function JourneyPanel() {
           </div>
 
           {selected.kind === 'level' && (
-            <LevelVideoField
-              key={selected.level.id}
-              level={selected.level}
-              onSaved={(newUrl) => {
-                setSelected(s => (s && s.kind === 'level')
-                  ? { ...s, level: { ...s.level, video_url: newUrl } }
-                  : s);
-                setLevelsByChapter(prev => {
-                  const arr = prev[selected.chapter.id];
-                  if (!arr) return prev;
-                  return { ...prev, [selected.chapter.id]: arr.map(l => l.id === selected.level.id ? { ...l, video_url: newUrl } : l) };
-                });
-              }}
-            />
+            <LevelVideosField key={selected.level.id} levelId={selected.level.id} />
           )}
 
           <form onSubmit={handleSave} className="ap-qform ap-video-form">

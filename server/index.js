@@ -8953,7 +8953,7 @@ app.get('/admin/journey-levels', adminAuth, async (req, res) => {
 
 app.post('/admin/journey-levels', adminAuth, async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
-  const { chapter_id, name, sort_order, video_url } = req.body;
+  const { chapter_id, name, sort_order } = req.body;
   if (!chapter_id || !name?.trim()) return res.status(400).json({ error: 'chapter_id and name required' });
   try {
     const { data, error } = await supabase
@@ -8962,8 +8962,6 @@ app.post('/admin/journey-levels', adminAuth, async (req, res) => {
         chapter_id,
         name: name.trim(),
         sort_order: Number.isFinite(sort_order) ? sort_order : 0,
-        // Optional recommended video shown on the level's confirm screen. Empty → null.
-        video_url: (typeof video_url === 'string' && video_url.trim()) ? video_url.trim() : null,
       })
       .select()
       .single();
@@ -8980,11 +8978,6 @@ app.put('/admin/journey-levels/:id', adminAuth, async (req, res) => {
     updates.name = req.body.name.trim();
   }
   if (Number.isFinite(req.body.sort_order)) updates.sort_order = req.body.sort_order;
-  // Optional recommended video for the level's confirm screen. Empty string clears it.
-  if ('video_url' in req.body) {
-    const v = (req.body.video_url ?? '').toString().trim();
-    updates.video_url = v || null;
-  }
   if (Object.keys(updates).length === 0) return res.status(400).json({ error: 'nothing to update' });
   try {
     const { data, error } = await supabase
@@ -8995,6 +8988,83 @@ app.put('/admin/journey-levels/:id', adminAuth, async (req, res) => {
       .single();
     if (error) throw error;
     res.json(data);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── First Aid Journey: level videos (admin) ───────────────────────────────────
+// Multiple recommended videos per level, shown as a "Watch Recommended Videos"
+// button on the confirm screen. Platform (YouTube/Shorts/TikTok/Reels) is
+// parsed client-side from the raw url — see shortEmbeds.js.
+
+app.get('/admin/journey-level-videos', adminAuth, async (req, res) => {
+  if (!supabase) return res.json({ videos: [] });
+  const { level_id } = req.query;
+  if (!level_id) return res.status(400).json({ error: 'level_id required' });
+  try {
+    const { data, error } = await supabase
+      .from('journey_level_videos')
+      .select('*')
+      .eq('level_id', level_id)
+      .order('sort_order', { ascending: true });
+    if (error) throw error;
+    res.json({ videos: data || [] });
+  } catch (err) {
+    console.warn('[/admin/journey-level-videos] unavailable, returning videos: [] —', err.message);
+    res.json({ videos: [] });
+  }
+});
+
+app.post('/admin/journey-level-videos', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  const { level_id, url, title, sort_order } = req.body;
+  if (!level_id || !url?.trim()) return res.status(400).json({ error: 'level_id and url required' });
+  try {
+    const { data, error } = await supabase
+      .from('journey_level_videos')
+      .insert({
+        level_id,
+        url: url.trim(),
+        title: (typeof title === 'string' && title.trim()) ? title.trim() : null,
+        sort_order: Number.isFinite(sort_order) ? sort_order : 0,
+      })
+      .select()
+      .single();
+    if (error) throw error;
+    res.json(data);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.put('/admin/journey-level-videos/:id', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  const updates = {};
+  if ('url' in req.body) {
+    if (!req.body.url?.trim()) return res.status(400).json({ error: 'url required' });
+    updates.url = req.body.url.trim();
+  }
+  if ('title' in req.body) {
+    const v = (req.body.title ?? '').toString().trim();
+    updates.title = v || null;
+  }
+  if (Number.isFinite(req.body.sort_order)) updates.sort_order = req.body.sort_order;
+  if (Object.keys(updates).length === 0) return res.status(400).json({ error: 'nothing to update' });
+  try {
+    const { data, error } = await supabase
+      .from('journey_level_videos')
+      .update(updates)
+      .eq('id', req.params.id)
+      .select()
+      .single();
+    if (error) throw error;
+    res.json(data);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.delete('/admin/journey-level-videos/:id', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  try {
+    const { error } = await supabase.from('journey_level_videos').delete().eq('id', req.params.id);
+    if (error) throw error;
+    res.json({ ok: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -9686,6 +9756,7 @@ async function buildJourneyPath(userId, subject) {
   let levelRows = [];
   const levelQCounts = {};
   const levelBonusCounts = {};
+  const levelVideos = {};
   if (chapterRows.length > 0) {
     // Levels, plus chapter-boss counts — independent, so fetched together.
     // 'chapter:{uuid}' boss keys are globally unique, so the RPC needs no subject.
@@ -9733,6 +9804,19 @@ async function buildJourneyPath(userId, subject) {
       } else {
         for (const r of (bnData || [])) levelBonusCounts[r.level_id] = r.question_count;
       }
+
+      const { data: vidData, error: vidErr } = await supabase
+        .from('journey_level_videos')
+        .select('id, level_id, url, title')
+        .in('level_id', levelRows.map(l => l.id))
+        .order('sort_order', { ascending: true });
+      if (vidErr) {
+        console.warn('[journey] journey_level_videos unavailable —', vidErr.message);
+      } else {
+        for (const v of (vidData || [])) {
+          (levelVideos[v.level_id] ||= []).push({ id: v.id, url: v.url, title: v.title });
+        }
+      }
     }
   }
 
@@ -9764,7 +9848,7 @@ async function buildJourneyPath(userId, subject) {
         completed,
         best_score_pct: bestPct,
         unlocked,
-        video_url: l.video_url || null,   // optional recommended video for the confirm screen
+        videos: levelVideos[l.id] || [],   // recommended videos for the confirm screen
         // Bonus is earned on THIS level's own best score, independent of the
         // unlock chain above — a level can be bonus-eligible before or after
         // it gates the next one.

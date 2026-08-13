@@ -218,6 +218,40 @@ DROP POLICY IF EXISTS "server_full_access_journey_levels" ON journey_levels;
 CREATE POLICY "server_full_access_journey_levels"
   ON journey_levels FOR ALL USING (true) WITH CHECK (true);
 
+-- journey_levels also carries a `video_url TEXT` column (added directly in
+-- Supabase, not tracked here) — superseded by journey_level_videos below.
+
+-- ── journey_level_videos ──────────────────────────────────────────────────────
+-- Recommended videos shown on a level's confirm screen before the player starts
+-- it — multiple per level. Platform (YouTube / YouTube Shorts / TikTok /
+-- Instagram Reels) is parsed from the raw url at render time via the shared
+-- shortEmbeds parser (same source of truth as the Reels feed), so only the
+-- url is stored here.
+
+CREATE TABLE IF NOT EXISTS journey_level_videos (
+  id         UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  level_id   UUID        NOT NULL REFERENCES journey_levels(id) ON DELETE CASCADE,
+  url        TEXT        NOT NULL,
+  title      TEXT,
+  sort_order INT         NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_journey_level_videos_level ON journey_level_videos(level_id);
+
+ALTER TABLE journey_level_videos ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "server_full_access_journey_level_videos" ON journey_level_videos;
+CREATE POLICY "server_full_access_journey_level_videos"
+  ON journey_level_videos FOR ALL USING (true) WITH CHECK (true);
+
+-- One-time migration from the old single-video column, run once after the
+-- table above exists, then drop the now-unused column:
+--   INSERT INTO journey_level_videos (level_id, url, sort_order)
+--     SELECT id, video_url, 0 FROM journey_levels
+--     WHERE video_url IS NOT NULL AND video_url <> '';
+--   ALTER TABLE journey_levels DROP COLUMN IF EXISTS video_url;
+
 -- ── journey_questions ─────────────────────────────────────────────────────────
 -- Per-level authored questions. Shape mirrors the solo wire format.
 

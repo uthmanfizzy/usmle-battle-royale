@@ -54,6 +54,7 @@ export default function JourneyMode({
   const [error,       setError]       = useState('');
   const [authExpired, setAuthExpired] = useState(false);
   const [confirmNode,  setConfirmNode]  = useState(null); // { kind, name, questionCount, bestPct, completed, levelKey, questionsUrl }
+  const [videoModalOpen, setVideoModalOpen] = useState(false); // recommended-videos list, opened from the confirm card
   const [interstitial, setInterstitial] = useState(null); // null | { status: 'saving'|'complete'|'tryagain'|'save_failed', pct, threshold?, retryPayload? }
   const [bgUrl,       setBgUrl]       = useState(null);       // admin-set backdrop (landing-images slot 'journey_bg')
   const [activeIds,   setActiveIds]   = useState(null);       // Set of active subject ids; null = not loaded → show all
@@ -694,7 +695,8 @@ export default function JourneyMode({
     <div className={`jm-trail-seg jm-trail-seg--${toSide} jm-trail-seg--${state}`} aria-hidden="true" />
   );
 
-  const openConfirm = (node) => setConfirmNode(node);
+  const openConfirm = (node) => { setVideoModalOpen(false); setConfirmNode(node); };
+  const closeConfirm = () => { setVideoModalOpen(false); setConfirmNode(null); };
 
   const renderLevelNode = (l, li) => {
     const side       = takeSide();
@@ -724,7 +726,7 @@ export default function JourneyMode({
               kind: 'level', name: l.name, questionCount: l.question_count,
               bestPct: l.best_score_pct, completed: l.completed,
               levelKey: l.level_key,
-              videoUrl: l.video_url || null,
+              videos: l.videos || [],
               questionsUrl: `${SERVER}/api/journey-questions?level_id=${l.level_key}`,
               bonusQuestionCount: l.bonus_question_count || 0,
               bonusUnlocked: !!l.bonus_unlocked,
@@ -807,8 +809,8 @@ export default function JourneyMode({
     <>
 
       {confirmNode && (
-        <div className="jm-confirm-overlay" onClick={() => setConfirmNode(null)}>
-          <div className={`jm-confirm-card${confirmNode.videoUrl ? ' jm-confirm-card--video' : ''}`} onClick={e => e.stopPropagation()}>
+        <div className="jm-confirm-overlay" onClick={closeConfirm}>
+          <div className="jm-confirm-card" onClick={e => e.stopPropagation()}>
             <span className="jm-confirm-seal" aria-hidden="true">⚕</span>
             <span className="jm-confirm-kind">
               {confirmNode.kind === 'ultimate' ? '👑 Ultimate Boss' : confirmNode.kind === 'boss' ? '💀 Chapter Boss' : '🎯 Level'}
@@ -843,34 +845,14 @@ export default function JourneyMode({
                 >{t('confirm.orderRandom', '🎲 Random')}</button>
               </div>
             </div>
-            {confirmNode.videoUrl && (() => {
-              const parsed = parseShortUrl(confirmNode.videoUrl);
-              const src = parsed.error ? null : embedUrlStatic(parsed.platform, parsed.video_id);
-              const vertical = parsed.platform === 'tiktok' || parsed.platform === 'instagram';
-              return (
-                <div className="jm-confirm-video">
-                  <p className="jm-confirm-video-msg">📺 Recommended: watch this video before answering the questions.</p>
-                  {src ? (
-                    <div className={`jm-confirm-video-frame${vertical ? ' jm-confirm-video-frame--vertical' : ''}`}>
-                      <iframe
-                        src={src}
-                        title="Recommended video"
-                        frameBorder="0"
-                        allow="accelerometer; encrypted-media; gyroscope; picture-in-picture"
-                        allowFullScreen
-                      />
-                    </div>
-                  ) : (
-                    <a
-                      className="jm-confirm-video-link"
-                      href={confirmNode.videoUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >▶ Open the recommended video</a>
-                  )}
-                </div>
-              );
-            })()}
+            {confirmNode.videos?.length > 0 && (
+              <button
+                type="button"
+                className="btn-secondary jm-confirm-video-btn"
+                onClick={() => setVideoModalOpen(true)}
+                {...ek('confirm.watchVideos')}
+              >{t('confirm.watchVideos', `📺 Watch Recommended Video${confirmNode.videos.length === 1 ? '' : 's'}`)}</button>
+            )}
             <button
               className="btn-start jm-confirm-play"
               onClick={() => {
@@ -885,7 +867,7 @@ export default function JourneyMode({
                   levelLabel:  confirmNode.name,
                   wasMastery:  !!path?.mastery, // pre-play snapshot → drives Full Mastery flip
                 });
-                setConfirmNode(null);
+                closeConfirm();
               }}
               {...ek('confirm.play')}
             >{t('confirm.play', '▶ PLAY')}</button>
@@ -907,7 +889,7 @@ export default function JourneyMode({
                       wasMastery:  !!path?.mastery,
                       isBonus:     true,
                     });
-                    setConfirmNode(null);
+                    closeConfirm();
                   }}
                   {...ek('confirm.bonusPlay')}
                 >{t('confirm.bonusPlay', `⭐ Play ${confirmNode.bonusQuestionCount} Bonus Question${confirmNode.bonusQuestionCount === 1 ? '' : 's'}`)}</button>
@@ -919,7 +901,56 @@ export default function JourneyMode({
               )
             )}
 
-            <button className="btn-secondary" onClick={() => setConfirmNode(null)} {...ek('confirm.cancel')}>{t('confirm.cancel', 'Cancel')}</button>
+            <button className="btn-secondary" onClick={closeConfirm} {...ek('confirm.cancel')}>{t('confirm.cancel', 'Cancel')}</button>
+          </div>
+        </div>
+      )}
+
+      {videoModalOpen && confirmNode?.videos?.length > 0 && (
+        <div className="jm-video-modal-overlay" onClick={() => setVideoModalOpen(false)}>
+          <div className="jm-video-modal-card" onClick={e => e.stopPropagation()}>
+            <div className="jm-video-modal-head">
+              <h3 {...ek('confirm.watchVideosTitle')}>{t('confirm.watchVideosTitle', '📺 Recommended Videos')}</h3>
+              <button
+                type="button"
+                className="jm-video-modal-close"
+                onClick={() => setVideoModalOpen(false)}
+                aria-label="Close"
+              >✕</button>
+            </div>
+            <p className="jm-confirm-video-msg" {...ek('confirm.watchVideosMsg')}>
+              {t('confirm.watchVideosMsg', 'Watch these before answering the questions.')}
+            </p>
+            <div className="jm-video-modal-list">
+              {confirmNode.videos.map(v => {
+                const parsed = parseShortUrl(v.url);
+                const src = parsed.error ? null : embedUrlStatic(parsed.platform, parsed.video_id);
+                const vertical = parsed.platform === 'tiktok' || parsed.platform === 'instagram';
+                return (
+                  <div className="jm-video-modal-item" key={v.id}>
+                    {v.title && <p className="jm-video-modal-item-title">{v.title}</p>}
+                    {src ? (
+                      <div className={`jm-confirm-video-frame${vertical ? ' jm-confirm-video-frame--vertical' : ''}`}>
+                        <iframe
+                          src={src}
+                          title={v.title || 'Recommended video'}
+                          frameBorder="0"
+                          allow="accelerometer; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                        />
+                      </div>
+                    ) : (
+                      <a
+                        className="jm-confirm-video-link"
+                        href={v.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >▶ Open the video</a>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       )}
