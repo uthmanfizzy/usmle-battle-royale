@@ -357,7 +357,12 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   const activeSecondsRef   = useRef(0);     // sum of per-question active time (s): answering + explanation
   const revealedAtRef      = useRef(0);     // Date.now() when the explanation was shown, for the line below
   const answeredCountRef   = useRef(0);     // questions answered or timed out this run
-  const studyTimeSentRef   = useRef(false); // study-time POST fired for this run
+  // Ledger of what has ALREADY been posted to /api/study-time this run. Study
+  // time is now banked per question rather than once at game-over, so these
+  // track the high-water mark and every post sends only the delta above it.
+  const sentSecondsRef     = useRef(0);
+  const sentQuestionsRef   = useRef(0);
+  const runLoggedRef       = useRef(false); // activity_sessions row written for this run
   // Exam skin only. ratedRef mirrors `rated` state but is readable synchronously
   // from doAdvance's closure (avoids a stale-closure read of the state value).
   // doAdvanceRef holds the CURRENT question's doAdvance closure independently of
@@ -378,24 +383,37 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   questionsRef.current = questions;
   onCompleteRef.current = onComplete;
 
-  // POST the run's accumulated active study seconds exactly once — at game-over,
-  // or via the unmount flush below for abandoned runs. Guests (no token) never
-  // post, same check as App's handleTrainingComplete. Fire-and-forget: errors
-  // are swallowed and the game-over UI never waits on it. Kept in a ref (like
-  // onCompleteRef) so processAnswer's useCallback always sees the latest.
+  // Bank whatever active study seconds have accrued since the last post. Called
+  // after EVERY question completes, plus on early exit / unmount / pagehide —
+  // so a run that's abandoned, backgrounded or killed keeps every question it
+  // actually finished instead of losing the lot at game-over.
+  //
+  // Sends the DELTA, not the running total: add_study_time is additive, so
+  // re-sending the total would credit the same seconds again on each call. The
+  // ledger advances by the rounded amount actually sent, so the sub-second
+  // remainder carries into the next flush rather than being dropped.
+  //
+  // Guests (no token) never post, same check as App's handleTrainingComplete.
+  // Fire-and-forget: errors are swallowed and the UI never waits on it. Kept in
+  // a ref (like onCompleteRef) so processAnswer's useCallback sees the latest.
   const postStudyTime = (useKeepalive = false) => {
-    if (studyTimeSentRef.current) return;
-    const seconds = Math.round(activeSecondsRef.current);
+    const seconds = Math.round(activeSecondsRef.current - sentSecondsRef.current);
     if (seconds <= 0) return;
     const token = getToken();
     if (!token) return; // guests don't record study time
-    studyTimeSentRef.current = true;
+    // Only feeds the server's per-question ceiling (185s each) — it is not
+    // stored. Floored at 1 because a flush can land mid-question, carrying
+    // that question's leftover explanation time with no NEW question answered;
+    // a 0 there would cap the whole post away.
+    const questions = Math.max(1, answeredCountRef.current - sentQuestionsRef.current);
+    sentSecondsRef.current += seconds;
+    sentQuestionsRef.current = answeredCountRef.current;
     fetch(`${SERVER_URL}/api/study-time`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({
         seconds,
-        questions: answeredCountRef.current,
+        questions,
         date: new Date().toLocaleDateString('en-CA'), // local YYYY-MM-DD
       }),
       ...(useKeepalive ? { keepalive: true } : {}),
@@ -414,40 +432,100 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   // an Authorization header and /api/study-time authenticates via Bearer — so
   // per the endpoint's existing contract we keep fetch(keepalive) instead.
   useEffect(() => {
-    const onPageHide = () => { postStudyTimeRef.current(true); };
+    const finish = () => {
+      postStudyTimeRef.current(true);
+      // Teardown deliberately does NOT go through endRunEarly: that can fire
+      // onComplete, which sets state on the parent (and for UWorld navigates) —
+      // unsafe from an unmount cleanup. The timeline row is the part that would
+      // otherwise be lost, and logRunSession is a plain fire-and-forget POST.
+      // Its own runLoggedRef keeps pagehide-then-unmount to a single row.
+      if (completionFiredRef.current || answeredCountRef.current === 0) return;
+      const total = answeredCountRef.current;
+      const c     = correctCountRef.current;
+      logRunSessionRef.current(total ? Math.round((c / total) * 100) : 0);
+    };
+    const onPageHide = () => finish();
     window.addEventListener('pagehide', onPageHide);
     return () => {
       window.removeEventListener('pagehide', onPageHide);
-      postStudyTimeRef.current(true);
+      finish();
     };
   }, []);
 
-  // End Block, confirmed: this is the ONLY early-exit path that fires
-  // onComplete. Natural game-over already does (doAdvance, on the last
-  // question or out of lives) — this covers leaving mid-block, which
-  // previously fired NEITHER onComplete nor an activity_sessions row, so a
-  // block ended early never showed up in UWorld Adventure's daily activity
-  // even though its answers were already tracked (postQuestionSeen fires
-  // per-question, independent of this). Partial pct is scored against what
-  // was actually ANSWERED so far, not the full block size. Guarded by the
-  // same completionFiredRef natural completion uses, so finishing normally
-  // right after cannot double-post.
+  // Which activity_sessions.game_mode this run belongs to. Derived rather than
+  // passed: every distinguishing prop is already here, and the two call sites
+  // (App.jsx, UWorldAdventure.jsx) would otherwise both need a new prop that
+  // could drift out of step with the skin flags they already send.
+  const activityMode = uworldSkin ? 'question_bank_practice'
+    : isJourney ? 'journey'
+    : topicId ? 'training_grounds'
+    : 'solo';
+
+  // Write ONE activity_sessions row for this run, so it appears on the Daily
+  // Activity timeline. Deliberately hits the side-effect-free /api/study-session
+  // rather than the per-mode completion endpoints: those also award progress
+  // (Journey unlocks/mastery, the Training Grounds >=85% folder tick), and an
+  // abandoned run must never bank those. keepalive because the Home button
+  // navigates with window.location.href, which would otherwise cancel this.
+  const logRunSession = (pct) => {
+    if (runLoggedRef.current) return;
+    const seconds = Math.round(activeSecondsRef.current);
+    if (seconds <= 0) return;
+    const token = getToken();
+    if (!token) return; // guests don't record activity
+    runLoggedRef.current = true;
+    fetch(`${SERVER_URL}/api/study-session`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        game_mode: activityMode,
+        subject,
+        pct,
+        seconds,
+        level_label: levelLabel || null,
+      }),
+      keepalive: true,
+    }).catch(() => {});
+  };
+  const logRunSessionRef = useRef(logRunSession);
+  logRunSessionRef.current = logRunSession;
+
+  // Every early exit (Home, End Block) funnels through here so leaving mid-run
+  // records exactly what was actually done: the outstanding study seconds, and
+  // one timeline entry scored against what was ANSWERED so far rather than the
+  // full block size. completionFiredRef is the same guard natural game-over
+  // uses, so finishing normally and then leaving cannot double-post.
+  function endRunEarly() {
+    postStudyTimeRef.current(true);
+    if (completionFiredRef.current || answeredCountRef.current === 0) return;
+    completionFiredRef.current = true;
+    const total = answeredCountRef.current;
+    const c     = correctCountRef.current;
+    const pct   = total ? Math.round((c / total) * 100) : 0;
+    // UWorld Adventure's own completion handler writes its activity row AND the
+    // daily-block bookkeeping the mode depends on, so it stays the owner of
+    // that path. Journey/Training deliberately do NOT go through onComplete
+    // here — theirs carries progress the player hasn't earned.
+    if (uworldSkin && onCompleteRef.current) {
+      onCompleteRef.current({ correct: c, total, pct, activeSeconds: activeSecondsRef.current });
+      return;
+    }
+    logRunSessionRef.current(pct);
+  }
+  const endRunEarlyRef = useRef(endRunEarly);
+  endRunEarlyRef.current = endRunEarly;
+
   function confirmEndBlock() {
     setShowEndBlockConfirm(false);
-    if (uworldSkin && !completionFiredRef.current && answeredCountRef.current > 0) {
-      completionFiredRef.current = true;
-      postStudyTimeRef.current();
-      if (onCompleteRef.current) {
-        const total = answeredCountRef.current;
-        const c = correctCountRef.current;
-        onCompleteRef.current({
-          correct: c,
-          total,
-          pct: total ? Math.round((c / total) * 100) : 0,
-          activeSeconds: activeSecondsRef.current,
-        });
-      }
-    }
+    endRunEarly();
+    onBack();
+  }
+
+  // In-game Home. Solo/Training exit via window.location.href, which never
+  // unmounts React — so without this the run's tail was only ever caught by the
+  // 'pagehide' study-time flush, and never produced a timeline entry at all.
+  function handleHome() {
+    endRunEarly();
     onBack();
   }
 
@@ -645,6 +723,10 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
       // spirit as the answer phase being capped at defaultTimer.
       const explanationSecs = (Date.now() - revealedAtRef.current) / 1000;
       activeSecondsRef.current += Math.max(0, Math.min(explanationSecs, explanationDelay / 1000));
+      // This question is finished — bank its time NOW rather than waiting for
+      // game-over. A run that's later abandoned, backgrounded or force-closed
+      // keeps every question up to this point instead of losing all of them.
+      postStudyTimeRef.current();
       if (newLives === 0 || exhausted) {
         audio.stopGameMusic();
         const hi    = getHi(subject);
@@ -656,16 +738,16 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
         setGameOver(true);
         if (!completionFiredRef.current) {
           completionFiredRef.current = true;
-          postStudyTimeRef.current(); // once per run — guarded by studyTimeSentRef
+          const total = questionsRef.current.length;
+          const c = correctCountRef.current;
+          const pct = total ? Math.round((c / total) * 100) : 0;
           if (onCompleteRef.current) {
-            const total = questionsRef.current.length;
-            const c = correctCountRef.current;
-            onCompleteRef.current({
-              correct: c,
-              total,
-              pct: total ? Math.round((c / total) * 100) : 0,
-              activeSeconds: activeSecondsRef.current,
-            });
+            onCompleteRef.current({ correct: c, total, pct, activeSeconds: activeSecondsRef.current });
+          } else {
+            // Plain Solo has no completion handler, so nothing else would ever
+            // write its activity row — it was the one mode absent from the
+            // Daily Activity timeline even when finished properly.
+            logRunSessionRef.current(pct);
           }
         }
       } else {
@@ -1389,7 +1471,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
         {study && (
           <div className="study-statusbar">
             <div className="ssb-left">
-              <button className="ssb-home" onClick={onBack} title="Home">⌂ <span className="ssb-btn-label">Home</span></button>
+              <button className="ssb-home" onClick={handleHome} title="Home">⌂ <span className="ssb-btn-label">Home</span></button>
             </div>
             <div className="ssb-arrows">
               <button className="stb-arrow" disabled title="Previous (not available)">←</button>

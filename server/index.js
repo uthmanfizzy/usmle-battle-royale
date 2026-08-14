@@ -5028,6 +5028,70 @@ app.post('/api/question-bank-session', requireAuth, async (req, res) => {
   }
 });
 
+/**
+ * POST /api/study-session  { game_mode, subject, pct, seconds, level_label }
+ *
+ * One activity_sessions row, and NOTHING else. This is the endpoint a run uses
+ * when it ends without earning anything: the player hit Home mid-block, closed
+ * the tab, or finished a plain Solo run (which has no completion handler of its
+ * own and so never appeared on the Daily Activity timeline at all).
+ *
+ * Deliberately separate from /api/training-complete and /api/journey/complete:
+ * those record PROGRESS as well as activity — the >=85% folder tick, level
+ * unlocks, mastery — and an abandoned run must not bank any of it. Everything
+ * here is descriptive: what was played, for how long, how it went.
+ *
+ * Study time is NOT written here — SoloGame posts its own active seconds to
+ * /api/study-time as it goes, so doing it again would double-count.
+ */
+const STUDY_SESSION_MODES = new Set([
+  'solo', 'training_grounds', 'journey', 'question_bank_practice',
+]);
+
+app.post('/api/study-session', requireAuth, async (req, res) => {
+  const gameMode = (req.body?.game_mode ?? '').toString();
+  if (!STUDY_SESSION_MODES.has(gameMode)) {
+    return res.status(400).json({ error: `game_mode must be one of: ${[...STUDY_SESSION_MODES].join(', ')}` });
+  }
+  const seconds = sanitizeSessionSeconds(req.body?.seconds);
+  if (seconds <= 0) return res.json({ ok: false });
+
+  const subject = (req.body?.subject ?? '').toString().trim() || null;
+  const levelLabel = (req.body?.level_label ?? '').toString().trim().slice(0, 160) || null;
+  // pct is optional: a run abandoned before answering anything has no score to
+  // report, and a null outcome_type renders as a plain "—" on the timeline.
+  const rawPct = Number(req.body?.pct);
+  const hasPct = Number.isFinite(rawPct);
+  const pct = hasPct ? Math.max(0, Math.min(100, Math.round(rawPct))) : null;
+
+  if (!supabase) return res.json({ ok: false });
+  try {
+    // started_at is DERIVED as ended_at - duration, the same approximation
+    // Training Grounds, Journey and the question bank already use.
+    const endedAt   = new Date();
+    const startedAt = new Date(endedAt.getTime() - seconds * 1000);
+    const err = await logWrite('activity_sessions.study_session', supabase
+      .from('activity_sessions')
+      .insert({
+        user_id:              req.userId,   // requireAuth guarantees a real user
+        game_mode:            gameMode,
+        subject,
+        journey_chapter_name: null,
+        journey_level_name:   levelLabel,
+        outcome_type:         hasPct ? 'score_pct' : null,
+        score_pct:            pct,
+        is_win:               null,
+        duration_seconds:     seconds,
+        started_at:           startedAt.toISOString(),
+        ended_at:             endedAt.toISOString(),
+      }));
+    res.json({ ok: !err });
+  } catch (e) {
+    console.error('[/api/study-session] threw —', e.message);
+    res.json({ ok: false });
+  }
+});
+
 // Public (no auth) like /api/leaderboard/players — anyone viewing a profile
 // sees these stats. Fails soft to zeros so a profile view never breaks.
 app.get('/api/users/:userId/study-stats', async (req, res) => {
