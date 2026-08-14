@@ -295,6 +295,11 @@ async function uploadMedia(sb, state) {
         const { error } = await sb.storage.from(cfg.LIVE.bucket).upload(item.storage_key, buf, {
           contentType: item.content_type,
           upsert: true, // makes a retry of a partially-completed run safe
+          // storage_key hashes the ORIGINAL FILENAME, not file content (storage.js),
+          // so upsert:true can legitimately replace bytes at an unchanged key on a
+          // later corrective re-run. A short-ish cache (vs. the other buckets' 1-year)
+          // keeps that path from going stale for too long.
+          cacheControl: '86400',
         });
         if (error) throw new Error(error.message);
         const { data } = sb.storage.from(cfg.LIVE.bucket).getPublicUrl(item.storage_key);

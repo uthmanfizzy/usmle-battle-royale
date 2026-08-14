@@ -7015,7 +7015,8 @@ app.post('/admin/upload-image', adminAuth, async (req, res) => {
 
     const { error: uploadError } = await supabase.storage
       .from('question-images')
-      .upload(uniqueName, buffer, { contentType: mimeType, upsert: false });
+      // filename embeds Date.now(), so keys are write-once: a 1-year cache is safe.
+      .upload(uniqueName, buffer, { contentType: mimeType, upsert: false, cacheControl: '31536000' });
     if (uploadError) throw uploadError;
 
     const { data: urlData } = supabase.storage.from('question-images').getPublicUrl(uniqueName);
@@ -7100,7 +7101,8 @@ app.post('/admin/landing-images', adminAuth, async (req, res) => {
     // Upload to landing-images bucket
     const { error: uploadError } = await supabase.storage
       .from('landing-images')
-      .upload(uniqueName, buffer, { contentType: mimeType, upsert: false });
+      // filename embeds Date.now(), so keys are write-once: a 1-year cache is safe.
+      .upload(uniqueName, buffer, { contentType: mimeType, upsert: false, cacheControl: '31536000' });
     if (uploadError) throw uploadError;
 
     const { data: urlData } = supabase.storage.from('landing-images').getPublicUrl(uniqueName);
@@ -7214,11 +7216,13 @@ app.post('/admin/home-images', adminAuth, async (req, res) => {
     }
 
     // Upload new image
+    // filename embeds Date.now(), so keys are write-once: a 1-year cache is safe.
     const { error: uploadError } = await supabase.storage
       .from('home-images')
       .upload(filePath, buffer, {
         contentType: mimeType,
-        upsert: true
+        upsert: true,
+        cacheControl: '31536000'
       });
 
     if (uploadError) throw uploadError;
@@ -7361,11 +7365,13 @@ app.post('/admin/play-page-bg', adminAuth, async (req, res) => {
     }
 
     // Upload new image
+    // filename embeds Date.now(), so keys are write-once: a 1-year cache is safe.
     const { error: uploadError } = await supabase.storage
       .from('home-images')
       .upload(filePath, buffer, {
         contentType: mimeType,
-        upsert: true
+        upsert: true,
+        cacheControl: '31536000'
       });
 
     if (uploadError) throw uploadError;
@@ -7446,11 +7452,13 @@ app.post('/admin/game-mode-image', adminAuth, async (req, res) => {
     const filePath = `game-modes/${uniqueName}`;
 
     // Upload new image
+    // filename embeds Date.now(), so keys are write-once: a 1-year cache is safe.
     const { error: uploadError } = await supabase.storage
       .from('home-images')
       .upload(filePath, buffer, {
         contentType: mimeType,
-        upsert: true
+        upsert: true,
+        cacheControl: '31536000'
       });
 
     if (uploadError) throw uploadError;

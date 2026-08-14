@@ -605,7 +605,8 @@ export default function QuestionParser({ activeFolder, selectedTopic, selectedDi
                               const fileName = `question-img-${Date.now()}.${file.name.split('.').pop()}`;
                               const { error } = await supabase.storage
                                 .from('images')
-                                .upload(fileName, file, { upsert: true });
+                                // fileName embeds Date.now(), so keys are write-once: a 1-year cache is safe.
+                                .upload(fileName, file, { upsert: true, cacheControl: '31536000' });
                               if (error) throw error;
                               const { data: urlData } = supabase.storage
                                 .from('images')
