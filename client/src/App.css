@@ -896,6 +896,32 @@ html[data-study="on"] .solo-body .stem-table td { color: #1c2030; }
 }
 .expl-hl-fmt:hover { background: rgba(255, 255, 255, 0.22); }
 
+/* Touch: 22px circles are well under a usable tap target, and the toolbar sits
+   right beside the OS's own selection handles — easy to miss and hit the handle
+   instead. Coarse pointers get bigger controls and more room between them. */
+@media (pointer: coarse) {
+  .expl-hl-toolbar { gap: 10px; padding: 10px 12px; }
+  .expl-hl-swatch { width: 34px; height: 34px; }
+  .expl-hl-remove { width: 34px; height: 34px; font-size: 16px; }
+  .expl-hl-fmt { min-width: 36px; height: 34px; font-size: 16px; }
+}
+
+/* Touch: docked to the bottom of the screen instead of floated over the
+   selection (the component adds this class on coarse pointers). The bar is
+   nearly as wide as a phone screen, so centring it on the selection puts it
+   off the edge; and the space above a selection belongs to the OS's own
+   Copy/Look Up callout. Bottom-docked avoids both. */
+.expl-hl-toolbar--docked {
+  left: 50%;
+  right: auto;
+  top: auto;
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  max-width: calc(100vw - 24px);
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
 /* Developer-mode toggle (admin only): switches new highlights between OFFICIAL
    (global) and personal authoring. Sits in a labelled bar under the explanation. */
 .dev-hl-bar {
