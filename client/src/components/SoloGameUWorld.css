@@ -454,6 +454,37 @@ html[data-study="on"] .screen.solo-screen.uw-exam .study-result-strip.is-wrong  
 
 .uw-rate-row--due .uw-rate-prompt { color: #b83227; }
 
+/* ── Time-up lockout ────────────────────────────────────────────────────────
+   Once the explanation countdown expires on an unrated question, the item is
+   closed: the stem, the options and the explanation are all withdrawn, leaving
+   the rating row as the only thing on the page.
+
+   This is done by REMOVING the content rather than locking the scroll
+   position, because locking cannot actually work here — the rating row is the
+   last element in the document, so it can never be scrolled to the top of the
+   viewport, and whatever sits above it stays visible no matter where the
+   scroll is pinned. With the content gone there is nothing left to scroll to.
+   The question is already answered and recorded at this point, so nothing
+   here can affect scoring. */
+html[data-study="on"] .screen.solo-screen.uw-exam.uw-timeup .question-card,
+html[data-study="on"] .screen.solo-screen.uw-exam.uw-timeup .study-result-strip,
+html[data-study="on"] .screen.solo-screen.uw-exam.uw-timeup .round-result > *:not(.uw-rate-row) {
+  display: none;
+}
+
+/* The rate row's separator only makes sense under the explanation it followed. */
+html[data-study="on"] .screen.solo-screen.uw-exam.uw-timeup .uw-rate-row {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+
+/* Belt and braces: with the content gone the page is already short enough not
+   to scroll, but this guarantees it even at very small viewport heights. */
+html[data-study="on"] .screen.solo-screen.uw-exam.uw-timeup {
+  overflow: hidden;
+}
+
 @keyframes uw-rate-due {
   0%, 100% { background: transparent; }
   50%      { background: rgba(192, 57, 43, 0.09); }

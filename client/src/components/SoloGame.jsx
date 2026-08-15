@@ -1039,8 +1039,17 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   const pct = (timeLeft / defaultTimer) * 100;
   const tier = timeLeft > 10 ? 'green' : timeLeft > 5 ? 'yellow' : 'red';
 
+  // Exam skin, explanation time expired, still unrated: the question is closed,
+  // so the stem, the options and the explanation are all withdrawn and only the
+  // rating row is left (see .uw-timeup in SoloGameUWorld.css). Hiding the
+  // content — rather than trying to pin the scroll position — is what actually
+  // makes it unreachable: the rating row is the LAST element on the page, so
+  // there is no way to scroll it to the top and push the question off-screen,
+  // and a scroll lock would still leave the stem sitting in view above it.
+  const timeUpLock = uworldSkin && explanationExpired && !rated;
+
   return (
-    <div className={screenClass} ref={screenRef}>
+    <div className={`${screenClass}${timeUpLock ? ' uw-timeup' : ''}`} ref={screenRef}>
       {/* Developer-mode unlock: only when ?dev=1 is in the URL and not yet unlocked.
           Lets an admin enable official-highlight authoring from any play tab. */}
       {devParam && !isAdminSession && (
