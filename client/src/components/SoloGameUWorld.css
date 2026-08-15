@@ -442,6 +442,27 @@ html[data-study="on"] .screen.solo-screen.uw-exam .study-result-strip.is-wrong  
   color: var(--uwq-ink);
 }
 
+/* Explanation time ran out with no rating picked. The question is closed and
+   this row is the only way forward, so it gets scrolled into view (JS) and
+   flagged here. The pulse runs three times and stops — a permanent animation
+   under text the player is still reading would be worse than the problem it
+   solves. */
+.uw-rate-row--due {
+  border-top-color: rgba(192, 57, 43, 0.5);
+  animation: uw-rate-due 1.1s ease-in-out 3;
+}
+
+.uw-rate-row--due .uw-rate-prompt { color: #b83227; }
+
+@keyframes uw-rate-due {
+  0%, 100% { background: transparent; }
+  50%      { background: rgba(192, 57, 43, 0.09); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .uw-rate-row--due { animation: none; }
+}
+
 .uw-rate-buttons {
   display: flex;
   flex-wrap: wrap;

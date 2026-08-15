@@ -167,6 +167,10 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   // Exam skin only: has the CURRENT question been rated yet? Gates advancing —
   // see ratedRef below.
   const [rated, setRated] = useState(false);
+  // Exam skin only: has the explanation's countdown run out on a question that
+  // still hasn't been rated? At that point the question is closed — reading on
+  // changes nothing — so the rating row becomes the only thing left to do.
+  const [explanationExpired, setExplanationExpired] = useState(false);
   const [finalScore, setFinalScore] = useState(0);
   const [finalBestStreak, setFinalBestStreak] = useState(0);
   const [isNewHi, setIsNewHi] = useState(false);
@@ -372,6 +376,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   // timer has already fired and paused on an unrated question.
   const ratedRef      = useRef(false);
   const doAdvanceRef  = useRef(null);
+  const rateRowRef    = useRef(null);   // scrolled to when the explanation timer expires unrated
 
   revealedRef.current = revealed;
   pausedRef.current = isPaused;
@@ -649,10 +654,12 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
     revealedAtRef.current = Date.now(); // explanation is on screen from this instant
     setRevealed(true);
     setSelected(label);
-    // Exam skin only: a fresh question always starts unrated, regardless of
-    // whatever the previous question's rated state left behind.
+    // Exam skin only: a fresh question always starts unrated and with its
+    // explanation deadline unexpired, regardless of what the previous
+    // question's state left behind.
     ratedRef.current = false;
     setRated(false);
+    setExplanationExpired(false);
 
     // q.correct is now stored as letter (A, B, C...), label is also letter
     console.log('[SoloGame] Answer check:', {
@@ -708,11 +715,23 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
 
     const doAdvance = () => {
       // Exam skin only: an unrated question never advances on its own — the
-      // explanation timer expiring just stops here (no further countdown,
-      // nothing else changes) rather than moving on, and the rating row is
-      // the only way to actually leave. rate() calls doAdvanceRef.current()
-      // directly once a rating is picked, re-entering this same closure.
-      if (uworldSkin && !ratedRef.current) return;
+      // explanation timer expiring just stops here rather than moving on, and
+      // the rating row is the only way to actually leave. rate() calls
+      // doAdvanceRef.current() directly once a rating is picked, re-entering
+      // this same closure.
+      //
+      // The question is CLOSED at this point — reading further changes nothing
+      // — so rather than silently stalling on an explanation the player can no
+      // longer act on, bring the rating row to them: flag the deadline (the
+      // prompt and the row restyle) and scroll it into view.
+      if (uworldSkin && !ratedRef.current) {
+        setExplanationExpired(true);
+        rateRowRef.current?.scrollIntoView({
+          behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+          block: 'center',
+        });
+        return;
+      }
       skipTimerRef.current  = null;
       skipActionRef.current = null;
       // Explanation phase: however long it was actually on screen, whether the
@@ -1442,9 +1461,18 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
                 An unrated question also never auto-advances (doAdvance's own
                 guard), so this row is the only way off the screen. */}
             {uworldSkin ? (
-              <div className="uw-rate-row" role="group" aria-label="Rate your recall">
-                <p className="uw-rate-prompt">
-                  {rated ? '✓ Rated — advancing…' : 'Rate your recall to continue'}
+              <div
+                ref={rateRowRef}
+                className={`uw-rate-row${explanationExpired && !rated ? ' uw-rate-row--due' : ''}`}
+                role="group"
+                aria-label="Rate your recall"
+              >
+                <p className="uw-rate-prompt" aria-live="polite">
+                  {rated
+                    ? '✓ Rated — advancing…'
+                    : explanationExpired
+                      ? '⏱ Time’s up — rate your recall to continue'
+                      : 'Rate your recall to continue'}
                 </p>
                 <div className="uw-rate-buttons">
                   {UWORLD_RATINGS.map(r => (
