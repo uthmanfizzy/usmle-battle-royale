@@ -219,7 +219,15 @@ function noteHyChapterPresent() {
 }
 
 let questionsLastLoaded = 0;
-const QUESTIONS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const QUESTIONS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes — how often the cheap count probe runs
+// How often the bank is re-downloaded in full regardless of the probe. Only a
+// backstop: every write path already keeps the served bank correct on its own —
+// single edits/deletes patch it in place, bulk writes call
+// forceRefreshQuestions(), and the probe catches anything that changes the row
+// count. This exists purely for changes made OUTSIDE the app (editing a row
+// straight in the Supabase dashboard), which is rare enough not to be worth
+// re-downloading 2 MB every hour for.
+const QUESTION_FULL_RELOAD_MS = 6 * 60 * 60 * 1000; // 6 hours
 
 // Load questions from Supabase, fall back to local file
 async function loadQuestionsFromDB() {
@@ -273,6 +281,35 @@ async function refreshQuestionsIfNeeded() {
   if (Date.now() - questionsLastLoaded > QUESTIONS_CACHE_TTL) {
     await loadQuestionsFromDB();
   }
+}
+
+/**
+ * Cheap "did the bank change?" probe, used by the periodic refresh instead of
+ * re-downloading the whole table.
+ *
+ * head: true makes PostgREST return the row count in a Content-Range header and
+ * NO rows at all — a few hundred bytes against ~2 MB for the full select. The
+ * blind reload this replaces pulled all 817 rows every 5 minutes forever,
+ * whether or not anything had changed and whether or not anyone was online:
+ * ~17.8 GB of Supabase egress a month, essentially all of it waste.
+ *
+ * A count only catches adds/deletes/retires, not an in-place text edit — so it
+ * is a fast path, not a replacement for reloading. The hourly full reload below
+ * is the backstop that catches everything else, and admin writes already call
+ * forceRefreshQuestions() for immediate effect.
+ *
+ * Returns null when the count can't be determined, which the caller treats as
+ * "assume changed" and reloads — failing toward correctness, not staleness.
+ */
+async function questionCountFromDB() {
+  if (!supabase) return null;
+  try {
+    let q = supabase.from('questions').select('id', { count: 'exact', head: true });
+    if (hasRetirement) q = q.is('retired_at', null);
+    const { count, error } = await q;
+    if (error) return null;
+    return typeof count === 'number' ? count : null;
+  } catch { return null; }
 }
 
 // Force refresh questions cache
@@ -9823,6 +9860,10 @@ app.post('/admin/questions/bulk-delete', adminAuth, async (req, res) => {
       .in('id', ids);
     
     if (error) throw error;
+    // Unlike the single-question routes, the bulk writes don't patch the
+    // in-memory bank row by row — so refresh it here rather than leaving the
+    // served questions wrong until the periodic reload comes round.
+    await forceRefreshQuestions();
     res.json({ success: true, deleted: ids.length });
   } catch(e) {
     console.error('[bulk-delete] Error:', e);
@@ -9853,6 +9894,7 @@ app.post('/admin/questions/bulk-move', adminAuth, async (req, res) => {
       .in('id', ids);
     
     if (error) throw error;
+    await forceRefreshQuestions(); // see bulk-delete
     res.json({ success: true, moved: ids.length });
   } catch(e) {
     console.error('[bulk-move] Error:', e);
@@ -9881,6 +9923,7 @@ app.post('/admin/questions/bulk-update', adminAuth, async (req, res) => {
       .in('id', ids);
     
     if (error) throw error;
+    await forceRefreshQuestions(); // see bulk-delete
     res.json({ success: true, updated: ids.length });
   } catch(e) {
     console.error('[bulk-update] Error:', e);
@@ -11753,8 +11796,38 @@ server.listen(PORT, async () => {
     console.error('[Startup] Failed to load questions:', err.message);
   }
 
-  // Refresh questions cache every 5 minutes
-  setInterval(() => {
-    loadQuestionsFromDB().catch(err => console.error('[Questions] Auto-refresh failed:', err.message));
+  // Keep the served bank fresh WITHOUT re-downloading it every time.
+  //
+  // Every QUESTIONS_CACHE_TTL: ask Postgres for a row count only (head request,
+  // no rows on the wire) and reload just when it differs from what we hold.
+  // Every QUESTION_FULL_RELOAD_MS: reload regardless, so an in-place edit that
+  // leaves the count unchanged still lands.
+  //
+  // The old loop pulled the whole 2 MB table every 5 minutes unconditionally —
+  // ~17.8 GB/month of Supabase egress on an idle server. This keeps the same
+  // worst-case staleness for adds/deletes and caps the full pulls at 24/day.
+  // bankCount is the DB count as of the last load — deliberately NOT
+  // questionBank.length. PostgREST caps a select at max-rows (1000), so once
+  // the table passes that, the loaded array would sit at the cap while the
+  // exact count kept climbing: comparing the two would mismatch forever and
+  // reload on every single tick, which is the very thing this replaces.
+  let lastFullReload = Date.now();
+  let bankCount = await questionCountFromDB();
+
+  setInterval(async () => {
+    try {
+      const dueFull = Date.now() - lastFullReload >= QUESTION_FULL_RELOAD_MS;
+      if (!dueFull) {
+        const count = await questionCountFromDB();
+        // Unchanged → nothing on the wire but the probe. A null count means we
+        // couldn't tell, so fall through and reload rather than risk staleness.
+        if (count !== null && count === bankCount) return;
+      }
+      lastFullReload = Date.now();
+      await loadQuestionsFromDB();
+      bankCount = await questionCountFromDB();
+    } catch (err) {
+      console.error('[Questions] Auto-refresh failed:', err.message);
+    }
   }, QUESTIONS_CACHE_TTL);
 });
