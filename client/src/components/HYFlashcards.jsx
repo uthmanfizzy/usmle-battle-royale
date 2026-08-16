@@ -102,8 +102,14 @@ export default function HYFlashcards() {
   // the pile picker (below) has everything it needs to show counts without
   // a fetch per pile. Ratings are requireAuth'd; the page already redirects
   // guests away at the top, so a token always exists here.
-  async function openBucket(subject, topicId, topicName) {
-    const params = `subject=${encodeURIComponent(subject.id)}${topicId ? `&topic_id=${encodeURIComponent(topicId)}` : ''}`;
+  // chapterId is only used when there is no topicId — it selects a chapter's
+  // OWN cards (those an admin filed straight under the chapter rather than
+  // under one of its topics).
+  async function openBucket(subject, topicId, topicName, chapterId = null) {
+    const qs = new URLSearchParams({ subject: subject.id });
+    if (topicId) qs.set('topic_id', topicId);
+    else if (chapterId) qs.set('chapter_id', chapterId);
+    const params = qs.toString();
     const token = getToken();
     const [cardsRes, ratingsRes] = await Promise.all([
       fetch(`${SERVER_URL}/api/hy-flashcards?${params}`).catch(() => null),
@@ -224,11 +230,10 @@ export default function HYFlashcards() {
                         {s.chapters.length > 0 ? ' across all chapters' : ''}
                       </span>
                     </button>
-                    {/* Chapters — only ones with at least one topic that has a
-                        card show up here at all (see the menu endpoint). Each
-                        expands to its own topics; there is no "study whole
-                        chapter" shortcut, since a chapter holds no cards of
-                        its own, only its topics do. */}
+                    {/* Chapters — only ones with content show up at all (see
+                        the menu endpoint). A chapter can hold cards two ways:
+                        its own (filed straight under the chapter) and its
+                        topics'. Both appear when it expands. */}
                     {s.chapters.map(ch => {
                       const chOpen = openChapter === ch.id;
                       return (
@@ -243,6 +248,16 @@ export default function HYFlashcards() {
                           </button>
                           {chOpen && (
                             <div className="hyf-topics">
+                              {/* The chapter's own cards, when an admin filed
+                                  any straight under it rather than under a
+                                  topic. Absent when there are none, same rule
+                                  the topics below follow. */}
+                              {ch.direct_count > 0 && (
+                                <button className="hyf-deck" onClick={() => openBucket(s, null, ch.name, ch.id)}>
+                                  <span className="hyf-deck-name">📄 {ch.name} — chapter cards</span>
+                                  <span className="hyf-deck-sub">{ch.direct_count} card{ch.direct_count === 1 ? '' : 's'} not in a topic</span>
+                                </button>
+                              )}
                               {/* Per-topic decks — only topics an admin has
                                   actually put cards under show up here, per
                                   the original ask: "if there is a topic made

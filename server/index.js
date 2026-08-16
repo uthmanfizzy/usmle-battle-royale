@@ -182,6 +182,12 @@ let hasJourneyBonus = true;
 // student's deck rather than just omitting the explanation section.
 let hasHyExplanation = true;
 
+// hy_flashcards.chapter_id — lets a card sit DIRECTLY in a chapter instead of
+// having to live under a topic. Same deploy-order safety: until the migration
+// runs, every chapter_id filter and write is skipped so the existing
+// topic/General buckets keep working exactly as before.
+let hasHyChapterId = true;
+
 let questionsLastLoaded = 0;
 const QUESTIONS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
@@ -8352,20 +8358,40 @@ app.delete('/admin/hy-flashcard-topics/:id', adminAuth, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// Admin: browse ONE bucket at a time (a specific topic, or General) so editing
-// is never ambiguous about which pool a card belongs to. topic_id absent/empty
-// = General (topic_id IS NULL); topic_id=<uuid> = that topic only.
+// Admin: browse ONE bucket at a time so editing is never ambiguous about which
+// pool a card belongs to. Three buckets now:
+//   topic_id=<uuid>              → that topic only
+//   chapter_id=<uuid>, no topic  → cards sitting DIRECTLY in that chapter
+//   neither                      → General (subject-wide catch-all)
+// chapter_id is only ever meaningful when topic_id is NULL: a card in a topic
+// already knows its chapter through the topic, and storing it twice would be
+// two sources of truth that can disagree.
 app.get('/admin/hy-flashcards', adminAuth, async (req, res) => {
   if (!supabase) return res.json({ cards: [] });
-  const { subject, topic_id } = req.query;
+  const { subject, topic_id, chapter_id } = req.query;
   if (!subject) return res.status(400).json({ error: 'subject required', cards: [] });
+  // Asking for a chapter bucket before the migration has run: report it rather
+  // than falling through, which would silently show General's cards instead.
+  if (!topic_id && chapter_id && !hasHyChapterId) {
+    return res.json({ cards: [], needs_migration: true });
+  }
   try {
-    let query = supabase.from('hy_flashcards').select('*').eq('subject', subject)
-      .order('sort_order', { ascending: true }).order('created_at', { ascending: true });
-    query = topic_id ? query.eq('topic_id', topic_id) : query.is('topic_id', null);
-    const { data, error } = await query;
+    const build = (useChapter) => {
+      const q = supabase.from('hy_flashcards').select('*').eq('subject', subject)
+        .order('sort_order', { ascending: true }).order('created_at', { ascending: true });
+      if (topic_id) return q.eq('topic_id', topic_id);
+      const base = q.is('topic_id', null);
+      if (!useChapter) return base; // pre-migration: General means "no topic", as before
+      return chapter_id ? base.eq('chapter_id', chapter_id) : base.is('chapter_id', null);
+    };
+    let { data, error } = await build(hasHyChapterId);
+    if (error && isMissingColumn(error)) {
+      hasHyChapterId = false;
+      console.warn('[hy-flashcards] chapter_id column not present — run the migration in schema.sql');
+      ({ data, error } = await build(false));
+    }
     if (error) throw error;
-    res.json({ cards: data || [] });
+    res.json({ cards: data || [], needs_migration: !hasHyChapterId });
   } catch (err) {
     console.warn('[/admin/hy-flashcards] unavailable, returning cards: [] —', err.message);
     res.json({ cards: [] });
@@ -8374,13 +8400,12 @@ app.get('/admin/hy-flashcards', adminAuth, async (req, res) => {
 
 app.post('/admin/hy-flashcards', adminAuth, async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
-  const { subject, topic_id, front, back, explanation, sort_order } = req.body || {};
+  const { subject, topic_id, chapter_id, front, back, explanation, sort_order } = req.body || {};
   if (!subject) return res.status(400).json({ error: 'subject required' });
   if (!front?.trim() || !back?.trim()) return res.status(400).json({ error: 'front and back are both required' });
   try {
-    const { data, error } = await supabase
-      .from('hy_flashcards')
-      .insert({
+    const build = (useChapter) => {
+      const row = {
         subject,
         topic_id: topic_id || null,
         front: front.trim(),
@@ -8389,9 +8414,17 @@ app.post('/admin/hy-flashcards', adminAuth, async (req, res) => {
         // at all, not an empty string the player would see as a blank section.
         explanation: explanation?.trim() || null,
         sort_order: Number.isFinite(sort_order) ? sort_order : 0,
-      })
-      .select()
-      .single();
+      };
+      // Only carried when the card is NOT in a topic — see the GET above.
+      if (useChapter) row.chapter_id = topic_id ? null : (chapter_id || null);
+      return supabase.from('hy_flashcards').insert(row).select().single();
+    };
+    let { data, error } = await build(hasHyChapterId);
+    if (error && isMissingColumn(error)) {
+      hasHyChapterId = false;
+      console.warn('[hy-flashcards] chapter_id column not present — run the migration in schema.sql');
+      ({ data, error } = await build(false));
+    }
     if (error) throw error;
     res.json(data);
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -8411,6 +8444,7 @@ app.put('/admin/hy-flashcards/:id', adminAuth, async (req, res) => {
   if ('explanation' in req.body) updates.explanation = req.body.explanation?.trim() || null;
   // 'in' check so an explicit topic_id: null (move to General) is distinguishable from "not provided"
   if ('topic_id' in req.body) updates.topic_id = req.body.topic_id || null;
+  if ('chapter_id' in req.body && hasHyChapterId) updates.chapter_id = req.body.chapter_id || null;
   if (Number.isFinite(req.body.sort_order)) updates.sort_order = req.body.sort_order;
   if (Object.keys(updates).length === 0) return res.status(400).json({ error: 'nothing to update' });
   try {
@@ -8455,7 +8489,7 @@ app.post('/admin/hy-flashcards/bulk-delete', adminAuth, async (req, res) => {
  */
 app.post('/admin/hy-flashcards/bulk-import', adminAuth, async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
-  const { subject, topic_id } = req.body || {};
+  const { subject, topic_id, chapter_id } = req.body || {};
   const cards = Array.isArray(req.body?.cards) ? req.body.cards : [];
   if (!subject) return res.status(400).json({ error: 'subject required' });
   const clean = cards
@@ -8468,17 +8502,28 @@ app.post('/admin/hy-flashcards/bulk-import', adminAuth, async (req, res) => {
   if (clean.length === 0) return res.status(400).json({ error: 'No valid front/back pairs found in the pasted text.' });
   try {
     // sort_order continues from whatever is already in this bucket, so a
-    // second paste into the same topic appends rather than interleaving.
+    // second paste into the same bucket appends rather than interleaving.
+    const useChapter = hasHyChapterId;
     let existingQuery = supabase.from('hy_flashcards').select('*', { count: 'exact', head: true }).eq('subject', subject);
-    existingQuery = topic_id ? existingQuery.eq('topic_id', topic_id) : existingQuery.is('topic_id', null);
+    if (topic_id) {
+      existingQuery = existingQuery.eq('topic_id', topic_id);
+    } else {
+      existingQuery = existingQuery.is('topic_id', null);
+      if (useChapter) {
+        existingQuery = chapter_id ? existingQuery.eq('chapter_id', chapter_id) : existingQuery.is('chapter_id', null);
+      }
+    }
     const { count: existing } = await existingQuery;
     const base = existing || 0;
-    const { data, error } = await supabase
-      .from('hy_flashcards')
-      .insert(clean.map((c, i) => ({
-        subject, topic_id: topic_id || null, front: c.front, back: c.back, explanation: c.explanation, sort_order: base + i,
-      })))
-      .select('id');
+    const rows = clean.map((c, i) => {
+      const row = {
+        subject, topic_id: topic_id || null, front: c.front, back: c.back,
+        explanation: c.explanation, sort_order: base + i,
+      };
+      if (useChapter) row.chapter_id = topic_id ? null : (chapter_id || null);
+      return row;
+    });
+    const { data, error } = await supabase.from('hy_flashcards').insert(rows).select('id');
     if (error) throw error;
     res.json({ ok: true, imported: data?.length || 0, skipped: cards.length - clean.length });
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -8525,24 +8570,41 @@ app.get('/api/hy-flashcards/menu', async (req, res) => {
     }
     const topicById = Object.fromEntries(topicRows.map(t => [t.id, t]));
 
-    // Chapter names for every chapter referenced by one of those topics.
-    const chapterIds = [...new Set(topicRows.map(t => t.chapter_id).filter(Boolean))];
+    // Chapter names for every chapter referenced by one of those topics, PLUS
+    // every chapter that holds cards directly (topic_id NULL, chapter_id set) —
+    // a chapter can now have content without owning a single topic, so the
+    // topic join alone would miss it entirely. counts rows carry no chapter_id
+    // before the migration, which simply yields none of the latter.
+    const directChapterIds = counts.filter(c => !c.topic_id && c.chapter_id).map(c => c.chapter_id);
+    const chapterIds = [...new Set([...topicRows.map(t => t.chapter_id), ...directChapterIds].filter(Boolean))];
     let chapterNames = {};
     if (chapterIds.length) {
       const { data: chapterRows } = await supabase.from('hy_flashcard_chapters').select('id, name, subject').in('id', chapterIds);
       chapterNames = Object.fromEntries((chapterRows || []).map(c => [c.id, c]));
     }
 
-    // subject -> { general_count, chaptersById: { chapterId -> { name, topics[] } } }
+    // subject -> { general_count, chaptersById: { chapterId -> { name, topics[], direct_count } } }
     const bySubject = {};
+    const chapterBucket = (bucket, chapter) =>
+      (bucket.chaptersById[chapter.id] ||= { id: chapter.id, name: chapter.name, topics: [], direct_count: 0 });
+
     for (const c of counts) {
       const bucket = (bySubject[c.subject] ||= { general_count: 0, chaptersById: {} });
-      if (!c.topic_id) { bucket.general_count = c.card_count; continue; }
+      if (!c.topic_id) {
+        // No topic: either straight in a chapter, or the subject-wide General.
+        if (c.chapter_id) {
+          const chapter = chapterNames[c.chapter_id];
+          if (!chapter) continue; // chapter deleted since — skip rather than crash
+          chapterBucket(bucket, chapter).direct_count += c.card_count;
+        } else {
+          bucket.general_count = c.card_count;
+        }
+        continue;
+      }
       const topic = topicById[c.topic_id];
       const chapter = topic && chapterNames[topic.chapter_id];
       if (!topic || !chapter) continue; // orphaned row (topic/chapter deleted since) — skip rather than crash
-      const chBucket = (bucket.chaptersById[chapter.id] ||= { id: chapter.id, name: chapter.name, topics: [] });
-      chBucket.topics.push({ id: c.topic_id, name: topic.name, count: c.card_count });
+      chapterBucket(bucket, chapter).topics.push({ id: c.topic_id, name: topic.name, count: c.card_count });
     }
 
     res.json({
@@ -8551,7 +8613,8 @@ app.get('/api/hy-flashcards/menu', async (req, res) => {
         const chapters = Object.values(b.chaptersById)
           .map(ch => ({ ...ch, topics: ch.topics.sort((a, b2) => a.name.localeCompare(b2.name)) }))
           .sort((a, b2) => a.name.localeCompare(b2.name));
-        const chapterCardTotal = chapters.reduce((sum, ch) => sum + ch.topics.reduce((s2, t) => s2 + t.count, 0), 0);
+        const chapterCardTotal = chapters.reduce(
+          (sum, ch) => sum + ch.direct_count + ch.topics.reduce((s2, t) => s2 + t.count, 0), 0);
         return {
           id: s.id, name: s.name, icon: s.icon || '📚',
           general_count: b.general_count,
@@ -8579,15 +8642,25 @@ app.get('/api/hy-flashcards/menu', async (req, res) => {
  */
 app.get('/api/hy-flashcards', async (req, res) => {
   if (!supabase) return res.json({ cards: [] });
-  const { subject, topic_id } = req.query;
+  const { subject, topic_id, chapter_id } = req.query;
   if (!subject) return res.status(400).json({ error: 'subject required', cards: [] });
+  if (!topic_id && chapter_id && !hasHyChapterId) return res.json({ cards: [] });
   try {
+    // Narrowing, in precedence order: a topic, else a chapter's OWN cards, else
+    // (neither given) every card in the subject — the broad "study it all".
+    const narrow = (q) => {
+      if (topic_id) return q.eq('topic_id', topic_id);
+      if (chapter_id) return q.is('topic_id', null).eq('chapter_id', chapter_id);
+      return q;
+    };
     const cols = hasHyExplanation ? 'id, front, back, explanation, topic_id' : 'id, front, back, topic_id';
-    let query = supabase.from('hy_flashcards').select(cols).eq('subject', subject);
-    if (topic_id) query = query.eq('topic_id', topic_id);
+    const query = narrow(supabase.from('hy_flashcards').select(cols).eq('subject', subject));
     let { data, error } = await query.order('sort_order', { ascending: true }).order('created_at', { ascending: true });
     if (error && isMissingColumn(error)) {
+      // Either column could be the missing one; chapter narrowing is dropped
+      // along with it, which is right — that bucket cannot exist yet either.
       hasHyExplanation = false;
+      if (chapter_id) hasHyChapterId = false;
       let fallback = supabase.from('hy_flashcards').select('id, front, back, topic_id').eq('subject', subject);
       if (topic_id) fallback = fallback.eq('topic_id', topic_id);
       ({ data, error } = await fallback.order('sort_order', { ascending: true }).order('created_at', { ascending: true }));
@@ -8639,12 +8712,16 @@ app.post('/api/hy-flashcards/:cardId/rate', requireAuth, async (req, res) => {
  * inherently per-user.
  */
 app.get('/api/hy-flashcards/ratings', requireAuth, async (req, res) => {
-  const { subject, topic_id } = req.query;
+  const { subject, topic_id, chapter_id } = req.query;
   if (!subject) return res.status(400).json({ error: 'subject required', ratings: {} });
   if (!supabase) return res.json({ ratings: {} });
+  if (!topic_id && chapter_id && !hasHyChapterId) return res.json({ ratings: {} });
   try {
+    // Must narrow exactly the way the cards endpoint above does, or the pile
+    // counts are computed against a different set than the deck being studied.
     let cardQuery = supabase.from('hy_flashcards').select('id').eq('subject', subject);
     if (topic_id) cardQuery = cardQuery.eq('topic_id', topic_id);
+    else if (chapter_id) cardQuery = cardQuery.is('topic_id', null).eq('chapter_id', chapter_id);
     const { data: cardRows, error: cardErr } = await cardQuery;
     if (cardErr) throw cardErr;
     const cardIds = (cardRows || []).map(c => c.id);

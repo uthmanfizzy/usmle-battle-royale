@@ -1033,3 +1033,50 @@ CREATE POLICY "server_full_access_uworld_question_ratings"
 -- personal. Both endpoints are requireAuth and scoped to req.userId — notes are
 -- never returned for anyone but their author, and the client only renders the
 -- editor when you are viewing your own timeline.
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- HY FLASHCARDS — CARDS DIRECTLY IN A CHAPTER (run in the SQL editor)
+-- ─────────────────────────────────────────────────────────────────────────────
+-- ALTER TABLE hy_flashcards ADD COLUMN IF NOT EXISTS chapter_id UUID
+--   REFERENCES hy_flashcard_chapters(id) ON DELETE SET NULL;
+-- CREATE INDEX IF NOT EXISTS idx_hy_flashcards_chapter ON hy_flashcards(chapter_id);
+--
+-- -- The counts RPC gains chapter_id. DROP first: CREATE OR REPLACE cannot
+-- -- change a function's return type, it errors with "cannot change return type
+-- -- of existing function".
+-- DROP FUNCTION IF EXISTS get_hy_flashcard_counts();
+-- CREATE FUNCTION get_hy_flashcard_counts()
+-- RETURNS TABLE(subject TEXT, topic_id UUID, chapter_id UUID, card_count BIGINT)
+-- LANGUAGE sql STABLE
+-- AS $$
+--   SELECT subject, topic_id, chapter_id, COUNT(*) AS card_count
+--   FROM hy_flashcards
+--   GROUP BY subject, topic_id, chapter_id;
+-- $$;
+--
+-- WHY: "allow me to put questions within a chapter and not necessarily in a
+-- topic section". Until now a card was either in a topic or in General (the
+-- subject-wide catch-all) — there was no way to say "this belongs to this
+-- chapter" without first inventing a topic to hold it.
+--
+-- THREE BUCKETS, resolved in this order:
+--   topic_id set                 -> that topic
+--   topic_id NULL, chapter_id set -> the chapter's OWN cards
+--   both NULL                     -> General
+--
+-- chapter_id is only ever meaningful when topic_id IS NULL. A card inside a
+-- topic already knows its chapter THROUGH that topic, so storing it a second
+-- time on the card would be two sources of truth that can disagree; the write
+-- endpoints force chapter_id to NULL whenever topic_id is set.
+--
+-- ON DELETE SET NULL, matching topic_id: deleting a chapter drops its own
+-- cards to General rather than destroying them. (Its topics still CASCADE
+-- away, and their cards likewise fall back to General.) A chapter delete
+-- removes organisation, never content — unchanged.
+--
+-- DEPLOY ORDER: the server treats the column as optional (hasHyChapterId,
+-- same ratchet as hy_flashcards.explanation). Before this migration runs the
+-- chapter bucket simply does not exist: General still means "no topic", the
+-- admin tree reports needs_migration for a chapter bucket instead of silently
+-- showing General's cards, and the menu returns no direct_count. Nothing
+-- breaks, the feature just isn't there yet.

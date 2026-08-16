@@ -303,12 +303,15 @@ function HYFlashcardsAdmin({ subjects }) {
   const [subject, setSubject] = useState(subjects?.[0]?.id || '');
   const [chapters, setChapters] = useState([]);      // this subject's chapters
 
-  // Chapters are pure NAVIGATION — expanding one just reveals its topics, it
-  // does not select anything. Only clicking General or a specific topic opens
-  // the card-editing area below, via `active`.
+  // Expanding a chapter is pure NAVIGATION — it reveals what's inside without
+  // selecting anything. What opens the card editor below is `active`:
+  //   'general'                       — the subject-wide catch-all
+  //   { chapterId, topicId: <uuid> }  — one topic
+  //   { chapterId, topicId: null }    — the chapter's OWN cards, no topic
   const [expandedChapters, setExpandedChapters] = useState(() => new Set());
   const [topicsByChapter, setTopicsByChapter] = useState({}); // chapterId -> topics[] (lazy, loaded on first expand)
-  const [active, setActive] = useState(null); // null | 'general' | { chapterId, topicId }
+  const [active, setActive] = useState(null);
+  const [needsMigration, setNeedsMigration] = useState(false);
 
   const [cards, setCards] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -436,22 +439,27 @@ function HYFlashcardsAdmin({ subjects }) {
     } catch (err) { setError(err.message); }
   }
 
-  // Cards only ever show for a RESOLVED bucket: General, or a specific topic
-  // someone actually clicked. Expanding a chapter alone shows nothing below —
-  // a chapter holds no cards of its own, only its topics do.
+  // Cards only ever show for a RESOLVED bucket someone actually clicked:
+  // General, a topic, or a chapter's own cards. Merely expanding a chapter
+  // shows nothing below.
   const bucketReady = active !== null;
   const activeTopicId = active && active !== 'general' ? active.topicId : null;
+  // Only sent when there is no topic — a card in a topic gets its chapter from
+  // the topic, so the two are never combined (see the server's GET).
+  const activeChapterId = active && active !== 'general' && !active.topicId ? active.chapterId : null;
 
   const loadCards = useCallback(() => {
     if (!subject || !bucketReady) return;
     setLoading(true); setError('');
-    const url = `/admin/hy-flashcards?subject=${encodeURIComponent(subject)}${activeTopicId ? `&topic_id=${encodeURIComponent(activeTopicId)}` : ''}`;
-    apiCall(url)
+    const params = new URLSearchParams({ subject });
+    if (activeTopicId) params.set('topic_id', activeTopicId);
+    else if (activeChapterId) params.set('chapter_id', activeChapterId);
+    apiCall(`/admin/hy-flashcards?${params.toString()}`)
       .then(r => r.json())
-      .then(d => setCards(d.cards || []))
+      .then(d => { setCards(d.cards || []); setNeedsMigration(!!d.needs_migration); })
       .catch(() => setError('Failed to load cards.'))
       .finally(() => setLoading(false));
-  }, [subject, activeTopicId, bucketReady]);
+  }, [subject, activeTopicId, activeChapterId, bucketReady]);
 
   useEffect(() => { loadCards(); }, [loadCards]);
 
@@ -465,7 +473,7 @@ function HYFlashcardsAdmin({ subjects }) {
     try {
       const res = editing
         ? await apiCall(`/admin/hy-flashcards/${editing.id}`, { method: 'PUT', body: JSON.stringify(form) })
-        : await apiCall('/admin/hy-flashcards', { method: 'POST', body: JSON.stringify({ subject, topic_id: activeTopicId, ...form }) });
+        : await apiCall('/admin/hy-flashcards', { method: 'POST', body: JSON.stringify({ subject, topic_id: activeTopicId, chapter_id: activeChapterId, ...form }) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Save failed');
       setCards(cs => editing ? cs.map(c => (c.id === data.id ? data : c)) : [...cs, data]);
@@ -520,7 +528,7 @@ function HYFlashcardsAdmin({ subjects }) {
     try {
       const res = await apiCall('/admin/hy-flashcards/bulk-import', {
         method: 'POST',
-        body: JSON.stringify({ subject, topic_id: activeTopicId, cards: parsedPreview }),
+        body: JSON.stringify({ subject, topic_id: activeTopicId, chapter_id: activeChapterId, cards: parsedPreview }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Import failed');
@@ -531,11 +539,14 @@ function HYFlashcardsAdmin({ subjects }) {
     finally { setImporting(false); }
   }
 
+  const chapterName = (id) => chapters.find(c => c.id === id)?.name || 'Chapter';
   const bucketLabel = active === null
     ? ''
     : active === 'general'
       ? 'General'
-      : `${chapters.find(c => c.id === active.chapterId)?.name || 'Chapter'} → ${(topicsByChapter[active.chapterId] || []).find(t => t.id === active.topicId)?.name || 'Topic'}`;
+      : active.topicId
+        ? `${chapterName(active.chapterId)} → ${(topicsByChapter[active.chapterId] || []).find(t => t.id === active.topicId)?.name || 'Topic'}`
+        : `${chapterName(active.chapterId)} → (chapter cards)`;
 
   return (
     <div className="ap-ann-panel">
@@ -545,8 +556,17 @@ function HYFlashcardsAdmin({ subjects }) {
       <p className="perm-hint">
         High-yield front/back cards, separate from AnKing. Chapters and topics belong ONLY
         to HY Flashcards — they are not shared with Training Grounds or any other game mode.
-        Click a chapter to reveal its topics, then click a topic to see its cards.
+        Click a chapter to reveal its topics, then click a topic to see its cards. Cards can
+        also go straight into a chapter (&ldquo;Chapter cards&rdquo;) when they don&apos;t warrant a topic
+        of their own, or into General for the whole subject.
       </p>
+
+      {needsMigration && (
+        <div className="ap-error">
+          Cards can&apos;t be stored directly in a chapter yet — the <code>hy_flashcards.chapter_id</code> migration
+          in <code>server/schema.sql</code> hasn&apos;t been run in Supabase. Topics and General still work as normal.
+        </div>
+      )}
 
       <div className="hyf-pickers">
         <select className="perm-input" value={subject} onChange={e => setSubject(e.target.value)}>
@@ -596,6 +616,19 @@ function HYFlashcardsAdmin({ subjects }) {
 
               {isExpanded && (
                 <div className="hyf-tree-children">
+                  {/* The chapter's own cards — for material that belongs to the
+                      chapter but doesn't warrant inventing a topic to hold it.
+                      Sits above the topic list, as its broadest bucket. */}
+                  <div className="hyf-tree-row-wrap">
+                    <button
+                      type="button"
+                      className={`hyf-tree-row hyf-tree-row--topic${active !== 'general' && active?.chapterId === ch.id && !active?.topicId ? ' is-active' : ''}`}
+                      onClick={() => setActive({ chapterId: ch.id, topicId: null })}
+                    >
+                      <span className="hyf-tree-icon" aria-hidden="true">📄</span>
+                      <span className="hyf-tree-name">Chapter cards (no topic)</span>
+                    </button>
+                  </div>
                   {chTopics.map(t => (
                     <div key={t.id} className="hyf-tree-row-wrap">
                       <button
@@ -609,7 +642,7 @@ function HYFlashcardsAdmin({ subjects }) {
                       <button className="ap-topic-del-btn" title="Delete topic" onClick={() => handleDeleteTopic(ch.id, t)}>🗑️</button>
                     </div>
                   ))}
-                  {chTopics.length === 0 && <p className="perm-hint hyf-tree-empty">No topics yet.</p>}
+                  {chTopics.length === 0 && <p className="perm-hint hyf-tree-empty">No topics yet — cards can go straight in the chapter above.</p>}
                   <form
                     className="hyf-newtopic hyf-newtopic--nested"
                     onSubmit={e => { e.preventDefault(); handleAddTopic(ch.id); }}
