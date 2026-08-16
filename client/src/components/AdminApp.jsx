@@ -5410,6 +5410,10 @@ function JourneyPanel() {
   const [saving,   setSaving]   = useState(false);
   const [showParser, setShowParser] = useState(false);
   const [form,     setForm]     = useState(BOSS_EMPTY_FORM);
+  // The question form is collapsed until asked for: it is a tall form, and it
+  // used to push the actual question list far below the fold on every level.
+  // Opened by the Add Question button or by editing a row.
+  const [showForm, setShowForm] = useState(false);
 
   // ─── Level question round-trip (Copy ID-tagged ↔ Update by ID / add new) ─────
   const [copyModal,    setCopyModal]    = useState(false);
@@ -5720,14 +5724,23 @@ function JourneyPanel() {
 
   // ── Editor open / question form (form mechanics reused from J2) ──────────
 
+  // Clears the fields but leaves the form open — so adding several questions in
+  // a row doesn't mean re-opening it after every save.
   function resetForm() {
     setEditing(null);
     setForm(BOSS_EMPTY_FORM);
   }
 
+  // Clears AND collapses. Used by Cancel, by finishing an edit, and whenever
+  // the editor switches to a different level/boss.
+  function closeForm() {
+    resetForm();
+    setShowForm(false);
+  }
+
   async function openLevel(level, chapter) {
     setError('');
-    resetForm();
+    closeForm();
     setSelected({ kind: 'level', level, chapter });
     setQSel(new Set());   // selection belongs to the target you were viewing
     setLevelQs([]);
@@ -5738,7 +5751,7 @@ function JourneyPanel() {
     } catch { setLevelQs([]); }
   }
 
-  function openBoss(chapter) { setError(''); resetForm(); setQSel(new Set()); setSelected({ kind: 'boss', chapter }); }
+  function openBoss(chapter) { setError(''); closeForm(); setQSel(new Set()); setSelected({ kind: 'boss', chapter }); }
   function openUltimate()    { setError(''); resetForm(); setQSel(new Set()); setSelected({ kind: 'ultimate' }); }
 
   const bossKeyFor = (sel) => sel.kind === 'ultimate' ? 'ultimate' : `chapter:${sel.chapter.id}`;
@@ -5864,6 +5877,7 @@ function JourneyPanel() {
   function startEdit(q) {
     setError('');
     setEditing(q);
+    setShowForm(true); // editing reveals the same form, pre-filled
     setForm({
       question: q.question,
       optionA: q.options[0] || '',
@@ -5933,7 +5947,7 @@ function JourneyPanel() {
         const prevWhy = typeof editing.why_others_wrong === 'string' ? editing.why_others_wrong : '';
         if (form.why_others_wrong.trim() !== prevWhy) body.why_others_wrong = form.why_others_wrong.trim() || null;
         if ((form.explanation_image_url || '') !== (editing.explanation_image_url || '')) body.explanation_image_url = form.explanation_image_url || null;
-        if (Object.keys(body).length === 0) { resetForm(); setSaving(false); return; }
+        if (Object.keys(body).length === 0) { closeForm(); setSaving(false); return; }
         res  = await apiCall(`${base}/${editing.id}`, { method: 'PUT', body: JSON.stringify(body) });
         data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed to save question');
@@ -5960,7 +5974,9 @@ function JourneyPanel() {
           setCounts(c => ({ ...c, levels: { ...c.levels, [lid]: (c.levels[lid] || 0) + 1 } }));
         }
       }
-      resetForm();
+      // Finishing an EDIT returns you to the list; finishing an ADD leaves the
+      // form open and empty, since adding questions tends to come in runs.
+      if (editing) closeForm(); else resetForm();
     } catch (err) { setError(err.message); }
     setSaving(false);
   }
@@ -6241,7 +6257,7 @@ function JourneyPanel() {
         /* ── EDITOR: shared question form + list ──────────────────── */
         <>
           <div className="ap-journey-editor-head">
-            <button className="ap-btn-back" onClick={() => { setError(''); resetForm(); setSelected(null); }}>← Back</button>
+            <button className="ap-btn-back" onClick={() => { setError(''); closeForm(); setSelected(null); }}>← Back</button>
             <span className="ap-journey-editor-title">
               {folder?.icon} {folder?.label} › {editorTitle}
             </span>
@@ -6259,6 +6275,11 @@ function JourneyPanel() {
               <button className="ap-btn-sec" onClick={() => setShowParser(true)}>
                 📋 Paste &amp; Parse
               </button>
+              {!showForm && (
+                <button className="ap-btn-pri" onClick={() => { setError(''); resetForm(); setShowForm(true); }}>
+                  ➕ Add Question
+                </button>
+              )}
             </div>
           </div>
 
@@ -6266,6 +6287,7 @@ function JourneyPanel() {
             <LevelVideosField key={selected.level.id} levelId={selected.level.id} />
           )}
 
+          {showForm && (
           <form onSubmit={handleSave} className="ap-qform ap-video-form">
             <h3 className="ap-video-form-title">{editing ? '✏️ Edit Question' : '➕ Add Question'}</h3>
 
@@ -6344,12 +6366,15 @@ function JourneyPanel() {
             <ExplanationImageField value={form.explanation_image_url} onChange={url => set('explanation_image_url', url)} />
 
             <div className="ap-video-form-actions">
-              {editing && <button type="button" className="ap-btn-sec" onClick={() => { setError(''); resetForm(); }}>Cancel</button>}
+              {/* Always offered now — Cancel is how you collapse the form again,
+                  not just how you abandon an edit. */}
+              <button type="button" className="ap-btn-sec" onClick={() => { setError(''); closeForm(); }}>Cancel</button>
               <button type="submit" className="ap-btn-pri" disabled={!canSave}>
                 {saving ? 'Saving…' : editing ? 'Save Changes' : 'Add Question'}
               </button>
             </div>
           </form>
+          )}
 
           {editorQuestions.length === 0 ? (
             <div className="ap-topic-empty">
