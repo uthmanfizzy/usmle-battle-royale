@@ -183,10 +183,40 @@ let hasJourneyBonus = true;
 let hasHyExplanation = true;
 
 // hy_flashcards.chapter_id — lets a card sit DIRECTLY in a chapter instead of
-// having to live under a topic. Same deploy-order safety: until the migration
-// runs, every chapter_id filter and write is skipped so the existing
-// topic/General buckets keep working exactly as before.
+// having to live under a topic. Deploy-order safety: until the migration runs,
+// every chapter_id filter and write is skipped so the existing topic/General
+// buckets keep working exactly as before.
+//
+// Unlike the flags above this one is NOT a one-way ratchet, and that matters:
+// those describe columns that were migrated long ago, whereas this migration
+// gets run against a server that is already up. A flag that only ever flipped
+// true -> false would latch on the first pre-migration query and then keep
+// reporting "not migrated" for the life of the process — so running the SQL
+// would appear to do nothing until the dyno happened to restart. It re-probes
+// instead: cheaply on a throttle for the common paths, and unconditionally
+// whenever someone explicitly asks for a chapter bucket (rare, and exactly
+// when a stale "not migrated" would be most confusing).
 let hasHyChapterId = true;
+let hyChapterProbeAt = 0;
+const HY_CHAPTER_REPROBE_MS = 60_000;
+
+// `force` is for requests that name a chapter outright — always worth one real
+// attempt, so the feature lights up the moment the migration lands.
+function shouldTryHyChapter(force = false) {
+  if (hasHyChapterId) return true;
+  if (!force && Date.now() - hyChapterProbeAt < HY_CHAPTER_REPROBE_MS) return false;
+  hyChapterProbeAt = Date.now();
+  return true;
+}
+function noteHyChapterMissing() {
+  if (hasHyChapterId) console.warn('[hy-flashcards] chapter_id column not present — run the migration in schema.sql');
+  hasHyChapterId = false;
+  hyChapterProbeAt = Date.now();
+}
+function noteHyChapterPresent() {
+  if (!hasHyChapterId) console.log('[hy-flashcards] chapter_id column detected — chapter buckets enabled');
+  hasHyChapterId = true;
+}
 
 let questionsLastLoaded = 0;
 const QUESTIONS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
@@ -8370,11 +8400,9 @@ app.get('/admin/hy-flashcards', adminAuth, async (req, res) => {
   if (!supabase) return res.json({ cards: [] });
   const { subject, topic_id, chapter_id } = req.query;
   if (!subject) return res.status(400).json({ error: 'subject required', cards: [] });
-  // Asking for a chapter bucket before the migration has run: report it rather
-  // than falling through, which would silently show General's cards instead.
-  if (!topic_id && chapter_id && !hasHyChapterId) {
-    return res.json({ cards: [], needs_migration: true });
-  }
+  // A named chapter forces a real probe, so clicking the bucket is itself the
+  // retry — no restart needed for the feature to appear once the SQL is run.
+  const wantsChapterBucket = !topic_id && !!chapter_id;
   try {
     const build = (useChapter) => {
       const q = supabase.from('hy_flashcards').select('*').eq('subject', subject)
@@ -8384,13 +8412,22 @@ app.get('/admin/hy-flashcards', adminAuth, async (req, res) => {
       if (!useChapter) return base; // pre-migration: General means "no topic", as before
       return chapter_id ? base.eq('chapter_id', chapter_id) : base.is('chapter_id', null);
     };
-    let { data, error } = await build(hasHyChapterId);
+    const tried = shouldTryHyChapter(wantsChapterBucket);
+    let { data, error } = await build(tried);
     if (error && isMissingColumn(error)) {
-      hasHyChapterId = false;
-      console.warn('[hy-flashcards] chapter_id column not present — run the migration in schema.sql');
+      noteHyChapterMissing();
+      // The chapter bucket cannot exist yet — say so rather than falling
+      // through to the unfiltered query, which would show General's cards
+      // under a chapter heading.
+      if (wantsChapterBucket) return res.json({ cards: [], needs_migration: true });
       ({ data, error } = await build(false));
+    } else if (!error && tried) {
+      noteHyChapterPresent();
     }
     if (error) throw error;
+    // Only the chapter bucket is actually blocked pre-migration; General and
+    // topics work either way, so don't nag about it on those.
+    if (wantsChapterBucket && !hasHyChapterId) return res.json({ cards: [], needs_migration: true });
     res.json({ cards: data || [], needs_migration: !hasHyChapterId });
   } catch (err) {
     console.warn('[/admin/hy-flashcards] unavailable, returning cards: [] —', err.message);
@@ -8419,11 +8456,20 @@ app.post('/admin/hy-flashcards', adminAuth, async (req, res) => {
       if (useChapter) row.chapter_id = topic_id ? null : (chapter_id || null);
       return supabase.from('hy_flashcards').insert(row).select().single();
     };
-    let { data, error } = await build(hasHyChapterId);
+    const wantsChapter = !topic_id && !!chapter_id;
+    const tried = shouldTryHyChapter(wantsChapter);
+    let { data, error } = await build(tried);
     if (error && isMissingColumn(error)) {
-      hasHyChapterId = false;
-      console.warn('[hy-flashcards] chapter_id column not present — run the migration in schema.sql');
+      noteHyChapterMissing();
+      // Refuse rather than silently filing the card into General — the admin
+      // asked for it to live in a chapter, and a card quietly landing in the
+      // wrong bucket is worse than an error that says to run the migration.
+      if (wantsChapter) {
+        return res.status(409).json({ error: 'Cards cannot be stored directly in a chapter until the hy_flashcards.chapter_id migration in server/schema.sql has been run in Supabase.' });
+      }
       ({ data, error } = await build(false));
+    } else if (!error && tried) {
+      noteHyChapterPresent();
     }
     if (error) throw error;
     res.json(data);
@@ -8444,12 +8490,29 @@ app.put('/admin/hy-flashcards/:id', adminAuth, async (req, res) => {
   if ('explanation' in req.body) updates.explanation = req.body.explanation?.trim() || null;
   // 'in' check so an explicit topic_id: null (move to General) is distinguishable from "not provided"
   if ('topic_id' in req.body) updates.topic_id = req.body.topic_id || null;
-  if ('chapter_id' in req.body && hasHyChapterId) updates.chapter_id = req.body.chapter_id || null;
+  // Moving a card INTO a chapter forces a probe, so a stale "column missing"
+  // can't silently drop the chapter and leave the card in General.
+  const movingToChapter = 'chapter_id' in req.body && !!req.body.chapter_id;
+  if ('chapter_id' in req.body && shouldTryHyChapter(movingToChapter)) {
+    updates.chapter_id = req.body.chapter_id || null;
+  }
   if (Number.isFinite(req.body.sort_order)) updates.sort_order = req.body.sort_order;
   if (Object.keys(updates).length === 0) return res.status(400).json({ error: 'nothing to update' });
   try {
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from('hy_flashcards').update(updates).eq('id', req.params.id).select().single();
+    if (error && isMissingColumn(error) && 'chapter_id' in updates) {
+      noteHyChapterMissing();
+      if (movingToChapter) {
+        return res.status(409).json({ error: 'Cards cannot be stored directly in a chapter until the hy_flashcards.chapter_id migration in server/schema.sql has been run in Supabase.' });
+      }
+      delete updates.chapter_id;
+      if (Object.keys(updates).length === 0) return res.json({ ok: true });
+      ({ data, error } = await supabase
+        .from('hy_flashcards').update(updates).eq('id', req.params.id).select().single());
+    } else if (!error && 'chapter_id' in updates) {
+      noteHyChapterPresent();
+    }
     if (error) throw error;
     res.json(data);
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -8503,7 +8566,11 @@ app.post('/admin/hy-flashcards/bulk-import', adminAuth, async (req, res) => {
   try {
     // sort_order continues from whatever is already in this bucket, so a
     // second paste into the same bucket appends rather than interleaving.
-    const useChapter = hasHyChapterId;
+    const wantsChapter = !topic_id && !!chapter_id;
+    if (wantsChapter && !shouldTryHyChapter(true)) {
+      return res.status(409).json({ error: 'Cards cannot be stored directly in a chapter until the hy_flashcards.chapter_id migration in server/schema.sql has been run in Supabase.' });
+    }
+    const useChapter = wantsChapter ? true : shouldTryHyChapter();
     let existingQuery = supabase.from('hy_flashcards').select('*', { count: 'exact', head: true }).eq('subject', subject);
     if (topic_id) {
       existingQuery = existingQuery.eq('topic_id', topic_id);
@@ -8523,7 +8590,17 @@ app.post('/admin/hy-flashcards/bulk-import', adminAuth, async (req, res) => {
       if (useChapter) row.chapter_id = topic_id ? null : (chapter_id || null);
       return row;
     });
-    const { data, error } = await supabase.from('hy_flashcards').insert(rows).select('id');
+    let { data, error } = await supabase.from('hy_flashcards').insert(rows).select('id');
+    if (error && isMissingColumn(error)) {
+      noteHyChapterMissing();
+      if (wantsChapter) {
+        return res.status(409).json({ error: 'Cards cannot be stored directly in a chapter until the hy_flashcards.chapter_id migration in server/schema.sql has been run in Supabase.' });
+      }
+      for (const r of rows) delete r.chapter_id;
+      ({ data, error } = await supabase.from('hy_flashcards').insert(rows).select('id'));
+    } else if (!error && useChapter) {
+      noteHyChapterPresent();
+    }
     if (error) throw error;
     res.json({ ok: true, imported: data?.length || 0, skipped: cards.length - clean.length });
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -8644,7 +8721,7 @@ app.get('/api/hy-flashcards', async (req, res) => {
   if (!supabase) return res.json({ cards: [] });
   const { subject, topic_id, chapter_id } = req.query;
   if (!subject) return res.status(400).json({ error: 'subject required', cards: [] });
-  if (!topic_id && chapter_id && !hasHyChapterId) return res.json({ cards: [] });
+  if (!topic_id && chapter_id && !shouldTryHyChapter(true)) return res.json({ cards: [] });
   try {
     // Narrowing, in precedence order: a topic, else a chapter's OWN cards, else
     // (neither given) every card in the subject — the broad "study it all".
@@ -8660,7 +8737,7 @@ app.get('/api/hy-flashcards', async (req, res) => {
       // Either column could be the missing one; chapter narrowing is dropped
       // along with it, which is right — that bucket cannot exist yet either.
       hasHyExplanation = false;
-      if (chapter_id) hasHyChapterId = false;
+      if (chapter_id) noteHyChapterMissing();
       let fallback = supabase.from('hy_flashcards').select('id, front, back, topic_id').eq('subject', subject);
       if (topic_id) fallback = fallback.eq('topic_id', topic_id);
       ({ data, error } = await fallback.order('sort_order', { ascending: true }).order('created_at', { ascending: true }));
@@ -8715,7 +8792,7 @@ app.get('/api/hy-flashcards/ratings', requireAuth, async (req, res) => {
   const { subject, topic_id, chapter_id } = req.query;
   if (!subject) return res.status(400).json({ error: 'subject required', ratings: {} });
   if (!supabase) return res.json({ ratings: {} });
-  if (!topic_id && chapter_id && !hasHyChapterId) return res.json({ ratings: {} });
+  if (!topic_id && chapter_id && !shouldTryHyChapter(true)) return res.json({ ratings: {} });
   try {
     // Must narrow exactly the way the cards endpoint above does, or the pile
     // counts are computed against a different set than the deck being studied.
