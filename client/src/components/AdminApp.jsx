@@ -1747,7 +1747,11 @@ function BulkImportModal({ activeFolder, selectedTopic, selectedDifficulty, onIm
 // One drop zone for a single question + a single field (image_url or
 // explanation_image_url). Reuses the shared /admin/upload-image storage upload,
 // then PUTs the new URL onto that exact question id. Fully isolated per zone.
-function RowImageDrop({ questionId, field, label, url, onUploaded }) {
+//
+// basePath selects WHICH question table the PUT lands on, so the same zone
+// serves the main bank and First Aid Journey (levels and bosses) — all three
+// accept image_url / explanation_image_url on PUT, so nothing else differs.
+function RowImageDrop({ questionId, field, label, url, onUploaded, basePath = '/admin/questions' }) {
   const [over,   setOver]   = useState(false);
   const [busy,   setBusy]   = useState(false);
   const [flash,  setFlash]  = useState('');   // '' | 'ok' | 'err'
@@ -1778,7 +1782,7 @@ function RowImageDrop({ questionId, field, label, url, onUploaded }) {
       const upData = await upRes.json();
       if (!upRes.ok) throw new Error(upData.error || 'Upload failed');
 
-      const putRes  = await apiCall(`/admin/questions/${questionId}`, {
+      const putRes  = await apiCall(`${basePath}/${questionId}`, {
         method: 'PUT',
         body:   JSON.stringify({ [field]: upData.url }),
       });
@@ -5892,6 +5896,19 @@ function JourneyPanel() {
     }
   }
 
+  // Which table this editor's questions live in — RowImageDrop PUTs the
+  // uploaded URL straight onto the right one.
+  const questionBase = selected?.kind === 'level' ? '/admin/journey-questions' : '/admin/boss-questions';
+
+  // RowImageDrop has already uploaded and saved by the time this fires; this
+  // just mirrors the new URL into the row so the thumbnail updates without a
+  // refetch. Levels and bosses are held in separate lists.
+  function handleQImageUploaded(qId, field, url) {
+    const patch = qs => qs.map(x => (String(x.id) === String(qId) ? { ...x, [field]: url } : x));
+    if (selected?.kind === 'level') setLevelQs(patch);
+    else setBossQs(patch);
+  }
+
   // Letters offered by the correct-select: A-D always, E/F once filled
   const offeredLetters = BOSS_LETTERS.filter((l, i) => i < 4 || form[`option${l}`].trim() !== '');
   const assembledOptions = BOSS_LETTERS.map(l => form[`option${l}`].trim()).filter(o => o !== '');
@@ -6391,6 +6408,27 @@ function JourneyPanel() {
                   <span className="ap-journey-q-num">{qi + 1}</span>
                   <span className="ap-journey-q-correct">{q.correct}</span>
                   <span className="ap-journey-q-text">{q.question}</span>
+                  {/* Drop an image straight onto the stem or the explanation,
+                      same zones the main Question Manager row has. stopPropagation
+                      so a drag over the row never trips the row's own handlers. */}
+                  <div className="ap-rowdrop-wrap" onClick={e => e.stopPropagation()}>
+                    <RowImageDrop
+                      basePath={questionBase}
+                      questionId={q.id}
+                      field="image_url"
+                      label="Q"
+                      url={q.image_url}
+                      onUploaded={handleQImageUploaded}
+                    />
+                    <RowImageDrop
+                      basePath={questionBase}
+                      questionId={q.id}
+                      field="explanation_image_url"
+                      label="Expl"
+                      url={q.explanation_image_url}
+                      onUploaded={handleQImageUploaded}
+                    />
+                  </div>
                   <div className="ap-video-row-actions">
                     {/* Bonus is a level-only reward round — boss questions have
                         no such thing, so the toggle only appears there. */}

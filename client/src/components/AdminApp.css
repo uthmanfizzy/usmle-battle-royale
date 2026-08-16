@@ -3303,6 +3303,29 @@
   min-width: 0;
 }
 
+/* Image drop zones inside a journey question row. The Question Manager stacks
+   its two zones vertically inside a table cell; a journey row is a single-line
+   flex strip, so they sit side by side here to keep the row one line tall. */
+.ap-journey-q-row .ap-rowdrop-wrap {
+  flex-direction: row;
+  flex-shrink: 0;
+  gap: 6px;
+}
+.ap-journey-q-row .ap-rowdrop {
+  min-height: 30px;
+}
+/* The label is the only flexible part, so trimming it is what keeps the pair
+   narrow enough to leave the question text room. */
+.ap-journey-q-row .ap-rowdrop-lbl {
+  max-width: 34px;
+}
+
+@media (max-width: 900px) {
+  /* Narrow admin windows: drop the labels entirely and keep just the
+     thumbnail/placeholder targets, rather than squeezing the question text. */
+  .ap-journey-q-row .ap-rowdrop-lbl { display: none; }
+}
+
 /* Journey chapter/level tree */
 .ap-jtree { margin-bottom: 14px; }
 
