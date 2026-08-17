@@ -962,6 +962,63 @@ html[data-study="on"] .solo-body .stem-table td { color: #1c2030; }
   color: #ffd700;
 }
 
+/* Dev-mode inline image slots (stem + explanation). Same dashed, understated
+   language as the dev highlight toggle — these appear over live gameplay, so
+   they must read as an authoring affordance and never as part of the question. */
+.dev-imgslot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0;
+  padding: 7px 11px;
+  border: 1px dashed rgba(255, 255, 255, 0.35);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-dim, #cfd2e0);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: copy;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+.dev-imgslot:hover { background: rgba(255, 255, 255, 0.1); }
+
+/* Armed = where a Ctrl+V will land. Only ever one at a time. */
+.dev-imgslot.is-armed {
+  border-style: solid;
+  border-color: #ffd700;
+  background: rgba(255, 215, 0, 0.14);
+  color: #ffd700;
+}
+.dev-imgslot.is-over {
+  border-style: solid;
+  border-color: #4fd1c5;
+  background: rgba(79, 209, 197, 0.18);
+  color: #4fd1c5;
+}
+.dev-imgslot.is-ok {
+  border-style: solid;
+  border-color: #2ecc71;
+  background: rgba(46, 204, 113, 0.16);
+  color: #2ecc71;
+}
+.dev-imgslot.is-err {
+  border-style: solid;
+  border-color: #e74c3c;
+  background: rgba(231, 76, 60, 0.16);
+  color: #e74c3c;
+}
+.dev-imgslot.is-busy { cursor: progress; }
+
+.dev-imgslot-icon { font-size: 14px; line-height: 1; flex-shrink: 0; }
+.dev-imgslot-text { flex: 1; min-width: 0; }
+.dev-imgslot-hint {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 700;
+  opacity: 0.75;
+  white-space: nowrap;
+}
+
 /* Moderator: pull a bad question mid-game. Deliberately understated and red —
    it sits next to study controls and must never be mistaken for "Next". */
 .mod-retire-bar {

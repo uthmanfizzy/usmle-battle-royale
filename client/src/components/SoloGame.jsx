@@ -86,6 +86,45 @@ function saveHi(subject, score) {
   try { localStorage.setItem(`usmle-hs-${subject}`, String(score)); } catch {}
 }
 
+/**
+ * Dev-mode-only image slot, rendered under the stem and under the explanation
+ * during play. Drop a file on it, or click it to arm and Ctrl+V — the paste
+ * listener lives in SoloGame so a paste works from anywhere on the page, not
+ * only while this element happens to hold focus.
+ *
+ * Purely presentational: the upload/save is SoloGame's uploadDevImage.
+ */
+function DevImageSlot({ field, label, qid, armed, busy, message, currentUrl, onArm, onFile }) {
+  const [over, setOver] = useState(false);
+  const state = busy ? 'busy' : message?.kind === 'ok' ? 'ok' : message?.kind === 'err' ? 'err' : '';
+
+  return (
+    <div
+      className={`dev-imgslot${armed ? ' is-armed' : ''}${over ? ' is-over' : ''}${state ? ` is-${state}` : ''}`}
+      onClick={onArm}
+      onDragOver={e => { e.preventDefault(); e.stopPropagation(); if (!busy) setOver(true); }}
+      onDragLeave={e => { e.preventDefault(); e.stopPropagation(); setOver(false); }}
+      onDrop={e => {
+        e.preventDefault(); e.stopPropagation(); setOver(false);
+        if (busy) return;
+        const file = e.dataTransfer?.files?.[0];
+        // qid pins the write to the question this slot belongs to.
+        if (file) onFile(field, file, qid);
+      }}
+      title={`${label} image — drop a file, or click then Ctrl+V`}
+    >
+      <span className="dev-imgslot-icon" aria-hidden="true">
+        {busy ? '⏳' : state === 'ok' ? '✓' : state === 'err' ? '⚠' : currentUrl ? '🖼' : '📷'}
+      </span>
+      <span className="dev-imgslot-text">
+        {busy ? 'Uploading…' : message?.text || `${label} image`}
+      </span>
+      {/* Only one slot can receive a paste at a time, so say which. */}
+      <span className="dev-imgslot-hint">{armed ? 'Ctrl+V here' : 'click to arm'}</span>
+    </div>
+  );
+}
+
 export default function SoloGame({ subject, username, difficulty, onBack, onTryAgain, onChangeSubject, onBackToTopics, topicId, questionsUrl, onComplete, levelLabel, isJourney, providedQuestions, shuffleOptions = true, uworldSkin = false, uwaRemainingToday = 0, uwaCompletionLabel = null, uwaReview = false }) {
   const { settings } = useGameSettings();
   const { study: studyPref } = useTheme();   // Layer 1 chrome renders only when study mode is on
@@ -533,6 +572,139 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
     endRunEarly();
     onBack();
   }
+
+  // ── Dev-mode inline image authoring ───────────────────────────────────────
+  // Drop or paste an image straight onto the question you are playing. Writes
+  // to whichever table this game is reading from — retireEndpoint already
+  // works that out (main bank / journey level / boss), and all three admin PUT
+  // routes take image_url and explanation_image_url.
+  //
+  // Auth is the admin password already held for official-highlight authoring:
+  // same credential, same trust level, no second login on the play page.
+  // The armed target carries the QUESTION it was armed for, not just the field.
+  // Explanations auto-advance: without this, starting a paste on an explanation
+  // and having the timer roll over mid-upload would write the image onto the
+  // NEXT question's stem — silently, and to the wrong row in the database.
+  const [devImgArmed, setDevImgArmed] = useState({ field: 'image_url', qid: null });
+  const [devImgBusy,  setDevImgBusy]  = useState(null);        // field currently uploading
+  const [devImgMsg,   setDevImgMsg]   = useState(null);        // { field, kind: 'ok'|'err', text }
+
+  // Show the new image immediately. Matched BY ID rather than by index, since
+  // the game may have advanced while the upload was in flight. The patched
+  // object goes into both the questions array and the shuffle memo so their
+  // identities still match — otherwise the next render sees a new base and
+  // reshuffles the options underneath the player mid-question.
+  const applyDevImage = useCallback((field, url, qid) => {
+    const arr = questionsRef.current;
+    const idx = arr.findIndex(x => x.id === qid);
+    if (idx === -1) return;
+    // ONE patched object shared by the array and the memo — two separate copies
+    // would differ by identity and trip the memo's reshuffle check.
+    const patched = { ...arr[idx], [field]: url };
+    setQuestions(qs => qs.map((x, i) => (i === idx ? patched : x)));
+    const memo = shuffledQRef.current;
+    if (memo.q && memo.base?.id === qid) {
+      shuffledQRef.current = { ...memo, base: patched, q: { ...memo.q, [field]: url } };
+    }
+  }, []);
+
+  const uploadDevImage = useCallback(async (field, file, qid) => {
+    const allowed = ['image/jpeg', 'image/png', 'image/webp'];
+    const fail = (text) => {
+      setDevImgBusy(null);
+      setDevImgMsg({ field, kind: 'err', text });
+      setTimeout(() => setDevImgMsg(null), 3200);
+    };
+    if (!file || !file.type?.startsWith('image/')) return fail('Images only');
+    if (!allowed.includes(file.type))              return fail('JPG, PNG or WEBP');
+    if (file.size > 5 * 1024 * 1024)               return fail('Max 5MB');
+
+    // Resolve the question the slot/paste was aimed at, NOT whatever happens to
+    // be on screen now — an explanation can auto-advance mid-upload.
+    const target = qid
+      ? questionsRef.current.find(x => x.id === qid)
+      : questionsRef.current[qIdxRef.current];
+    if (!target?.id) return fail('Question gone');
+    if (!adminSession) return fail('Admin session required');
+
+    setDevImgMsg(null);
+    setDevImgBusy(field);
+    try {
+      const base64 = await new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(r.result);
+        r.onerror = reject;
+        r.readAsDataURL(file);
+      });
+      const headers = { 'Content-Type': 'application/json', 'x-admin-password': adminSession };
+      const upRes = await fetch(`${SERVER_URL}/admin/upload-image`, {
+        method: 'POST', headers,
+        // A pasted screenshot has no filename; the server only uses it for the
+        // storage key's suffix, so any stable name works.
+        body: JSON.stringify({ base64, filename: file.name || 'pasted.png', mimeType: file.type }),
+      });
+      const upData = await upRes.json().catch(() => ({}));
+      if (!upRes.ok) throw new Error(upData.error || `Upload failed (${upRes.status})`);
+
+      const putRes = await fetch(`${SERVER_URL}/admin/${retireEndpoint}/${encodeURIComponent(target.id)}`, {
+        method: 'PUT', headers, body: JSON.stringify({ [field]: upData.url }),
+      });
+      const putData = await putRes.json().catch(() => ({}));
+      if (!putRes.ok) throw new Error(putData.error || `Save failed (${putRes.status})`);
+
+      applyDevImage(field, upData.url, target.id);
+      setDevImgBusy(null);
+      setDevImgMsg({ field, kind: 'ok', text: 'Saved' });
+      setTimeout(() => setDevImgMsg(null), 2000);
+    } catch (err) {
+      fail(err.message || 'Failed');
+    }
+  }, [adminSession, retireEndpoint, applyDevImage]);
+
+  // Ctrl+V anywhere on the page while dev mode is on. Recomputed from state
+  // rather than reusing `authoringOfficial` below, because that is derived
+  // AFTER this component's early returns — a hook depending on it would run
+  // conditionally. Same inputs, so the two never disagree.
+  const devImageAuthoring = (!!adminSession || isModerator) && devHlMode;
+
+  // Read the armed target through a ref so the listener below doesn't need
+  // re-binding every time it changes.
+  const devImgArmedRef = useRef(devImgArmed);
+  devImgArmedRef.current = devImgArmed;
+
+  useEffect(() => {
+    if (!devImageAuthoring) return;
+    const onPaste = (e) => {
+      // Ignore pastes aimed at a real input — a dev typing into a field should
+      // still get normal paste behaviour.
+      const t = e.target;
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+      const items = e.clipboardData?.items || [];
+      for (const item of items) {
+        if (item.type?.startsWith('image/')) {
+          const file = item.getAsFile();
+          if (file) {
+            e.preventDefault();
+            const { field, qid } = devImgArmedRef.current;
+            uploadDevImage(field, file, qid);
+          }
+          return;
+        }
+      }
+    };
+    document.addEventListener('paste', onPaste);
+    return () => document.removeEventListener('paste', onPaste);
+  }, [devImageAuthoring, uploadDevImage]);
+
+  // Point Ctrl+V at whichever half is actually on screen: the stem while the
+  // question is live, the explanation once it is revealed. Clicking either slot
+  // still overrides this.
+  useEffect(() => {
+    setDevImgArmed({
+      field: revealed ? 'explanation_image_url' : 'image_url',
+      qid: questionsRef.current[qIdxRef.current]?.id ?? null,
+    });
+  }, [revealed, qIdx]);
 
   // Stable per-question id (survives the option shuffle — shuffle keeps `id`).
   const currentQid = questions[qIdx]?.id;
@@ -1311,6 +1483,19 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
               <img src={q.image_url} alt="Question" style={{maxWidth:'100%', maxHeight:'300px', borderRadius:'8px', margin:'12px auto', display:'block'}} onError={e => { e.target.style.display = 'none'; }} />
             </div>
           )}
+          {authoringOfficial && (
+            <DevImageSlot
+              field="image_url"
+              label="Stem"
+              qid={q?.id}
+              armed={devImgArmed.field === 'image_url'}
+              busy={devImgBusy === 'image_url'}
+              message={devImgMsg?.field === 'image_url' ? devImgMsg : null}
+              currentUrl={q?.image_url}
+              onArm={() => setDevImgArmed({ field: 'image_url', qid: q?.id ?? null })}
+              onFile={uploadDevImage}
+            />
+          )}
 
           {/* Calculator button - appears below question */}
           <button
@@ -1451,6 +1636,19 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
                   alt="Explanation"
                   className="rr-explanation-img"
                   onError={e => { e.target.style.display = 'none'; }}
+                />
+              )}
+              {authoringOfficial && (
+                <DevImageSlot
+                  field="explanation_image_url"
+                  label="Explanation"
+                  qid={q?.id}
+                  armed={devImgArmed.field === 'explanation_image_url'}
+                  busy={devImgBusy === 'explanation_image_url'}
+                  message={devImgMsg?.field === 'explanation_image_url' ? devImgMsg : null}
+                  currentUrl={q?.explanation_image_url}
+                  onArm={() => setDevImgArmed({ field: 'explanation_image_url', qid: q?.id ?? null })}
+                  onFile={uploadDevImage}
                 />
               )}
             </div>
