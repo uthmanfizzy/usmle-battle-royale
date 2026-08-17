@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useGameSettings } from '../contexts/GameSettingsContext';
 import { useTheme } from '../theme';
 import * as audio from '../audio';
@@ -94,11 +94,13 @@ function saveHi(subject, score) {
  *
  * Purely presentational: the upload/save is SoloGame's uploadDevImage.
  */
-function DevImageSlot({ field, label, qid, armed, busy, message, currentUrl, onArm, onFile }) {
+function DevImageSlot({ field, label, qid, armed, busy, message, currentUrl, onArm, onFile, reusable = [], onReuse }) {
   const [over, setOver] = useState(false);
+  const [picking, setPicking] = useState(false);
   const state = busy ? 'busy' : message?.kind === 'ok' ? 'ok' : message?.kind === 'err' ? 'err' : '';
 
   return (
+    <div className="dev-imgslot-wrap">
     <div
       className={`dev-imgslot${armed ? ' is-armed' : ''}${over ? ' is-over' : ''}${state ? ` is-${state}` : ''}`}
       onClick={onArm}
@@ -121,6 +123,43 @@ function DevImageSlot({ field, label, qid, armed, busy, message, currentUrl, onA
       </span>
       {/* Only one slot can receive a paste at a time, so say which. */}
       <span className="dev-imgslot-hint">{armed ? 'Ctrl+V here' : 'click to arm'}</span>
+      {/* Reuse an image already on another question in this set, instead of
+          uploading the same file again. */}
+      {reusable.length > 0 && (
+        <button
+          type="button"
+          className="dev-imgslot-reuse"
+          onClick={e => { e.stopPropagation(); setPicking(p => !p); }}
+          title="Use an image already on another question in this level"
+        >
+          {picking ? '✕' : `♻ ${reusable.length}`}
+        </button>
+      )}
+    </div>
+
+    {picking && (
+      <div className="dev-imgpick" onClick={e => e.stopPropagation()}>
+        <div className="dev-imgpick-head">
+          Images already used in this level — click one to use it for this {label.toLowerCase()}
+        </div>
+        <div className="dev-imgpick-grid">
+          {reusable.map(img => (
+            <button
+              key={img.url}
+              type="button"
+              className={`dev-imgpick-item${img.url === currentUrl ? ' is-current' : ''}`}
+              onClick={() => { setPicking(false); onReuse(field, img.url, qid); }}
+              title={img.url === currentUrl ? 'Already used here' : img.url}
+            >
+              <img src={img.url} alt="" loading="lazy" onError={e => { e.target.style.visibility = 'hidden'; }} />
+              {/* How many questions in this set already point at this file —
+                  the reuse count is the whole reason this picker exists. */}
+              <span className="dev-imgpick-uses">{img.uses}×</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    )}
     </div>
   );
 }
@@ -608,24 +647,50 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
     }
   }, []);
 
-  const uploadDevImage = useCallback(async (field, file, qid) => {
-    const allowed = ['image/jpeg', 'image/png', 'image/webp'];
-    const fail = (text) => {
-      setDevImgBusy(null);
-      setDevImgMsg({ field, kind: 'err', text });
-      setTimeout(() => setDevImgMsg(null), 3200);
-    };
-    if (!file || !file.type?.startsWith('image/')) return fail('Images only');
-    if (!allowed.includes(file.type))              return fail('JPG, PNG or WEBP');
-    if (file.size > 5 * 1024 * 1024)               return fail('Max 5MB');
+  const devImgFail = useCallback((field, text) => {
+    setDevImgBusy(null);
+    setDevImgMsg({ field, kind: 'err', text });
+    setTimeout(() => setDevImgMsg(null), 3200);
+  }, []);
 
+  // Point a question's image field at a URL. Shared by "upload a new file" and
+  // "reuse one already on another question in this set" — reuse is just this
+  // step without the upload, which is the whole point: one stored image, many
+  // questions, no duplicate uploads.
+  const saveDevImage = useCallback(async (field, url, qid) => {
     // Resolve the question the slot/paste was aimed at, NOT whatever happens to
-    // be on screen now — an explanation can auto-advance mid-upload.
+    // be on screen now — an explanation can auto-advance mid-flight.
     const target = qid
       ? questionsRef.current.find(x => x.id === qid)
       : questionsRef.current[qIdxRef.current];
-    if (!target?.id) return fail('Question gone');
-    if (!adminSession) return fail('Admin session required');
+    if (!target?.id) return devImgFail(field, 'Question gone');
+    if (!adminSession) return devImgFail(field, 'Admin session required');
+
+    setDevImgMsg(null);
+    setDevImgBusy(field);
+    try {
+      const res = await fetch(`${SERVER_URL}/admin/${retireEndpoint}/${encodeURIComponent(target.id)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'x-admin-password': adminSession },
+        body: JSON.stringify({ [field]: url }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `Save failed (${res.status})`);
+      applyDevImage(field, url, target.id);
+      setDevImgBusy(null);
+      setDevImgMsg({ field, kind: 'ok', text: 'Saved' });
+      setTimeout(() => setDevImgMsg(null), 2000);
+    } catch (err) {
+      devImgFail(field, err.message || 'Failed');
+    }
+  }, [adminSession, retireEndpoint, applyDevImage, devImgFail]);
+
+  const uploadDevImage = useCallback(async (field, file, qid) => {
+    const allowed = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!file || !file.type?.startsWith('image/')) return devImgFail(field, 'Images only');
+    if (!allowed.includes(file.type))              return devImgFail(field, 'JPG, PNG or WEBP');
+    if (file.size > 5 * 1024 * 1024)               return devImgFail(field, 'Max 5MB');
+    if (!adminSession) return devImgFail(field, 'Admin session required');
 
     setDevImgMsg(null);
     setDevImgBusy(field);
@@ -636,30 +701,38 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
         r.onerror = reject;
         r.readAsDataURL(file);
       });
-      const headers = { 'Content-Type': 'application/json', 'x-admin-password': adminSession };
       const upRes = await fetch(`${SERVER_URL}/admin/upload-image`, {
-        method: 'POST', headers,
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-admin-password': adminSession },
         // A pasted screenshot has no filename; the server only uses it for the
         // storage key's suffix, so any stable name works.
         body: JSON.stringify({ base64, filename: file.name || 'pasted.png', mimeType: file.type }),
       });
       const upData = await upRes.json().catch(() => ({}));
       if (!upRes.ok) throw new Error(upData.error || `Upload failed (${upRes.status})`);
-
-      const putRes = await fetch(`${SERVER_URL}/admin/${retireEndpoint}/${encodeURIComponent(target.id)}`, {
-        method: 'PUT', headers, body: JSON.stringify({ [field]: upData.url }),
-      });
-      const putData = await putRes.json().catch(() => ({}));
-      if (!putRes.ok) throw new Error(putData.error || `Save failed (${putRes.status})`);
-
-      applyDevImage(field, upData.url, target.id);
-      setDevImgBusy(null);
-      setDevImgMsg({ field, kind: 'ok', text: 'Saved' });
-      setTimeout(() => setDevImgMsg(null), 2000);
+      await saveDevImage(field, upData.url, qid);
     } catch (err) {
-      fail(err.message || 'Failed');
+      devImgFail(field, err.message || 'Failed');
     }
-  }, [adminSession, retireEndpoint, applyDevImage]);
+  }, [adminSession, saveDevImage, devImgFail]);
+
+  // Every distinct image already used by the questions in THIS run — which is
+  // exactly "the other questions in this level/topic". Built from the questions
+  // already in memory, so the picker costs no extra request. Deduped by URL:
+  // the same file reused across five questions is one entry, with the count.
+  const reusableDevImages = useMemo(() => {
+    const byUrl = new Map();
+    for (const item of questions) {
+      for (const f of ['explanation_image_url', 'image_url']) {
+        const url = item?.[f];
+        if (!url) continue;
+        const entry = byUrl.get(url) || { url, uses: 0 };
+        entry.uses += 1;
+        byUrl.set(url, entry);
+      }
+    }
+    return [...byUrl.values()].sort((a, b) => b.uses - a.uses);
+  }, [questions]);
 
   // Ctrl+V anywhere on the page while dev mode is on. Recomputed from state
   // rather than reusing `authoringOfficial` below, because that is derived
@@ -1494,6 +1567,8 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
               currentUrl={q?.image_url}
               onArm={() => setDevImgArmed({ field: 'image_url', qid: q?.id ?? null })}
               onFile={uploadDevImage}
+              reusable={reusableDevImages}
+              onReuse={saveDevImage}
             />
           )}
 
@@ -1649,6 +1724,8 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
                   currentUrl={q?.explanation_image_url}
                   onArm={() => setDevImgArmed({ field: 'explanation_image_url', qid: q?.id ?? null })}
                   onFile={uploadDevImage}
+                  reusable={reusableDevImages}
+                  onReuse={saveDevImage}
                 />
               )}
             </div>
