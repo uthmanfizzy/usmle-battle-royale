@@ -1080,3 +1080,36 @@ CREATE POLICY "server_full_access_uworld_question_ratings"
 -- admin tree reports needs_migration for a chapter bucket instead of silently
 -- showing General's cards, and the menu returns no direct_count. Nothing
 -- breaks, the feature just isn't there yet.
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- HIGHLIGHTS ON JOURNEY / BOSS QUESTIONS (run in the SQL editor)
+-- ─────────────────────────────────────────────────────────────────────────────
+-- ALTER TABLE explanation_highlights
+--   DROP CONSTRAINT IF EXISTS explanation_highlights_question_id_fkey;
+--
+-- WHY: explanation_highlights.question_id carried a foreign key into the main
+-- `questions` table, so highlighting was silently impossible on First Aid
+-- Journey levels and bosses — those live in journey_questions / boss_questions
+-- with their own UUID id space, so every insert was rejected:
+--
+--   insert or update on table "explanation_highlights" violates foreign key
+--   constraint "explanation_highlights_question_id_fkey"  (SQLSTATE 23503)
+--
+-- The client creates the highlight optimistically and rolls it back when the
+-- POST fails, so the only symptom was the highlight appearing for a moment and
+-- then vanishing, with nothing on screen to say why.
+--
+-- question_id becomes a plain id spanning all three question tables. That is
+-- already how the rest of the app treats these ids — activity_sessions and the
+-- retirement queue both work across main/journey/boss the same way, and the
+-- POST route resolves nothing through the FK, it only inserts the id it was
+-- given.
+--
+-- TRADE-OFF: dropping the FK also drops its ON DELETE cascade, so deleting a
+-- main-bank question now leaves its highlight rows behind. They are inert —
+-- every read filters by question_id, so orphans are never served — but they do
+-- accumulate. To clear them out later:
+--   DELETE FROM explanation_highlights h
+--    WHERE NOT EXISTS (SELECT 1 FROM questions        q WHERE q.question_id = h.question_id)
+--      AND NOT EXISTS (SELECT 1 FROM journey_questions j WHERE j.id::text   = h.question_id)
+--      AND NOT EXISTS (SELECT 1 FROM boss_questions    b WHERE b.id::text   = h.question_id);

@@ -1009,6 +1009,43 @@ html[data-study="on"] .solo-body .stem-table td { color: #1c2030; }
 }
 .dev-imgslot.is-busy { cursor: progress; }
 
+/* Why a highlight vanished. Fixed so it is visible wherever the selection was. */
+.hl-error-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 22px;
+  transform: translateX(-50%);
+  z-index: 10000;
+  max-width: min(90vw, 520px);
+  padding: 10px 16px;
+  border-radius: 10px;
+  border: 1px solid rgba(231, 76, 60, 0.6);
+  background: rgba(40, 12, 10, 0.96);
+  color: #ffb4ac;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.45;
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.5);
+}
+
+/* Shown in place of the image slots when dev mode is on but the owner password
+   is not stored — a moderator has the dev controls but not this power. */
+.dev-imgslot-unlock {
+  display: block;
+  width: 100%;
+  margin: 10px 0;
+  padding: 8px 12px;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  border-radius: 8px;
+  cursor: pointer;
+  border: 1px dashed rgba(255, 215, 0, 0.5);
+  background: rgba(255, 215, 0, 0.1);
+  color: #ffd700;
+}
+.dev-imgslot-unlock:hover { background: rgba(255, 215, 0, 0.2); }
+
 .dev-imgslot-wrap { margin: 10px 0; }
 .dev-imgslot-wrap .dev-imgslot { margin: 0; }
 

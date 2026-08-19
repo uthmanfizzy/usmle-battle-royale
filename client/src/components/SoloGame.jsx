@@ -331,6 +331,9 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   // out of circulation mid-game. The server re-checks both — this only decides
   // whether the controls render.
   const [isModerator, setIsModerator] = useState(false);
+  // Transient reason a highlight failed to save. Without this the optimistic
+  // row is simply removed again and the highlight appears to flicker away.
+  const [hlError, setHlError] = useState('');
   useEffect(() => {
     const token = getToken();
     if (!token) { setIsModerator(false); return; }
@@ -1244,6 +1247,16 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
         let detail = `HTTP ${r.status}`;
         try { const e = await r.json(); detail = e.detail || e.error || detail; } catch {}
         console.error(`[highlight save] failed (${region}, ${isFormat ? `format=${payload.format}` : `color=${payload.color}`}):`, detail);
+        // Say WHY on screen. The rollback below makes a failure look exactly
+        // like "the highlight flashed and vanished", which is impossible to
+        // diagnose from the game — a foreign-key rejection on a Journey/boss
+        // question in particular has nothing to do with what the user did.
+        setHlError(
+          /foreign key/i.test(detail)
+            ? 'Highlights aren’t enabled for this question type yet — run the explanation_highlights migration in schema.sql.'
+            : `Couldn’t save highlight — ${detail}`
+        );
+        setTimeout(() => setHlError(''), 6000);
         return null;
       })
       .then(data => {
@@ -1255,6 +1268,8 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
       })
       .catch((err) => {
         console.error('[highlight save] network error:', err);
+        setHlError('Couldn’t save highlight — network error.');
+        setTimeout(() => setHlError(''), 6000);
         setHighlights(hs => hs.filter(h => h.id !== tmpId));
       });
   }
@@ -1293,6 +1308,20 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   // and a scroll lock would still leave the stem sitting in view above it.
   const timeUpLock = uworldSkin && explanationExpired && !rated;
 
+  // Writing an image goes through /admin/upload-image and the admin question
+  // PUT, both of which are adminAuth — the OWNER password, not the moderator
+  // flag. A moderator has isAdminSession (so the dev controls render) but no
+  // password, which used to surface as a dead slot that failed with "Admin
+  // session required" only after they tried to use it. Gate on the credential
+  // that is actually required, and offer the unlock when it is missing.
+  const canWriteImages = authoringOfficial && !!adminSession;
+  const needsImageUnlock = authoringOfficial && !adminSession;
+  const imageUnlockNotice = needsImageUnlock && (
+    <button type="button" className="dev-imgslot-unlock" onClick={unlockDevMode}>
+      🔑 Enter the admin password to add images
+    </button>
+  );
+
   return (
     <div className={`${screenClass}${timeUpLock ? ' uw-timeup' : ''}`} ref={screenRef}>
       {/* Developer-mode unlock: only when ?dev=1 is in the URL and not yet unlocked.
@@ -1302,6 +1331,8 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
           🔧 Enable Developer Mode
         </button>
       )}
+      {/* Fixed, so it is seen wherever on the page the selection was made. */}
+      {hlError && <div className="hl-error-toast">{hlError}</div>}
       {!study && (
         <div className="solo-topbar">
           {levelLabel && <span className="topbar-level-label">{levelLabel}</span>}
@@ -1556,7 +1587,8 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
               <img src={q.image_url} alt="Question" style={{maxWidth:'100%', maxHeight:'300px', borderRadius:'8px', margin:'12px auto', display:'block'}} onError={e => { e.target.style.display = 'none'; }} />
             </div>
           )}
-          {authoringOfficial && (
+          {needsImageUnlock && imageUnlockNotice}
+          {canWriteImages && (
             <DevImageSlot
               field="image_url"
               label="Stem"
@@ -1713,7 +1745,8 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
                   onError={e => { e.target.style.display = 'none'; }}
                 />
               )}
-              {authoringOfficial && (
+              {needsImageUnlock && imageUnlockNotice}
+              {canWriteImages && (
                 <DevImageSlot
                   field="explanation_image_url"
                   label="Explanation"
