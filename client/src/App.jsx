@@ -59,6 +59,13 @@ export default function App() {
   // When returning to Training Grounds via game-over "Back to Topics", auto-open the
   // subject whose topic was just practiced (so we land on its topic list, not the grid).
   const [tgInitialSubject, setTgInitialSubject] = useState(null);
+  // Where Training Grounds' "Back to Game Modes" returns to. It is reachable
+  // from two different screens — the Choose Your Path split and the Play Page —
+  // so a fixed destination is wrong for one of them. Back used to always go to
+  // play_page, which dumped anyone who entered from Choose Your Path onto the
+  // online page they had never asked for. Defaults to mode_split, which is also
+  // the right home for the ?training=1 deep link.
+  const [tgReturnPhase, setTgReturnPhase] = useState('mode_split');
   const [journeyContext,  setJourneyContext]  = useState(null); // { subject, levelKey, questionsUrl, levelLabel, isBonus? }
   const [journeyReentry,  setJourneyReentry]  = useState(null); // { pct, subject, levelKey?, questionsUrl?, levelLabel?, isBonus? }
   const [playInitialMode, setPlayInitialMode] = useState(null); // Story→AnKing passes 'anking'; Online leaves null
@@ -564,6 +571,8 @@ export default function App() {
     if (mode === 'tower') {
       setPhase('tower');
     } else if (mode === 'training_grounds') {
+      // Entered from the Play Page, so Back belongs there.
+      setTgReturnPhase('play_page');
       setPhase('training_grounds');
     } else {
       // For multiplayer modes, handle based on action
@@ -893,7 +902,7 @@ export default function App() {
         <ModeSplit
           onStory={() => setPhase('story_menu')}
           onOnline={() => { setPlayInitialMode(null); setPhase('play_page'); }}
-          onTraining={() => setPhase('training_grounds')}
+          onTraining={() => { setTgReturnPhase('mode_split'); setPhase('training_grounds'); }}
           onBack={() => window.location.href = '/dashboard'}
         />
         </RouteErrorBoundary>
@@ -1203,7 +1212,7 @@ export default function App() {
         <RouteErrorBoundary name="TrainingGrounds">
         <TrainingGrounds
           user={user}
-          onBack={() => setPhase('play_page')}
+          onBack={() => setPhase(tgReturnPhase)}
           onStartPractice={handleStartTrainingPractice}
           initialSubject={tgInitialSubject}
           onInitialConsumed={() => setTgInitialSubject(null)}
