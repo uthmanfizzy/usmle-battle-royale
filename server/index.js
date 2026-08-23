@@ -230,6 +230,30 @@ const QUESTIONS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes — how often the cheap 
 const QUESTION_FULL_RELOAD_MS = 6 * 60 * 60 * 1000; // 6 hours
 
 // Load questions from Supabase, fall back to local file
+/**
+ * Fall back to the bundled questions.js — but ONLY when there is nothing better
+ * already in memory.
+ *
+ * A reload that fails must never downgrade a good bank. This is not theoretical:
+ * when Supabase hit its egress quota and started answering 402, the periodic
+ * refresh threw, swapped the live 817-question bank for the 46-question local
+ * placeholder file, and kept serving that. Worse than stale — the local file
+ * only covers 7 subjects, so a request for one it lacks (Pulmonology,
+ * Immunology, …) fell through to "serve the whole pool" and handed players
+ * questions from the wrong subject entirely.
+ *
+ * Slightly stale questions beat 46 placeholders and wrong-subject content, so
+ * on any failure we keep what we have and just log it.
+ */
+function useLocalQuestionsFallback(reason) {
+  if (questionBank.length > 0) {
+    console.warn(`[Questions] ${reason} — KEEPING the ${questionBank.length} questions already in memory.`);
+    return;
+  }
+  questionBank = [...require('./questions')];
+  console.log(`[Questions] ${reason} and nothing cached — using local questions.js (${questionBank.length}).`);
+}
+
 async function loadQuestionsFromDB() {
   if (!supabase) {
     console.log('[Questions] Supabase not available, using local questions.js');
@@ -265,14 +289,11 @@ async function loadQuestionsFromDB() {
       questionsLastLoaded = Date.now();
       console.log(`[Questions] Loaded ${questionBank.length} questions from Supabase`);
     } else {
-      // No questions in Supabase yet, fall back to local file
-      console.log('[Questions] No questions in Supabase, using local questions.js');
-      questionBank = [...require('./questions')];
+      useLocalQuestionsFallback('No questions returned from Supabase');
     }
   } catch (err) {
     console.error('[Questions] Error loading from Supabase:', err.message);
-    console.log('[Questions] Falling back to local questions.js');
-    questionBank = [...require('./questions')];
+    useLocalQuestionsFallback('load failed');
   }
 }
 
