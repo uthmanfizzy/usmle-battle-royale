@@ -64,6 +64,7 @@ export default function JourneyMode({
   const [error,       setError]       = useState('');
   const [authExpired, setAuthExpired] = useState(false);
   const [confirmNode,  setConfirmNode]  = useState(null); // { kind, name, questionCount, bestPct, completed, levelKey, questionsUrl }
+  const [confError,    setConfError]    = useState('');   // why a confidence rating failed to save
   const [videoModalOpen, setVideoModalOpen] = useState(false); // recommended-videos list, opened from the confirm card
   const [interstitial, setInterstitial] = useState(null); // null | { status: 'saving'|'complete'|'tryagain'|'save_failed', pct, threshold?, retryPayload? }
   const [bgUrl,       setBgUrl]       = useState(null);       // admin-set backdrop (landing-images slot 'journey_bg')
@@ -706,7 +707,7 @@ export default function JourneyMode({
   );
 
   const openConfirm = (node) => { setVideoModalOpen(false); setConfirmNode(node); };
-  const closeConfirm = () => { setVideoModalOpen(false); setConfirmNode(null); };
+  const closeConfirm = () => { setVideoModalOpen(false); setConfirmNode(null); setConfError(''); };
 
   // Save the student's self-rated confidence for a completed level. Optimistic:
   // the card and the node update immediately, and a failure rolls both back —
@@ -715,6 +716,7 @@ export default function JourneyMode({
     const previous = confirmNode?.confidence ?? null;
     // Tapping the current rating again clears it.
     const next = previous === value ? null : value;
+    setConfError('');
     setConfirmNode(c => (c ? { ...c, confidence: next } : c));
     setPath(p => p && ({
       ...p,
@@ -734,8 +736,17 @@ export default function JourneyMode({
         body: JSON.stringify({ subject: subject.id, level_key: levelKey, confidence: next }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok || data.ok === false) throw new Error(data.error || 'save failed');
-    } catch {
+      if (!res.ok || data.ok === false) {
+        // Say WHY. The rollback below restores the previous state, which on its
+        // own is indistinguishable from the button simply not working.
+        throw new Error(
+          data.needs_migration
+            ? 'Not set up yet — run the journey_level_confidence migration in schema.sql.'
+            : (data.error || `Couldn’t save (HTTP ${res.status}).`)
+        );
+      }
+    } catch (err) {
+      setConfError(err.message || 'Couldn’t save.');
       setConfirmNode(c => (c ? { ...c, confidence: previous } : c));
       setPath(p => p && ({
         ...p,
@@ -897,6 +908,7 @@ export default function JourneyMode({
                     </button>
                   ))}
                 </div>
+                {confError && <span className="jm-conf-error">{confError}</span>}
               </div>
             )}
 
