@@ -1113,3 +1113,40 @@ CREATE POLICY "server_full_access_uworld_question_ratings"
 --    WHERE NOT EXISTS (SELECT 1 FROM questions        q WHERE q.question_id = h.question_id)
 --      AND NOT EXISTS (SELECT 1 FROM journey_questions j WHERE j.id::text   = h.question_id)
 --      AND NOT EXISTS (SELECT 1 FROM boss_questions    b WHERE b.id::text   = h.question_id);
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- JOURNEY LEVEL CONFIDENCE (run in the SQL editor)
+-- ─────────────────────────────────────────────────────────────────────────────
+-- CREATE TABLE IF NOT EXISTS journey_level_confidence (
+--   id         UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+--   user_id    UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+--   subject    TEXT        NOT NULL,
+--   level_key  TEXT        NOT NULL,
+--   confidence TEXT        NOT NULL CHECK (confidence IN ('needs_work','getting_there','confident')),
+--   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+-- );
+-- CREATE UNIQUE INDEX IF NOT EXISTS idx_journey_level_confidence_user_level
+--   ON journey_level_confidence(user_id, level_key);
+-- ALTER TABLE journey_level_confidence ENABLE ROW LEVEL SECURITY;
+-- DROP POLICY IF EXISTS "server_full_access_journey_level_confidence" ON journey_level_confidence;
+-- CREATE POLICY "server_full_access_journey_level_confidence"
+--   ON journey_level_confidence FOR ALL USING (true) WITH CHECK (true);
+--
+-- WHY: after finishing a level a student can say how well they actually know
+-- it — Needs Work / Getting There / Confident — and the map colours that node
+-- accordingly, so weak areas stand out when deciding what to revise. The score
+-- is already on the node; this is the thing a score cannot tell you.
+--
+-- DESCRIPTIVE ONLY. It never touches progress, unlocks, mastery or scoring —
+-- nothing a student sets here can advance the journey. Offered only on levels
+-- they have already completed.
+--
+-- level_key is TEXT, not a FK: it holds journey_levels.id for a level and the
+-- synthetic 'boss:<chapter_id>' / 'boss:ultimate' keys for bosses, exactly as
+-- journey_progress already keys them. Unique on (user_id, level_key) — one
+-- current answer per level, no history, re-rating just moves it.
+--
+-- DEPLOY ORDER: the server treats the table as optional and re-probes (it is
+-- not a one-way latch), so running this migration takes effect within a minute
+-- on a server that is already up. Before it runs, levels simply report no
+-- confidence and the map renders exactly as it did before.

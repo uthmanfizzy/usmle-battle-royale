@@ -2166,3 +2166,78 @@
 @media (max-width: 420px) {
   .jm-order-btn { padding: 7px 11px; font-size: 11px; }
 }
+
+/* ── Level confidence (self-rated, completed levels only) ──────────────────
+   Picker inside the confirm card, and a ring on the node itself. The node
+   keeps its gold "done" fill — the rating is an overlay on top of completion,
+   not a replacement for it, so a completed level still reads as completed. */
+.jm-confirm-conf {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  margin: 2px 0 12px;
+}
+
+.jm-confirm-conf-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-soft);
+}
+
+.jm-conf-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+}
+
+.jm-conf-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 12px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 999px;
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--text-soft);
+  transition: background 0.14s ease, border-color 0.14s ease, color 0.14s ease;
+}
+.jm-conf-btn:hover { background: rgba(255, 255, 255, 0.14); }
+
+.jm-conf-btn--needs_work.is-on {
+  border-color: rgba(231, 76, 60, 0.8);
+  background: rgba(231, 76, 60, 0.22);
+  color: #ffb4ac;
+}
+.jm-conf-btn--getting_there.is-on {
+  border-color: rgba(232, 176, 75, 0.85);
+  background: rgba(232, 176, 75, 0.22);
+  color: #f5cf87;
+}
+.jm-conf-btn--confident.is-on {
+  border-color: rgba(61, 220, 132, 0.8);
+  background: rgba(61, 220, 132, 0.2);
+  color: #96e8ba;
+}
+
+/* Node ring. A coloured outline rather than a new fill, so the gold completed
+   node underneath is still obviously completed. */
+.jm-node--conf-needs_work {
+  outline: 3px solid rgba(231, 76, 60, 0.9);
+  outline-offset: 2px;
+}
+.jm-node--conf-getting_there {
+  outline: 3px solid rgba(232, 176, 75, 0.95);
+  outline-offset: 2px;
+}
+.jm-node--conf-confident {
+  outline: 3px solid rgba(61, 220, 132, 0.9);
+  outline-offset: 2px;
+}

@@ -6,6 +6,16 @@ import { getStarCount } from '../utils/journeyStars';
 import './JourneyMode.css';
 
 const SERVER = 'https://usmle-battle-royale-production.up.railway.app';
+
+// Self-assessment offered on a level you've already completed. Deliberately
+// phrased as revision states rather than grades — the score is already on the
+// node; this is the bit a score can't tell you. Order is weakest first, which
+// is also the order they render in. Keys must match the server's CHECK.
+const JM_CONFIDENCE = [
+  { key: 'needs_work',    label: 'Needs Work',    icon: '🔴' },
+  { key: 'getting_there', label: 'Getting There', icon: '🟡' },
+  { key: 'confident',     label: 'Confident',     icon: '🟢' },
+];
 const ADMIN_KEY = 'usmle_admin_session';
 
 // Admin-authenticated fetch — only ever used in editor mode (admin-only path).
@@ -698,6 +708,45 @@ export default function JourneyMode({
   const openConfirm = (node) => { setVideoModalOpen(false); setConfirmNode(node); };
   const closeConfirm = () => { setVideoModalOpen(false); setConfirmNode(null); };
 
+  // Save the student's self-rated confidence for a completed level. Optimistic:
+  // the card and the node update immediately, and a failure rolls both back —
+  // a rating that silently didn't stick is worse than one that visibly didn't.
+  async function setConfidence(levelKey, value) {
+    const previous = confirmNode?.confidence ?? null;
+    // Tapping the current rating again clears it.
+    const next = previous === value ? null : value;
+    setConfirmNode(c => (c ? { ...c, confidence: next } : c));
+    setPath(p => p && ({
+      ...p,
+      chapters: p.chapters.map(ch => ({
+        ...ch,
+        levels: ch.levels.map(l => (l.level_key === levelKey ? { ...l, confidence: next } : l)),
+      })),
+    }));
+    try {
+      const res = await fetch(`${SERVER}/api/journey/confidence`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+        // subject is the JOURNEY_SUBJECTS object here, not an id — every other
+        // call in this file sends subject.id, and sending the object would
+        // stringify to "[object Object]" and save under a subject that the
+        // subject-scoped read can never match.
+        body: JSON.stringify({ subject: subject.id, level_key: levelKey, confidence: next }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.ok === false) throw new Error(data.error || 'save failed');
+    } catch {
+      setConfirmNode(c => (c ? { ...c, confidence: previous } : c));
+      setPath(p => p && ({
+        ...p,
+        chapters: p.chapters.map(ch => ({
+          ...ch,
+          levels: ch.levels.map(l => (l.level_key === levelKey ? { ...l, confidence: previous } : l)),
+        })),
+      }));
+    }
+  }
+
   const renderLevelNode = (l, li) => {
     const side       = takeSide();
     const showSeg    = nodeCount > 0;
@@ -712,6 +761,10 @@ export default function JourneyMode({
       l.completed ? 'jm-node--done' : '',
       isFrontier ? 'jm-node--frontier' : '',
       empty ? 'jm-node--empty' : '',
+      // Self-rated confidence tints a completed node so weak areas are
+      // findable at a glance. Only on completed levels — it is the only place
+      // it can be set, and an unrated node keeps the normal "done" look.
+      l.completed && l.confidence ? `jm-node--conf-${l.confidence}` : '',
     ].join(' ');
     const segState = l.completed ? 'done' : isFrontier ? 'current' : 'todo';
     const hasBonus = (l.bonus_question_count || 0) > 0;
@@ -730,6 +783,7 @@ export default function JourneyMode({
               questionsUrl: `${SERVER}/api/journey-questions?level_id=${l.level_key}`,
               bonusQuestionCount: l.bonus_question_count || 0,
               bonusUnlocked: !!l.bonus_unlocked,
+              confidence: l.confidence || null,
             })}
           >
             <span className="jm-node-face">
@@ -821,6 +875,30 @@ export default function JourneyMode({
               {confirmNode.bestPct > 0 && <span>Best: {confirmNode.bestPct}%</span>}
             </div>
             <p className="jm-confirm-threshold">Pass with ≥{threshold}% to unlock the next {confirmNode.kind === 'level' ? 'level' : 'stage'}</p>
+
+            {/* Self-rated confidence, on completed levels only — before you've
+                played it you have nothing to rate. Purely descriptive: it
+                colours the node on the map so weak areas are easy to find
+                again, and never affects progress, unlocks or scoring. */}
+            {confirmNode.completed && confirmNode.kind === 'level' && (
+              <div className="jm-confirm-conf">
+                <span className="jm-confirm-conf-label">How well do you know this?</span>
+                <div className="jm-conf-row" role="group" aria-label="Your confidence on this level">
+                  {JM_CONFIDENCE.map(c => (
+                    <button
+                      key={c.key}
+                      type="button"
+                      className={`jm-conf-btn jm-conf-btn--${c.key}${confirmNode.confidence === c.key ? ' is-on' : ''}`}
+                      aria-pressed={confirmNode.confidence === c.key}
+                      onClick={() => setConfidence(confirmNode.levelKey, c.key)}
+                      title={confirmNode.confidence === c.key ? 'Tap again to clear' : c.label}
+                    >
+                      <span aria-hidden="true">{c.icon}</span> {c.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Question order — read at PLAY time, so switching here applies to
                 this run without reopening the card. */}

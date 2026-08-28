@@ -5460,12 +5460,17 @@ app.get('/api/users/:userId/activity-sessions', async (req, res) => {
 // page, and "why I didn't study" is personal (illness, work, family). Notes are
 // never returned for anyone but the requesting user.
 let hasGapNotes = true;
-function isMissingTable(error) {
+// 42P01 = undefined_table; PostgREST reports an unknown table as PGRST205.
+// `table` narrows the message-text fallbacks to one table, for callers that
+// have several optional tables in play and must not confuse them.
+function isMissingTable(error, table = null) {
   if (!error) return false;
   const msg = `${error.message || ''} ${error.details || ''}`.toLowerCase();
-  return error.code === '42P01' || error.code === 'PGRST205' ||
-         (msg.includes('activity_gap_notes') && msg.includes('does not exist')) ||
-         (msg.includes('could not find the table') && msg.includes('activity_gap_notes'));
+  if (error.code === '42P01' || error.code === 'PGRST205') return true;
+  if (!table) return false;
+  const t = table.toLowerCase();
+  return (msg.includes(t) && msg.includes('does not exist')) ||
+         (msg.includes('could not find the table') && msg.includes(t));
 }
 
 const GAP_NOTE_MAX = 500;
@@ -5488,7 +5493,7 @@ app.get('/api/activity/gap-notes', requireAuth, async (req, res) => {
       .gte('gap_start', dayStart)
       .lt('gap_start', dayEnd);
     if (error) {
-      if (isMissingTable(error)) {
+      if (isMissingTable(error, 'activity_gap_notes')) {
         hasGapNotes = false;
         console.warn('[gap-notes] activity_gap_notes table missing — run the migration in schema.sql');
       }
@@ -5536,7 +5541,7 @@ app.put('/api/activity/gap-notes', requireAuth, async (req, res) => {
     if (error) throw error;
     res.json({ ok: true, note });
   } catch (err) {
-    if (isMissingTable(err)) {
+    if (isMissingTable(err, 'activity_gap_notes')) {
       hasGapNotes = false;
       console.warn('[gap-notes] activity_gap_notes table missing — run the migration in schema.sql');
     } else {
@@ -10229,6 +10234,30 @@ app.get('/api/videos', async (req, res) => {
 // is >=, admin-configurable, and gates PROGRESSION rather than a reward).
 const JOURNEY_BONUS_THRESHOLD_PCT = 80;
 
+// How well the student reckons they know a completed level. Self-assessment,
+// not a score — the map already shows the score. Order here is weakest first,
+// which is the order the buttons render in.
+const JOURNEY_CONFIDENCE = ['needs_work', 'getting_there', 'confident'];
+
+// journey_level_confidence may not be migrated yet. Same re-probing flag as
+// hy_flashcards.chapter_id rather than a one-way ratchet: this migration gets
+// run against a server that is already up, so a latch would keep reporting
+// "missing" until the process happened to restart.
+let hasJourneyConfidence = true;
+let journeyConfProbeAt = 0;
+const JOURNEY_CONF_REPROBE_MS = 60_000;
+function shouldTryJourneyConfidence(force = false) {
+  if (hasJourneyConfidence) return true;
+  if (!force && Date.now() - journeyConfProbeAt < JOURNEY_CONF_REPROBE_MS) return false;
+  journeyConfProbeAt = Date.now();
+  return true;
+}
+function noteJourneyConfidenceMissing() {
+  if (hasJourneyConfidence) console.warn('[journey] journey_level_confidence missing — run the migration in schema.sql');
+  hasJourneyConfidence = false;
+  journeyConfProbeAt = Date.now();
+}
+
 async function buildJourneyPath(userId, subject) {
   const [chaptersRes, progressRes, ultBossRes] = await Promise.all([
     supabase.from('journey_chapters').select('*').eq('subject', subject)
@@ -10247,6 +10276,23 @@ async function buildJourneyPath(userId, subject) {
   }
   const chapterRows = chaptersRes.error ? [] : (chaptersRes.data || []);
   const progress    = progressRes.error ? [] : (progressRes.data || []);
+
+  // This user's self-rated confidence per level, folded into the same payload
+  // rather than a second request from the map. Missing table degrades to "none
+  // rated", which renders exactly as it did before the feature existed.
+  const confidenceByLevel = {};
+  if (shouldTryJourneyConfidence()) {
+    const { data, error } = await supabase
+      .from('journey_level_confidence')
+      .select('level_key, confidence')
+      .eq('user_id', userId)
+      .eq('subject', subject);
+    if (error) noteJourneyConfidenceMissing();
+    else {
+      hasJourneyConfidence = true;
+      for (const row of data || []) confidenceByLevel[row.level_key] = row.confidence;
+    }
+  }
   const bossCounts  = {};
   if (ultBossRes.error) {
     console.warn('[journey] ultimate boss count unavailable —', ultBossRes.error.message);
@@ -10356,6 +10402,8 @@ async function buildJourneyPath(userId, subject) {
         // it gates the next one.
         bonus_question_count: levelBonusCounts[l.id] || 0,
         bonus_unlocked: bestPct > JOURNEY_BONUS_THRESHOLD_PCT,
+        // Only meaningful once completed — the UI only offers it there.
+        confidence: confidenceByLevel[l.id] || null,
       };
     });
 
@@ -10410,6 +10458,57 @@ async function buildJourneyPath(userId, subject) {
     mastery: ultCompleted || ultAutoSkipped,
   };
 }
+
+/**
+ * PUT /api/journey/confidence  { subject, level_key, confidence }
+ *
+ * How well the student feels they know a level they have already completed.
+ * Purely descriptive: it colours the node on the map so weak areas stand out
+ * for revision. It does NOT touch progress, unlocks, mastery or scoring —
+ * nothing here can advance the journey.
+ *
+ * A null/empty confidence clears the rating.
+ */
+app.put('/api/journey/confidence', requireAuth, async (req, res) => {
+  const subject   = (req.body?.subject ?? '').toString().trim();
+  const levelKey  = (req.body?.level_key ?? '').toString().trim();
+  const raw       = (req.body?.confidence ?? '').toString().trim();
+  if (!subject || !levelKey) return res.status(400).json({ error: 'subject and level_key required' });
+  if (raw && !JOURNEY_CONFIDENCE.includes(raw)) {
+    return res.status(400).json({ error: `confidence must be one of: ${JOURNEY_CONFIDENCE.join(', ')}` });
+  }
+  if (!supabase) return res.json({ ok: false });
+  // Setting one is worth a real probe — it is the action that would otherwise
+  // look silently broken right after the migration is run.
+  if (!shouldTryJourneyConfidence(true)) return res.json({ ok: false, needs_migration: true });
+
+  try {
+    if (!raw) {
+      const { error } = await supabase.from('journey_level_confidence')
+        .delete().eq('user_id', req.userId).eq('level_key', levelKey);
+      if (error) throw error;
+      hasJourneyConfidence = true;
+      return res.json({ ok: true, confidence: null });
+    }
+    const { error } = await supabase.from('journey_level_confidence').upsert({
+      user_id: req.userId,
+      subject,
+      level_key: levelKey,
+      confidence: raw,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'user_id,level_key' });
+    if (error) throw error;
+    hasJourneyConfidence = true;
+    res.json({ ok: true, confidence: raw });
+  } catch (err) {
+    if (isMissingTable(err, 'journey_level_confidence') || isMissingColumn(err)) {
+      noteJourneyConfidenceMissing();
+      return res.json({ ok: false, needs_migration: true });
+    }
+    console.warn('[journey confidence] failed —', err.message);
+    res.json({ ok: false });
+  }
+});
 
 app.get('/api/journey/:subject', requireAuth, async (req, res) => {
   if (!supabase) return res.json({ subject: req.params.subject, threshold: 50, chapters: [], ultimate: null, mastery: false });
