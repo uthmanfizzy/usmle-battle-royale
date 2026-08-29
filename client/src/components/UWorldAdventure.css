@@ -588,3 +588,15 @@
   .uwa-title { justify-self: start; white-space: normal; }
   .uwa-card { padding: 20px 18px; }
 }
+
+/* Redo the whole system — set apart from the rating piles below it, because it
+   replays everything rather than revisiting what has already been answered. */
+.uwa-pile--redo {
+  border-color: rgba(63, 127, 214, 0.55);
+  background: linear-gradient(180deg, rgba(63, 127, 214, 0.16), rgba(63, 127, 214, 0.08));
+  margin-bottom: 10px;
+}
+.uwa-pile--redo:not(.is-disabled):hover {
+  border-color: rgba(63, 127, 214, 0.9);
+  background: linear-gradient(180deg, rgba(63, 127, 214, 0.24), rgba(63, 127, 214, 0.12));
+}

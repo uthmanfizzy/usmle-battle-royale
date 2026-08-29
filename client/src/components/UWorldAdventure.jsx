@@ -224,23 +224,24 @@ export default function UWorldAdventure() {
     return () => { cancelled = true; };
   }, [user?.id, loadOverall]);
 
-  // Rating-pile counts for "Review Rated Questions" — adventure-wide, same
-  // scope as the pace/projection above (one set of piles for the whole
-  // adventure, not one per subject).
-  const loadRatingCounts = useCallback(async () => {
-    if (!user?.id) return null;
-    const res = await authFetch('/api/uworld-questions/rating-counts');
+  // Rating-pile counts for "Review Rated Questions" — scoped to the OPEN
+  // SUBJECT. Revision is per system: a pile mixing biochemistry with
+  // pulmonology is not a session anyone would choose to sit. (The pace above
+  // stays adventure-wide; that one genuinely is a whole-adventure number.)
+  const loadRatingCounts = useCallback(async (subjectId) => {
+    if (!user?.id || !subjectId) return null;
+    const res = await authFetch(`/api/uworld-questions/rating-counts?subject=${encodeURIComponent(subjectId)}`);
     return res.json();
   }, [user?.id]);
 
   useEffect(() => {
-    if (!user?.id) return;
+    if (!user?.id || !selected) { setRatingCounts(null); return; }
     let cancelled = false;
-    loadRatingCounts()
+    loadRatingCounts(selected)
       .then(c => { if (!cancelled && c) setRatingCounts(c); })
       .catch(() => {});
     return () => { cancelled = true; };
-  }, [user?.id, loadRatingCounts]);
+  }, [user?.id, selected, loadRatingCounts]);
 
   // The pace is loaded ONCE per visit, not per subject — it belongs to the
   // adventure, so switching subjects must leave the slider exactly where the
@@ -346,7 +347,12 @@ export default function UWorldAdventure() {
     setReviewLoading(ratingKey);
     setReviewError('');
     try {
-      const res = await authFetch(`/api/uworld-questions/by-rating?rating=${encodeURIComponent(ratingKey)}&limit=${UWORLD_REVIEW_LIMIT}`);
+      // Always subject-scoped — the piles are per system, so the questions
+      // pulled for one must be too.
+      const res = await authFetch(
+        `/api/uworld-questions/by-rating?rating=${encodeURIComponent(ratingKey)}` +
+        `&subject=${encodeURIComponent(selected)}&limit=${UWORLD_REVIEW_LIMIT}`
+      );
       const data = await res.json();
       const qs = data.questions || [];
       if (qs.length === 0) {
@@ -688,37 +694,63 @@ export default function UWorldAdventure() {
           ))}
         </div>
 
-        {/* ── Review Rated Questions ───────────────────────────────────────
-            Revisit already-answered questions grouped by self-rating. Always
-            adventure-wide (not scoped to the open subject) — matches the
-            single adventure-wide pace above. Reviewing never touches the
+        {/* ── Review / redo, PER SYSTEM ────────────────────────────────────
+            Scoped to the open subject: a revision pile that mixes systems is
+            not a session anyone would choose to sit. Nothing here touches the
             3,659-question total or today's pace (SoloGame's uwaReview skips
-            seen-tracking), so a pile can be replayed as often as useful. */}
-        <h2 className="uwa-section-title">Review Rated Questions</h2>
-        <p className="uwa-intro" style={{ marginBottom: 14 }}>
-          Revisit questions you&apos;ve already answered, grouped by how well you knew them.
-          Reviewing doesn&apos;t count toward the {plannedTotal.toLocaleString()}-question total or today&apos;s pace.
-        </p>
-        {reviewError && <p className="uwa-error">{reviewError}</p>}
-        <div className="uwa-pile-list">
-          {UWORLD_RATING_PILES.map(p => {
-            const count = ratingCounts ? (ratingCounts[p.key === 'all' ? 'total' : p.key] ?? 0) : 0;
-            const loadingThis = reviewLoading === p.key;
-            const disabled = !ratingCounts || count === 0 || !!reviewLoading;
-            return (
-              <button
-                key={p.key}
-                type="button"
-                className={`uwa-pile${count === 0 ? ' is-disabled' : ''}`}
-                disabled={disabled}
-                onClick={() => startReview(p.key, p.label)}
-              >
-                <span className="uwa-pile-name">{p.icon} {p.label}</span>
-                <span className="uwa-pile-sub">{loadingThis ? 'Loading…' : `${count} question${count === 1 ? '' : 's'}`}</span>
-              </button>
-            );
-          })}
-        </div>
+            seen-tracking), so any of it can be replayed as often as useful.
+            Needs a subject, so it only appears once one is chosen. */}
+        {selected && (
+          <>
+            <h2 className="uwa-section-title">
+              Review &amp; Redo — {subjects.find(s => s.id === selected)?.name || 'This System'}
+            </h2>
+            <p className="uwa-intro" style={{ marginBottom: 14 }}>
+              Revisit this system&apos;s questions, grouped by how well you knew them — or redo the
+              whole system from scratch. None of it counts toward the {plannedTotal.toLocaleString()}-question
+              total or today&apos;s pace.
+            </p>
+            {reviewError && <p className="uwa-error">{reviewError}</p>}
+            <div className="uwa-pile-list">
+              {/* Redo sits first and apart: it replays the ENTIRE system, seen
+                  or not, rather than revisiting what has already been done. */}
+              {(() => {
+                const systemCount = ratingCounts?.system_total ?? 0;
+                const loadingThis = reviewLoading === 'system';
+                return (
+                  <button
+                    type="button"
+                    className={`uwa-pile uwa-pile--redo${systemCount === 0 ? ' is-disabled' : ''}`}
+                    disabled={!ratingCounts || systemCount === 0 || !!reviewLoading}
+                    onClick={() => startReview('system', `Redo — ${subjects.find(s => s.id === selected)?.name || 'System'}`)}
+                  >
+                    <span className="uwa-pile-name">🔄 Redo Whole System</span>
+                    <span className="uwa-pile-sub">
+                      {loadingThis ? 'Loading…' : `${systemCount} question${systemCount === 1 ? '' : 's'} · seen or not`}
+                    </span>
+                  </button>
+                );
+              })()}
+              {UWORLD_RATING_PILES.map(p => {
+                const count = ratingCounts ? (ratingCounts[p.key === 'all' ? 'total' : p.key] ?? 0) : 0;
+                const loadingThis = reviewLoading === p.key;
+                const disabled = !ratingCounts || count === 0 || !!reviewLoading;
+                return (
+                  <button
+                    key={p.key}
+                    type="button"
+                    className={`uwa-pile${count === 0 ? ' is-disabled' : ''}`}
+                    disabled={disabled}
+                    onClick={() => startReview(p.key, p.label)}
+                  >
+                    <span className="uwa-pile-name">{p.icon} {p.label}</span>
+                    <span className="uwa-pile-sub">{loadingThis ? 'Loading…' : `${count} question${count === 1 ? '' : 's'}`}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

@@ -2918,31 +2918,52 @@ app.post('/api/uworld-questions/:questionId/rate', requireAuth, async (req, res)
  * PostgREST's row cap long before their COUNT does.
  */
 app.get('/api/uworld-questions/rating-counts', requireAuth, async (req, res) => {
-  const zeros = { total: 0, unrated: 0, knowledge_gap: 0, careless_miss: 0, lucky_guess: 0, somewhat_know: 0, fully_understood: 0 };
+  const zeros = { total: 0, unrated: 0, knowledge_gap: 0, careless_miss: 0, lucky_guess: 0, somewhat_know: 0, fully_understood: 0, system_total: 0 };
   if (!supabase) return res.json(zeros);
+  // Optional subject scope. Reviewing is per SYSTEM: a pile that mixes
+  // biochemistry with pulmonology is not a revision session anyone wants.
+  const subject = (req.query.subject || '').toString().trim();
+  const scoped = (q) => (subject ? q.eq('questions.subject', subject) : q);
   try {
-    let totalQ = supabase
+    let totalQ = scoped(supabase
       .from(QUESTION_SEEN_TABLE)
-      .select('question_id, questions!inner(game_modes)', { count: 'exact', head: true })
+      .select('question_id, questions!inner(game_modes, subject)', { count: 'exact', head: true })
       .eq('user_id', req.userId)
-      .contains('questions.game_modes', UWORLD_MODE_JSON);
+      .contains('questions.game_modes', UWORLD_MODE_JSON));
     if (hasRetirement) totalQ = totalQ.is('questions.retired_at', null);
 
     const bucketQueries = UWORLD_RATINGS.map((r) => {
-      let q = supabase
+      let q = scoped(supabase
         .from('uworld_question_ratings')
-        .select('question_id, questions!inner(game_modes)', { count: 'exact', head: true })
+        .select('question_id, questions!inner(game_modes, subject)', { count: 'exact', head: true })
         .eq('user_id', req.userId)
         .eq('rating', r)
-        .contains('questions.game_modes', UWORLD_MODE_JSON);
+        .contains('questions.game_modes', UWORLD_MODE_JSON));
       if (hasRetirement) q = q.is('questions.retired_at', null);
       return q;
     });
 
-    const [totalRes, ...bucketRes] = await Promise.all([totalQ, ...bucketQueries]);
+    // "Redo this system" replays the WHOLE subject, seen or not — so it counts
+    // questions directly rather than through the seen table. Only meaningful
+    // with a subject, so it is skipped adventure-wide.
+    let systemQ = null;
+    if (subject) {
+      systemQ = supabase
+        .from('questions')
+        .select('question_id', { count: 'exact', head: true })
+        .eq('subject', subject)
+        .contains('game_modes', UWORLD_MODE_JSON);
+      if (hasRetirement) systemQ = systemQ.is('retired_at', null);
+    }
+
+    const [totalRes, systemRes, ...bucketRes] = await Promise.all([
+      totalQ,
+      systemQ || Promise.resolve({ count: 0, error: null }),
+      ...bucketQueries,
+    ]);
     if (totalRes.error) throw totalRes.error;
     const total = totalRes.count || 0;
-    const counts = { total };
+    const counts = { total, system_total: systemRes?.error ? 0 : (systemRes?.count || 0) };
     let ratedSum = 0;
     UWORLD_RATINGS.forEach((r, i) => {
       if (bucketRes[i].error) throw bucketRes[i].error;
@@ -2981,21 +3002,44 @@ app.get('/api/uworld-questions/rating-counts', requireAuth, async (req, res) => 
 app.get('/api/uworld-questions/by-rating', requireAuth, async (req, res) => {
   if (!supabase) return res.json({ questions: [] });
   const rating = (req.query.rating || '').toString();
-  const validKeys = ['all', 'unrated', ...UWORLD_RATINGS];
+  // 'system' is a third synthetic pile: every UWorld question in the subject,
+  // seen or not — "redo this system" rather than "revisit what I've done".
+  const validKeys = ['all', 'unrated', 'system', ...UWORLD_RATINGS];
   if (!validKeys.includes(rating)) return res.status(400).json({ error: 'invalid rating', questions: [] });
   const parsed = parseInt(req.query.limit, 10);
   const limit  = Math.min(UNSEEN_MAX_LIMIT, Math.max(1, Number.isFinite(parsed) ? parsed : UNSEEN_DEFAULT_LIMIT));
+  // Subject scope — piles are per system, so a review never mixes subjects.
+  const subject = (req.query.subject || '').toString().trim();
+  const scoped = (q) => (subject ? q.eq('questions.subject', subject) : q);
+  if (rating === 'system' && !subject) {
+    return res.status(400).json({ error: 'subject required for a system redo', questions: [] });
+  }
 
   try {
+    // Redo the whole system: straight off `questions`, no seen join at all.
+    if (rating === 'system') {
+      let q = supabase
+        .from('questions')
+        .select('*')
+        .eq('subject', subject)
+        .contains('game_modes', UWORLD_MODE_JSON)
+        .order('question_id', { ascending: true })
+        .range(0, limit - 1);
+      if (hasRetirement) q = q.is('retired_at', null);
+      const { data, error } = await q;
+      if (error) throw error;
+      return res.json({ questions: (data || []).map(fromDb) });
+    }
+
     if (rating === 'all' || rating === 'unrated') {
       const out  = [];
       const PAGE = 200;
       for (let page = 0; out.length < limit; page++) {
-        let q = supabase
+        let q = scoped(supabase
           .from(QUESTION_SEEN_TABLE)
           .select('question_id, questions!inner(*)')
           .eq('user_id', req.userId)
-          .contains('questions.game_modes', UWORLD_MODE_JSON)
+          .contains('questions.game_modes', UWORLD_MODE_JSON))
           .order('seen_at', { ascending: true })
           .range(page * PAGE, page * PAGE + PAGE - 1);
         if (hasRetirement) q = q.is('questions.retired_at', null);
@@ -3023,12 +3067,12 @@ app.get('/api/uworld-questions/by-rating', requireAuth, async (req, res) => {
       return res.json({ questions: out });
     }
 
-    let q = supabase
+    let q = scoped(supabase
       .from('uworld_question_ratings')
       .select('question_id, updated_at, questions!inner(*)')
       .eq('user_id', req.userId)
       .eq('rating', rating)
-      .contains('questions.game_modes', UWORLD_MODE_JSON)
+      .contains('questions.game_modes', UWORLD_MODE_JSON))
       .order('updated_at', { ascending: true })
       .range(0, limit - 1);
     if (hasRetirement) q = q.is('questions.retired_at', null);
