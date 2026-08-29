@@ -5395,3 +5395,18 @@
 }
 .hyf-row-arrow { flex-shrink: 0; opacity: 0.5; }
 .hyf-row-expl-badge { flex-shrink: 0; font-size: 12px; opacity: 0.7; cursor: help; }
+
+/* ── Question order column ──────────────────────────────────────────────────
+   Position within the folder's full set, so it stays put while the search box
+   narrows the table. Deliberately quiet — it is a reference number, not data
+   to compare rows on, so it must not compete with the ID pill beside it. */
+.ap-th-order { width: 44px; }
+.ap-td-order {
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-dim);
+  text-align: right;
+  padding-right: 12px;
+  white-space: nowrap;
+}

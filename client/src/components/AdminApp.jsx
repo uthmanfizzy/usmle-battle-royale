@@ -2564,6 +2564,12 @@ function QuestionsPanel({ subjects = [], scopeTag = null }) {
     ? modeFiltered
     : modeFiltered.filter(q => matchesSubject(q, subjectFilter));
 
+  // 1-based position within the FOLDER's full set (catQuestions), deliberately
+  // not within `filtered` — numbering off the filtered list would renumber every
+  // row the moment you typed in the search box, which makes the number useless
+  // for referring to a question. PL-052 stays "1" whatever is on screen.
+  const orderNumbers = new Map(catQuestions.map((q, i) => [String(q.id), i + 1]));
+
   // Diagnostic: log when questions exist but none are showing
   if (questions.length > 0 && filtered.length === 0 && view === 'questions') {
     console.log('[QM] 0 questions showing — chain:', {
@@ -3266,13 +3272,19 @@ function QuestionsPanel({ subjects = [], scopeTag = null }) {
                           }}
                         />
                       </th>
+                      <th className="ap-th-order">#</th>
                       <th>ID</th>
                       <th>Subject</th>
                       <th>Difficulty</th>
                       <th>Image</th>
-                      <th>Game Modes</th>
-                      {isCatFolder(activeFolder) && <th>Topic</th>}
-                      <th>Tower Floor</th>
+                      {/* Game modes, topic and tower floor carry no information in
+                          the UWorld Adventure view: every question there is tagged
+                          uworld_adventure by definition, topics are unused, and a
+                          tagged question is never a tower question. Three columns
+                          of the same badge and two dashes. */}
+                      {!scopeTag && <th>Game Modes</th>}
+                      {!scopeTag && isCatFolder(activeFolder) && <th>Topic</th>}
+                      {!scopeTag && <th>Tower Floor</th>}
                       <th>Question Preview</th>
                       <th>Actions</th>
                     </tr>
@@ -3311,6 +3323,7 @@ function QuestionsPanel({ subjects = [], scopeTag = null }) {
                               }}
                             />
                           </td>
+                          <td className="ap-td-order">{orderNumbers.get(String(qId)) ?? '—'}</td>
                           <td className="ap-td-id"><span className="ap-id-pill">{qId}</span></td>
                           <td>
                             <span className={`ap-badge ap-subj-${qSubj}`}>
@@ -3340,35 +3353,39 @@ function QuestionsPanel({ subjects = [], scopeTag = null }) {
                               />
                             </div>
                           </td>
-                          <td className="ap-td-modes">
-                            <div className="ap-gm-badges">
-                              {qModes.map(mode => {
-                                const gm = GAME_MODES.find(g => g.id === mode);
-                                return gm ? (
-                                  <span key={mode} className={`ap-gm-badge ap-gm-badge-${mode}`} title={gm.label}>
-                                    {gm.icon}
-                                  </span>
-                                ) : null;
-                              })}
-                            </div>
-                          </td>
-                          {isCatFolder(activeFolder) && (
+                          {!scopeTag && (
+                            <td className="ap-td-modes">
+                              <div className="ap-gm-badges">
+                                {qModes.map(mode => {
+                                  const gm = GAME_MODES.find(g => g.id === mode);
+                                  return gm ? (
+                                    <span key={mode} className={`ap-gm-badge ap-gm-badge-${mode}`} title={gm.label}>
+                                      {gm.icon}
+                                    </span>
+                                  ) : null;
+                                })}
+                              </div>
+                            </td>
+                          )}
+                          {!scopeTag && isCatFolder(activeFolder) && (
                             <td className="ap-td-topic">
                               {topicForQ
                                 ? <span className={`ap-topic-badge ap-tb-${activeFolder}`}>{topicForQ.name}</span>
                                 : <span className="ap-topic-badge ap-tb-none">Unassigned</span>}
                             </td>
                           )}
-                          <td className="ap-td-floor">
-                            {qModes.includes('tower') && q.tower_floor
-                              ? (
-                                <div className="ap-floor-cell">
-                                  <span className="ap-floor-pill">🏰 {q.tower_floor}</span>
-                                  <span className="ap-floor-zone">{getTowerZone(q.tower_floor)}</span>
-                                </div>
-                              )
-                              : <span className="ap-no-image">—</span>}
-                          </td>
+                          {!scopeTag && (
+                            <td className="ap-td-floor">
+                              {qModes.includes('tower') && q.tower_floor
+                                ? (
+                                  <div className="ap-floor-cell">
+                                    <span className="ap-floor-pill">🏰 {q.tower_floor}</span>
+                                    <span className="ap-floor-zone">{getTowerZone(q.tower_floor)}</span>
+                                  </div>
+                                )
+                                : <span className="ap-no-image">—</span>}
+                            </td>
+                          )}
                           <td className="ap-td-preview" title={preview}>
                             {preview.length > 80 ? preview.slice(0, 80) + '…' : preview}
                           </td>
@@ -3401,7 +3418,7 @@ function QuestionsPanel({ subjects = [], scopeTag = null }) {
                     })}
                     {filtered.length === 0 && (
                       <tr>
-                        <td colSpan={12} className="ap-empty">
+                        <td colSpan={8 + (scopeTag ? 0 : 2) + (!scopeTag && isCatFolder(activeFolder) ? 1 : 0)} className="ap-empty">
                           {selectedTopic === 'unassigned'
                             ? 'All questions in this category are assigned to a topic.'
                             : selectedTopic
