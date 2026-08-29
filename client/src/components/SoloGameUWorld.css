@@ -357,7 +357,7 @@ html[data-study="on"] .screen.solo-screen.uw-exam .study-result-strip {
 
 /* The shared explanation styling is built for the red/gold app; on the exam
    sheet its purple heading and red Next button read as another product. */
-html[data-study="on"] .screen.solo-screen.uw-exam .rr-explanation strong,
+html[data-study="on"] .screen.solo-screen.uw-exam .rr-explanation > strong,
 html[data-study="on"] .screen.solo-screen.uw-exam .round-result .rr-label {
   color: var(--uwq-blue) !important;
 }

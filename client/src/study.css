@@ -189,7 +189,7 @@ html[data-study="on"] .rr-explanation {
   padding: 18px 18px 18px 20px;
   border-radius: 0 12px 12px 0;
 }
-html[data-study="on"] .rr-explanation strong {
+html[data-study="on"] .rr-explanation > strong {
   color: var(--color-primary-dark);
   font-size: 16px;
 }
@@ -209,7 +209,7 @@ html[data-study="on"] .solo-body .why-wrong-content {
   line-height: 1.6;
 }
 /* "Correct answer:" heading — larger semibold */
-html[data-study="on"] .solo-body .rr-explanation strong {
+html[data-study="on"] .solo-body .rr-explanation > strong {
   font-size: 22px;
   font-weight: 600;
 }

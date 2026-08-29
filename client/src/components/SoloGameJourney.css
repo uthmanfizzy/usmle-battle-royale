@@ -595,7 +595,7 @@ body:has(.solo-screen.jm-vibrant) .mute-btn { display: none; }
   font-weight: 500;
   line-height: 1.6;
 }
-.screen.solo-screen.jm-vibrant .solo-body .rr-explanation strong {
+.screen.solo-screen.jm-vibrant .solo-body .rr-explanation > strong {
   color: var(--mv-gold);
   font-size: 18px;
   font-weight: 800;

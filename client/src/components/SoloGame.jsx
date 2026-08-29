@@ -209,11 +209,15 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
       : (settings.easyModeTimer || settings.timerDefault || 20);
   const defaultLives = isJourney ? 5 : (settings.battleRoyaleLives || 3);
   const maxLives = defaultLives;   // heart slots shown = max lives for this mode (5 in journey)
-  const explanationTime = uworldSkin
+  // First Aid Journey explanations are the long teaching kind — the whole point
+  // of the mode — so they get 5s more than the configured value to read them.
+  const JOURNEY_EXPLANATION_BONUS_S = 5;
+  const explanationTime = (uworldSkin
     ? 60
     : isHardMode
       ? (settings.hardModeExplanationTime || 20)
-      : (settings.easyModeExplanationTime || settings.explanationTime || 5);
+      : (settings.easyModeExplanationTime || settings.explanationTime || 5)
+  ) + (isJourney ? JOURNEY_EXPLANATION_BONUS_S : 0);
   const hideExplanations = isHardMode
     ? !!settings.hardModeHideExplanations
     : !!settings.easyModeHideExplanations;

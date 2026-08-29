@@ -782,7 +782,12 @@ html[data-study="on"] .solo-body .stem-table td { color: #1c2030; }
   line-height: 1.6;
   margin-bottom: 10px;
 }
-.rr-explanation strong { color: var(--gold); display: block; margin-bottom: 6px; font-size: 15px; }
+/* DIRECT CHILD only. .rr-explanation holds two different things: the
+   "Correct answer: …" <strong> heading, and the author's explanation, whose
+   own **bold** emphasis also renders as <strong>. A descendant selector hit
+   both, so every emphasised phrase mid-sentence became a block-level gold
+   heading on its own line — which is what made explanations look broken. */
+.rr-explanation > strong { color: var(--gold); display: block; margin-bottom: 6px; font-size: 15px; }
 .rr-explanation p { color: var(--text-dim); }
 .rr-explanation-img {
   display: block;
