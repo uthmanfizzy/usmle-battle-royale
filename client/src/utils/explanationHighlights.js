@@ -118,12 +118,12 @@ function tokenizeLine(line) {
 }
 
 // Sentence split — IDENTICAL to ExplanationText. Each sentence becomes a <p> block.
-function splitSentences(text) {
-  return String(text)
-    .split(/(?<=[.!?])\s+(?=[A-Z])|(?<=[.!?])$/)
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0);
-}
+/* splitSentences removed: blocks follow the AUTHOR'S LINES now, not sentences.
+   Splitting on sentence boundaries gave every sentence its own <p>, so prose
+   written as a single paragraph rendered with a gap after every full stop —
+   which read as random breaks mid-paragraph. Authors structure explanations
+   with newlines (a __Header__ line, then a paragraph line), and that is what
+   the renderer should honour. */
 
 // Parse an explanation into blocks (= sentences). Each block has `lines` (split on
 // \n, with <br> between), each line is an array of runs carrying global visible
@@ -132,16 +132,16 @@ export function parseExplanation(explanation) {
   if (!explanation) return [];
   const blocks = [];
   let offset = 0;
-  for (const sentence of splitSentences(explanation)) {
-    const lines = sentence.split('\n').map((line) => {
-      const runs = tokenizeLine(line).map((run) => {
-        const start = offset;
-        offset += run.text.length;
-        return { ...run, start, end: offset };
-      });
-      return runs;
+  // One block per authored line. Sentences inside a line flow together as the
+  // author wrote them; a blank line yields an empty block, which renders as the
+  // paragraph gap it was meant to be.
+  for (const line of String(explanation).split('\n')) {
+    const runs = tokenizeLine(line).map((run) => {
+      const start = offset;
+      offset += run.text.length;
+      return { ...run, start, end: offset };
     });
-    blocks.push({ lines });
+    blocks.push({ lines: [runs] });
   }
   return blocks;
 }

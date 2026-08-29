@@ -3511,22 +3511,41 @@ table.lb-table tr:last-child td { border-bottom: none; }
   font-weight: 400 !important;
 }
 
+/* colour: INHERIT, never a fixed white. Explanations render on a dark app
+   background AND on the UWorld exam sheet / light themes, so hardcoding white
+   made every bold phrase invisible on the light ones. Emphasis should be the
+   surrounding text, only heavier. */
 .explanation-rich strong {
-  font-weight: 600 !important;
+  font-weight: 700 !important;
   font-family: 'Inter', sans-serif !important;
-  color: rgba(255,255,255,0.98);
+  color: inherit;
 }
 
 .explanation-rich em {
   font-style: italic !important;
   font-family: 'Inter', sans-serif !important;
-  color: rgba(255,255,255,0.9);
+  color: inherit;
 }
 
+/* Authors use __underline__ on its own line as a section heading ("The short
+   answer", "Where the blood starts"). A plain underline at body size did not
+   read as a break in the material, so it gets heading weight, a little size,
+   space above, and a rule the full width of the column rather than just under
+   the words. Still an <u>, so nothing about authoring or offsets changes. */
 .explanation-rich u {
-  text-decoration: underline;
-  text-underline-offset: 3px;
+  display: block;
+  margin: 18px 0 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid currentColor;
+  font-weight: 700;
+  font-size: 1.05em;
+  letter-spacing: 0.01em;
+  text-decoration: none;          /* the border is the rule now */
+  opacity: 0.95;
 }
+/* No leading gap when a heading opens the explanation. */
+.explanation-sentence:first-child .explanation-rich u,
+.explanation-rich > u:first-child { margin-top: 0; }
 
 /* Ensure all explanation components use readable Inter font */
 .explanation-text,

@@ -72,14 +72,18 @@ function refParseRichText(text) {
   }).join(''); // <br> = no text between lines
 }
 
-// mirrors ExplanationText: sentence-split + trim + filter, <p> per sentence, no
-// separator between adjacent <p> elements -> textContent is the bare concatenation.
+// mirrors ExplanationText: one <p> per AUTHORED LINE, no separator between
+// adjacent <p> elements -> textContent is the bare concatenation.
+//
+// This used to sentence-split, matching the renderer of the time. That put each
+// sentence in its own <p>, which both manufactured paragraph gaps mid-prose and
+// silently DROPPED the space between sentences from the visible text (the trim
+// ate it). Splitting on lines keeps the author's own spacing, so the visible
+// string is now what they actually typed.
 function refTextContent(explanation) {
   if (!explanation) return '';
-  return explanation
-    .split(/(?<=[.!?])\s+(?=[A-Z])|(?<=[.!?])$/)
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0)
+  return String(explanation)
+    .split('\n')
     .map(refParseRichText)
     .join('');
 }
