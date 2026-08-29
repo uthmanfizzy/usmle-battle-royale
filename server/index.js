@@ -2927,11 +2927,14 @@ app.get('/api/uworld-questions/rating-counts', requireAuth, async (req, res) => 
   // Optional subject scope. Reviewing is per SYSTEM: a pile that mixes
   // biochemistry with pulmonology is not a revision session anyone wants.
   const subject = (req.query.subject || '').toString().trim();
-  const scoped = (q) => (subject ? q.eq('questions.subject', subject) : q);
+  // The column is questions.category — questionMapper renames it to `subject`
+  // for the internal shape, and there is no `subject` column on the table, so
+  // filtering by that name silently matched nothing and every pile read 0.
+  const scoped = (q) => (subject ? q.eq('questions.category', subject) : q);
   try {
     let totalQ = scoped(supabase
       .from(QUESTION_SEEN_TABLE)
-      .select('question_id, questions!inner(game_modes, subject)', { count: 'exact', head: true })
+      .select('question_id, questions!inner(game_modes, category)', { count: 'exact', head: true })
       .eq('user_id', req.userId)
       .contains('questions.game_modes', UWORLD_MODE_JSON));
     if (hasRetirement) totalQ = totalQ.is('questions.retired_at', null);
@@ -2939,7 +2942,7 @@ app.get('/api/uworld-questions/rating-counts', requireAuth, async (req, res) => 
     const bucketQueries = UWORLD_RATINGS.map((r) => {
       let q = scoped(supabase
         .from('uworld_question_ratings')
-        .select('question_id, questions!inner(game_modes, subject)', { count: 'exact', head: true })
+        .select('question_id, questions!inner(game_modes, category)', { count: 'exact', head: true })
         .eq('user_id', req.userId)
         .eq('rating', r)
         .contains('questions.game_modes', UWORLD_MODE_JSON));
@@ -2955,7 +2958,7 @@ app.get('/api/uworld-questions/rating-counts', requireAuth, async (req, res) => 
       systemQ = supabase
         .from('questions')
         .select('question_id', { count: 'exact', head: true })
-        .eq('subject', subject)
+        .eq('category', subject)
         .contains('game_modes', UWORLD_MODE_JSON);
       if (hasRetirement) systemQ = systemQ.is('retired_at', null);
     }
@@ -3014,7 +3017,8 @@ app.get('/api/uworld-questions/by-rating', requireAuth, async (req, res) => {
   const limit  = Math.min(UNSEEN_MAX_LIMIT, Math.max(1, Number.isFinite(parsed) ? parsed : UNSEEN_DEFAULT_LIMIT));
   // Subject scope — piles are per system, so a review never mixes subjects.
   const subject = (req.query.subject || '').toString().trim();
-  const scoped = (q) => (subject ? q.eq('questions.subject', subject) : q);
+  // questions.category, not .subject — see rating-counts above.
+  const scoped = (q) => (subject ? q.eq('questions.category', subject) : q);
   if (rating === 'system' && !subject) {
     return res.status(400).json({ error: 'subject required for a system redo', questions: [] });
   }
@@ -3025,7 +3029,7 @@ app.get('/api/uworld-questions/by-rating', requireAuth, async (req, res) => {
       let q = supabase
         .from('questions')
         .select('*')
-        .eq('subject', subject)
+        .eq('category', subject)
         .contains('game_modes', UWORLD_MODE_JSON)
         .order('question_id', { ascending: true })
         .range(0, limit - 1);
