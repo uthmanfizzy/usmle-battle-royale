@@ -691,3 +691,51 @@ html[data-study="on"] .screen.solo-screen.uw-exam.uw-timeup {
 .screen.solo-screen.uw-exam .solo-gameover .btn-secondary:last-child {
   margin-bottom: 0;
 }
+
+/* ── Explanation timer hold ─────────────────────────────────────────────────
+   The 62.5s explanation countdown used to be unstoppable: a long explanation
+   could run out mid-read, and expiry CLOSES the question. This holds it. */
+.uw-rate-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* The prompt owns its own margin normally; inside the flex head it just needs
+   to stop reserving the space below it. */
+.uw-rate-head .uw-rate-prompt {
+  margin: 0;
+}
+
+.uw-expl-pause {
+  flex: none;
+  background: #fff;
+  border: 1px solid var(--uwq-ring, #c3cbd6);
+  border-radius: 6px;
+  color: var(--uwq-navy-top, #0f2a52);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 6px 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, border-color 0.15s;
+}
+.uw-expl-pause:hover {
+  background: var(--uwq-sel-bg, #eaf1fb);
+  border-color: var(--uwq-blue, #2f6fc9);
+}
+
+/* Held: amber, so it is obvious at a glance that the clock is stopped and
+   this is a state you have to leave. */
+.uw-expl-pause.is-held {
+  background: #fff3d0;
+  border-color: #e8c46a;
+  color: #6b4a06;
+}
+.uw-expl-pause.is-held:hover {
+  background: #ffe9b8;
+  border-color: #d9ae4a;
+}

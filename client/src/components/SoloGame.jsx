@@ -253,6 +253,11 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   // still hasn't been rated? At that point the question is closed — reading on
   // changes nothing — so the rating row becomes the only thing left to do.
   const [explanationExpired, setExplanationExpired] = useState(false);
+  // Exam skin only: is the explanation countdown currently held? explPausedLeft
+  // is the remaining seconds frozen at the moment it was held — it cannot tick
+  // down while held, so there is nothing to keep updating.
+  const [explPaused, setExplPaused] = useState(false);
+  const [explPausedLeft, setExplPausedLeft] = useState(0);
   const [finalScore, setFinalScore] = useState(0);
   const [finalBestStreak, setFinalBestStreak] = useState(0);
   const [isNewHi, setIsNewHi] = useState(false);
@@ -462,6 +467,16 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   const ratedRef      = useRef(false);
   const doAdvanceRef  = useRef(null);
   const rateRowRef    = useRef(null);   // scrolled to when the explanation timer expires unrated
+  // Exam skin only: the explanation countdown is a one-shot timeout, not a
+  // ticking interval, so "pausing" it means disarming and re-arming rather than
+  // freezing a tick. explDeadlineRef is when it will fire while running;
+  // explRemainingRef is what was left at the moment it was held.
+  // explPausedMsRef accumulates held time so it can be taken back off the
+  // study-time total — a held explanation is not time spent reading.
+  const explDeadlineRef   = useRef(0);
+  const explRemainingRef  = useRef(0);
+  const explPausedMsRef   = useRef(0);
+  const explPauseStartRef = useRef(0);
 
   revealedRef.current = revealed;
   pausedRef.current = isPaused;
@@ -912,6 +927,11 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
     ratedRef.current = false;
     setRated(false);
     setExplanationExpired(false);
+    // ...and with the explanation timer running, never inheriting a hold from
+    // the question before it.
+    explPausedMsRef.current = 0;
+    explPauseStartRef.current = 0;
+    setExplPaused(false);
 
     // q.correct is now stored as letter (A, B, C...), label is also letter
     console.log('[SoloGame] Answer check:', {
@@ -992,7 +1012,12 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
       // the delay auto-advance itself uses — a tab left open and walked away
       // from can't inflate this past what the UI ever intended to show, same
       // spirit as the answer phase being capped at defaultTimer.
-      const explanationSecs = (Date.now() - revealedAtRef.current) / 1000;
+      // Held time is not reading time, so the pause button can't be used to
+      // inflate study hours. Counts a hold that is still open too — Next and
+      // rate() can both advance while the timer is paused.
+      const heldMs = explPausedMsRef.current
+        + (explPauseStartRef.current ? Date.now() - explPauseStartRef.current : 0);
+      const explanationSecs = (Date.now() - revealedAtRef.current - heldMs) / 1000;
       activeSecondsRef.current += Math.max(0, Math.min(explanationSecs, explanationDelay / 1000));
       // This question is finished — bank its time NOW rather than waiting for
       // game-over. A run that's later abandoned, backgrounded or force-closed
@@ -1034,6 +1059,8 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
     doAdvanceRef.current  = doAdvance;
     // Use admin-configured explanation display time (hard/easy mode specific) + 2.5s buffer
     const explanationDelay = explanationTime * 1000 + 2500;
+    explRemainingRef.current = explanationDelay;
+    explDeadlineRef.current  = Date.now() + explanationDelay;
     skipTimerRef.current  = setTimeout(doAdvance, explanationDelay);
   }, [subject, explanationTime]);
 
@@ -1065,6 +1092,32 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
     if (skipTimerRef.current) { clearTimeout(skipTimerRef.current); skipTimerRef.current = null; }
     const fn = skipActionRef.current;
     if (fn) { skipActionRef.current = null; fn(); }
+  }
+
+  // Exam skin only: hold / release the explanation countdown, so a long
+  // explanation can be read without the deadline closing the question mid-read.
+  // Re-arms with exactly what was left, so a hold costs no time either way.
+  // skipActionRef is deliberately untouched — Next still works while held.
+  function toggleExplPause() {
+    if (explPauseStartRef.current) {
+      explPausedMsRef.current += Date.now() - explPauseStartRef.current;
+      explPauseStartRef.current = 0;
+      const left = Math.max(0, explRemainingRef.current);
+      explDeadlineRef.current = Date.now() + left;
+      // doAdvanceRef, not skipActionRef: it is the handle guaranteed not to
+      // have been nulled, same reason rate() uses it.
+      const fn = doAdvanceRef.current;
+      if (fn) skipTimerRef.current = setTimeout(fn, left);
+      setExplPaused(false);
+      return;
+    }
+    if (!skipTimerRef.current) return;   // already fired — nothing left to hold
+    clearTimeout(skipTimerRef.current);
+    skipTimerRef.current = null;
+    explRemainingRef.current = Math.max(0, explDeadlineRef.current - Date.now());
+    explPauseStartRef.current = Date.now();
+    setExplPausedLeft(Math.ceil(explRemainingRef.current / 1000));
+    setExplPaused(true);
   }
 
   // Exam skin only: rating IS the advance action, same as HY Flashcards' own
@@ -1788,13 +1841,30 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
                 role="group"
                 aria-label="Rate your recall"
               >
-                <p className="uw-rate-prompt" aria-live="polite">
-                  {rated
-                    ? '✓ Rated — advancing…'
-                    : explanationExpired
-                      ? '⏱ Time’s up — rate your recall to continue'
-                      : 'Rate your recall to continue'}
-                </p>
+                <div className="uw-rate-head">
+                  <p className="uw-rate-prompt" aria-live="polite">
+                    {rated
+                      ? '✓ Rated — advancing…'
+                      : explanationExpired
+                        ? '⏱ Time’s up — rate your recall to continue'
+                        : 'Rate your recall to continue'}
+                  </p>
+                  {/* Hold the explanation countdown. Long explanations were
+                      running out mid-read, and the deadline closes the question.
+                      Pointless once it has fired or the question is rated, so it
+                      goes away then rather than sitting there inert. */}
+                  {!rated && !explanationExpired && (
+                    <button
+                      type="button"
+                      className={`uw-expl-pause${explPaused ? ' is-held' : ''}`}
+                      onClick={toggleExplPause}
+                      aria-pressed={explPaused}
+                      title={explPaused ? 'Resume the explanation timer' : 'Pause the explanation timer'}
+                    >
+                      {explPaused ? `▶ Resume · ${explPausedLeft}s left` : '⏸ Pause timer'}
+                    </button>
+                  )}
+                </div>
                 <div className="uw-rate-buttons">
                   {UWORLD_RATINGS.map(r => (
                     <button
