@@ -600,3 +600,79 @@
   border-color: rgba(63, 127, 214, 0.9);
   background: linear-gradient(180deg, rgba(63, 127, 214, 0.24), rgba(63, 127, 214, 0.12));
 }
+
+/* ── One system's options, as a dialog ────────────────────────────────────
+   Opened by tapping a system. Everything you can do with that system lives
+   here, so the choice is made in one place instead of down the page. */
+.uwa-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(4, 8, 18, 0.72);
+  backdrop-filter: blur(3px);
+}
+
+.uwa-modal {
+  width: min(560px, 100%);
+  /* Long systems have eight options; scroll inside the card rather than
+     letting the dialog run off a phone screen. */
+  max-height: min(86vh, 760px);
+  overflow-y: auto;
+  padding: 20px 22px 24px;
+  border-radius: 16px;
+  border: 1px solid rgba(63, 127, 214, 0.35);
+  background: linear-gradient(180deg, #101a2c, #0b1220);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+}
+
+.uwa-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.uwa-modal-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 800;
+  color: #fff;
+}
+
+.uwa-modal-close {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 14px;
+  line-height: 1;
+}
+.uwa-modal-close:hover { background: rgba(255, 255, 255, 0.14); }
+
+.uwa-modal-sub {
+  margin: 16px 0 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+/* Today's set is the one route that advances the plan, so it leads and is
+   clearly the primary action rather than another grey pile. */
+.uwa-pile--today {
+  border-color: rgba(61, 220, 132, 0.5);
+  background: linear-gradient(180deg, rgba(61, 220, 132, 0.2), rgba(61, 220, 132, 0.08));
+}
+.uwa-pile--today:not(:disabled):hover {
+  border-color: rgba(61, 220, 132, 0.85);
+  background: linear-gradient(180deg, rgba(61, 220, 132, 0.28), rgba(61, 220, 132, 0.14));
+}
+.uwa-pile--today:disabled { opacity: 0.5; cursor: not-allowed; }

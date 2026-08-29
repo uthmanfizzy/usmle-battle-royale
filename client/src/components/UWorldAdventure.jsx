@@ -113,6 +113,9 @@ const PACE_SCOPE = '__adventure__';
  */
 export default function UWorldAdventure() {
   const [user, setUser] = useState(getCachedUser);
+  // Which system's option menu is open (subject id), or null. Opening it is
+  // what clicking a subject does.
+  const [systemModal, setSystemModal] = useState(null);
   const [subjects, setSubjects] = useState([]);
   const [subjectsError, setSubjectsError] = useState(false);
   const [selected, setSelected] = useState(null);       // subject id
@@ -360,6 +363,7 @@ export default function UWorldAdventure() {
         setReviewLoading(null);
         return;
       }
+      setSystemModal(null);   // the session replaces the view; don't leave it queued to reopen
       setReviewLabel(label);
       setReviewSession(true);
       setSessionQuestions(shuffle(qs)); // set once: stable reference for SoloGame
@@ -418,6 +422,14 @@ export default function UWorldAdventure() {
       />
     );
   }
+
+  // Esc closes the system menu, like any other dialog.
+  useEffect(() => {
+    if (!systemModal) return;
+    const onKey = (e) => { if (e.key === 'Escape') setSystemModal(null); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [systemModal]);
 
   const activeName = subjects.find(s => s.id === selected)?.name || '';
 
@@ -679,7 +691,11 @@ export default function UWorldAdventure() {
               // Picking a subject changes only what TODAY draws from. The plan
               // spans the whole adventure, so the pace and any chosen deadline
               // deliberately survive the switch.
-              onClick={() => setSelected(s.id)}
+              // Selecting also opens the system's own menu: today's set, a
+              // full redo, and the rating piles are all one decision about
+              // this system, so they belong on one surface rather than
+              // scattered up and down the page.
+              onClick={() => { setSelected(s.id); setSystemModal(s.id); setReviewError(''); }}
               aria-pressed={selected === s.id}
             >
               {/* Mockup uses the subject's first letter in this badge; the real
@@ -694,26 +710,63 @@ export default function UWorldAdventure() {
           ))}
         </div>
 
-        {/* ── Review / redo, PER SYSTEM ────────────────────────────────────
-            Scoped to the open subject: a revision pile that mixes systems is
-            not a session anyone would choose to sit. Nothing here touches the
-            3,659-question total or today's pace (SoloGame's uwaReview skips
-            seen-tracking), so any of it can be replayed as often as useful.
-            Needs a subject, so it only appears once one is chosen. */}
-        {selected && (
-          <>
-            <h2 className="uwa-section-title">
-              Review &amp; Redo — {subjects.find(s => s.id === selected)?.name || 'This System'}
-            </h2>
-            <p className="uwa-intro" style={{ marginBottom: 14 }}>
-              Revisit this system&apos;s questions, grouped by how well you knew them — or redo the
-              whole system from scratch. None of it counts toward the {plannedTotal.toLocaleString()}-question
-              total or today&apos;s pace.
-            </p>
+        <p className="uwa-intro" style={{ marginTop: 10 }}>
+          Pick a system to choose what to play — today&apos;s set, a full redo, or a
+          group you&apos;ve already rated.
+        </p>
+      </div>
+
+      {/* ── One system's options ─────────────────────────────────────────────
+          Everything you can do with a system on one surface: today's set, a
+          full redo, and the rating piles. Only the daily set advances the
+          {plannedTotal}-question total and today's pace — every review route
+          runs through SoloGame's uwaReview, which skips seen-tracking, so it
+          can be replayed as often as it is useful. */}
+      {systemModal && (
+        <div
+          className="uwa-modal-overlay"
+          onClick={() => setSystemModal(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-label={`${activeName || 'System'} options`}
+        >
+          <div className="uwa-modal" onClick={e => e.stopPropagation()}>
+            <div className="uwa-modal-head">
+              <h3 className="uwa-modal-title">{activeName || 'System'}</h3>
+              <button
+                type="button"
+                className="uwa-modal-close"
+                onClick={() => setSystemModal(null)}
+                aria-label="Close"
+              >✕</button>
+            </div>
+
             {reviewError && <p className="uwa-error">{reviewError}</p>}
+            {startError && <p className="uwa-error">{startError}</p>}
+
+            {/* Today's set — the only route that counts toward the plan, so it
+                leads and is visually separated from the review routes. */}
+            <button
+              type="button"
+              className="uwa-pile uwa-pile--today"
+              onClick={() => { setSystemModal(null); startSession(); }}
+              disabled={starting || loadingSubject || unseen === 0}
+            >
+              <span className="uwa-pile-name">▶ Today&apos;s Questions</span>
+              <span className="uwa-pile-sub">
+                {starting || loadingSubject ? 'Loading…'
+                  : unseen === 0 ? 'System complete'
+                  : `${todaysCount} question${todaysCount === 1 ? '' : 's'} · counts toward your plan`}
+              </span>
+            </button>
+
+            <p className="uwa-modal-sub">
+              Or revisit — none of these count toward the plan or today&apos;s pace:
+            </p>
+
             <div className="uwa-pile-list">
-              {/* Redo sits first and apart: it replays the ENTIRE system, seen
-                  or not, rather than revisiting what has already been done. */}
+              {/* Redo replays the ENTIRE system, seen or not, rather than
+                  revisiting only what has already been answered. */}
               {(() => {
                 const systemCount = ratingCounts?.system_total ?? 0;
                 const loadingThis = reviewLoading === 'system';
@@ -722,7 +775,7 @@ export default function UWorldAdventure() {
                     type="button"
                     className={`uwa-pile uwa-pile--redo${systemCount === 0 ? ' is-disabled' : ''}`}
                     disabled={!ratingCounts || systemCount === 0 || !!reviewLoading}
-                    onClick={() => startReview('system', `Redo — ${subjects.find(s => s.id === selected)?.name || 'System'}`)}
+                    onClick={() => startReview('system', `Redo — ${activeName || 'System'}`)}
                   >
                     <span className="uwa-pile-name">🔄 Redo Whole System</span>
                     <span className="uwa-pile-sub">
@@ -744,14 +797,18 @@ export default function UWorldAdventure() {
                     onClick={() => startReview(p.key, p.label)}
                   >
                     <span className="uwa-pile-name">{p.icon} {p.label}</span>
-                    <span className="uwa-pile-sub">{loadingThis ? 'Loading…' : `${count} question${count === 1 ? '' : 's'}`}</span>
+                    <span className="uwa-pile-sub">
+                      {loadingThis ? 'Loading…'
+                        : !ratingCounts ? 'Loading…'
+                        : `${count} question${count === 1 ? '' : 's'}`}
+                    </span>
                   </button>
                 );
               })}
             </div>
-          </>
-        )}
-      </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
