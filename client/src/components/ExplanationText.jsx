@@ -59,7 +59,10 @@ export default function ExplanationText({ text, className = '', highlights = [],
  * runs are sliced, carrying their offsets with them.
  */
 function splitLineIntoSentences(runs) {
-  if (!runs || runs.length === 0) return [runs || []];
+  // No groups at all for an empty line — an empty group would still render a
+  // block-level span, and a blank one that isn't last would contribute a full
+  // sentence gap of phantom space.
+  if (!runs || runs.length === 0) return [];
   const text = runs.map((r) => r.text).join('');
   // End punctuation, any closing quote/bracket, then the whitespace after it.
   const boundary = /[.!?]["')\]]*\s+/g;
@@ -91,7 +94,9 @@ function splitLineIntoSentences(runs) {
     pos += run.text.length;
   }
   if (current.length) groups.push(current);
-  return groups;
+  // Same reason: drop groups that carry no visible text. Safe for the offset
+  // invariant — an empty group contributes nothing to textContent either way.
+  return groups.filter((g) => g.some((r) => r.text.length > 0));
 }
 
 // Render a single run, splitting it where highlight segments cross it.

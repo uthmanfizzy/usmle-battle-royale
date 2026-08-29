@@ -560,3 +560,134 @@ html[data-study="on"] .screen.solo-screen.uw-exam.uw-timeup {
   html[data-study="on"] .screen.solo-screen.uw-exam .study-statusbar { padding: 10px 14px; gap: 8px; }
   html[data-study="on"] .screen.solo-screen.uw-exam .stb-arrow     { padding: 7px 12px; font-size: 13px; gap: 4px; }
 }
+
+/* ── Block Complete: the score report ───────────────────────────────────────
+   The skin never styled this screen, so it inherited App.css's DARK card and
+   then study.css painted every word near-black on top of it (that rule assumes
+   a light card). Dark ink on a dark card — the text was there the whole time,
+   just invisible.
+
+   Fixed properly rather than by patching the colour: this is now a light exam
+   score report matching the sheet the questions are served on. Selectors carry
+   four classes so they outrank study.css's `html[data-study="on"] .solo-gameover`
+   (0,2,2) without depending on that attribute still being set. */
+.screen.solo-screen.uw-exam:has(.solo-gameover) {
+  justify-content: center;
+  align-items: center;
+  padding: 24px;
+  background: var(--uwq-page, #eef1f5);
+}
+
+.screen.solo-screen.uw-exam .solo-gameover {
+  background: #fff;
+  border: 1px solid var(--uwq-ring, #c3cbd6);
+  border-radius: 10px;
+  box-shadow: 0 18px 44px rgba(15, 42, 82, 0.16);
+  /* The navy band is painted by the h2 below, so the card clips to it. */
+  overflow: hidden;
+  padding: 0 0 26px;
+  margin: 0 auto;
+  gap: 0;
+  max-width: 460px;
+  color: var(--uwq-ink, #1a2233);
+  font-family: 'Lato', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+}
+
+/* Title becomes the header bar, echoing the exam's own navy chrome. */
+.screen.solo-screen.uw-exam .solo-gameover h2 {
+  margin: 0 0 22px;
+  padding: 18px 24px;
+  background: linear-gradient(180deg, var(--uwq-navy-top, #0f2a52), var(--uwq-navy-bot, #0c2242));
+  color: #fff;
+  font-size: 21px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+
+.screen.solo-screen.uw-exam .solo-gameover .sgo-level-label {
+  margin: 0 24px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #5a6678;
+}
+
+.screen.solo-screen.uw-exam .solo-gameover .new-hi-badge {
+  margin: 0 24px 18px;
+  background: linear-gradient(135deg, #fff3d0, #ffe2a1);
+  border: 1px solid #e8c46a;
+  color: #6b4a06;
+  font-size: 14px;
+  font-weight: 700;
+  border-radius: 6px;
+  padding: 9px 16px;
+  /* The pulse belonged to an arcade screen, not a score report. */
+  animation: none;
+}
+
+.screen.solo-screen.uw-exam .solo-gameover .sgo-stats {
+  margin: 0 24px 22px;
+  gap: 10px;
+}
+
+.screen.solo-screen.uw-exam .solo-gameover .sgo-stat {
+  background: #f7f9fc;
+  border: 1px solid var(--uwq-rule, #e4e8ee);
+  border-radius: 8px;
+  padding: 16px 10px;
+}
+
+.screen.solo-screen.uw-exam .solo-gameover .sgo-val {
+  font-size: 30px;
+  font-weight: 800;
+  color: var(--uwq-navy-top, #0f2a52);
+  line-height: 1.1;
+}
+
+.screen.solo-screen.uw-exam .solo-gameover .sgo-label {
+  /* #6b7688 measured 4.35:1 on the tile fill — under AA for text this small. */
+  color: #5a6678;
+  font-size: 10px;
+  font-weight: 700;
+  margin-top: 5px;
+}
+
+/* Buttons: one blue primary, the rest quiet outlines. The old secondary was
+   dim grey-on-grey — the "Home" button in particular was all but gone. */
+.screen.solo-screen.uw-exam .solo-gameover .btn-start,
+.screen.solo-screen.uw-exam .solo-gameover .btn-secondary {
+  margin: 0 24px 10px;
+  /* App.css gives .btn-start width:100%, which resolves against the card's
+     content box and then overflows past the right margin — clipped, not fixed,
+     by the overflow:hidden above. The flex column stretches these on its own. */
+  width: auto;
+  padding: 11px 20px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.screen.solo-screen.uw-exam .solo-gameover .btn-start {
+  background: var(--uwq-blue, #2f6fc9);
+  border: 1px solid var(--uwq-blue, #2f6fc9);
+  color: #fff;
+}
+.screen.solo-screen.uw-exam .solo-gameover .btn-start:hover {
+  background: var(--uwq-blue-lt, #3f7fd6);
+}
+
+.screen.solo-screen.uw-exam .solo-gameover .btn-secondary {
+  background: #fff;
+  border: 1px solid var(--uwq-ring, #c3cbd6);
+  color: var(--uwq-navy-top, #0f2a52);
+}
+.screen.solo-screen.uw-exam .solo-gameover .btn-secondary:hover {
+  background: var(--uwq-sel-bg, #eaf1fb);
+  border-color: var(--uwq-blue, #2f6fc9);
+}
+
+.screen.solo-screen.uw-exam .solo-gameover .btn-secondary:last-child {
+  margin-bottom: 0;
+}

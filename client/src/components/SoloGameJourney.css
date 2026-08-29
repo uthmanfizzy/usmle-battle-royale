@@ -998,4 +998,11 @@ body:has(.solo-screen) .calc-button.equals-btn {
    every sentence and that is what read as random breaks. */
 .screen.solo-screen.jm-vibrant .solo-body .explanation-line {
   display: block;
+  /* A blank line's worth of air between sentences — they are separate points
+     being made, and reading them as a wall was the original complaint. The
+     last one carries no trailing gap so the block ends cleanly. */
+  margin-bottom: 0.85em;
+}
+.screen.solo-screen.jm-vibrant .solo-body .explanation-line:last-child {
+  margin-bottom: 0;
 }
