@@ -2,6 +2,7 @@ import { useState } from 'react';
 import './QuestionParser.css';
 import { supabase } from '../supabaseClient';
 import { isLabLine, isTableLine, renderStem, segmentStem } from '../utils/renderStem';
+import { normaliseQuestionMarkup } from '../utils/normalisePastedMarkup';
 
 // Reassemble the stem from its collected lines: ordinary prose lines are joined
 // with spaces (so hard-wrapped paragraphs flow normally), but a RUN of 2+
@@ -246,7 +247,11 @@ export default function QuestionParser({ activeFolder, selectedTopic, selectedDi
 
         const formattedChoices = choices.map(c => `${c.letter}. ${c.text}`);
 
-        questions.push({
+        // Authoring shorthand -> the canonical markup parseRichText renders:
+        // *text* becomes **bold**, _text_ becomes __underline__. Done here, on
+        // the way in, so nothing already stored is reinterpreted — and so the
+        // PREVIEW below shows exactly what will be saved.
+        questions.push(normaliseQuestionMarkup({
           question: questionText,
           choices: formattedChoices,
           correct: correctLetter,
@@ -256,7 +261,7 @@ export default function QuestionParser({ activeFolder, selectedTopic, selectedDi
           game_modes: gameModes,
           image_url: '',
           question_id: blockId || undefined,   // round-trip: matcher for UPDATE-vs-CREATE
-        });
+        }));
 
       } catch(e) {
         errs.push(`Block ${blockIndex + 1}: Error — ${e.message}`);
@@ -389,6 +394,18 @@ export default function QuestionParser({ activeFolder, selectedTopic, selectedDi
                   </button>
                 </div>
                 <pre className="qp-example-text">{EXAMPLE_TEXT}</pre>
+                {/* Discoverability: the shorthand is converted on paste, so say
+                    so here rather than leaving authors to find it by accident. */}
+                <div className="qp-markup-note">
+                  <span className="qp-markup-title">Text formatting</span>
+                  <span className="qp-markup-row"><code>*text*</code> or <code>**text**</code> → <strong>bold</strong></span>
+                  <span className="qp-markup-row"><code>_text_</code> or <code>__text__</code> → <u>underline</u></span>
+                  <span className="qp-markup-row"><code>[red]text[/red]</code> → coloured (red, blue, green, yellow, orange, purple, gold, pink, cyan, white)</span>
+                  <span className="qp-markup-hint">
+                    Allele names are safe — <code>HLA-DQB1*0501</code> stays as typed, because a
+                    delimiter only counts when it sits against a space or punctuation.
+                  </span>
+                </div>
               </div>
 
               {/* Settings */}
