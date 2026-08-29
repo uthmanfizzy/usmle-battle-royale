@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { getToken, fetchMe, getCachedUser, authFetch } from '../auth';
 import SoloGame from './SoloGame';
 import './UWorldAdventure.css';
@@ -728,7 +729,12 @@ export default function UWorldAdventure() {
           {plannedTotal}-question total and today's pace — every review route
           runs through SoloGame's uwaReview, which skips seen-tracking, so it
           can be replayed as often as it is useful. */}
-      {systemModal && (
+      {/* PORTALLED TO <body>. position:fixed is resolved against the nearest
+          ancestor with a transform/filter/backdrop-filter, not the viewport —
+          this page has several — so rendered in place the dialog anchored to a
+          tall ancestor and appeared far down the page instead of centred on
+          screen. In <body> it is outside every such containing block. */}
+      {systemModal && createPortal(
         <div
           className="uwa-modal-overlay"
           onClick={() => setSystemModal(null)}
@@ -813,7 +819,8 @@ export default function UWorldAdventure() {
               })}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

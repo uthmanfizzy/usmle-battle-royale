@@ -590,21 +590,37 @@
 }
 
 /* Redo the whole system — set apart from the rating piles below it, because it
-   replays everything rather than revisiting what has already been answered. */
+   replays everything rather than revisiting what has already been answered.
+   Tinted LIGHT, not a dark wash: .uwa-pile paints dark ink, so a dark tint
+   inside the dark dialog left the label invisible. */
 .uwa-pile--redo {
-  border-color: rgba(63, 127, 214, 0.55);
-  background: linear-gradient(180deg, rgba(63, 127, 214, 0.16), rgba(63, 127, 214, 0.08));
+  border-color: rgba(63, 127, 214, 0.6);
+  background: linear-gradient(180deg, #dbe8fb, #c8dcf7);
+  color: var(--uwa-ink);
   margin-bottom: 10px;
 }
-.uwa-pile--redo:not(.is-disabled):hover {
-  border-color: rgba(63, 127, 214, 0.9);
-  background: linear-gradient(180deg, rgba(63, 127, 214, 0.24), rgba(63, 127, 214, 0.12));
+.uwa-pile--redo:not(:disabled):hover {
+  border-color: rgba(63, 127, 214, 0.95);
+  background: linear-gradient(180deg, #e6f0ff, #d4e6fb);
 }
 
 /* ── One system's options, as a dialog ────────────────────────────────────
    Opened by tapping a system. Everything you can do with that system lives
    here, so the choice is made in one place instead of down the page. */
 .uwa-modal-overlay {
+  /* The dialog is PORTALLED to <body>, which puts it outside .uwa — and custom
+     properties inherit through the DOM, so every --uwa-* token it relies on
+     would resolve to nothing there. The piles would then render with no panel
+     background and an inherited light text colour: invisible. Re-declared here
+     so the portalled subtree carries the same palette as the page. */
+  --uwa-blue: #3f7fd6;
+  --uwa-panel-soft:   rgba(240, 245, 252, 0.92);
+  --uwa-panel-hover:  rgba(226, 236, 250, 0.95);
+  --uwa-panel-border: rgba(63, 127, 214, 0.4);
+  --uwa-ink:          #16233a;
+  --uwa-ink-soft:     rgba(22, 35, 58, 0.65);
+  --uwa-ink-dim:      rgba(22, 35, 58, 0.5);
+
   position: fixed;
   inset: 0;
   z-index: 9000;
@@ -612,8 +628,9 @@
   align-items: center;
   justify-content: center;
   padding: 20px;
-  background: rgba(4, 8, 18, 0.72);
-  backdrop-filter: blur(3px);
+  background: rgba(4, 8, 18, 0.68);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
 .uwa-modal {
@@ -666,13 +683,16 @@
 }
 
 /* Today's set is the one route that advances the plan, so it leads and is
-   clearly the primary action rather than another grey pile. */
+   clearly the primary action rather than another grey pile. Light tint for the
+   same reason as --redo: the pile's ink is dark. */
 .uwa-pile--today {
-  border-color: rgba(61, 220, 132, 0.5);
-  background: linear-gradient(180deg, rgba(61, 220, 132, 0.2), rgba(61, 220, 132, 0.08));
+  border-color: rgba(34, 160, 94, 0.6);
+  background: linear-gradient(180deg, #d6f5e4, #bfeed4);
+  color: var(--uwa-ink);
+  margin-bottom: 4px;
 }
 .uwa-pile--today:not(:disabled):hover {
-  border-color: rgba(61, 220, 132, 0.85);
-  background: linear-gradient(180deg, rgba(61, 220, 132, 0.28), rgba(61, 220, 132, 0.14));
+  border-color: rgba(34, 160, 94, 0.95);
+  background: linear-gradient(180deg, #e2fbee, #cdf3dd);
 }
-.uwa-pile--today:disabled { opacity: 0.5; cursor: not-allowed; }
+.uwa-pile--today:disabled { opacity: 0.55; cursor: not-allowed; }
