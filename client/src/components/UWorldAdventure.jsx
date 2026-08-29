@@ -240,6 +240,12 @@ export default function UWorldAdventure() {
   useEffect(() => {
     if (!user?.id || !selected) { setRatingCounts(null); return; }
     let cancelled = false;
+    // Clear FIRST. Without this the counts linger from the previously opened
+    // system until the new fetch lands, so tapping a system with one question
+    // right after a system with forty-four showed "44 questions" — the piles
+    // are disabled while null, so this also stops anyone launching a pile
+    // against another system's numbers.
+    setRatingCounts(null);
     loadRatingCounts(selected)
       .then(c => { if (!cancelled && c) setRatingCounts(c); })
       .catch(() => {});
