@@ -990,3 +990,12 @@ body:has(.solo-screen) .calc-button.equals-btn {
   color: var(--mv-text);
 }
 
+
+/* One sentence per line in Journey explanations. The spans are always emitted
+   (see ExplanationText.splitLineIntoSentences); making them block ONLY here
+   keeps every other skin's explanations reading as flowing prose. Tight
+   line-spacing, not paragraph gaps — the earlier version put a margin between
+   every sentence and that is what read as random breaks. */
+.screen.solo-screen.jm-vibrant .solo-body .explanation-line {
+  display: block;
+}

@@ -30,7 +30,11 @@ export default function ExplanationText({ text, className = '', highlights = [],
         <p key={bi} className="explanation-sentence">
           {block.lines.map((runs, li) => (
             <React.Fragment key={li}>
-              {runs.map((run, ri) => renderRun(run, `${bi}-${li}-${ri}`, segments))}
+              {splitLineIntoSentences(runs).map((group, si) => (
+                <span key={si} className="explanation-line">
+                  {group.map((run, ri) => renderRun(run, `${bi}-${li}-${si}-${ri}`, segments))}
+                </span>
+              ))}
               {li < block.lines.length - 1 && <br />}
             </React.Fragment>
           ))}
@@ -38,6 +42,56 @@ export default function ExplanationText({ text, className = '', highlights = [],
       ))}
     </div>
   );
+}
+
+/**
+ * Group a line's runs into one array per sentence, so each can be put on its
+ * own line.
+ *
+ * WRAPPING ONLY — not a text transform. The cut lands AFTER the punctuation
+ * and the whitespace following it, so every character stays exactly where it
+ * was and the rendered textContent is byte-identical. That matters: highlight
+ * offsets are anchored against that string, and an added or dropped space
+ * would shift every highlight after it. (This is the trap the old
+ * sentence-splitting parser fell into — it trimmed, silently eating the space.)
+ *
+ * A run can straddle a boundary ("...done. Next..." inside one bold span), so
+ * runs are sliced, carrying their offsets with them.
+ */
+function splitLineIntoSentences(runs) {
+  if (!runs || runs.length === 0) return [runs || []];
+  const text = runs.map((r) => r.text).join('');
+  // End punctuation, any closing quote/bracket, then the whitespace after it.
+  const boundary = /[.!?]["')\]]*\s+/g;
+  const cuts = new Set();
+  let m;
+  while ((m = boundary.exec(text)) !== null) cuts.add(m.index + m[0].length);
+  if (cuts.size === 0) return [runs];
+
+  const slice = (run, a, b) => ({
+    ...run,
+    text: run.text.slice(a, b),
+    start: run.start + a,
+    end: run.start + b,
+  });
+
+  const groups = [];
+  let current = [];
+  let pos = 0;
+  for (const run of runs) {
+    let local = 0;
+    for (let i = 1; i <= run.text.length; i++) {
+      if (!cuts.has(pos + i)) continue;
+      current.push(slice(run, local, i));
+      groups.push(current);
+      current = [];
+      local = i;
+    }
+    if (local < run.text.length) current.push(slice(run, local, run.text.length));
+    pos += run.text.length;
+  }
+  if (current.length) groups.push(current);
+  return groups;
 }
 
 // Render a single run, splitting it where highlight segments cross it.

@@ -402,8 +402,23 @@ export default function UWorldAdventure() {
     }
     // The adventure-wide count moved too, so the projection shortens visibly.
     loadOverall().then(o => { if (o) setOverall(o); }).catch(() => {});
-    loadRatingCounts().then(c => { if (c) setRatingCounts(c); }).catch(() => {});
+    // Needs the subject now that piles are per system — called bare it just
+    // returned null and the counts never refreshed after a session.
+    if (selected) loadRatingCounts(selected).then(c => { if (c) setRatingCounts(c); }).catch(() => {});
   }
+
+  // Esc closes the system menu, like any other dialog.
+  //
+  // MUST sit above the early return below. It was under it, so starting a
+  // session — which sets sessionQuestions and takes that branch — skipped this
+  // hook and React saw fewer hooks than the previous render (error #300), which
+  // is why clicking a pile crashed the page.
+  useEffect(() => {
+    if (!systemModal) return;
+    const onKey = (e) => { if (e.key === 'Escape') setSystemModal(null); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [systemModal]);
 
   if (sessionQuestions) {
     return (
@@ -429,14 +444,6 @@ export default function UWorldAdventure() {
       />
     );
   }
-
-  // Esc closes the system menu, like any other dialog.
-  useEffect(() => {
-    if (!systemModal) return;
-    const onKey = (e) => { if (e.key === 'Escape') setSystemModal(null); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [systemModal]);
 
   const activeName = subjects.find(s => s.id === selected)?.name || '';
 
