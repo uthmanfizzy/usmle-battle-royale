@@ -809,7 +809,13 @@ html[data-study="on"] .solo-body .stem-table td { color: #1c2030; }
 /* Marks force dark text so the bright pastel background stays readable in BOTH the
    dark theme and study/light theme. */
 .explanation-text mark.hl {
-  background: transparent;
+  /* Fallback fill, deliberately NOT transparent. The dark ink below is only
+     legible on a bright background, and that background comes from a sibling
+     colour class (.hl-yellow etc). Any mark that reaches the DOM without one
+     therefore painted #1a1a2e straight onto the near-black play background —
+     invisible text. Measured: colour rgb(26,26,46) on page rgb(11,7,16).
+     A default keeps it readable no matter how the mark got there. */
+  background: #fdcb6e;
   color: #1a1a2e !important;
   border-radius: 3px;
   padding: 0.05em 0.08em;
@@ -826,7 +832,7 @@ html[data-study="on"] .solo-body .stem-table td { color: #1c2030; }
 /* Stem hint marks (question-stem highlights) — same readable pastels in both themes. */
 .stem-text { display: contents; } /* zero layout impact; still a real DOM node for selection */
 .stem-text mark.hl {
-  background: transparent;
+  background: #fdcb6e;   /* see .explanation-text mark.hl — never transparent */
   color: #1a1a2e !important;
   border-radius: 3px;
   padding: 0.05em 0.08em;

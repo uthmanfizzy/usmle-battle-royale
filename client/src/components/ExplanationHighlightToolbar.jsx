@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { rangeToOffsets, captureContext, HIGHLIGHT_COLORS } from '../utils/explanationHighlights';
 
 // Swatch backgrounds (the 4 offered colours). Kept readable on both themes via CSS
@@ -153,7 +154,17 @@ export default function ExplanationHighlightToolbar({ containerRef, highlights, 
     ? { left: x, top: popup.yBottom + MARGIN, transform: 'translate(-50%, 0)' }
     : { left: x, top: popup.y };
 
-  return (
+  // PORTALLED TO <body>. The toolbar is position:fixed, and a fixed element is
+  // positioned against the nearest ancestor carrying a transform, filter,
+  // backdrop-filter or perspective — not the viewport. In the play screen it
+  // renders inside .round-result, which runs an animation on `transform`, under
+  // ancestors that use backdrop-filter. So "fixed to the bottom of the screen"
+  // was resolving to the bottom of that tall panel: on a phone the colour bar
+  // appeared far down the page instead of on screen.
+  //
+  // Rendering into <body> puts it outside every one of those containing blocks,
+  // and keeps it correct against any future CSS on the play screen.
+  return createPortal(
     <div
       className={`expl-hl-toolbar${coarse ? ' expl-hl-toolbar--docked' : ''}`}
       style={coarse ? undefined : style}
@@ -189,6 +200,7 @@ export default function ExplanationHighlightToolbar({ containerRef, highlights, 
           ✕
         </button>
       )}
-    </div>
+    </div>,
+    document.body
   );
 }
