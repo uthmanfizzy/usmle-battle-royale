@@ -218,6 +218,10 @@ function noteHyChapterPresent() {
   hasHyChapterId = true;
 }
 
+// When this process came up — pairs with /health's commit to tell "the deploy
+// landed" apart from "the deploy landed but the old process is still serving".
+const SERVER_STARTED_AT = new Date().toISOString();
+
 let questionsLastLoaded = 0;
 const QUESTIONS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes — how often the cheap count probe runs
 // How often the bank is re-downloaded in full regardless of the probe. Only a
@@ -11935,6 +11939,13 @@ app.post('/api/rewards/claim/:userId', async (req, res) => {
 
 app.get('/health', (req, res) => res.json({
   status: 'ok',
+  // WHICH BUILD is actually serving. Without this, "is my fix live yet?" can
+  // only be answered by guessing from behaviour — and GitHub's deployment
+  // status lags Railway's, so it has read in_progress long after a build went
+  // out. Railway injects the commit sha; locally there is none.
+  commit: (process.env.RAILWAY_GIT_COMMIT_SHA || 'local').slice(0, 7),
+  startedAt: SERVER_STARTED_AT,
+  questionsLoaded: questionBank.length,
   supabase: !!supabase,
   googleAuth: !!(process.env.GOOGLE_CLIENT_ID),
   activeLobbies: lobbies.size,
