@@ -3026,13 +3026,30 @@ app.get('/api/uworld-questions/rating-counts', requireAuth, async (req, res) => 
     const total = totalRes.count || 0;
     const counts = { total, system_total: systemRes?.error ? 0 : (systemRes?.count || 0) };
     let ratedSum = 0;
+    let ratingsUnavailable = false;
     UWORLD_RATINGS.forEach((r, i) => {
-      if (bucketRes[i].error) throw bucketRes[i].error;
+      const e = bucketRes[i].error;
+      if (e) {
+        // A missing ratings table must not take the whole picker down with it.
+        // `total` and `system_total` come from other tables entirely, so
+        // throwing here zeroed them too — turning "you have not rated anything
+        // yet" into "this system has no questions", which is a different and
+        // untrue statement, and disabled Redo Whole System along with it.
+        if (isMissingTable(e, 'uworld_question_ratings')) {
+          ratingsUnavailable = true;
+          counts[r] = 0;
+          return;
+        }
+        throw e;
+      }
       const c = bucketRes[i].count || 0;
       counts[r] = c;
       ratedSum += c;
     });
+    // With no ratings table nothing can be rated, so everything seen is
+    // genuinely unrated — this falls out correctly with ratedSum at 0.
     counts.unrated = Math.max(0, total - ratedSum);
+    if (ratingsUnavailable) counts.ratings_unavailable = true;
     res.json(counts);
   } catch (err) {
     console.warn('[/api/uworld-questions/rating-counts] failed —', err.message);

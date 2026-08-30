@@ -696,3 +696,23 @@
   background: linear-gradient(180deg, #e2fbee, #cdf3dd);
 }
 .uwa-pile--today:disabled { opacity: 0.55; cursor: not-allowed; }
+
+/* Missing-ratings-table warning in the pile picker. Empty piles look identical
+   whether nothing has been rated or nothing is being SAVED — this says which. */
+.uwa-modal-warn {
+  margin: 0 0 12px;
+  padding: 10px 13px;
+  background: rgba(226, 87, 43, 0.14);
+  border: 1px solid rgba(226, 87, 43, 0.45);
+  border-radius: 8px;
+  color: #ffcbb8;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.uwa-modal-warn code {
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  background: rgba(0, 0, 0, 0.28);
+  border-radius: 4px;
+  padding: 1px 5px;
+}

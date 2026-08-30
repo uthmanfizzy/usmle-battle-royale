@@ -783,6 +783,17 @@ export default function UWorldAdventure() {
               Or revisit — none of these count toward the plan or today&apos;s pace:
             </p>
 
+            {/* Empty rating piles have two very different causes — nothing rated
+                yet, or ratings not being stored at all. Saying which is the
+                whole point: the second one looks exactly like the first. */}
+            {ratingCounts?.ratings_unavailable && (
+              <p className="uwa-modal-warn" role="alert">
+                ⚠ Ratings are not being saved — the <code>uworld_question_ratings</code> table
+                is missing from the database, so the rating piles below stay empty.
+                Redo Whole System and Study All still work.
+              </p>
+            )}
+
             <div className="uwa-pile-list">
               {/* Redo replays the ENTIRE system, seen or not, rather than
                   revisiting only what has already been answered. */}
