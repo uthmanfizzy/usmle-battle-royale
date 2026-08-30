@@ -2929,7 +2929,11 @@ app.post('/api/uworld-questions/:questionId/rate', requireAuth, async (req, res)
         .update({ rating, updated_at: row.updated_at })
         .eq('user_id', row.user_id)
         .eq('question_id', row.question_id)
-        .select('id');
+        // NOT .select('id'): a table missing its unique index is a table built
+        // by a partial migration, which may have no `id` column either (no
+        // indexes at all means no primary key). user_id is filtered on above,
+        // so it is guaranteed to exist.
+        .select('user_id');
       if (upd.error) {
         console.error('[uworld rate] fallback update failed —', upd.error.code, upd.error.message);
         return res.json({ ok: false, reason: describeRatingWriteError(upd.error) });
