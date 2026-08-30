@@ -2726,6 +2726,28 @@ const UWORLD_MODE_JSON = JSON.stringify([UWORLD_MODE]);
 // UX and because the client renders both from the same icon/label list.
 const UWORLD_RATINGS = ['knowledge_gap', 'careless_miss', 'lucky_guess', 'somewhat_know', 'fully_understood'];
 
+// ON CONFLICT needs a unique index on (user_id, question_id). A part-run
+// migration can leave the table there but the index absent, and Postgres then
+// rejects EVERY upsert with 42P10 — which, on a fire-and-forget write, means
+// ratings vanish in complete silence while the piles all read 0.
+function isMissingUniqueIndex(error) {
+  if (!error) return false;
+  const msg = `${error.message || ''} ${error.details || ''}`.toLowerCase();
+  return error.code === '42P10' || msg.includes('on conflict');
+}
+
+// Turn a write error into something the client can actually say out loud.
+// Every branch here is a cause that used to present identically: nothing saved,
+// nothing reported, empty piles.
+function describeRatingWriteError(error) {
+  if (isMissingTable(error, 'uworld_question_ratings')) return 'missing_table';
+  if (isMissingUniqueIndex(error))                      return 'missing_unique_index';
+  if (isMissingColumn(error))                           return 'missing_column';
+  if (error?.code === '23503')                          return 'unknown_question';
+  if (error?.code === '23514')                          return 'bad_rating_value';
+  return 'write_failed';
+}
+
 /**
  * POST /api/questions/seen
  *
@@ -2884,20 +2906,48 @@ app.post('/api/uworld-questions/:questionId/rate', requireAuth, async (req, res)
   if (!UWORLD_RATINGS.includes(rating)) {
     return res.status(400).json({ error: `rating must be one of: ${UWORLD_RATINGS.join(', ')}` });
   }
-  if (!supabase) return res.json({ ok: false });
+  if (!supabase) return res.json({ ok: false, reason: 'no_supabase' });
+  const row = {
+    user_id:     req.userId,
+    question_id: req.params.questionId,
+    rating,
+    updated_at:  new Date().toISOString(),
+  };
   try {
-    const err = await logWrite('uworld_question_ratings.upsert', supabase
+    const { error } = await supabase
       .from('uworld_question_ratings')
-      .upsert({
-        user_id:     req.userId,
-        question_id: req.params.questionId,
-        rating,
-        updated_at:  new Date().toISOString(),
-      }, { onConflict: 'user_id,question_id' }));
-    res.json({ ok: !err });
+      .upsert(row, { onConflict: 'user_id,question_id' });
+    if (!error) return res.json({ ok: true });
+    console.error('[uworld rate] upsert failed —', error.code, error.message);
+
+    // Missing unique index: do by hand what ON CONFLICT cannot. Update first,
+    // insert only if nothing was there — so ratings keep working (and keep one
+    // row per user+question) on a database that never got the index.
+    if (isMissingUniqueIndex(error)) {
+      const upd = await supabase
+        .from('uworld_question_ratings')
+        .update({ rating, updated_at: row.updated_at })
+        .eq('user_id', row.user_id)
+        .eq('question_id', row.question_id)
+        .select('id');
+      if (upd.error) {
+        console.error('[uworld rate] fallback update failed —', upd.error.code, upd.error.message);
+        return res.json({ ok: false, reason: describeRatingWriteError(upd.error) });
+      }
+      if (Array.isArray(upd.data) && upd.data.length > 0) {
+        return res.json({ ok: true, degraded: 'missing_unique_index' });
+      }
+      const ins = await supabase.from('uworld_question_ratings').insert(row);
+      if (ins.error) {
+        console.error('[uworld rate] fallback insert failed —', ins.error.code, ins.error.message);
+        return res.json({ ok: false, reason: describeRatingWriteError(ins.error) });
+      }
+      return res.json({ ok: true, degraded: 'missing_unique_index' });
+    }
+    res.json({ ok: false, reason: describeRatingWriteError(error) });
   } catch (err) {
     console.warn('[/api/uworld-questions/:questionId/rate] failed —', err.message);
-    res.json({ ok: false });
+    res.json({ ok: false, reason: 'exception' });
   }
 });
 

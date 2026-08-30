@@ -69,15 +69,33 @@ function postQuestionSeen(q, { answered, correct }) {
 // advanced by the time the request settles).
 function postQuestionRating(q, rating) {
   const questionId = q?._supabase_id;
-  if (!questionId) return;
+  if (!questionId) return Promise.resolve({ ok: false, reason: 'no_question_id' });
   const token = getToken();
-  if (!token) return;
-  fetch(`${SERVER_URL}/api/uworld-questions/${questionId}/rate`, {
+  if (!token) return Promise.resolve({ ok: false, reason: 'not_signed_in' });
+  return fetch(`${SERVER_URL}/api/uworld-questions/${questionId}/rate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
     body: JSON.stringify({ rating }),
-  }).catch(() => {});
+  })
+    .then(r => r.json())
+    .catch(() => ({ ok: false, reason: 'network' }));
 }
+
+// A rating that does not save is worse than one that fails loudly: the student
+// keeps rating, the review piles stay empty, and nothing ever says why. Every
+// reason here used to present as silence.
+const RATING_ERROR_TEXT = {
+  missing_table:        'Ratings are not saving — the uworld_question_ratings table is missing from the database.',
+  missing_unique_index: 'Ratings are not saving — uworld_question_ratings is missing its (user_id, question_id) unique index.',
+  missing_column:       'Ratings are not saving — a column is missing from uworld_question_ratings.',
+  unknown_question:     'This question is not in the main bank, so its rating cannot be stored.',
+  bad_rating_value:     'Ratings are not saving — the database is rejecting this rating value.',
+  not_signed_in:        'Sign in to save your ratings — this one was not stored.',
+  no_question_id:       'This question has no bank id, so its rating cannot be stored.',
+  network:              'Could not reach the server — that rating was not saved.',
+};
+const ratingErrorText = reason =>
+  RATING_ERROR_TEXT[reason] || 'That rating was not saved, so your review piles will be missing it.';
 
 function getHi(subject) {
   try { return parseInt(localStorage.getItem(`usmle-hs-${subject}`) || '0', 10); } catch { return 0; }
@@ -253,6 +271,10 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   // still hasn't been rated? At that point the question is closed — reading on
   // changes nothing — so the rating row becomes the only thing left to do.
   const [explanationExpired, setExplanationExpired] = useState(false);
+  // Exam skin only: set when the server reports a rating did NOT save, so the
+  // failure is visible during the run instead of only showing up later as
+  // review piles that are inexplicably empty.
+  const [ratingSaveError, setRatingSaveError] = useState('');
   // Exam skin only: is the explanation countdown currently held? explPausedLeft
   // is the remaining seconds frozen at the moment it was held — it cannot tick
   // down while held, so there is nothing to keep updating.
@@ -1136,7 +1158,11 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
     const q = (shuffledQRef.current && shuffledQRef.current.qIdx === qIdxRef.current && shuffledQRef.current.q)
       ? shuffledQRef.current.q
       : questionsRef.current[qIdxRef.current];
-    postQuestionRating(q, ratingKey);
+    // Advancing does not wait on this (a lost rating must never block the run),
+    // but a failure is now reported rather than swallowed.
+    postQuestionRating(q, ratingKey).then(r => {
+      if (r && r.ok === false) setRatingSaveError(ratingErrorText(r.reason));
+    });
     if (skipTimerRef.current) { clearTimeout(skipTimerRef.current); skipTimerRef.current = null; }
     doAdvanceRef.current?.();
   }
@@ -1172,9 +1198,24 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
     );
   }
 
+  // Rendered in BOTH returns below: a rating can fail on the last question of
+  // a block, where the results screen is the only thing left to show it on.
+  const ratingErrorBanner = ratingSaveError ? (
+    <div className="uw-rating-error" role="alert">
+      <span className="uw-rating-error-icon" aria-hidden="true">⚠</span>
+      <span className="uw-rating-error-text">{ratingSaveError}</span>
+      <button
+        type="button"
+        className="uw-rating-error-x"
+        onClick={() => setRatingSaveError('')}
+        aria-label="Dismiss"
+      >×</button>
+    </div>
+  ) : null;
   if (gameOver) {
     return (
       <div className={screenClass}>
+        {ratingErrorBanner}
         <div className="solo-gameover">
           {/* "Game Over" is a survival-game word, and nothing was survived here
               — the block simply ran out of items. */}
@@ -1381,6 +1422,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
 
   return (
     <div className={`${screenClass}${timeUpLock ? ' uw-timeup' : ''}`} ref={screenRef}>
+      {ratingErrorBanner}
       {/* Developer-mode unlock: only when ?dev=1 is in the URL and not yet unlocked.
           Lets an admin enable official-highlight authoring from any play tab. */}
       {devParam && !isAdminSession && (

@@ -739,3 +739,39 @@ html[data-study="on"] .screen.solo-screen.uw-exam.uw-timeup {
   background: #ffe9b8;
   border-color: #d9ae4a;
 }
+
+/* ── Rating write failure ───────────────────────────────────────────────────
+   A rating that silently fails to save is the worst possible outcome: the
+   student keeps rating, the review piles stay empty, and nothing ever says
+   why. Deliberately loud and sticky until dismissed. */
+.uw-rating-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0;
+  padding: 11px 16px;
+  background: #fdecea;
+  border-bottom: 1px solid #f0b4ac;
+  color: #7d2318;
+  font-family: 'Lato', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  font-size: 13px;
+  line-height: 1.45;
+  font-weight: 600;
+}
+
+.uw-rating-error-icon { flex: none; font-size: 15px; line-height: 1.35; }
+.uw-rating-error-text { flex: 1 1 auto; }
+
+.uw-rating-error-x {
+  flex: none;
+  background: none;
+  border: 0;
+  color: inherit;
+  font-family: inherit;
+  font-size: 18px;
+  line-height: 1;
+  padding: 0 2px;
+  cursor: pointer;
+  opacity: 0.65;
+}
+.uw-rating-error-x:hover { opacity: 1; }
