@@ -2290,6 +2290,50 @@ function QuestionsPanel({ subjects = [], scopeTag = null }) {
   }
 
   // ─── Export Questions ─────────────────────────────────────────────────────────
+  // Ordered plain-text list of everything in this folder — the export to reach
+  // for when a bulk paste lands fewer questions than went in and the real
+  // question is WHICH ones are missing.
+  //
+  // Deliberately not the JSON export beside it: that one drops the id and the
+  // order, which are the two things this job needs. Numbered to match the #
+  // column, one question per line, so the file lines up against the source
+  // paste by eye or by an assistant.
+  //
+  // Exports catQuestions (the whole folder), NOT `filtered` — an export used to
+  // hunt for missing rows must never itself silently drop rows because a search
+  // box happened to be filled in.
+  const handleExportOrderedList = () => {
+    const rows = catQuestions;
+    if (rows.length === 0) { alert('No questions in this folder to export.'); return; }
+    const folderName = curFolder?.label || activeFolder || 'all';
+    // Stems can contain newlines; collapsing them is what keeps one question to
+    // one line, which is what makes the file comparable at all.
+    const oneLine = s => String(s ?? '').replace(/\s+/g, ' ').trim();
+    const width = String(rows.length).length;
+    const body = rows.map((q, i) =>
+      `${String(i + 1).padStart(width, ' ')}  [${q.id ?? '?'}]  ${oneLine(q.question)}`);
+    const header = [
+      'MedVale question export',
+      `Folder:   ${folderName}${scopeTag ? ' (UWorld Adventure)' : ''}`,
+      `Exported: ${new Date().toISOString()}`,
+      `Count:    ${rows.length}`,
+      '',
+      'Every question currently stored in this folder, in the same order as the',
+      '# column in the admin table, one per line. Compare against the list you',
+      'pasted to find any that never made it in.',
+      '',
+    ];
+    const blob = new Blob([header.concat(body).join('\n') + '\n'], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `questions-${folderName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-in-order-${new Date().toISOString().split('T')[0]}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   const handleExportQuestions = () => {
     try {
       // Get current filtered questions
@@ -3173,6 +3217,16 @@ function QuestionsPanel({ subjects = [], scopeTag = null }) {
                       📥 Bulk Import
                     </button>
                   </>}
+                  {/* Outside the !scopeTag block above: the mode tabs are
+                      exactly where a bulk paste is checked, so this is the one
+                      authoring tool they do need. */}
+                  <button
+                    className="ap-btn-sec"
+                    onClick={handleExportOrderedList}
+                    title={`Download all ${catQuestions.length} question${catQuestions.length !== 1 ? 's' : ''} in this folder as a numbered list — for checking which of a pasted batch made it in`}
+                  >
+                    🔢 Export in Order
+                  </button>
                   <button className="ap-btn-sec" onClick={() => setShowParser(true)}>
                     📋 Paste &amp; Parse
                   </button>
