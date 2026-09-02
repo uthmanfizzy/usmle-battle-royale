@@ -220,18 +220,22 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   // with difficulty="easy", so it would otherwise share (and be skewed by) whatever
   // admins configure for easy mode across Solo/Training.
   const isHardMode = difficulty === 'hard';
-  const defaultTimer = uworldSkin
+  // First Aid Journey is the teaching mode: its stems are long and its
+  // explanations are the point of the mode, so both phases get a fixed bonus on
+  // top of whatever is configured for the difficulty. Bonuses rather than
+  // overrides, so admin-configured timings still move them.
+  const JOURNEY_QUESTION_BONUS_S    = 10;
+  const JOURNEY_EXPLANATION_BONUS_S = 15;
+  const defaultTimer = (uworldSkin
     ? 70
     : isHardMode
       ? (settings.hardModeTimer || 30)
-      : (settings.easyModeTimer || settings.timerDefault || 20);
+      : (settings.easyModeTimer || settings.timerDefault || 20)
+  ) + (isJourney ? JOURNEY_QUESTION_BONUS_S : 0);
   const defaultLives = isJourney ? 5 : (settings.battleRoyaleLives || 3);
   const maxLives = defaultLives;   // heart slots shown = max lives for this mode (5 in journey)
-  // First Aid Journey explanations are the long teaching kind — the whole point
-  // of the mode — so they get 5s more than the configured value to read them.
-  const JOURNEY_EXPLANATION_BONUS_S = 5;
   const explanationTime = (uworldSkin
-    ? 60
+    ? 75
     : isHardMode
       ? (settings.hardModeExplanationTime || 20)
       : (settings.easyModeExplanationTime || settings.explanationTime || 5)
