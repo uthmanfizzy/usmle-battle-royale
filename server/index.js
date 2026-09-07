@@ -10645,6 +10645,70 @@ app.put('/api/journey/confidence', requireAuth, async (req, res) => {
   }
 });
 
+/**
+ * GET /api/journey/progress-summary
+ *
+ * Levels completed / levels total for EVERY subject at once, for the subject
+ * picker's progress bars: { subjects: { biochemistry: { done, total }, ... } }.
+ *
+ * MUST stay registered ABOVE /api/journey/:subject — that route would otherwise
+ * match this path first and go hunting for a subject called "progress-summary".
+ *
+ * Deliberately not sixteen buildJourneyPath calls: that is dozens of queries for
+ * a screen needing two numbers per subject, on an account that has already been
+ * knocked over by egress once. Three queries here, and chapters/levels/progress
+ * are PAGED rather than scanned, so PostgREST's 1000-row cap cannot silently
+ * undercount a large journey — the same cap that once made whole levels report
+ * zero questions.
+ *
+ * Counts LEVELS only. Bosses would need their question counts to know which are
+ * auto-skipped, which is the expensive half of the path build — so the picker
+ * says "levels" and the pathway screen keeps its fuller node count.
+ */
+app.get('/api/journey/progress-summary', requireAuth, async (req, res) => {
+  if (!supabase) return res.json({ subjects: {} });
+  const pageAll = async (build) => {
+    const rows = [];
+    const SIZE = 1000;
+    for (let from = 0; ; from += SIZE) {
+      const { data, error } = await build().range(from, from + SIZE - 1);
+      if (error) throw error;
+      const batch = data || [];
+      rows.push(...batch);
+      if (batch.length < SIZE) break;
+    }
+    return rows;
+  };
+  try {
+    const [chapters, levels, progress] = await Promise.all([
+      pageAll(() => supabase.from('journey_chapters').select('id, subject')),
+      pageAll(() => supabase.from('journey_levels').select('id, chapter_id')),
+      pageAll(() => supabase.from('journey_progress')
+        .select('level_key, completed_at').eq('user_id', req.userId)),
+    ]);
+
+    const subjectOf = new Map(chapters.map(c => [c.id, c.subject]));
+    // Boss rows key as 'boss:...', which matches no level id, so they drop out
+    // of this on their own.
+    const doneKeys = new Set(progress.filter(r => r.completed_at).map(r => r.level_key));
+
+    const subjects = {};
+    for (const l of levels) {
+      const subj = subjectOf.get(l.chapter_id);
+      if (!subj) continue;   // level orphaned by a deleted chapter
+      const entry = (subjects[subj] ||= { done: 0, total: 0 });
+      entry.total += 1;
+      if (doneKeys.has(l.id)) entry.done += 1;
+    }
+    res.json({ subjects });
+  } catch (err) {
+    // The picker is perfectly usable without bars — never take the screen down
+    // for a decoration.
+    console.warn('[/api/journey/progress-summary] failed —', err.message);
+    res.json({ subjects: {} });
+  }
+});
+
 app.get('/api/journey/:subject', requireAuth, async (req, res) => {
   if (!supabase) return res.json({ subject: req.params.subject, threshold: 50, chapters: [], ultimate: null, mastery: false });
   try {

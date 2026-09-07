@@ -69,6 +69,7 @@ export default function JourneyMode({
   const [interstitial, setInterstitial] = useState(null); // null | { status: 'saving'|'complete'|'tryagain'|'save_failed', pct, threshold?, retryPayload? }
   const [bgUrl,       setBgUrl]       = useState(null);       // admin-set backdrop (landing-images slot 'journey_bg')
   const [activeIds,   setActiveIds]   = useState(null);       // Set of active subject ids; null = not loaded → show all
+  const [subjectProgress, setSubjectProgress] = useState({}); // { subjectId: { done, total } } for the picker's bars
 
   // Question order for a run: 'random' (the long-standing behaviour, kept as the
   // default) or 'sequential' — exactly as the level was authored. Stored per-user
@@ -135,6 +136,20 @@ export default function JourneyMode({
   }, []);
 
   const isActive = (id) => !activeIds || activeIds.has(id);
+
+  // Per-subject level progress for the picker's bars. Signed-in only — an
+  // anonymous visitor has no progress to show, and the cards render fine
+  // without it, so a failure here is silent by design.
+  useEffect(() => {
+    const token = getToken();
+    if (!token) return;
+    let cancelled = false;
+    fetch(`${SERVER}/api/journey/progress-summary`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json())
+      .then(d => { if (!cancelled && d && typeof d.subjects === 'object') setSubjectProgress(d.subjects); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
 
   // Vivid admin backdrop with the parchment floating on top; absent → unchanged look
   const bgClass = bgUrl ? ' jm-screen--bg' : '';
@@ -635,12 +650,36 @@ export default function JourneyMode({
                   </div>
                 ) : (
                   <div className="jm-subject-grid">
-                    {subjects.map(s => (
-                      <button key={s.id} className="jm-subject-card" onClick={() => loadPath(s)}>
-                        <span className="jm-subject-icon">{s.icon}</span>
-                        <span className="jm-subject-label">{s.label}</span>
-                      </button>
-                    ))}
+                    {subjects.map(s => {
+                      const prog = subjectProgress[s.id];
+                      // Only once the totals are known AND there is something to
+                      // complete — a bar reading 0/0 says nothing.
+                      const hasProg = !!prog && prog.total > 0;
+                      const pct = hasProg ? Math.round((prog.done / prog.total) * 100) : 0;
+                      return (
+                        <button
+                          key={s.id}
+                          className={`jm-subject-card${hasProg && pct === 100 ? ' jm-subject-card--done' : ''}`}
+                          onClick={() => loadPath(s)}
+                          // The subject's own colour, fed to CSS once and used
+                          // for the border, glow, icon and bar alike.
+                          style={{ '--jm-subject-rgb': s.rgb }}
+                        >
+                          <span className="jm-subject-icon">{s.icon}</span>
+                          <span className="jm-subject-label">{s.label}</span>
+                          {hasProg && (
+                            <span className="jm-subject-progress">
+                              <span className="jm-subject-bar" aria-hidden="true">
+                                <span className="jm-subject-bar-fill" style={{ width: `${pct}%` }} />
+                              </span>
+                              <span className="jm-subject-prog-text">
+                                {pct === 100 ? '✓ Complete' : `${prog.done} / ${prog.total} levels`}
+                              </span>
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
               </Fragment>
