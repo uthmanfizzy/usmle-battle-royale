@@ -359,9 +359,26 @@ export default function QuestionParser({ activeFolder, selectedTopic, selectedDi
     setParsed(prev => prev.filter((_, i) => i !== index));
   };
 
+  // Enter walks the flow: paste → Enter parses → Enter imports.
+  //
+  // Only on the preview step, and only from things where Enter has no meaning
+  // of its own. A textarea needs it for newlines (the preview's editable fields
+  // are textareas), and a focused button already fires its own click on Enter —
+  // handling it here as well would run two actions from one keypress.
+  const handleModalEnter = (e) => {
+    if (step !== 'preview') return;
+    if (e.key !== 'Enter' || e.shiftKey || e.nativeEvent?.isComposing) return;
+    const tag = e.target?.tagName;
+    if (tag === 'TEXTAREA' || tag === 'BUTTON' || tag === 'SELECT') return;
+    if (e.target?.isContentEditable) return;
+    if (importing || parsed.length === 0 || subjectBlocked) return;
+    e.preventDefault();
+    handleImport();
+  };
+
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="qp-modal">
+      <div className="qp-modal" onKeyDown={handleModalEnter}>
         <div className="qp-header">
           <h2>📋 Question Parser</h2>
           <button onClick={onClose}>✕</button>
@@ -474,9 +491,18 @@ export default function QuestionParser({ activeFolder, selectedTopic, selectedDi
               </div>
               <textarea
                 className="qp-textarea"
-                placeholder={`Paste questions here...\n\nSeparate multiple questions with a blank line.`}
+                placeholder={`Paste questions here...\n\nSeparate multiple questions with a blank line.\n\nEnter parses · Shift+Enter for a new line`}
                 value={rawText}
                 onChange={e => setRawText(e.target.value)}
+                // Enter parses rather than inserting a newline: this box is
+                // pasted into, not typed into, so advancing is what the key is
+                // actually wanted for. Shift+Enter keeps the newline, which is
+                // still needed for the blank line that separates questions.
+                onKeyDown={e => {
+                  if (e.key !== 'Enter' || e.shiftKey || e.nativeEvent?.isComposing) return;
+                  e.preventDefault();
+                  if (rawText.trim()) parseQuestions();
+                }}
                 autoFocus
               />
               {rawText && (

@@ -10346,7 +10346,8 @@ app.get('/api/videos', async (req, res) => {
 // questions with boss_key 'chapter:{chapter_id}' / 'ultimate'.
 //
 // Unlock chain (computed here, never stored):
-//   chapter 1 level 1 unlocked; level N needs level N-1 completed;
+//   chapter levels 1 and 2 unlocked; level N needs level N-2 completed (two
+//   levels are open at the frontier, so clearing N opens N+1 and N+2);
 //   chapter boss needs all its chapter's levels; next chapter's first level
 //   needs the previous chapter's boss; ultimate needs all chapter bosses.
 // AUTO-SKIP: a boss with zero authored questions counts as satisfied once its
@@ -10506,11 +10507,22 @@ async function buildJourneyPath(userId, subject) {
     // chapter can be started without completing prior chapters. Progression then
     // chains WITHIN the chapter only, so we reset the "previous level satisfied"
     // gate at each chapter boundary (it never carries across chapters).
-    let prevSatisfied = true;
+    // TWO levels are playable at the frontier, not one: the gate looks two
+    // levels back rather than one, so clearing level N opens N+1 AND N+2 (and
+    // the first two levels of a chapter are open from the start). The chain is
+    // otherwise unchanged, and the chapter boss still needs EVERY level done —
+    // running one ahead skips nothing, it just removes the wait.
+    let prev1 = true;   // level i-1 completed — vacuously true before the first
+    let prev2 = true;   // level i-2 completed
     const levels = members.map(l => {
       const completed = isDone(l.id);
-      const unlocked  = prevSatisfied || completed;
-      prevSatisfied   = completed;
+      // EITHER of the previous two, not exactly two back. Opening two levels
+      // means they can be cleared out of order, and a strict two-back gate then
+      // leaves a locked level stranded between two open ones (skip L1, clear
+      // L2, and L3 locks while L4 opens).
+      const unlocked  = completed || prev1 || prev2;
+      prev2 = prev1;
+      prev1 = completed;
       const bestPct = best(l.id);
       return {
         level_key: l.id,
