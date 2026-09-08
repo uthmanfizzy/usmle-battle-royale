@@ -553,3 +553,137 @@
   color: rgba(255, 255, 255, 0.6);
   letter-spacing: 0;
 }
+
+/* ══ CHOOSE YOUR PATH — richer chrome ═════════════════════════════════════════
+   The three cards were literal copies of the Deploy mockup's "plain card":
+   near-black fill, one hairline border, a 40px grey icon disc. On a black page
+   that reads as three empty rectangles with no hierarchy and nothing to
+   distinguish a solo campaign from live battle.
+
+   Each card now carries an identity colour in --ms-accent-rgb and derives its
+   accent bar, icon medallion, tint and hover glow from that one value. Static
+   rgba() throughout — color-mix() ships broken to older browsers and would
+   leave these uncoloured, which is the whole point of the change.
+
+   Scoped to :not(.ms-cards--story), matching the block above, so the Story
+   MENU screen's tiles keep the chrome they already have. */
+
+.ms-cards:not(.ms-cards--story) > .ms-card--story  { --ms-accent-rgb: 232, 176, 75; }  /* gold — the campaign */
+.ms-cards:not(.ms-cards--story) > .ms-card--online { --ms-accent-rgb: 214, 69, 65;  }  /* crimson — the duel */
+.ms-train                                          { --ms-accent-rgb: 79, 209, 197; }  /* teal — kept from its icon */
+
+.ms-cards:not(.ms-cards--story) > .ms-card,
+.ms-train {
+  position: relative;
+  overflow: hidden;
+  background:
+    linear-gradient(180deg, rgba(var(--ms-accent-rgb), 0.13), rgba(var(--ms-accent-rgb), 0.03) 55%),
+    rgba(6, 10, 7, 0.72);
+  border: 1px solid rgba(var(--ms-accent-rgb), 0.42);
+  border-radius: 14px;
+  box-shadow:
+    0 2px 14px rgba(0, 0, 0, 0.45),
+    0 0 18px rgba(var(--ms-accent-rgb), 0.10),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+/* Accent bar along the top edge — same device as the Journey subject cards, so
+   the two pickers read as one family. */
+.ms-cards:not(.ms-cards--story) > .ms-card::before,
+.ms-train::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: linear-gradient(90deg,
+    rgba(var(--ms-accent-rgb), 0.25),
+    rgb(var(--ms-accent-rgb)) 50%,
+    rgba(var(--ms-accent-rgb), 0.25));
+}
+
+.ms-cards:not(.ms-cards--story) > .ms-card:hover,
+.ms-train:hover {
+  border-color: rgba(var(--ms-accent-rgb), 0.9);
+  background:
+    linear-gradient(180deg, rgba(var(--ms-accent-rgb), 0.22), rgba(var(--ms-accent-rgb), 0.06) 55%),
+    rgba(6, 10, 7, 0.72);
+  box-shadow:
+    0 18px 40px rgba(0, 0, 0, 0.6),
+    0 0 34px rgba(var(--ms-accent-rgb), 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.09);
+}
+
+.ms-cards:not(.ms-cards--story) > .ms-card:focus-visible,
+.ms-train:focus-visible {
+  outline: 2px solid rgb(var(--ms-accent-rgb));
+  outline-offset: 3px;
+}
+
+/* Icon: a real medallion rather than a grey disc — the emoji was 16px inside a
+   40px circle, so it read as a smudge at arm's length. */
+.ms-cards:not(.ms-cards--story) .ms-card-icon {
+  width: 62px;
+  height: 62px;
+  font-size: 28px;
+  background:
+    radial-gradient(circle at 50% 35%, rgba(var(--ms-accent-rgb), 0.42), rgba(var(--ms-accent-rgb), 0.16));
+  border: 1px solid rgba(var(--ms-accent-rgb), 0.5);
+  box-shadow: 0 0 0 6px rgba(var(--ms-accent-rgb), 0.08), 0 4px 14px rgba(0, 0, 0, 0.45);
+}
+
+.ms-train-icon {
+  width: 50px;
+  height: 50px;
+  font-size: 24px;
+  background:
+    radial-gradient(circle at 50% 35%, rgba(var(--ms-accent-rgb), 0.42), rgba(var(--ms-accent-rgb), 0.16));
+  border: 1px solid rgba(var(--ms-accent-rgb), 0.5);
+  box-shadow: 0 0 0 6px rgba(var(--ms-accent-rgb), 0.08), 0 4px 14px rgba(0, 0, 0, 0.45);
+}
+
+/* Titles pick up their card's colour — with two cards side by side, a shared
+   white title was the main reason they read as interchangeable. */
+.ms-cards:not(.ms-cards--story) .ms-card-name {
+  font-size: 21px;
+  letter-spacing: 0.06em;
+  color: rgb(var(--ms-accent-rgb));
+  text-shadow: 0 0 18px rgba(var(--ms-accent-rgb), 0.35);
+}
+.ms-train-name {
+  color: rgb(var(--ms-accent-rgb));
+  letter-spacing: 0.06em;
+  text-shadow: 0 0 18px rgba(var(--ms-accent-rgb), 0.35);
+}
+
+/* Two lines' worth of room whether the copy needs it or not. Story's caption
+   wraps and Online's does not, which previously left the two cards' icons and
+   titles sitting at visibly different heights. */
+.ms-cards:not(.ms-cards--story) .ms-card-sub {
+  min-height: 2.8em;
+  max-width: 260px;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.ms-cards:not(.ms-cards--story) > .ms-card {
+  padding: 30px 26px 26px;
+  gap: 14px;
+  min-height: 210px;
+  justify-content: flex-start;
+}
+
+.ms-train {
+  padding: 20px 26px;
+  gap: 20px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ms-cards:not(.ms-cards--story) > .ms-card:hover,
+  .ms-train:hover { transform: none; }
+}
+
+/* Equal-height columns. The row centres its items, so the taller Story card
+   (its caption wraps to two lines) and the shorter Online card were centred
+   against each other — leaving their icons and titles at visibly different
+   heights. Stretching them, with the content packed from the top, lines the
+   two up whatever the copy does. */
+.ms-cards:not(.ms-cards--story) { align-items: stretch; }
