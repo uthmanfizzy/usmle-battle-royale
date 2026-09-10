@@ -57,12 +57,13 @@ export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld, onSaudiMLE })
         <div className="ms-title-rule" />
       </div>
 
-      {/* All four campaigns share the wide ms-journey-card layout (art panel
-          left, name/description right) so they read as siblings in one list.
-          Art areas are INERT striped placeholders (no per-campaign art asset
-          exists); the mockup's progress row + "Chapter X of Y" is intentionally
-          OMITTED — no aggregate journey progress endpoint exists yet (ships
-          with the Journey restructure). */}
+      {/* All four campaigns share the ms-journey-card layout so they read as
+          siblings in one list: a row of tiles on desktop (art above, text
+          below), the original wide rows stacked on a phone. Art areas carry
+          each campaign's own colour rather than a real asset — no per-campaign
+          art exists. The mockup's progress row + "Chapter X of Y" is
+          intentionally OMITTED here; the Journey page has its own per-subject
+          progress now, this list does not. */}
       <div className="ms-campaign-list">
         <button className="ms-journey-card" onClick={onJourney}>
           <div className="ms-journey-art" aria-hidden="true">
@@ -140,7 +141,7 @@ export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld, onSaudiMLE })
             own route, pace and colours, sharing one component. */}
         <button className="ms-journey-card ms-journey-card--green" onClick={onSaudiMLE}>
           <div className="ms-journey-art" aria-hidden="true">
-            <span className="ms-journey-art-icon">🇸🇦</span>
+            <span className="ms-journey-art-icon">📗</span>
           </div>
           <div className="ms-journey-body">
             <span className="ms-journey-name">SAUDI MLE</span>

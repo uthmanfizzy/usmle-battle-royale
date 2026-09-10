@@ -26,7 +26,7 @@ export const QUESTION_BANK_MODES = [
   {
     id: 'saudi_mle',
     label: 'Saudi MLE',
-    icon: '🇸🇦',
+    icon: '📗',
     route: '/saudi-mle',
     tagline: 'Work the Saudi Medical Licensing Exam bank down, at your own pace.',
     paceScope: '__saudi_mle__',

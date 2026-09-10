@@ -137,9 +137,7 @@
   color: #7fb0e0;
 }
 
-.ms-journey-card--blue .ms-journey-art {
-  background: repeating-linear-gradient(45deg, #182430, #182430 10px, #131d27 10px, #131d27 20px);
-}
+
 
 /* Orange variant — Flashcards. Same treatment as the blue UWorld variant:
    coloured rule + glow, coloured title, warmer stripes in the art panel. */
@@ -159,9 +157,7 @@
 .ms-journey-card--orange.ms-journey-card--open { border-color: #f0a860; }
 .ms-journey-card--orange.ms-journey-card--open .ms-flash-caret { color: #f0a860; }
 
-.ms-journey-card--orange .ms-journey-art {
-  background: repeating-linear-gradient(45deg, #302016, #302016 10px, #271a10 10px, #271a10 20px);
-}
+
 
 /* Coming-soon state: dimmed + neutral border (same plain-card language as
    Deploy's disabled mode cards), no red glow, no hover lift.
@@ -705,6 +701,156 @@
   color: #74d3a6;
 }
 
-.ms-journey-card--green .ms-journey-art {
-  background: repeating-linear-gradient(45deg, #16261f, #16261f 10px, #111e19 10px, #111e19 20px);
+
+
+/* ══ Story Mode campaigns ═════════════════════════════════════════════════════
+   The four campaigns were 640px-wide rows stacked vertically, so on a desktop
+   the last one sat below the fold and the page had to be scrolled to see what
+   was on offer. They now lay out as a row of tiles — art on top, text beneath —
+   and the whole set is visible at once.
+
+   Kept as one grid rather than four fixed-width cards so a fifth campaign needs
+   no layout change. Below 900px the original stacked rows are untouched: side
+   by side at phone width would be four unreadable slivers. */
+
+/* Each variant's own hue, so the art panel, glow and title all derive from one
+   value. Static rgba() throughout — color-mix() ships broken to older browsers
+   and would leave these uncoloured, which is the whole point of the block. */
+.ms-journey-card                 { --ms-accent-rgb: 193, 41, 30; }   /* red — First Aid Journey */
+.ms-journey-card--orange         { --ms-accent-rgb: 240, 168, 96; }  /* amber — Flashcards */
+.ms-journey-card--blue           { --ms-accent-rgb: 63, 127, 214; }  /* blue — UWorld Adventure */
+.ms-journey-card--green          { --ms-accent-rgb: 31, 158, 106; }  /* green — Saudi MLE */
+
+/* ── Art panel ──────────────────────────────────────────────────────────────
+   Was a flat 45° stripe placeholder in near-black, identical on every card bar
+   the exact grey. Now the card's own colour: a soft radial pool behind the
+   icon, a faint diagonal weave for texture, over a tinted ground. */
+.ms-journey-art {
+  position: relative;
+  background:
+    radial-gradient(circle at 50% 45%, rgba(var(--ms-accent-rgb), 0.34), transparent 68%),
+    repeating-linear-gradient(45deg,
+      rgba(var(--ms-accent-rgb), 0.07) 0 10px,
+      rgba(0, 0, 0, 0) 10px 20px),
+    linear-gradient(160deg, rgba(var(--ms-accent-rgb), 0.16), rgba(4, 7, 6, 0.9));
+}
+
+/* A hairline where the art meets the text, so the two read as one card rather
+   than two panes butted together. */
+.ms-journey-art::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 1px;
+  background: rgba(var(--ms-accent-rgb), 0.35);
+}
+
+.ms-journey-art-icon {
+  position: relative;
+  filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.55));
+}
+
+.ms-journey-card {
+  position: relative;   /* the caret is positioned against this on desktop */
+  background:
+    linear-gradient(180deg, rgba(var(--ms-accent-rgb), 0.10), rgba(6, 10, 7, 0.72) 60%);
+  border-color: rgba(var(--ms-accent-rgb), 0.6);
+  box-shadow:
+    0 2px 14px rgba(0, 0, 0, 0.45),
+    0 0 18px rgba(var(--ms-accent-rgb), 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.ms-journey-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(var(--ms-accent-rgb), 0.95);
+  box-shadow:
+    0 16px 34px rgba(0, 0, 0, 0.55),
+    0 0 30px rgba(var(--ms-accent-rgb), 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.ms-journey-card:focus-visible {
+  outline: 2px solid rgb(var(--ms-accent-rgb));
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ms-journey-card:hover { transform: none; }
+}
+
+/* ── Desktop: a row of tiles ────────────────────────────────────────────── */
+@media (min-width: 900px) {
+  .ms-campaign-list {
+    display: grid;
+    /* A REAL minimum, and normal row flow. minmax(0, 1fr) has no intrinsic
+       floor, so auto-fit packed in as many tracks as it could — with the
+       Flashcards decks open as a fifth child that became 64 columns of 1px and
+       the cards collapsed to slivers. 220px also gives the wrapping behaviour
+       we want: four across on a wide screen, three or two as it narrows. */
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    align-items: stretch;
+    width: min(1200px, 94vw);
+    gap: 18px;
+  }
+
+  .ms-journey-card {
+    flex-direction: column;
+    width: auto;
+    max-width: none;
+    min-height: 0;
+  }
+
+  .ms-journey-art {
+    width: auto;
+    height: 116px;
+  }
+
+  .ms-journey-body {
+    padding: 16px 18px 18px;
+    justify-content: flex-start;
+    gap: 8px;
+  }
+
+  .ms-journey-name { font-size: 17px; letter-spacing: 0.03em; }
+  .ms-journey-sub  { font-size: 12.5px; }
+
+  /* Out of the text flow — in a column card it would otherwise sit under the
+     description and read as part of it. */
+  .ms-flash-caret {
+    position: absolute;
+    top: 8px;
+    right: 10px;
+    padding-right: 0;
+    align-self: auto;
+  }
+
+  /* The decks are a sibling of the cards, so in a grid they would take the next
+     cell. Span the full row instead and sit under the tiles they belong to. */
+  .ms-flash-decks {
+    /* Spans the whole row and flows after the cards. No explicit grid-row: with
+       auto-fit the cards may occupy one row or two, so pinning it to row 2
+       would overlap them as soon as the grid wrapped. */
+    grid-column: 1 / -1;
+    /* The decks sit BETWEEN the Flashcards card and UWorld in the DOM, so as a
+       row-spanning grid item they split the row and pushed the last two
+       campaigns onto a third. `order` moves them past every card without
+       moving the markup, which keeps the panel next to its own button in the
+       DOM for assistive tech. */
+    order: 99;
+    flex-direction: row;
+    justify-content: center;
+    flex-wrap: wrap;
+    width: auto;
+    max-width: none;
+    padding-left: 0;
+  }
+
+  .ms-flash-deck { width: auto; min-width: 240px; flex: 0 1 280px; }
+}
+
+/* Between the phone layout and a wide desktop, four across would be four narrow
+   slivers — two up reads properly and still avoids a long scroll. */
+@media (min-width: 900px) and (max-width: 1099px) {
+  .ms-campaign-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
