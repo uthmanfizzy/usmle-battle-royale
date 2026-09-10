@@ -36,6 +36,7 @@ function assembleStem(lines) {
 const SERVER_URL = 'https://usmle-battle-royale-production.up.railway.app';
 
 const EXAMPLE_TEXT = `1. A 45-year-old man presents with fatigue, pallor, and shortness of breath. His blood film shows hypochromic microcytic red blood cells. Serum ferritin is low. Which is the most likely diagnosis?
+System: Haematology
 
 A. Iron deficiency anaemia
 B. Anaemia of chronic disease
@@ -59,7 +60,25 @@ E. Vitamin B12 deficiency - Causes macrocytic megaloblastic anaemia, not microcy
 //
 // validSubjects (optional): the real subject ids a built-in import may write to.
 // Only the built-in bulk path needs it — see SUBJECT_GUARD below.
-export default function QuestionParser({ activeFolder, selectedTopic, selectedDifficulty, onImport, onClose, customImport, validSubjects, defaultGameModes }) {
+// Match a written system name to a real subject id. Case, punctuation and
+// spacing are ignored, and British/American spellings are folded together
+// ("Haematology" and "Hematology" resolve to the same subject) — an import that
+// rejected a question over an "ae" would be useless in a repo whose own labels
+// mix the two.
+const subjectKey = (v) => String(v || '').toLowerCase().replace(/ae/g, 'e').replace(/[^a-z0-9]/g, '');
+
+export default function QuestionParser({ activeFolder, selectedTopic, selectedDifficulty, onImport, onClose, customImport, validSubjects, subjectOptions, defaultGameModes }) {
+  // id -> id and label -> id, so a question can name either.
+  const subjectLookup = (() => {
+    const m = new Map();
+    for (const o of (subjectOptions || [])) {
+      if (!o?.id) continue;
+      m.set(subjectKey(o.id), o.id);
+      if (o.label) m.set(subjectKey(o.label), o.id);
+    }
+    return m;
+  })();
+  const resolveSubject = (hint) => subjectLookup.get(subjectKey(hint)) || null;
   const [rawText, setRawText] = useState('');
   const [parsed, setParsed] = useState([]);
   const [errors, setErrors] = useState([]);
@@ -117,6 +136,7 @@ export default function QuestionParser({ activeFolder, selectedTopic, selectedDi
         let explanation = '';
         let whyOthersWrong = '';
         let blockId = '';      // round-trip [ID: …] marker, if present
+        let subjectHint = '';  // "System: Cardiology" — routes this question
         let mode = 'question'; // 'question' | 'choices' | 'answer' | 'explanation' | 'why'
 
         for (let i = 0; i < lines.length; i++) {
@@ -127,6 +147,13 @@ export default function QuestionParser({ activeFolder, selectedTopic, selectedDi
           // question; absent (or blank) → treated as a new question.
           const idMatch = line.match(/^\[ID:\s*([^\]]*)\]\s*$/i);
           if (idMatch) { blockId = idMatch[1].trim(); continue; }
+
+          // ── System / subject routing ──
+          // Checked with the other section headers, ABOVE the mode handlers, so
+          // it is recognised wherever in the block it sits — after the stem,
+          // after the explanation, anywhere.
+          const sysMatch = line.match(/^(?:system|subject|category|speciality|specialty)\s*[:\-–—]\s*(.+)$/i);
+          if (sysMatch) { subjectHint = sysMatch[1].trim(); continue; }
 
           // Standalone separator rule (--- between exported questions): ignore.
           // Pure-dash lines only — table separators contain pipes, so they're safe.
@@ -261,6 +288,12 @@ export default function QuestionParser({ activeFolder, selectedTopic, selectedDi
           game_modes: gameModes,
           image_url: '',
           question_id: blockId || undefined,   // round-trip: matcher for UPDATE-vs-CREATE
+          // Per-question routing. `subject` is what the importer reads
+          // (normalizeImport prefers it over the folder default); the raw hint
+          // is kept so an unrecognised name can be reported by name rather than
+          // silently falling back to the folder.
+          subject_hint: subjectHint || undefined,
+          subject: (subjectHint && resolveSubject(subjectHint)) || undefined,
         }));
 
       } catch(e) {
@@ -298,8 +331,24 @@ export default function QuestionParser({ activeFolder, selectedTopic, selectedDi
   // their own folder id as the category, orphaning rows exactly the same way.
   const categoryIsReal = !!resolvedCategory
     && (!Array.isArray(validSubjects) || validSubjects.includes(resolvedCategory));
-  const subjectBlocked = !customImport && !categoryIsReal;
-  const SUBJECT_BLOCKED_MSG = "Select a specific subject folder before bulk-importing — questions imported from 'All Questions' won't be assigned a real subject and will be invisible everywhere.";
+  // Per-question routing: a question naming its own system supplies the subject
+  // itself, so a mixed batch can be imported from 'All Questions' — which is the
+  // whole point of the System: line.
+  const routed = parsed.filter(q => q.subject);
+  const unrouted = parsed.filter(q => !q.subject);
+  // A hint that matched nothing is the dangerous case: left alone it would fall
+  // back to the folder, and from 'All Questions' that means category 'general',
+  // which is not a real subject — the rows would be invisible everywhere with
+  // nothing to say so. Named and blocked instead.
+  const unknownSystems = [...new Set(
+    parsed.filter(q => q.subject_hint && !q.subject).map(q => q.subject_hint)
+  )];
+  const allRouted = parsed.length > 0 && unrouted.length === 0;
+
+  const subjectBlocked = !customImport && !categoryIsReal && !allRouted;
+  const SUBJECT_BLOCKED_MSG = unknownSystems.length > 0
+    ? `Unrecognised system${unknownSystems.length === 1 ? '' : 's'}: ${unknownSystems.join(', ')} — fix the name, or pick a subject folder to import into.`
+    : "Pick a subject folder, or give every question its own \"System: <name>\" line — otherwise these questions get no real subject and are invisible everywhere.";
 
   const handleImport = async () => {
     // Belt and braces: the button is disabled, but never let this fire.
@@ -548,6 +597,17 @@ export default function QuestionParser({ activeFolder, selectedTopic, selectedDi
               <div className="qp-preview-stats">
                 <span className="qp-stat qp-stat--success">✅ {parsed.length} questions parsed</span>
                 {errors.length > 0 && <span className="qp-stat qp-stat--error">⚠️ {errors.length} errors</span>}
+                {routed.length > 0 && (
+                  <span className="qp-stat qp-stat--info">
+                    🎯 {routed.length} routed by System line
+                    {unrouted.length > 0 && ` · ${unrouted.length} will use the folder`}
+                  </span>
+                )}
+                {unknownSystems.length > 0 && (
+                  <span className="qp-stat qp-stat--error">
+                    ⚠️ unknown: {unknownSystems.join(', ')}
+                  </span>
+                )}
               </div>
               <button className="qp-back-btn" onClick={() => setStep('input')}>← Back</button>
             </div>
@@ -571,6 +631,17 @@ export default function QuestionParser({ activeFolder, selectedTopic, selectedDi
                         {q.difficulty}
                       </span>
                       <span className="qp-correct-badge">✓ {q.correct}</span>
+                      {q.subject && (
+                        <span className="qp-subject-badge" title={`Routed by its System line to "${q.subject}"`}>
+                          → {q.subject}
+                        </span>
+                      )}
+                      {q.subject_hint && !q.subject && (
+                        <span className="qp-subject-badge qp-subject-badge--bad"
+                              title="This system name matched no subject — fix it, or pick a folder to import into">
+                          ? {q.subject_hint}
+                        </span>
+                      )}
                     </div>
                     <button className="qp-remove-btn" onClick={() => removeQuestion(i)}>🗑</button>
                   </div>

@@ -740,3 +740,31 @@
   font-size: 11px;
   color: rgba(255, 255, 255, 0.5);
 }
+
+/* Where a question will be filed, shown in the preview so routing is visible
+   BEFORE importing rather than discovered afterwards. */
+.qp-subject-badge {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  background: rgba(47, 111, 201, 0.16);
+  border: 1px solid rgba(47, 111, 201, 0.45);
+  color: #9dc2f0;
+  white-space: nowrap;
+}
+
+/* A system name that matched nothing. Loud on purpose: left alone these fall
+   back to the folder, and from 'All Questions' that means an unreachable
+   category — the exact silent-orphan case the import guard exists to stop. */
+.qp-subject-badge--bad {
+  background: rgba(226, 87, 43, 0.16);
+  border-color: rgba(226, 87, 43, 0.5);
+  color: #ffbda6;
+}
+
+.qp-stat--info {
+  background: rgba(47, 111, 201, 0.14);
+  border: 1px solid rgba(47, 111, 201, 0.4);
+  color: #9dc2f0;
+}

@@ -109,6 +109,9 @@ const FOLDERS = [
 ];
 
 const SUBJECTS = FOLDERS.filter(f => !f.special && f.id !== 'all').map(f => f.id);
+// The same list with display names, for matching a written system name to a
+// subject id on import.
+const SUBJECT_OPTIONS = FOLDERS.filter(f => !f.special && f.id !== 'all').map(f => ({ id: f.id, label: f.label }));
 
 const DEFAULT_TOWER_ZONES = [
   { name: 'The Basement',       desc: 'Deep beneath the hospital, the foundations of biochemistry echo through stone walls. Master the basics or be buried here forever.' },
@@ -3590,6 +3593,9 @@ function QuestionsPanel({ subjects = [], scopeTag = null }) {
           // Only the built-in bulk path writes `category`, so only it needs the
           // real-subject list to validate the active folder against.
           validSubjects={SUBJECTS}
+          // id AND label, so a pasted "System: Cardiology" resolves as readily
+          // as "System: cardiology".
+          subjectOptions={SUBJECT_OPTIONS}
           defaultGameModes={scopeTag ? ['battle_royale', 'speed_race', 'trivia_pursuit', scopeTag] : undefined}
           onImport={handleImportDone}
           onClose={() => setShowParser(false)}
