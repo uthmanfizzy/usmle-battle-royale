@@ -65,7 +65,67 @@ E. Vitamin B12 deficiency - Causes macrocytic megaloblastic anaemia, not microcy
 // ("Haematology" and "Hematology" resolve to the same subject) — an import that
 // rejected a question over an "ae" would be useless in a repo whose own labels
 // mix the two.
-const subjectKey = (v) => String(v || '').toLowerCase().replace(/ae/g, 'e').replace(/[^a-z0-9]/g, '');
+// "&" and the word "and" are folded to nothing, so "Haematology & Oncology",
+// "Haematology and Oncology" and "haematology_oncology" are one name. Order
+// matters: the word must go before punctuation is stripped, or "and" could no
+// longer be told from the letters around it.
+const subjectKey = (v) => String(v || '')
+  .toLowerCase()
+  .replace(/&/g, ' ')
+  .replace(/\band\b/g, ' ')
+  .replace(/ae/g, 'e')
+  .replace(/[^a-z0-9]/g, '');
+
+// Clinical synonyms for the subject folders. The folder names are not always
+// what a question bank calls a system — "Respiratory" and "Renal" are the usual
+// headings, but the folders are Pulmonology and Nephrology — and a paste that
+// failed on that would be exactly the friction this feature exists to remove.
+// Keys are pre-normalised by subjectKey (lowercase, no punctuation, ae -> e).
+const SUBJECT_ALIASES = {
+  respiratory: 'pulmonology', respiratorysystem: 'pulmonology', chest: 'pulmonology',
+  lung: 'pulmonology', lungs: 'pulmonology', pulmonary: 'pulmonology', pulm: 'pulmonology',
+
+  renal: 'nephrology', kidney: 'nephrology', kidneys: 'nephrology',
+  urinary: 'nephrology', renalsystem: 'nephrology', nephro: 'nephrology',
+
+  gi: 'gastroenterology', git: 'gastroenterology', gastrointestinal: 'gastroenterology',
+  gastro: 'gastroenterology', digestive: 'gastroenterology',
+
+  msk: 'musculoskeletal', musculoskeletalsystem: 'musculoskeletal',
+  rheumatology: 'musculoskeletal', rheum: 'musculoskeletal',
+  orthopedics: 'musculoskeletal', bone: 'musculoskeletal',
+
+  obgyn: 'reproductive', obstetrics: 'reproductive',
+  gynecology: 'reproductive', obstetricsgynecology: 'reproductive',
+  reproductivesystem: 'reproductive', repro: 'reproductive',
+
+  psych: 'psychiatry', behaviouralscience: 'psychiatry', behavioralscience: 'psychiatry',
+  behavioural: 'psychiatry', behavioral: 'psychiatry', psychiatrybehaviouralscience: 'psychiatry',
+
+  oncology: 'haematology_oncology', onc: 'haematology_oncology',
+  hemeonc: 'haematology_oncology', hemonc: 'haematology_oncology',
+  bloodoncology: 'haematology_oncology',
+  heme: 'haematology', hem: 'haematology', blood: 'haematology',
+
+  cardio: 'cardiology', cardiovascular: 'cardiology', heart: 'cardiology',
+  cardiovascularsystem: 'cardiology',
+
+  neuro: 'neurology', nervoussystem: 'neurology', neuroscience: 'neurology',
+  neurologyspecialsenses: 'neurology',
+
+  endocrine: 'endocrinology', endo: 'endocrinology', endocrinesystem: 'endocrinology',
+  derm: 'dermatology', skin: 'dermatology',
+  micro: 'microbiology', infectiousdisease: 'microbiology', id: 'microbiology',
+  pharm: 'pharmacology', drugs: 'pharmacology',
+  biochem: 'biochemistry',
+  biostats: 'biostatistics', stats: 'biostatistics', statistics: 'biostatistics',
+  epidemiology: 'biostatistics', epi: 'biostatistics', publichealth: 'biostatistics',
+  immune: 'immunology', immunesystem: 'immunology', immuno: 'immunology',
+  eye: 'ophthalmology', eyes: 'ophthalmology', ophtho: 'ophthalmology', ophthal: 'ophthalmology',
+  otolaryngology: 'ent', earnosethroat: 'ent', headneck: 'ent',
+  embryology: 'genetics', geneticsembryology: 'genetics', genetic: 'genetics',
+  anatomical: 'anatomy', grossanatomy: 'anatomy',
+};
 
 export default function QuestionParser({ activeFolder, selectedTopic, selectedDifficulty, onImport, onClose, customImport, validSubjects, subjectOptions, defaultGameModes }) {
   // id -> id and label -> id, so a question can name either.
@@ -78,7 +138,16 @@ export default function QuestionParser({ activeFolder, selectedTopic, selectedDi
     }
     return m;
   })();
-  const resolveSubject = (hint) => subjectLookup.get(subjectKey(hint)) || null;
+  // A real subject name wins over an alias — the alias table only fills gaps,
+  // it can never redirect a name that is already a subject's id or label.
+  const resolveSubject = (hint) => {
+    const k = subjectKey(hint);
+    const direct = subjectLookup.get(k);
+    if (direct) return direct;
+    const aliased = SUBJECT_ALIASES[k];
+    // Only if the alias points at a subject this panel actually offers.
+    return (aliased && subjectLookup.get(subjectKey(aliased))) || null;
+  };
   const [rawText, setRawText] = useState('');
   const [parsed, setParsed] = useState([]);
   const [errors, setErrors] = useState([]);
