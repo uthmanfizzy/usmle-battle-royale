@@ -2731,6 +2731,25 @@ const UWORLD_MODE = 'uworld_adventure';
 // game_modes containment filter; never pass a bare array.
 const UWORLD_MODE_JSON = JSON.stringify([UWORLD_MODE]);
 
+// Question-bank modes: the "pick a subject, pace the bank down" family. UWorld
+// Adventure was the first, Saudi MLE the second — the SAME endpoints pointed at
+// a differently-tagged pool, which is why the tag is a request parameter rather
+// than a constant. Mirrors client/src/questionBankModes.js.
+//
+// Whitelisted, never passed through: this string goes straight into a
+// game_modes containment filter, so an arbitrary one from the query would let a
+// caller scope these endpoints to any tag they liked.
+const QUESTION_BANK_MODE_IDS = ['uworld_adventure', 'saudi_mle'];
+
+function modeTagFrom(req) {
+  const m = (req.query.mode || '').toString();
+  return QUESTION_BANK_MODE_IDS.includes(m) ? m : UWORLD_MODE;
+}
+
+// Same jsonb containment rule as UWORLD_MODE_JSON above — pre-serialized JSON,
+// never a bare array.
+const modeJson = (tag) => JSON.stringify([tag]);
+
 // Self-assessment buckets a UWorld Adventure question can be rated into after
 // answering — same five categories (and exact value strings) HY Flashcards
 // already uses for its own rating pile picker, kept identical for a familiar
@@ -2840,6 +2859,8 @@ app.post('/api/questions/seen', requireAuth, async (req, res) => {
  * future caller can hand these straight to SoloGame. Fails soft to [].
  */
 app.get('/api/questions/unseen', requireAuth, async (req, res) => {
+  // Which bank this request is about — UWorld Adventure or Saudi MLE.
+  const modeJsonTag = modeJson(modeTagFrom(req));
   if (!supabase) return res.json({ questions: [] });
 
   const subject = (req.query.subject || '').toString().trim();
@@ -2861,7 +2882,7 @@ app.get('/api/questions/unseen', requireAuth, async (req, res) => {
         // their category matches, so the mode's pool is only what an admin has
         // deliberately put in it. JSONB containment, served by the existing
         // idx_questions_game_modes GIN index.
-        .contains('game_modes', UWORLD_MODE_JSON)
+        .contains('game_modes', modeJsonTag)
         // Deterministic, so the sequence is stable across requests.
         .order('question_id', { ascending: true })
         .range(page * PAGE, page * PAGE + PAGE - 1);
@@ -2987,6 +3008,8 @@ app.post('/api/uworld-questions/:questionId/rate', requireAuth, async (req, res)
  * PostgREST's row cap long before their COUNT does.
  */
 app.get('/api/uworld-questions/rating-counts', requireAuth, async (req, res) => {
+  // Which bank this request is about — UWorld Adventure or Saudi MLE.
+  const modeJsonTag = modeJson(modeTagFrom(req));
   const zeros = { total: 0, unrated: 0, knowledge_gap: 0, careless_miss: 0, lucky_guess: 0, somewhat_know: 0, fully_understood: 0, system_total: 0 };
   if (!supabase) return res.json(zeros);
   // Optional subject scope. Reviewing is per SYSTEM: a pile that mixes
@@ -3001,7 +3024,7 @@ app.get('/api/uworld-questions/rating-counts', requireAuth, async (req, res) => 
       .from(QUESTION_SEEN_TABLE)
       .select('question_id, questions!inner(game_modes, category)', { count: 'exact', head: true })
       .eq('user_id', req.userId)
-      .contains('questions.game_modes', UWORLD_MODE_JSON));
+      .contains('questions.game_modes', modeJsonTag));
     if (hasRetirement) totalQ = totalQ.is('questions.retired_at', null);
 
     const bucketQueries = UWORLD_RATINGS.map((r) => {
@@ -3010,7 +3033,7 @@ app.get('/api/uworld-questions/rating-counts', requireAuth, async (req, res) => 
         .select('question_id, questions!inner(game_modes, category)', { count: 'exact', head: true })
         .eq('user_id', req.userId)
         .eq('rating', r)
-        .contains('questions.game_modes', UWORLD_MODE_JSON));
+        .contains('questions.game_modes', modeJsonTag));
       if (hasRetirement) q = q.is('questions.retired_at', null);
       return q;
     });
@@ -3024,7 +3047,7 @@ app.get('/api/uworld-questions/rating-counts', requireAuth, async (req, res) => 
         .from('questions')
         .select('question_id', { count: 'exact', head: true })
         .eq('category', subject)
-        .contains('game_modes', UWORLD_MODE_JSON);
+        .contains('game_modes', modeJsonTag);
       if (hasRetirement) systemQ = systemQ.is('retired_at', null);
     }
 
@@ -3089,6 +3112,8 @@ app.get('/api/uworld-questions/rating-counts', requireAuth, async (req, res) => 
  * like /api/questions/unseen already does for a fresh block.
  */
 app.get('/api/uworld-questions/by-rating', requireAuth, async (req, res) => {
+  // Which bank this request is about — UWorld Adventure or Saudi MLE.
+  const modeJsonTag = modeJson(modeTagFrom(req));
   if (!supabase) return res.json({ questions: [] });
   const rating = (req.query.rating || '').toString();
   // 'system' is a third synthetic pile: every UWorld question in the subject,
@@ -3112,7 +3137,7 @@ app.get('/api/uworld-questions/by-rating', requireAuth, async (req, res) => {
         .from('questions')
         .select('*')
         .eq('category', subject)
-        .contains('game_modes', UWORLD_MODE_JSON)
+        .contains('game_modes', modeJsonTag)
         .order('question_id', { ascending: true })
         .range(0, limit - 1);
       if (hasRetirement) q = q.is('retired_at', null);
@@ -3129,7 +3154,7 @@ app.get('/api/uworld-questions/by-rating', requireAuth, async (req, res) => {
           .from(QUESTION_SEEN_TABLE)
           .select('question_id, questions!inner(*)')
           .eq('user_id', req.userId)
-          .contains('questions.game_modes', UWORLD_MODE_JSON))
+          .contains('questions.game_modes', modeJsonTag))
           .order('seen_at', { ascending: true })
           .range(page * PAGE, page * PAGE + PAGE - 1);
         if (hasRetirement) q = q.is('questions.retired_at', null);
@@ -3162,7 +3187,7 @@ app.get('/api/uworld-questions/by-rating', requireAuth, async (req, res) => {
       .select('question_id, updated_at, questions!inner(*)')
       .eq('user_id', req.userId)
       .eq('rating', rating)
-      .contains('questions.game_modes', UWORLD_MODE_JSON))
+      .contains('questions.game_modes', modeJsonTag))
       .order('updated_at', { ascending: true })
       .range(0, limit - 1);
     if (hasRetirement) q = q.is('questions.retired_at', null);
@@ -5062,6 +5087,8 @@ app.post('/api/study-time', requireAuth, async (req, res) => {
  * signed-in user may read another's progress. Fails soft to zeros.
  */
 app.get('/api/users/:userId/question-bank-progress', requireAuth, async (req, res) => {
+  // Which bank this request is about — UWorld Adventure or Saudi MLE.
+  const modeJsonTag = modeJson(modeTagFrom(req));
   const zeros = { total: 0, seen: 0, unseen: 0, done_today: 0 };
   if (!supabase) return res.json(zeros);
 
@@ -5088,7 +5115,7 @@ app.get('/api/users/:userId/question-bank-progress', requireAuth, async (req, re
     let totalQ = supabase
       .from('questions')
       .select('*', { count: 'exact', head: true })
-      .contains('game_modes', UWORLD_MODE_JSON)
+      .contains('game_modes', modeJsonTag)
       .in('category', subjects);
 
     // The tag lives on the embedded `questions` row, so the filter is applied
@@ -5097,7 +5124,7 @@ app.get('/api/users/:userId/question-bank-progress', requireAuth, async (req, re
       .from(QUESTION_SEEN_TABLE)
       .select('question_id, questions!inner(category, game_modes)', { count: 'exact', head: true })
       .eq('user_id', req.params.userId)
-      .contains('questions.game_modes', UWORLD_MODE_JSON)
+      .contains('questions.game_modes', modeJsonTag)
       .in('questions.category', subjects);
 
     // Same shape as seenQ, narrowed to rows seen since the user's local midnight.
@@ -5110,7 +5137,7 @@ app.get('/api/users/:userId/question-bank-progress', requireAuth, async (req, re
       .select('question_id, questions!inner(category, game_modes)', { count: 'exact', head: true })
       .eq('user_id', req.params.userId)
       .gte('seen_at', dayStart)
-      .contains('questions.game_modes', UWORLD_MODE_JSON)
+      .contains('questions.game_modes', modeJsonTag)
       .in('questions.category', subjects);
 
     // Retirement must be applied across all three or none: a retired question

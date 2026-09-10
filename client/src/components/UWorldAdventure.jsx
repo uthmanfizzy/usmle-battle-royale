@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { getToken, fetchMe, getCachedUser, authFetch } from '../auth';
 import SoloGame from './SoloGame';
+import { DEFAULT_QUESTION_BANK_MODE } from '../questionBankModes';
 import './UWorldAdventure.css';
 
 // Slider bounds (mockup) and the fallback pace for a subject with no saved one.
@@ -99,7 +100,7 @@ const UWA_TARGET_TOTAL = 3659;
 // silently move the slider, which read as the page changing your mind for you.
 // `subject` has no FK and is validated only as a non-empty string, so a sentinel
 // is safe here.
-const PACE_SCOPE = '__adventure__';
+// (PACE_SCOPE is now per-mode — see questionBankModes.js.)
 
 /**
  * UWorld Adventure — pick a subject, commit to a daily pace, and see honestly
@@ -112,7 +113,12 @@ const PACE_SCOPE = '__adventure__';
  *
  * There is deliberately NO "Systems" facet — no real data backs one today.
  */
-export default function UWorldAdventure() {
+export default function UWorldAdventure({ mode = DEFAULT_QUESTION_BANK_MODE }) {
+  // Which bank this page is working through. Everything below is the same
+  // machine — only the tag it filters on, the pace it plans and the colours
+  // it wears change.
+  const MODE = mode.id;
+  const PACE_SCOPE = mode.paceScope;
   const [user, setUser] = useState(getCachedUser);
   // Which system's option menu is open (subject id), or null. Opening it is
   // what clicking a subject does.
@@ -197,7 +203,7 @@ export default function UWorldAdventure() {
 
   const loadProgress = useCallback(async (subjectId) => {
     if (!user?.id) return null;
-    const res = await authFetch(`/api/users/${user.id}/question-bank-progress?subject=${encodeURIComponent(subjectId)}`);
+    const res = await authFetch(`/api/users/${user.id}/question-bank-progress?subject=${encodeURIComponent(subjectId)}&mode=${MODE}`);
     return res.json();
   }, [user?.id]);
 
@@ -215,7 +221,7 @@ export default function UWorldAdventure() {
       local_date: now.toLocaleDateString('en-CA'),
       tz_offset:  String(now.getTimezoneOffset()),
     });
-    const res = await authFetch(`/api/users/${user.id}/question-bank-progress?${params}`);
+    const res = await authFetch(`/api/users/${user.id}/question-bank-progress?${params}&mode=${MODE}`);
     return res.json();
   }, [user?.id]);
 
@@ -234,7 +240,7 @@ export default function UWorldAdventure() {
   // stays adventure-wide; that one genuinely is a whole-adventure number.)
   const loadRatingCounts = useCallback(async (subjectId) => {
     if (!user?.id || !subjectId) return null;
-    const res = await authFetch(`/api/uworld-questions/rating-counts?subject=${encodeURIComponent(subjectId)}`);
+    const res = await authFetch(`/api/uworld-questions/rating-counts?subject=${encodeURIComponent(subjectId)}&mode=${MODE}`);
     return res.json();
   }, [user?.id]);
 
@@ -330,7 +336,7 @@ export default function UWorldAdventure() {
     setStarting(true);
     setStartError('');
     try {
-      const res = await authFetch(`/api/questions/unseen?subject=${encodeURIComponent(selected)}&limit=${blockSize}`);
+      const res = await authFetch(`/api/questions/unseen?subject=${encodeURIComponent(selected)}&limit=${blockSize}&mode=${MODE}`);
       const data = await res.json();
       const qs = data.questions || [];
       if (qs.length === 0) {
@@ -361,7 +367,7 @@ export default function UWorldAdventure() {
       // pulled for one must be too.
       const res = await authFetch(
         `/api/uworld-questions/by-rating?rating=${encodeURIComponent(ratingKey)}` +
-        `&subject=${encodeURIComponent(selected)}&limit=${UWORLD_REVIEW_LIMIT}`
+        `&subject=${encodeURIComponent(selected)}&limit=${UWORLD_REVIEW_LIMIT}&mode=${MODE}`
       );
       const data = await res.json();
       const qs = data.questions || [];
@@ -428,6 +434,7 @@ export default function UWorldAdventure() {
         difficulty="easy"
         providedQuestions={sessionQuestions}
         uworldSkin
+        examTheme={mode}
         uwaReview={reviewSession}
         onComplete={handleComplete}
         onBack={endSession}
@@ -457,7 +464,7 @@ export default function UWorldAdventure() {
   const goalMetToday = doneToday > 0 && remainingToday === 0;
 
   return (
-    <div className="uwa">
+    <div className={`uwa uwa--${MODE}`} style={{ '--uwa-accent-rgb': mode.accentRgb }}>
       {/* Ambient backdrop: three drifting blurred blobs + a scatter of twinkling
           stars. Purely decorative — inert to pointers, hidden from assistive
           tech, and clipped by its own layer so the oversized blobs never add a
@@ -487,7 +494,7 @@ export default function UWorldAdventure() {
         <button type="button" className="uwa-back" onClick={() => { window.location.href = '/?story=1'; }}>
           ← Back to Story Mode
         </button>
-        <h1 className="uwa-title">UWorld Adventure</h1>
+        <h1 className="uwa-title">{mode.icon} {mode.label}</h1>
         <div />
       </div>
 

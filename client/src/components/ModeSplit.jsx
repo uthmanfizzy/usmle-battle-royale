@@ -42,7 +42,7 @@ export default function ModeSplit({ onStory, onOnline, onTraining, onBack }) {
 // card). The Tower campaign was removed from this list — TowerMode.jsx and its
 // App.jsx phase/route are untouched (unreachable, not deleted) in case it
 // comes back.
-export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld }) {
+export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld, onSaudiMLE }) {
   // Whether the Flashcards deck list is expanded. Local — nothing outside this
   // menu cares which category is open.
   const [flashOpen, setFlashOpen] = useState(false);
@@ -132,6 +132,20 @@ export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld }) {
             <span className="ms-journey-name">UWORLD ADVENTURE</span>
             <span className="ms-journey-sub">
               A high-yield board-review expedition through the wards of Medvale.
+            </span>
+          </div>
+        </button>
+
+        {/* The same question-bank machine pointed at the Saudi MLE pool — its
+            own route, pace and colours, sharing one component. */}
+        <button className="ms-journey-card ms-journey-card--green" onClick={onSaudiMLE}>
+          <div className="ms-journey-art" aria-hidden="true">
+            <span className="ms-journey-art-icon">🇸🇦</span>
+          </div>
+          <div className="ms-journey-body">
+            <span className="ms-journey-name">SAUDI MLE</span>
+            <span className="ms-journey-sub">
+              Work the Saudi Medical Licensing Exam bank down, at your own pace.
             </span>
           </div>
         </button>

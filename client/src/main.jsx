@@ -22,6 +22,8 @@ const SettingsPage      = lazy(() => import('./components/SettingsPage'));
 const QuestsPage        = lazy(() => import('./components/QuestsPage'));
 const ShopPage          = lazy(() => import('./components/ShopPage'));
 const UWorldAdventure   = lazy(() => import('./components/UWorldAdventure'));
+// Not lazy: a tiny config object, and the /saudi-mle route needs it at render.
+import { questionBankMode } from './questionBankModes';
 const HYFlashcards      = lazy(() => import('./components/HYFlashcards'));
 const ReelsPage         = lazy(() => import('./components/ReelsPage'));
 const UsernameSetupPage = lazy(() => import('./components/UsernameSetupPage'));
@@ -123,6 +125,9 @@ ReactDOM.createRoot(document.getElementById('root')).render(
                 <Route path="/quests"         element={<RouteErrorBoundary name="QuestsPage"><QuestsPage /></RouteErrorBoundary>} />
                 <Route path="/shop"           element={<RouteErrorBoundary name="ShopPage"><ShopPage /></RouteErrorBoundary>} />
                 <Route path="/uworld-adventure" element={<RouteErrorBoundary name="UWorldAdventure"><UWorldAdventure /></RouteErrorBoundary>} />
+                {/* Same component, different bank: the mode carries the tag it
+                    filters on, the pace it plans and the colours it wears. */}
+                <Route path="/saudi-mle" element={<RouteErrorBoundary name="SaudiMLE"><UWorldAdventure mode={questionBankMode('saudi_mle')} /></RouteErrorBoundary>} />
                 <Route path="/hy-flashcards" element={<RouteErrorBoundary name="HYFlashcards"><HYFlashcards /></RouteErrorBoundary>} />
                 <Route path="/reels"          element={<RouteErrorBoundary name="ReelsPage"><ReelsPage /></RouteErrorBoundary>} />
                 <Route path="/username-setup" element={<UsernameSetupPage />} />

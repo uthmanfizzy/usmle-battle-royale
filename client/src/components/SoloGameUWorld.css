@@ -775,3 +775,44 @@ html[data-study="on"] .screen.solo-screen.uw-exam.uw-timeup {
   opacity: 0.65;
 }
 .uw-rating-error-x:hover { opacity: 1; }
+
+/* ══ Saudi MLE theme ══════════════════════════════════════════════════════════
+   The exam skin is shared by every question-bank mode, so a mode is a token
+   swap rather than a second copy of 800 lines of CSS. Everything below simply
+   redefines the --uwq-* variables the whole skin already reads; nothing here
+   restates a rule.
+
+   Green rather than the UWorld navy/blue, after the Saudi flag. The page stays
+   a light exam sheet — the point of the skin is that it reads like a real exam,
+   which a dark theme would undo. */
+html[data-study="on"] .screen.solo-screen.uw-exam.uw-theme-saudi_mle {
+  --uwq-navy-top: #0b4a2f;
+  --uwq-navy-bot: #083a25;
+  --uwq-page:     #eef3f0;
+  --uwq-ink:      #16241d;
+  --uwq-rule:     #e0e8e4;
+  --uwq-blue:     #16895a;
+  --uwq-blue-lt:  #1f9e6a;
+  --uwq-ring:     #c2cfc8;
+  --uwq-sel-bg:   #e6f3ec;
+}
+
+/* The handful of rules that hardcode a colour rather than reading a token.
+   Correct-green and wrong-red are NOT among them: those are semantic, and
+   recolouring right/wrong per mode would be actively confusing. The last-few-
+   seconds red stays off-palette everywhere for the same reason. */
+html[data-study="on"] .screen.solo-screen.uw-exam.uw-theme-saudi_mle .option-btn:hover:not(:disabled) {
+  background: #eef6f1;
+}
+html[data-study="on"] .screen.solo-screen.uw-exam.uw-theme-saudi_mle .uw-mark.is-marked .uw-mark-flag {
+  color: #ffd479;
+}
+
+/* The explanation panel's fill comes from study.css (#f3f5fc, a cool blue-grey
+   shared by every study-mode screen), not from this file's tokens — so the
+   token swap above cannot reach it and a Saudi MLE block would end on a blue
+   panel. Tinted to match here rather than changed in study.css, which every
+   other mode also uses. */
+html[data-study="on"] .screen.solo-screen.uw-exam.uw-theme-saudi_mle .rr-explanation {
+  background: #f1f7f4;
+}

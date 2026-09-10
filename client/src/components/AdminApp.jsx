@@ -45,11 +45,17 @@ const GAME_MODES = [
   // /uworld-adventure serves ONLY questions carrying this tag — see
   // UWORLD_MODE below and the game_modes filter on GET /api/questions/unseen.
   { id: 'uworld_adventure', label: 'UWorld Adventure', icon: '🌍', color: '#3f7fd6' },
+  { id: 'saudi_mle',        label: 'Saudi MLE',        icon: '🇸🇦', color: '#16895a' },
 ];
 
 // The game_modes tag and its matching special folder id are the SAME string;
 // keeping one constant makes the folder/tag pairing impossible to desync.
 const UWORLD_MODE = 'uworld_adventure';
+const SAUDI_MLE_MODE = 'saudi_mle';
+// Folders that scope by game_modes TAG rather than by subject/category.
+// Anything true of one is true of the other, so they are listed once here
+// instead of being special-cased separately at each site below.
+const QUESTION_BANK_FOLDERS = [UWORLD_MODE, SAUDI_MLE_MODE];
 
 const TOWER_ZONE_LABELS = [
   'Zone 1 — Biochemistry',
@@ -76,6 +82,7 @@ const FOLDERS = [
   { id: 'buzz_fun',         label: 'Buzz Fun',                     icon: '⚡', prefix: 'BF',  special: true  },
   { id: 'scan_master',      label: 'Scan Master',                  icon: '🔬', prefix: 'SM',  special: true  },
   { id: 'uworld_adventure', label: 'UWorld Adventure',             icon: '🌍', prefix: null,  special: true  },
+  { id: 'saudi_mle',        label: 'Saudi MLE',                    icon: '🇸🇦', prefix: null,  special: true  },
   { id: 'cardiology',       label: 'Cardiology',                   icon: '❤️',  prefix: 'CA',  special: false },
   { id: 'neurology',        label: 'Neurology',                    icon: '🧠', prefix: 'NE',  special: false },
   { id: 'pharmacology',     label: 'Pharmacology',                 icon: '💊', prefix: 'PH',  special: false },
@@ -955,7 +962,7 @@ function QuestionModal({ question, defaultSubject = 'cardiology', onSave, onClos
   // save-time guard) would store it verbatim as `category` — an orphaned row no
   // view can find. Resolve every special folder to a real subject, not just the
   // two that were handled before.
-  const SPECIAL_NOT_A_SUBJECT = ['all', '__images__', 'buzz_fun', 'scan_master', UWORLD_MODE];
+  const SPECIAL_NOT_A_SUBJECT = ['all', '__images__', 'buzz_fun', 'scan_master', ...QUESTION_BANK_FOLDERS];
   const defaultSubjectResolved = SPECIAL_NOT_A_SUBJECT.includes(defaultSubject) ? 'cardiology' : defaultSubject;
 
   // Adding from a mode's own surface pre-ticks that mode's tag — either its
@@ -966,7 +973,7 @@ function QuestionModal({ question, defaultSubject = 'cardiology', onSave, onClos
   // nothing says so. Still just a default — it unticks like any other mode.
   const BASE_MODES = ['battle_royale', 'speed_race', 'trivia_pursuit'];
   const impliedModes = [
-    ...(defaultSubject === UWORLD_MODE ? [UWORLD_MODE] : []),
+    ...(QUESTION_BANK_FOLDERS.includes(defaultSubject) ? [defaultSubject] : []),
     ...(extraGameModes || []),
   ];
   const defaultGameModes = [...new Set([...BASE_MODES, ...impliedModes])];
@@ -2314,7 +2321,7 @@ function QuestionsPanel({ subjects = [], scopeTag = null }) {
       `${String(i + 1).padStart(width, ' ')}  [${q.id ?? '?'}]  ${oneLine(q.question)}`);
     const header = [
       'MedVale question export',
-      `Folder:   ${folderName}${scopeTag ? ' (UWorld Adventure)' : ''}`,
+      `Folder:   ${folderName}${scopeTag ? ` (${scopeLabel})` : ''}`,
       `Exported: ${new Date().toISOString()}`,
       `Count:    ${rows.length}`,
       '',
@@ -2511,6 +2518,12 @@ function QuestionsPanel({ subjects = [], scopeTag = null }) {
   // Step 0 — scope. In a tagged view every count and list below works from this
   // narrowed set, so "All Questions" means all TAGGED questions and each subject
   // folder holds only that subject's tagged ones.
+  // The mode this panel is scoped to, for the header, breadcrumb and export
+  // filename — the panel is shared, so hardcoding one bank's name here would
+  // mislabel the other.
+  const scopeFolder = scopeTag ? FOLDERS.find(f => f.id === scopeTag) : null;
+  const scopeLabel = scopeFolder?.label || scopeTag;
+
   const scoped = scopeTag
     ? questions.filter(q => (q.game_modes || []).includes(scopeTag))
     : questions;
@@ -2524,11 +2537,11 @@ function QuestionsPanel({ subjects = [], scopeTag = null }) {
       acc[f.id] = scoped.filter(q => q.image_url).length;
     } else if (f.id === 'buzz_fun') {
       acc[f.id] = scoped.filter(q => (q.game_modes || []).includes('buzz_fun')).length;
-    } else if (f.id === UWORLD_MODE) {
+    } else if (QUESTION_BANK_FOLDERS.includes(f.id)) {
       // Counted by TAG, mirroring Buzz Fun. Scan Master has no branch here and
       // so falls through to the category matcher below, which is why its count
       // is permanently 0 — deliberately not copied.
-      acc[f.id] = scoped.filter(q => (q.game_modes || []).includes(UWORLD_MODE)).length;
+      acc[f.id] = scoped.filter(q => (q.game_modes || []).includes(f.id)).length;
     } else {
       // Use the EXACT same filter logic as catQuestions below
       acc[f.id] = scoped.filter(q => {
@@ -2546,7 +2559,7 @@ function QuestionsPanel({ subjects = [], scopeTag = null }) {
   const catQuestions = activeFolder === 'all'        ? scoped
     : activeFolder === '__images__'                  ? scoped.filter(q => q.image_url)
     : activeFolder === 'buzz_fun'                    ? scoped.filter(q => (q.game_modes || []).includes('buzz_fun'))
-    : activeFolder === UWORLD_MODE                   ? scoped.filter(q => (q.game_modes || []).includes(UWORLD_MODE))
+    : QUESTION_BANK_FOLDERS.includes(activeFolder)   ? scoped.filter(q => (q.game_modes || []).includes(activeFolder))
     : scoped.filter(q => {
         // Match by subject or category field
         if (q.subject === activeFolder) return true;
@@ -2661,11 +2674,11 @@ function QuestionsPanel({ subjects = [], scopeTag = null }) {
       {scopeTag && (
         <div className="ap-uw-head">
           <div className="ap-uw-head-main">
-            <span className="ap-uw-head-icon" aria-hidden="true">🌍</span>
+            <span className="ap-uw-head-icon" aria-hidden="true">{scopeFolder?.icon || '🌍'}</span>
             <div>
-              <h2 className="ap-uw-head-title">UWorld Adventure</h2>
+              <h2 className="ap-uw-head-title">{scopeLabel}</h2>
               <p className="ap-uw-head-sub">
-                Questions tagged <code>uworld_adventure</code>. Players only ever see these here —
+                Questions tagged <code>{scopeTag}</code>. Players only ever see these here —
                 tagging an existing question adds it, it is never copied.
               </p>
             </div>
@@ -3015,7 +3028,7 @@ function QuestionsPanel({ subjects = [], scopeTag = null }) {
                   to name — the full trail would read "Hard Mode › undefined". */}
               {isCatFolder(activeFolder) && scopeTag && (
                 <div className="ap-breadcrumb">
-                  <span className="ap-bc-item">UWorld Adventure</span>
+                  <span className="ap-bc-item">{scopeLabel}</span>
                   <span className="ap-bc-sep">›</span>
                   <span className="ap-bc-item ap-bc-cur">{curFolder?.icon} {curFolder?.label}</span>
                 </div>
@@ -9999,6 +10012,9 @@ export default function AdminApp() {
         <button className={`ap-nav-btn ${tab === 'uworld'        ? 'active' : ''}`} onClick={() => setTab('uworld')}>
           🌍 UWorld Adventure
         </button>
+        <button className={`ap-nav-btn ${tab === 'saudi_mle'     ? 'active' : ''}`} onClick={() => setTab('saudi_mle')}>
+          🇸🇦 Saudi MLE
+        </button>
         <button className={`ap-nav-btn ${tab === 'hyflashcards'  ? 'active' : ''}`} onClick={() => setTab('hyflashcards')}>
           🎴 HY Flashcards
         </button>
@@ -10036,6 +10052,11 @@ export default function AdminApp() {
         {tab === 'uworld'        && (
           <ErrorBoundary>
             <QuestionsPanel subjects={sharedSubjects} scopeTag={UWORLD_MODE} />
+          </ErrorBoundary>
+        )}
+        {tab === 'saudi_mle'     && (
+          <ErrorBoundary>
+            <QuestionsPanel subjects={sharedSubjects} scopeTag={SAUDI_MLE_MODE} />
           </ErrorBoundary>
         )}
         {tab === 'hyflashcards'  && <HYFlashcardsAdmin subjects={sharedSubjects} />}

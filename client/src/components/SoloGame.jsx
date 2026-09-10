@@ -187,7 +187,7 @@ function DevImageSlot({ field, label, qid, armed, busy, message, currentUrl, onA
   );
 }
 
-export default function SoloGame({ subject, username, difficulty, onBack, onTryAgain, onChangeSubject, onBackToTopics, topicId, questionsUrl, onComplete, levelLabel, isJourney, providedQuestions, shuffleOptions = true, uworldSkin = false, uwaRemainingToday = 0, uwaCompletionLabel = null, uwaReview = false }) {
+export default function SoloGame({ subject, username, difficulty, onBack, onTryAgain, onChangeSubject, onBackToTopics, topicId, questionsUrl, onComplete, levelLabel, isJourney, providedQuestions, shuffleOptions = true, uworldSkin = false, examTheme = null, uwaRemainingToday = 0, uwaCompletionLabel = null, uwaReview = false }) {
   const { settings } = useGameSettings();
   const { study: studyPref } = useTheme();   // Layer 1 chrome renders only when study mode is on
   // Journey ALWAYS renders the full study-layout chrome (burger menu, header
@@ -202,7 +202,11 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   const study = (isJourney || uworldSkin) ? true : studyPref;
   // Per-mode skin gates: SoloGameJourney.css / SoloGameUWorld.css apply solely
   // under their class, so solo/training/BR keep their normal (dark or study) look.
-  const screenClass = `screen solo-screen${isJourney ? ' jm-vibrant' : ''}${uworldSkin ? ' uw-exam' : ''}`;
+  // The exam skin is shared by every question-bank mode; examTheme is what
+  // makes a Saudi MLE block green instead of UWorld blue. Absent, it renders
+  // exactly as it always did.
+  const screenClass = `screen solo-screen${isJourney ? ' jm-vibrant' : ''}${uworldSkin ? ' uw-exam' : ''}` +
+    (uworldSkin && examTheme ? ` uw-theme-${examTheme.id}` : '');
 
   // The study LAYOUT rules live behind html[data-study="on"], which follows the
   // user's preference. Journey duplicates them under .jm-vibrant; this mode

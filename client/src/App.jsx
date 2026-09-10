@@ -917,6 +917,7 @@ export default function App() {
           // A real route, not a phase — same navigation style as the /dashboard
           // links above.
           onUWorld={() => { window.location.href = '/uworld-adventure'; }}
+          onSaudiMLE={() => { window.location.href = '/saudi-mle'; }}
         />
         </RouteErrorBoundary>
       )}

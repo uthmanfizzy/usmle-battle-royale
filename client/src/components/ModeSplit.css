@@ -687,3 +687,24 @@
    heights. Stretching them, with the content packed from the top, lines the
    two up whatever the copy does. */
 .ms-cards:not(.ms-cards--story) { align-items: stretch; }
+
+/* Green variant — Saudi MLE. Same treatment as the blue UWorld variant it sits
+   beside: coloured rule + glow, coloured title, tinted stripes in the art
+   panel. Green after the Saudi flag, and far enough from the blue above that
+   the two question-bank modes are never mistaken for each other. */
+.ms-journey-card--green {
+  border-color: #1f9e6a;
+  box-shadow: 0 0 18px rgba(22, 137, 90, 0.2);
+}
+
+.ms-journey-card--green:hover {
+  box-shadow: 0 0 28px rgba(22, 137, 90, 0.45);
+}
+
+.ms-journey-card--green .ms-journey-name {
+  color: #74d3a6;
+}
+
+.ms-journey-card--green .ms-journey-art {
+  background: repeating-linear-gradient(45deg, #16261f, #16261f 10px, #111e19 10px, #111e19 20px);
+}
