@@ -302,7 +302,26 @@ export default function QuestionParser({ activeFolder, selectedTopic, selectedDi
           }
         }
 
-        const questionText = assembleStem(questionLines);
+        let questionText = assembleStem(questionLines);
+
+        // The line-start matcher above only fires when "System: X" is on its own
+        // line. Written (or pasted) at the END of the vignette instead, it is
+        // just more prose and gets absorbed into the stem — which is how a
+        // question ends up displaying "…most likely diagnosis? System:
+        // Reproductive & Obstetrics" to players.
+        //
+        // Recovered here, but ONLY when the name resolves to a real subject:
+        // that is what makes it safe to cut text off a stem. A vignette ending
+        // "…affecting the renal system: the nephron" resolves to nothing and is
+        // left exactly as written.
+        if (!subjectHint && questionText) {
+          const trailing = questionText.match(
+            /[\s(]*(?:system|subject|category|speciality|specialty)\s*[:\-–—]\s*([^.\n]+?)\s*$/i);
+          if (trailing && resolveSubject(trailing[1])) {
+            subjectHint = trailing[1].trim();
+            questionText = questionText.slice(0, trailing.index).trim();
+          }
+        }
 
         // Table-as-options: if no standard "A. text" choices were found but the stem
         // contains a table whose first column is option letters (A, B, C…), derive the
