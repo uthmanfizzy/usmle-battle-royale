@@ -34,6 +34,7 @@ const MODE_META = {
   anking:                 { icon: '🃏', label: 'AnKing Flashcards' },
   hy_flashcards:          { icon: '⭐', label: 'HY Flashcards'     },
   question_bank_practice: { icon: '📚', label: 'UWorld Adventure'  },
+  saudi_mle_practice:     { icon: '📗', label: 'Saudi MLE'         },
   solo:                   { icon: '🧠', label: 'Solo Practice'     },
 };
 const modeMeta = (m) =>

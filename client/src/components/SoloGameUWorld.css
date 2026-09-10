@@ -816,3 +816,16 @@ html[data-study="on"] .screen.solo-screen.uw-exam.uw-theme-saudi_mle .uw-mark.is
 html[data-study="on"] .screen.solo-screen.uw-exam.uw-theme-saudi_mle .rr-explanation {
   background: #f1f7f4;
 }
+
+/* ── One sentence per line ───────────────────────────────────────────────────
+   Same treatment First Aid Journey already has. The spans are always emitted by
+   ExplanationText — cut AFTER the punctuation and its trailing whitespace, so
+   no character moves and the rendered textContent stays byte-identical, which
+   is what keeps highlight offsets anchored. Only the display changes here. */
+html[data-study="on"] .screen.solo-screen.uw-exam .explanation-line {
+  display: block;
+  margin-bottom: 0.85em;
+}
+html[data-study="on"] .screen.solo-screen.uw-exam .explanation-line:last-child {
+  margin-bottom: 0;
+}

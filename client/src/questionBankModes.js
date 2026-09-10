@@ -22,6 +22,14 @@ export const QUESTION_BANK_MODES = [
     // set for UWorld silently govern Saudi MLE and double-count today's work.
     paceScope: '__adventure__',
     accentRgb: '47, 111, 201',   // the exam blue this mode already used
+    // The game_mode written to activity_sessions. Kept as the original value so
+    // every row already logged keeps its label.
+    activityMode: 'question_bank_practice',
+    // The finished size of the bank, for PLANNING. The upload is still in
+    // progress, so pacing against today's partial bank would promise a finish
+    // in a week. null means "no known final size — plan against whatever is
+    // actually there", which is what a bank still being built needs.
+    targetTotal: 3659,
   },
   {
     id: 'saudi_mle',
@@ -31,6 +39,10 @@ export const QUESTION_BANK_MODES = [
     tagline: 'Work the Saudi Medical Licensing Exam bank down, at your own pace.',
     paceScope: '__saudi_mle__',
     accentRgb: '22, 137, 90',    // Saudi green
+    activityMode: 'saudi_mle_practice',
+    // No published total for this bank yet, so the plan tracks the live count
+    // and grows as questions are added.
+    targetTotal: null,
   },
 ];
 

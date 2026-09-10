@@ -84,15 +84,6 @@ function daysUntil(inputDate) {
 // cannot be saved — it is reported as out of reach instead of silently clamped.
 const PACE_SAVE_MAX = 200;
 
-// The finished size of UWorld Adventure. Upload is still in progress, so the
-// live bank is smaller — but a plan is only useful if it covers the whole
-// journey, and a player pacing against today's partial bank would be told they
-// finish in a week. So PLANNING uses this number while PLAYING uses whatever is
-// really there.
-//
-// Delete this and plan against the real total once the upload is complete; the
-// max() below means an over-full bank already ignores it.
-const UWA_TARGET_TOTAL = 3659;
 
 // user_prep_pace is keyed (user_id, subject), but the plan this page shows is
 // adventure-wide — so the pace is stored ONCE under a reserved key rather than
@@ -331,7 +322,14 @@ export default function UWorldAdventure({ mode = DEFAULT_QUESTION_BANK_MODE }) {
   // setup page) because the End Block confirm dialog needs it too, and that
   // dialog renders from the early `sessionQuestions` return below.
   // If the bank ever outgrows the target, the target stops mattering.
-  const plannedTotal     = Math.max(UWA_TARGET_TOTAL, overall?.total ?? 0);
+  // A bank with a KNOWN final size plans against it, because pacing against a
+  // partial upload would promise a finish in a week. A bank with no published
+  // total (Saudi MLE) plans against whatever is really there and grows as
+  // questions are added — a fixed target it can never reach would put the
+  // finish date permanently out of sight.
+  const plannedTotal     = mode.targetTotal
+    ? Math.max(mode.targetTotal, overall?.total ?? 0)
+    : (overall?.total ?? 0);
   const plannedSeen      = Math.min(overall?.seen ?? 0, plannedTotal);
   const plannedRemaining = Math.max(0, plannedTotal - plannedSeen);
   const daysToFinish = plannedRemaining > 0 ? Math.ceil(plannedRemaining / pace) : 0;
@@ -403,7 +401,7 @@ export default function UWorldAdventure({ mode = DEFAULT_QUESTION_BANK_MODE }) {
   function handleComplete({ pct, activeSeconds }) {
     authFetch('/api/question-bank-session', {
       method: 'POST',
-      body: JSON.stringify({ subject: selected, pct, seconds: activeSeconds }),
+      body: JSON.stringify({ subject: selected, pct, seconds: activeSeconds, mode: MODE }),
     }).catch(() => {});
   }
 
@@ -516,8 +514,8 @@ export default function UWorldAdventure({ mode = DEFAULT_QUESTION_BANK_MODE }) {
 
       <div className="uwa-col">
         <p className="uwa-intro">
-          A high-yield board-review expedition through the wards of Medvale
-          {` — ${plannedTotal.toLocaleString()} questions across every USMLE subject.`}
+          {mode.tagline}
+          {plannedTotal > 0 && ` — ${plannedTotal.toLocaleString()} questions`}
         </p>
 
         {/* ── Set Your Pace ─────────────────────────────────────────────── */}
@@ -641,7 +639,7 @@ export default function UWorldAdventure({ mode = DEFAULT_QUESTION_BANK_MODE }) {
               </div>
               {/* Says plainly why the plan is bigger than what is playable today,
                   so the gap reads as "still uploading" rather than a bug. */}
-              {overall.total < plannedTotal && (
+              {mode.targetTotal && overall.total < plannedTotal && (
                 <p className="uwa-note">
                   Planning against the full {plannedTotal.toLocaleString()}-question adventure.
                   {' '}{overall.total.toLocaleString()} are in the bank so far — the rest are still being added.

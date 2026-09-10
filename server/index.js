@@ -2750,6 +2750,15 @@ function modeTagFrom(req) {
 // never a bare array.
 const modeJson = (tag) => JSON.stringify([tag]);
 
+// The activity_sessions.game_mode each bank logs under. UWorld keeps its
+// original value so every row already written keeps its Daily Activity label;
+// a new bank gets its own, or it would show up as "UWorld Adventure".
+// Mirrors activityMode in client/src/questionBankModes.js.
+const QUESTION_BANK_ACTIVITY_MODE = {
+  uworld_adventure: 'question_bank_practice',
+  saudi_mle:        'saudi_mle_practice',
+};
+
 // Self-assessment buckets a UWorld Adventure question can be rated into after
 // answering — same five categories (and exact value strings) HY Flashcards
 // already uses for its own rating pile picker, kept identical for a familiar
@@ -5312,6 +5321,13 @@ app.post('/api/question-bank-session', requireAuth, async (req, res) => {
   if (!supabase) return res.json({ ok: false });
 
   const subject = (req.body?.subject ?? '').toString().trim() || null;
+  // Which bank this session belongs to. Whitelisted through the same helper the
+  // read endpoints use, so an unknown value logs as UWorld rather than writing
+  // an arbitrary game_mode into activity_sessions.
+  const bankMode = QUESTION_BANK_MODE_IDS.includes((req.body?.mode ?? '').toString())
+    ? req.body.mode.toString()
+    : UWORLD_MODE;
+  const activityGameMode = QUESTION_BANK_ACTIVITY_MODE[bankMode] || 'question_bank_practice';
   let pct = Number(req.body?.pct);
   if (!Number.isFinite(pct)) return res.status(400).json({ error: 'pct must be a number.' });
   pct = Math.max(0, Math.min(100, Math.round(pct)));
@@ -5326,7 +5342,7 @@ app.post('/api/question-bank-session', requireAuth, async (req, res) => {
       .from('activity_sessions')
       .insert({
         user_id:              req.userId,   // requireAuth guarantees a real user
-        game_mode:            'question_bank_practice',
+        game_mode:            activityGameMode,
         subject,
         journey_chapter_name: null,
         journey_level_name:   null,
@@ -5361,7 +5377,7 @@ app.post('/api/question-bank-session', requireAuth, async (req, res) => {
  * /api/study-time as it goes, so doing it again would double-count.
  */
 const STUDY_SESSION_MODES = new Set([
-  'solo', 'training_grounds', 'journey', 'question_bank_practice',
+  'solo', 'training_grounds', 'journey', 'question_bank_practice', 'saudi_mle_practice',
 ]);
 
 app.post('/api/study-session', requireAuth, async (req, res) => {

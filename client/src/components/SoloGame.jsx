@@ -596,7 +596,10 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   // passed: every distinguishing prop is already here, and the two call sites
   // (App.jsx, UWorldAdventure.jsx) would otherwise both need a new prop that
   // could drift out of step with the skin flags they already send.
-  const activityMode = uworldSkin ? 'question_bank_practice'
+  // examTheme carries the bank's own activity mode, so a Saudi MLE block is not
+  // logged (and shown on Daily Activity) as UWorld Adventure. Falls back to the
+  // original value, which is also what UWorld itself still uses.
+  const activityMode = uworldSkin ? (examTheme?.activityMode || 'question_bank_practice')
     : isJourney ? 'journey'
     : topicId ? 'training_grounds'
     : 'solo';
