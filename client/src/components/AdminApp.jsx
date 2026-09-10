@@ -1854,6 +1854,113 @@ function RowImageDrop({ questionId, field, label, url, onUploaded, basePath = '/
  *
  * With scopeTag null this component behaves exactly as before.
  */
+/**
+ * Which subjects one question bank shows to players. Per BANK, not global: the
+ * old global subjects.active flag governed every mode at once, so UWorld
+ * Adventure and Saudi MLE could not offer different subject sets.
+ *
+ * Stored in gameSettings.questionBankSubjects[modeId], so no migration — the
+ * same mechanism First Aid Journey already uses for its own subject list.
+ *
+ * A bank with NOTHING saved falls back to the global active flag, which is
+ * exactly what it did before, so this changes nothing until it is used.
+ */
+function QuestionBankSubjectsPanel({ modeId, modeLabel, subjects }) {
+  const [ids, setIds] = useState(null);        // null = still loading
+  const [configured, setConfigured] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState('');
+
+  // Every real subject, with the live active flag as the fallback default.
+  const rows = (Array.isArray(subjects) && subjects.length)
+    ? subjects.map(s => ({ id: s.id, label: s.name || s.id, active: !!s.active }))
+    : SUBJECT_OPTIONS.map(o => ({ ...o, active: true }));
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const res = await apiCall('/admin/settings');
+        const data = await res.json();
+        if (!alive) return;
+        const saved = data?.questionBankSubjects?.[modeId];
+        if (Array.isArray(saved) && saved.length) { setIds(new Set(saved)); setConfigured(true); }
+        // Not configured: seed the toggles from what this bank shows TODAY, so
+        // opening the panel and saving is a no-op rather than a surprise.
+        else setIds(new Set(rows.filter(r => r.active).map(r => r.id)));
+      } catch {
+        if (alive) setIds(new Set(rows.filter(r => r.active).map(r => r.id)));
+      }
+    })();
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modeId]);
+
+  const toggle = (id, on) => setIds(prev => {
+    const next = new Set(prev);
+    on ? next.add(id) : next.delete(id);
+    return next;
+  });
+
+  const save = async () => {
+    setSaving(true); setSaved(false); setError('');
+    try {
+      const list = rows.filter(r => ids.has(r.id)).map(r => r.id);
+      if (list.length === 0) throw new Error('Pick at least one subject — a bank with none would show players an empty page.');
+      const res = await apiCall('/admin/settings', {
+        method: 'POST',
+        body: JSON.stringify({ questionBankSubjects: { [modeId]: list } }),
+      });
+      if (!res.ok) throw new Error('Save failed');
+      setConfigured(true);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } catch (e) {
+      setError(e.message || 'Save failed');
+    }
+    setSaving(false);
+  };
+
+  const chosen = ids ? rows.filter(r => ids.has(r.id)).length : 0;
+
+  return (
+    <div className="ap-bank-subjects">
+      <button className="ap-bank-subjects-head" onClick={() => setOpen(o => !o)} aria-expanded={open}>
+        <span className="ap-bank-subjects-title">📚 Subjects shown in {modeLabel}</span>
+        <span className="ap-bank-subjects-count">
+          {ids === null ? '…' : `${chosen} of ${rows.length}`}
+          {!configured && ids !== null && ' · using the global setting'}
+        </span>
+        <span className="ap-bank-subjects-chevron">{open ? '▾' : '▸'}</span>
+      </button>
+
+      {open && ids !== null && (
+        <div className="ap-bank-subjects-body">
+          <p className="ap-bank-subjects-note">
+            Players only see the ticked subjects on the {modeLabel} page. This is per
+            game mode — {modeLabel} and the other banks can show different sets.
+            Questions already filed under an unticked subject are kept, just hidden here.
+          </p>
+          <div className="ap-settings-rows">
+            {rows.map(r => (
+              <ToggleRow
+                key={r.id}
+                label={r.label}
+                desc={ids.has(r.id) ? `Visible on the ${modeLabel} page` : 'Hidden from this mode'}
+                checked={ids.has(r.id)}
+                onChange={on => toggle(r.id, on)}
+              />
+            ))}
+          </div>
+          <SectionSaveBtn saving={saving} saved={saved} error={error} onSave={save} />
+        </div>
+      )}
+    </div>
+  );
+}
+
 function QuestionsPanel({ subjects = [], scopeTag = null }) {
   // ─── Data ────────────────────────────────────────────────────────────────────
   const [questions,     setQuestions]     = useState([]);
@@ -10057,11 +10164,13 @@ export default function AdminApp() {
             being duplicated and left to drift. */}
         {tab === 'uworld'        && (
           <ErrorBoundary>
+            <QuestionBankSubjectsPanel modeId={UWORLD_MODE} modeLabel="UWorld Adventure" subjects={sharedSubjects} />
             <QuestionsPanel subjects={sharedSubjects} scopeTag={UWORLD_MODE} />
           </ErrorBoundary>
         )}
         {tab === 'saudi_mle'     && (
           <ErrorBoundary>
+            <QuestionBankSubjectsPanel modeId={SAUDI_MLE_MODE} modeLabel="Saudi MLE" subjects={sharedSubjects} />
             <QuestionsPanel subjects={sharedSubjects} scopeTag={SAUDI_MLE_MODE} />
           </ErrorBoundary>
         )}

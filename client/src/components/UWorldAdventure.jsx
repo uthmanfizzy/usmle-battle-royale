@@ -176,15 +176,26 @@ export default function UWorldAdventure({ mode = DEFAULT_QUESTION_BANK_MODE }) {
     fetchMe().then(me => { if (me) setUser(me); });
   }, []);
 
-  // Live active subjects — never a hardcoded list, so newly activated subjects
-  // show up here on their own.
+  // Live subject list — never hardcoded, so a newly enabled subject shows up on
+  // its own. Which subjects appear is chosen PER BANK in that mode's admin tab
+  // (gameSettings.questionBankSubjects); a bank with no list of its own falls
+  // back to the global active flag, which is what every bank did before.
+  //
+  // Both requests are needed and are fetched together: one for the subjects,
+  // one for this bank's list. Applying the filter here matches the rule the
+  // progress endpoints apply server-side, so the grid and the pace maths can
+  // never describe different sets of subjects.
   useEffect(() => {
     let cancelled = false;
-    authFetch('/api/subjects')
-      .then(r => r.json())
-      .then(data => {
+    Promise.all([
+      authFetch('/api/subjects').then(r => r.json()),
+      authFetch('/api/game-settings').then(r => r.json()).catch(() => ({})),
+    ])
+      .then(([data, settings]) => {
         if (cancelled) return;
-        const active = (data.subjects || []).filter(s => s.active);
+        const configured = settings?.questionBankSubjects?.[MODE];
+        const allow = Array.isArray(configured) && configured.length ? new Set(configured) : null;
+        const active = (data.subjects || []).filter(s => (allow ? allow.has(s.id) : s.active));
         setSubjects(active);
         // Open on the first subject so the pace card is populated on arrival,
         // the way the mockup shows it — an empty card above a subject grid
@@ -193,7 +204,7 @@ export default function UWorldAdventure({ mode = DEFAULT_QUESTION_BANK_MODE }) {
       })
       .catch(() => { if (!cancelled) setSubjectsError(true); });
     return () => { cancelled = true; };
-  }, []);
+  }, [MODE]);
 
   const loadProgress = useCallback(async (subjectId) => {
     if (!user?.id) return null;

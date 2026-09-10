@@ -416,6 +416,12 @@ let gameSettings = {
     'cardiovascular', 'endocrine', 'gastrointestinal', 'heme_onc', 'msk_skin', 'neuro_special',
     'psychiatry', 'renal', 'reproductive', 'respiratory',
   ],
+  // Which subjects each question-bank mode shows, keyed by mode id:
+  // { uworld_adventure: ['cardiology', ...], saudi_mle: [...] }.
+  // A mode ABSENT here falls back to the global subjects.active flag, so
+  // nothing changes until an admin configures that mode — and each bank can
+  // then show a different set without a second copy of the subject list.
+  questionBankSubjects: {},
   // Section 3: Lobby
   maxPlayersPerLobby: 10,
   minPlayersToStart: 2,
@@ -2754,6 +2760,16 @@ const modeJson = (tag) => JSON.stringify([tag]);
 // original value so every row already written keeps its Daily Activity label;
 // a new bank gets its own, or it would show up as "UWorld Adventure".
 // Mirrors activityMode in client/src/questionBankModes.js.
+// The subject ids one bank shows, or null when that bank has no configuration
+// and should fall back to the global active flag. An empty array is treated as
+// "not configured" on purpose: a mode with nothing ticked would otherwise show
+// an empty page with no way back through the player UI.
+function bankSubjectAllowList(modeId) {
+  const cfg = gameSettings.questionBankSubjects;
+  const list = cfg && cfg[modeId];
+  return Array.isArray(list) && list.length ? new Set(list.map(String)) : null;
+}
+
 const QUESTION_BANK_ACTIVITY_MODE = {
   uworld_adventure: 'question_bank_practice',
   saudi_mle:        'saudi_mle_practice',
@@ -5114,10 +5130,12 @@ app.get('/api/question-bank-progress/by-subject', requireAuth, async (req, res) 
   const modeJsonTag = modeJson(modeTagFrom(req));
   if (!supabase) return res.json({ subjects: {} });
   try {
-    const { data: active, error: aErr } = await supabase
-      .from('subjects').select('id').eq('active', true);
+    const { data: rows, error: aErr } = await supabase
+      .from('subjects').select('id, active');
     if (aErr) throw aErr;
-    const ids = (active || []).map(s => s.id);
+    // Same rule as question-bank-progress above: the bank's list wins when set.
+    const allow = bankSubjectAllowList(modeTagFrom(req));
+    const ids = (rows || []).filter(s => (allow ? allow.has(s.id) : s.active)).map(s => s.id);
     if (ids.length === 0) return res.json({ subjects: {} });
 
     const per = await Promise.all(ids.map(async (id) => {
@@ -5169,12 +5187,17 @@ app.get('/api/users/:userId/question-bank-progress', requireAuth, async (req, re
     // Scope: one subject, or every active one.
     let subjects = subject ? [subject] : null;
     if (!subjects) {
-      const { data: active, error: aErr } = await supabase
+      // Every subject, then narrowed. The bank's own list is AUTHORITATIVE when
+      // set — the whole point is choosing per mode rather than globally — so
+      // the active flag only decides things for a bank with no list of its own.
+      const { data: rows, error: aErr } = await supabase
         .from('subjects')
-        .select('id')
-        .eq('active', true);
+        .select('id, active');
       if (aErr) throw aErr;
-      subjects = (active || []).map((s) => s.id);
+      const allow = bankSubjectAllowList(modeTagFrom(req));
+      subjects = (rows || [])
+        .filter((s) => (allow ? allow.has(s.id) : s.active))
+        .map((s) => s.id);
       if (subjects.length === 0) return res.json(zeros);
     }
 
@@ -7047,6 +7070,17 @@ app.post('/admin/settings', adminAuth, async (req, res) => {
   // Play Page configs (stored as JSON)
   if (b.game_modes_config !== undefined) gameSettings.game_modes_config = b.game_modes_config;
   if (b.exam_boards_config !== undefined) gameSettings.exam_boards_config = b.exam_boards_config;
+  // Per-bank subject visibility: { modeId: [subjectId, ...] }. Mode keys are
+  // whitelisted so a typo cannot create a phantom bank that silently governs
+  // nothing.
+  if (b.questionBankSubjects && typeof b.questionBankSubjects === 'object' && !Array.isArray(b.questionBankSubjects)) {
+    const next = { ...(gameSettings.questionBankSubjects || {}) };
+    for (const [modeId, ids] of Object.entries(b.questionBankSubjects)) {
+      if (!QUESTION_BANK_MODE_IDS.includes(modeId)) continue;
+      next[modeId] = Array.isArray(ids) ? ids.slice(0, 64).map(String) : [];
+    }
+    gameSettings.questionBankSubjects = next;
+  }
   // First Aid Journey active subjects (array of journey subject ids)
   if (Array.isArray(b.journeyActiveSubjects)) {
     gameSettings.journeyActiveSubjects = b.journeyActiveSubjects.slice(0, 32).map(String);
