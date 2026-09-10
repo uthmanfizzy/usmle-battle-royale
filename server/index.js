@@ -604,6 +604,17 @@ function adminAuth(req, res, next) {
   next();
 }
 
+// Same gate as adminAuth, but a signed-in moderator (users.is_admin) passes too,
+// so someone who already holds admin permissions is never asked to retype the
+// owner password mid-game. moderatorFrom is declared below — a function
+// declaration, so it is hoisted and callable from here.
+async function moderatorAuth(req, res, next) {
+  const mod = await moderatorFrom(req);
+  if (!mod.ok) return res.status(401).json({ error: 'Unauthorized' });
+  req.moderator = mod;
+  next();
+}
+
 // ── JWT helpers ────────────────────────────────────────────────────────────────
 
 function verifyToken(token) {
@@ -7282,7 +7293,10 @@ app.post('/admin/questions/bulk', adminAuth, async (req, res) => {
   });
 });
 
-app.post('/admin/upload-image', adminAuth, async (req, res) => {
+// moderatorAuth, not adminAuth: uploading an image is exactly what a moderator
+// authoring questions needs, and demanding the owner password mid-game was the
+// whole reason the paste flow kept failing for them.
+app.post('/admin/upload-image', moderatorAuth, async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Supabase not configured. Cannot upload images.' });
   const { base64, filename, mimeType } = req.body;
   if (!base64 || !filename || !mimeType) return res.status(400).json({ error: 'base64, filename, and mimeType required.' });
@@ -7308,6 +7322,155 @@ app.post('/admin/upload-image', adminAuth, async (req, res) => {
     const { data: urlData } = supabase.storage.from('question-images').getPublicUrl(uniqueName);
     res.json({ ok: true, url: urlData.publicUrl });
   } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── In-game image authoring ─────────────────────────────────────────────────
+// Setting a question's picture is its own capability, deliberately NOT the
+// existing PUT /admin/questions/:id. That route rewrites the whole record, and
+// opening it to every moderator to let them attach an image would hand them
+// full question editing as a side effect. These two only ever touch the two
+// image columns.
+const QUESTION_IMAGE_TABLES = ['questions', 'journey_questions', 'boss_questions'];
+const QUESTION_IMAGE_FIELDS = ['image_url', 'explanation_image_url'];
+
+const questionImageTable = (v) => {
+  const t = (v || 'questions').toString();
+  return QUESTION_IMAGE_TABLES.includes(t) ? t : null;
+};
+
+app.put('/api/question-image/:id', moderatorAuth, async (req, res) => {
+  // Validate BEFORE the supabase check: a bad field or table is a bad request
+  // whatever the database is doing, and answering 503 would hide the real fault.
+  const table = questionImageTable(req.query.table || req.body?.table);
+  const field = (req.body?.field || '').toString();
+  if (!table) return res.status(400).json({ error: 'unknown table' });
+  if (!QUESTION_IMAGE_FIELDS.includes(field)) {
+    return res.status(400).json({ error: 'field must be image_url or explanation_image_url' });
+  }
+  // null/'' clears the image; anything else must look like a URL we served.
+  const raw = req.body?.url;
+  const url = raw === null || raw === '' ? null : String(raw);
+  if (url !== null && !/^https?:\/\//i.test(url)) {
+    return res.status(400).json({ error: 'url must be http(s)' });
+  }
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured' });
+  try {
+    const { error } = await supabase.from(table).update({ [field]: url }).eq('id', req.params.id);
+    if (error) throw error;
+    // The in-memory bank is what Solo/Training actually serve, so patch it too —
+    // otherwise the change only appears after the next full reload.
+    if (table === 'questions') {
+      const q = questionBank.find(x => x._supabase_id === req.params.id || x.id === req.params.id);
+      if (q) q[field] = url;
+    }
+    res.json({ ok: true, url });
+  } catch (err) {
+    console.warn('[/api/question-image] failed —', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Current image URLs for one question. Two columns and nothing else, so the
+// authoring client can poll it cheaply to pick up a picture added from the
+// admin panel in another tab without reloading the game.
+app.get('/api/question-image/:id', async (req, res) => {
+  if (!supabase) return res.json({});
+  const table = questionImageTable(req.query.table);
+  if (!table) return res.status(400).json({ error: 'unknown table' });
+  try {
+    const { data, error } = await supabase
+      .from(table).select('image_url, explanation_image_url').eq('id', req.params.id).maybeSingle();
+    if (error) throw error;
+    res.json({
+      image_url: data?.image_url ?? null,
+      explanation_image_url: data?.explanation_image_url ?? null,
+    });
+  } catch (err) {
+    console.warn('[/api/question-image GET] failed —', err.message);
+    res.json({});
+  }
+});
+
+// ── Journey chapter image library ───────────────────────────────────────────
+// A bag of pictures attached to a CHAPTER rather than to any level or question.
+// Drop a batch in from the admin panel, then during play pick one for a stem or
+// an explanation — the point being one stored file reused across many questions
+// instead of the same screenshot uploaded ten times.
+//
+// Needs the journey_chapter_images table (schema.sql, doc-only). Until it is
+// created every read degrades to an empty library with unavailable:true, which
+// the picker reports rather than silently showing nothing.
+async function chapterIdFromQuery(req) {
+  const direct = (req.query.chapter_id || '').toString().trim();
+  if (direct) return direct;
+  const levelId = (req.query.level_id || '').toString().trim();
+  if (!levelId) return null;
+  const { data } = await supabase
+    .from('journey_levels').select('chapter_id').eq('id', levelId).maybeSingle();
+  return data?.chapter_id || null;
+}
+
+app.get('/api/journey-chapter-images', async (req, res) => {
+  if (!supabase) return res.json({ images: [] });
+  try {
+    const chapterId = await chapterIdFromQuery(req);
+    if (!chapterId) return res.json({ images: [], chapter_id: null });
+    const { data, error } = await supabase
+      .from('journey_chapter_images')
+      .select('id, url, created_at')
+      .eq('chapter_id', chapterId)
+      .order('created_at', { ascending: false });
+    if (error) {
+      if (isMissingTable(error, 'journey_chapter_images')) {
+        return res.json({ images: [], chapter_id: chapterId, unavailable: true });
+      }
+      throw error;
+    }
+    res.json({ images: data || [], chapter_id: chapterId });
+  } catch (err) {
+    console.warn('[/api/journey-chapter-images] failed —', err.message);
+    res.json({ images: [] });
+  }
+});
+
+app.post('/api/journey-chapter-images', moderatorAuth, async (req, res) => {
+  const chapterId = (req.body?.chapter_id || '').toString().trim();
+  const url = (req.body?.url || '').toString().trim();
+  if (!chapterId) return res.status(400).json({ error: 'chapter_id required' });
+  if (!/^https?:\/\//i.test(url)) return res.status(400).json({ error: 'url must be http(s)' });
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured' });
+  try {
+    const { data, error } = await supabase
+      .from('journey_chapter_images')
+      .insert({ chapter_id: chapterId, url })
+      .select('id, url, created_at')
+      .maybeSingle();
+    if (error) {
+      if (isMissingTable(error, 'journey_chapter_images')) {
+        return res.status(503).json({ error: 'journey_chapter_images table is missing — run the migration in schema.sql', reason: 'missing_table' });
+      }
+      throw error;
+    }
+    res.json({ ok: true, image: data });
+  } catch (err) {
+    console.warn('[/api/journey-chapter-images POST] failed —', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/journey-chapter-images/:id', moderatorAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured' });
+  try {
+    // Removes the LIBRARY entry only. Questions already pointing at the file
+    // keep working — the storage object is untouched, so deleting a library
+    // thumbnail can never blank out a question that used it.
+    const { error } = await supabase.from('journey_chapter_images').delete().eq('id', req.params.id);
+    if (error) throw error;
+    res.json({ ok: true });
+  } catch (err) {
+    console.warn('[/api/journey-chapter-images DELETE] failed —', err.message);
     res.status(500).json({ error: err.message });
   }
 });

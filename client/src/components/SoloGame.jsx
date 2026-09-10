@@ -158,7 +158,8 @@ function DevImageSlot({ field, label, qid, armed, busy, message, currentUrl, onA
     {picking && (
       <div className="dev-imgpick" onClick={e => e.stopPropagation()}>
         <div className="dev-imgpick-head">
-          Images already used in this level — click one to use it for this {label.toLowerCase()}
+          Click one to use it for this {label.toLowerCase()} — images already in this
+          level, plus the chapter&apos;s library
         </div>
         <div className="dev-imgpick-grid">
           {reusable.map(img => (
@@ -171,8 +172,12 @@ function DevImageSlot({ field, label, qid, armed, busy, message, currentUrl, onA
             >
               <img src={img.url} alt="" loading="lazy" onError={e => { e.target.style.visibility = 'hidden'; }} />
               {/* How many questions in this set already point at this file —
-                  the reuse count is the whole reason this picker exists. */}
-              <span className="dev-imgpick-uses">{img.uses}×</span>
+                  the reuse count is the whole reason this picker exists. A
+                  library image has no uses yet, so it says where it came from
+                  instead of showing a meaningless "0×". */}
+              <span className={`dev-imgpick-uses${img.source === 'library' ? ' is-library' : ''}`}>
+                {img.source === 'library' ? '📚' : `${img.uses}×`}
+              </span>
             </button>
           ))}
         </div>
@@ -673,6 +678,9 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   // and having the timer roll over mid-upload would write the image onto the
   // NEXT question's stem — silently, and to the wrong row in the database.
   const [devImgArmed, setDevImgArmed] = useState({ field: 'image_url', qid: null });
+  // The chapter's image library (Journey only): pictures dropped in from the
+  // admin panel that belong to no level or question yet.
+  const [chapterImages, setChapterImages] = useState([]);
   const [devImgBusy,  setDevImgBusy]  = useState(null);        // field currently uploading
   const [devImgMsg,   setDevImgMsg]   = useState(null);        // { field, kind: 'ok'|'err', text }
 
@@ -681,6 +689,30 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   // object goes into both the questions array and the shuffle memo so their
   // identities still match — otherwise the next render sees a new base and
   // reshuffles the options underneath the player mid-question.
+  // Which table this run's questions live in, for the image endpoints.
+  const imageTable = retireEndpoint.replace('-', '_');
+
+  // Journey hands SoloGame its questions URL with the level id in the query, so
+  // that string is where the current level — and therefore the chapter whose
+  // image library to offer — is recoverable from.
+  const journeyLevelId = useMemo(() => {
+    if (!questionsUrl) return null;
+    try { return new URL(questionsUrl, window.location.origin).searchParams.get('level_id'); }
+    catch { return null; }
+  }, [questionsUrl]);
+
+  // Credentials for the image endpoints. The owner password when this browser
+  // has it, otherwise the signed-in user's token — the server accepts either,
+  // so a moderator with admin permissions is never asked to type the password
+  // again just to attach a picture. Returns null when we have neither, which
+  // is the only case that should refuse.
+  const imageAuthHeaders = useCallback(() => {
+    if (adminSession) return { 'x-admin-password': adminSession };
+    const token = getToken();
+    if (token && isModerator) return { Authorization: `Bearer ${token}` };
+    return null;
+  }, [adminSession, isModerator]);
+
   const applyDevImage = useCallback((field, url, qid) => {
     const arr = questionsRef.current;
     const idx = arr.findIndex(x => x.id === qid);
@@ -712,15 +744,19 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
       ? questionsRef.current.find(x => x.id === qid)
       : questionsRef.current[qIdxRef.current];
     if (!target?.id) return devImgFail(field, 'Question gone');
-    if (!adminSession) return devImgFail(field, 'Admin session required');
+    if (!imageAuthHeaders()) return devImgFail(field, 'Admin permissions required');
 
     setDevImgMsg(null);
     setDevImgBusy(field);
     try {
-      const res = await fetch(`${SERVER_URL}/admin/${retireEndpoint}/${encodeURIComponent(target.id)}`, {
+      // The image-only endpoint, not PUT /admin/<table>/:id — that one rewrites
+      // the whole record, and a moderator needs to attach a picture without
+      // being handed full question editing along with it.
+      const res = await fetch(
+        `${SERVER_URL}/api/question-image/${encodeURIComponent(target.id)}?table=${imageTable}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'x-admin-password': adminSession },
-        body: JSON.stringify({ [field]: url }),
+        headers: { 'Content-Type': 'application/json', ...imageAuthHeaders() },
+        body: JSON.stringify({ field, url }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || `Save failed (${res.status})`);
@@ -731,14 +767,14 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
     } catch (err) {
       devImgFail(field, err.message || 'Failed');
     }
-  }, [adminSession, retireEndpoint, applyDevImage, devImgFail]);
+  }, [imageAuthHeaders, imageTable, applyDevImage, devImgFail]);
 
   const uploadDevImage = useCallback(async (field, file, qid) => {
     const allowed = ['image/jpeg', 'image/png', 'image/webp'];
     if (!file || !file.type?.startsWith('image/')) return devImgFail(field, 'Images only');
     if (!allowed.includes(file.type))              return devImgFail(field, 'JPG, PNG or WEBP');
     if (file.size > 5 * 1024 * 1024)               return devImgFail(field, 'Max 5MB');
-    if (!adminSession) return devImgFail(field, 'Admin session required');
+    if (!imageAuthHeaders()) return devImgFail(field, 'Admin permissions required');
 
     setDevImgMsg(null);
     setDevImgBusy(field);
@@ -751,7 +787,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
       });
       const upRes = await fetch(`${SERVER_URL}/admin/upload-image`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-admin-password': adminSession },
+        headers: { 'Content-Type': 'application/json', ...imageAuthHeaders() },
         // A pasted screenshot has no filename; the server only uses it for the
         // storage key's suffix, so any stable name works.
         body: JSON.stringify({ base64, filename: file.name || 'pasted.png', mimeType: file.type }),
@@ -762,7 +798,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
     } catch (err) {
       devImgFail(field, err.message || 'Failed');
     }
-  }, [adminSession, saveDevImage, devImgFail]);
+  }, [imageAuthHeaders, saveDevImage, devImgFail]);
 
   // Every distinct image already used by the questions in THIS run — which is
   // exactly "the other questions in this level/topic". Built from the questions
@@ -774,13 +810,21 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
       for (const f of ['explanation_image_url', 'image_url']) {
         const url = item?.[f];
         if (!url) continue;
-        const entry = byUrl.get(url) || { url, uses: 0 };
+        const entry = byUrl.get(url) || { url, uses: 0, source: 'in-use' };
         entry.uses += 1;
         byUrl.set(url, entry);
       }
     }
-    return [...byUrl.values()].sort((a, b) => b.uses - a.uses);
-  }, [questions]);
+    // Chapter library images sit alongside the in-use ones. A library picture
+    // already attached to a question keeps its use count and stays in the
+    // in-use group rather than appearing twice.
+    for (const img of chapterImages) {
+      if (byUrl.has(img.url)) continue;
+      byUrl.set(img.url, { url: img.url, uses: 0, source: 'library' });
+    }
+    return [...byUrl.values()].sort((a, b) =>
+      (b.uses - a.uses) || (a.source === b.source ? 0 : a.source === 'in-use' ? -1 : 1));
+  }, [questions, chapterImages]);
 
   // Ctrl+V anywhere on the page while dev mode is on. Recomputed from state
   // rather than reusing `authoringOfficial` below, because that is derived
@@ -848,6 +892,46 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
       .catch(() => { if (!cancelled) setHighlights([]); });
     return () => { cancelled = true; };
   }, [currentQid]);
+
+  // An image attached from the admin panel in another tab appears here without
+  // reloading the game. Two columns per request, and ONLY while dev authoring
+  // is on — a normal player never makes this call, which matters on an account
+  // that has already been taken down by egress once. Skips hidden tabs.
+  useEffect(() => {
+    if (!devImageAuthoring || !currentQid) return;
+    let cancelled = false;
+    const tick = async () => {
+      if (document.hidden) return;
+      try {
+        const res = await fetch(
+          `${SERVER_URL}/api/question-image/${encodeURIComponent(currentQid)}?table=${imageTable}`);
+        if (!res.ok || cancelled) return;
+        const data = await res.json();
+        if (cancelled) return;
+        const local = questionsRef.current.find(x => x.id === currentQid);
+        for (const f of ['image_url', 'explanation_image_url']) {
+          const incoming = data[f] ?? null;
+          if (incoming !== (local?.[f] ?? null)) applyDevImage(f, incoming, currentQid);
+        }
+      } catch { /* transient — the next tick retries */ }
+    };
+    tick();
+    const id = setInterval(tick, 8000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, [devImageAuthoring, currentQid, imageTable, applyDevImage]);
+
+  // Journey only: the chapter's image library, for the in-game picker. The
+  // level id is the one handle this component has on where it is in the
+  // journey — the server walks level → chapter from it.
+  useEffect(() => {
+    if (!devImageAuthoring || !journeyLevelId) { setChapterImages([]); return; }
+    let cancelled = false;
+    fetch(`${SERVER_URL}/api/journey-chapter-images?level_id=${encodeURIComponent(journeyLevelId)}`)
+      .then(r => (r.ok ? r.json() : { images: [] }))
+      .then(d => { if (!cancelled) setChapterImages(Array.isArray(d.images) ? d.images : []); })
+      .catch(() => { if (!cancelled) setChapterImages([]); });
+    return () => { cancelled = true; };
+  }, [devImageAuthoring, journeyLevelId]);
 
   // Stop lobby music on mount; stop game music on unmount.
   useEffect(() => {
@@ -1410,14 +1494,12 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   // and a scroll lock would still leave the stem sitting in view above it.
   const timeUpLock = uworldSkin && explanationExpired && !rated;
 
-  // Writing an image goes through /admin/upload-image and the admin question
-  // PUT, both of which are adminAuth — the OWNER password, not the moderator
-  // flag. A moderator has isAdminSession (so the dev controls render) but no
-  // password, which used to surface as a dead slot that failed with "Admin
-  // session required" only after they tried to use it. Gate on the credential
-  // that is actually required, and offer the unlock when it is missing.
-  const canWriteImages = authoringOfficial && !!adminSession;
-  const needsImageUnlock = authoringOfficial && !adminSession;
+  // Both image endpoints now take EITHER the owner password or a moderator's
+  // token, so holding admin permissions is enough — a moderator used to see the
+  // slot render and then be told to go and find the owner password. The unlock
+  // is only offered to someone who has neither credential.
+  const canWriteImages = authoringOfficial && !!imageAuthHeaders();
+  const needsImageUnlock = authoringOfficial && !imageAuthHeaders();
   const imageUnlockNotice = needsImageUnlock && (
     <button type="button" className="dev-imgslot-unlock" onClick={unlockDevMode}>
       🔑 Enter the admin password to add images

@@ -1126,6 +1126,12 @@ html[data-study="on"] .solo-body .stem-table td { color: #1c2030; }
   font-weight: 700;
 }
 
+/* Chapter-library image: not yet used by any question here, so the badge says
+   where it came from instead of a meaningless "0x". */
+.dev-imgpick-uses.is-library {
+  background: rgba(47, 111, 201, 0.9);
+}
+
 .dev-imgslot-icon { font-size: 14px; line-height: 1; flex-shrink: 0; }
 .dev-imgslot-text { flex: 1; min-width: 0; }
 .dev-imgslot-hint {

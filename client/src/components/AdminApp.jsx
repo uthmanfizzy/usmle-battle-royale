@@ -5453,6 +5453,156 @@ function LevelVideosField({ levelId }) {
   );
 }
 
+/**
+ * A chapter's image library: pictures that belong to the CHAPTER and to no
+ * level or question. Drop a batch in here, then during play pick one for a
+ * question's stem or explanation — the point is one stored file reused across
+ * many questions instead of the same screenshot uploaded ten times.
+ *
+ * Loads only when the chapter is expanded, so opening the Journey tab does not
+ * fetch every chapter's library at once.
+ */
+function ChapterImageLibrary({ chapterId }) {
+  const [images, setImages] = useState(null);   // null = loading
+  const [unavailable, setUnavailable] = useState(false);
+  const [over, setOver] = useState(false);
+  const [busy, setBusy] = useState(null);       // "3 / 8" while a batch uploads
+  const [error, setError] = useState('');
+
+  const load = useCallback(async () => {
+    try {
+      const res = await fetch(`${API}/api/journey-chapter-images?chapter_id=${encodeURIComponent(chapterId)}`);
+      const data = await res.json();
+      setUnavailable(!!data.unavailable);
+      setImages(Array.isArray(data.images) ? data.images : []);
+    } catch {
+      setImages([]);
+    }
+  }, [chapterId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const addFiles = async (fileList) => {
+    // Anything not uploaded gets NAMED. Dropping a batch is worth doing only if
+    // you don't then have to audit what actually landed — a file quietly
+    // vanishing because it was a PDF or a megabyte too big is the worst outcome.
+    const skipped = [];
+    const usable = [];
+    for (const f of [...fileList]) {
+      const name = f.name || 'file';
+      if (!['image/jpeg', 'image/png', 'image/webp'].includes(f.type)) skipped.push(`${name} — not JPG/PNG/WEBP`);
+      else if (f.size > 5 * 1024 * 1024) skipped.push(`${name} — over 5MB`);
+      else usable.push(f);
+    }
+    if (usable.length === 0) { setError(skipped.join(' · ') || 'Nothing to upload'); return; }
+    const headers = { 'Content-Type': 'application/json', 'x-admin-password': localStorage.getItem(AUTH_KEY) || '' };
+    let added = 0;
+    const failures = [];
+    // Sequential, not Promise.all: a batch of twenty 5MB uploads fired at once
+    // is how you get a timeout and no idea which ones landed.
+    for (let i = 0; i < usable.length; i++) {
+      setBusy(`${i + 1} / ${usable.length}`);
+      try {
+        const base64 = await new Promise((resolve, reject) => {
+          const r = new FileReader();
+          r.onload = () => resolve(r.result);
+          r.onerror = reject;
+          r.readAsDataURL(usable[i]);
+        });
+        const up = await fetch(`${API}/admin/upload-image`, {
+          method: 'POST', headers,
+          body: JSON.stringify({ base64, filename: usable[i].name || 'dropped.png', mimeType: usable[i].type }),
+        });
+        const upData = await up.json().catch(() => ({}));
+        if (!up.ok) throw new Error(upData.error || `Upload failed (${up.status})`);
+        const save = await fetch(`${API}/api/journey-chapter-images`, {
+          method: 'POST', headers,
+          body: JSON.stringify({ chapter_id: chapterId, url: upData.url }),
+        });
+        const saveData = await save.json().catch(() => ({}));
+        if (!save.ok) throw new Error(saveData.error || `Save failed (${save.status})`);
+        added++;
+      } catch (err) {
+        // Collect rather than abandon: one bad file must not stop the batch,
+        // and the report at the end says exactly which ones failed.
+        failures.push(`${usable[i].name || 'file'}: ${err.message}`);
+      }
+    }
+    setBusy(null);
+    // Reported together, and NOT cleared just because some files succeeded —
+    // "3 uploaded" while two silently vanished is the outcome to avoid.
+    setError([...skipped, ...failures].join(' · '));
+    if (added) load();
+  };
+
+  const remove = async (id) => {
+    // The library entry only — the stored file stays, so a question already
+    // using this picture keeps rendering it.
+    setImages(imgs => (imgs || []).filter(i => i.id !== id));
+    try {
+      await fetch(`${API}/api/journey-chapter-images/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+        headers: { 'x-admin-password': localStorage.getItem(AUTH_KEY) || '' },
+      });
+    } catch { load(); }
+  };
+
+  return (
+    <div className="je-imglib">
+      <div className="je-imglib-head">
+        🖼 Chapter image library
+        <span className="je-imglib-count">
+          {images === null ? '…' : `${images.length} image${images.length === 1 ? "" : "s"}`}
+        </span>
+      </div>
+
+      {unavailable ? (
+        <div className="je-imglib-warn">
+          The <code>journey_chapter_images</code> table has not been created yet — run the
+          block at the end of <code>server/schema.sql</code> in Supabase.
+        </div>
+      ) : (
+        <>
+          <label
+            className={`je-imglib-drop${over ? " is-over" : ""}${busy ? " is-busy" : ""}`}
+            onDragOver={e => { e.preventDefault(); if (!busy) setOver(true); }}
+            onDragLeave={e => { e.preventDefault(); setOver(false); }}
+            onDrop={e => { e.preventDefault(); setOver(false); if (!busy && e.dataTransfer?.files?.length) addFiles(e.dataTransfer.files); }}
+          >
+            <input
+              type="file" accept="image/jpeg,image/png,image/webp" multiple hidden
+              onChange={e => { if (e.target.files?.length) addFiles(e.target.files); e.target.value = ''; }}
+            />
+            <span className="je-imglib-drop-icon">{busy ? '⏳' : '📥'}</span>
+            <span>
+              {busy
+                ? `Uploading ${busy}…`
+                : 'Drop images here (or click) — they attach to the chapter, not to any level or question'}
+            </span>
+          </label>
+
+          {error && <div className="je-imglib-err">⚠ {error}</div>}
+
+          {images !== null && images.length > 0 && (
+            <div className="je-imglib-grid">
+              {images.map(img => (
+                <div className="je-imglib-item" key={img.id}>
+                  <img src={img.url} alt="" loading="lazy" />
+                  <button
+                    type="button" className="je-imglib-del"
+                    onClick={() => remove(img.id)}
+                    title="Remove from the library (the picture itself stays, and any question using it is unaffected)"
+                  >✕</button>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 function JourneyPanel() {
   const [subject,  setSubject]  = useState(JOURNEY_SUBJECTS[0].id);
   const [chapters, setChapters] = useState([]);
@@ -6290,6 +6440,8 @@ function JourneyPanel() {
                                 ? <span className="ap-jpill">{bossCount} question{bossCount !== 1 ? 's' : ''}</span>
                                 : <span className="ap-jboss-skip">⚡ Auto-skips in game</span>}
                             </button>
+
+                            <ChapterImageLibrary chapterId={ch.id} />
                           </>
                         )}
                       </div>

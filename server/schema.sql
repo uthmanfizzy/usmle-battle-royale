@@ -1150,3 +1150,33 @@ CREATE POLICY "server_full_access_uworld_question_ratings"
 -- not a one-way latch), so running this migration takes effect within a minute
 -- on a server that is already up. Before it runs, levels simply report no
 -- confidence and the map renders exactly as it did before.
+
+-- ── journey_chapter_images ──────────────────────────────────────────────────
+-- A library of pictures attached to a CHAPTER rather than to any level or
+-- question. Images are dropped in from the admin Journey panel in batches, then
+-- picked during play for a question's stem or explanation — one stored file
+-- reused across many questions, instead of the same screenshot uploaded again
+-- for each one.
+--
+-- Deleting a row removes the LIBRARY entry only. The storage object stays, so
+-- any question already pointing at that URL keeps rendering it — tidying the
+-- library can never blank out a question.
+--
+-- Until this is run, the admin drop zone and the in-game picker both report the
+-- library as unavailable rather than silently showing nothing.
+
+CREATE TABLE IF NOT EXISTS journey_chapter_images (
+  id         UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  chapter_id UUID        NOT NULL REFERENCES journey_chapters(id) ON DELETE CASCADE,
+  url        TEXT        NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_journey_chapter_images_chapter
+  ON journey_chapter_images(chapter_id, created_at DESC);
+
+ALTER TABLE journey_chapter_images ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "server_full_access_journey_chapter_images" ON journey_chapter_images;
+CREATE POLICY "server_full_access_journey_chapter_images"
+  ON journey_chapter_images FOR ALL USING (true) WITH CHECK (true);
