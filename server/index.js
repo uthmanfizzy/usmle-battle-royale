@@ -5086,6 +5086,67 @@ app.post('/api/study-time', requireAuth, async (req, res) => {
  * requireAuth'd but takes a :userId — like the other per-user stat endpoints, any
  * signed-in user may read another's progress. Fails soft to zeros.
  */
+/**
+ * GET /api/question-bank-progress/by-subject
+ *
+ * How many questions remain in EVERY active subject, in one request, so the
+ * subject grid can show "N left" without being clicked. Shape:
+ * { subjects: { respiratory: { total, seen, unseen }, ... } }.
+ *
+ * Two head+exact COUNT queries per subject, run in parallel. Counts, not rows:
+ * nothing but a number crosses the wire per query, so this is cheap in egress
+ * terms even with every subject active — and it CANNOT be done by tallying
+ * rows, which the 1000-row cap would silently truncate.
+ *
+ * Deliberately not an aggregating RPC: that would be a fourth migration for
+ * this repo to run by hand before the feature worked at all.
+ */
+app.get('/api/question-bank-progress/by-subject', requireAuth, async (req, res) => {
+  const modeJsonTag = modeJson(modeTagFrom(req));
+  if (!supabase) return res.json({ subjects: {} });
+  try {
+    const { data: active, error: aErr } = await supabase
+      .from('subjects').select('id').eq('active', true);
+    if (aErr) throw aErr;
+    const ids = (active || []).map(s => s.id);
+    if (ids.length === 0) return res.json({ subjects: {} });
+
+    const per = await Promise.all(ids.map(async (id) => {
+      let totalQ = supabase
+        .from('questions')
+        .select('*', { count: 'exact', head: true })
+        .contains('game_modes', modeJsonTag)
+        .eq('category', id);
+      let seenQ = supabase
+        .from(QUESTION_SEEN_TABLE)
+        .select('question_id, questions!inner(category, game_modes)', { count: 'exact', head: true })
+        .eq('user_id', req.query.user_id || req.userId)
+        .contains('questions.game_modes', modeJsonTag)
+        .eq('questions.category', id);
+      // Applied to both or neither, exactly as the per-subject endpoint does:
+      // a retired question left every pool, so counting it as seen against a
+      // total that excludes it would push a subject past 100%.
+      if (hasRetirement) {
+        totalQ = totalQ.is('retired_at', null);
+        seenQ  = seenQ.is('questions.retired_at', null);
+      }
+      const [t, sn] = await Promise.all([totalQ, seenQ]);
+      if (t.error || sn.error) return [id, null];
+      const total = t.count || 0;
+      const seen = Math.min(sn.count || 0, total);
+      return [id, { total, seen, unseen: Math.max(0, total - seen) }];
+    }));
+
+    const subjects = {};
+    for (const [id, val] of per) if (val) subjects[id] = val;
+    res.json({ subjects });
+  } catch (err) {
+    // The grid renders fine without counts — never take the page down for them.
+    console.warn('[/api/question-bank-progress/by-subject] failed —', err.message);
+    res.json({ subjects: {} });
+  }
+});
+
 app.get('/api/users/:userId/question-bank-progress', requireAuth, async (req, res) => {
   // Which bank this request is about — UWorld Adventure or Saudi MLE.
   const modeJsonTag = modeJson(modeTagFrom(req));

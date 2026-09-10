@@ -127,6 +127,9 @@ export default function UWorldAdventure({ mode = DEFAULT_QUESTION_BANK_MODE }) {
   const [subjectsError, setSubjectsError] = useState(false);
   const [selected, setSelected] = useState(null);       // subject id
   const [progress, setProgress] = useState(null);       // selected subject: { total, seen, unseen }
+  // Every subject's counts, so the grid can show what is left without being
+  // clicked. { [subjectId]: { total, seen, unseen } }
+  const [subjectCounts, setSubjectCounts] = useState({});
   const [overall, setOverall]   = useState(null);       // every subject, same shape
   const [pace, setPace] = useState(PACE_DEFAULT);
   const [loadingSubject, setLoadingSubject] = useState(false);
@@ -231,8 +234,15 @@ export default function UWorldAdventure({ mode = DEFAULT_QUESTION_BANK_MODE }) {
     loadOverall()
       .then(o => { if (!cancelled && o) setOverall(o); })
       .catch(() => {});
+    // Per-subject counts for the grid. One request for every subject — the
+    // page used to know only the SELECTED subject's remaining count, so the
+    // number appeared on a card only after you clicked it.
+    authFetch(`/api/question-bank-progress/by-subject?mode=${MODE}`)
+      .then(r => r.json())
+      .then(d => { if (!cancelled && d && typeof d.subjects === 'object') setSubjectCounts(d.subjects); })
+      .catch(() => {});   // the grid is still usable without counts
     return () => { cancelled = true; };
-  }, [user?.id, loadOverall]);
+  }, [user?.id, loadOverall, MODE]);
 
   // Rating-pile counts for "Review Rated Questions" — scoped to the OPEN
   // SUBJECT. Revision is per system: a pile mixing biochemistry with
@@ -408,6 +418,12 @@ export default function UWorldAdventure({ mode = DEFAULT_QUESTION_BANK_MODE }) {
     }
     // The adventure-wide count moved too, so the projection shortens visibly.
     loadOverall().then(o => { if (o) setOverall(o); }).catch(() => {});
+    // ...and so did the grid's "N left" badges. Without this they would keep
+    // showing the pre-session number until the page was reloaded.
+    authFetch(`/api/question-bank-progress/by-subject?mode=${MODE}`)
+      .then(r => r.json())
+      .then(d => { if (d && typeof d.subjects === 'object') setSubjectCounts(d.subjects); })
+      .catch(() => {});
     // Needs the subject now that piles are per system — called bare it just
     // returned null and the counts never refreshed after a session.
     if (selected) loadRatingCounts(selected).then(c => { if (c) setRatingCounts(c); }).catch(() => {});
@@ -724,9 +740,20 @@ export default function UWorldAdventure({ mode = DEFAULT_QUESTION_BANK_MODE }) {
                   with "B", so the icon goes in the mockup's circle instead. */}
               <span className="uwa-subject-badge" aria-hidden="true">{s.icon || s.name[0]}</span>
               <span className="uwa-subject-name">{s.name}</span>
-              {selected === s.id && progress && (
-                <span className="uwa-subject-meta">{progress.unseen} left</span>
-              )}
+              {(() => {
+                // ONE source for every card. Preferring the selected subject's
+                // own `progress` object here would let the card you clicked
+                // disagree with its neighbours if the two ever drifted; both
+                // are refreshed at the same points, so there is nothing to gain
+                // from mixing them.
+                const c = subjectCounts[s.id];
+                if (!c) return null;
+                return (
+                  <span className={`uwa-subject-meta${c.unseen === 0 ? ' uwa-subject-meta--done' : ''}`}>
+                    {c.unseen === 0 ? '✓ complete' : `${c.unseen.toLocaleString()} left`}
+                  </span>
+                );
+              })()}
             </button>
           ))}
         </div>

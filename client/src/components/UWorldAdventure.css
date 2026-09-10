@@ -757,3 +757,80 @@
   border-color: rgb(var(--uwa-accent-rgb));
   box-shadow: 0 0 22px rgba(var(--uwa-accent-rgb), 0.35);
 }
+
+/* ══ Set Your Pace — compacted ════════════════════════════════════════════════
+   The card carried a title, a subtitle, two tabs, a slider row, then FOUR
+   separate stacked stat blocks (projection, counts, progress bar, today's
+   slice), every value at 20px display type. It dominated the page and pushed
+   the subject grid — the thing you actually came to click — below the fold.
+
+   Nothing is removed: the same numbers are all still here, laid out as dense
+   auto-fitting rows instead of stacked blocks, at sizes that suit a summary
+   rather than a headline. */
+.uwa-card {
+  padding: 16px 18px;
+  margin-bottom: 22px;
+}
+
+.uwa-card-title { font-size: 14px; margin-bottom: 2px; }
+.uwa-card-sub   { font-size: 11.5px; margin-bottom: 10px; }
+
+.uwa-planby     { margin-bottom: 10px; padding: 3px; }
+.uwa-slider-row { gap: 14px; margin-bottom: 12px; }
+
+.uwa-pace-chip  { padding: 5px 12px; }
+.uwa-pace-num   { font-size: 17px; }
+
+/* The stat rows: auto-fitting columns rather than a wrapping flex row, so two
+   or three sit side by side instead of each claiming a line on a narrow page. */
+.uwa-projection,
+.uwa-counts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
+  gap: 8px 16px;
+}
+
+.uwa-projection { padding-top: 10px; }
+
+.uwa-proj-label { font-size: 9.5px; letter-spacing: 0.5px; }
+.uwa-proj-val,
+.uwa-count-val  { font-size: 15px; }
+
+.uwa-bar        { height: 6px; margin-top: 10px; }
+.uwa-note       { font-size: 11px; margin-top: 8px; }
+.uwa-warn       { font-size: 11.5px; }
+
+/* The "today's slice" block below the bar carried an inline marginTop of 20. */
+.uwa-card .uwa-counts[style] { margin-top: 12px !important; }
+
+/* Stats on ONE line — label left, value right — rather than value stacked under
+   label. Each stat was 39px tall (11px label + 8px gap + 20px value); as a row
+   it is the height of the value alone. Across five of them that is most of what
+   made this card feel like the page's main event. */
+.uwa-projection > div,
+.uwa-counts > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+
+.uwa-projection > div .uwa-proj-label,
+.uwa-counts > div .uwa-proj-label {
+  margin-bottom: 0;
+  /* The label wraps before the number does — a truncated count is useless,
+     a truncated label is still readable from its first word. */
+  min-width: 0;
+}
+
+.uwa-projection > div .uwa-proj-val,
+.uwa-counts > div .uwa-count-val {
+  white-space: nowrap;
+}
+
+/* Wider columns now that each holds a label AND a value side by side. */
+.uwa-projection,
+.uwa-counts {
+  grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
+}
