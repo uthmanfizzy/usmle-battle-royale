@@ -768,3 +768,41 @@
   border: 1px solid rgba(47, 111, 201, 0.4);
   color: #9dc2f0;
 }
+
+/* ── Import reachable without scrolling ──────────────────────────────────────
+   The only Import button sat below every parsed question, so a batch of thirty
+   meant scrolling the whole list to reach it. There is now one at the top too
+   (same element, rendered twice), and the header sticks to the top of the
+   scrolling body so it stays reachable however far down you are. */
+.qp-preview-header {
+  position: sticky;
+  top: -16px;              /* cancels .qp-body's 16px top padding */
+  z-index: 3;
+  /* Opaque: the question cards scroll UNDER this, and a translucent header
+     would show them sliding through the buttons. Matches .qp-body. */
+  background: rgba(10, 15, 10, 0.98);
+  padding: 12px 0 10px;
+  margin-bottom: -2px;
+  border-bottom: 1px solid rgba(180, 140, 40, 0.18);
+  gap: 12px;
+}
+
+.qp-preview-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+/* Smaller than the footer's: this one shares a line with the stats and the
+   Back button, and the footer keeps the full-size primary action. */
+.qp-import-btn--top {
+  padding: 7px 14px;
+  font-size: 12px;
+}
+
+@media (max-width: 700px) {
+  .qp-preview-header { flex-wrap: wrap; }
+  .qp-preview-actions { width: 100%; justify-content: space-between; }
+  .qp-import-btn--top { flex: 1; }
+}

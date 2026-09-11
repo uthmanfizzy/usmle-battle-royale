@@ -438,6 +438,22 @@ export default function QuestionParser({ activeFolder, selectedTopic, selectedDi
     ? `Unrecognised system${unknownSystems.length === 1 ? '' : 's'}: ${unknownSystems.join(', ')} — fix the name, or pick a subject folder to import into.`
     : "Pick a subject folder, or give every question its own \"System: <name>\" line — otherwise these questions get no real subject and are invisible everywhere.";
 
+  // ONE definition, rendered at the top of the preview AND in the footer, so a
+  // long batch can be imported without scrolling past every question first.
+  // Written once deliberately: two copies would eventually disagree about when
+  // importing is allowed, and the disabled state here is the guard that stops
+  // an unroutable batch being filed into nowhere.
+  const renderImportButton = (extraClass = '') => (
+    <button
+      className={`qp-import-btn ${extraClass}`.trim()}
+      onClick={handleImport}
+      disabled={importing || parsed.length === 0 || subjectBlocked}
+      title={subjectBlocked ? SUBJECT_BLOCKED_MSG : undefined}
+    >
+      {importing ? '⏳ Importing...' : `📥 Import ${parsed.length} Questions`}
+    </button>
+  );
+
   const handleImport = async () => {
     // Belt and braces: the button is disabled, but never let this fire.
     if (subjectBlocked) {
@@ -697,7 +713,10 @@ export default function QuestionParser({ activeFolder, selectedTopic, selectedDi
                   </span>
                 )}
               </div>
-              <button className="qp-back-btn" onClick={() => setStep('input')}>← Back</button>
+              <div className="qp-preview-actions">
+                <button className="qp-back-btn" onClick={() => setStep('input')}>← Back</button>
+                {renderImportButton('qp-import-btn--top')}
+              </div>
             </div>
 
             {errors.length > 0 && (
@@ -839,14 +858,7 @@ export default function QuestionParser({ activeFolder, selectedTopic, selectedDi
               <span className="qp-footer-info">
                 {parsed.length} question{parsed.length !== 1 ? 's' : ''} ready to import
               </span>
-              <button
-                className="qp-import-btn"
-                onClick={handleImport}
-                disabled={importing || parsed.length === 0 || subjectBlocked}
-                title={subjectBlocked ? SUBJECT_BLOCKED_MSG : undefined}
-              >
-                {importing ? '⏳ Importing...' : `📥 Import ${parsed.length} Questions`}
-              </button>
+              {renderImportButton()}
             </div>
           </div>
         )}
