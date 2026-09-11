@@ -22,6 +22,17 @@ function intensity(seconds) {
   return 5;
 }
 
+// A duration short enough for a calendar tile. Minutes are dropped past the
+// hour mark only when they are zero, so "3h" and "3h 5m" both read cleanly.
+function compactTime(seconds) {
+  const mins = Math.round((seconds || 0) / 60);
+  if (mins <= 0) return '';
+  if (mins < 60) return mins + 'm';
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return m ? h + 'h ' + m + 'm' : h + 'h';
+}
+
 // From-scratch month-grid heatmap of study_time_daily (no calendar lib is
 // installed). Month navigation re-fetches; future months are unreachable.
 export default function StudyCalendar({ userId }) {
@@ -96,10 +107,22 @@ export default function StudyCalendar({ userId }) {
           return (
             <button
               key={d}
-              className={`sc-cell sc-day sc-lvl-${lvl}${sel ? ' sc-day--sel' : ''}`}
-              onClick={() => setSelected({ date: dateKey(d), day: d, seconds: secs })}
+              className={`sc-cell sc-day sc-lvl-${lvl}${sel ? ' sc-day--sel' : ''}${secs > 0 ? ' sc-day--open' : ''}`}
+              // A day with time opens its own activity log; a day without has
+              // nothing to show, so it only selects and says so below rather
+              // than sending you to an empty page.
+              onClick={() => {
+                setSelected({ date: dateKey(d), day: d, seconds: secs });
+                if (secs > 0 && userId) {
+                  window.location.href = `/activity/${userId}?date=${dateKey(d)}`;
+                }
+              }}
+              title={secs > 0
+                ? `${formatStudyTime(secs)} studied — open this day's activity`
+                : 'No study time recorded'}
             >
-              {d}
+              <span className="sc-day-num">{d}</span>
+              {secs > 0 && <span className="sc-day-time">{compactTime(secs)}</span>}
             </button>
           );
         })}

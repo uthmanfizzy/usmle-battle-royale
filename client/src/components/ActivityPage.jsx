@@ -307,7 +307,23 @@ export default function ActivityPage() {
   const { userId: paramId } = useParams();
   const [viewedId, setViewedId] = useState(paramId || null);
   const [me, setMe]             = useState(getCachedUser);
-  const [date, setDate]         = useState(todayUTC);
+  // ?date=YYYY-MM-DD opens straight onto that day — how the study calendar
+  // hands off when a tile is clicked. Validated rather than trusted: anything
+  // that is not a plain date falls back to today, so a hand-edited URL cannot
+  // put the page into a state its own controls could not reach.
+  const [date, setDate]         = useState(() => {
+    try {
+      const q = new URLSearchParams(window.location.search).get('date');
+      if (q && /^\d{4}-\d{2}-\d{2}$/.test(q)) {
+        // Round-trip, not just Date.parse: an impossible date like 2026-02-30
+        // parses fine and silently ROLLS OVER to March 2, which would show the
+        // wrong day under a date that does not exist.
+        const d = new Date(`${q}T00:00:00Z`);
+        if (!Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === q) return q;
+      }
+    } catch { /* no URL access — fall through to today */ }
+    return todayUTC();
+  });
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading]   = useState(true);
   const [notes, setNotes]       = useState({});   // gap_start ISO -> note

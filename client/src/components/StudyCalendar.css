@@ -173,3 +173,43 @@
 
 .sc-legend-swatch:first-child { margin-left: 0; }
 .sc-legend-swatch.sc-lvl-4, .sc-legend-swatch.sc-lvl-5 { animation: none; border: none; }
+
+/* ── Day tile: number + the time studied ────────────────────────────────────
+   The tiles carried only a date, so the heat colour was the only clue how much
+   a day held and you had to click to find out. The figure is now on the tile. */
+.sc-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  line-height: 1.15;
+}
+
+.sc-day-num { font-weight: 600; }
+
+.sc-day-time {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  /* INHERIT the tile's colour. Every tier already sets one tuned for its own
+     background — white on the mid ambers, near-black on the bright amber and
+     on the green/turquoise gradients — so hardcoding a colour here fought that
+     and produced dark-on-dark. Inheriting means the time is exactly as legible
+     as the day number above it, on every tier, including the gradient ones a
+     contrast check cannot even measure. */
+  color: inherit;
+}
+
+/* A day with time is a link to that day's log; a day without is inert. */
+.sc-day--open { cursor: pointer; }
+.sc-day:not(.sc-day--open) { cursor: default; }
+.sc-day--open:hover {
+  border-color: rgba(232, 176, 75, 0.85);
+  transform: translateY(-1px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sc-day--open:hover { transform: none; }
+}
