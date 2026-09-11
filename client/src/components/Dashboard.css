@@ -2931,21 +2931,71 @@
 }
 
 /* Mobile */
+/* ── Mobile: a card per player ───────────────────────────────────────────────
+   This block used to squeeze the table into four columns and then
+   `display: none` the wins, win rate and study cells outright — so on a phone
+   the leaderboard showed a rank and a name and nothing to rank them BY.
+
+   Each row is now a card: rank and player on the top line, the stats beneath,
+   each with its own label (.lb-cell-label, hidden on desktop where the column
+   headers do that job). Nothing is hidden.
+
+   !important throughout because that is what the rules being replaced used, and
+   the desktop column templates are per-tab and therefore more specific. */
 @media (max-width: 768px) {
-  .lb-body {
-    grid-template-columns: 1fr !important;
+  .lb-body { grid-template-columns: 1fr !important; }
+
+  .lb-table-header { display: none !important; }
+
+  .lb-table .lb-row,
+  .lb-table--players .lb-row,
+  .lb-table--journey .lb-row {
+    grid-template-columns: 44px 1fr !important;
+    grid-auto-rows: min-content;
+    gap: 3px 10px;
+    padding: 12px 14px;
+    align-items: start;
   }
-  .lb-table-header,
-  .lb-row {
-    grid-template-columns: 50px 1fr 70px 80px !important;
+
+  .lb-col-rank {
+    grid-column: 1 !important;
+    grid-row: 1 / span 2 !important;
+    align-self: center;
   }
+  .lb-col-player { grid-column: 2 !important; grid-row: 1 !important; min-width: 0; }
+
+  /* Every stat is SHOWN, one per line under the name, each labelled. */
   .lb-col-wins,
   .lb-col-winrate,
-  .lb-col-study {
-    display: none !important;
+  .lb-col-study,
+  .lb-col-level,
+  .lb-col-xp {
+    display: flex !important;
+    grid-column: 2 !important;
+    align-items: baseline;
+    gap: 6px;
+    font-size: 12px;
   }
+
+  .lb-cell-label {
+    display: inline !important;
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.45);
+  }
+
+  .lb-player-name { font-size: 14px; }
+  .lb-tabs { gap: 6px; }
+  .lb-tab { font-size: 11px; padding: 7px 12px; }
   .lb-title { font-size: 28px !important; }
   .lb-page { padding: 20px 12px 120px !important; }
+}
+
+@media (max-width: 420px) {
+  .lb-player-avatar { width: 32px; height: 32px; }
 }
 
 .no-history {
@@ -4507,3 +4557,55 @@ button.settings-btn img,
     height: 34px !important;
   }
 }
+
+/* ══ Leaderboards: rebuilt columns, level badge, mobile cards ═════════════════
+   The right-hand rail (Top Players / Top Clan / Rewards) is gone, so the table
+   gets the full width. XP has gone too: it was the ranking AND a column, which
+   made one number the whole board — level now rides the avatar instead of
+   claiming a column of its own. */
+
+.lb-body {
+  /* Was `1fr 300px` for the rail. */
+  grid-template-columns: 1fr;
+}
+
+/* PLAYER tabs: rank · player · wins · win rate · study */
+.lb-table--players .lb-table-header,
+.lb-table--players .lb-row {
+  grid-template-columns: 74px 1fr 90px 110px 110px;
+}
+
+/* JOURNEY tab: rank · player · levels · avg score */
+.lb-table--journey .lb-table-header,
+.lb-table--journey .lb-row {
+  grid-template-columns: 74px 1fr 110px 120px;
+}
+
+/* ── Level badge on the avatar ───────────────────────────────────────────── */
+.lb-player-avatar { position: relative; overflow: visible; }
+
+/* The avatar image still has to be clipped to the circle — only the badge is
+   allowed outside it. */
+.lb-player-avatar img { border-radius: 50%; }
+
+.lb-level-badge {
+  position: absolute;
+  right: -5px;
+  bottom: -5px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 9px;
+  background: linear-gradient(135deg, #e8b04b, #c98f2c);
+  border: 1.5px solid #14181c;
+  color: #1a1206;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 15px;
+  text-align: center;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+}
+
+/* Row-label for each cell; shown only in the mobile card layout above. */
+.lb-cell-label { display: none; }

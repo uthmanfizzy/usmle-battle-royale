@@ -6626,46 +6626,152 @@ app.get('/api/username/check', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// Page a table that can outgrow PostgREST's 1000-row cap. Tallying by scanning
+// rows is only safe if every row is actually fetched — a plain select would be
+// truncated at 1000 with an HTTP 200 and no hint that anything was missing.
+async function pageRows(build) {
+  const rows = [];
+  const SIZE = 1000;
+  for (let from = 0; ; from += SIZE) {
+    const { data, error } = await build().range(from, from + SIZE - 1);
+    if (error) throw error;
+    const batch = data || [];
+    rows.push(...batch);
+    if (batch.length < SIZE) break;
+  }
+  return rows;
+}
+
+// Total study seconds per user. Isolated so a study_time_daily failure yields
+// zeroes rather than breaking the leaderboard itself.
+async function studySecondsByUser() {
+  try {
+    const rows = await pageRows(() => supabase.from('study_time_daily').select('user_id, seconds'));
+    const map = {};
+    for (const r of rows) map[r.user_id] = (map[r.user_id] || 0) + (r.seconds || 0);
+    return map;
+  } catch (err) {
+    console.warn('[leaderboard] study_time_daily unavailable —', err.message);
+    return {};
+  }
+}
+
 app.get('/api/leaderboard/players', async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Database not configured.' });
   try {
-    const { data: players } = await supabase.from('users')
-      .select('id, username, avatar_url, xp, level, clan_id')
-      .order('xp', { ascending: false }).limit(50);
-    if (!players?.length) return res.json({ players: [] });
-    const clanIds = [...new Set(players.filter(p => p.clan_id).map(p => p.clan_id))];
+    // Study time first: it is one of the ways a player counts as having STARTED,
+    // and XP is only ever awarded by matches and quests — never by studying — so
+    // a studier with no matches has xp 0 and would otherwise be invisible on a
+    // board that shows their study time.
+    const studyMap = await studySecondsByUser();
+
+    // Signing up is not playing. A fresh account has xp 0, no games and no study
+    // time, and used to sit on the board immediately.
+    const { data: played, error: pErr } = await supabase.from('users')
+      .select('id, username, avatar_url, xp, level, clan_id, games_played, games_won')
+      .or('xp.gt.0,games_played.gt.0')
+      .order('xp', { ascending: false })
+      .limit(50);
+    if (pErr) throw pErr;
+
+    const byId = new Map((played || []).map(u => [u.id, u]));
+
+    // Studiers with no matches at all, added so the STUDY column can rank them.
+    const studyOnly = Object.entries(studyMap)
+      .filter(([id, secs]) => secs > 0 && !byId.has(id))
+      .map(([id]) => id);
+    if (studyOnly.length > 0) {
+      const { data: extra } = await supabase.from('users')
+        .select('id, username, avatar_url, xp, level, clan_id, games_played, games_won')
+        .in('id', studyOnly.slice(0, 50));
+      for (const u of (extra || [])) byId.set(u.id, u);
+    }
+
+    const users = [...byId.values()]
+      // XP is the ranking, with study time breaking ties so a studier with no
+      // matches is ordered by the one number they do have.
+      .sort((a, b) => (b.xp || 0) - (a.xp || 0) || (studyMap[b.id] || 0) - (studyMap[a.id] || 0))
+      .slice(0, 50);
+    if (users.length === 0) return res.json({ players: [] });
+
+    const clanIds = [...new Set(users.filter(u => u.clan_id).map(u => u.clan_id))];
     const tagMap = {};
     if (clanIds.length > 0) {
       const { data: clans } = await supabase.from('clans').select('id, tag').in('id', clanIds);
       (clans || []).forEach(c => { tagMap[c.id] = c.tag; });
     }
-    // Total study time per player — same in-memory-join pattern as clan tags.
-    // Isolated so a study_time_daily failure just yields 0s, never breaks the
-    // leaderboard itself.
-    const studyMap = {};
-    try {
-      const { data: studyRows, error: studyErr } = await supabase
-        .from('study_time_daily')
-        .select('user_id, seconds')
-        .in('user_id', players.map(p => p.id));
-      if (studyErr) {
-        console.warn('[/api/leaderboard/players] study_time_daily unavailable —', studyErr.message);
-      } else {
-        for (const r of (studyRows || [])) {
-          studyMap[r.user_id] = (studyMap[r.user_id] || 0) + (r.seconds || 0);
-        }
-      }
-    } catch (studyErr) {
-      console.warn('[/api/leaderboard/players] study time lookup failed —', studyErr.message);
-    }
+
     res.json({
-      players: players.map((p, i) => ({
+      players: users.map((p, i) => ({
         rank: i + 1, id: p.id, username: p.username, avatar_url: p.avatar_url,
         xp: p.xp, level: p.level, clan_tag: p.clan_id ? tagMap[p.clan_id] : null,
+        // Real column names. The client was reading p.wins/p.losses, which this
+        // endpoint never sent, so WINS and WIN RATE were permanently 0 for
+        // everyone.
+        games_played: p.games_played || 0,
+        games_won: p.games_won || 0,
         total_study_seconds: studyMap[p.id] || 0,
       })),
     });
   } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+/**
+ * GET /api/leaderboard/journey
+ *
+ * First Aid Journey ranking: levels completed, then average best score as the
+ * tie-break. Bosses are excluded — their level_key is 'boss:...' rather than a
+ * level uuid — so this counts the same nodes the map calls levels.
+ *
+ * journey_progress is paged, not scanned: rows are users x levels, so a plain
+ * select would silently stop at 1000 and under-rank everyone above that line.
+ */
+app.get('/api/leaderboard/journey', async (req, res) => {
+  if (!supabase) return res.json({ players: [] });
+  try {
+    const rows = await pageRows(() => supabase
+      .from('journey_progress')
+      .select('user_id, level_key, completed_at, best_score_pct')
+      .not('completed_at', 'is', null));
+
+    const tally = {};
+    for (const r of rows) {
+      if (typeof r.level_key === 'string' && r.level_key.startsWith('boss:')) continue;
+      const t = (tally[r.user_id] ||= { levels: 0, scoreSum: 0 });
+      t.levels += 1;
+      t.scoreSum += r.best_score_pct || 0;
+    }
+    const ids = Object.keys(tally).filter(id => tally[id].levels > 0);
+    if (ids.length === 0) return res.json({ players: [] });
+
+    const ranked = ids
+      .sort((a, b) => tally[b].levels - tally[a].levels
+        || (tally[b].scoreSum / tally[b].levels) - (tally[a].scoreSum / tally[a].levels))
+      .slice(0, 50);
+
+    const { data: users, error: uErr } = await supabase.from('users')
+      .select('id, username, avatar_url, level').in('id', ranked);
+    if (uErr) throw uErr;
+    const userById = new Map((users || []).map(u => [u.id, u]));
+
+    res.json({
+      players: ranked
+        .filter(id => userById.has(id))   // a deleted account leaves its rows behind
+        .map((id, i) => {
+          const u = userById.get(id);
+          const t = tally[id];
+          return {
+            rank: i + 1, id, username: u.username, avatar_url: u.avatar_url,
+            level: u.level,
+            levels_completed: t.levels,
+            avg_score: Math.round(t.scoreSum / t.levels),
+          };
+        }),
+    });
+  } catch (err) {
+    console.warn('[/api/leaderboard/journey] failed —', err.message);
+    res.json({ players: [] });
+  }
 });
 
 app.get('/api/leaderboard/clans', async (req, res) => {

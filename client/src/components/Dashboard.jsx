@@ -383,13 +383,11 @@ function HomeSection({ user, bgUrl, onUserUpdate, homeImages, navCards, onViewAl
 function LeaderboardSection({ userId, user }) {
   const [activeTab, setActiveTab] = useState('global');
   const [leaderboard, setLeaderboard] = useState([]);
-  const [topClan, setTopClan] = useState(null);
   const [loading, setLoading] = useState(true);
   const [profileUser, setProfileUser] = useState(null); // player whose ProfileModal is open
 
   useEffect(() => {
     fetchLeaderboard();
-    fetchTopClan();
   }, [activeTab, userId]);
 
   const fetchLeaderboard = async () => {
@@ -398,6 +396,8 @@ function LeaderboardSection({ userId, user }) {
       let url;
       if (activeTab === 'clans') {
         url = `/api/leaderboard/clans`;
+      } else if (activeTab === 'journey') {
+        url = `/api/leaderboard/journey`;
       } else if (activeTab === 'friends') {
         url = `/api/leaderboard/players`; // TODO: Add friends filtering
       } else {
@@ -415,7 +415,11 @@ function LeaderboardSection({ userId, user }) {
         const players = (data.players || []).map((p, i) => ({
           ...p,
           rank: i + 1,
-          winRate: p.wins ? Math.round((p.wins / Math.max(1, p.wins + (p.losses || 0))) * 100) : 0
+          // games_played / games_won are the real column names. This read
+          // p.wins and p.losses, which the endpoint never sent, so WINS and
+          // WIN RATE showed 0 for everyone regardless of their record.
+          wins: p.games_won || 0,
+          winRate: p.games_played ? Math.round(((p.games_won || 0) / p.games_played) * 100) : 0,
         }));
         setLeaderboard(players);
       }
@@ -426,18 +430,6 @@ function LeaderboardSection({ userId, user }) {
     setLoading(false);
   };
 
-  const fetchTopClan = async () => {
-    try {
-      const res = await authFetch('/api/clans/leaderboard');
-      const data = await res.json();
-      const clans = data.clans || [];
-      setTopClan(clans.length > 0 ? clans[0] : null);
-    } catch (e) {
-      console.error('Failed to load top clan:', e);
-    }
-  };
-
-  const topPlayer = leaderboard[0];
   const isCurrentUser = (playerId) => playerId === userId;
 
   // Mockup medal treatment: Cinzel rank number colored per tier; the row
@@ -471,6 +463,7 @@ function LeaderboardSection({ userId, user }) {
           <div className="lb-tabs">
             {[
               { id: 'global', label: 'GLOBAL', icon: '🌍' },
+              { id: 'journey', label: 'JOURNEY', icon: '🚑' },
               { id: 'clans', label: 'CLANS', icon: '🛡' },
               { id: 'friends', label: 'FRIENDS', icon: '👥' },
             ].map(tab => (
@@ -485,7 +478,7 @@ function LeaderboardSection({ userId, user }) {
           </div>
 
           {/* Table (player tabs carry an extra STUDY column; clans keep 6 cols) */}
-          <div className={`lb-table ${activeTab !== 'clans' ? 'lb-table--players' : ''}`}>
+          <div className={`lb-table ${activeTab === 'clans' ? '' : activeTab === 'journey' ? 'lb-table--journey' : 'lb-table--players'}`}>
             <div className="lb-table-header">
               {activeTab === 'clans' ? (
                 <>
@@ -500,11 +493,18 @@ function LeaderboardSection({ userId, user }) {
                 <>
                   <span className="lb-col-rank">RANK</span>
                   <span className="lb-col-player">PLAYER</span>
-                  <span className="lb-col-level">LEVEL</span>
-                  <span className="lb-col-xp">XP</span>
-                  <span className="lb-col-wins">WINS</span>
-                  <span className="lb-col-winrate">WIN RATE</span>
-                  <span className="lb-col-study">STUDY</span>
+                  {activeTab === 'journey' ? (
+                    <>
+                      <span className="lb-col-wins">LEVELS</span>
+                      <span className="lb-col-winrate">AVG SCORE</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="lb-col-wins">WINS</span>
+                      <span className="lb-col-winrate">WIN RATE</span>
+                      <span className="lb-col-study">STUDY</span>
+                    </>
+                  )}
                 </>
               )}
             </div>
@@ -515,6 +515,7 @@ function LeaderboardSection({ userId, user }) {
               <div className="lb-loading">
                 {activeTab === 'clans' ? 'No clans yet. Create one to compete!' :
                  activeTab === 'friends' ? 'Add friends to see their rankings!' :
+                 activeTab === 'journey' ? 'No one has completed a Journey level yet.' :
                  'No players yet.'}
               </div>
             ) : (
@@ -553,17 +554,28 @@ function LeaderboardSection({ userId, user }) {
                               ? <img src={item.avatar_url} alt={item.username} referrerPolicy="no-referrer" />
                               : <span>{item.username?.[0]?.toUpperCase()}</span>
                             }
+                            {/* Level rides the avatar rather than claiming a
+                                column of its own - it describes the player,
+                                it is not something the board ranks by. */}
+                            <span className="lb-level-badge" title={`Level ${item.level || 1}`}>{item.level || 1}</span>
                           </div>
                           <span className="lb-player-name">
                             {item.username}
                             {isCurrentUser(item.id) && <span className="lb-you-badge"> (YOU)</span>}
                           </span>
                         </span>
-                        <span className="lb-col-level">Level {item.level || 1}</span>
-                        <span className="lb-col-xp">{(item.xp || 0).toLocaleString()} XP</span>
-                        <span className="lb-col-wins">{item.wins || 0}</span>
-                        <span className="lb-col-winrate">{item.winRate || 0}%</span>
-                        <span className="lb-col-study">📚 {formatStudyTime(item.total_study_seconds)}</span>
+                        {activeTab === 'journey' ? (
+                          <>
+                            <span className="lb-col-wins"><span className="lb-cell-label">Levels</span>{item.levels_completed || 0}</span>
+                            <span className="lb-col-winrate"><span className="lb-cell-label">Avg score</span>{item.avg_score || 0}%</span>
+                          </>
+                        ) : (
+                          <>
+                            <span className="lb-col-wins"><span className="lb-cell-label">Wins</span>{item.wins || 0}</span>
+                            <span className="lb-col-winrate"><span className="lb-cell-label">Win rate</span>{item.winRate || 0}%</span>
+                            <span className="lb-col-study"><span className="lb-cell-label">Study</span>📚 {formatStudyTime(item.total_study_seconds)}</span>
+                          </>
+                        )}
                       </>
                     )}
                   </div>
@@ -581,14 +593,13 @@ function LeaderboardSection({ userId, user }) {
                             ? <img src={user.avatar_url} alt={user.username} referrerPolicy="no-referrer" />
                             : <span>{user.username?.[0]?.toUpperCase()}</span>
                           }
+                          <span className="lb-level-badge" title={`Level ${user.level || 1}`}>{user.level || 1}</span>
                         </div>
                         <span className="lb-player-name">{user.username} <span className="lb-you-badge">(YOU)</span></span>
                       </span>
-                      <span className="lb-col-level">Level {user.level || 1}</span>
-                      <span className="lb-col-xp">{(user.xp || 0).toLocaleString()} XP</span>
-                      <span className="lb-col-wins">{user.wins || 0}</span>
-                      <span className="lb-col-winrate">0%</span>
-                      <span className="lb-col-study">📚 {formatStudyTime(leaderboard.find(p => p.id === userId)?.total_study_seconds)}</span>
+                      <span className="lb-col-wins"><span className="lb-cell-label">Wins</span>{user.games_won || 0}</span>
+                      <span className="lb-col-winrate"><span className="lb-cell-label">Win rate</span>{user.games_played ? Math.round(((user.games_won || 0) / user.games_played) * 100) : 0}%</span>
+                      <span className="lb-col-study"><span className="lb-cell-label">Study</span>📚 {formatStudyTime(leaderboard.find(p => p.id === userId)?.total_study_seconds)}</span>
                     </div>
                   </>
                 )}
@@ -599,78 +610,6 @@ function LeaderboardSection({ userId, user }) {
           <p className="lb-refresh-note">Leaderboards refresh every 10 minutes.</p>
         </div>
 
-        {/* RIGHT: Top Player, Top Clan, Rewards */}
-        <div className="lb-right">
-
-          {/* Top Player */}
-          <div className="lb-right-section">
-            <p className="lb-right-label">TOP PLAYERS</p>
-            <div className="lb-top-player-card">
-              <div className="lb-top-player-icon">
-                {topPlayer?.avatar_url
-                  ? <img src={topPlayer.avatar_url} alt={topPlayer.username} referrerPolicy="no-referrer" />
-                  : <span>{topPlayer?.username?.[0]?.toUpperCase() || '?'}</span>
-                }
-              </div>
-              <h3 className="lb-top-player-name">
-                {topPlayer?.username || 'No players yet'} {topPlayer && '👑'}
-              </h3>
-              <p className="lb-top-player-stats">
-                Level {topPlayer?.level || '-'} &nbsp;·&nbsp; {(topPlayer?.xp || 0).toLocaleString()} XP
-              </p>
-              <button
-                className="lb-view-btn"
-                disabled={!topPlayer}
-                onClick={() => topPlayer && setProfileUser(topPlayer)}
-              >VIEW PROFILE</button>
-            </div>
-          </div>
-
-          {/* Top Clan */}
-          <div className="lb-right-section">
-            <p className="lb-right-label">TOP CLAN</p>
-            <div className="lb-top-clan-card">
-              <div className="lb-clan-banner">
-                {topClan?.banner_url
-                  ? <img src={topClan.banner_url} alt={topClan.name} />
-                  : <span>🛡</span>
-                }
-              </div>
-              <div className="lb-clan-info">
-                <h4 className="lb-clan-name">{topClan?.name || 'No clans yet'} {topClan && '👑'}</h4>
-                <p className="lb-clan-members">Members: {topClan?.member_count || 0} / 50</p>
-                <p className="lb-clan-score">🏆 {(topClan?.total_xp || 0).toLocaleString()}</p>
-              </div>
-              <button className="lb-view-btn">VIEW CLAN</button>
-            </div>
-          </div>
-
-          {/* Leaderboard Rewards */}
-          <div className="lb-right-section">
-            <p className="lb-right-label">LEADERBOARD REWARDS</p>
-            <div className="lb-rewards-card">
-              <div className="lb-reward-tiers">
-                <div className="lb-reward-tier">
-                  <span className="lb-reward-chest">🏆</span>
-                  <p className="lb-reward-rank">Top 1</p>
-                  <p className="lb-reward-name">Exclusive Chest</p>
-                </div>
-                <div className="lb-reward-tier">
-                  <span className="lb-reward-chest">🥈</span>
-                  <p className="lb-reward-rank">Top 2-10</p>
-                  <p className="lb-reward-name">Epic Chest</p>
-                </div>
-                <div className="lb-reward-tier">
-                  <span className="lb-reward-chest">🥉</span>
-                  <p className="lb-reward-rank">Top 11-50</p>
-                  <p className="lb-reward-name">Rare Chest</p>
-                </div>
-              </div>
-              <button className="lb-view-btn lb-view-btn--full">VIEW ALL REWARDS</button>
-            </div>
-          </div>
-
-        </div>
       </div>
 
       {profileUser && (
