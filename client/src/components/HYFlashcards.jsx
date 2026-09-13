@@ -47,9 +47,9 @@ export default function HYFlashcards() {
   });
   const themeClass = theme === 'light' ? ' is-light' : '';
 
-  // Own ambient study track — a slow chord-pad loop, distinct from the
-  // quiz-show music every other mode uses, since flashcard review isn't
-  // timed or competitive. Plays for as long as this page is mounted.
+  // Own study track ("Quest Log", a lo-fi chiptune loop in audio.js), distinct
+  // from the quiz-show music every other mode uses, since flashcard review
+  // isn't timed or competitive. Plays for as long as this page is mounted.
   const [musicOn, setMusicOn] = useState(() => localStorage.getItem('hyf-music') !== 'off');
   const toggleMusic = () => setMusicOn(m => {
     const next = !m;

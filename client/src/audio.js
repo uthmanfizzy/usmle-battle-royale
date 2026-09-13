@@ -17,41 +17,92 @@ export function setMuted(val) {
   muted = val;
   if (bgGain) bgGain.gain.value = val ? 0 : 0.07;
   if (gameGain) gameGain.gain.value = val ? 0 : 0.09625;
-  if (studyGain) studyGain.gain.value = val ? 0 : 0.05;
+  if (studyGain) studyGain.gain.value = val ? 0 : STUDY_VOL;
 }
 
-// ── HY Flashcards study music — slow ambient chord pads, deliberately
-// distinct from the quiz-show melody+bass(+drums) sequencer used for the
-// lobby/game music elsewhere. No melody or rhythm section, just overlapping
-// sustained triangle-wave chords with a slow attack/release ("pad" envelope)
-// cycling through a gentle four-chord loop, plus a very quiet high sparkle
-// note so it doesn't feel completely static — a calmer backdrop for reading
-// flashcards rather than something built to feel urgent or competitive.
-const STUDY_CHORDS = [
-  [261.63, 329.63, 392.00],  // C major
-  [220.00, 261.63, 329.63],  // A minor
-  [174.61, 220.00, 261.63],  // F major
-  [196.00, 246.94, 293.66],  // G major
+// ── HY Flashcards study music — "Quest Log" ─────────────────────────────────
+// A cozy lo-fi chiptune loop in the spirit of an RPG overworld / save-room
+// theme: game-flavoured, but slow (84 BPM), swung, soft and low-passed so it
+// sits under reading instead of pulling focus. Deliberately unlike the bright
+// quiz-show sequencer used by the competitive modes.
+//
+// 16-bar form (~46s) so it doesn't feel like a short nagging loop:
+//   bars 0–3   intro      — warm pad, echoing arpeggio, bass, soft beat
+//   bars 4–7   theme A    — pulse-wave lead joins
+//   bars 8–11  theme B    — answering phrase, a little higher
+//   bars 12–15 bridge     — new chords, sparse counter-line, and a quiet
+//                            "level-up" chime on the turnaround back to bar 0
+const STUDY_VOL = 0.12; // rendered RMS ≈ the old pad track's — quiet, under reading
+const STUDY_BPM = 84;
+const midi = (n) => 440 * Math.pow(2, (n - 69) / 12);
+
+// [bass root, chord tones] per bar. C major: Fmaj7 G6 Em7 Am7 ×3, then
+// Dm7 G7 Cmaj7 Am7 for the bridge.
+const QL_MAIN = [
+  [41, [53, 57, 60, 64]], [43, [55, 59, 62, 64]], [40, [52, 55, 59, 62]], [45, [57, 60, 64, 67]],
 ];
-const STUDY_SPARKLE = [523.25, 659.25, 783.99, 587.33];
+const QL_BRIDGE = [
+  [38, [50, 53, 57, 60]], [43, [55, 59, 62, 65]], [36, [48, 52, 55, 59]], [45, [57, 60, 64, 67]],
+];
+const QL_CHORDS = [...QL_MAIN, ...QL_MAIN, ...QL_MAIN, ...QL_BRIDGE];
+
+// Lead phrases: [16th-note step, midi note, length in steps]
+const QL_LEAD = {
+  4:  [[0, 72, 3], [4, 69, 2], [6, 72, 2], [8, 76, 4], [14, 74, 2]],
+  5:  [[0, 74, 3], [4, 71, 2], [6, 74, 2], [8, 79, 6]],
+  6:  [[0, 76, 2], [2, 74, 2], [4, 71, 4], [10, 74, 2], [12, 76, 4]],
+  7:  [[0, 72, 6], [8, 69, 2], [10, 72, 2], [12, 76, 4]],
+  8:  [[0, 77, 4], [6, 76, 2], [8, 72, 4], [12, 69, 4]],
+  9:  [[0, 71, 2], [2, 74, 2], [4, 79, 4], [10, 76, 2], [12, 74, 4]],
+  10: [[0, 71, 6], [8, 67, 2], [10, 71, 2], [12, 74, 4]],
+  11: [[0, 76, 8], [10, 72, 2], [12, 69, 4]],
+  13: [[8, 74, 2], [10, 77, 2], [12, 79, 4]],
+};
+// Level-up chime on the last half-bar of the loop.
+const QL_CHIME = [[8, 84], [10, 88], [12, 91], [14, 96]];
+const QL_ARP = [0, 1, 2, 3, 2, 1, 2, 3];
 
 let studyGain = null;
 let studyInterval = null;
-let studyBar = 0;
+let pulseWave = null;
+let pulseWaveCtx = null;
 
-function playStudyPad(c, dest, freqs, t, dur) {
-  freqs.forEach(freq => {
-    const osc = c.createOscillator();
-    const gn = c.createGain();
-    osc.type = 'triangle';
-    osc.frequency.value = freq;
-    gn.gain.setValueAtTime(0.0001, t);
-    gn.gain.exponentialRampToValueAtTime(0.5, t + dur * 0.4);   // slow swell in
-    gn.gain.setValueAtTime(0.5, t + dur * 0.6);
-    gn.gain.exponentialRampToValueAtTime(0.0001, t + dur);      // slow fade out
-    osc.connect(gn); gn.connect(dest);
-    osc.start(t); osc.stop(t + dur + 0.05);
-  });
+// 25% duty pulse — the classic handheld-console lead timbre.
+function getPulseWave(c) {
+  if (pulseWave && pulseWaveCtx === c) return pulseWave;
+  const N = 32, duty = 0.25;
+  const real = new Float32Array(N), imag = new Float32Array(N);
+  for (let k = 1; k < N; k++) {
+    real[k] = (2 / (k * Math.PI)) * Math.sin(k * Math.PI * duty);
+  }
+  pulseWave = c.createPeriodicWave(real, imag);
+  pulseWaveCtx = c;
+  return pulseWave;
+}
+
+function qlVoice(c, dest, { freq, t, dur, vol, wave, attack = 0.01, release = 0.08, vibrato = 0 }) {
+  const osc = c.createOscillator();
+  const gn = c.createGain();
+  if (wave === 'pulse') osc.setPeriodicWave(getPulseWave(c));
+  else osc.type = wave;
+  osc.frequency.value = freq;
+  gn.gain.setValueAtTime(0.0001, t);
+  gn.gain.exponentialRampToValueAtTime(vol, t + attack);
+  gn.gain.setValueAtTime(vol, t + Math.max(attack, dur - release));
+  gn.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  osc.connect(gn); gn.connect(dest);
+  let lfo = null;
+  if (vibrato) {
+    // Delayed vibrato, like a chiptune lead holding a long note.
+    lfo = c.createOscillator();
+    const depth = c.createGain();
+    lfo.frequency.value = 5.2;
+    depth.gain.setValueAtTime(0, t);
+    depth.gain.linearRampToValueAtTime(freq * vibrato, t + Math.min(0.35, dur));
+    lfo.connect(depth); depth.connect(osc.frequency);
+    lfo.start(t); lfo.stop(t + dur + 0.05);
+  }
+  osc.start(t); osc.stop(t + dur + 0.05);
 }
 
 export function startStudyMusic() {
@@ -60,24 +111,110 @@ export function startStudyMusic() {
   stopStudyMusic();
   if (muted) return;
   const c = getCtx();
-  studyGain = c.createGain();
-  studyGain.gain.value = 0.05; // quiet, meant to sit under reading, not compete with it
-  studyGain.connect(c.destination);
-  studyBar = 0;
 
-  const barDur = 4.4; // slow, unhurried — a full loop takes ~17.6s
-  const scheduleBar = () => {
-    if (!studyGain) return;
-    const t = c.currentTime + 0.05;
-    playStudyPad(c, studyGain, STUDY_CHORDS[studyBar % STUDY_CHORDS.length], t, barDur);
-    // Sparkle note on the "and" of the bar, quieter and higher — every other bar only.
-    if (studyBar % 2 === 1) {
-      schedNote(c, studyGain, STUDY_SPARKLE[studyBar % STUDY_SPARKLE.length], 'sine', 0.06, t + barDur * 0.5, 1.2);
+  // Bus: voices -> warm low-pass -> master gain -> out. Arp and lead also feed
+  // a soft dotted-8th echo for space.
+  studyGain = c.createGain();
+  studyGain.gain.value = STUDY_VOL;
+  studyGain.connect(c.destination);
+  const tone = c.createBiquadFilter();
+  tone.type = 'lowpass';
+  tone.frequency.value = 3200;
+  tone.Q.value = 0.5;
+  tone.connect(studyGain);
+
+  const STEP = 60 / STUDY_BPM / 4;
+  const echo = c.createDelay(2);
+  echo.delayTime.value = STEP * 3;
+  const fb = c.createGain();
+  fb.gain.value = 0.32;
+  const echoOut = c.createGain();
+  echoOut.gain.value = 0.35;
+  echo.connect(fb); fb.connect(echo);
+  echo.connect(echoOut); echoOut.connect(tone);
+  const wet = c.createGain();
+  wet.gain.value = 1;
+  wet.connect(tone); wet.connect(echo);
+
+  let step = 0;
+  let nextTime = c.currentTime + 0.1;
+
+  const scheduleStep = (s, t) => {
+    const bar = Math.floor(s / 16) % 16;
+    const i = s % 16;
+    const [root, chord] = QL_CHORDS[bar];
+
+    // Pad: soft triangle chord, swelling over the bar.
+    if (i === 0) {
+      chord.forEach(n => qlVoice(c, tone, {
+        freq: midi(n), t, dur: STEP * 16, vol: 0.13, wave: 'triangle', attack: 0.6, release: 0.9,
+      }));
     }
-    studyBar++;
+
+    // Arpeggio: chord an octave up on 8ths; the intro bars run it at half density.
+    if (i % 2 === 0 && (bar >= 4 || i % 4 === 0)) {
+      const n = chord[QL_ARP[i / 2]] + 12;
+      qlVoice(c, wet, { freq: midi(n), t, dur: STEP * 1.6, vol: 0.07, wave: 'pulse', release: 0.12 });
+    }
+
+    // Bass: root, octave bounce, fifth.
+    const bassHits = { 0: root, 6: root + 12, 10: root + 7 };
+    if (bassHits[i] !== undefined) {
+      qlVoice(c, tone, { freq: midi(bassHits[i]), t, dur: STEP * 2.6, vol: 0.34, wave: 'triangle', release: 0.15 });
+    }
+
+    // Lead.
+    const phrase = QL_LEAD[bar];
+    if (phrase) {
+      for (const [st, n, len] of phrase) {
+        if (st === i) {
+          qlVoice(c, wet, {
+            freq: midi(n), t, dur: STEP * len * 0.95, vol: 0.1, wave: 'pulse',
+            attack: 0.015, release: 0.1, vibrato: len >= 4 ? 0.006 : 0,
+          });
+        }
+      }
+    }
+
+    // Level-up chime on the loop turnaround.
+    if (bar === 15) {
+      for (const [st, n] of QL_CHIME) {
+        if (st === i) qlVoice(c, wet, { freq: midi(n), t, dur: STEP * 1.4, vol: 0.05, wave: 'square', release: 0.1 });
+      }
+    }
+
+    // Soft lo-fi beat — absent for the first two bars so it eases in.
+    if (s >= 32) {
+      if (i === 0 || i === 10) {
+        const k = c.createOscillator();
+        const kg = c.createGain();
+        k.type = 'sine';
+        k.frequency.setValueAtTime(110, t);
+        k.frequency.exponentialRampToValueAtTime(45, t + 0.12);
+        kg.gain.setValueAtTime(0.5, t);
+        kg.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
+        k.connect(kg); kg.connect(tone);
+        k.start(t); k.stop(t + 0.2);
+      }
+      if (i === 8) schedNoise(c, tone, 0.12, t, 0.09, 1800);
+      if (i % 2 === 0) schedNoise(c, tone, i % 4 === 2 ? 0.035 : 0.02, t, 0.03, 6500);
+    }
   };
-  scheduleBar();
-  studyInterval = setInterval(scheduleBar, barDur * 1000);
+
+  // Look-ahead scheduler: timing comes from the audio clock, not setInterval,
+  // so the groove doesn't drift or stutter when the tab is busy.
+  const pump = () => {
+    if (!studyGain) return;
+    while (nextTime < c.currentTime + 0.15) {
+      // Gentle swing on the off-16ths.
+      const swing = step % 2 === 1 ? STEP * 0.12 : 0;
+      scheduleStep(step, nextTime + swing);
+      nextTime += STEP;
+      step++;
+    }
+  };
+  pump();
+  studyInterval = setInterval(pump, 30);
 }
 
 export function stopStudyMusic() {
