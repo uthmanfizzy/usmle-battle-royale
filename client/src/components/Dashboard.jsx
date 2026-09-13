@@ -4,6 +4,7 @@ import FriendsPanel from './FriendsPanel';
 import ProfileModal, { formatStudyTime } from './ProfileModal';
 import NotificationsDropdown from './NotificationsDropdown';
 import ClansPage from './ClansPage';
+import UsernameChangeModal from './UsernameChangeModal';
 import DashboardAmbient from './DashboardAmbient';
 import './Dashboard.css';
 
@@ -146,108 +147,6 @@ function getRank(xp) {
   if (xp < 35000) return { tier: 'III', name: 'Resident III', next: 35000, progress: (xp - 25000) / 10000 };
   if (xp < 50000) return { tier: 'I', name: 'Attending I', next: 50000, progress: (xp - 35000) / 15000 };
   return { tier: '∞', name: 'Chief Physician', next: null, progress: 1 };
-}
-
-// ── Username Change Modal ──────────────────────────────────────────────────────
-const MS_PER_YEAR = 365 * 24 * 60 * 60 * 1000;
-
-function fmtLong(date) {
-  return new Date(date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-}
-
-function UsernameChangeModal({ user, onClose, onSuccess }) {
-  const [newUsername, setNewUsername] = useState('');
-  const [loading,     setLoading]     = useState(false);
-  const [error,       setError]       = useState('');
-
-  const trimmed    = newUsername.trim();
-  const validLen   = trimmed.length >= 3 && trimmed.length <= 20;
-  const validChars = trimmed.length === 0 || /^[a-zA-Z0-9_]+$/.test(trimmed);
-  const isSame     = trimmed.toLowerCase() === (user.username || '').toLowerCase();
-  const canSubmit  = trimmed.length > 0 && validLen && validChars && !isSame;
-
-  const lastChange    = user.last_username_change ? new Date(user.last_username_change) : null;
-  const nextChangeDate = lastChange ? new Date(lastChange.getTime() + MS_PER_YEAR) : null;
-  const canChange      = !nextChangeDate || nextChangeDate <= new Date();
-
-  async function handleSubmit(e) {
-    e.preventDefault();
-    if (!canSubmit) return;
-    setLoading(true); setError('');
-    try {
-      const res  = await authFetch('/auth/username', {
-        method: 'PUT',
-        body: JSON.stringify({ username: trimmed }),
-      });
-      const data = await res.json();
-      if (!res.ok) { setError(data.error || 'Failed to change username.'); setLoading(false); return; }
-      onSuccess(data.username, data.last_username_change);
-    } catch {
-      setError('Network error. Please try again.');
-    }
-    setLoading(false);
-  }
-
-  return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-card" onClick={e => e.stopPropagation()}>
-        <div className="modal-header">
-          <h3 className="modal-title">Change Username</h3>
-          <button className="modal-close-btn" onClick={onClose}>✕</button>
-        </div>
-
-        {lastChange && (
-          <p className="username-meta">Last changed: {fmtLong(lastChange)}</p>
-        )}
-
-        {!canChange ? (
-          <div className="username-cooldown-box">
-            <p>You can next change your username on:</p>
-            <strong className="username-next-date">{fmtLong(nextChangeDate)}</strong>
-            <p className="username-cooldown-note">Username changes are limited to once per year.</p>
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="modal-form">
-            <div className="modal-field">
-              <label>New Username</label>
-              <input
-                type="text"
-                value={newUsername}
-                onChange={e => setNewUsername(e.target.value)}
-                placeholder={user.username}
-                maxLength={20}
-                autoFocus
-              />
-            </div>
-
-            {trimmed.length > 0 && (
-              <div className="username-hints">
-                <span className={validLen ? 'hint-ok' : 'hint-err'}>
-                  {validLen ? '✓' : '✗'} 3–20 characters
-                </span>
-                <span className={validChars ? 'hint-ok' : 'hint-err'}>
-                  {validChars ? '✓' : '✗'} Letters, numbers, underscores only
-                </span>
-                {isSame && trimmed.length > 0 && (
-                  <span className="hint-err">✗ Same as current username</span>
-                )}
-              </div>
-            )}
-
-            {error && <p className="modal-error">{error}</p>}
-
-            <p className="username-warning">
-              You can only change your username once per year.
-            </p>
-
-            <button className="btn-primary" type="submit" disabled={loading || !canSubmit}>
-              {loading ? 'Saving…' : 'Change Username'}
-            </button>
-          </form>
-        )}
-      </div>
-    </div>
-  );
 }
 
 // ── Home Section (RPG Style) ───────────────────────────────────────────────────
@@ -398,6 +297,8 @@ function LeaderboardSection({ userId, user }) {
         url = `/api/leaderboard/clans`;
       } else if (activeTab === 'journey') {
         url = `/api/leaderboard/journey`;
+      } else if (activeTab === 'smle') {
+        url = `/api/leaderboard/saudi-mle`;
       } else if (activeTab === 'friends') {
         url = `/api/leaderboard/players`; // TODO: Add friends filtering
       } else {
@@ -464,6 +365,7 @@ function LeaderboardSection({ userId, user }) {
             {[
               { id: 'global', label: 'GLOBAL', icon: '🌍' },
               { id: 'journey', label: 'JOURNEY', icon: '🚑' },
+              { id: 'smle', label: 'SMLE', icon: '📗' },
               { id: 'clans', label: 'CLANS', icon: '🛡' },
               { id: 'friends', label: 'FRIENDS', icon: '👥' },
             ].map(tab => (
@@ -478,7 +380,7 @@ function LeaderboardSection({ userId, user }) {
           </div>
 
           {/* Table (player tabs carry an extra STUDY column; clans keep 6 cols) */}
-          <div className={`lb-table ${activeTab === 'clans' ? '' : activeTab === 'journey' ? 'lb-table--journey' : 'lb-table--players'}`}>
+          <div className={`lb-table ${activeTab === 'clans' ? '' : (activeTab === 'journey' || activeTab === 'smle') ? 'lb-table--journey' : 'lb-table--players'}`}>
             <div className="lb-table-header">
               {activeTab === 'clans' ? (
                 <>
@@ -498,6 +400,11 @@ function LeaderboardSection({ userId, user }) {
                       <span className="lb-col-wins">LEVELS</span>
                       <span className="lb-col-winrate">AVG SCORE</span>
                     </>
+                  ) : activeTab === 'smle' ? (
+                    <>
+                      <span className="lb-col-wins">QUESTIONS</span>
+                      <span className="lb-col-winrate">ACCURACY</span>
+                    </>
                   ) : (
                     <>
                       <span className="lb-col-wins">WINS</span>
@@ -516,6 +423,7 @@ function LeaderboardSection({ userId, user }) {
                 {activeTab === 'clans' ? 'No clans yet. Create one to compete!' :
                  activeTab === 'friends' ? 'Add friends to see their rankings!' :
                  activeTab === 'journey' ? 'No one has completed a Journey level yet.' :
+                 activeTab === 'smle' ? 'No one has answered a Saudi MLE question yet.' :
                  'No players yet.'}
               </div>
             ) : (
@@ -569,6 +477,11 @@ function LeaderboardSection({ userId, user }) {
                             <span className="lb-col-wins"><span className="lb-cell-label">Levels</span>{item.levels_completed || 0}</span>
                             <span className="lb-col-winrate"><span className="lb-cell-label">Avg score</span>{item.avg_score || 0}%</span>
                           </>
+                        ) : activeTab === 'smle' ? (
+                          <>
+                            <span className="lb-col-wins"><span className="lb-cell-label">Questions</span>{item.questions_answered || 0}</span>
+                            <span className="lb-col-winrate"><span className="lb-cell-label">Accuracy</span>{item.accuracy || 0}%</span>
+                          </>
                         ) : (
                           <>
                             <span className="lb-col-wins"><span className="lb-cell-label">Wins</span>{item.wins || 0}</span>
@@ -597,9 +510,18 @@ function LeaderboardSection({ userId, user }) {
                         </div>
                         <span className="lb-player-name">{user.username} <span className="lb-you-badge">(YOU)</span></span>
                       </span>
-                      <span className="lb-col-wins"><span className="lb-cell-label">Wins</span>{user.games_won || 0}</span>
-                      <span className="lb-col-winrate"><span className="lb-cell-label">Win rate</span>{user.games_played ? Math.round(((user.games_won || 0) / user.games_played) * 100) : 0}%</span>
-                      <span className="lb-col-study"><span className="lb-cell-label">Study</span>📚 {formatStudyTime(leaderboard.find(p => p.id === userId)?.total_study_seconds)}</span>
+                      {activeTab === 'journey' || activeTab === 'smle' ? (
+                        <>
+                          <span className="lb-col-wins"><span className="lb-cell-label">{activeTab === 'smle' ? 'Questions' : 'Levels'}</span>—</span>
+                          <span className="lb-col-winrate"><span className="lb-cell-label">{activeTab === 'smle' ? 'Accuracy' : 'Avg score'}</span>—</span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="lb-col-wins"><span className="lb-cell-label">Wins</span>{user.games_won || 0}</span>
+                          <span className="lb-col-winrate"><span className="lb-cell-label">Win rate</span>{user.games_played ? Math.round(((user.games_won || 0) / user.games_played) * 100) : 0}%</span>
+                          <span className="lb-col-study"><span className="lb-cell-label">Study</span>📚 {formatStudyTime(leaderboard.find(p => p.id === userId)?.total_study_seconds)}</span>
+                        </>
+                      )}
                     </div>
                   </>
                 )}

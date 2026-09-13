@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { getToken, clearToken, fetchMe, getCachedUser } from '../auth';
+import { getToken, clearToken, fetchMe, getCachedUser, setCachedUser } from '../auth';
+import UsernameChangeModal from './UsernameChangeModal';
 import { useTheme, PALETTE } from '../theme';
 import { DefaultPreview, PixelPreview } from './AppearanceSection';
 import './SettingsPage.css';
@@ -30,6 +31,7 @@ function Toggle({ on, onChange, disabled = false, label }) {
 // exists, so their toggles are disabled.
 export default function SettingsPage() {
   const [user, setUser] = useState(getCachedUser);
+  const [showUsername, setShowUsername] = useState(false);
   const { theme, color, study, applyTheme } = useTheme();
   const [soundEnabled, setSoundEnabled] = useState(() => localStorage.getItem('medvale_sound') !== 'false');
   const [musicEnabled, setMusicEnabled] = useState(() => localStorage.getItem('medvale_music') !== 'false');
@@ -79,6 +81,19 @@ export default function SettingsPage() {
         ← Back to Dashboard
       </button>
 
+      {showUsername && user && (
+        <UsernameChangeModal
+          user={user}
+          onClose={() => setShowUsername(false)}
+          onSuccess={(username, lastChange) => {
+            const next = { ...user, username, last_username_change: lastChange };
+            setUser(next);
+            setCachedUser(next);
+            setShowUsername(false);
+          }}
+        />
+      )}
+
       <div className="stg-col">
         <h1 className="stg-title">Settings</h1>
 
@@ -87,7 +102,14 @@ export default function SettingsPage() {
         <div className="stg-card">
           <div className="stg-row">
             <span className="stg-row-label">Username</span>
-            <span className="stg-row-value">{user?.username || 'Player'}</span>
+            <span className="stg-row-value">
+              {user?.username || 'Player'}
+              {user && (
+                <button type="button" className="ucm-trigger" onClick={() => setShowUsername(true)}>
+                  ✏️ Change
+                </button>
+              )}
+            </span>
           </div>
           <div className="stg-row">
             <span className="stg-row-label">Level</span>

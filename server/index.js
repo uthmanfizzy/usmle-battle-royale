@@ -4867,8 +4867,11 @@ app.put('/auth/username', requireAuth, async (req, res) => {
     if (existing) return res.status(409).json({ error: 'That username is already taken.' });
 
     // Only stamp last_username_change if the column exists (present in the fetched row)
+    // AND this is a real CHANGE. Picking a name for the first time after signing
+    // up is not a change — stamping it spent the player's once-a-year change on
+    // the name they were forced to choose at signup.
     const updateData = { username: trimmed };
-    if ('last_username_change' in user) {
+    if ('last_username_change' in user && user.username) {
       updateData.last_username_change = new Date().toISOString();
     }
 
@@ -6795,6 +6798,68 @@ app.get('/api/leaderboard/journey', async (req, res) => {
     });
   } catch (err) {
     console.warn('[/api/leaderboard/journey] failed —', err.message);
+    res.json({ players: [] });
+  }
+});
+
+/**
+ * GET /api/leaderboard/saudi-mle
+ *
+ * Saudi MLE ranking: distinct Saudi MLE questions answered, then accuracy as
+ * the tie-break. Read from user_question_seen (one row per user x question, so
+ * a repeat never counts twice) through the same inner join + tag filter the
+ * bank's own progress counts use, so the board and the pace card agree.
+ *
+ * Paged: rows are users x questions and pass 1000 almost immediately.
+ */
+app.get('/api/leaderboard/saudi-mle', async (req, res) => {
+  if (!supabase) return res.json({ players: [] });
+  try {
+    const build = () => {
+      let q = supabase
+        .from(QUESTION_SEEN_TABLE)
+        .select('user_id, correct, questions!inner(game_modes)')
+        .contains('questions.game_modes', modeJson('saudi_mle'))
+        .order('user_id')
+        .order('question_id');
+      if (hasRetirement) q = q.is('questions.retired_at', null);
+      return q;
+    };
+    const rows = await pageRows(build);
+
+    const tally = {};
+    for (const r of rows) {
+      const t = (tally[r.user_id] ||= { answered: 0, correct: 0 });
+      t.answered += 1;
+      if (r.correct) t.correct += 1;
+    }
+    const acc = (t) => (t.answered ? t.correct / t.answered : 0);
+    const ranked = Object.keys(tally)
+      .sort((a, b) => tally[b].answered - tally[a].answered || acc(tally[b]) - acc(tally[a]))
+      .slice(0, 50);
+    if (ranked.length === 0) return res.json({ players: [] });
+
+    const { data: users, error: uErr } = await supabase.from('users')
+      .select('id, username, avatar_url, level').in('id', ranked);
+    if (uErr) throw uErr;
+    const userById = new Map((users || []).map(u => [u.id, u]));
+
+    res.json({
+      players: ranked
+        .filter(id => userById.has(id))
+        .map((id, i) => {
+          const u = userById.get(id);
+          const t = tally[id];
+          return {
+            rank: i + 1, id, username: u.username, avatar_url: u.avatar_url,
+            level: u.level,
+            questions_answered: t.answered,
+            accuracy: Math.round(acc(t) * 100),
+          };
+        }),
+    });
+  } catch (err) {
+    console.warn('[/api/leaderboard/saudi-mle] failed —', err.message);
     res.json({ players: [] });
   }
 });

@@ -19,7 +19,11 @@ export default function DashboardPage() {
       return;
     }
     fetchMe().then(me => {
-      if (me) {
+      if (me && !me.username) {
+        // Signed up but never picked a name (closed the tab on the setup page,
+        // or came straight here) — pick one before anything else.
+        window.location.replace('/username-setup');
+      } else if (me) {
         setUser(me);
       } else {
         clearToken();

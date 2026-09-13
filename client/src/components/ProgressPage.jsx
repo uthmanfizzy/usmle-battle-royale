@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { getToken, fetchMe, getCachedUser, authFetch } from '../auth';
+import { getToken, fetchMe, getCachedUser, setCachedUser, authFetch } from '../auth';
+import UsernameChangeModal from './UsernameChangeModal';
 import { formatStudyTime } from './ProfileModal';
 import { evaluateAchievements, LEVEL_MILESTONES } from '../utils/achievements';
 import { getMasteryColor } from '../utils/masteryColors';
@@ -124,6 +125,7 @@ export default function ProgressPage() {
   const [ownRank,     setOwnRank]     = useState(null);
   const [xpHistory,   setXpHistory]   = useState(null);
   const [globalStats, setGlobalStats] = useState(null);
+  const [showUsername, setShowUsername] = useState(false);
 
   // No :userId param = my own progress. Same own-identity resolution StatsPage
   // uses: token check, cached user, fetchMe fallback, redirect home if guest.
@@ -242,6 +244,20 @@ export default function ProgressPage() {
         ) : <span className="pp-nav-spacer" />}
       </nav>
 
+      {showUsername && own && (
+        <UsernameChangeModal
+          user={own}
+          onClose={() => setShowUsername(false)}
+          onSuccess={(username, lastChange) => {
+            const next = { ...own, username, last_username_change: lastChange };
+            setOwn(next);
+            setCachedUser(next);
+            setData(d => (d?.user ? { ...d, user: { ...d.user, username } } : d));
+            setShowUsername(false);
+          }}
+        />
+      )}
+
       <div className="pp-page">
         {/* Identity header */}
         <div className="pp-panel pp-identity">
@@ -265,6 +281,11 @@ export default function ProgressPage() {
                 <a className="pp-clan-tag" href="/dashboard?tab=clans"> [{u.clan_tag}]</a>
               )}
               {isOwn && <span className="pp-you-badge"> (you)</span>}
+              {isOwn && own && (
+                <button type="button" className="ucm-trigger" onClick={() => setShowUsername(true)}>
+                  ✏️ Change username
+                </button>
+              )}
             </div>
             <div className="pp-level">Level {level} · {(u.xp || 0).toLocaleString()} XP</div>
             <div className="pp-xp-track">
