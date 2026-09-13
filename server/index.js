@@ -10413,7 +10413,12 @@ app.post('/admin/questions/bulk-delete', adminAuth, async (req, res) => {
     const { error } = await supabase
       .from('questions')
       .delete()
-      .in('id', ids);
+      // question_id, NOT id. Callers send the admin list's q.id, which fromDb
+      // maps from question_id (the text key, e.g. "OB-003"); `id` is the UUID.
+      // Filtering the UUID column with text keys made every bulk action on
+      // questions fail, while single-question routes (which use question_id)
+      // worked — so it looked like only multi-select was broken.
+      .in('question_id', ids);
     
     if (error) throw error;
     // Unlike the single-question routes, the bulk writes don't patch the
@@ -10447,7 +10452,12 @@ app.post('/admin/questions/bulk-move', adminAuth, async (req, res) => {
     const { error } = await supabase
       .from('questions')
       .update(updates)
-      .in('id', ids);
+      // question_id, NOT id. Callers send the admin list's q.id, which fromDb
+      // maps from question_id (the text key, e.g. "OB-003"); `id` is the UUID.
+      // Filtering the UUID column with text keys made every bulk action on
+      // questions fail, while single-question routes (which use question_id)
+      // worked — so it looked like only multi-select was broken.
+      .in('question_id', ids);
     
     if (error) throw error;
     await forceRefreshQuestions(); // see bulk-delete
@@ -10476,7 +10486,12 @@ app.post('/admin/questions/bulk-update', adminAuth, async (req, res) => {
     const { error } = await supabase
       .from('questions')
       .update(updates)
-      .in('id', ids);
+      // question_id, NOT id. Callers send the admin list's q.id, which fromDb
+      // maps from question_id (the text key, e.g. "OB-003"); `id` is the UUID.
+      // Filtering the UUID column with text keys made every bulk action on
+      // questions fail, while single-question routes (which use question_id)
+      // worked — so it looked like only multi-select was broken.
+      .in('question_id', ids);
     
     if (error) throw error;
     await forceRefreshQuestions(); // see bulk-delete

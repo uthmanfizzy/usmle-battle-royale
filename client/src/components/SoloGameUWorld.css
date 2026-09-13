@@ -829,3 +829,55 @@ html[data-study="on"] .screen.solo-screen.uw-exam .explanation-line {
 html[data-study="on"] .screen.solo-screen.uw-exam .explanation-line:last-child {
   margin-bottom: 0;
 }
+
+/* ── Pause overlay ───────────────────────────────────────────────────────────
+   The exam skin inherited the arcade overlay: a dark slate cover (study.css)
+   with a red pill button (the global --mv-red primary). On a light exam sheet
+   that read as a different product dropped on top — and because the overlay
+   only covers the question card, the page's light background showed as a pale
+   strip down one side, so it looked broken as well as out of place.
+
+   Now it is the SHEET, paused: the page colour, opaque, so the question is
+   still hidden (the whole point of pausing) and the card edge disappears into
+   the page around it. The button uses the mode's own accent, so it is green on
+   Saudi MLE and blue on UWorld without a second rule. */
+html[data-study="on"] .screen.solo-screen.uw-exam .pause-overlay {
+  background: var(--uwq-page, #eef1f5);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+html[data-study="on"] .screen.solo-screen.uw-exam .pause-overlay-inner {
+  gap: 12px;
+}
+
+/* The glyph was near-black on the old dark cover and all but invisible; on the
+   light sheet it takes the header's navy (green on Saudi). */
+html[data-study="on"] .screen.solo-screen.uw-exam .pause-overlay-icon {
+  font-size: 40px;
+  color: var(--uwq-navy-top, #0f2a52);
+}
+
+html[data-study="on"] .screen.solo-screen.uw-exam .pause-overlay-title {
+  font-family: inherit;
+  font-size: 18px;
+  letter-spacing: 0.12em;
+  color: var(--uwq-ink, #1a2233);
+}
+
+/* An exam control, not an arcade pill. */
+html[data-study="on"] .screen.solo-screen.uw-exam .pause-resume-btn {
+  background: var(--uwq-blue, #2f6fc9);
+  color: #fff;
+  border: 1px solid var(--uwq-blue, #2f6fc9);
+  border-radius: 6px;
+  padding: 10px 26px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+html[data-study="on"] .screen.solo-screen.uw-exam .pause-resume-btn:hover {
+  background: var(--uwq-blue-lt, #3f7fd6);
+  filter: none;
+}
