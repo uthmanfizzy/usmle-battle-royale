@@ -372,8 +372,26 @@ function nextQuestionId(subject) {
   const prefix = SUBJECT_PREFIXES[subject] || 'GN';
   const nums = questionBank
     .filter(q => q.subject === subject)
-    .map(q => { const m = String(q.id).match(/(\d+)$/); return m ? parseInt(m[1]) : 0; });
+    // Plain PREFIX-NNN only: a retry id like "GI-004_1757790000000" must not
+    // read as question number 1757790000000.
+    .map(q => { const m = String(q.id).match(/^[A-Z]+-(\d+)$/); return m ? parseInt(m[1]) : 0; });
   const max = nums.length > 0 ? Math.max(...nums) : 0;
+  return `${prefix}-${String(max + 1).padStart(3, '0')}`;
+}
+
+// The in-memory bank excludes retired questions, which still hold their ids in
+// the table — so nextQuestionId can hand out an id that is already taken. This
+// asks the TABLE (retired rows included) for the next free PREFIX-NNN.
+async function nextFreeQuestionIdFromDb(subject) {
+  const prefix = SUBJECT_PREFIXES[subject] || 'GN';
+  const rows = await pageRows(() => supabase
+    .from('questions').select('question_id').like('question_id', `${prefix}-%`).order('question_id'));
+  let max = 0;
+  const idRe = new RegExp(`^${prefix}-(\\d+)(?:_\\d+)?$`);
+  for (const r of rows) {
+    const m = String(r.question_id).match(idRe);
+    if (m) max = Math.max(max, parseInt(m[1]));
+  }
   return `${prefix}-${String(max + 1).padStart(3, '0')}`;
 }
 
@@ -7492,10 +7510,16 @@ app.post('/admin/questions/bulk', adminAuth, async (req, res) => {
       if (error) {
         console.log(`[bulk-import] Q${i + 1} Insert error: code=${error.code}, message=${error.message}, details=${error.details}`);
 
-        // If duplicate question_id, generate a new one and retry
-        if (error.code === '23505' && error.message.includes('question_id')) {
-          console.log(`[bulk-import] Q${i + 1} Duplicate question_id, generating new one...`);
-          const newId = nextQuestionId(subject) + '_' + Date.now();
+        // Unique violation -> the generated id is taken (typically by a retired
+        // question the in-memory bank can't see). Any 23505, not only ones whose
+        // message names question_id: the constraint name isn't guaranteed to.
+        // A stem duplicate was already routed to the update path above, so the
+        // id is the only unique column this insert can realistically hit.
+        if (error.code === '23505') {
+          console.log(`[bulk-import] Q${i + 1} Duplicate question_id, asking the table for a free one...`);
+          let newId;
+          try { newId = await nextFreeQuestionIdFromDb(subject); }
+          catch (e) { newId = nextQuestionId(subject) + '_' + Date.now(); }
           record.question_id = newId;
 
           const { data: retryData, error: retryError } = await supabase
@@ -7507,7 +7531,9 @@ app.post('/admin/questions/bulk', adminAuth, async (req, res) => {
           if (retryError) throw retryError;
 
           console.log(`[bulk-import] Q${i + 1} ADDED (retry): ${newId}`);
-          const newQ = { ...record, id: newId, options, _supabase_id: retryData.id };
+          // `subject` too — without it nextQuestionId can't see this question and
+          // the next import in the subject collides all over again.
+          const newQ = { ...record, id: newId, subject, options, _supabase_id: retryData.id };
           questionBank.push(newQ);
           added.push(newQ);
           continue;
