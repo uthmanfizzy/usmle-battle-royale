@@ -841,7 +841,17 @@ html[data-study="on"] .screen.solo-screen.uw-exam .explanation-line:last-child {
    still hidden (the whole point of pausing) and the card edge disappears into
    the page around it. The button uses the mode's own accent, so it is green on
    Saudi MLE and blue on UWorld without a second rule. */
+/* Fixed to the viewport, not absolute to the card: the sheet is capped at
+   1100px and left-aligned, so a card-sized cover put "Paused" well left of
+   centre on a wide screen. Sits under the sticky header and fixed status bar
+   (both z-index 60) so the timer and nav stay visible; the padding centres
+   the content in the band between them. */
 html[data-study="on"] .screen.solo-screen.uw-exam .pause-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  padding: 116px 16px 84px;
+  border-radius: 0;
   background: var(--uwq-page, #eef1f5);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
