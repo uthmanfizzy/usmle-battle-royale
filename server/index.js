@@ -275,17 +275,24 @@ async function loadQuestionsFromDB() {
     // back to the tiny local questions.js. So on a missing column we flip
     // hasRetirement off and retry unfiltered. Nothing is retired yet in that
     // state, so serving everything is exactly right.
-    let { data, error } = await supabase
-      .from('questions').select('*').is('retired_at', null).order('question_id');
-    if (error && isMissingColumn(error)) {
+    //
+    // PAGED. A plain select stops at PostgREST's 1000-row cap and returns HTTP
+    // 200 with no hint that anything is missing. The bank crossed 1000, so every
+    // question past row 1000 (ordered by question_id) was silently never loaded
+    // — never served in any mode — and a newly imported question, which takes
+    // the next id in its subject, landed straight past the cut.
+    // question_id is unique, so ordering by it keeps pages stable.
+    let data, error;
+    try {
+      data = await pageRows(() => supabase
+        .from('questions').select('*').is('retired_at', null).order('question_id'));
+      hasRetirement = true;
+    } catch (err) {
+      if (!isMissingColumn(err)) throw err;
       hasRetirement = false;
       console.warn('[Questions] retired_at column not present — run the migration in schema.sql');
-      ({ data, error } = await supabase.from('questions').select('*').order('question_id'));
-    } else if (!error) {
-      hasRetirement = true;
+      data = await pageRows(() => supabase.from('questions').select('*').order('question_id'));
     }
-
-    if (error) throw error;
 
     if (data && data.length > 0) {
       // Transform Supabase format to internal format
@@ -7225,10 +7232,20 @@ app.get('/admin/questions', adminAuth, async (req, res) => {
   if (supabase) {
     try {
       console.log('[admin/questions] Fetching from Supabase...');
-      const { data, error, count } = await supabase
-        .from('questions')
-        .select('*', { count: 'exact' })
-        .order('question_id');
+      // PAGED, for the same reason as loadQuestionsFromDB. This list was capped
+      // at 1000, so any question past that line was invisible in the admin panel
+      // — impossible to find, edit or delete — while an import that matched it
+      // by text reported "already in the bank" for a question you could not see.
+      //
+      // Worse, the rows below are ASSIGNED to questionBank, so merely opening
+      // the admin panel used to shrink the game server's live bank back to 1000.
+      let data = null, error = null;
+      try {
+        data = await pageRows(() => supabase.from('questions').select('*').order('question_id'));
+      } catch (e) {
+        error = e;
+      }
+      const count = data ? data.length : 0;
 
       console.log(`[admin/questions] Supabase response: error=${error?.message || 'none'}, data length=${data?.length || 0}, count=${count}`);
 
@@ -7418,11 +7435,16 @@ app.post('/admin/questions/bulk', adminAuth, async (req, res) => {
 
     try {
       // First check if this exact question text already exists
-      const { data: existingByText } = await supabase
+      // .limit(1), not .maybeSingle(): maybeSingle ERRORS when two rows share a
+      // stem, the error was ignored, and the import then inserted a third copy.
+      // game_modes / image / topic are read so the update below can PRESERVE
+      // them rather than overwrite them.
+      const { data: existingRows } = await supabase
         .from('questions')
-        .select('question_id, id')
+        .select('question_id, id, game_modes, image_url, topic_id')
         .eq('question', raw.question.trim())
-        .maybeSingle();
+        .limit(1);
+      const existingByText = existingRows && existingRows[0];
 
       if (existingByText) {
         // Update existing question
@@ -7436,9 +7458,15 @@ app.post('/admin/questions/bulk', adminAuth, async (req, res) => {
             why_others_wrong: record.why_others_wrong,
             category: subject,
             difficulty: difficulty,
-            game_modes: gameModes,
-            topic_id: resolvedTopicId,
-            image_url: raw.image_url || null,
+            // MERGE the modes, never replace them. Replacing meant re-importing a
+            // question into Saudi MLE silently removed it from UWorld Adventure
+            // (or any other bank it was in) — while reporting "tagged".
+            game_modes: [...new Set([...(existingByText.game_modes || []), ...(gameModes || [])])],
+            // Only overwrite when this import actually supplies one. The parser
+            // sends image_url '' and no topic, so `raw.image_url || null` WIPED
+            // any image an admin had attached, and the topic went with it.
+            topic_id: resolvedTopicId || existingByText.topic_id || null,
+            image_url: raw.image_url || existingByText.image_url || null,
             updated_at: new Date().toISOString(),
           })
           .eq('id', existingByText.id)
@@ -12555,10 +12583,12 @@ server.listen(PORT, async () => {
   // ~17.8 GB/month of Supabase egress on an idle server. This keeps the same
   // worst-case staleness for adds/deletes and caps the full pulls at 24/day.
   // bankCount is the DB count as of the last load — deliberately NOT
-  // questionBank.length. PostgREST caps a select at max-rows (1000), so once
-  // the table passes that, the loaded array would sit at the cap while the
-  // exact count kept climbing: comparing the two would mismatch forever and
-  // reload on every single tick, which is the very thing this replaces.
+  // questionBank.length. Count-to-count is what makes the probe safe: when this
+  // was written loadQuestionsFromDB did not page, so the array sat at the
+  // 1000-row cap while the count climbed, and comparing the two would have
+  // reloaded on every tick. The loader pages now, but the comparison stays
+  // count-to-count — a length check would still break the moment a retired
+  // question made the loaded set and the table count legitimately differ.
   let lastFullReload = Date.now();
   let bankCount = await questionCountFromDB();
 
