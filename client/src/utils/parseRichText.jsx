@@ -31,7 +31,9 @@ export function parseRichText(text) {
         const [full, color, content] = colorMatch;
         if (COLORS[color]) {
           parts.push(
-            <span key={keyIndex++} style={{ color: COLORS[color] }}>
+            // data-rt-color lets a light surface remap the dark-app palette —
+            // see ExplanationText, which tags its coloured spans the same way.
+            <span key={keyIndex++} data-rt-color={color} style={{ color: COLORS[color] }}>
               {parseInline(content, keyIndex)}
             </span>
           );

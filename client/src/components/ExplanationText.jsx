@@ -126,6 +126,12 @@ function formatPiece(piece, run) {
   if (run.underline) node = <u>{node}</u>;
   if (italic) node = <em>{node}</em>;
   if (bold) node = <strong style={{ fontWeight: 700 }}>{node}</strong>;
-  if (run.color && COLORS[run.color]) node = <span style={{ color: COLORS[run.color] }}>{node}</span>;
+  // data-rt-color names the colour so a LIGHT surface can remap it. The palette
+  // is built for the dark app, and on a light sheet green, gold and cyan fall
+  // to ~1.3:1 contrast — unreadable. The inline style still applies wherever
+  // nothing overrides it, so dark surfaces are unchanged.
+  if (run.color && COLORS[run.color]) {
+    node = <span data-rt-color={run.color} style={{ color: COLORS[run.color] }}>{node}</span>;
+  }
   return node;
 }

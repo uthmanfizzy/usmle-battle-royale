@@ -193,12 +193,45 @@ html[data-study="on"] .rr-explanation > strong {
   color: var(--color-primary-dark);
   font-size: 16px;
 }
-/* Solo study: no purple left-accent vertical lines in the explanation */
+/* Solo study: no purple left-accent vertical lines in the explanation.
+   This used to zero padding-left on the PANEL as well — that padding existed
+   to space text off the accent border, so removing both looked tidy. But the
+   panel keeps its tinted background, so the text ended up flush against the
+   panel's left edge. The border goes; the panel keeps even padding. The inner
+   .explanation-text stays at 0 because it sits INSIDE that padded panel, and
+   padding both would indent the text twice. */
 html[data-study="on"] .solo-body .rr-explanation,
 html[data-study="on"] .solo-body .explanation-text {
   border-left: none;
+}
+html[data-study="on"] .solo-body .rr-explanation {
+  padding-left: 18px;
+}
+html[data-study="on"] .solo-body .explanation-text {
   padding-left: 0;
 }
+
+/* ── Rich-text colours on light surfaces ─────────────────────────────────────
+   [green]…[/green] and friends are painted from a palette built for the DARK
+   app. On a light sheet those pastels collapse — green 1.33:1, gold 1.29:1,
+   and white is literally invisible at 1:1. Each colour keeps its hue family
+   but is darkened until it passes WCAG AA on every light panel (5.4-6.9:1;
+   white maps to the body ink, since white text on a white page cannot mean
+   anything).
+
+   !important because the colour is set inline; that is the only way a
+   stylesheet can override it. Scoped to study mode, so the dark app and
+   First Aid Journey's dark theme keep the original palette. */
+html[data-study="on"] [data-rt-color="red"]    { color: #b3261e !important; }
+html[data-study="on"] [data-rt-color="blue"]   { color: #1c5bb8 !important; }
+html[data-study="on"] [data-rt-color="green"]  { color: #0d7040 !important; }
+html[data-study="on"] [data-rt-color="yellow"] { color: #7a5a00 !important; }
+html[data-study="on"] [data-rt-color="orange"] { color: #a14c00 !important; }
+html[data-study="on"] [data-rt-color="purple"] { color: #5b3fb0 !important; }
+html[data-study="on"] [data-rt-color="gold"]   { color: #7a5c00 !important; }
+html[data-study="on"] [data-rt-color="pink"]   { color: #a82a60 !important; }
+html[data-study="on"] [data-rt-color="cyan"]   { color: #006e6b !important; }
+html[data-study="on"] [data-rt-color="white"]  { color: #1a2233 !important; }
 /* Inter type scale — body/explanation 16px regular, comfortable line-height */
 html[data-study="on"] .solo-body .rr-explanation,
 html[data-study="on"] .solo-body .explanation-text,
