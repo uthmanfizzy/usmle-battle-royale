@@ -9581,7 +9581,7 @@ function HomePagePanel({ section = 'home' }) {
   // "Choose Your Path" card backgrounds (the screen after Play). The card text
   // sits on the left and that side is darkened, so detail belongs on the right.
   const pathSlots = [
-    { id: 'path_story_art', label: 'Story Mode', desc: 'Wide art behind the Story Mode card (gold border). Keep the detail on the right' },
+    { id: 'path_story_art', label: 'Story Mode', desc: 'Wide art behind the Story Mode card (green border). Keep the detail on the right' },
     { id: 'path_online_art', label: 'Online', desc: 'Wide art behind the Online card (red border). Keep the detail on the right' },
     { id: 'path_training_art', label: 'Training Grounds', desc: 'Wide art behind the Training Grounds card (blue border). Keep the detail on the right' },
   ];

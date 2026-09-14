@@ -50,7 +50,11 @@ async function logWrite(label, query) {
 // ── Constants ──────────────────────────────────────────────────────────────────
 
 const PORT       = process.env.PORT       || 3002;
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-jwt-secret-change-in-prod';
+// Never fall back to a string in this (public) repository: anyone could sign
+// tokens for any account with it. Unset -> a random per-boot secret (everyone
+// is signed out on restart, but nothing can be forged).
+const JWT_SECRET = process.env.JWT_SECRET || require('crypto').randomBytes(48).toString('hex');
+if (!process.env.JWT_SECRET) console.warn('[security] JWT_SECRET is not set — using a random per-boot secret. Set it in Railway so logins survive restarts.');
 const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
 const SERVER_URL = process.env.SERVER_URL || `http://localhost:${PORT}`;
 
@@ -81,7 +85,12 @@ app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
   res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-admin-password, x-admin-key');
-  res.header('Access-Control-Allow-Credentials', 'true');
+  // No Allow-Credentials: auth is a Bearer header, never a cookie, so no
+  // cross-site request needs credentials — and '*' with credentials is unsafe.
+  // Basic hardening headers for every API response.
+  res.header('X-Content-Type-Options', 'nosniff');
+  res.header('X-Frame-Options', 'DENY');
+  res.header('Referrer-Policy', 'no-referrer');
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
@@ -95,7 +104,7 @@ const corsOptions = {
   },
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
   allowedHeaders: ["Content-Type", "Authorization", "x-admin-password", "x-admin-key"],
-  credentials: true
+  credentials: false
 };
 
 app.use(cors(corsOptions));
@@ -104,6 +113,30 @@ app.options('*', cors(corsOptions));
 app.set('trust proxy', 1); // needed for secure cookies behind Railway's proxy
 app.use(compression()); // gzip compress all responses
 app.use(express.json({ limit: '10mb' }));
+
+// Simple per-IP rate limit for endpoints that write on a user's behalf, so a
+// script can't hammer them. In-memory: fine for this single instance.
+const rateBuckets = new Map();
+function rateLimit(max, windowMs) {
+  return (req, res, next) => {
+    const key = req.ip + '|' + req.baseUrl + req.route?.path;
+    const now = Date.now();
+    const b = rateBuckets.get(key);
+    if (!b || now > b.resetAt) { rateBuckets.set(key, { count: 1, resetAt: now + windowMs }); return next(); }
+    if (++b.count > max) return res.status(429).json({ error: 'Too many requests. Slow down.' });
+    next();
+  };
+}
+setInterval(() => { const now = Date.now(); for (const [k, b] of rateBuckets) if (now > b.resetAt) rateBuckets.delete(k); }, 10 * 60 * 1000).unref?.();
+
+// Clans are closed while under development. Every write to them is refused
+// here: the clan routes trusted user ids from the request body (so anyone
+// could post as, kick, promote or run a clan as someone else), and quest
+// completion minted coins/gems/XP for every member. Reads stay open.
+app.use('/api/clans', (req, res, next) => {
+  if (req.method === 'GET' || req.method === 'OPTIONS') return next();
+  res.status(403).json({ success: false, error: 'Clans are under development.' });
+});
 
 // Cache static assets
 app.use((req, res, next) => {
@@ -114,7 +147,7 @@ app.use((req, res, next) => {
 });
 
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'dev-session-secret',
+  secret: process.env.SESSION_SECRET || require('crypto').randomBytes(48).toString('hex'),
   resave: false,
   saveUninitialized: true, // must be true so OAuth state is saved before the redirect
   cookie: { secure: true, sameSite: 'none', maxAge: 15 * 60 * 1000 }, // cross-origin OAuth
@@ -627,11 +660,43 @@ const globalLeaderboard = new Map(); // username → { wins, gamesPlayed, highSc
 
 // ── Admin auth ─────────────────────────────────────────────────────────────────
 
-const ADMIN_PASSWORD = 'USMLEadmin2026';
+// The owner password comes from the environment ONLY. It used to be written
+// here, and this repository is public — so it was readable by anyone. Unset ->
+// the admin panel is closed (fail closed) rather than open to a known value.
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '';
+if (!ADMIN_PASSWORD) console.warn('[security] ADMIN_PASSWORD is not set — the admin panel is locked until it is.');
+
+// Constant-time comparison, plus a per-IP limit on WRONG passwords so the
+// owner password can't be brute-forced through any admin endpoint.
+const adminFailures = new Map(); // ip -> { count, resetAt }
+const ADMIN_FAIL_LIMIT = 20;
+const ADMIN_FAIL_WINDOW_MS = 15 * 60 * 1000;
+function adminLockedOut(req) {
+  const rec = adminFailures.get(req.ip);
+  if (!rec) return false;
+  if (Date.now() > rec.resetAt) { adminFailures.delete(req.ip); return false; }
+  return rec.count >= ADMIN_FAIL_LIMIT;
+}
+function noteAdminFailure(req) {
+  const now = Date.now();
+  const rec = adminFailures.get(req.ip);
+  if (!rec || now > rec.resetAt) adminFailures.set(req.ip, { count: 1, resetAt: now + ADMIN_FAIL_WINDOW_MS });
+  else rec.count += 1;
+}
+function isOwnerPassword(req) {
+  const given = req.headers['x-admin-password'];
+  if (!ADMIN_PASSWORD || typeof given !== 'string' || !given) return false;
+  if (adminLockedOut(req)) return false;
+  const a = Buffer.from(given);
+  const b = Buffer.from(ADMIN_PASSWORD);
+  const ok = a.length === b.length && require('crypto').timingSafeEqual(a, b);
+  if (!ok) noteAdminFailure(req);
+  return ok;
+}
 
 function adminAuth(req, res, next) {
-  if (req.headers['x-admin-password'] !== ADMIN_PASSWORD)
-    return res.status(401).json({ error: 'Unauthorized' });
+  if (adminLockedOut(req)) return res.status(429).json({ error: 'Too many attempts. Try again later.' });
+  if (!isOwnerPassword(req)) return res.status(401).json({ error: 'Unauthorized' });
   next();
 }
 
@@ -675,7 +740,7 @@ function requireAuth(req, res, next) {
 // Never trust a client-supplied flag: the token carries only a userId, so the
 // permission is read from the row every time.
 async function moderatorFrom(req) {
-  if (req.headers['x-admin-password'] === ADMIN_PASSWORD) {
+  if (req.headers['x-admin-password'] && isOwnerPassword(req)) {
     return { ok: true, userId: null, via: 'owner' };
   }
   const auth = req.headers.authorization;
@@ -2258,9 +2323,9 @@ io.use((socket, next) => {
   const token = socket.handshake.auth?.token;
   if (token) {
     const decoded = verifyToken(token);
-    if (decoded?.userId) socket.userId = decoded.userId;
+    if (decoded?.userId) { socket.userId = decoded.userId; socket.tokenUserId = decoded.userId; }
   }
-  next(); // always allow — userId is optional
+  next(); // always allow — guests have no userId
 });
 
 // ── Socket handlers ────────────────────────────────────────────────────────────
@@ -2272,8 +2337,12 @@ io.on('connection', (socket) => {
   console.log('[+] connected:', socket.id, socket.userId ? `(user ${socket.userId})` : '');
 
   // Handle user coming online
-  socket.on('user_online', async (userId) => {
-    if (!userId) return;
+  socket.on('user_online', async (claimedId) => {
+    // The id is the one proven by the handshake token. Taking it from the
+    // event let any client claim to be any player — and socket.userId decides
+    // whose XP, level and match history a finished game is written to.
+    const userId = socket.tokenUserId;
+    if (!userId || (claimedId && claimedId !== userId)) return;
     onlineUsers.set(userId, socket.id);
     socket.userId = userId;
 
@@ -6353,7 +6422,9 @@ app.put('/api/clans/:clanId', async (req, res) => {
 app.get('/api/clans', async (req, res) => {
   if (!supabase) return res.status(503).json({ clans: [], total: 0 });
   try {
-    const { search, type, sort = 'score', page = 1, limit = 20 } = req.query;
+    const { search, type, page = 1 } = req.query;
+    const sort = ['score', 'rank', 'level', 'xp', 'created_at', 'name'].includes(req.query.sort) ? req.query.sort : 'score';
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 20));
     const offset = (parseInt(page) - 1) * parseInt(limit);
 
     let query = supabase
@@ -6952,7 +7023,7 @@ app.get('/api/friends/:userId', async (req, res) => {
         status,
         created_at
       `)
-      .or(`user_id.eq.${userId},friend_id.eq.${userId}`)
+      .or(`user_id.eq.${UUID_RE.test(userId) ? userId : '00000000-0000-0000-0000-000000000000'},friend_id.eq.${UUID_RE.test(userId) ? userId : '00000000-0000-0000-0000-000000000000'}`)
       .eq('status', 'accepted');
 
     if (!data || data.length === 0) return res.json([]);
@@ -7031,10 +7102,19 @@ app.get('/api/friends/requests/:userId', async (req, res) => {
 });
 
 // Send friend request
-app.post('/api/friends/request', async (req, res) => {
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+app.post('/api/friends/request', requireAuth, rateLimit(30, 60 * 1000), async (req, res) => {
   if (!supabase) return res.json({ success: false, message: 'Database not configured' });
   try {
-    const { userId, friendId } = req.body;
+    // Sender = token owner. The body's userId used to be trusted, so anyone
+    // could send requests AS another player.
+    const userId = req.userId;
+    const { friendId } = req.body || {};
+    // Both ids are interpolated into a PostgREST filter below; only UUIDs.
+    if (!UUID_RE.test(String(userId)) || !UUID_RE.test(String(friendId || ''))) {
+      return res.json({ success: false, message: 'Missing user IDs' });
+    }
 
     if (!userId || !friendId) {
       return res.json({ success: false, message: 'Missing user IDs' });
@@ -7073,19 +7153,26 @@ app.post('/api/friends/request', async (req, res) => {
 });
 
 // Accept friend request
-app.post('/api/friends/accept', async (req, res) => {
+app.post('/api/friends/accept', requireAuth, async (req, res) => {
   if (!supabase) return res.json({ success: false });
   try {
-    const { requestId } = req.body;
+    const { requestId } = req.body || {};
 
     if (!requestId) {
       return res.json({ success: false, message: 'Missing request ID' });
     }
 
-    await supabase
+    // Only the RECIPIENT of a pending request can accept it.
+    const { data: updated } = await supabase
       .from('friends')
       .update({ status: 'accepted' })
-      .eq('id', requestId);
+      .eq('id', requestId)
+      .eq('friend_id', req.userId)
+      .eq('status', 'pending')
+      .select('id');
+    if (!updated || updated.length === 0) {
+      return res.status(403).json({ success: false, message: 'Not your request' });
+    }
 
     res.json({ success: true });
   } catch(e) {
@@ -7095,13 +7182,20 @@ app.post('/api/friends/accept', async (req, res) => {
 });
 
 // Decline friend request or remove friend
-app.delete('/api/friends/:friendshipId', async (req, res) => {
+app.delete('/api/friends/:friendshipId', requireAuth, async (req, res) => {
   if (!supabase) return res.json({ success: false });
   try {
     const { friendshipId } = req.params;
 
     if (!friendshipId) {
       return res.json({ success: false, message: 'Missing friendship ID' });
+    }
+
+    // Only someone IN the friendship can remove / decline it.
+    const { data: row } = await supabase
+      .from('friends').select('user_id, friend_id').eq('id', friendshipId).maybeSingle();
+    if (!row || (row.user_id !== req.userId && row.friend_id !== req.userId)) {
+      return res.status(403).json({ success: false, message: 'Not your friendship' });
     }
 
     await supabase
@@ -7117,9 +7211,13 @@ app.delete('/api/friends/:friendshipId', async (req, res) => {
 });
 // ── Lobby Invite API ───────────────────────────────────────────────────────────
 
-app.post('/api/lobby/invite', async (req, res) => {
+app.post('/api/lobby/invite', requireAuth, rateLimit(20, 60 * 1000), async (req, res) => {
   try {
-    const { fromUserId, fromUsername, toUserId, lobbyCode, gameMode } = req.body;
+    // Sender is the token owner. This route was unauthenticated and inserted a
+    // row into the public ANNOUNCEMENTS table on every call — anyone could post
+    // to every player's news feed and notifications.
+    const fromUserId = req.userId;
+    const { fromUsername, toUserId, lobbyCode, gameMode } = req.body || {};
 
     // Store invite notification in announcements or a new invites concept
     // For now emit via socket if available
@@ -7134,14 +7232,8 @@ app.post('/api/lobby/invite', async (req, res) => {
       });
     }
 
-    // Also store in database for persistence
-    await supabase.from('announcements').insert({
-      type: 'lobby_invite',
-      user_id: toUserId,
-      message: `${fromUsername} invited you to a ${gameMode} game!${lobbyCode ? ` Code: ${lobbyCode}` : ''}`,
-      metadata: JSON.stringify({ fromUserId, fromUsername, lobbyCode, gameMode }),
-      created_at: new Date().toISOString()
-    }).catch(() => {}); // don't fail if table structure differs
+    // (No database write: announcements are admin-authored content only.)
+ // don't fail if table structure differs
 
     res.json({ success: true });
   } catch(e) {
@@ -12587,11 +12679,13 @@ app.get('/api/rewards/chest/:userId', async (req, res) => {
   }
 });
 
-app.post('/api/rewards/claim/:userId', async (req, res) => {
+app.post('/api/rewards/claim/:userId', requireAuth, rateLimit(10, 60 * 1000), async (req, res) => {
   if (!supabase) return res.status(503).json({ success: false, error: 'Supabase not configured' });
 
   try {
     const { userId } = req.params;
+    // Was unauthenticated: anyone could claim any player's chest.
+    if (userId !== req.userId) return res.status(403).json({ success: false, message: 'Not your chest' });
 
     // Check cooldown
     const { data: lastClaimData } = await supabase

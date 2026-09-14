@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import ProfileModal from './ProfileModal';
+import { authFetch } from '../auth';
 import './FriendsPanel.css';
 
 const SERVER_URL = 'https://usmle-battle-royale-production.up.railway.app';
@@ -72,10 +73,9 @@ export default function FriendsPanel({ user, onClose, onInviteToGame, isDropdown
 
   const sendFriendRequest = async (friendId) => {
     try {
-      const res = await fetch(`${SERVER_URL}/api/friends/request`, {
+      const res = await authFetch('/api/friends/request', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.id, friendId })
+        body: JSON.stringify({ friendId })
       });
       const data = await res.json();
       setActionMsg(data.message || 'Request sent!');
@@ -87,9 +87,8 @@ export default function FriendsPanel({ user, onClose, onInviteToGame, isDropdown
 
   const acceptRequest = async (requestId) => {
     try {
-      await fetch(`${SERVER_URL}/api/friends/accept`, {
+      await authFetch('/api/friends/accept', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ requestId })
       });
       setActionMsg('Friend added!');
@@ -102,7 +101,7 @@ export default function FriendsPanel({ user, onClose, onInviteToGame, isDropdown
 
   const declineRequest = async (requestId) => {
     try {
-      await fetch(`${SERVER_URL}/api/friends/${requestId}`, { method: 'DELETE' });
+      await authFetch(`/api/friends/${requestId}`, { method: 'DELETE' });
       fetchPendingRequests();
     } catch(e) {
       console.error(e);
@@ -111,7 +110,7 @@ export default function FriendsPanel({ user, onClose, onInviteToGame, isDropdown
 
   const removeFriend = async (friendshipId) => {
     try {
-      await fetch(`${SERVER_URL}/api/friends/${friendshipId}`, { method: 'DELETE' });
+      await authFetch(`/api/friends/${friendshipId}`, { method: 'DELETE' });
       setActionMsg('Friend removed');
       fetchFriends();
     } catch(e) {

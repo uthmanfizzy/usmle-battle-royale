@@ -61,7 +61,7 @@
   max-width: 620px;
 }
 
-.cyp-card--story    { --cyp-rgb: 232, 176, 75;  --cyp-hi: #ffd98a; --cyp-delay: 0.08s; }
+.cyp-card--story    { --cyp-rgb: 46, 184, 110;  --cyp-hi: #8ff0b8; --cyp-delay: 0.08s; }  /* green */
 .cyp-card--online   { --cyp-rgb: 214, 58, 50;   --cyp-hi: #ff8a7a; --cyp-delay: 0.16s; }
 .cyp-card--training { --cyp-rgb: 74, 144, 226;  --cyp-hi: #9cc8ff; --cyp-delay: 0.24s; }
 

@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import ProfileModal from './ProfileModal';
+import { authFetch } from '../auth';
 import { GroupGlyph } from './HomeGlyphs';
 import './FriendsPage.css';
 
@@ -159,22 +160,22 @@ export default function FriendsPage({ user, bannerArt }) {
 
   const accept = async (id) => {
     try {
-      await fetch(`${SERVER_URL}/api/friends/accept`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ requestId: id }),
+      await authFetch('/api/friends/accept', {
+        method: 'POST', body: JSON.stringify({ requestId: id }),
       });
       flash('Friend added!');
       loadFriends(); loadRequests();
     } catch { flash('Could not accept that request.'); }
   };
   const decline = async (id) => {
-    try { await fetch(`${SERVER_URL}/api/friends/${id}`, { method: 'DELETE' }); loadRequests(); }
+    try { await authFetch(`/api/friends/${id}`, { method: 'DELETE' }); loadRequests(); }
     catch { flash('Could not decline that request.'); }
   };
   const remove = async (f) => {
     setMenuFor(null);
     if (!window.confirm(`Remove ${f.username} from your friends?`)) return;
     try {
-      await fetch(`${SERVER_URL}/api/friends/${f.friendshipId}`, { method: 'DELETE' });
+      await authFetch(`/api/friends/${f.friendshipId}`, { method: 'DELETE' });
       flash('Friend removed');
       loadFriends();
     } catch { flash('Could not remove that friend.'); }
@@ -330,9 +331,9 @@ function AddFriendsModal({ user, onClose, onSent, friends }) {
 
   const send = async (target) => {
     try {
-      const res = await fetch(`${SERVER_URL}/api/friends/request`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.id, friendId: target.id }),
+      const res = await authFetch('/api/friends/request', {
+        method: 'POST',
+        body: JSON.stringify({ friendId: target.id }),
       });
       const data = await res.json();
       setSent(prev => new Set(prev).add(target.id));

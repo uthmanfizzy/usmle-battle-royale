@@ -9,3 +9,6 @@ dist/
 
 # Vercel
 .vercel
+
+# Local Claude Code permissions (contained a secret; never commit)
+.claude/settings.local.json

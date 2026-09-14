@@ -92,10 +92,33 @@ function stripMcqOptionLines(html) {
   return host.innerHTML;
 }
 
-/** Content is sanitised server-side at import; see the note in the render path. */
+// Card HTML comes from imported Anki decks and is rendered as raw HTML, so it is
+// sanitised here, in the browser, right before it is injected: scripts,
+// frames, forms, inline event handlers and javascript:/data: URLs are removed.
+// (There is no server-side sanitiser, whatever older comments said.) Formatting
+// tags, images and audio are kept.
+const BLOCKED_TAGS = 'script,iframe,frame,frameset,object,embed,link,meta,base,form,input,button,textarea,select,style,svg,math,template,noscript';
+function sanitizeCardHtml(html) {
+  if (typeof window === 'undefined' || !html) return html || '';
+  const doc = new DOMParser().parseFromString(`<body>${html}</body>`, 'text/html');
+  doc.body.querySelectorAll(BLOCKED_TAGS).forEach(el => el.remove());
+  doc.body.querySelectorAll('*').forEach(el => {
+    for (const attr of [...el.attributes]) {
+      const name = attr.name.toLowerCase();
+      const value = attr.value.trim().toLowerCase().replace(/[\s\u0000-\u001f]+/g, '');
+      if (name.startsWith('on') || name === 'srcdoc' || name === 'formaction') { el.removeAttribute(attr.name); continue; }
+      if (['href', 'src', 'xlink:href', 'action', 'poster', 'background'].includes(name)
+          && (value.startsWith('javascript:') || value.startsWith('vbscript:') || (value.startsWith('data:') && !value.startsWith('data:image/')))) {
+        el.removeAttribute(attr.name);
+      }
+    }
+  });
+  return doc.body.innerHTML;
+}
+
 const Html = ({ html, media, className, stripOptions }) => {
   const out = stripOptions ? stripMcqOptionLines(html) : html;
-  return <div className={className} dangerouslySetInnerHTML={{ __html: resolveMedia(out, media) }} />;
+  return <div className={className} dangerouslySetInnerHTML={{ __html: sanitizeCardHtml(resolveMedia(out, media)) }} />;
 };
 
 /**
