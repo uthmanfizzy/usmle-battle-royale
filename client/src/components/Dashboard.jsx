@@ -3,7 +3,6 @@ import { fetchMe, authFetch } from '../auth';
 import FriendsPage from './FriendsPage';
 import ProfileModal, { formatStudyTime } from './ProfileModal';
 import NotificationsDropdown from './NotificationsDropdown';
-import ClansPage from './ClansPage';
 import { SwordsGlyph, TrophyGlyph, GroupGlyph, PlayRingGlyph } from './HomeGlyphs';
 import UsernameChangeModal from './UsernameChangeModal';
 import { cachedImageMap, rememberImageMap, isImageReady } from '../utils/cachedImages';
@@ -160,6 +159,18 @@ function CardArt({ src }) {
   return src ? <img className="dash-card-art" src={src} alt="" /> : null;
 }
 const Chevron = () => <span className="dash-card-chev" aria-hidden="true">›</span>;
+// Shown in place of a feature that is closed while it is being built.
+function UnderDevelopment({ title, icon }) {
+  return (
+    <div className="dash-underdev mv-plain">
+      <div className="dash-underdev-icon" aria-hidden="true">{icon}</div>
+      <h2 className="dash-underdev-title">{title}</h2>
+      <p className="dash-underdev-badge">Under development</p>
+      <p className="dash-underdev-sub">This feature isn&apos;t available yet. Check back soon.</p>
+    </div>
+  );
+}
+
 // ── Home Section (RPG Style) ───────────────────────────────────────────────────
 // Shared by both shells. The old shell passes navCards (left nav column JSX,
 // built by Dashboard which owns the tab handlers) and onViewAllNews; the
@@ -1069,9 +1080,6 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
     }
   }
 
-  // User currency
-  const coins = user.coins || 0;
-  const gems = user.gems || 0;
 
   return (
     <div className={`dashboard-screen${dashTab === 'home' || dashTab === 'friends' ? ' dash-home' : ''}${dashTab === 'friends' ? ' dash-friends' : ''}`}>
@@ -1094,7 +1102,9 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
       <div className="dashboard-container">
         {showWelcome && <WelcomePopup announcement={welcomeAnn} onClose={handleWelcomeClose} />}
 
-        {/* Dashboard Header - Profile Left, Currency + Icons Right */}
+        {/* Dashboard Header - profile left, icons right. Not shown on the
+            Leaderboards / Clans pages, which have their own back button. */}
+        {dashTab !== 'leaderboard' && dashTab !== 'clans' && (
         <div className="dashboard-header">
           <div className="header-left">
             {/* Profile Card — click-through to own Progress page */}
@@ -1143,27 +1153,12 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
           </div>
 
           <div className="header-right">
-            {/* Currency pills (mockup): two separate glass pills, each with a
-                flat CSS token (gold circle / teal rotated diamond — not the
-                admin icon_coins/icon_gems images or emoji) and a "+" button
-                that routes to the Shop's Currency tab, which is an honest
-                coming-soon state (no payment processor exists). */}
-            <div className="currency-bar">
-              <div className="currency-pill">
-                <span className="currency-token currency-token--coin" aria-hidden="true" />
-                <span className="currency-value mv-plain">{coins.toLocaleString()}</span>
-                <a className="currency-add" href="/shop?tab=currency" title="Get more coins" aria-label="Get more coins">+</a>
+            {/* No coin/gem pills here: currency is shown on the Shop page only. */}
+            {dashTab === 'friends' && (
+              <div className="dash-header-quote" aria-hidden="true">
+                <span>True friends fight beside you</span>
               </div>
-              <div className="currency-pill">
-                <span className="currency-token currency-token--gem" aria-hidden="true" />
-                <span className="currency-value mv-plain">{gems.toLocaleString()}</span>
-                <a className="currency-add" href="/shop?tab=currency" title="Get more gems" aria-label="Get more gems">+</a>
-              </div>
-            </div>
-
-            <div className="dash-header-quote" aria-hidden="true">
-              <span>{dashTab === 'friends' ? 'True friends fight beside you' : 'Warriors build a brighter tomorrow'}</span>
-            </div>
+            )}
 
             {/* Individual Icon Bubbles */}
             <div className="header-icon-group">
@@ -1233,6 +1228,8 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
           </div>
         </div>
 
+        )}
+
         {/* Tab content */}
         {dashTab === 'home' && (
           <>
@@ -1273,7 +1270,7 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
                       <Chevron />
                     </span>
                   </button>
-                  <button type="button" className="dash-nav-card dash-nav-card--tile" onClick={() => setDashTab('clans')}>
+                  <button type="button" className="dash-nav-card dash-nav-card--tile dash-nav-card--locked" disabled title="Clans is under development">
                     <CardArt src={homeImages.home_clans_art} />
                     <span className="dash-nav-card-icon">
                       {homeImages.icon_clans
@@ -1282,7 +1279,7 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
                     </span>
                     <span className="dash-nav-card-text">
                       <span className="dash-nav-card-name">CLANS</span>
-                      <span className="dash-nav-card-sub">FIGHT TOGETHER</span>
+                      <span className="dash-nav-card-sub dash-nav-card-dev">UNDER DEVELOPMENT</span>
                       <Chevron />
                     </span>
                   </button>
@@ -1393,25 +1390,26 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
         {dashTab === 'friends' && (
           <div className="dash-tab-wrap dash-tab-wrap--friends">
             <button type="button" className="dash-back-pill" onClick={() => setDashTab('home')}>
-              ← Back to Dashboard
+              ← Back
             </button>
             <FriendsPage user={user} bannerArt={homeImages.friends_banner_art} />
           </div>
         )}
         {dashTab === 'leaderboard' && (
-          <div className="dash-tab-wrap">
+          <div className="dash-tab-wrap dash-tab-wrap--noheader">
             <button type="button" className="dash-back-pill" onClick={() => setDashTab('home')}>
-              ← Back to Dashboard
+              ← Back
             </button>
             <LeaderboardSection userId={user.id} user={user} />
           </div>
         )}
         {dashTab === 'clans' && (
-          <div className="dash-tab-wrap">
+          <div className="dash-tab-wrap dash-tab-wrap--noheader">
             <button type="button" className="dash-back-pill" onClick={() => setDashTab('home')}>
-              ← Back to Dashboard
+              ← Back
             </button>
-            <ClansPage user={user} />
+            {/* Clans is closed while under development (ClansPage kept intact). */}
+            <UnderDevelopment title="Clans" icon="🛡️" />
           </div>
         )}
         {dashTab === 'announcements' && <AnnouncementsSection />}

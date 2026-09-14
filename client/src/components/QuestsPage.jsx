@@ -78,15 +78,10 @@ export default function QuestsPage() {
 
   return (
     <div className="qp">
-      {/* Top bar: wordmark + currency pills + avatar */}
+      {/* Top bar: wordmark + avatar (coins/gems are shown on the Shop page only) */}
       <div className="qp-topbar">
         <a className="qp-wordmark" href="/dashboard">MEDVALE</a>
         <div className="qp-topbar-right">
-          <div className="qp-currency" aria-label="Currency">
-            <span className="qp-currency-item">🪙 {user?.coins ?? 0}</span>
-            <span className="qp-currency-divider" aria-hidden="true" />
-            <span className="qp-currency-item">💎 {user?.gems ?? 0}</span>
-          </div>
           <div className="qp-avatar" title={user?.username || 'Player'}>
             {user?.avatar_url
               ? <img src={user.avatar_url} alt={user.username} referrerPolicy="no-referrer" />
@@ -100,7 +95,7 @@ export default function QuestsPage() {
         className="qp-back"
         onClick={() => { window.location.href = '/dashboard'; }}
       >
-        ← Back to Dashboard
+        ← Back
       </button>
 
       <div className="qp-col">

@@ -172,7 +172,7 @@ export default function HYFlashcards() {
 
       <div className="hyf-headrow">
         <button type="button" className="hyf-back" onClick={() => { window.location.href = '/?story=1'; }}>
-          ← Back to Story Mode
+          ← Back
         </button>
         <h1 className="hyf-title">⭐ HY Flashcards</h1>
         <div />

@@ -419,15 +419,10 @@ export default function ActivityPage() {
 
   return (
     <div className="da">
-      {/* Top bar: wordmark + currency pills + avatar */}
+      {/* Top bar: wordmark + avatar (coins/gems are shown on the Shop page only) */}
       <div className="da-topbar">
         <a className="da-wordmark" href="/dashboard">MEDVALE</a>
         <div className="da-topbar-right">
-          <div className="da-currency" aria-label="Currency">
-            <span className="da-currency-item">🪙 {me?.coins ?? 0}</span>
-            <span className="da-currency-divider" aria-hidden="true" />
-            <span className="da-currency-item">💎 {me?.gems ?? 0}</span>
-          </div>
           <div className="da-avatar" title={me?.username || 'Player'}>
             {me?.avatar_url
               ? <img src={me.avatar_url} alt={me.username} referrerPolicy="no-referrer" />
@@ -441,7 +436,7 @@ export default function ActivityPage() {
         className="da-back"
         onClick={() => { window.location.href = '/dashboard'; }}
       >
-        ← Back to Dashboard
+        ← Back
       </button>
 
       <div className="da-col">

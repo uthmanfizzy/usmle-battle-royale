@@ -118,7 +118,7 @@ export default function ShopPage() {
         className="sp-back"
         onClick={() => { window.location.href = '/dashboard'; }}
       >
-        ← Back to Dashboard
+        ← Back
       </button>
 
       <div className="sp-col">

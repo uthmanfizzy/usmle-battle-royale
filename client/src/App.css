@@ -3663,3 +3663,52 @@ html[data-study="on"] .solo-body .pause-overlay {
   color: rgba(255, 255, 255, 0.8) !important;
   text-transform: none !important;
 }
+
+/* ══ Compact back buttons, site-wide ══════════════════════════════════════════
+   Every page's back control is a small pill that takes as little room as
+   possible. !important because each page's own stylesheet loads after this
+   one and sizes its button more generously; position/offsets are left alone
+   so buttons that float in a corner stay there. */
+.back-btn,
+.pp-back,
+.pp-nav-back,
+.jm-back-btn,
+.hyf-back,
+.dash-back-pill,
+.ms-back-btn,
+.clan-back-btn,
+.uwa-back,
+.tg-back-btn,
+.stg-back,
+.sp-nav-back,
+.sp-back,
+.reels-back,
+.qp-back,
+.htp-back-btn,
+.gp-nav-back,
+.dn-back-btn,
+.da-back,
+.anking-exit {
+  padding: 4px 10px !important;
+  min-height: 0 !important;
+  height: auto !important;
+  min-width: 0 !important;
+  width: auto !important;
+  font-size: 12px !important;
+  line-height: 1.3 !important;
+  letter-spacing: 0.02em !important;
+  border-radius: 999px !important;
+  gap: 4px !important;
+}
+/* In-flow ones: keep the gap beneath them small too. */
+.pp-back,
+.hyf-back,
+.dash-back-pill,
+.stg-back,
+.sp-back,
+.reels-back,
+.qp-back,
+.da-back,
+.uwa-back {
+  margin-bottom: 6px !important;
+}

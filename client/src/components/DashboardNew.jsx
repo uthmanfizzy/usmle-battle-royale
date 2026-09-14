@@ -104,8 +104,6 @@ export default function DashboardNew({ user, onPlayNow, onLogout, onUserUpdate }
     setTab('home');
   }
 
-  const coins = user.coins || 0;
-  const gems  = user.gems  || 0;
 
   const isShorts = tab === 'shorts';
 
@@ -136,21 +134,6 @@ export default function DashboardNew({ user, onPlayNow, onLogout, onUserUpdate }
         </div>
 
         <div className="dn-header-right">
-          <div className="dn-currency">
-            <span className="dn-currency-item" title="Coins">
-              {homeImages.icon_coins
-                ? <img loading="lazy" src={homeImages.icon_coins} alt="" className="dn-currency-icon" />
-                : <span className="dn-currency-emoji">🪙</span>}
-              {coins.toLocaleString()}
-            </span>
-            <span className="dn-currency-item" title="Gems">
-              {homeImages.icon_gems
-                ? <img loading="lazy" src={homeImages.icon_gems} alt="" className="dn-currency-icon" />
-                : <span className="dn-currency-emoji">💎</span>}
-              {gems.toLocaleString()}
-            </span>
-          </div>
-
           <div className="dn-icon-group">
             <div className="dn-drop-wrap notif-wrapper" ref={notifDropdownRef}>
               <button

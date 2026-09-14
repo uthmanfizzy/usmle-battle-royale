@@ -208,15 +208,10 @@ export default function PlayPage({
         backgroundRepeat: 'no-repeat',
       }}
     >
-      {/* ── Page chrome: MEDVALE wordmark + currency pills + avatar ────────── */}
+      {/* ── Page chrome: MEDVALE wordmark + avatar (currency lives on the Shop page) ── */}
       <div className="pp-topbar">
         <a className="pp-wordmark" href="/dashboard">MEDVALE</a>
         <div className="pp-topbar-right">
-          <div className="pp-currency" aria-label="Currency">
-            <span className="pp-currency-item">🪙 {user?.coins ?? 0}</span>
-            <span className="pp-currency-divider" aria-hidden="true" />
-            <span className="pp-currency-item">💎 {user?.gems ?? 0}</span>
-          </div>
           <div className="pp-avatar" title={username || 'Player'}>
             {user?.avatar_url
               ? <img src={user.avatar_url} alt={username} referrerPolicy="no-referrer" />
@@ -226,7 +221,7 @@ export default function PlayPage({
       </div>
 
       <div className="pp-col">
-        <button type="button" className="pp-back pp-rise" onClick={onBack}>← Back to Dashboard</button>
+        <button type="button" className="pp-back pp-rise" onClick={onBack}>← Back</button>
         <h1 className="pp-title pp-rise" style={{ '--pp-delay': '0.04s' }}>Deploy</h1>
         <p className="pp-subtitle pp-rise" style={{ '--pp-delay': '0.1s' }}>Choose your battlefield.</p>
 

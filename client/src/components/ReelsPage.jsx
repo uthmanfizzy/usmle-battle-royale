@@ -25,7 +25,7 @@ export default function ReelsPage() {
         className="reels-back"
         onClick={() => { window.location.href = '/dashboard'; }}
       >
-        ← Back to Dashboard
+        ← Back
       </button>
       <ShortsFeed />
     </div>

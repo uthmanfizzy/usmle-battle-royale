@@ -78,7 +78,7 @@ export default function SettingsPage() {
         className="stg-back"
         onClick={() => { window.location.href = '/dashboard'; }}
       >
-        ← Back to Dashboard
+        ← Back
       </button>
 
       {showUsername && user && (
