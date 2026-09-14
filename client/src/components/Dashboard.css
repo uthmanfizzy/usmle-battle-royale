@@ -4609,3 +4609,355 @@ button.settings-btn img,
 
 /* Row-label for each cell; shown only in the mobile card layout above. */
 .lb-cell-label { display: none; }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   MOBILE HOME (≤600px, Home tab only)
+   Follows the phone home mockup: an in-flow header (profile + icon row, then
+   currency pills + motto), an art-backed PLAY hero with a red crossed-swords
+   badge, a three-up Leaderboards / Clans / Reels tile row, and a tall event
+   card. Scoped to .dashboard-screen.dash-home so the other tabs keep the fixed
+   header they reserve clearance for. The earlier ≤768/480/400/380 header rules
+   use !important, so the overrides here do too, winning on specificity.
+   Card art = admin → Home Page → home_*_art; every card has a painted fallback.
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* Desktop: the phone-only furniture is hidden; nothing else changes. */
+.dash-card-art,
+.dash-card-chev,
+.dash-play-swords,
+.dash-tile-glyph,
+.dash-header-quote,
+.profile-card-level-text { display: none; }
+
+.dash-event-sub.mv-plain { font-family: 'Cinzel', serif; font-weight: 700; }
+.dash-event-art-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+@media (max-width: 600px) {
+  .dash-desktop-only { display: none !important; }
+
+  /* ── Header: in flow, two rows ─────────────────────────────────────────── */
+  .dashboard-screen.dash-home .dashboard-header {
+    position: relative !important;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "profile icons"
+      "currency quote";
+    align-items: center !important;
+    row-gap: 16px;
+    column-gap: 10px;
+    padding: 22px 16px 4px !important;
+    pointer-events: auto;
+  }
+  .dashboard-screen.dash-home .header-right { display: contents !important; }
+  .dashboard-screen.dash-home .header-left { grid-area: profile; min-width: 0; animation: none; }
+
+  .dashboard-screen.dash-home .header-icon-group {
+    grid-area: icons;
+    position: static !important;
+    gap: 10px !important;
+    justify-self: end;
+  }
+  .dashboard-screen.dash-home .header-icon-bubble {
+    width: 50px !important;
+    height: 50px !important;
+    min-width: 50px !important;
+    min-height: 50px !important;
+    background: radial-gradient(circle at 50% 35%, #1b2420, #0b100e) !important;
+    border: 1.5px solid rgba(255, 255, 255, 0.14) !important;
+    box-shadow: inset 0 0 0 3px rgba(0, 0, 0, 0.35), 0 4px 12px rgba(0, 0, 0, 0.45);
+  }
+  .dashboard-screen.dash-home .header-icon-bubble .header-icon-img,
+  .dashboard-screen.dash-home .header-icon-bubble.settings-btn .header-icon-img {
+    /* Uploaded icon PNGs carry their own padding, so they run larger than the
+       bubble and overflow it (the bubble is overflow:visible). */
+    width: 44px !important;
+    height: 44px !important;
+    min-width: 44px !important;
+    min-height: 44px !important;
+    max-width: 44px !important;
+    max-height: 44px !important;
+    margin: -4px !important;
+  }
+  .dashboard-screen.dash-home .header-icon-bubble span { font-size: 24px !important; }
+
+  .dashboard-screen.dash-home .currency-bar {
+    grid-area: currency;
+    position: static !important;
+    gap: 10px !important;
+  }
+  .dashboard-screen.dash-home .currency-pill {
+    gap: 10px !important;
+    padding: 9px 10px 9px 12px !important;
+    border-radius: 10px;
+    background: rgba(8, 12, 10, 0.72);
+    border-color: rgba(255, 255, 255, 0.12);
+    min-width: 0;
+  }
+  .dashboard-screen.dash-home .currency-token--coin { width: 20px; height: 20px; background: radial-gradient(circle at 40% 35%, #ffd66b, #e3a228); }
+  .dashboard-screen.dash-home .currency-token--gem { width: 15px; height: 15px; }
+  .dashboard-screen.dash-home .currency-value { font-size: 16px; }
+  .dashboard-screen.dash-home .currency-add { width: 24px; height: 24px; font-size: 16px; border-radius: 6px; }
+
+  .dashboard-screen.dash-home .dash-header-quote {
+    grid-area: quote;
+    display: block;
+    justify-self: end;
+    max-width: 128px;
+    font-size: 9.5px;
+    line-height: 1.45;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.7);
+  }
+  .dashboard-screen.dash-home .dash-header-quote span::before { content: "\201C\00a0"; color: rgba(255, 255, 255, 0.5); }
+  .dashboard-screen.dash-home .dash-header-quote span::after { content: "\00a0\201D"; color: rgba(255, 255, 255, 0.5); }
+
+  /* Profile: no glass panel. Avatar ring, then name / XP / level as text. */
+  .dashboard-screen.dash-home .profile-card-avatar {
+    width: 62px !important;
+    height: 62px !important;
+    min-width: 62px !important;
+    border-width: 3px !important;
+    box-shadow: 0 0 0 2px rgba(232, 176, 75, 0.25), 0 6px 16px rgba(0, 0, 0, 0.5);
+  }
+  .dashboard-screen.dash-home .profile-card-lvl-badge {
+    width: 22px !important;
+    height: 22px !important;
+    bottom: -4px !important;
+    left: 30% !important;
+  }
+  .dashboard-screen.dash-home .profile-card-lvl-num { font-size: 10px !important; }
+  .dashboard-screen.dash-home .profile-card-panel {
+    background: none !important;
+    border: 0 !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    box-shadow: none !important;
+    margin-left: 0 !important;
+    padding: 0 0 0 12px !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    gap: 5px !important;
+  }
+  .dashboard-screen.dash-home .profile-card-username {
+    font-size: 19px !important;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+    min-width: 0;
+  }
+  .dashboard-screen.dash-home .profile-card-crown { font-size: 15px !important; }
+  .dashboard-screen.dash-home .profile-card-xp { gap: 5px; }
+  .dashboard-screen.dash-home .profile-card-xp-bar { width: min(130px, 30vw); height: 6px !important; }
+  .dashboard-screen.dash-home .profile-card-xp-text { font-size: 12px !important; color: rgba(255, 255, 255, 0.85); }
+  .dashboard-screen.dash-home .profile-card-level-text {
+    display: block;
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.55);
+    margin-top: -2px;
+  }
+
+  /* ── Body ───────────────────────────────────────────────────────────────── */
+  .dashboard-screen.dash-home .dash-main {
+    padding: 14px 16px 20px !important;
+    gap: 16px !important;
+  }
+
+  .dashboard-screen.dash-home .dash-nav-col {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px !important;
+  }
+  .dashboard-screen.dash-home .dash-nav-card--news { display: none !important; }
+
+  /* Every card is an art surface: image fills, a scrim keeps text legible. */
+  .dashboard-screen.dash-home .dash-nav-card--play,
+  .dashboard-screen.dash-home .dash-nav-card--tile {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+  }
+  .dashboard-screen.dash-home .dash-card-art {
+    display: block;
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: -2;
+  }
+  .dashboard-screen.dash-home .dash-nav-card--play::after,
+  .dashboard-screen.dash-home .dash-nav-card--tile::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+  }
+  .dashboard-screen.dash-home .dash-card-chev {
+    display: inline-block;
+    line-height: 1;
+  }
+
+  /* PLAY hero */
+  .dashboard-screen.dash-home .dash-nav-card--play {
+    grid-column: 1 / -1;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 10px;
+    min-height: 152px;
+    padding: 16px 18px;
+    border: 2px solid #e0382b;
+    border-radius: 12px;
+    background: radial-gradient(120% 140% at 85% 30%, #7a2416 0%, #3a0f0a 45%, #150605 100%);
+    box-shadow: 0 0 0 1px rgba(255, 90, 60, 0.25), 0 0 24px rgba(224, 56, 43, 0.5), inset 0 0 30px rgba(224, 56, 43, 0.22);
+  }
+  .dashboard-screen.dash-home .dash-nav-card--play:hover,
+  .dashboard-screen.dash-home .dash-nav-card--play:active {
+    border-color: #e0382b;
+    background: radial-gradient(120% 140% at 85% 30%, #7a2416 0%, #3a0f0a 45%, #150605 100%);
+    box-shadow: 0 0 0 1px rgba(255, 90, 60, 0.35), 0 0 32px rgba(224, 56, 43, 0.7), inset 0 0 30px rgba(224, 56, 43, 0.28);
+  }
+  .dashboard-screen.dash-home .dash-nav-card--play::after {
+    background: linear-gradient(90deg, rgba(20, 5, 4, 0.85) 0%, rgba(20, 5, 4, 0.45) 45%, rgba(20, 5, 4, 0) 75%);
+  }
+  .dashboard-screen.dash-home .dash-nav-card-icon--play {
+    width: 52px;
+    height: 52px;
+    background: radial-gradient(circle at 40% 35%, #e5412f, #b3201a);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45), inset 0 0 0 2px rgba(255, 255, 255, 0.08);
+  }
+  .dashboard-screen.dash-home .dash-play-swords { display: block; width: 30px; height: 30px; }
+  .dashboard-screen.dash-home .dash-nav-card--play .dash-nav-card-text { gap: 4px; }
+  .dashboard-screen.dash-home .dash-nav-card--play .dash-nav-card-name {
+    font-size: 44px;
+    font-weight: 900 !important;
+    line-height: 0.95;
+    letter-spacing: 0.01em;
+    text-shadow: 0 3px 12px rgba(0, 0, 0, 0.6);
+  }
+  .dashboard-screen.dash-home .dash-nav-card--play .dash-nav-card-sub {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 13px;
+    letter-spacing: 0.12em;
+    color: rgba(255, 255, 255, 0.72);
+  }
+  .dashboard-screen.dash-home .dash-nav-card--play .dash-card-chev { font-size: 24px; color: #fff; margin-top: -2px; }
+
+  /* Tiles */
+  .dashboard-screen.dash-home .dash-nav-card--tile {
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0;
+    min-height: 150px;
+    padding: 10px 4px 8px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: radial-gradient(110% 90% at 50% 25%, #26312b 0%, #111815 60%, #0a0f0c 100%);
+    text-align: center;
+  }
+  .dashboard-screen.dash-home .dash-nav-card--tile::after {
+    background: linear-gradient(180deg, rgba(6, 9, 8, 0.05) 0%, rgba(6, 9, 8, 0.25) 45%, rgba(6, 9, 8, 0.92) 100%);
+  }
+  .dashboard-screen.dash-home .dash-nav-card--tile .dash-nav-card-icon {
+    position: absolute;
+    top: 16%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 52px;
+    height: 52px;
+    background: none;
+    border-radius: 0;
+  }
+  .dashboard-screen.dash-home .dash-nav-card--tile .dash-nav-card-icon img { width: 64px; height: 64px; margin: -6px; filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.6)); }
+  .dashboard-screen.dash-home .dash-tile-glyph { display: block; width: 48px; height: 48px; filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.6)); }
+  .dashboard-screen.dash-home .dash-nav-card--tile .dash-nav-card-text { align-items: center; gap: 3px; width: 100%; }
+  .dashboard-screen.dash-home .dash-nav-card--tile .dash-nav-card-name {
+    justify-content: center;
+    font-size: clamp(10.5px, 3.15vw, 14px);
+    letter-spacing: 0;
+    white-space: nowrap;
+    text-shadow: 0 2px 6px rgba(0, 0, 0, 0.8);
+  }
+  .dashboard-screen.dash-home .dash-nav-card--tile .dash-nav-card-sub {
+    font-size: clamp(7.5px, 2.2vw, 9.5px);
+    letter-spacing: 0.04em;
+    line-height: 1.2;
+    color: rgba(255, 255, 255, 0.72);
+  }
+  .dashboard-screen.dash-home .dash-nav-card--tile .dash-card-chev { font-size: 20px; color: #fff; margin-top: 2px; }
+
+  /* ── Event card: tall, art full-bleed, text top-left ────────────────────── */
+  .dashboard-screen.dash-home .dash-content-col { gap: 16px; }
+  .dashboard-screen.dash-home .dash-event-card {
+    position: relative;
+    isolation: isolate;
+    min-height: 340px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: radial-gradient(120% 80% at 70% 45%, #3a2a1e 0%, #18140f 55%, #0b0a08 100%);
+  }
+  .dashboard-screen.dash-home .dash-event-art {
+    position: absolute;
+    inset: 0;
+    height: auto;
+    z-index: -2;
+    background: none;
+    align-items: flex-end;
+    padding-bottom: 18px;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.55);
+  }
+  .dashboard-screen.dash-home .dash-event-card::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background: linear-gradient(180deg, rgba(8, 8, 8, 0.72) 0%, rgba(8, 8, 8, 0.25) 40%, rgba(8, 8, 8, 0) 60%, rgba(8, 8, 8, 0.35) 100%);
+  }
+  .dashboard-screen.dash-home .dash-event-body { padding: 22px 20px; gap: 8px; }
+  .dashboard-screen.dash-home .dash-event-label { font-size: 13px; letter-spacing: 0.22em; color: #e0382b; }
+  .dashboard-screen.dash-home .dash-event-title { font-size: 38px; line-height: 1.05; font-weight: 700; }
+  .dashboard-screen.dash-home .dash-event-sub.mv-plain {
+    font-family: 'Crimson Text', Georgia, serif;
+    font-weight: 400;
+    font-size: 18px;
+    line-height: 1.35;
+    color: rgba(255, 255, 255, 0.88);
+    max-width: 270px;
+  }
+  .dashboard-screen.dash-home .dash-event-dots { display: none; }
+}
+
+@media (max-width: 400px) {
+  .dashboard-screen.dash-home .dashboard-header { padding: 18px 12px 4px !important; }
+  .dashboard-screen.dash-home .header-icon-group { gap: 6px !important; }
+  .dashboard-screen.dash-home .header-icon-bubble {
+    width: 42px !important; height: 42px !important; min-width: 42px !important; min-height: 42px !important;
+  }
+  .dashboard-screen.dash-home .header-icon-bubble .header-icon-img,
+  .dashboard-screen.dash-home .header-icon-bubble.settings-btn .header-icon-img {
+    width: 38px !important; height: 38px !important; min-width: 38px !important; min-height: 38px !important; max-width: 38px !important; max-height: 38px !important;
+  }
+  .dashboard-screen.dash-home .profile-card-avatar { width: 52px !important; height: 52px !important; min-width: 52px !important; }
+  .dashboard-screen.dash-home .profile-card-username { font-size: 16px !important; }
+  .dashboard-screen.dash-home .currency-pill { gap: 7px !important; padding: 8px 8px 8px 10px !important; }
+  .dashboard-screen.dash-home .currency-value { font-size: 14px; }
+  .dashboard-screen.dash-home .currency-add { width: 20px; height: 20px; }
+  .dashboard-screen.dash-home .dash-header-quote { font-size: 8.5px; max-width: 104px; }
+  .dashboard-screen.dash-home .dash-main { padding: 12px 12px 20px !important; }
+  .dashboard-screen.dash-home .dash-nav-col { gap: 8px !important; }
+  .dashboard-screen.dash-home .dash-nav-card--play .dash-nav-card-name { font-size: 38px; }
+  .dashboard-screen.dash-home .dash-nav-card--tile { min-height: 136px; }
+}
+
+@media (max-width: 340px) {
+  .dashboard-screen.dash-home .dash-header-quote { display: none; }
+}

@@ -149,6 +149,51 @@ function getRank(xp) {
   return { tier: '∞', name: 'Chief Physician', next: null, progress: 1 };
 }
 
+// ── Mobile home-card furniture ─────────────────────────────────────────────────
+// Phone layout (≤600px) follows the mobile home mockup: an art-backed PLAY hero,
+// a three-up tile row and a tall event card. These bits render everywhere but
+// are display:none above 600px (Dashboard.css, "MOBILE HOME"), so desktop is
+// unchanged. Card art comes from admin → Home Page (home_*_art slots).
+function CardArt({ src }) {
+  return src ? <img className="dash-card-art" src={src} alt="" loading="lazy" /> : null;
+}
+const Chevron = () => <span className="dash-card-chev" aria-hidden="true">›</span>;
+const SwordsGlyph = () => (
+  <svg className="dash-play-swords" viewBox="0 0 48 48" aria-hidden="true">
+    {/* Two blades crossing, each with a crossguard, grip and pommel. */}
+    <g fill="#fff">
+      <path d="M6 6 L12.5 7.5 L31 26 L26 31 L7.5 12.5 Z" />
+      <path d="M42 6 L35.5 7.5 L17 26 L22 31 L40.5 12.5 Z" />
+    </g>
+    <g fill="none" stroke="#fff" strokeWidth="3.4" strokeLinecap="round">
+      <path d="M24 34 L34 24" /><path d="M14 24 L24 34" />
+      <path d="M31 31 L37 37" /><path d="M17 31 L11 37" />
+    </g>
+    <circle cx="39" cy="39" r="2.8" fill="#fff" /><circle cx="9" cy="39" r="2.8" fill="#fff" />
+  </svg>
+);
+const TrophyGlyph = () => (
+  <svg className="dash-tile-glyph" viewBox="0 0 48 48" aria-hidden="true">
+    <path fill="#e8b04b" d="M14 6h20v4h8v5c0 6-4 10-9.5 10.8A11 11 0 0 1 26 31v5h6v6H16v-6h6v-5a11 11 0 0 1-6.5-5.2C10 25 6 21 6 15v-5h8V6Zm-4 8v1c0 3.3 1.8 5.8 4.6 6.6A18 18 0 0 1 14 17v-3h-4Zm24 0v3c0 1.6-.2 3.1-.6 4.6C36.2 20.8 38 18.3 38 15v-1h-4Z"/>
+  </svg>
+);
+const GroupGlyph = () => (
+  <svg className="dash-tile-glyph" viewBox="0 0 48 48" aria-hidden="true">
+    <g fill="#e9ecf2">
+      <circle cx="24" cy="15" r="7" /><circle cx="11" cy="19" r="5" /><circle cx="37" cy="19" r="5" />
+      <path d="M12 40c0-7 5.4-12 12-12s12 5 12 12Z" />
+      <path d="M2 38c0-5 3.6-9 8.5-9 1.6 0 3 .4 4.2 1.1A15 15 0 0 0 10 38Z" />
+      <path d="M46 38c0-5-3.6-9-8.5-9-1.6 0-3 .4-4.2 1.1A15 15 0 0 1 38 38Z" />
+    </g>
+  </svg>
+);
+const PlayRingGlyph = () => (
+  <svg className="dash-tile-glyph" viewBox="0 0 48 48" aria-hidden="true">
+    <circle cx="24" cy="24" r="20" fill="rgba(0,0,0,0.35)" stroke="#e8b04b" strokeWidth="3" />
+    <path fill="#e8b04b" d="M19 15.5v17l14-8.5Z" />
+  </svg>
+);
+
 // ── Home Section (RPG Style) ───────────────────────────────────────────────────
 // Shared by both shells. The old shell passes navCards (left nav column JSX,
 // built by Dashboard which owns the tab handlers) and onViewAllNews; the
@@ -220,12 +265,16 @@ function HomeSection({ user, bgUrl, onUserUpdate, homeImages, navCards, onViewAl
             label, and dots are purely decorative; nothing here is clickable
             or wired to data by design. */}
         {navCards && (
-          <div className="dash-event-card" aria-hidden="true">
-            <div className="dash-event-art">event art placeholder</div>
+          <div className={`dash-event-card${homeImages?.home_event_art ? ' has-art' : ''}`} aria-hidden="true">
+            <div className="dash-event-art">
+              {homeImages?.home_event_art
+                ? <img className="dash-event-art-img" src={homeImages.home_event_art} alt="" loading="lazy" />
+                : <span className="dash-event-art-label">event art placeholder</span>}
+            </div>
             <div className="dash-event-body">
               <div className="dash-event-label">NEW EVENT</div>
               <div className="dash-event-title">Coming Soon</div>
-              <div className="dash-event-sub">Seasonal events will appear here in a future update.</div>
+              <div className="dash-event-sub mv-plain">Seasonal events will appear here in a future update.</div>
               <div className="dash-event-dots">
                 <span className="dash-event-dot dash-event-dot--on" />
                 <span className="dash-event-dot" />
@@ -1066,7 +1115,7 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
   const gems = user.gems || 0;
 
   return (
-    <div className="dashboard-screen">
+    <div className={`dashboard-screen${dashTab === 'home' ? ' dash-home' : ''}`}>
       {/* Background */}
       <div className="dashboard-bg">
         {bgUrl && (
@@ -1128,6 +1177,7 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
                   <div className="profile-card-xp-text">
                     {((user.xp || 0) % 500).toLocaleString()} / 500 XP
                   </div>
+                  <div className="profile-card-level-text">Level {user.level || 1}</div>
                 </div>
               </div>
             </div>
@@ -1150,6 +1200,10 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
                 <span className="currency-value mv-plain">{gems.toLocaleString()}</span>
                 <a className="currency-add" href="/shop?tab=currency" title="Get more gems" aria-label="Get more gems">+</a>
               </div>
+            </div>
+
+            <div className="dash-header-quote" aria-hidden="true">
+              <span>Warriors build a brighter tomorrow</span>
             </div>
 
             {/* Individual Icon Bubbles */}
@@ -1244,39 +1298,47 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
               navCards={
                 <>
                   <button type="button" className="dash-nav-card dash-nav-card--play" onClick={onPlayNow}>
+                    <CardArt src={homeImages.home_play_art} />
                     <span className="dash-nav-card-icon dash-nav-card-icon--play">
-                      {homeImages.icon_play
-                        ? <img loading="lazy" src={homeImages.icon_play} alt="" />
-                        : '▶'}
+                      <span className="dash-desktop-only">
+                        {homeImages.icon_play
+                          ? <img loading="lazy" src={homeImages.icon_play} alt="" />
+                          : '▶'}
+                      </span>
+                      <SwordsGlyph />
                     </span>
                     <span className="dash-nav-card-text">
                       <span className="dash-nav-card-name">PLAY</span>
-                      <span className="dash-nav-card-sub">ENTER THE WARZONE</span>
+                      <span className="dash-nav-card-sub">ENTER THE WARZONE<Chevron /></span>
                     </span>
                   </button>
-                  <button type="button" className="dash-nav-card" onClick={() => setDashTab('leaderboard')}>
+                  <button type="button" className="dash-nav-card dash-nav-card--tile" onClick={() => setDashTab('leaderboard')}>
+                    <CardArt src={homeImages.home_leaderboards_art} />
                     <span className="dash-nav-card-icon">
                       {homeImages.icon_leaderboards
                         ? <img loading="lazy" src={homeImages.icon_leaderboards} alt="" />
-                        : '🏆'}
+                        : <><span className="dash-desktop-only">🏆</span><TrophyGlyph /></>}
                     </span>
                     <span className="dash-nav-card-text">
                       <span className="dash-nav-card-name">LEADERBOARDS</span>
                       <span className="dash-nav-card-sub">TOP WARRIORS</span>
+                      <Chevron />
                     </span>
                   </button>
-                  <button type="button" className="dash-nav-card" onClick={() => setDashTab('clans')}>
+                  <button type="button" className="dash-nav-card dash-nav-card--tile" onClick={() => setDashTab('clans')}>
+                    <CardArt src={homeImages.home_clans_art} />
                     <span className="dash-nav-card-icon">
                       {homeImages.icon_clans
                         ? <img loading="lazy" src={homeImages.icon_clans} alt="" />
-                        : '🛡️'}
+                        : <><span className="dash-desktop-only">🛡️</span><GroupGlyph /></>}
                     </span>
                     <span className="dash-nav-card-text">
                       <span className="dash-nav-card-name">CLANS</span>
                       <span className="dash-nav-card-sub">FIGHT TOGETHER</span>
+                      <Chevron />
                     </span>
                   </button>
-                  <button type="button" className="dash-nav-card" onClick={handleAnnouncementsTab}>
+                  <button type="button" className="dash-nav-card dash-nav-card--news" onClick={handleAnnouncementsTab}>
                     <span className="dash-nav-card-icon">
                       {homeImages.icon_news
                         ? <img loading="lazy" src={homeImages.icon_news} alt="" />
@@ -1294,15 +1356,17 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
                       is a standalone route rather than a dash tab: ShortsFeed is a
                       full-viewport scroll-snap feed, and .dash-tab-wrap's header
                       clearance would crop every slide. */}
-                  <button type="button" className="dash-nav-card" onClick={() => { window.location.href = '/reels'; }}>
+                  <button type="button" className="dash-nav-card dash-nav-card--tile" onClick={() => { window.location.href = '/reels'; }}>
+                    <CardArt src={homeImages.home_reels_art} />
                     <span className="dash-nav-card-icon">
                       {homeImages.icon_reels
                         ? <img loading="lazy" src={homeImages.icon_reels} alt="" />
-                        : '▶'}
+                        : <><span className="dash-desktop-only">▶</span><PlayRingGlyph /></>}
                     </span>
                     <span className="dash-nav-card-text">
                       <span className="dash-nav-card-name">REELS</span>
                       <span className="dash-nav-card-sub">CLIPS &amp; CHRONICLES</span>
+                      <Chevron />
                     </span>
                   </button>
                 </>

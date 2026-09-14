@@ -9438,6 +9438,11 @@ function SettingsPanel() {
 function HomePagePanel() {
   const [homeImages, setHomeImages] = useState({
     dashboard_bg: '',
+    home_play_art: '',
+    home_leaderboards_art: '',
+    home_clans_art: '',
+    home_reels_art: '',
+    home_event_art: '',
     icon_home: '',
     icon_leaderboards: '',
     icon_clans: '',
@@ -9555,6 +9560,12 @@ function HomePagePanel() {
 
   const imageSlots = [
     { id: 'dashboard_bg', label: 'Dashboard Background', desc: 'Background image for home page dashboard' },
+    // Phone home layout card art (shown at 600px wide and below; event art shows on desktop too).
+    { id: 'home_play_art', label: 'PLAY Card Art (mobile)', desc: 'Wide art behind the PLAY hero card. Keep the left side dark: the text sits there' },
+    { id: 'home_leaderboards_art', label: 'Leaderboards Tile Art (mobile)', desc: 'Portrait art behind the Leaderboards tile' },
+    { id: 'home_clans_art', label: 'Clans Tile Art (mobile)', desc: 'Portrait art behind the Clans tile' },
+    { id: 'home_reels_art', label: 'Reels Tile Art (mobile)', desc: 'Portrait art behind the Reels tile' },
+    { id: 'home_event_art', label: 'Event Card Art', desc: 'Tall art for the New Event card. Keep the top-left calm: the title sits there' },
     /* footer_bg removed: it uploaded fine but nothing has rendered it since the
        .bottom-nav pill was retired. The Supabase row is left in place. */
   ];
