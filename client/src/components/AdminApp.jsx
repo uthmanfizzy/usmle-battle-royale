@@ -10091,6 +10091,54 @@ function GamesPanel({ subjects }) {
   );
 }
 
+// ── Pages ─────────────────────────────────────────────────────────────────────
+// Landing / Play / Home page editors under one nav entry, same picker pattern
+// as Games. Each option renders the panel its old top-level tab did.
+const ADMIN_PAGES = [
+  { id: 'landing',  icon: '🖼️', label: 'Landing Page' },
+  { id: 'playpage', icon: '🎮', label: 'Play Page' },
+  { id: 'homepage', icon: '🏠', label: 'Home Page' },
+];
+const ADMIN_PAGE_KEY = 'mr_admin_page';
+
+function PagesPanel() {
+  const [page, setPage] = useState(() => {
+    try {
+      const saved = localStorage.getItem(ADMIN_PAGE_KEY);
+      return ADMIN_PAGES.some(x => x.id === saved) ? saved : 'landing';
+    } catch { return 'landing'; }
+  });
+  const choose = (id) => {
+    setPage(id);
+    try { localStorage.setItem(ADMIN_PAGE_KEY, id); } catch { /* private mode */ }
+  };
+
+  return (
+    <div className="ap-games">
+      <div className="ap-games-picker" role="tablist" aria-label="Page">
+        {ADMIN_PAGES.map(x => (
+          <button
+            key={x.id}
+            type="button"
+            role="tab"
+            aria-selected={page === x.id}
+            className={`ap-games-option${page === x.id ? ' active' : ''}`}
+            onClick={() => choose(x.id)}
+          >
+            <span className="ap-games-icon" aria-hidden="true">{x.icon}</span>
+            <span>{x.label}</span>
+          </button>
+        ))}
+      </div>
+      <div className="ap-games-body">
+        {page === 'landing'  && <LandingImagesPanel />}
+        {page === 'playpage' && <PlayPageAdmin />}
+        {page === 'homepage' && <HomePagePanel />}
+      </div>
+    </div>
+  );
+}
+
 export default function AdminApp() {
   const [authed, setAuthed] = useState(() => !!localStorage.getItem(AUTH_KEY));
   const [tab, setTab] = useState('stats');
@@ -10186,14 +10234,8 @@ export default function AdminApp() {
         <button className={`ap-nav-btn ${tab === 'guide'         ? 'active' : ''}`} onClick={() => setTab('guide')}>
           📖 Guide
         </button>
-        <button className={`ap-nav-btn ${tab === 'landing'       ? 'active' : ''}`} onClick={() => setTab('landing')}>
-          🖼️ Landing Page
-        </button>
-        <button className={`ap-nav-btn ${tab === 'playpage'     ? 'active' : ''}`} onClick={() => setTab('playpage')}>
-          🎮 Play Page
-        </button>
-        <button className={`ap-nav-btn ${tab === 'homepage'      ? 'active' : ''}`} onClick={() => setTab('homepage')}>
-          🏠 Home Page
+        <button className={`ap-nav-btn ${tab === 'pages'         ? 'active' : ''}`} onClick={() => setTab('pages')}>
+          🖼️ Pages
         </button>
         <button className={`ap-nav-btn ${tab === 'settings'      ? 'active' : ''}`} onClick={() => setTab('settings')}>
           ⚙️ Game Settings
@@ -10215,9 +10257,7 @@ export default function AdminApp() {
         {tab === 'journeyeditor' && <JourneyPageEditor />}
         {tab === 'announcements' && <AnnouncementsPanel />}
         {tab === 'guide'         && <GuidePanel />}
-        {tab === 'landing'       && <LandingImagesPanel />}
-        {tab === 'playpage'      && <PlayPageAdmin />}
-        {tab === 'homepage'      && <HomePagePanel />}
+        {tab === 'pages'         && <PagesPanel />}
         {tab === 'settings'      && (
           <>
             <SettingsPanel />

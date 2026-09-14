@@ -19,10 +19,20 @@ export default function ModeSplit({ onStory, onOnline, onTraining, onBack }) {
           <span className="ms-card-name">STORY MODE</span>
           <span className="ms-card-sub">Solo campaigns — Journey, Flashcards &amp; more</span>
         </button>
-        <button className="ms-card ms-card--online" onClick={onOnline}>
+        {/* Online is closed while it is under development: the card stays so
+            players can see it is coming, but it is inert. Re-enable by restoring
+            onClick={onOnline} and dropping the locked state. */}
+        <button
+          type="button"
+          className="ms-card ms-card--online ms-card--locked"
+          disabled
+          title="Online is under development"
+        >
+          <span className="ms-card-lock" aria-hidden="true">🔒</span>
           <span className="ms-card-icon">⚔️</span>
           <span className="ms-card-name">ONLINE</span>
           <span className="ms-card-sub">Battle other doctors live</span>
+          <span className="ms-card-dev">Under development</span>
         </button>
       </div>
 

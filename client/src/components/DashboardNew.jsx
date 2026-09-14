@@ -5,6 +5,7 @@ import ClansPage from './ClansPage';
 import ShortsFeed from './ShortsFeed';
 import { HomeSection, LeaderboardSection, AnnouncementsSection } from './Dashboard';
 import './DashboardNew.css';
+import { cachedImageMap, rememberImageMap } from '../utils/cachedImages';
 
 // New dashboard shell. Bottom nav: Home · Stats · Shorts · Play.
 // Leaderboards / Clans / News are reached from cards INSIDE Home (not the bar).
@@ -50,8 +51,8 @@ export default function DashboardNew({ user, onPlayNow, onLogout, onUserUpdate }
   const notifDropdownRef    = useRef(null);
   const friendsDropdownRef  = useRef(null);
 
-  const [bgUrl,      setBgUrl]      = useState(null);
-  const [homeImages, setHomeImages] = useState({});
+  const [bgUrl,      setBgUrl]      = useState(() => cachedImageMap('home').dashboard_bg || null);
+  const [homeImages, setHomeImages] = useState(() => cachedImageMap('home'));
 
   // Same data the current dashboard loads: admin images + unread news count
   useEffect(() => {
@@ -59,6 +60,7 @@ export default function DashboardNew({ user, onPlayNow, onLogout, onUserUpdate }
       .then(r => r.json())
       .then(d => {
         if (d.images) {
+          rememberImageMap('home', d.images);
           setHomeImages(d.images);
           if (d.images.dashboard_bg) setBgUrl(d.images.dashboard_bg);
         }

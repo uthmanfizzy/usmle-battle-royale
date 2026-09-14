@@ -1,6 +1,7 @@
 import { useState, useEffect, Fragment } from 'react';
 import { authFetch } from '../auth';
 import './PlayPage.css';
+import { cachedImageMap, rememberImageMap } from '../utils/cachedImages';
 import AnKingMode from './AnKingMode';
 
 const GAME_MODES = [
@@ -82,7 +83,7 @@ export default function PlayPage({
   const [selectedStep] = useState('step1');
   const [fillTeam] = useState(false);
   const [gameModesConfig, setGameModesConfig] = useState({});
-  const [playBgImage, setPlayBgImage] = useState('');
+  const [playBgImage, setPlayBgImage] = useState(() => cachedImageMap('play').play_page_background || '');
   const [lobbyCode, setLobbyCode] = useState('');
   const [joinError, setJoinError] = useState('');
   const [ownedGear, setOwnedGear] = useState([]);
@@ -105,6 +106,7 @@ export default function PlayPage({
         const res = await authFetch('/api/game-settings');
         const data = await res.json();
         setGameModesConfig(data.game_modes_config || {});
+        rememberImageMap('play', { play_page_background: data.play_page_background || '' });
         setPlayBgImage(data.play_page_background || '');
       } catch (err) {
         console.error('Failed to load configs:', err);

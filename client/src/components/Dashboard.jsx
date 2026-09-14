@@ -6,6 +6,7 @@ import NotificationsDropdown from './NotificationsDropdown';
 import ClansPage from './ClansPage';
 import { SwordsGlyph, TrophyGlyph, GroupGlyph, PlayRingGlyph } from './HomeGlyphs';
 import UsernameChangeModal from './UsernameChangeModal';
+import { cachedImageMap, rememberImageMap, isImageReady } from '../utils/cachedImages';
 import DashboardAmbient from './DashboardAmbient';
 import './Dashboard.css';
 
@@ -156,7 +157,7 @@ function getRank(xp) {
 // are display:none above 600px (Dashboard.css, "MOBILE HOME"), so desktop is
 // unchanged. Card art comes from admin → Home Page (home_*_art slots).
 function CardArt({ src }) {
-  return src ? <img className="dash-card-art" src={src} alt="" loading="lazy" /> : null;
+  return src ? <img className="dash-card-art" src={src} alt="" /> : null;
 }
 const Chevron = () => <span className="dash-card-chev" aria-hidden="true">›</span>;
 // ── Home Section (RPG Style) ───────────────────────────────────────────────────
@@ -166,11 +167,14 @@ const Chevron = () => <span className="dash-card-chev" aria-hidden="true">›</s
 // to the top via .dn-screen .dash-center-col { order: -1 }).
 function HomeSection({ user, bgUrl, onUserUpdate, homeImages, navCards, onViewAllNews, withWelcome, announcements = [] }) {
   const [showUsernameModal, setShowUsernameModal] = useState(false);
-  const [panelBackgrounds, setPanelBackgrounds] = useState({
-    profile_panel_bg: '',
-    stats_panel_bg: '',
-    quests_panel_bg: '',
-    recent_games_panel_bg: '',
+  const [panelBackgrounds, setPanelBackgrounds] = useState(() => {
+    const c = cachedImageMap('home');
+    return {
+      profile_panel_bg: c.profile_panel_bg || '',
+      stats_panel_bg: c.stats_panel_bg || '',
+      quests_panel_bg: c.quests_panel_bg || '',
+      recent_games_panel_bg: c.recent_games_panel_bg || '',
+    };
   });
 
   const xp          = user.xp    || 0;
@@ -233,7 +237,7 @@ function HomeSection({ user, bgUrl, onUserUpdate, homeImages, navCards, onViewAl
           <div className={`dash-event-card${homeImages?.home_event_art ? ' has-art' : ''}`} aria-hidden="true">
             <div className="dash-event-art">
               {homeImages?.home_event_art
-                ? <img className="dash-event-art-img" src={homeImages.home_event_art} alt="" loading="lazy" />
+                ? <img className="dash-event-art-img" src={homeImages.home_event_art} alt="" />
                 : <span className="dash-event-art-label">event art placeholder</span>}
             </div>
             <div className="dash-event-body">
@@ -875,22 +879,12 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
   const [showFriendsPanel, setShowFriendsPanel] = useState(false);
   const friendsDropdownRef = useRef(null);
   const notifDropdownRef = useRef(null);
-  const [bgUrl,        setBgUrl]        = useState(null);
-  const [bgLoaded,     setBgLoaded]     = useState(false); // fade the bg in on load
-  const [homeImages,   setHomeImages]   = useState({
-    dashboard_bg: '',
-    icon_home: '',
-    icon_leaderboards: '',
-    icon_clans: '',
-    icon_news: '',
-    icon_play: '',
-    icon_coins: '',
-    icon_gems: '',
-    icon_notification: '',
-    icon_friends: '',
-    icon_settings: '',
-    chest_image: '',
-  });
+  // Seeded from the last-known image URLs so a refresh paints the art at once
+  // instead of flashing empty until /api/home-images answers (utils/cachedImages).
+  const [bgUrl,        setBgUrl]        = useState(() => cachedImageMap('home').dashboard_bg || null);
+  // Fade the bg in on load — skipped when the browser already has the file.
+  const [bgLoaded,     setBgLoaded]     = useState(() => isImageReady(cachedImageMap('home').dashboard_bg));
+  const [homeImages,   setHomeImages]   = useState(() => cachedImageMap('home'));
 
   // DEBUG: Catch runtime errors to diagnose black screen
   useEffect(() => {
@@ -922,8 +916,8 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
     fetch(`${SERVER_URL}/api/home-images`)
       .then(r => r.json())
       .then(d => {
-        console.log('Home images loaded:', d.images);
         if (d.images) {
+          rememberImageMap('home', d.images);
           setHomeImages(d.images);
           // Set dashboard background
           if (d.images.dashboard_bg) setBgUrl(d.images.dashboard_bg);
@@ -1181,7 +1175,7 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
                   title="Notifications"
                 >
                   {homeImages.icon_notification ? (
-                    <img loading="lazy" src={homeImages.icon_notification} alt="Notifications" className="header-icon-img" />
+                    <img src={homeImages.icon_notification} alt="Notifications" className="header-icon-img" />
                   ) : (
                     <span>🔔</span>
                   )}
@@ -1208,7 +1202,7 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
                   aria-pressed={dashTab === 'friends'}
                 >
                   {homeImages.icon_friends ? (
-                    <img loading="lazy" src={homeImages.icon_friends} alt="Friends" className="header-icon-img" />
+                    <img src={homeImages.icon_friends} alt="Friends" className="header-icon-img" />
                   ) : (
                     <span>👥</span>
                   )}
@@ -1225,7 +1219,7 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
               >
                 {homeImages.icon_settings ? (
                   <img
-                    loading="lazy"
+                   
                     src={homeImages.icon_settings}
                     alt="Settings"
                     className="header-icon-img"
@@ -1256,7 +1250,7 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
                     <span className="dash-nav-card-icon dash-nav-card-icon--play">
                       <span className="dash-desktop-only">
                         {homeImages.icon_play
-                          ? <img loading="lazy" src={homeImages.icon_play} alt="" />
+                          ? <img src={homeImages.icon_play} alt="" />
                           : '▶'}
                       </span>
                       <SwordsGlyph />
@@ -1270,7 +1264,7 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
                     <CardArt src={homeImages.home_leaderboards_art} />
                     <span className="dash-nav-card-icon">
                       {homeImages.icon_leaderboards
-                        ? <img loading="lazy" src={homeImages.icon_leaderboards} alt="" />
+                        ? <img src={homeImages.icon_leaderboards} alt="" />
                         : <><span className="dash-desktop-only">🏆</span><TrophyGlyph /></>}
                     </span>
                     <span className="dash-nav-card-text">
@@ -1283,7 +1277,7 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
                     <CardArt src={homeImages.home_clans_art} />
                     <span className="dash-nav-card-icon">
                       {homeImages.icon_clans
-                        ? <img loading="lazy" src={homeImages.icon_clans} alt="" />
+                        ? <img src={homeImages.icon_clans} alt="" />
                         : <><span className="dash-desktop-only">🛡️</span><GroupGlyph /></>}
                     </span>
                     <span className="dash-nav-card-text">
@@ -1295,7 +1289,7 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
                   <button type="button" className="dash-nav-card dash-nav-card--news" onClick={handleAnnouncementsTab}>
                     <span className="dash-nav-card-icon">
                       {homeImages.icon_news
-                        ? <img loading="lazy" src={homeImages.icon_news} alt="" />
+                        ? <img src={homeImages.icon_news} alt="" />
                         : '📰'}
                     </span>
                     <span className="dash-nav-card-text">
@@ -1314,7 +1308,7 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
                     <CardArt src={homeImages.home_reels_art} />
                     <span className="dash-nav-card-icon">
                       {homeImages.icon_reels
-                        ? <img loading="lazy" src={homeImages.icon_reels} alt="" />
+                        ? <img src={homeImages.icon_reels} alt="" />
                         : <><span className="dash-desktop-only">▶</span><PlayRingGlyph /></>}
                     </span>
                     <span className="dash-nav-card-text">

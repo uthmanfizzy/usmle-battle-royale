@@ -4,6 +4,7 @@ import { JOURNEY_SUBJECTS, JOURNEY_SECTIONS } from '../journeySubjects';
 import { parseShortUrl, embedUrlStatic } from '../utils/shortEmbeds';
 import { getStarCount } from '../utils/journeyStars';
 import './JourneyMode.css';
+import { cachedImageMap, rememberImageMap } from '../utils/cachedImages';
 
 const SERVER = 'https://usmle-battle-royale-production.up.railway.app';
 
@@ -67,7 +68,7 @@ export default function JourneyMode({
   const [confError,    setConfError]    = useState('');   // why a confidence rating failed to save
   const [videoModalOpen, setVideoModalOpen] = useState(false); // recommended-videos list, opened from the confirm card
   const [interstitial, setInterstitial] = useState(null); // null | { status: 'saving'|'complete'|'tryagain'|'save_failed', pct, threshold?, retryPayload? }
-  const [bgUrl,       setBgUrl]       = useState(null);       // admin-set backdrop (landing-images slot 'journey_bg')
+  const [bgUrl,       setBgUrl]       = useState(() => cachedImageMap('landing').journey_bg || null);       // admin-set backdrop (landing-images slot 'journey_bg')
   const [activeIds,   setActiveIds]   = useState(null);       // Set of active subject ids; null = not loaded → show all
   const [subjectProgress, setSubjectProgress] = useState({}); // { subjectId: { done, total } } for the picker's bars
 
@@ -123,7 +124,7 @@ export default function JourneyMode({
   useEffect(() => {
     fetch(`${SERVER}/api/landing-images`)
       .then(r => r.json())
-      .then(d => setBgUrl(d.images?.journey_bg || null))
+      .then(d => { rememberImageMap('landing', d.images); setBgUrl(d.images?.journey_bg || null); })
       .catch(() => {}); // no backdrop → pure-parchment look
     fetch(`${SERVER}/api/game-settings`)
       .then(r => r.json())

@@ -854,3 +854,36 @@
 @media (min-width: 900px) and (max-width: 1099px) {
   .ms-campaign-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+/* ── Locked Online card (under development) ─────────────────────────────── */
+.ms-cards > .ms-card.ms-card--locked {
+  position: relative;
+  cursor: not-allowed;
+}
+.ms-cards > .ms-card.ms-card--locked > .ms-card-icon,
+.ms-cards > .ms-card.ms-card--locked > .ms-card-name,
+.ms-cards > .ms-card.ms-card--locked > .ms-card-sub { opacity: 0.45; filter: grayscale(0.7); }
+.ms-cards > .ms-card.ms-card--locked:hover {
+  transform: none;
+  border-color: rgba(255, 255, 255, 0.16);
+  box-shadow: none;
+}
+.ms-card-lock {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  font-size: 20px;
+}
+.ms-card-dev {
+  margin-top: 4px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(232, 176, 75, 0.55);
+  background: rgba(232, 176, 75, 0.14);
+  color: #e8b04b;
+  font-family: var(--mv-font-display, 'Cinzel', serif);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
