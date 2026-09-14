@@ -812,6 +812,16 @@ function apiCall(path, options = {}) {
       'x-admin-password': localStorage.getItem(AUTH_KEY) || '',
       ...(options.headers || {}),
     },
+  }).then((res) => {
+    // A saved password the server no longer accepts (e.g. after the password
+    // was changed) used to leave the panel open with every section failing
+    // "Unauthorized". Drop the stale session and go back to the login screen.
+    if ((res.status === 401 || res.status === 429) && localStorage.getItem(AUTH_KEY)) {
+      localStorage.removeItem(AUTH_KEY);
+      try { sessionStorage.setItem('admin_login_notice', res.status === 429 ? 'locked' : 'expired'); } catch {}
+      window.location.reload();
+    }
+    return res;
   });
 }
 
@@ -844,7 +854,14 @@ function buildIdTaggedExport(questions) {
 
 function AdminLogin({ onLogin }) {
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  // Why we're back on this screen, if an admin request bounced us here.
+  const [error, setError] = useState(() => {
+    let notice = null;
+    try { notice = sessionStorage.getItem('admin_login_notice'); sessionStorage.removeItem('admin_login_notice'); } catch {}
+    if (notice === 'locked') return 'Too many wrong passwords from this connection. Wait 15 minutes, then log in again.';
+    if (notice === 'expired') return 'Your saved admin password is no longer accepted. Please log in with the current password.';
+    return '';
+  });
   const [loading, setLoading] = useState(false);
   const [show, setShow] = useState(false);
 
@@ -859,6 +876,8 @@ function AdminLogin({ onLogin }) {
       if (res.ok) {
         localStorage.setItem(AUTH_KEY, password);
         onLogin();
+      } else if (res.status === 429) {
+        setError('Too many wrong passwords from this connection. Wait 15 minutes, then try again.');
       } else {
         setError('Incorrect password. Please try again.');
       }

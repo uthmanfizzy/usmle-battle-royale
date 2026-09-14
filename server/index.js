@@ -677,11 +677,16 @@ function adminLockedOut(req) {
   if (Date.now() > rec.resetAt) { adminFailures.delete(req.ip); return false; }
   return rec.count >= ADMIN_FAIL_LIMIT;
 }
-function noteAdminFailure(req) {
+// Counts DISTINCT wrong passwords, not requests. The admin panel fires many
+// requests at once, so a browser still holding an old saved password would
+// otherwise lock its owner out within a single page load. Brute force needs
+// many different guesses, which this still stops.
+function noteAdminFailure(req, given) {
   const now = Date.now();
-  const rec = adminFailures.get(req.ip);
-  if (!rec || now > rec.resetAt) adminFailures.set(req.ip, { count: 1, resetAt: now + ADMIN_FAIL_WINDOW_MS });
-  else rec.count += 1;
+  const tag = require('crypto').createHash('sha256').update(String(given)).digest('hex');
+  let rec = adminFailures.get(req.ip);
+  if (!rec || now > rec.resetAt) { rec = { count: 0, seen: new Set(), resetAt: now + ADMIN_FAIL_WINDOW_MS }; adminFailures.set(req.ip, rec); }
+  if (!rec.seen.has(tag)) { rec.seen.add(tag); rec.count += 1; }
 }
 function isOwnerPassword(req) {
   const given = req.headers['x-admin-password'];
@@ -690,7 +695,7 @@ function isOwnerPassword(req) {
   const a = Buffer.from(given);
   const b = Buffer.from(ADMIN_PASSWORD);
   const ok = a.length === b.length && require('crypto').timingSafeEqual(a, b);
-  if (!ok) noteAdminFailure(req);
+  if (!ok) noteAdminFailure(req, given);
   return ok;
 }
 
