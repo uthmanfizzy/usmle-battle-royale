@@ -10022,6 +10022,75 @@ function JourneyPageEditor() {
   );
 }
 
+// ── Games ─────────────────────────────────────────────────────────────────────
+// One nav entry for every game mode's admin. Each option renders the same panel
+// its old top-level tab did — nothing about the panels themselves changed. The
+// last game opened is remembered on this browser.
+const ADMIN_GAMES = [
+  { id: 'journey',      icon: '🚑', label: 'First Aid Journey' },
+  { id: 'saudi_mle',    icon: '📗', label: 'SMLE' },
+  { id: 'hyflashcards', icon: '🎴', label: 'HY Flashcards' },
+  { id: 'uworld',       icon: '🌍', label: 'UWorld Adventure' },
+  { id: 'anking',       icon: '🃏', label: 'AnKing' },
+  { id: 'tower',        icon: '🏰', label: 'Tower' },
+];
+const ADMIN_GAME_KEY = 'mr_admin_game';
+
+function GamesPanel({ subjects }) {
+  const [game, setGame] = useState(() => {
+    try {
+      const saved = localStorage.getItem(ADMIN_GAME_KEY);
+      return ADMIN_GAMES.some(g => g.id === saved) ? saved : 'journey';
+    } catch { return 'journey'; }
+  });
+  const choose = (id) => {
+    setGame(id);
+    try { localStorage.setItem(ADMIN_GAME_KEY, id); } catch { /* private mode */ }
+  };
+
+  return (
+    <div className="ap-games">
+      <div className="ap-games-picker" role="tablist" aria-label="Game">
+        {ADMIN_GAMES.map(g => (
+          <button
+            key={g.id}
+            type="button"
+            role="tab"
+            aria-selected={game === g.id}
+            className={`ap-games-option${game === g.id ? ' active' : ''}`}
+            onClick={() => choose(g.id)}
+          >
+            <span className="ap-games-icon" aria-hidden="true">{g.icon}</span>
+            <span>{g.label}</span>
+          </button>
+        ))}
+      </div>
+
+      <div className="ap-games-body">
+        {game === 'journey'      && <JourneyPanel />}
+        {/* Same panel as Question Manager, scoped to the bank's tag: its sidebar
+            becomes one folder per SUBJECT holding that subject's tagged
+            questions, so the whole question CRUD surface comes along. */}
+        {game === 'saudi_mle'    && (
+          <ErrorBoundary>
+            <QuestionBankSubjectsPanel modeId={SAUDI_MLE_MODE} modeLabel="Saudi MLE" subjects={subjects} />
+            <QuestionsPanel subjects={subjects} scopeTag={SAUDI_MLE_MODE} />
+          </ErrorBoundary>
+        )}
+        {game === 'hyflashcards' && <HYFlashcardsAdmin subjects={subjects} />}
+        {game === 'uworld'       && (
+          <ErrorBoundary>
+            <QuestionBankSubjectsPanel modeId={UWORLD_MODE} modeLabel="UWorld Adventure" subjects={subjects} />
+            <QuestionsPanel subjects={subjects} scopeTag={UWORLD_MODE} />
+          </ErrorBoundary>
+        )}
+        {game === 'anking'       && <AnKingAdmin />}
+        {game === 'tower'        && <TowerEditorPanel />}
+      </div>
+    </div>
+  );
+}
+
 export default function AdminApp() {
   const [authed, setAuthed] = useState(() => !!localStorage.getItem(AUTH_KEY));
   const [tab, setTab] = useState('stats');
@@ -10096,9 +10165,6 @@ export default function AdminApp() {
         <button className={`ap-nav-btn ${tab === 'subjects'        ? 'active' : ''}`} onClick={() => setTab('subjects')}>
           📚 Subjects
         </button>
-        <button className={`ap-nav-btn ${tab === 'tower'          ? 'active' : ''}`} onClick={() => setTab('tower')}>
-          🏰 Tower Editor
-        </button>
         <button className={`ap-nav-btn ${tab === 'quests'        ? 'active' : ''}`} onClick={() => setTab('quests')}>
           📅 Daily Quests
         </button>
@@ -10108,8 +10174,8 @@ export default function AdminApp() {
         <button className={`ap-nav-btn ${tab === 'shorts'        ? 'active' : ''}`} onClick={() => setTab('shorts')}>
           📱 Shorts
         </button>
-        <button className={`ap-nav-btn ${tab === 'journey'       ? 'active' : ''}`} onClick={() => setTab('journey')}>
-          🚑 First Aid Journey
+        <button className={`ap-nav-btn ${tab === 'games'         ? 'active' : ''}`} onClick={() => setTab('games')}>
+          🕹️ Games
         </button>
         <button className={`ap-nav-btn ${tab === 'journeyeditor' ? 'active' : ''}`} onClick={() => setTab('journeyeditor')}>
           🗺️ Journey Page Editor
@@ -10132,21 +10198,6 @@ export default function AdminApp() {
         <button className={`ap-nav-btn ${tab === 'settings'      ? 'active' : ''}`} onClick={() => setTab('settings')}>
           ⚙️ Game Settings
         </button>
-        <button className={`ap-nav-btn ${tab === 'anking'        ? 'active' : ''}`} onClick={() => setTab('anking')}>
-          🃏 AnKing
-        </button>
-        <button className={`ap-nav-btn ${tab === 'uworld'        ? 'active' : ''}`} onClick={() => setTab('uworld')}>
-          🌍 UWorld Adventure
-        </button>
-        <button className={`ap-nav-btn ${tab === 'saudi_mle'     ? 'active' : ''}`} onClick={() => setTab('saudi_mle')}>
-          🇸🇦 Saudi MLE
-        </button>
-        <button className={`ap-nav-btn ${tab === 'hyflashcards'  ? 'active' : ''}`} onClick={() => setTab('hyflashcards')}>
-          🎴 HY Flashcards
-        </button>
-        <button className={`ap-nav-btn ${tab === 'permissions'   ? 'active' : ''}`} onClick={() => setTab('permissions')}>
-          🛡️ Permissions
-        </button>
       </nav>
 
       <main className="ap-main">
@@ -10157,38 +10208,26 @@ export default function AdminApp() {
           </ErrorBoundary>
         )}
         {tab === 'subjects'      && <SubjectsPanel subjects={sharedSubjects} setSubjects={setSharedSubjects} />}
-        {tab === 'tower'         && <TowerEditorPanel />}
         {tab === 'quests'        && <QuestsPanel />}
         {tab === 'videos'        && <VideosPanel />}
         {tab === 'shorts'        && <ShortsPanel />}
-        {tab === 'journey'       && <JourneyPanel />}
+        {tab === 'games'         && <GamesPanel subjects={sharedSubjects} />}
         {tab === 'journeyeditor' && <JourneyPageEditor />}
         {tab === 'announcements' && <AnnouncementsPanel />}
         {tab === 'guide'         && <GuidePanel />}
         {tab === 'landing'       && <LandingImagesPanel />}
         {tab === 'playpage'      && <PlayPageAdmin />}
         {tab === 'homepage'      && <HomePagePanel />}
-        {tab === 'settings'      && <SettingsPanel />}
-        {tab === 'anking'        && <AnKingAdmin />}
-        {/* Same panel as Question Manager, scoped to the UWorld tag: its sidebar
-            becomes one folder per SUBJECT holding that subject's tagged
-            questions. Reusing the panel means the whole question CRUD surface
-            (list, add/edit, delete, bulk actions, parser) comes along instead of
-            being duplicated and left to drift. */}
-        {tab === 'uworld'        && (
-          <ErrorBoundary>
-            <QuestionBankSubjectsPanel modeId={UWORLD_MODE} modeLabel="UWorld Adventure" subjects={sharedSubjects} />
-            <QuestionsPanel subjects={sharedSubjects} scopeTag={UWORLD_MODE} />
-          </ErrorBoundary>
+        {tab === 'settings'      && (
+          <>
+            <SettingsPanel />
+            {/* Permissions live with the other game settings. */}
+            <div className="ap-settings-permissions">
+              <PermissionsPanel />
+            </div>
+          </>
         )}
-        {tab === 'saudi_mle'     && (
-          <ErrorBoundary>
-            <QuestionBankSubjectsPanel modeId={SAUDI_MLE_MODE} modeLabel="Saudi MLE" subjects={sharedSubjects} />
-            <QuestionsPanel subjects={sharedSubjects} scopeTag={SAUDI_MLE_MODE} />
-          </ErrorBoundary>
-        )}
-        {tab === 'hyflashcards'  && <HYFlashcardsAdmin subjects={sharedSubjects} />}
-        {tab === 'permissions'   && <PermissionsPanel />}
+
       </main>
     </div>
   );

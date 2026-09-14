@@ -5559,3 +5559,41 @@
   line-height: 1.55;
   color: var(--text-dim);
 }
+
+/* ── Games tab: pick a game, its admin renders below ─────────────────────── */
+.ap-games-picker {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 10px;
+  margin-bottom: 22px;
+}
+.ap-games-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card);
+  color: var(--text-dim);
+  font-size: 15px;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.ap-games-option:hover { color: var(--text); background: var(--card-hi); }
+.ap-games-option.active {
+  color: var(--gold);
+  background: var(--card-hi);
+  border-color: var(--gold);
+  box-shadow: 0 0 0 1px var(--gold) inset;
+}
+.ap-games-icon { font-size: 22px; line-height: 1; }
+
+/* Permissions sit under Game Settings. */
+.ap-settings-permissions {
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+}
