@@ -9444,6 +9444,9 @@ function HomePagePanel() {
     home_reels_art: '',
     home_event_art: '',
     friends_banner_art: '',
+    path_story_art: '',
+    path_online_art: '',
+    path_training_art: '',
     icon_home: '',
     icon_leaderboards: '',
     icon_clans: '',
@@ -9566,6 +9569,10 @@ function HomePagePanel() {
     { id: 'home_leaderboards_art', label: 'Leaderboards Tile Art (mobile)', desc: 'Portrait art behind the Leaderboards tile' },
     { id: 'home_clans_art', label: 'Clans Tile Art (mobile)', desc: 'Portrait art behind the Clans tile' },
     { id: 'home_reels_art', label: 'Reels Tile Art (mobile)', desc: 'Portrait art behind the Reels tile' },
+    // "Choose Your Path" card backgrounds (after Play). Text sits on the left, so keep that side calm.
+    { id: 'path_story_art', label: 'Choose Your Path: Story Mode Art', desc: 'Wide art behind the Story Mode card (gold). Detail on the right' },
+    { id: 'path_online_art', label: 'Choose Your Path: Online Art', desc: 'Wide art behind the Online card (red). Detail on the right' },
+    { id: 'path_training_art', label: 'Choose Your Path: Training Grounds Art', desc: 'Wide art behind the Training Grounds card (blue). Detail on the right' },
     { id: 'friends_banner_art', label: 'Friends Page Banner Art', desc: 'Wide art behind the "Friends make stronger warriors" banner' },
     { id: 'home_event_art', label: 'Event Card Art', desc: 'Tall art for the New Event card. Keep the top-left calm: the title sits there' },
     /* footer_bg removed: it uploaded fine but nothing has rendered it since the

@@ -1,0 +1,259 @@
+/* ── Choose Your Path (ModeSplit) ─────────────────────────────────────────────
+   Three wide art cards in one column. Each card's identity colour is set once
+   as --cyp-rgb and drives its border light, medallion, title and button.
+   The border is a conic gradient masked to a 1.5px ring whose angle is
+   animated through a registered custom property, so a bright arc travels
+   round the card. Browsers without @property simply show the ring static. */
+
+@property --cyp-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+.cyp-screen { padding: 28px 16px 36px; }
+
+/* Header */
+.cyp-head {
+  text-align: center;
+  margin-bottom: 20px;
+  animation: cyp-rise 0.5s ease-out both;
+}
+.cyp-title {
+  margin: 0;
+  font-family: 'Cinzel', serif;
+  font-size: clamp(30px, 8vw, 46px);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: linear-gradient(180deg, #fff1c9 0%, #e8b04b 55%, #a8741e 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 2px 10px rgba(232, 176, 75, 0.35));
+}
+.cyp-ornament {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin: 8px auto;
+  color: #e8b04b;
+}
+.cyp-ornament span { width: min(120px, 26vw); height: 1px; background: linear-gradient(90deg, transparent, rgba(232, 176, 75, 0.75)); }
+.cyp-ornament span:last-child { background: linear-gradient(90deg, rgba(232, 176, 75, 0.75), transparent); }
+.cyp-ornament i { font-style: normal; font-size: 14px; line-height: 1; }
+.cyp-tagline {
+  margin: 0;
+  font-family: 'Cinzel', serif;
+  font-size: 12px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(241, 237, 228, 0.7);
+}
+
+/* Cards */
+.cyp-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  max-width: 620px;
+}
+
+.cyp-card--story    { --cyp-rgb: 232, 176, 75;  --cyp-hi: #ffd98a; --cyp-delay: 0.08s; }
+.cyp-card--online   { --cyp-rgb: 214, 58, 50;   --cyp-hi: #ff8a7a; --cyp-delay: 0.16s; }
+.cyp-card--training { --cyp-rgb: 74, 144, 226;  --cyp-hi: #9cc8ff; --cyp-delay: 0.24s; }
+
+.cyp-card {
+  --cyp-angle: 0deg;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  min-height: 178px;
+  padding: 0;
+  border: 0;
+  border-radius: 14px;
+  background: radial-gradient(130% 120% at 85% 40%, rgba(var(--cyp-rgb), 0.28) 0%, rgba(12, 12, 10, 0.95) 55%, #070807 100%);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55), 0 0 22px rgba(var(--cyp-rgb), 0.22);
+  color: #f1ede4;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  animation: cyp-rise 0.5s ease-out var(--cyp-delay) both, cyp-glow 3.2s ease-in-out var(--cyp-delay) infinite;
+  transition: transform 0.18s ease;
+}
+.cyp-card:hover { transform: translateY(-2px); }
+.cyp-card:focus-visible { outline: 2px solid rgb(var(--cyp-rgb)); outline-offset: 3px; }
+
+/* Animated border ring */
+.cyp-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  padding: 1.6px;
+  border-radius: inherit;
+  background: conic-gradient(from var(--cyp-angle),
+    rgba(var(--cyp-rgb), 0.35) 0deg,
+    var(--cyp-hi) 30deg,
+    rgb(var(--cyp-rgb)) 55deg,
+    rgba(var(--cyp-rgb), 0.35) 110deg,
+    rgba(var(--cyp-rgb), 0.35) 180deg,
+    var(--cyp-hi) 210deg,
+    rgb(var(--cyp-rgb)) 235deg,
+    rgba(var(--cyp-rgb), 0.35) 290deg,
+    rgba(var(--cyp-rgb), 0.35) 360deg);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  pointer-events: none;
+  animation: cyp-spin 5s linear infinite;
+}
+
+/* Legibility scrim over the art: dark on the text side, clear on the right. */
+.cyp-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(90deg, rgba(6, 6, 5, 0.92) 0%, rgba(6, 6, 5, 0.7) 38%, rgba(6, 6, 5, 0.1) 72%, rgba(6, 6, 5, 0) 100%);
+  pointer-events: none;
+}
+.cyp-art {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: right center;
+}
+
+.cyp-body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 18px 20px 18px;
+  max-width: 64%;
+}
+
+.cyp-medal {
+  width: 54px;
+  height: 54px;
+  margin-bottom: 4px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at 45% 35%, rgba(var(--cyp-rgb), 0.55), rgba(var(--cyp-rgb), 0.12) 70%);
+  border: 1.5px solid rgb(var(--cyp-rgb));
+  box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.45), 0 0 0 5.5px rgba(var(--cyp-rgb), 0.45), 0 0 18px rgba(var(--cyp-rgb), 0.45);
+  font-size: 25px;
+  line-height: 1;
+}
+
+.cyp-name {
+  font-family: 'Cinzel', serif;
+  font-size: clamp(21px, 5.6vw, 27px);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--cyp-hi);
+  text-shadow: 0 0 16px rgba(var(--cyp-rgb), 0.45), 0 2px 6px rgba(0, 0, 0, 0.7);
+}
+.cyp-sub {
+  font-family: 'Crimson Text', Georgia, serif;
+  font-size: 16px;
+  line-height: 1.3;
+  color: rgba(241, 237, 228, 0.85);
+}
+
+.cyp-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+  padding: 8px 14px;
+  border: 1.5px solid rgb(var(--cyp-rgb));
+  border-radius: 6px;
+  background: rgba(var(--cyp-rgb), 0.12);
+  font-family: 'Cinzel', serif;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #f7f2e8;
+  transition: background 0.15s, box-shadow 0.15s;
+}
+.cyp-cta span { font-size: 18px; line-height: 1; margin-top: -2px; }
+.cyp-card:hover .cyp-cta { background: rgba(var(--cyp-rgb), 0.26); box-shadow: 0 0 14px rgba(var(--cyp-rgb), 0.4); }
+
+/* Locked (Online) */
+.cyp-card.is-locked { cursor: not-allowed; }
+.cyp-card.is-locked:hover { transform: none; }
+.cyp-card.is-locked .cyp-medal,
+.cyp-card.is-locked .cyp-name,
+.cyp-card.is-locked .cyp-sub { filter: saturate(0.55); opacity: 0.75; }
+.cyp-card.is-locked::before { animation-duration: 9s; opacity: 0.75; }
+.cyp-locked { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin-top: 8px; }
+.cyp-lock-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.45);
+  font-family: 'Cinzel', serif;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(241, 237, 228, 0.7);
+}
+.cyp-dev {
+  font-family: 'Cinzel', serif;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #e0574b;
+}
+
+/* Footer */
+.cyp-foot { margin-top: 18px; text-align: center; animation: cyp-rise 0.5s ease-out 0.3s both; }
+.cyp-foot p {
+  margin: 0;
+  font-family: 'Cinzel', serif;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(241, 237, 228, 0.55);
+}
+
+@keyframes cyp-spin { to { --cyp-angle: 360deg; } }
+@keyframes cyp-glow {
+  0%, 100% { box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55), 0 0 16px rgba(var(--cyp-rgb), 0.18); }
+  50%      { box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55), 0 0 30px rgba(var(--cyp-rgb), 0.42); }
+}
+@keyframes cyp-rise {
+  from { opacity: 0; transform: translate3d(0, 10px, 0); }
+  to   { opacity: 1; transform: none; }
+}
+
+@media (max-width: 480px) {
+  .cyp-card { min-height: 164px; }
+  .cyp-body { max-width: 72%; padding: 16px 16px; }
+  .cyp-medal { width: 48px; height: 48px; font-size: 22px; }
+  .cyp-sub { font-size: 15px; }
+  .cyp-cta { font-size: 11px; padding: 7px 12px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cyp-card, .cyp-card::before, .cyp-head, .cyp-foot { animation: none; }
+}

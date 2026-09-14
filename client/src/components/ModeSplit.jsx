@@ -1,49 +1,107 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { cachedImageMap, rememberImageMap } from '../utils/cachedImages';
 import './ModeSplit.css';
+import './ChooseYourPath.css';
 
-// Animated Story/Online reveal shown after clicking Play.
-// CSS-only animations — they fire on mount since each phase is a fresh mount.
-export default function ModeSplit({ onStory, onOnline, onTraining, onBack }) {
+const SERVER_URL = 'https://usmle-battle-royale-production.up.railway.app';
+
+// "Choose Your Path" — shown after clicking Play. Three wide art cards (Story,
+// Online, Training Grounds), each with a medallion, coloured title, call-to-
+// action and a light that travels round its border. Card art is uploaded in
+// admin → Pages → Home Page (path_*_art); each card has a painted fallback.
+// Online stays locked while it is under development.
+function useModeArt() {
+  const [art, setArt] = useState(() => cachedImageMap('home'));
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`${SERVER_URL}/api/home-images`)
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => {
+        if (cancelled || !d?.images) return;
+        rememberImageMap('home', d.images);
+        setArt(d.images);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+  return art;
+}
+
+function PathCard({ variant, icon, title, sub, art, onClick, locked, cta }) {
+  const Tag = locked ? 'div' : 'button';
   return (
-    <div className="ms-screen">
+    <Tag
+      {...(locked
+        ? { 'aria-disabled': 'true', title: `${title} is under development` }
+        : { type: 'button', onClick })}
+      className={`cyp-card cyp-card--${variant}${locked ? ' is-locked' : ''}${art ? ' has-art' : ''}`}
+    >
+      {art && <img className="cyp-art" src={art} alt="" />}
+      <span className="cyp-body">
+        <span className="cyp-medal" aria-hidden="true"><span>{icon}</span></span>
+        <span className="cyp-name">{title}</span>
+        <span className="cyp-sub">{sub}</span>
+        {locked ? (
+          <span className="cyp-locked">
+            <span className="cyp-lock-pill"><span aria-hidden="true">🔒</span> Locked</span>
+            <span className="cyp-dev">Under development</span>
+          </span>
+        ) : (
+          <span className="cyp-cta">{cta} <span aria-hidden="true">›</span></span>
+        )}
+      </span>
+    </Tag>
+  );
+}
+
+// eslint-disable-next-line no-unused-vars
+export default function ModeSplit({ onStory, onOnline, onTraining, onBack }) {
+  const art = useModeArt();
+  return (
+    <div className="ms-screen cyp-screen">
       <button className="ms-back-btn" onClick={onBack}>← Back</button>
 
-      <div className="ms-banner">
-        <h1 className="ms-title">CHOOSE YOUR PATH</h1>
-        <div className="ms-title-rule" />
+      <header className="cyp-head">
+        <h1 className="cyp-title">Choose Your Path</h1>
+        <div className="cyp-ornament" aria-hidden="true"><span /><i>♛</i><span /></div>
+        <p className="cyp-tagline">Different ways to learn. A higher purpose.</p>
+      </header>
+
+      <div className="cyp-list">
+        <PathCard
+          variant="story"
+          icon="📖"
+          title="Story Mode"
+          sub="Solo campaigns — Journey, Flashcards & more"
+          cta="Begin your journey"
+          art={art.path_story_art}
+          onClick={onStory}
+        />
+        {/* Online is closed while it is under development. Re-enable by
+            dropping `locked` and passing onClick={onOnline}. */}
+        <PathCard
+          variant="online"
+          icon="⚔️"
+          title="Online"
+          sub="Battle other doctors live"
+          art={art.path_online_art}
+          locked
+        />
+        <PathCard
+          variant="training"
+          icon="🎯"
+          title="Training Grounds"
+          sub="Study by topic · Watch videos"
+          cta="Start training"
+          art={art.path_training_art}
+          onClick={onTraining}
+        />
       </div>
 
-      <div className="ms-cards">
-        <button className="ms-card ms-card--story" onClick={onStory}>
-          <span className="ms-card-icon">📖</span>
-          <span className="ms-card-name">STORY MODE</span>
-          <span className="ms-card-sub">Solo campaigns — Journey, Flashcards &amp; more</span>
-        </button>
-        {/* Online is closed while it is under development: the card stays so
-            players can see it is coming, but it is inert. Re-enable by restoring
-            onClick={onOnline} and dropping the locked state. */}
-        <button
-          type="button"
-          className="ms-card ms-card--online ms-card--locked"
-          disabled
-          title="Online is under development"
-        >
-          <span className="ms-card-lock" aria-hidden="true">🔒</span>
-          <span className="ms-card-icon">⚔️</span>
-          <span className="ms-card-name">ONLINE</span>
-          <span className="ms-card-sub">Battle other doctors live</span>
-          <span className="ms-card-dev">Under development</span>
-        </button>
-      </div>
-
-      {/* Own row below: wide short rectangle, centred midpoint-to-midpoint of the two cards */}
-      <button className="ms-train" onClick={onTraining}>
-        <span className="ms-train-icon">🎯</span>
-        <span className="ms-train-text">
-          <span className="ms-train-name">TRAINING GROUNDS</span>
-          <span className="ms-train-sub">Study by topic · Watch videos</span>
-        </span>
-      </button>
+      <footer className="cyp-foot">
+        <div className="cyp-ornament" aria-hidden="true"><span /><i>♛</i><span /></div>
+        <p>Knowledge builds greater tomorrows</p>
+      </footer>
     </div>
   );
 }
