@@ -4638,6 +4638,8 @@ button.settings-btn img,
   /* ── Header: in flow, two rows ─────────────────────────────────────────── */
   .dashboard-screen.dash-home .dashboard-header {
     position: relative !important;
+    /* Above the PLAY card and tiles so the notifications panel overlays them. */
+    z-index: 120 !important;
     display: grid !important;
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas:
@@ -4654,7 +4656,10 @@ button.settings-btn img,
 
   .dashboard-screen.dash-home .header-icon-group {
     grid-area: icons;
-    position: static !important;
+    /* Containing block for the notifications panel (NotificationsDropdown.css). */
+    position: relative !important;
+    top: auto !important;
+    right: auto !important;
     gap: 10px !important;
     justify-self: end;
   }

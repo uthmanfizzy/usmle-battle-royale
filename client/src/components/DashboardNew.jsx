@@ -150,7 +150,7 @@ export default function DashboardNew({ user, onPlayNow, onLogout, onUserUpdate }
           </div>
 
           <div className="dn-icon-group">
-            <div className="dn-drop-wrap" ref={notifDropdownRef}>
+            <div className="dn-drop-wrap notif-wrapper" ref={notifDropdownRef}>
               <button
                 type="button"
                 className="dn-icon-btn"
@@ -161,8 +161,8 @@ export default function DashboardNew({ user, onPlayNow, onLogout, onUserUpdate }
                 {unreadCount > 0 && <span className="dn-dot" />}
               </button>
               {showNotifications && (
-                <div className="dn-dropdown">
-                  <NotificationsDropdown user={user} onClose={() => setShowNotifications(false)} />
+                <div className="dn-dropdown notif-dropdown">
+                  <NotificationsDropdown onClose={() => setShowNotifications(false)} onUnreadChange={setUnreadCount} onViewAll={() => openHomeView('news')} />
                 </div>
               )}
             </div>

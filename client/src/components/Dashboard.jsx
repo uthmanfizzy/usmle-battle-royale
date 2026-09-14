@@ -4,6 +4,7 @@ import FriendsPanel from './FriendsPanel';
 import ProfileModal, { formatStudyTime } from './ProfileModal';
 import NotificationsDropdown from './NotificationsDropdown';
 import ClansPage from './ClansPage';
+import { SwordsGlyph, TrophyGlyph, GroupGlyph, PlayRingGlyph } from './HomeGlyphs';
 import UsernameChangeModal from './UsernameChangeModal';
 import DashboardAmbient from './DashboardAmbient';
 import './Dashboard.css';
@@ -158,42 +159,6 @@ function CardArt({ src }) {
   return src ? <img className="dash-card-art" src={src} alt="" loading="lazy" /> : null;
 }
 const Chevron = () => <span className="dash-card-chev" aria-hidden="true">›</span>;
-const SwordsGlyph = () => (
-  <svg className="dash-play-swords" viewBox="0 0 48 48" aria-hidden="true">
-    {/* Two blades crossing, each with a crossguard, grip and pommel. */}
-    <g fill="#fff">
-      <path d="M6 6 L12.5 7.5 L31 26 L26 31 L7.5 12.5 Z" />
-      <path d="M42 6 L35.5 7.5 L17 26 L22 31 L40.5 12.5 Z" />
-    </g>
-    <g fill="none" stroke="#fff" strokeWidth="3.4" strokeLinecap="round">
-      <path d="M24 34 L34 24" /><path d="M14 24 L24 34" />
-      <path d="M31 31 L37 37" /><path d="M17 31 L11 37" />
-    </g>
-    <circle cx="39" cy="39" r="2.8" fill="#fff" /><circle cx="9" cy="39" r="2.8" fill="#fff" />
-  </svg>
-);
-const TrophyGlyph = () => (
-  <svg className="dash-tile-glyph" viewBox="0 0 48 48" aria-hidden="true">
-    <path fill="#e8b04b" d="M14 6h20v4h8v5c0 6-4 10-9.5 10.8A11 11 0 0 1 26 31v5h6v6H16v-6h6v-5a11 11 0 0 1-6.5-5.2C10 25 6 21 6 15v-5h8V6Zm-4 8v1c0 3.3 1.8 5.8 4.6 6.6A18 18 0 0 1 14 17v-3h-4Zm24 0v3c0 1.6-.2 3.1-.6 4.6C36.2 20.8 38 18.3 38 15v-1h-4Z"/>
-  </svg>
-);
-const GroupGlyph = () => (
-  <svg className="dash-tile-glyph" viewBox="0 0 48 48" aria-hidden="true">
-    <g fill="#e9ecf2">
-      <circle cx="24" cy="15" r="7" /><circle cx="11" cy="19" r="5" /><circle cx="37" cy="19" r="5" />
-      <path d="M12 40c0-7 5.4-12 12-12s12 5 12 12Z" />
-      <path d="M2 38c0-5 3.6-9 8.5-9 1.6 0 3 .4 4.2 1.1A15 15 0 0 0 10 38Z" />
-      <path d="M46 38c0-5-3.6-9-8.5-9-1.6 0-3 .4-4.2 1.1A15 15 0 0 1 38 38Z" />
-    </g>
-  </svg>
-);
-const PlayRingGlyph = () => (
-  <svg className="dash-tile-glyph" viewBox="0 0 48 48" aria-hidden="true">
-    <circle cx="24" cy="24" r="20" fill="rgba(0,0,0,0.35)" stroke="#e8b04b" strokeWidth="3" />
-    <path fill="#e8b04b" d="M19 15.5v17l14-8.5Z" />
-  </svg>
-);
-
 // ── Home Section (RPG Style) ───────────────────────────────────────────────────
 // Shared by both shells. The old shell passes navCards (left nav column JSX,
 // built by Dashboard which owns the tab handlers) and onViewAllNews; the
@@ -1209,7 +1174,7 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
             {/* Individual Icon Bubbles */}
             <div className="header-icon-group">
               {/* 1. NOTIFICATIONS - top on mobile */}
-              <div className="friends-dropdown-wrapper" ref={notifDropdownRef}>
+              <div className="friends-dropdown-wrapper notif-wrapper" ref={notifDropdownRef}>
                 <button
                   className="header-icon-bubble notification-btn"
                   onClick={() => { setShowNotifications(!showNotifications); setShowFriendsPanel(false); }}
@@ -1224,10 +1189,11 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
                 </button>
 
                 {showNotifications && (
-                  <div className="friends-dropdown">
+                  <div className="friends-dropdown notif-dropdown">
                     <NotificationsDropdown
-                      user={user}
                       onClose={() => setShowNotifications(false)}
+                      onViewAll={handleAnnouncementsTab}
+                      onUnreadChange={setUnreadCount}
                     />
                   </div>
                 )}
