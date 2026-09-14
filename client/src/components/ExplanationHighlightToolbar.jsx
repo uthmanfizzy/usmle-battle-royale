@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { rangeToOffsets, captureContext, HIGHLIGHT_COLORS } from '../utils/explanationHighlights';
 
@@ -18,6 +18,21 @@ export default function ExplanationHighlightToolbar({ containerRef, highlights, 
   const pointerDownRef = useRef(false);
   const settleRef = useRef(null);
   const rafRef = useRef(0);
+  const barRef = useRef(null);
+  const [size, setSize] = useState({ w: 0, h: 0 });
+
+  // Measure the bar whenever it (re)appears or its contents change (the ✕
+  // remove button comes and goes), so placement uses its real width/height.
+  const hasPopup = !!popup;
+  const overlaps = !!popup?.overlaps;
+  useLayoutEffect(() => {
+    const el = barRef.current;
+    if (!el) { if (size.w) setSize({ w: 0, h: 0 }); return; }
+    const r = el.getBoundingClientRect();
+    if (Math.round(r.width) !== size.w || Math.round(r.height) !== size.h) {
+      setSize({ w: Math.round(r.width), h: Math.round(r.height) });
+    }
+  }, [hasPopup, overlaps, allowFormat, size.w, size.h]);
 
   const computeFromSelection = useCallback(() => {
     const container = containerRef?.current;
@@ -132,27 +147,34 @@ export default function ExplanationHighlightToolbar({ containerRef, highlights, 
 
   if (!popup) return null;
 
-  // On touch the bar is DOCKED to the bottom of the screen rather than floated
-  // over the selection. Two reasons, both of which read to the user as "the
-  // highlight options don't show":
-  //   - it is ~300px wide on a ~375px screen, so centring it on the selection
-  //     pushes it off the edge for any selection that isn't mid-screen;
-  //   - the space just above a selection is where the OS puts its OWN callout
-  //     (Copy / Look Up), so anything floated there is fighting for the spot.
-  // Docking sidesteps both, and is the conventional mobile pattern anyway.
+  // Placed directly UNDER the selection, on every device (it used to float above
+  // on desktop and dock to the bottom of the screen on touch, which put it far
+  // from the text being highlighted). Below also keeps clear of the OS's own
+  // Copy / Look Up callout, which phones put above a selection.
+  //
+  // The bar's real size is measured after it mounts (size state), so it can be
+  // kept fully on screen horizontally, and flipped above the selection only when
+  // there isn't room for it below.
   const coarse = typeof window !== 'undefined'
     && typeof window.matchMedia === 'function'
     && window.matchMedia('(pointer: coarse)').matches;
-
-  // Desktop: float above the selection, nudged to stay in the viewport, and
-  // flipped underneath when the selection is too near the top for it to fit.
-  const MARGIN = 8;
-  const HALF = 130;
+  // Touch selections have drag handles hanging under the last line; leave room
+  // so the bar isn't sitting on top of them.
+  const GAP = coarse ? 30 : 10;
+  const EDGE = 8;
   const vw = typeof window !== 'undefined' ? window.innerWidth : 0;
-  const x = vw ? Math.min(Math.max(popup.x, MARGIN + HALF), Math.max(MARGIN + HALF, vw - MARGIN - HALF)) : popup.x;
-  const style = popup.y < 64
-    ? { left: x, top: popup.yBottom + MARGIN, transform: 'translate(-50%, 0)' }
-    : { left: x, top: popup.y };
+  const vh = typeof window !== 'undefined' ? window.innerHeight : 0;
+  const w = size.w || 0;
+  const h = size.h || 0;
+  let left = popup.x - w / 2;
+  if (vw && w) left = Math.min(Math.max(left, EDGE), Math.max(EDGE, vw - EDGE - w));
+  let top = popup.yBottom + GAP;
+  if (vh && h && top + h > vh - EDGE) {
+    const above = popup.y - GAP - h;
+    top = above >= EDGE ? above : Math.max(EDGE, vh - EDGE - h);
+  }
+  // Until measured, render invisibly at the target so the measurement is real.
+  const style = { left, top, visibility: w ? 'visible' : 'hidden' };
 
   // PORTALLED TO <body>. The toolbar is position:fixed, and a fixed element is
   // positioned against the nearest ancestor carrying a transform, filter,
@@ -166,8 +188,9 @@ export default function ExplanationHighlightToolbar({ containerRef, highlights, 
   // and keeps it correct against any future CSS on the play screen.
   return createPortal(
     <div
-      className={`expl-hl-toolbar${coarse ? ' expl-hl-toolbar--docked' : ''}`}
-      style={coarse ? undefined : style}
+      ref={barRef}
+      className="expl-hl-toolbar"
+      style={style}
       // pointerdown, not mousedown: on touch this is what stops the tap from
       // collapsing the selection (and unmounting the toolbar) before the click
       // lands. Preventing pointerdown still leaves click to fire, so onClick

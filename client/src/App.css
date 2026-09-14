@@ -851,8 +851,12 @@ html[data-study="on"] .solo-body .stem-table td { color: #1c2030; }
 
 /* Floating selection toolbar */
 .expl-hl-toolbar {
+  /* left/top are the bar's exact top-left corner, computed in
+     ExplanationHighlightToolbar.jsx (under the selection, clamped on screen). */
   position: fixed;
-  transform: translate(-50%, calc(-100% - 8px));
+  max-width: calc(100vw - 16px);
+  flex-wrap: wrap;
+  justify-content: center;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -915,22 +919,6 @@ html[data-study="on"] .solo-body .stem-table td { color: #1c2030; }
   .expl-hl-swatch { width: 34px; height: 34px; }
   .expl-hl-remove { width: 34px; height: 34px; font-size: 16px; }
   .expl-hl-fmt { min-width: 36px; height: 34px; font-size: 16px; }
-}
-
-/* Touch: docked to the bottom of the screen instead of floated over the
-   selection (the component adds this class on coarse pointers). The bar is
-   nearly as wide as a phone screen, so centring it on the selection puts it
-   off the edge; and the space above a selection belongs to the OS's own
-   Copy/Look Up callout. Bottom-docked avoids both. */
-.expl-hl-toolbar--docked {
-  left: 50%;
-  right: auto;
-  top: auto;
-  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
-  transform: translateX(-50%);
-  max-width: calc(100vw - 24px);
-  flex-wrap: wrap;
-  justify-content: center;
 }
 
 /* Developer-mode toggle (admin only): switches new highlights between OFFICIAL
