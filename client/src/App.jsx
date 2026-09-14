@@ -25,6 +25,9 @@ const PvpDuelGame = lazy(() => import('./components/PvpDuelGame'));
 const LandingPage = lazy(() => import('./components/LandingPage'));
 const TrainingGrounds = lazy(() => import('./components/TrainingGrounds'));
 const PlayPage = lazy(() => import('./components/PlayPage'));
+// Styles for the Training Grounds 'under development' screen, which can be
+// reached by link before the (lazy) Choose Your Path page has ever loaded.
+import './components/ChooseYourPath.css';
 const ModeSplit = lazy(() => import('./components/ModeSplit'));
 const StoryMenu = lazy(() => import('./components/ModeSplit').then(m => ({ default: m.StoryMenu })));
 const JourneyMode = lazy(() => import('./components/JourneyMode'));
@@ -32,6 +35,9 @@ const JourneyMode = lazy(() => import('./components/JourneyMode'));
 // phases: 'loading' | 'entry' | 'exam_select' | 'difficulty_select' | 'mode_split' | 'story_menu' | 'play_page' |
 //         'how_to_play' | 'lobby_select' | 'subject_select' | 'lobby_difficulty' | 'join_input' | 'lobby' | 'game' |
 //         'game_over' | 'solo_subject' | 'solo_difficulty' | 'solo_game' | 'tower' | 'training_grounds' | 'journey'
+
+// Training Grounds is closed while it is under development (see its phase render).
+const TRAINING_GROUNDS_LOCKED = true;
 
 export default function App() {
   const [phase,    setPhase]    = useState('loading');
@@ -1209,7 +1215,21 @@ export default function App() {
         </RouteErrorBoundary>
       )}
 
-      {phase === 'training_grounds' && (
+      {/* Training Grounds is under development: ?training=1 links, topic
+          shortcuts and back-navigation all reach this phase, so it is closed
+          here rather than only on the Choose Your Path card. */}
+      {phase === 'training_grounds' && TRAINING_GROUNDS_LOCKED && (
+        <div className="ms-screen">
+          <button className="ms-back-btn" onClick={() => setPhase('mode_split')}>← Back</button>
+          <div className="tg-locked">
+            <div className="tg-locked-icon" aria-hidden="true">🎯</div>
+            <h1 className="tg-locked-title">Training Grounds</h1>
+            <p className="tg-locked-badge">Under development</p>
+            <p className="tg-locked-sub">This mode isn&apos;t available yet. Check back soon.</p>
+          </div>
+        </div>
+      )}
+      {phase === 'training_grounds' && !TRAINING_GROUNDS_LOCKED && (
         <RouteErrorBoundary name="TrainingGrounds">
         <TrainingGrounds
           user={user}

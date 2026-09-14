@@ -9435,7 +9435,10 @@ function SettingsPanel() {
 
 // ── Home Page Panel ────────────────────────────────────────────────────────────
 
-function HomePagePanel() {
+// `section="path"` renders only the Choose Your Path card images (its own
+// entry under Pages); the default renders the Home Page slots. Same upload
+// endpoint and storage either way.
+function HomePagePanel({ section = 'home' }) {
   const [homeImages, setHomeImages] = useState({
     dashboard_bg: '',
     home_play_art: '',
@@ -9569,15 +9572,69 @@ function HomePagePanel() {
     { id: 'home_leaderboards_art', label: 'Leaderboards Tile Art (mobile)', desc: 'Portrait art behind the Leaderboards tile' },
     { id: 'home_clans_art', label: 'Clans Tile Art (mobile)', desc: 'Portrait art behind the Clans tile' },
     { id: 'home_reels_art', label: 'Reels Tile Art (mobile)', desc: 'Portrait art behind the Reels tile' },
-    // "Choose Your Path" card backgrounds (after Play). Text sits on the left, so keep that side calm.
-    { id: 'path_story_art', label: 'Choose Your Path: Story Mode Art', desc: 'Wide art behind the Story Mode card (gold). Detail on the right' },
-    { id: 'path_online_art', label: 'Choose Your Path: Online Art', desc: 'Wide art behind the Online card (red). Detail on the right' },
-    { id: 'path_training_art', label: 'Choose Your Path: Training Grounds Art', desc: 'Wide art behind the Training Grounds card (blue). Detail on the right' },
     { id: 'friends_banner_art', label: 'Friends Page Banner Art', desc: 'Wide art behind the "Friends make stronger warriors" banner' },
     { id: 'home_event_art', label: 'Event Card Art', desc: 'Tall art for the New Event card. Keep the top-left calm: the title sits there' },
     /* footer_bg removed: it uploaded fine but nothing has rendered it since the
        .bottom-nav pill was retired. The Supabase row is left in place. */
   ];
+
+  // "Choose Your Path" card backgrounds (the screen after Play). The card text
+  // sits on the left and that side is darkened, so detail belongs on the right.
+  const pathSlots = [
+    { id: 'path_story_art', label: 'Story Mode', desc: 'Wide art behind the Story Mode card (gold border). Keep the detail on the right' },
+    { id: 'path_online_art', label: 'Online', desc: 'Wide art behind the Online card (red border). Keep the detail on the right' },
+    { id: 'path_training_art', label: 'Training Grounds', desc: 'Wide art behind the Training Grounds card (blue border). Keep the detail on the right' },
+  ];
+  if (section === 'path') {
+    return (
+      <div className="li-panel">
+        <div className="li-header">
+          <div className="li-header-icon">🧭</div>
+          <div>
+            <h2 className="li-header-title">Choose Your Path</h2>
+            <p className="li-header-desc">Background images for the three cards shown after pressing Play. Wide images (about 3:1) work best.</p>
+          </div>
+        </div>
+        <div className="li-grid">
+          {pathSlots.map(slot => (
+            <div key={slot.id} className="li-slot">
+              <div className="li-slot-header">
+                <span className="li-slot-label">{slot.label}</span>
+                <span className="li-slot-desc">{slot.desc}</span>
+              </div>
+              <div className="li-slot-preview">
+                {homeImages[slot.id] ? (
+                  <img src={homeImages[slot.id]} alt={slot.label} className="li-slot-img" />
+                ) : (
+                  <div className="li-slot-empty">
+                    <span className="li-slot-empty-icon">🖼️</span>
+                    <span>No image uploaded</span>
+                  </div>
+                )}
+              </div>
+              <div className="li-slot-actions">
+                <label className={`li-upload-btn ${uploading[slot.id] ? 'uploading' : ''}`}>
+                  {uploading[slot.id] ? 'Uploading...' : homeImages[slot.id] ? 'Replace' : 'Upload'}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => handleUpload(slot.id, e.target.files[0])}
+                    disabled={uploading[slot.id]}
+                    style={{ display: 'none' }}
+                  />
+                </label>
+                {homeImages[slot.id] && (
+                  <button className="li-remove-btn" onClick={() => handleRemove(slot.id)} disabled={uploading[slot.id]}>
+                    Remove
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   const iconSlots = [
     { id: 'icon_home', label: 'HOME Icon', desc: 'Navigation icon for Home tab' },
@@ -10105,6 +10162,7 @@ const ADMIN_PAGES = [
   { id: 'landing',  icon: '🖼️', label: 'Landing Page' },
   { id: 'playpage', icon: '🎮', label: 'Play Page' },
   { id: 'homepage', icon: '🏠', label: 'Home Page' },
+  { id: 'path',     icon: '🧭', label: 'Choose Your Path' },
 ];
 const ADMIN_PAGE_KEY = 'mr_admin_page';
 
@@ -10141,6 +10199,7 @@ function PagesPanel() {
         {page === 'landing'  && <LandingImagesPanel />}
         {page === 'playpage' && <PlayPageAdmin />}
         {page === 'homepage' && <HomePagePanel />}
+        {page === 'path'     && <HomePagePanel section="path" />}
       </div>
     </div>
   );

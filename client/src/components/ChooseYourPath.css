@@ -257,3 +257,33 @@
 @media (prefers-reduced-motion: reduce) {
   .cyp-card, .cyp-card::before, .cyp-head, .cyp-foot { animation: none; }
 }
+
+/* Training Grounds locked screen (App.jsx, training_grounds phase). */
+.tg-locked {
+  margin: auto 0;
+  max-width: 460px;
+  width: 100%;
+  padding: 34px 22px;
+  border: 1px solid rgba(74, 144, 226, 0.45);
+  border-radius: 14px;
+  background: radial-gradient(120% 120% at 70% 30%, rgba(74, 144, 226, 0.18), rgba(8, 10, 12, 0.95) 60%);
+  text-align: center;
+  color: #f1ede4;
+}
+.tg-locked-icon { font-size: 44px; line-height: 1; opacity: 0.75; }
+.tg-locked-title { margin: 14px 0 10px; font-family: 'Cinzel', serif; font-size: 28px; font-weight: 700; color: #9cc8ff; }
+.tg-locked-badge {
+  display: inline-block;
+  margin: 0 0 12px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(232, 176, 75, 0.55);
+  background: rgba(232, 176, 75, 0.14);
+  color: #e8b04b;
+  font-family: 'Cinzel', serif;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.tg-locked-sub { margin: 0; font-family: 'Crimson Text', Georgia, serif; font-size: 17px; color: rgba(241, 237, 228, 0.72); }
