@@ -9443,6 +9443,7 @@ function HomePagePanel() {
     home_clans_art: '',
     home_reels_art: '',
     home_event_art: '',
+    friends_banner_art: '',
     icon_home: '',
     icon_leaderboards: '',
     icon_clans: '',
@@ -9565,6 +9566,7 @@ function HomePagePanel() {
     { id: 'home_leaderboards_art', label: 'Leaderboards Tile Art (mobile)', desc: 'Portrait art behind the Leaderboards tile' },
     { id: 'home_clans_art', label: 'Clans Tile Art (mobile)', desc: 'Portrait art behind the Clans tile' },
     { id: 'home_reels_art', label: 'Reels Tile Art (mobile)', desc: 'Portrait art behind the Reels tile' },
+    { id: 'friends_banner_art', label: 'Friends Page Banner Art', desc: 'Wide art behind the "Friends make stronger warriors" banner' },
     { id: 'home_event_art', label: 'Event Card Art', desc: 'Tall art for the New Event card. Keep the top-left calm: the title sits there' },
     /* footer_bg removed: it uploaded fine but nothing has rendered it since the
        .bottom-nav pill was retired. The Supabase row is left in place. */

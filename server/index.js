@@ -6387,11 +6387,25 @@ app.post('/api/users/online-status', async (req, res) => {
       .select('id, is_online, last_seen')
       .in('id', userIds);
 
+    // Which sockets are in a match right now: a lobby past 'waiting' and not
+    // finished. Built once per request from the in-memory lobbies.
+    const inMatchBySocket = new Map();
+    for (const lobby of lobbies.values()) {
+      if (lobby.status === 'waiting' || lobby.status === 'game_over') continue;
+      for (const sid of lobby.players.keys()) inMatchBySocket.set(sid, lobby.gameMode);
+    }
+
     const statusMap = {};
     data?.forEach(u => {
+      const socketId = onlineUsers.get(u.id);
       statusMap[u.id] = {
-        online: u.is_online || false,
-        lastSeen: u.last_seen
+        // is_online alone goes stale: a server restart never runs the
+        // disconnect handler, leaving it true forever. The live socket map is
+        // the authority on this (single) instance.
+        online: Boolean(u.is_online && socketId),
+        lastSeen: u.last_seen,
+        inMatch: Boolean(socketId && inMatchBySocket.has(socketId)),
+        gameMode: socketId ? inMatchBySocket.get(socketId) || null : null,
       };
     });
 

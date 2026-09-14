@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { fetchMe, authFetch } from '../auth';
-import FriendsPanel from './FriendsPanel';
+import FriendsPage from './FriendsPage';
 import ProfileModal, { formatStudyTime } from './ProfileModal';
 import NotificationsDropdown from './NotificationsDropdown';
 import ClansPage from './ClansPage';
@@ -864,7 +864,7 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
   // clan-tag link; unknown values fall back to home)
   const [dashTab,      setDashTab]      = useState(() => {
     const t = new URLSearchParams(window.location.search).get('tab');
-    return ['home', 'leaderboard', 'clans', 'announcements'].includes(t) ? t : 'home';
+    return ['home', 'leaderboard', 'clans', 'announcements', 'friends'].includes(t) ? t : 'home';
   });
   const [unreadCount,  setUnreadCount]  = useState(0);
   // Announcement list from the fetch below, reused by HomeSection's News Feed
@@ -1080,7 +1080,7 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
   const gems = user.gems || 0;
 
   return (
-    <div className={`dashboard-screen${dashTab === 'home' ? ' dash-home' : ''}`}>
+    <div className={`dashboard-screen${dashTab === 'home' || dashTab === 'friends' ? ' dash-home' : ''}${dashTab === 'friends' ? ' dash-friends' : ''}`}>
       {/* Background */}
       <div className="dashboard-bg">
         {bgUrl && (
@@ -1168,7 +1168,7 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
             </div>
 
             <div className="dash-header-quote" aria-hidden="true">
-              <span>Warriors build a brighter tomorrow</span>
+              <span>{dashTab === 'friends' ? 'True friends fight beside you' : 'Warriors build a brighter tomorrow'}</span>
             </div>
 
             {/* Individual Icon Bubbles */}
@@ -1202,9 +1202,10 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
               {/* 2. FRIENDS - middle on mobile */}
               <div className="friends-dropdown-wrapper" ref={friendsDropdownRef}>
                 <button
-                  className="header-icon-bubble friends-btn"
-                  onClick={() => { setShowFriendsPanel(!showFriendsPanel); setShowNotifications(false); }}
+                  className={`header-icon-bubble friends-btn${dashTab === 'friends' ? ' is-active' : ''}`}
+                  onClick={() => { setShowNotifications(false); setDashTab(t => (t === 'friends' ? 'home' : 'friends')); }}
                   title="Friends"
+                  aria-pressed={dashTab === 'friends'}
                 >
                   {homeImages.icon_friends ? (
                     <img loading="lazy" src={homeImages.icon_friends} alt="Friends" className="header-icon-img" />
@@ -1213,19 +1214,6 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
                   )}
                 </button>
 
-                {showFriendsPanel && (
-                  <div className="friends-dropdown">
-                    <FriendsPanel
-                      user={user}
-                      onClose={() => setShowFriendsPanel(false)}
-                      onInviteToGame={(friend) => {
-                        setShowFriendsPanel(false);
-                        console.log('Invite friend to game:', friend);
-                      }}
-                      isDropdown={true}
-                    />
-                  </div>
-                )}
               </div>
 
               {/* 3. SETTINGS - bottom on mobile. Navigates to the standalone
@@ -1408,6 +1396,14 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
         )}
         {/* Mockup back convention: an explicit pill back to Home on the two
             full-page tabs, floated over the section's own header clearance */}
+        {dashTab === 'friends' && (
+          <div className="dash-tab-wrap dash-tab-wrap--friends">
+            <button type="button" className="dash-back-pill" onClick={() => setDashTab('home')}>
+              ← Back to Dashboard
+            </button>
+            <FriendsPage user={user} bannerArt={homeImages.friends_banner_art} />
+          </div>
+        )}
         {dashTab === 'leaderboard' && (
           <div className="dash-tab-wrap">
             <button type="button" className="dash-back-pill" onClick={() => setDashTab('home')}>

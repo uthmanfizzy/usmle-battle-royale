@@ -4966,3 +4966,19 @@ button.settings-btn img,
 @media (max-width: 340px) {
   .dashboard-screen.dash-home .dash-header-quote { display: none; }
 }
+
+
+/* ── Friends tab ──────────────────────────────────────────────────────────────
+   The friends bubble reads as the current page while the tab is open. On
+   phones the Friends tab shares the Home tab's in-flow header (.dash-home), so
+   the fixed-header clearance and the back pill are dropped — the lit friends
+   bubble toggles back, as in the design. */
+.header-icon-bubble.friends-btn.is-active {
+  border: 2px solid #e8b04b !important;
+  box-shadow: 0 0 0 2px rgba(232, 176, 75, 0.25), 0 0 18px rgba(232, 176, 75, 0.45) !important;
+}
+
+@media (max-width: 600px) {
+  .dashboard-screen.dash-friends .dash-tab-wrap--friends { padding-top: 6px !important; }
+  .dashboard-screen.dash-friends .dash-tab-wrap--friends > .dash-back-pill { display: none; }
+}
