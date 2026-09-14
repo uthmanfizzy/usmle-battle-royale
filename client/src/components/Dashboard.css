@@ -4642,11 +4642,13 @@ button.settings-btn img,
     z-index: 120 !important;
     display: grid !important;
     grid-template-columns: minmax(0, 1fr) auto;
+    /* No currency pills on the phone home header — coins and gems live on the
+       Shop page (reachable from the dock), which shows both in its top bar. */
     grid-template-areas:
       "profile icons"
-      "currency quote";
+      ".       quote";
     align-items: center !important;
-    row-gap: 16px;
+    row-gap: 6px;
     column-gap: 10px;
     padding: 22px 16px 4px !important;
     pointer-events: auto;
@@ -4686,11 +4688,7 @@ button.settings-btn img,
   }
   .dashboard-screen.dash-home .header-icon-bubble span { font-size: 24px !important; }
 
-  .dashboard-screen.dash-home .currency-bar {
-    grid-area: currency;
-    position: static !important;
-    gap: 10px !important;
-  }
+  .dashboard-screen.dash-home .currency-bar { display: none !important; }
   .dashboard-screen.dash-home .currency-pill {
     gap: 10px !important;
     padding: 9px 10px 9px 12px !important;
