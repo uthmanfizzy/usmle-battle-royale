@@ -643,7 +643,10 @@ export default function JourneyMode({
         </div>
         <div className="jm-atlas">
           {JOURNEY_SECTIONS.map(sec => {
-            const subjects = JOURNEY_SUBJECTS.filter(s => s.section === sec.id && isActive(s.id));
+            // Deactivated subjects stay on the map, darkened and marked "Under
+            // development", instead of vanishing. (The admin's journey editor
+            // can still open them to build content.)
+            const subjects = JOURNEY_SUBJECTS.filter(s => s.section === sec.id);
             return (
               <Fragment key={sec.id}>
                 <div className="jm-section-header">
@@ -662,6 +665,7 @@ export default function JourneyMode({
                 ) : (
                   <div className="jm-subject-grid">
                     {subjects.map(s => {
+                      const underDev = !isActive(s.id);
                       const prog = subjectProgress[s.id];
                       // Only once the totals are known AND there is something to
                       // complete — a bar reading 0/0 says nothing.
@@ -670,7 +674,9 @@ export default function JourneyMode({
                       return (
                         <button
                           key={s.id}
-                          className={`jm-subject-card${hasProg && pct === 100 ? ' jm-subject-card--done' : ''}`}
+                          className={`jm-subject-card${hasProg && pct === 100 ? ' jm-subject-card--done' : ''}${underDev ? ' jm-subject-card--dev' : ''}`}
+                          disabled={underDev && !editorMode}
+                          title={underDev ? `${s.label} is under development` : undefined}
                           onClick={() => loadPath(s)}
                           // The subject's own colour, fed to CSS once and used
                           // for the border, glow, icon and bar alike.
@@ -678,7 +684,8 @@ export default function JourneyMode({
                         >
                           <span className="jm-subject-icon">{s.icon}</span>
                           <span className="jm-subject-label">{s.label}</span>
-                          {hasProg && (
+                          {underDev && <span className="jm-subject-dev">🔒 Under development</span>}
+                          {hasProg && !underDev && (
                             <span className="jm-subject-progress">
                               <span className="jm-subject-bar" aria-hidden="true">
                                 <span className="jm-subject-bar-fill" style={{ width: `${pct}%` }} />

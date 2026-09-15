@@ -115,6 +115,9 @@ export default function UWorldAdventure({ mode = DEFAULT_QUESTION_BANK_MODE }) {
   // what clicking a subject does.
   const [systemModal, setSystemModal] = useState(null);
   const [subjects, setSubjects] = useState([]);
+  // Subjects switched off for this bank: shown darkened as "Under development"
+  // rather than hidden. Never selectable, never counted in the pace maths.
+  const [devSubjects, setDevSubjects] = useState([]);
   const [subjectsError, setSubjectsError] = useState(false);
   const [selected, setSelected] = useState(null);       // subject id
   const [progress, setProgress] = useState(null);       // selected subject: { total, seen, unseen }
@@ -197,6 +200,7 @@ export default function UWorldAdventure({ mode = DEFAULT_QUESTION_BANK_MODE }) {
         const allow = Array.isArray(configured) && configured.length ? new Set(configured) : null;
         const active = (data.subjects || []).filter(s => (allow ? allow.has(s.id) : s.active));
         setSubjects(active);
+        setDevSubjects((data.subjects || []).filter(s => !(allow ? allow.has(s.id) : s.active)));
         // Open on the first subject so the pace card is populated on arrival,
         // the way the mockup shows it — an empty card above a subject grid
         // reads as broken. Picking another subject just re-points it.
@@ -763,6 +767,19 @@ export default function UWorldAdventure({ mode = DEFAULT_QUESTION_BANK_MODE }) {
                   </span>
                 );
               })()}
+            </button>
+          ))}
+          {devSubjects.map(s => (
+            <button
+              key={s.id}
+              type="button"
+              className="uwa-subject uwa-subject--dev"
+              disabled
+              title={`${s.name} is under development`}
+            >
+              <span className="uwa-subject-badge" aria-hidden="true">{s.icon || s.name[0]}</span>
+              <span className="uwa-subject-name">{s.name}</span>
+              <span className="uwa-subject-meta uwa-subject-meta--dev">🔒 Under development</span>
             </button>
           ))}
         </div>

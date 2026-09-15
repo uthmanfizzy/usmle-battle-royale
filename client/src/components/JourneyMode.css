@@ -2710,3 +2710,26 @@
   .jm-themed .jm-node--frontier,
   .jm-themed .jm-node--boss.jm-node--frontier { animation: none; }
 }
+
+/* ── Deactivated subject: visible, darkened, "Under development" ─────────── */
+.jm-subject-card.jm-subject-card--dev {
+  cursor: not-allowed;
+  filter: grayscale(0.55) brightness(0.62);
+  box-shadow: none;
+}
+.jm-subject-card.jm-subject-card--dev:hover { transform: none; box-shadow: none; }
+.jm-editor .jm-subject-card.jm-subject-card--dev { cursor: pointer; }
+.jm-subject-dev {
+  margin-top: 8px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(232, 176, 75, 0.6);
+  background: rgba(0, 0, 0, 0.35);
+  color: #f3cf7e;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}

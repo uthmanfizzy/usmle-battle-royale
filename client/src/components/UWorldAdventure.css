@@ -834,3 +834,21 @@
 .uwa-counts {
   grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
 }
+
+/* ── Subject switched off for this bank: darkened, "Under development" ───── */
+.uwa-subject.uwa-subject--dev {
+  cursor: not-allowed;
+  filter: grayscale(0.6) brightness(0.65);
+}
+.uwa-subject.uwa-subject--dev:hover {
+  transform: none;
+  border-color: var(--uwa-panel-border);
+  background: var(--uwa-panel-soft);
+}
+.uwa-subject-meta.uwa-subject-meta--dev {
+  color: #b8860b;
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
