@@ -112,9 +112,12 @@ function saveHi(subject, score) {
  *
  * Purely presentational: the upload/save is SoloGame's uploadDevImage.
  */
-function DevImageSlot({ field, label, qid, armed, busy, message, currentUrl, onArm, onFile, reusable = [], onReuse }) {
+function DevImageSlot({ field, label, qid, armed, busy, message, currentUrl, onArm, onFile, reusable = [], onReuse, onPickingChange, holding = false, onResume }) {
   const [over, setOver] = useState(false);
   const [picking, setPicking] = useState(false);
+  // The game holds its timer while the picture list is open.
+  useEffect(() => { onPickingChange?.(field, picking); }, [picking, field]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => onPickingChange?.(field, false), [field]); // eslint-disable-line react-hooks/exhaustive-deps
   const state = busy ? 'busy' : message?.kind === 'ok' ? 'ok' : message?.kind === 'err' ? 'err' : '';
 
   return (
@@ -141,6 +144,16 @@ function DevImageSlot({ field, label, qid, armed, busy, message, currentUrl, onA
       </span>
       {/* Only one slot can receive a paste at a time, so say which. */}
       <span className="dev-imgslot-hint">{armed ? 'Ctrl+V here' : 'click to arm'}</span>
+      {holding && armed && (
+        <button
+          type="button"
+          className="dev-imgslot-hold"
+          onClick={e => { e.stopPropagation(); setPicking(false); onResume?.(); }}
+          title="The game timer is paused while you add a picture. Click to resume it."
+        >
+          ⏸ Timer paused · Resume
+        </button>
+      )}
       {/* Reuse an image already on another question in this set, instead of
           uploading the same file again. */}
       {reusable.length > 0 && (
@@ -514,7 +527,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   const explPauseStartRef = useRef(0);
 
   revealedRef.current = revealed;
-  pausedRef.current = isPaused;
+  pausedRef.current = isPaused; // extended with the picture hold below, once that state exists
   livesRef.current = lives;
   scoreRef.current = score;
   streakRef.current = streak;
@@ -689,6 +702,19 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   // admin panel that belong to no level or question yet.
   const [chapterImages, setChapterImages] = useState([]);
   const [devImgBusy,  setDevImgBusy]  = useState(null);        // field currently uploading
+  // Adding a picture mid-game holds the game clock. Held while: a picture slot
+  // has been clicked (the admin is off finding/copying an image), a slot's
+  // picture list is open, or an upload/save is in flight. Released when the
+  // picture is saved or fails, the question changes, or Resume is clicked.
+  const [imgArmHold,  setImgArmHold]  = useState(false);
+  const [imgPicking,  setImgPicking]  = useState({});           // { [field]: true } while a list is open
+  const onImgPickingChange = useCallback((field, open) => {
+    setImgPicking(prev => (!!prev[field] === open ? prev : { ...prev, [field]: open }));
+  }, []);
+  const devImgHolding = imgArmHold || !!devImgBusy || Object.values(imgPicking).some(Boolean);
+  // The question countdown's interval skips ticks while this is true, so a
+  // picture hold freezes it exactly like the pause button (without the cover).
+  pausedRef.current = isPaused || devImgHolding;
   const [devImgMsg,   setDevImgMsg]   = useState(null);        // { field, kind: 'ok'|'err', text }
 
   // Show the new image immediately. Matched BY ID rather than by index, since
@@ -736,6 +762,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
 
   const devImgFail = useCallback((field, text) => {
     setDevImgBusy(null);
+    setImgArmHold(false);
     setDevImgMsg({ field, kind: 'err', text });
     setTimeout(() => setDevImgMsg(null), 3200);
   }, []);
@@ -769,6 +796,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
       if (!res.ok) throw new Error(data.error || `Save failed (${res.status})`);
       applyDevImage(field, url, target.id);
       setDevImgBusy(null);
+      setImgArmHold(false);
       setDevImgMsg({ field, kind: 'ok', text: 'Saved' });
       setTimeout(() => setDevImgMsg(null), 2000);
     } catch (err) {
@@ -1205,6 +1233,33 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
     return () => { if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; } };
   }, [qIdx, loading, gameOver, questions.length, defaultTimer]);
 
+  const imgHeldExplRef = useRef(false);
+  useEffect(() => {
+    if (devImgHolding) {
+      // Explanation on screen and its auto-advance armed: hold it.
+      if (revealed && skipTimerRef.current && !explPauseStartRef.current) {
+        clearTimeout(skipTimerRef.current);
+        skipTimerRef.current = null;
+        explRemainingRef.current = Math.max(0, explDeadlineRef.current - Date.now());
+        explPauseStartRef.current = Date.now();
+        imgHeldExplRef.current = true;
+      }
+      return;
+    }
+    if (imgHeldExplRef.current) {
+      imgHeldExplRef.current = false;
+      explPausedMsRef.current += Date.now() - explPauseStartRef.current;
+      explPauseStartRef.current = 0;
+      const left = Math.max(0, explRemainingRef.current);
+      explDeadlineRef.current = Date.now() + left;
+      const fn = doAdvanceRef.current;
+      if (fn) skipTimerRef.current = setTimeout(fn, left);
+    }
+  }, [devImgHolding, revealed]);
+
+  // A new question never inherits a hold from the last one.
+  useEffect(() => { setImgArmHold(false); }, [qIdx]);
+
   function handleSkip() {
     if (skipTimerRef.current) { clearTimeout(skipTimerRef.current); skipTimerRef.current = null; }
     const fn = skipActionRef.current;
@@ -1216,6 +1271,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   // Re-arms with exactly what was left, so a hold costs no time either way.
   // skipActionRef is deliberately untouched — Next still works while held.
   function toggleExplPause() {
+    if (imgHeldExplRef.current) return;   // held for a picture — Resume on the slot releases it
     if (explPauseStartRef.current) {
       explPausedMsRef.current += Date.now() - explPauseStartRef.current;
       explPauseStartRef.current = 0;
@@ -1789,10 +1845,13 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
               busy={devImgBusy === 'image_url'}
               message={devImgMsg?.field === 'image_url' ? devImgMsg : null}
               currentUrl={q?.image_url}
-              onArm={() => setDevImgArmed({ field: 'image_url', qid: q?.id ?? null })}
+              onArm={() => { setDevImgArmed({ field: 'image_url', qid: q?.id ?? null }); setImgArmHold(true); }}
               onFile={uploadDevImage}
               reusable={reusableDevImages}
               onReuse={saveDevImage}
+              onPickingChange={onImgPickingChange}
+              holding={devImgHolding}
+              onResume={() => { setImgArmHold(false); setImgPicking({}); }}
             />
           )}
 
@@ -1947,10 +2006,13 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
                   busy={devImgBusy === 'explanation_image_url'}
                   message={devImgMsg?.field === 'explanation_image_url' ? devImgMsg : null}
                   currentUrl={q?.explanation_image_url}
-                  onArm={() => setDevImgArmed({ field: 'explanation_image_url', qid: q?.id ?? null })}
+                  onArm={() => { setDevImgArmed({ field: 'explanation_image_url', qid: q?.id ?? null }); setImgArmHold(true); }}
                   onFile={uploadDevImage}
                   reusable={reusableDevImages}
                   onReuse={saveDevImage}
+                  onPickingChange={onImgPickingChange}
+                  holding={devImgHolding}
+                  onResume={() => { setImgArmHold(false); setImgPicking({}); }}
                 />
               )}
             </div>

@@ -3712,3 +3712,21 @@ html[data-study="on"] .solo-body .pause-overlay {
 .uwa-back {
   margin-bottom: 6px !important;
 }
+
+/* In-game picture authoring: shown on the armed slot while the game clock is
+   held for it. */
+.dev-imgslot-hold {
+  flex-shrink: 0;
+  padding: 3px 9px;
+  font-size: 11px;
+  font-weight: 700;
+  font-family: inherit;
+  border-radius: 6px;
+  cursor: pointer;
+  border: 1px solid rgba(253, 203, 110, 0.8);
+  background: rgba(253, 203, 110, 0.18);
+  color: inherit;
+  animation: dev-imgslot-hold-pulse 1.6s ease-in-out infinite;
+}
+.dev-imgslot-hold:hover { background: rgba(253, 203, 110, 0.3); }
+@keyframes dev-imgslot-hold-pulse { 50% { box-shadow: 0 0 0 3px rgba(253, 203, 110, 0.25); } }
