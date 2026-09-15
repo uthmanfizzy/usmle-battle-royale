@@ -2330,3 +2330,383 @@
   color: #ffb4ac;
   text-align: center;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SUBJECT-THEMED CHAPTERS + LEVELS (.jm-themed)
+   Both views take the subject's own colour: --jm-subject-rgb ("r, g, b", the
+   same value the subject card uses) and --jm-hi (a lighter tint for text), set
+   inline by JourneyMode. Everything below derives from those two, so Renal is
+   water-blue, Cardiovascular red, Endocrine violet, with no per-subject CSS.
+   Appended last so it outranks the earlier gold/red mockup rules. Motion is
+   transform/opacity/box-shadow only and switches off under reduced motion.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@property --jm-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+/* Backdrop: deep night tinted with the subject, and a faint drifting dust grid. */
+.jm-themed.jm-screen--chapters,
+.jm-themed.jm-screen--path {
+  background:
+    radial-gradient(ellipse 60% 40% at 50% -6%, rgba(var(--jm-subject-rgb), 0.22), transparent 62%),
+    radial-gradient(ellipse 50% 50% at 110% 60%, rgba(var(--jm-subject-rgb), 0.10), transparent 60%),
+    radial-gradient(ellipse 50% 50% at -10% 90%, rgba(var(--jm-subject-rgb), 0.08), transparent 60%),
+    linear-gradient(170deg, #0b1216 0%, #070c0f 50%, #040709 100%);
+  isolation: isolate;
+}
+.jm-themed.jm-screen--chapters::before,
+.jm-themed.jm-screen--path::before {
+  content: "";
+  position: absolute;
+  inset: -20%;
+  z-index: -1;
+  pointer-events: none;
+  background-image: radial-gradient(rgba(var(--jm-subject-rgb), 0.35) 1px, transparent 1.4px);
+  background-size: 34px 34px;
+  opacity: 0.35;
+  -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, #000 30%, transparent 75%);
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, #000 30%, transparent 75%);
+  animation: jm-dust-drift 38s linear infinite;
+}
+@keyframes jm-dust-drift { to { transform: translate3d(34px, 34px, 0); } }
+
+/* Header bar */
+.jm-themed .jm-path-header {
+  background: linear-gradient(180deg, rgba(8, 13, 16, 0.92), rgba(8, 13, 16, 0.78));
+  border-bottom: 1px solid rgba(var(--jm-subject-rgb), 0.35);
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.5), 0 1px 0 rgba(var(--jm-subject-rgb), 0.15);
+}
+.jm-themed .jm-path-header::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; bottom: -1px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(var(--jm-subject-rgb), 0.9), transparent);
+  background-size: 40% 100%;
+  background-repeat: no-repeat;
+  animation: jm-header-sweep 4.5s ease-in-out infinite;
+}
+@keyframes jm-header-sweep {
+  0%   { background-position: -40% 0; }
+  100% { background-position: 140% 0; }
+}
+.jm-themed .jm-path-subject {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-family: 'Cinzel', serif;
+  font-size: 20px;
+  letter-spacing: 0.04em;
+  color: #fff;
+  text-shadow: 0 0 18px rgba(var(--jm-subject-rgb), 0.55);
+}
+.jm-path-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  text-shadow: none;
+  background: radial-gradient(circle at 40% 35%, rgba(var(--jm-subject-rgb), 0.9), rgba(var(--jm-subject-rgb), 0.35));
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.45), 0 0 0 4.5px rgba(var(--jm-subject-rgb), 0.55), 0 0 16px rgba(var(--jm-subject-rgb), 0.55);
+}
+.jm-themed .jm-path-progress {
+  background: rgba(var(--jm-subject-rgb), 0.08);
+  border-color: rgba(var(--jm-subject-rgb), 0.35);
+}
+.jm-themed .jm-progress-track { background: rgba(0, 0, 0, 0.55); }
+.jm-themed .jm-progress-fill {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(90deg, rgba(var(--jm-subject-rgb), 0.75), var(--jm-hi));
+  box-shadow: 0 0 12px rgba(var(--jm-subject-rgb), 0.7);
+}
+.jm-themed .jm-progress-fill::after,
+.jm-chapter-row-bar > span::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 30%, rgba(255, 255, 255, 0.55) 50%, transparent 70%);
+  transform: translateX(-100%);
+  animation: jm-shimmer 2.8s ease-in-out infinite;
+}
+@keyframes jm-shimmer { 60%, 100% { transform: translateX(100%); } }
+.jm-themed .jm-progress-label { font-family: 'Inter', system-ui, sans-serif; color: var(--jm-hi); }
+.jm-themed .jm-back-btn { border-color: rgba(var(--jm-subject-rgb), 0.45) !important; }
+
+/* ── Chapter list ──────────────────────────────────────────────────────────── */
+.jm-themed .jm-chapters-tagline {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin: 6px 0 8px;
+  font-family: 'Cinzel', serif;
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.7);
+}
+.jm-themed .jm-chapters-tagline::before,
+.jm-themed .jm-chapters-tagline::after {
+  content: "";
+  width: min(90px, 18vw);
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(var(--jm-subject-rgb), 0.8));
+}
+.jm-themed .jm-chapters-tagline::after { background: linear-gradient(90deg, rgba(var(--jm-subject-rgb), 0.8), transparent); }
+
+.jm-themed .jm-chapter-row {
+  --jm-angle: 0deg;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  gap: 18px;
+  padding: 18px 22px;
+  border: 0;
+  border-radius: 14px;
+  background:
+    radial-gradient(120% 140% at 0% 50%, rgba(var(--jm-subject-rgb), 0.16), transparent 55%),
+    linear-gradient(180deg, rgba(14, 22, 26, 0.9), rgba(8, 13, 16, 0.92));
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.5), 0 0 18px rgba(var(--jm-subject-rgb), 0.14);
+  animation: jm-row-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) calc(var(--i, 0) * 70ms) both;
+  transition: transform 0.22s ease, box-shadow 0.22s ease;
+}
+/* Travelling light round the border */
+.jm-themed .jm-chapter-row::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  padding: 1.5px;
+  border-radius: inherit;
+  background: conic-gradient(from var(--jm-angle),
+    rgba(var(--jm-subject-rgb), 0.22) 0deg,
+    var(--jm-hi) 40deg,
+    rgba(var(--jm-subject-rgb), 0.22) 110deg,
+    rgba(var(--jm-subject-rgb), 0.22) 360deg);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  pointer-events: none;
+  animation: jm-spin 6s linear calc(var(--i, 0) * -0.9s) infinite;
+}
+/* Sheen that sweeps across on hover */
+.jm-themed .jm-chapter-row::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(105deg, transparent 35%, rgba(var(--jm-subject-rgb), 0.18) 50%, transparent 65%);
+  transform: translateX(-120%);
+  transition: transform 0.7s ease;
+  pointer-events: none;
+}
+.jm-themed .jm-chapter-row:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.55), 0 0 30px rgba(var(--jm-subject-rgb), 0.35);
+}
+.jm-themed .jm-chapter-row:hover::after { transform: translateX(120%); }
+.jm-themed .jm-chapter-row:focus-visible { outline: 2px solid var(--jm-hi); outline-offset: 3px; }
+
+.jm-themed .jm-chapter-row-num {
+  width: 50px;
+  height: 50px;
+  color: #fff;
+  font-family: 'Cinzel', serif;
+  font-size: 19px;
+  background: radial-gradient(circle at 40% 35%, rgba(var(--jm-subject-rgb), 0.95), rgba(var(--jm-subject-rgb), 0.45));
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.5), 0 0 0 4.5px rgba(var(--jm-subject-rgb), 0.6), 0 0 18px rgba(var(--jm-subject-rgb), 0.5);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+.jm-themed .jm-chapter-row-name {
+  font-family: 'Cinzel', serif;
+  font-size: 19px;
+  letter-spacing: 0.03em;
+  color: #fff;
+}
+.jm-themed .jm-chapter-row-progress { color: rgba(255, 255, 255, 0.62); }
+.jm-chapter-row-bar {
+  display: block;
+  width: min(260px, 100%);
+  height: 5px;
+  margin-top: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+.jm-chapter-row-bar > span {
+  position: relative;
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  overflow: hidden;
+  background: linear-gradient(90deg, rgba(var(--jm-subject-rgb), 0.7), var(--jm-hi));
+  box-shadow: 0 0 8px rgba(var(--jm-subject-rgb), 0.6);
+  transition: width 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.jm-themed .jm-chapter-row-arrow {
+  color: var(--jm-hi);
+  font-size: 20px;
+  transition: transform 0.22s ease;
+}
+.jm-themed .jm-chapter-row:hover .jm-chapter-row-arrow { transform: translateX(5px); }
+
+/* Completed chapter: gold medallion with a check and a gold light */
+.jm-themed .jm-chapter-row--done .jm-chapter-row-num {
+  background: radial-gradient(circle at 40% 35%, #ffe29a, #e8b04b 70%);
+  color: #3a2600;
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.5), 0 0 0 4.5px rgba(232, 176, 75, 0.7), 0 0 18px rgba(232, 176, 75, 0.55);
+  text-shadow: none;
+}
+.jm-themed .jm-chapter-row--done::before {
+  background: conic-gradient(from var(--jm-angle),
+    rgba(232, 176, 75, 0.25) 0deg, #ffe29a 40deg, rgba(232, 176, 75, 0.25) 110deg, rgba(232, 176, 75, 0.25) 360deg);
+}
+.jm-themed .jm-chapter-row--done .jm-chapter-row-progress { color: #f3cf7e; }
+.jm-themed .jm-chapter-row--done .jm-chapter-row-bar > span { background: linear-gradient(90deg, #c98f2c, #ffe29a); box-shadow: 0 0 8px rgba(232, 176, 75, 0.6); }
+
+/* Ultimate card keeps gold (the crown of the subject) but gains motion */
+.jm-themed .jm-ultimate-card {
+  position: relative;
+  border-radius: 16px;
+  animation: jm-row-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) 0.45s both;
+}
+.jm-themed .jm-ultimate-face { animation: jm-float 3.6s ease-in-out infinite; }
+
+/* ── Level map ─────────────────────────────────────────────────────────────── */
+.jm-themed .jm-map {
+  border: 1px solid rgba(var(--jm-subject-rgb), 0.28);
+  border-radius: 20px;
+  background:
+    radial-gradient(ellipse 90% 30% at 50% 0%, rgba(var(--jm-subject-rgb), 0.16), transparent 62%),
+    linear-gradient(180deg, rgba(10, 16, 20, 0.72), rgba(6, 10, 12, 0.72));
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  animation: jm-row-in 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.jm-themed .jm-map::before,
+.jm-themed .jm-map::after { color: rgba(var(--jm-subject-rgb), 0.55); }
+
+/* Trail: dim for the road ahead, glowing subject colour behind you, and a
+   marching dashed line on the way to the current level. */
+.jm-themed .jm-trail-seg--todo { border-top: 3px dotted rgba(255, 255, 255, 0.16); }
+.jm-themed .jm-trail-seg--done {
+  border-top: 3px solid rgba(var(--jm-subject-rgb), 0.9);
+  filter: drop-shadow(0 0 5px rgba(var(--jm-subject-rgb), 0.75));
+}
+.jm-themed .jm-trail-seg--current {
+  border-top: 0;
+  height: 3px;
+  background: repeating-linear-gradient(90deg, var(--jm-hi) 0 10px, transparent 10px 18px);
+  background-size: 18px 3px;
+  filter: drop-shadow(0 0 5px rgba(var(--jm-subject-rgb), 0.8));
+  animation: jm-march 0.9s linear infinite;
+}
+@keyframes jm-march { to { background-position: 18px 0; } }
+
+/* Nodes */
+.jm-themed .jm-node {
+  background: radial-gradient(circle at 40% 30%, rgba(var(--jm-subject-rgb), 0.28), rgba(10, 16, 20, 0.9) 70%);
+  border: 2px solid rgba(var(--jm-subject-rgb), 0.55);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5), inset 0 0 12px rgba(var(--jm-subject-rgb), 0.18);
+  color: #fff;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.jm-themed .jm-node .jm-node-face { color: var(--jm-hi); font-family: 'Cinzel', serif; }
+.jm-themed .jm-node:not(:disabled):hover {
+  transform: translateY(-3px) scale(1.05);
+  box-shadow: 0 12px 22px rgba(0, 0, 0, 0.55), 0 0 22px rgba(var(--jm-subject-rgb), 0.55);
+}
+.jm-themed .jm-node--locked {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.14);
+  box-shadow: none;
+  opacity: 0.5;
+}
+.jm-themed .jm-node--done {
+  background: radial-gradient(circle at 38% 30%, var(--jm-hi), rgb(var(--jm-subject-rgb)) 62%, rgba(var(--jm-subject-rgb), 0.75));
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 0 18px rgba(var(--jm-subject-rgb), 0.6), 0 8px 16px rgba(0, 0, 0, 0.45);
+}
+.jm-themed .jm-node--done .jm-node-face { color: #fff; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45); }
+.jm-themed .jm-node--done:not(:disabled):hover { box-shadow: 0 0 28px rgba(var(--jm-subject-rgb), 0.85); }
+.jm-themed .jm-node-badge {
+  background: #e8b04b;
+  color: #2a1b00;
+  border-color: #0b1216;
+}
+
+/* Current level: bright ring, soft ripple, gentle bob */
+.jm-themed .jm-node--frontier {
+  background: radial-gradient(circle at 38% 30%, var(--jm-hi), rgb(var(--jm-subject-rgb)) 70%);
+  border: 3px solid #fff;
+  animation: jm-frontier-ripple 2s ease-out infinite, jm-float 3s ease-in-out infinite;
+}
+.jm-themed .jm-node--frontier .jm-node-face { color: #fff; text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5); }
+@keyframes jm-frontier-ripple {
+  0%   { box-shadow: 0 0 20px rgba(var(--jm-subject-rgb), 0.7), 0 0 0 0 rgba(var(--jm-subject-rgb), 0.55); }
+  70%  { box-shadow: 0 0 26px rgba(var(--jm-subject-rgb), 0.9), 0 0 0 18px rgba(var(--jm-subject-rgb), 0); }
+  100% { box-shadow: 0 0 20px rgba(var(--jm-subject-rgb), 0.7), 0 0 0 0 rgba(var(--jm-subject-rgb), 0); }
+}
+@keyframes jm-float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-4px); }
+}
+
+/* Chapter boss: bigger, subject glass with a gold ring */
+.jm-themed .jm-node--boss {
+  background: radial-gradient(circle at 40% 30%, rgba(var(--jm-subject-rgb), 0.4), rgba(10, 16, 20, 0.92) 72%);
+  border: 2px solid rgba(var(--jm-subject-rgb), 0.7);
+  box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.45), 0 0 0 6px rgba(232, 176, 75, 0.45), 0 0 24px rgba(var(--jm-subject-rgb), 0.35);
+}
+.jm-themed .jm-node--boss.jm-node--locked { opacity: 0.55; box-shadow: none; border-color: rgba(255, 255, 255, 0.18); background: rgba(255, 255, 255, 0.04); }
+.jm-themed .jm-node--boss.jm-node--done {
+  background: radial-gradient(circle at 38% 30%, #ffe29a, #e8b04b 65%, #b07a1f);
+  border-color: #fff;
+  box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.4), 0 0 0 6px rgba(var(--jm-subject-rgb), 0.6), 0 0 24px rgba(232, 176, 75, 0.6);
+}
+.jm-themed .jm-node--boss.jm-node--frontier {
+  background: radial-gradient(circle at 38% 30%, var(--jm-hi), rgb(var(--jm-subject-rgb)) 70%);
+  border: 3px solid #fff;
+  animation: jm-frontier-ripple 2s ease-out infinite, jm-float 3s ease-in-out infinite;
+}
+
+/* Captions */
+.jm-themed .jm-node-name { color: rgba(255, 255, 255, 0.92); text-shadow: 0 2px 6px rgba(0, 0, 0, 0.7); }
+.jm-themed .jm-node--frontier + .jm-node-caption .jm-node-name { color: var(--jm-hi); }
+.jm-themed .jm-node-stars { color: #f5c451; text-shadow: 0 0 8px rgba(245, 196, 81, 0.5); }
+
+@keyframes jm-spin { to { --jm-angle: 360deg; } }
+@keyframes jm-row-in {
+  from { opacity: 0; transform: translate3d(0, 14px, 0) scale(0.985); }
+  to   { opacity: 1; transform: none; }
+}
+
+@media (max-width: 520px) {
+  .jm-themed .jm-chapter-row { padding: 14px 16px; gap: 14px; }
+  .jm-themed .jm-chapter-row-num { width: 44px; height: 44px; font-size: 17px; }
+  .jm-themed .jm-chapter-row-name { font-size: 16px; }
+  .jm-themed .jm-path-subject { font-size: 16px; gap: 8px; }
+  .jm-path-icon { width: 28px; height: 28px; font-size: 15px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .jm-themed.jm-screen--chapters::before,
+  .jm-themed.jm-screen--path::before,
+  .jm-themed .jm-path-header::after,
+  .jm-themed .jm-progress-fill::after,
+  .jm-chapter-row-bar > span::after,
+  .jm-themed .jm-chapter-row,
+  .jm-themed .jm-chapter-row::before,
+  .jm-themed .jm-ultimate-card,
+  .jm-themed .jm-ultimate-face,
+  .jm-themed .jm-map,
+  .jm-themed .jm-trail-seg--current,
+  .jm-themed .jm-node--frontier,
+  .jm-themed .jm-node--boss.jm-node--frontier { animation: none; }
+}

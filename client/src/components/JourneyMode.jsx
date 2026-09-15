@@ -152,6 +152,16 @@ export default function JourneyMode({
     return () => { cancelled = true; };
   }, []);
 
+  // The chapter list and level map take the SUBJECT's colour (the same rgb the
+  // subject card uses), so Renal is water-blue, Cardiovascular red, and so on.
+  // --jm-hi is a lighter tint of it for text and highlights on dark glass.
+  const themeStyle = (() => {
+    const rgb = subject?.rgb || '232, 176, 75';
+    const [r, g, b] = rgb.split(',').map(n => parseInt(n, 10) || 0);
+    const lift = (c) => Math.round(c + (255 - c) * 0.45);
+    return { '--jm-subject-rgb': rgb, '--jm-hi': `rgb(${lift(r)}, ${lift(g)}, ${lift(b)})` };
+  })();
+
   // Vivid admin backdrop with the parchment floating on top; absent → unchanged look
   const bgClass = bgUrl ? ' jm-screen--bg' : '';
   const bgLayer = bgUrl
@@ -1176,13 +1186,13 @@ export default function JourneyMode({
     const ultTappable = ult && ult.unlocked && !ult.auto_skipped && ult.question_count > 0;
     const ultStars = ult?.completed ? getStarCount(ult.best_score_pct) : 0;
     return (
-      <div className={`screen jm-screen jm-screen--chapters${bgClass}${editorMode ? ' jm-editor' : ''}`} {...editorRootProps}>
+      <div className={`screen jm-screen jm-screen--chapters jm-themed${bgClass}${editorMode ? ' jm-editor' : ''}`} style={themeStyle} {...editorRootProps}>
         {bgLayer}
         <div className="jm-path-header">
           <button className="jm-back-btn" onClick={() => { setView('subjects'); setPath(null); setConfirmNode(null); }} {...ek('path.back')}>
             {t('path.back', '← Subjects')}
           </button>
-          <span className="jm-path-subject">{subject?.icon} {subject?.label}</span>
+          <span className="jm-path-subject"><span className="jm-path-icon" aria-hidden="true">{subject?.icon}</span>{subject?.label}</span>
           <span className="jm-path-progress">
             <span className="jm-progress-track" aria-hidden="true">
               <span
@@ -1204,6 +1214,7 @@ export default function JourneyMode({
                   key={c.chapter.id}
                   type="button"
                   className={`jm-chapter-row${chComplete ? ' jm-chapter-row--done' : ''}`}
+                  style={{ '--i': ci }}
                   onClick={(e) => {
                     // editor: clicking the chapter NAME opens the inline
                     // name editor (root handler) instead of navigating
@@ -1212,11 +1223,14 @@ export default function JourneyMode({
                     setView('levels');
                   }}
                 >
-                  <span className="jm-chapter-row-num">{ci + 1}</span>
+                  <span className="jm-chapter-row-num">{chComplete ? '✓' : ci + 1}</span>
                   <span className="jm-chapter-row-text">
                     <span className="jm-chapter-row-name" {...en('chapter', c.chapter.id, c.chapter.name)}>{c.chapter.name}</span>
                     <span className="jm-chapter-row-progress">
-                      {c.levels.length} level{c.levels.length === 1 ? '' : 's'} · {chComplete ? '✓ Complete' : `${chDone}/${chTotal} completed`}
+                      {c.levels.length} level{c.levels.length === 1 ? '' : 's'} · {chComplete ? 'Complete' : `${chDone}/${chTotal} completed`}
+                    </span>
+                    <span className="jm-chapter-row-bar" aria-hidden="true">
+                      <span style={{ width: `${chTotal ? Math.round((chDone / chTotal) * 100) : 0}%` }} />
                     </span>
                   </span>
                   <span className="jm-chapter-row-arrow" aria-hidden="true">→</span>
@@ -1273,13 +1287,13 @@ export default function JourneyMode({
   const current  = chapters[curIdx];
   const curStats = chapterStats(current);
   return (
-    <div className={`screen jm-screen jm-screen--path${bgClass}${editorMode ? ' jm-editor' : ''}`} {...editorRootProps}>
+    <div className={`screen jm-screen jm-screen--path jm-themed${bgClass}${editorMode ? ' jm-editor' : ''}`} style={themeStyle} {...editorRootProps}>
       {bgLayer}
       <div className="jm-path-header">
         <button className="jm-back-btn" onClick={() => { setView('chapters'); setConfirmNode(null); }} {...ek('levels.back')}>
           {t('levels.back', '← Chapters')}
         </button>
-        <span className="jm-path-subject">Chapter {curIdx + 1} · {current.chapter.name}</span>
+        <span className="jm-path-subject"><span className="jm-path-icon" aria-hidden="true">{subject?.icon}</span>Chapter {curIdx + 1} · {current.chapter.name}</span>
         <span className="jm-path-progress">
           <span className="jm-progress-track" aria-hidden="true">
             <span
