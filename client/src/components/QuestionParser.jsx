@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import './QuestionParser.css';
 import { supabase } from '../supabaseClient';
 import { isLabLine, isTableLine, renderStem, segmentStem } from '../utils/renderStem';
@@ -518,16 +518,31 @@ export default function QuestionParser({ activeFolder, selectedTopic, selectedDi
   // of its own. A textarea needs it for newlines (the preview's editable fields
   // are textareas), and a focused button already fires its own click on Enter —
   // handling it here as well would run two actions from one keypress.
-  const handleModalEnter = (e) => {
+  // Enter on the preview imports. Listened for on the whole DOCUMENT, not the
+  // modal: pressing Enter in the paste box unmounts that textarea, so focus
+  // falls back to <body> — outside the modal — and a modal-level onKeyDown
+  // never heard the second Enter. The ref keeps the listener on the latest
+  // state without re-subscribing every render.
+  const enterImportRef = useRef(null);
+  enterImportRef.current = (e) => {
     if (step !== 'preview') return;
-    if (e.key !== 'Enter' || e.shiftKey || e.nativeEvent?.isComposing) return;
+    if (e.key !== 'Enter' || e.shiftKey || e.isComposing) return;
     const tag = e.target?.tagName;
-    if (tag === 'TEXTAREA' || tag === 'BUTTON' || tag === 'SELECT') return;
+    // Typing somewhere, or a focused button that Enter already activates.
+    if (tag === 'TEXTAREA' || tag === 'SELECT' || tag === 'INPUT' || tag === 'BUTTON') return;
     if (e.target?.isContentEditable) return;
     if (importing || parsed.length === 0 || subjectBlocked) return;
     e.preventDefault();
     handleImport();
   };
+  useEffect(() => {
+    if (step !== 'preview') return;
+    const onKey = (e) => enterImportRef.current?.(e);
+    // A tick later, so the Enter that opened the preview can't also import.
+    const t = setTimeout(() => document.addEventListener('keydown', onKey), 0);
+    return () => { clearTimeout(t); document.removeEventListener('keydown', onKey); };
+  }, [step]);
+  const handleModalEnter = () => {};
 
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
