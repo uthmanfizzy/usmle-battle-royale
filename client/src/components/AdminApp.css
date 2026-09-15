@@ -5597,3 +5597,40 @@
   padding-top: 24px;
   border-top: 1px solid var(--border);
 }
+
+/* Journey admin: the level (or chapter) just filled by Paste & Parse, flashed
+   after returning to the list. */
+.ap-jflash {
+  animation: ap-jflash 2.2s ease-out;
+  border-radius: 8px;
+}
+@keyframes ap-jflash {
+  0%, 30% { box-shadow: 0 0 0 2px var(--gold, #e8b04b), 0 0 18px rgba(232, 176, 75, 0.55); background-color: rgba(232, 176, 75, 0.14); }
+  100%    { box-shadow: 0 0 0 0 transparent; background-color: transparent; }
+}
+
+/* Chapter image library: the zone that receives Ctrl+V */
+.je-imglib-drop.is-armed {
+  outline: 2px solid var(--gold, #e8b04b);
+  outline-offset: 2px;
+}
+.je-imglib-browse {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: var(--gold, #e8b04b);
+  text-decoration: underline;
+  cursor: pointer;
+}
+.je-imglib-armed {
+  margin-left: auto;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  background: rgba(232, 176, 75, 0.18);
+  border: 1px solid rgba(232, 176, 75, 0.55);
+  color: var(--gold, #e8b04b);
+  white-space: nowrap;
+}

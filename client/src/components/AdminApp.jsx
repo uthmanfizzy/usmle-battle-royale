@@ -5607,8 +5607,15 @@ function LevelVideosField({ levelId }) {
  * Loads only when the chapter is expanded, so opening the Journey tab does not
  * fetch every chapter's library at once.
  */
+// Which chapter's library a Ctrl+V goes to. Several chapters can be expanded at
+// once, so a paste belongs to the library last clicked or pointed at — never to
+// all of them.
+let activeImageLibraryChapter = null;
+
 function ChapterImageLibrary({ chapterId }) {
   const [images, setImages] = useState(null);   // null = loading
+  const [armed, setArmed] = useState(false);    // this library receives Ctrl+V
+  const inputRef = useRef(null);
   const [unavailable, setUnavailable] = useState(false);
   const [over, setOver] = useState(false);
   const [busy, setBusy] = useState(null);       // "3 / 8" while a batch uploads
@@ -5680,6 +5687,44 @@ function ChapterImageLibrary({ chapterId }) {
     if (added) load();
   };
 
+  // Ctrl+V a copied picture (or several copied files) into this library.
+  const addFilesRef = useRef(addFiles);
+  addFilesRef.current = addFiles;
+  const busyRef = useRef(busy);
+  busyRef.current = busy;
+  const arm = () => {
+    activeImageLibraryChapter = chapterId;
+    setArmed(true);
+  };
+  useEffect(() => {
+    const onPaste = (e) => {
+      if (activeImageLibraryChapter !== chapterId) return;
+      const t = e.target;
+      // A paste into a real text field keeps its normal behaviour.
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+      const files = [];
+      for (const item of e.clipboardData?.items || []) {
+        if (item.kind === 'file' && item.type?.startsWith('image/')) {
+          const f = item.getAsFile();
+          if (f) files.push(f.name ? f : new File([f], `pasted-${Date.now()}.${(f.type.split('/')[1] || 'png')}`, { type: f.type }));
+        }
+      }
+      if (files.length === 0) return;
+      e.preventDefault();
+      if (busyRef.current) return;
+      addFilesRef.current(files);
+    };
+    // Another library taking over the paste target un-arms this one.
+    const onArmElsewhere = () => { if (activeImageLibraryChapter !== chapterId) setArmed(false); };
+    document.addEventListener('paste', onPaste);
+    document.addEventListener('mousedown', onArmElsewhere);
+    return () => {
+      document.removeEventListener('paste', onPaste);
+      document.removeEventListener('mousedown', onArmElsewhere);
+      if (activeImageLibraryChapter === chapterId) activeImageLibraryChapter = null;
+    };
+  }, [chapterId]);
+
   const remove = async (id) => {
     // The library entry only — the stored file stays, so a question already
     // using this picture keeps rendering it.
@@ -5708,13 +5753,21 @@ function ChapterImageLibrary({ chapterId }) {
         </div>
       ) : (
         <>
-          <label
-            className={`je-imglib-drop${over ? " is-over" : ""}${busy ? " is-busy" : ""}`}
-            onDragOver={e => { e.preventDefault(); if (!busy) setOver(true); }}
+          <div
+            className={`je-imglib-drop${over ? " is-over" : ""}${busy ? " is-busy" : ""}${armed ? " is-armed" : ""}`}
+            tabIndex={0}
+            role="button"
+            onMouseDown={arm}
+            onMouseEnter={arm}
+            onFocus={arm}
+            onDragOver={e => { e.preventDefault(); arm(); if (!busy) setOver(true); }}
             onDragLeave={e => { e.preventDefault(); setOver(false); }}
             onDrop={e => { e.preventDefault(); setOver(false); if (!busy && e.dataTransfer?.files?.length) addFiles(e.dataTransfer.files); }}
+            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); inputRef.current?.click(); } }}
+            title="Drop pictures here, click to browse, or hover/click then Ctrl+V"
           >
             <input
+              ref={inputRef}
               type="file" accept="image/jpeg,image/png,image/webp" multiple hidden
               onChange={e => { if (e.target.files?.length) addFiles(e.target.files); e.target.value = ''; }}
             />
@@ -5722,9 +5775,10 @@ function ChapterImageLibrary({ chapterId }) {
             <span>
               {busy
                 ? `Uploading ${busy}…`
-                : 'Drop images here (or click) — they attach to the chapter, not to any level or question'}
+                : <>Drop images here, <button type="button" className="je-imglib-browse" onClick={e => { e.stopPropagation(); inputRef.current?.click(); }}>browse</button>, or <strong>Ctrl+V</strong> a copied picture — they attach to the chapter, not to any level or question</>}
             </span>
-          </label>
+            {armed && !busy && <span className="je-imglib-armed">Ctrl+V pastes here</span>}
+          </div>
 
           {error && <div className="je-imglib-err">⚠ {error}</div>}
 
@@ -6118,6 +6172,41 @@ function JourneyPanel() {
   }
 
   function openBoss(chapter) { setError(''); closeForm(); setQSel(new Set()); setSelected({ kind: 'boss', chapter }); }
+
+  // After a Paste & Parse import, leave the editor and land back on the list of
+  // chapters/levels with the level (or boss's chapter) that was just filled
+  // scrolled into view and briefly highlighted — so the next level to fill is
+  // right there instead of back at the top of the page.
+  const [landOn, setLandOn] = useState(null); // { levelId?, chapterId }
+  function returnToListAt(sel) {
+    if (!sel) return;
+    const chapterId = sel.chapter?.id || null;
+    closeForm();
+    setSelected(null);
+    if (chapterId) setExpandedIds(prev => (prev.has(chapterId) ? prev : new Set([...prev, chapterId])));
+    setLandOn({ levelId: sel.kind === 'level' ? sel.level?.id : null, chapterId });
+  }
+  useEffect(() => {
+    if (!landOn || selected) return;
+    let tries = 0;
+    let timer;
+    const find = () => {
+      const el = (landOn.levelId && document.querySelector(`[data-level-id="${landOn.levelId}"]`))
+        || (landOn.chapterId && document.querySelector(`[data-chapter-id="${landOn.chapterId}"]`));
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.classList.add('ap-jflash');
+        setTimeout(() => el.classList.remove('ap-jflash'), 2200);
+        setLandOn(null);
+        return;
+      }
+      // The chapter's levels may still be rendering / loading.
+      if (++tries < 40) timer = setTimeout(find, 100);
+      else setLandOn(null);
+    };
+    timer = setTimeout(find, 60);
+    return () => clearTimeout(timer);
+  }, [landOn, selected, levelsByChapter, expandedIds]);
   function openUltimate()    { setError(''); resetForm(); setQSel(new Set()); setSelected({ kind: 'ultimate' }); }
 
   const bossKeyFor = (sel) => sel.kind === 'ultimate' ? 'ultimate' : `chapter:${sel.chapter.id}`;
@@ -6506,7 +6595,7 @@ function JourneyPanel() {
                 const levelCount = levels?.length ?? counts.chapters[ch.id] ?? 0;
                 const renaming   = nameEdit?.kind === 'chapter' && nameEdit.id === ch.id;
                 return (
-                  <div className={`ap-jcard${expanded ? ' is-open' : ''}`} key={ch.id}>
+                  <div className={`ap-jcard${expanded ? ' is-open' : ''}`} key={ch.id} data-chapter-id={ch.id}>
                     <div className="ap-jcard-head">
                       <span className="ap-jcard-icon">📖</span>
                       {renaming ? (
@@ -6543,7 +6632,7 @@ function JourneyPanel() {
                               const qCount = counts.levels[lv.id] ?? 0;
                               const lvRenaming = nameEdit?.kind === 'level' && nameEdit.id === lv.id;
                               return (
-                              <div className="ap-jlevel" key={lv.id}>
+                              <div className="ap-jlevel" key={lv.id} data-level-id={lv.id}>
                                 <span className="ap-jlevel-num">{li + 1}</span>
                                 {lvRenaming ? (
                                   <div className="ap-jlevel-rename">{renderNameInput('Level name')}</div>
@@ -6878,7 +6967,7 @@ function JourneyPanel() {
           selectedTopic={null}
           selectedDifficulty="easy"
           customImport={importParsed}
-          onImport={() => {}}
+          onImport={(result) => { if (result?.imported > 0) returnToListAt(selected); }}
           onClose={() => setShowParser(false)}
         />
       )}
@@ -6890,7 +6979,7 @@ function JourneyPanel() {
           selectedTopic={null}
           selectedDifficulty="easy"
           customImport={levelUpdateRoundTrip}
-          onImport={() => {}}
+          onImport={(result) => { if ((result?.imported || result?.added || result?.updated) > 0) returnToListAt(selected); }}
           onClose={() => setUpdateParser(false)}
         />
       )}
