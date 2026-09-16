@@ -1,5 +1,6 @@
 import { Fragment, useState, useEffect, useRef, useCallback } from 'react';
 import { getToken } from '../auth';
+import { useStudyActivity } from '../studyPresence';
 import { JOURNEY_SUBJECTS, JOURNEY_SECTIONS } from '../journeySubjects';
 import { parseShortUrl, embedUrlStatic } from '../utils/shortEmbeds';
 import { getStarCount } from '../utils/journeyStars';
@@ -60,6 +61,7 @@ export default function JourneyMode({
   const [view,        setView]        = useState('subjects'); // 'subjects' | 'chapters' | 'levels'
   const [chapterIdx,  setChapterIdx]  = useState(0);          // which chapter the 'levels' view shows
   const [subject,     setSubject]     = useState(null);       // entry from JOURNEY_SUBJECTS
+  useStudyActivity(editorMode ? null : 'First Aid Journey', subject?.name || null, 'journey');
   const [path,        setPath]        = useState(null);       // GET /api/journey/:subject response
   const [loading,     setLoading]     = useState(false);
   const [error,       setError]       = useState('');

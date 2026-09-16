@@ -6,6 +6,7 @@ import { ThemeProvider } from './theme';
 import { GameSettingsProvider } from './contexts/GameSettingsContext';
 import RouteErrorBoundary from './components/RouteErrorBoundary';
 import DevModeBanner from './components/DevModeBanner';
+import { startPresenceHeartbeat } from './studyPresence';
 import './styles/designTokens.css';
 import './App.css';
 import './themes.css';
@@ -105,6 +106,13 @@ class GlobalErrorBoundary extends React.Component {
   }
 }
 
+// Online presence for friends: runs while any page of the app is open. The
+// heartbeat itself skips when nobody is signed in.
+function PresenceHeartbeat() {
+  React.useEffect(() => startPresenceHeartbeat(), []);
+  return null;
+}
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <GlobalErrorBoundary>
@@ -112,6 +120,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         <ThemeProvider>
           <BrowserRouter>
             <DevModeBanner />
+            <PresenceHeartbeat />
             <Suspense fallback={<PageSpinner />}>
               <Routes>
                 <Route path="/admin/*"        element={<AdminApp />} />

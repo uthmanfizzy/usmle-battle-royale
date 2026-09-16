@@ -1,3 +1,4 @@
+import { useStudyActivity } from '../studyPresence';
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useGameSettings } from '../contexts/GameSettingsContext';
 import { useTheme } from '../theme';
@@ -200,7 +201,20 @@ function DevImageSlot({ field, label, qid, armed, busy, message, currentUrl, onA
   );
 }
 
-export default function SoloGame({ subject, username, difficulty, onBack, onTryAgain, onChangeSubject, onBackToTopics, topicId, questionsUrl, onComplete, levelLabel, isJourney, providedQuestions, shuffleOptions = true, uworldSkin = false, examTheme = null, uwaRemainingToday = 0, uwaCompletionLabel = null, uwaReview = false }) {
+export default function SoloGame({ subject, username, difficulty, onBack, onTryAgain, onChangeSubject, onBackToTopics, topicId, questionsUrl, onComplete, levelLabel, isJourney, providedQuestions, shuffleOptions = true, uworldSkin = false, examTheme = null, uwaRemainingToday = 0, uwaCompletionLabel = null, uwaReview = false, studySubjectName = null }) {
+  // Tell friends what this run is. Declared first so it runs whatever the
+  // component returns below.
+  const prettySubject = studySubjectName
+    || (subject && subject !== 'all' ? String(subject).replace(/[_-]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : null);
+  useStudyActivity(
+    uworldSkin ? (examTheme?.label || 'Question Bank')
+      : isJourney ? 'First Aid Journey'
+      : topicId ? 'Training Grounds'
+      : 'Solo Practice',
+    uworldSkin ? (levelLabel || prettySubject)
+      : [prettySubject, levelLabel].filter(Boolean).join(' · ') || null,
+    uworldSkin ? (examTheme?.id || 'question_bank') : isJourney ? 'journey' : topicId ? 'training' : 'solo',
+  );
   const { settings } = useGameSettings();
   const { study: studyPref } = useTheme();   // Layer 1 chrome renders only when study mode is on
   // Journey ALWAYS renders the full study-layout chrome (burger menu, header

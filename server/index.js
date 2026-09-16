@@ -6452,11 +6452,65 @@ app.get('/api/clans', async (req, res) => {
 });
 
 // ── ONLINE STATUS ─────────────────────────────────────
+// ── Study presence ──────────────────────────────────────────────────────────
+// Most study pages (UWorld, SMLE, HY Flashcards, the dashboard) never open a
+// socket, so a signed-in tab also sends a small heartbeat saying what it is on.
+// Kept in memory only: it is "right now" information, and a restart losing it
+// just means everyone reads as offline until their next beat (<= 30s).
+const PRESENCE_TTL_MS = 75 * 1000;
+const studyPresence = new Map(); // userId -> { beat, activity: { mode, label, detail } | null, since }
+
+const cleanPresenceText = (v, max) => {
+  if (v == null) return null;
+  const t = String(v).replace(/[\u0000-\u001f]/g, ' ').trim().slice(0, max);
+  return t || null;
+};
+
+app.post('/api/presence/heartbeat', requireAuth, rateLimit(120, 60 * 1000), (req, res) => {
+  const raw = req.body?.activity;
+  const activity = raw && typeof raw === 'object'
+    ? {
+        mode:   cleanPresenceText(raw.mode, 40),
+        label:  cleanPresenceText(raw.label, 60),
+        detail: cleanPresenceText(raw.detail, 80),
+      }
+    : null;
+  const prev = studyPresence.get(req.userId);
+  const same = prev?.activity && activity
+    && prev.activity.mode === activity.mode && prev.activity.label === activity.label
+    && prev.activity.detail === activity.detail;
+  studyPresence.set(req.userId, {
+    beat: Date.now(),
+    activity: activity?.label ? activity : null,
+    since: same ? prev.since : Date.now(),
+  });
+  // Sweep stale entries now and then so the map can't grow without bound.
+  if (studyPresence.size > 500 && Math.random() < 0.05) {
+    const cutoff = Date.now() - PRESENCE_TTL_MS;
+    for (const [id, v] of studyPresence) if (v.beat < cutoff) studyPresence.delete(id);
+  }
+  res.json({ ok: true });
+});
+
 app.post('/api/users/online-status', async (req, res) => {
   if (!supabase) return res.json({});
   try {
     const { userIds } = req.body;
-    if (!userIds || !userIds.length) return res.json({});
+    if (!Array.isArray(userIds) || !userIds.length) return res.json({});
+
+    // What someone is studying is only told to their friends. The online dot
+    // stays public, as before.
+    let friendSet = new Set();
+    const auth = req.headers.authorization;
+    const viewer = auth?.startsWith('Bearer ') ? verifyToken(auth.slice(7))?.userId : null;
+    if (viewer && UUID_RE.test(String(viewer))) {
+      const { data: fr } = await supabase
+        .from('friends')
+        .select('user_id, friend_id')
+        .or(`user_id.eq.${viewer},friend_id.eq.${viewer}`)
+        .eq('status', 'accepted');
+      friendSet = new Set((fr || []).map(f => (f.user_id === viewer ? f.friend_id : f.user_id)));
+    }
 
     const { data } = await supabase
       .from('users')
@@ -6472,16 +6526,25 @@ app.post('/api/users/online-status', async (req, res) => {
     }
 
     const statusMap = {};
+    const now = Date.now();
     data?.forEach(u => {
       const socketId = onlineUsers.get(u.id);
+      const beat = studyPresence.get(u.id);
+      const beating = Boolean(beat && now - beat.beat < PRESENCE_TTL_MS);
+      const studying = beating && beat.activity && friendSet.has(u.id)
+        ? { ...beat.activity, since: new Date(beat.since).toISOString() }
+        : null;
       statusMap[u.id] = {
         // is_online alone goes stale: a server restart never runs the
-        // disconnect handler, leaving it true forever. The live socket map is
-        // the authority on this (single) instance.
-        online: Boolean(u.is_online && socketId),
-        lastSeen: u.last_seen,
+        // disconnect handler, leaving it true forever. The live socket map and
+        // the heartbeat map are the authority on this (single) instance.
+        online: Boolean((u.is_online && socketId) || beating),
+        // A heartbeat is fresher than the column, which only moves on socket
+        // connect/disconnect.
+        lastSeen: beat ? new Date(Math.max(beat.beat, new Date(u.last_seen || 0).getTime())).toISOString() : u.last_seen,
         inMatch: Boolean(socketId && inMatchBySocket.has(socketId)),
         gameMode: socketId ? inMatchBySocket.get(socketId) || null : null,
+        studying,
       };
     });
 
@@ -7814,6 +7877,13 @@ const questionImageTable = (v) => {
   return QUESTION_IMAGE_TABLES.includes(t) ? t : null;
 };
 
+// The game identifies a bank question by its readable code (e.g. NP-010), which
+// lives in questions.question_id — questions.id is the UUID. Match whichever
+// the caller sent; a code compared against the UUID column is a Postgres error.
+const questionImageKey = (table, id) =>
+  (table === 'questions' && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(id)))
+    ? 'question_id' : 'id';
+
 app.put('/api/question-image/:id', moderatorAuth, async (req, res) => {
   // Validate BEFORE the supabase check: a bad field or table is a bad request
   // whatever the database is doing, and answering 503 would hide the real fault.
@@ -7831,7 +7901,7 @@ app.put('/api/question-image/:id', moderatorAuth, async (req, res) => {
   }
   if (!supabase) return res.status(503).json({ error: 'Supabase not configured' });
   try {
-    const { error } = await supabase.from(table).update({ [field]: url }).eq('id', req.params.id);
+    const { error } = await supabase.from(table).update({ [field]: url }).eq(questionImageKey(table, req.params.id), req.params.id);
     if (error) throw error;
     // The in-memory bank is what Solo/Training actually serve, so patch it too —
     // otherwise the change only appears after the next full reload.
@@ -7855,7 +7925,7 @@ app.get('/api/question-image/:id', async (req, res) => {
   if (!table) return res.status(400).json({ error: 'unknown table' });
   try {
     const { data, error } = await supabase
-      .from(table).select('image_url, explanation_image_url').eq('id', req.params.id).maybeSingle();
+      .from(table).select('image_url, explanation_image_url').eq(questionImageKey(table, req.params.id), req.params.id).maybeSingle();
     if (error) throw error;
     res.json({
       image_url: data?.image_url ?? null,

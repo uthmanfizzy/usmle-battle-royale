@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import ProfileModal from './ProfileModal';
-import { authFetch } from '../auth';
+import { authFetch, getToken } from '../auth';
 import { GroupGlyph } from './HomeGlyphs';
 import './FriendsPage.css';
 
@@ -119,7 +119,8 @@ export default function FriendsPage({ user, bannerArt }) {
       try {
         const res = await fetch(`${SERVER_URL}/api/users/online-status`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          // Signed in, so the server also says what each friend is studying.
+          headers: { 'Content-Type': 'application/json', ...(getToken() ? { Authorization: `Bearer ${getToken()}` } : {}) },
           body: JSON.stringify({ userIds: idsKey.split(',') }),
         });
         const data = await res.json();
@@ -143,7 +144,13 @@ export default function FriendsPage({ user, bannerArt }) {
   const statusOf = (f) => {
     const p = presence[f.id];
     if (p?.inMatch) return { kind: 'match', label: 'In Match', sub: p.gameMode ? `In ${MODE_LABELS[p.gameMode] || 'a match'}` : null, rank: 0 };
-    if (p?.online) return { kind: 'online', label: 'Online', sub: null, rank: 1 };
+    if (p?.online && p.studying?.label) {
+      const what = [p.studying.label, p.studying.detail].filter(Boolean).join(' · ');
+      const mins = Math.floor((Date.now() - new Date(p.studying.since).getTime()) / 60000);
+      const dur = Number.isFinite(mins) && mins >= 1 ? ` · ${mins < 60 ? `${mins}m` : `${Math.floor(mins / 60)}h ${mins % 60}m`}` : '';
+      return { kind: 'studying', label: 'Studying', sub: `${what}${dur}`, rank: 0 };
+    }
+    if (p?.online) return { kind: 'online', label: 'Online', sub: 'Not studying right now', rank: 1 };
     return { kind: 'offline', label: 'Offline', sub: lastOnline(p?.lastSeen), rank: 2, seen: new Date(p?.lastSeen || 0).getTime() };
   };
 

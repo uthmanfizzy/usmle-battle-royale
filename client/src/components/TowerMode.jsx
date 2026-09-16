@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import * as audio from '../audio';
 import { getToken } from '../auth';
 import './TowerMode.css';
+import { useStudyActivity } from '../studyPresence';
 import ExplanationText from './ExplanationText';
 import { shuffleQuestionOptions } from '../utils/shuffleOptions';
 
@@ -170,6 +171,7 @@ function saveProgress(username, floor, xp = 0) {
 // ── Main component ─────────────────────────────────────────────────────────────
 
 export default function TowerMode({ username, onBack }) {
+  useStudyActivity('Tower', null, 'tower');
   const saved = loadProgress(username);
 
   const [unlockedFloor,   setUnlockedFloor]   = useState(saved.floor || 1);

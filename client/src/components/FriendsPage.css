@@ -225,6 +225,10 @@ span.fp-who { cursor: default; }
 .fp-status-dot { width: 11px; height: 11px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
 .fp-status--online  { color: #4ade80; }
 .fp-status--match   { color: #f5b73b; }
+.fp-status--studying { color: #60a5fa; }
+.fp-status--studying .fp-status-dot { box-shadow: 0 0 0 0 rgba(96, 165, 250, .6); animation: fp-study-pulse 1.8s ease-out infinite; }
+@keyframes fp-study-pulse { 0% { box-shadow: 0 0 0 0 rgba(96, 165, 250, .6); } 100% { box-shadow: 0 0 0 8px rgba(96, 165, 250, 0); } }
+@media (prefers-reduced-motion: reduce) { .fp-status--studying .fp-status-dot { animation: none; } }
 .fp-status--offline { color: #ef4444; }
 .fp-status-sub {
   padding-left: 19px;

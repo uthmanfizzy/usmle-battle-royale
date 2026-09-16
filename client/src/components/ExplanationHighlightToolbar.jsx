@@ -159,8 +159,10 @@ export default function ExplanationHighlightToolbar({ containerRef, highlights, 
     && typeof window.matchMedia === 'function'
     && window.matchMedia('(pointer: coarse)').matches;
   // Touch selections have drag handles hanging under the last line; leave room
-  // so the bar isn't sitting on top of them.
-  const GAP = coarse ? 30 : 10;
+  // so the bar isn't sitting on top of them. Either way it drops well clear of
+  // the next line or two, so the sentence right under the selection can still
+  // be selected without the bar in the way.
+  const GAP = coarse ? 64 : 52;
   const EDGE = 8;
   const vw = typeof window !== 'undefined' ? window.innerWidth : 0;
   const vh = typeof window !== 'undefined' ? window.innerHeight : 0;

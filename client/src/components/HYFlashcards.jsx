@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { getToken, fetchMe, getCachedUser } from '../auth';
 import * as audio from '../audio';
+import { useStudyActivity } from '../studyPresence';
 import './HYFlashcards.css';
 
 const SERVER_URL = 'https://usmle-battle-royale-production.up.railway.app';
@@ -35,6 +36,10 @@ const HY_RATINGS = [
  * for its own small interaction: flip, read, next.
  */
 export default function HYFlashcards() {
+  const [deck, setDeck] = useState(null);           // { subject, subjectName, topicId, topicName, cards }
+  useStudyActivity('HY Flashcards',
+    deck ? [deck.subjectName, deck.topicName].filter(Boolean).join(' · ') || null : null,
+    'hy_flashcards');
   const [user, setUser] = useState(getCachedUser);
   const [menu, setMenu] = useState(null);           // null = loading, [] = loaded-but-empty never happens (always all active subjects)
   const [menuError, setMenuError] = useState(false);
@@ -62,7 +67,6 @@ export default function HYFlashcards() {
     return () => audio.stopStudyMusic();
   }, [musicOn]);
 
-  const [deck, setDeck] = useState(null);           // { subject, subjectName, topicId, topicName, cards }
   const [order, setOrder] = useState('inorder');    // 'inorder' | 'random'
   const [openChapter, setOpenChapter] = useState(null); // chapter id whose topic list is expanded
 

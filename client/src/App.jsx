@@ -1186,6 +1186,7 @@ export default function App() {
           questionsUrl={journeyContext?.questionsUrl || trainingTopic?.questionsUrl}
           onComplete={journeyContext       ? handleJourneyComplete : (trainingTopic ? handleTrainingComplete : undefined)}
           levelLabel={journeyContext?.levelLabel}
+          studySubjectName={journeyContext?.subject?.name || null}
           isJourney={!!journeyContext}
           // Journey's "In order" means as authored, options included. Every
           // other mode keeps the anti-memorisation shuffle.

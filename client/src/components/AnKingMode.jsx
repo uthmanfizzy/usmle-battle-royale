@@ -1,5 +1,6 @@
 import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from 'react';
 import { authFetch } from '../auth';
+import { useStudyActivity } from '../studyPresence';
 import './AnKingMode.css';
 
 const SESSION_SIZE = 20;
@@ -173,6 +174,10 @@ export default function AnKingMode({ user, config, onBack, onComplete }) {
   // null = the whole subject. Otherwise a topic name from /api/anking/topics,
   // which only ever narrows a specific subject.
   const [topic, setTopic] = useState(null);
+  useStudyActivity('AnKing',
+    [subject ? String(subject).replace(/[_-]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : null, topic]
+      .filter(Boolean).join(' · ') || null,
+    'anking');
   // The picker is two steps: pick a subject, then a topic within it.
   // `topicView` holds the subject whose topic list is showing, or null for the
   // subject grid.

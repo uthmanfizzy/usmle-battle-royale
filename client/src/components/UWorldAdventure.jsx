@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { getToken, fetchMe, getCachedUser, authFetch } from '../auth';
 import SoloGame from './SoloGame';
+import { useStudyActivity } from '../studyPresence';
 import { DEFAULT_QUESTION_BANK_MODE } from '../questionBankModes';
 import './UWorldAdventure.css';
 
@@ -120,6 +121,9 @@ export default function UWorldAdventure({ mode = DEFAULT_QUESTION_BANK_MODE }) {
   const [devSubjects, setDevSubjects] = useState([]);
   const [subjectsError, setSubjectsError] = useState(false);
   const [selected, setSelected] = useState(null);       // subject id
+  useStudyActivity(mode?.label || 'Question Bank',
+    selected ? (subjects.find(s => s.id === selected)?.name || null) : null,
+    mode?.id || 'question_bank');
   const [progress, setProgress] = useState(null);       // selected subject: { total, seen, unseen }
   // Every subject's counts, so the grid can show what is left without being
   // clicked. { [subjectId]: { total, seen, unseen } }
