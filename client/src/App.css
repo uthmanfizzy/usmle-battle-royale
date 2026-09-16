@@ -3730,3 +3730,65 @@ html[data-study="on"] .solo-body .pause-overlay {
 }
 .dev-imgslot-hold:hover { background: rgba(253, 203, 110, 0.3); }
 @keyframes dev-imgslot-hold-pulse { 50% { box-shadow: 0 0 0 3px rgba(253, 203, 110, 0.25); } }
+
+/* Highlight "keep on" mode: the pin on the bar, and the pill shown while on */
+.expl-hl-pin {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  padding: 0 6px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+.expl-hl-pin:hover { background: rgba(255, 255, 255, 0.22); }
+.expl-hl-pin.is-armed { background: rgba(245, 183, 59, 0.3); border-color: #f5b73b; }
+.expl-hl-pin-text { font-size: 11px; font-weight: 700; color: #f5b73b; }
+.expl-hl-sticky {
+  position: fixed;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  z-index: 9998;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: calc(100vw - 32px);
+  padding: 8px 10px 8px 12px;
+  background: #1f2230;
+  color: #fff;
+  font-size: 13px;
+  border: 1px solid rgba(245, 183, 59, 0.6);
+  border-radius: 999px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+}
+.expl-hl-sticky-chip {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.55);
+}
+.expl-hl-sticky-chip.is-format { border-radius: 5px; background: rgba(255, 255, 255, 0.15); font-size: 13px; }
+.expl-hl-sticky-off {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(255, 107, 107, 0.85);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+@media (pointer: coarse) {
+  .expl-hl-pin { height: 34px; padding: 0 10px; font-size: 16px; }
+}

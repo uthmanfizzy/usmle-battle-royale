@@ -6,6 +6,27 @@ import { rangeToOffsets, captureContext, HIGHLIGHT_COLORS } from '../utils/expla
 // (.hl marks force dark text on the bright highlight).
 const SWATCH = { yellow: '#fdcb6e', green: '#55efc4', pink: '#fd79a8', blue: '#74b9ff' };
 
+// ── "Keep on" mode ──────────────────────────────────────────────────────────
+// Pin a colour or Bold/Italic and every later selection gets it straight away,
+// with no toolbar click. Shared by every toolbar on the page (stem and
+// explanation) and remembered across questions until turned off.
+const STICKY_KEY = 'mr_hl_sticky';
+const STICKY_NAMES = { bold: 'Bold', italic: 'Italic', yellow: 'Yellow', green: 'Green', pink: 'Pink', blue: 'Blue' };
+let sticky = (() => {
+  try {
+    const v = JSON.parse(localStorage.getItem(STICKY_KEY) || 'null');
+    return v && (v.color || v.format) ? v : null;
+  } catch { return null; }
+})();
+const stickyListeners = new Set();
+function setSticky(v) {
+  sticky = v;
+  try { v ? localStorage.setItem(STICKY_KEY, JSON.stringify(v)) : localStorage.removeItem(STICKY_KEY); } catch { /* private mode */ }
+  stickyListeners.forEach(fn => fn());
+}
+// Only one mounted toolbar draws the "on" pill, however many are on the page.
+const pillOwners = [];
+
 /**
  * Floating colour toolbar shown on a text selection WITHIN the explanation.
  * Selections that bleed into options / why-wrong / stem are rejected by
@@ -20,6 +41,29 @@ export default function ExplanationHighlightToolbar({ containerRef, highlights, 
   const rafRef = useRef(0);
   const barRef = useRef(null);
   const [size, setSize] = useState({ w: 0, h: 0 });
+  const [, rerender] = useState(0);
+  const [pinArmed, setPinArmed] = useState(false); // the next pick becomes "keep on"
+  const idRef = useRef(null);
+  if (!idRef.current) idRef.current = {};
+  useEffect(() => {
+    const me = idRef.current;
+    const bump = () => rerender(n => n + 1);
+    stickyListeners.add(bump);
+    pillOwners.push(me);
+    stickyListeners.forEach(fn => fn());
+    return () => {
+      stickyListeners.delete(bump);
+      const i = pillOwners.indexOf(me);
+      if (i !== -1) pillOwners.splice(i, 1);
+      stickyListeners.forEach(fn => fn());
+    };
+  }, []);
+
+  // Latest callbacks for the document listeners below, which bind once.
+  const onCreateRef = useRef(onCreate);
+  onCreateRef.current = onCreate;
+  const allowFormatRef = useRef(allowFormat);
+  allowFormatRef.current = allowFormat;
 
   // Measure the bar whenever it (re)appears or its contents change (the ✕
   // remove button comes and goes), so placement uses its real width/height.
@@ -60,8 +104,29 @@ export default function ExplanationHighlightToolbar({ containerRef, highlights, 
     };
   }, [containerRef, highlights, rejectSelector]);
 
+  // Apply a colour/format to a computed selection.
+  const applyTo = useCallback((sel, action) => {
+    const container = containerRef?.current;
+    if (!container || !sel) return;
+    const visible = container.textContent || ''; // === toVisibleText (invariant)
+    const ctx = captureContext(visible, sel.start, sel.end, 30);
+    onCreateRef.current({ start: sel.start, end: sel.end, ...action, ...ctx });
+    window.getSelection()?.removeAllRanges();
+    setPopup(null);
+  }, [containerRef]);
+
   useEffect(() => {
-    const show = () => setPopup(computeFromSelection());
+    const show = () => {
+      const next = computeFromSelection();
+      // Keep-on mode: apply straight away instead of offering the bar. Never
+      // mid-drag (a scroll while sweeping would fire this), and a pinned
+      // Bold/Italic only where this toolbar is allowed to format.
+      if (next && sticky && !pointerDownRef.current && (sticky.color || allowFormatRef.current)) {
+        applyTo(next, sticky.color ? { color: sticky.color } : { format: sticky.format });
+        return;
+      }
+      setPopup(next);
+    };
     const inToolbar = (e) => !!(e.target?.closest && e.target.closest('.expl-hl-toolbar'));
 
     // Pointer events rather than mouse events: on a phone a tap produces no
@@ -116,27 +181,38 @@ export default function ExplanationHighlightToolbar({ containerRef, highlights, 
       document.removeEventListener('selectionchange', onSelectionChange);
       window.removeEventListener('scroll', onScroll, true);
     };
-  }, [computeFromSelection]);
+  }, [computeFromSelection, applyTo]);
 
   const pick = (color) => {
-    const container = containerRef?.current;
-    if (!container || !popup) return;
-    const visible = container.textContent || ''; // === toVisibleText (invariant)
-    const ctx = captureContext(visible, popup.start, popup.end, 30);
-    onCreate({ start: popup.start, end: popup.end, color, ...ctx });
-    window.getSelection()?.removeAllRanges();
-    setPopup(null);
+    if (!popup) return;
+    if (pinArmed) { setSticky({ color }); setPinArmed(false); }
+    applyTo(popup, { color });
   };
 
   const pickFormat = (format) => {
-    const container = containerRef?.current;
-    if (!container || !popup) return;
-    const visible = container.textContent || '';
-    const ctx = captureContext(visible, popup.start, popup.end, 30);
-    onCreate({ start: popup.start, end: popup.end, format, ...ctx });
-    window.getSelection()?.removeAllRanges();
-    setPopup(null);
+    if (!popup) return;
+    if (pinArmed) { setSticky({ format }); setPinArmed(false); }
+    applyTo(popup, { format });
   };
+
+  // Shown while keep-on mode is active, so it is never on without the player
+  // being able to see it (and turn it off).
+  const stickyName = sticky ? STICKY_NAMES[sticky.color || sticky.format] : '';
+  const pill = sticky && pillOwners[0] === idRef.current
+    ? createPortal(
+      <div className="expl-hl-sticky" role="status">
+        <span
+          className={`expl-hl-sticky-chip${sticky.format ? ' is-format' : ''}`}
+          style={sticky.color ? { background: SWATCH[sticky.color] } : undefined}
+        >
+          {sticky.format === 'bold' ? <strong>B</strong> : sticky.format === 'italic' ? <em>I</em> : null}
+        </span>
+        <span>Auto-{stickyName.toLowerCase()} on — everything you select gets it</span>
+        <button type="button" className="expl-hl-sticky-off" onClick={() => setSticky(null)}>Turn off</button>
+      </div>,
+      document.body,
+    )
+    : null;
 
   const removeOverlap = () => {
     if (!popup) return;
@@ -145,7 +221,7 @@ export default function ExplanationHighlightToolbar({ containerRef, highlights, 
     setPopup(null);
   };
 
-  if (!popup) return null;
+  if (!popup) return pill;
 
   // Placed directly UNDER the selection, on every device (it used to float above
   // on desktop and dock to the bottom of the screen on touch, which put it far
@@ -188,7 +264,7 @@ export default function ExplanationHighlightToolbar({ containerRef, highlights, 
   //
   // Rendering into <body> puts it outside every one of those containing blocks,
   // and keeps it correct against any future CSS on the play screen.
-  return createPortal(
+  return (<>{pill}{createPortal(
     <div
       ref={barRef}
       className="expl-hl-toolbar"
@@ -225,7 +301,19 @@ export default function ExplanationHighlightToolbar({ containerRef, highlights, 
           ✕
         </button>
       )}
+      <span className="expl-hl-divider" />
+      <button
+        type="button"
+        className={`expl-hl-pin${pinArmed ? ' is-armed' : ''}`}
+        aria-pressed={pinArmed}
+        title={pinArmed
+          ? 'Now pick a colour or B/I — it will apply to everything you select until you turn it off'
+          : 'Keep on: pin a colour or B/I so every selection gets it automatically'}
+        onClick={() => setPinArmed(a => !a)}
+      >
+        📌{pinArmed && <span className="expl-hl-pin-text">pick one</span>}
+      </button>
     </div>,
     document.body
-  );
+  )}</>);
 }
