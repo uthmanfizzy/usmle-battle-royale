@@ -262,8 +262,10 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   // overrides, so admin-configured timings still move them.
   const JOURNEY_QUESTION_BONUS_S    = 10;
   const JOURNEY_EXPLANATION_BONUS_S = 15;
+  // UWorld Adventure gets 10s more on both phases than the exam skin's base.
+  const UWA_BONUS_S = (uworldSkin && (!examTheme || examTheme.id === 'uworld_adventure')) ? 10 : 0;
   const defaultTimer = (uworldSkin
-    ? 70
+    ? 70 + UWA_BONUS_S
     : isHardMode
       ? (settings.hardModeTimer || 30)
       : (settings.easyModeTimer || settings.timerDefault || 20)
@@ -271,7 +273,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   const defaultLives = isJourney ? 5 : (settings.battleRoyaleLives || 3);
   const maxLives = defaultLives;   // heart slots shown = max lives for this mode (5 in journey)
   const explanationTime = (uworldSkin
-    ? 75
+    ? 75 + UWA_BONUS_S
     : isHardMode
       ? (settings.hardModeExplanationTime || 20)
       : (settings.easyModeExplanationTime || settings.explanationTime || 5)
@@ -1331,6 +1333,16 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
     if (skipTimerRef.current) { clearTimeout(skipTimerRef.current); skipTimerRef.current = null; }
     doAdvanceRef.current?.();
   }
+
+  // Exam skin, explanation time up: the explanation just vanished and the page
+  // got shorter, so bring the question back into view — the player sees what
+  // they answered (and whether it was right) before rating it.
+  const timeUpNow = uworldSkin && explanationExpired && !rated;
+  useEffect(() => {
+    if (!timeUpNow) return;
+    const card = screenRef.current?.querySelector('.question-card');
+    card?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [timeUpNow]);
 
   if (loading) {
     return (
