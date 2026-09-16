@@ -806,3 +806,29 @@
   .qp-preview-actions { width: 100%; justify-content: space-between; }
   .qp-import-btn--top { flex: 1; }
 }
+
+/* ── MOBILE: paste box always visible ─────────────────────────────────────
+   Stacked, the two columns kept their desktop flex/overflow rules: both were
+   allowed to shrink with overflow hidden (which makes their minimum height 0),
+   so the tall example squeezed the paste column — textarea included — down to
+   nothing. On small screens the columns take their natural height, the paste
+   box comes first, and the body scrolls. */
+@media (max-width: 900px) {
+  .qp-modal { height: 96vh !important; height: 96dvh !important; max-height: 96dvh !important; }
+  .qp-body-horizontal { padding: 12px !important; }
+  .qp-left-col,
+  .qp-right-col {
+    flex: none !important;
+    overflow: visible !important;
+    min-height: auto !important;
+  }
+  .qp-right-col { order: -1; }
+  .qp-example-section { flex: none !important; }
+  .qp-example-text { max-height: 220px; overflow: auto; }
+  .qp-textarea {
+    flex: none !important;
+    height: 45vh !important;
+    min-height: 220px !important;
+    font-size: 16px !important; /* under 16px, iOS zooms the page on focus */
+  }
+}
