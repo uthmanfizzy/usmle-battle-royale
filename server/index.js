@@ -8019,6 +8019,83 @@ app.delete('/api/journey-chapter-images/:id', moderatorAuth, async (req, res) =>
   }
 });
 
+// ── Question-bank subject image library ─────────────────────────────────────
+// The UWorld Adventure / Saudi MLE counterpart of the Journey chapter library:
+// pictures attached to a SUBJECT within a bank rather than to any question,
+// dropped in from the admin panel and picked mid-game for a stem or explanation.
+//
+// Needs the question_bank_images table (schema.sql, doc-only). Until it exists
+// reads return an empty library with unavailable:true.
+const bankImageKey = (v, max = 60) => {
+  const t = (v || '').toString().trim();
+  return t && t.length <= max && /^[A-Za-z0-9_\-]+$/.test(t) ? t : null;
+};
+
+app.get('/api/question-bank-images', async (req, res) => {
+  if (!supabase) return res.json({ images: [] });
+  const mode = bankImageKey(req.query.mode);
+  const subject = bankImageKey(req.query.subject);
+  if (!mode || !subject) return res.json({ images: [] });
+  try {
+    const { data, error } = await supabase
+      .from('question_bank_images')
+      .select('id, url, created_at')
+      .eq('mode', mode)
+      .eq('subject', subject)
+      .order('created_at', { ascending: false });
+    if (error) {
+      if (isMissingTable(error, 'question_bank_images')) {
+        return res.json({ images: [], unavailable: true });
+      }
+      throw error;
+    }
+    res.json({ images: data || [] });
+  } catch (err) {
+    console.warn('[/api/question-bank-images] failed —', err.message);
+    res.json({ images: [] });
+  }
+});
+
+app.post('/api/question-bank-images', moderatorAuth, async (req, res) => {
+  const mode = bankImageKey(req.body?.mode);
+  const subject = bankImageKey(req.body?.subject);
+  const url = (req.body?.url || '').toString().trim();
+  if (!mode || !subject) return res.status(400).json({ error: 'mode and subject required' });
+  if (!/^https?:\/\//i.test(url)) return res.status(400).json({ error: 'url must be http(s)' });
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured' });
+  try {
+    const { data, error } = await supabase
+      .from('question_bank_images')
+      .insert({ mode, subject, url })
+      .select('id, url, created_at')
+      .maybeSingle();
+    if (error) {
+      if (isMissingTable(error, 'question_bank_images')) {
+        return res.status(503).json({ error: 'question_bank_images table is missing — run the migration in schema.sql', reason: 'missing_table' });
+      }
+      throw error;
+    }
+    res.json({ ok: true, image: data });
+  } catch (err) {
+    console.warn('[/api/question-bank-images POST] failed —', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/question-bank-images/:id', moderatorAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured' });
+  if (!UUID_RE.test(String(req.params.id))) return res.status(400).json({ error: 'bad id' });
+  try {
+    // Library entry only — the stored file stays, so questions using it are unaffected.
+    const { error } = await supabase.from('question_bank_images').delete().eq('id', req.params.id);
+    if (error) throw error;
+    res.json({ ok: true });
+  } catch (err) {
+    console.warn('[/api/question-bank-images DELETE] failed —', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── Landing Page Images ─────────────────────────────────────────────────────
 
 const LANDING_IMAGE_SLOTS = ['hero_bg', 'battle_royale', 'speed_race', 'tower', 'more_to_come', 'journey_bg'];

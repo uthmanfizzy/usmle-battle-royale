@@ -5634,3 +5634,17 @@
   color: var(--gold, #e8b04b);
   white-space: nowrap;
 }
+
+/* Question bank subject image libraries */
+.ap-banklib-pick {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 0 12px;
+  font-size: 13px;
+}
+.ap-banklib-pick select {
+  min-width: 220px;
+  padding: 6px 8px;
+  border-radius: 8px;
+}

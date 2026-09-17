@@ -113,7 +113,7 @@ function saveHi(subject, score) {
  *
  * Purely presentational: the upload/save is SoloGame's uploadDevImage.
  */
-function DevImageSlot({ field, label, qid, armed, busy, message, currentUrl, onArm, onFile, reusable = [], onReuse, onPickingChange, holding = false, onResume }) {
+function DevImageSlot({ field, label, qid, armed, busy, message, currentUrl, onArm, onFile, reusable = [], onReuse, libraryName = 'chapter', onPickingChange, holding = false, onResume }) {
   const [over, setOver] = useState(false);
   const [picking, setPicking] = useState(false);
   // The game holds its timer while the picture list is open.
@@ -173,7 +173,7 @@ function DevImageSlot({ field, label, qid, armed, busy, message, currentUrl, onA
       <div className="dev-imgpick" onClick={e => e.stopPropagation()}>
         <div className="dev-imgpick-head">
           Click one to use it for this {label.toLowerCase()} — images already in this
-          level, plus the chapter&apos;s library
+          set, plus the {libraryName}&apos;s library
         </div>
         <div className="dev-imgpick-grid">
           {reusable.map(img => (
@@ -974,15 +974,22 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   // Journey only: the chapter's image library, for the in-game picker. The
   // level id is the one handle this component has on where it is in the
   // journey — the server walks level → chapter from it.
+  // UWorld Adventure / Saudi MLE use the bank's per-subject library instead.
+  const bankLibraryUrl = uworldSkin && subject && subject !== 'all'
+    ? `${SERVER_URL}/api/question-bank-images?mode=${encodeURIComponent(examTheme?.id || 'uworld_adventure')}&subject=${encodeURIComponent(subject)}`
+    : null;
   useEffect(() => {
-    if (!devImageAuthoring || !journeyLevelId) { setChapterImages([]); return; }
+    const libraryUrl = journeyLevelId
+      ? `${SERVER_URL}/api/journey-chapter-images?level_id=${encodeURIComponent(journeyLevelId)}`
+      : bankLibraryUrl;
+    if (!devImageAuthoring || !libraryUrl) { setChapterImages([]); return; }
     let cancelled = false;
-    fetch(`${SERVER_URL}/api/journey-chapter-images?level_id=${encodeURIComponent(journeyLevelId)}`)
+    fetch(libraryUrl)
       .then(r => (r.ok ? r.json() : { images: [] }))
       .then(d => { if (!cancelled) setChapterImages(Array.isArray(d.images) ? d.images : []); })
       .catch(() => { if (!cancelled) setChapterImages([]); });
     return () => { cancelled = true; };
-  }, [devImageAuthoring, journeyLevelId]);
+  }, [devImageAuthoring, journeyLevelId, bankLibraryUrl]);
 
   // Stop lobby music on mount; stop game music on unmount.
   useEffect(() => {
@@ -1875,6 +1882,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
               onFile={uploadDevImage}
               reusable={reusableDevImages}
               onReuse={saveDevImage}
+              libraryName={uworldSkin ? 'subject' : 'chapter'}
               onPickingChange={onImgPickingChange}
               holding={devImgHolding}
               onResume={() => { setImgArmHold(false); setImgPicking({}); }}
@@ -2036,6 +2044,8 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
                   onFile={uploadDevImage}
                   reusable={reusableDevImages}
                   onReuse={saveDevImage}
+                  libraryName={uworldSkin ? 'subject' : 'chapter'}
+              libraryName={uworldSkin ? 'subject' : 'chapter'}
                   onPickingChange={onImgPickingChange}
                   holding={devImgHolding}
                   onResume={() => { setImgArmHold(false); setImgPicking({}); }}

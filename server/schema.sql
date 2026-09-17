@@ -1180,3 +1180,26 @@ ALTER TABLE journey_chapter_images ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "server_full_access_journey_chapter_images" ON journey_chapter_images;
 CREATE POLICY "server_full_access_journey_chapter_images"
   ON journey_chapter_images FOR ALL USING (true) WITH CHECK (true);
+
+-- ── question_bank_images ────────────────────────────────────────────────────
+-- UWorld Adventure / Saudi MLE picture library: images attached to a SUBJECT
+-- within a bank (mode), not to any question. Dropped in from the admin Games
+-- tab, picked mid-game for a question's stem or explanation. Deleting a row
+-- removes the library entry only; the stored file (and any question using it)
+-- is untouched.
+CREATE TABLE IF NOT EXISTS question_bank_images (
+  id         UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  mode       TEXT        NOT NULL,
+  subject    TEXT        NOT NULL,
+  url        TEXT        NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_question_bank_images_mode_subject
+  ON question_bank_images (mode, subject, created_at DESC);
+
+ALTER TABLE question_bank_images ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "server_full_access_question_bank_images" ON question_bank_images;
+CREATE POLICY "server_full_access_question_bank_images"
+  ON question_bank_images FOR ALL USING (true) WITH CHECK (true);

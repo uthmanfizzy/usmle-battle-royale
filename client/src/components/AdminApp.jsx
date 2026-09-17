@@ -5612,7 +5612,14 @@ function LevelVideosField({ levelId }) {
 // all of them.
 let activeImageLibraryChapter = null;
 
-function ChapterImageLibrary({ chapterId }) {
+// `bank` = { mode, subject } switches the same library to a question bank's
+// subject (UWorld Adventure / Saudi MLE) instead of a Journey chapter.
+function ChapterImageLibrary({ chapterId, bank = null }) {
+  const libKey = bank ? `bank:${bank.mode}:${bank.subject}` : chapterId;
+  const listUrl = bank
+    ? `${API}/api/question-bank-images?mode=${encodeURIComponent(bank.mode)}&subject=${encodeURIComponent(bank.subject)}`
+    : `${API}/api/journey-chapter-images?chapter_id=${encodeURIComponent(chapterId)}`;
+  const baseUrl = bank ? `${API}/api/question-bank-images` : `${API}/api/journey-chapter-images`;
   const [images, setImages] = useState(null);   // null = loading
   const [armed, setArmed] = useState(false);    // this library receives Ctrl+V
   const inputRef = useRef(null);
@@ -5623,14 +5630,14 @@ function ChapterImageLibrary({ chapterId }) {
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch(`${API}/api/journey-chapter-images?chapter_id=${encodeURIComponent(chapterId)}`);
+      const res = await fetch(listUrl);
       const data = await res.json();
       setUnavailable(!!data.unavailable);
       setImages(Array.isArray(data.images) ? data.images : []);
     } catch {
       setImages([]);
     }
-  }, [chapterId]);
+  }, [listUrl]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -5667,9 +5674,11 @@ function ChapterImageLibrary({ chapterId }) {
         });
         const upData = await up.json().catch(() => ({}));
         if (!up.ok) throw new Error(upData.error || `Upload failed (${up.status})`);
-        const save = await fetch(`${API}/api/journey-chapter-images`, {
+        const save = await fetch(baseUrl, {
           method: 'POST', headers,
-          body: JSON.stringify({ chapter_id: chapterId, url: upData.url }),
+          body: JSON.stringify(bank
+            ? { mode: bank.mode, subject: bank.subject, url: upData.url }
+            : { chapter_id: chapterId, url: upData.url }),
         });
         const saveData = await save.json().catch(() => ({}));
         if (!save.ok) throw new Error(saveData.error || `Save failed (${save.status})`);
@@ -5693,12 +5702,12 @@ function ChapterImageLibrary({ chapterId }) {
   const busyRef = useRef(busy);
   busyRef.current = busy;
   const arm = () => {
-    activeImageLibraryChapter = chapterId;
+    activeImageLibraryChapter = libKey;
     setArmed(true);
   };
   useEffect(() => {
     const onPaste = (e) => {
-      if (activeImageLibraryChapter !== chapterId) return;
+      if (activeImageLibraryChapter !== libKey) return;
       const t = e.target;
       // A paste into a real text field keeps its normal behaviour.
       if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
@@ -5715,22 +5724,22 @@ function ChapterImageLibrary({ chapterId }) {
       addFilesRef.current(files);
     };
     // Another library taking over the paste target un-arms this one.
-    const onArmElsewhere = () => { if (activeImageLibraryChapter !== chapterId) setArmed(false); };
+    const onArmElsewhere = () => { if (activeImageLibraryChapter !== libKey) setArmed(false); };
     document.addEventListener('paste', onPaste);
     document.addEventListener('mousedown', onArmElsewhere);
     return () => {
       document.removeEventListener('paste', onPaste);
       document.removeEventListener('mousedown', onArmElsewhere);
-      if (activeImageLibraryChapter === chapterId) activeImageLibraryChapter = null;
+      if (activeImageLibraryChapter === libKey) activeImageLibraryChapter = null;
     };
-  }, [chapterId]);
+  }, [libKey]);
 
   const remove = async (id) => {
     // The library entry only — the stored file stays, so a question already
     // using this picture keeps rendering it.
     setImages(imgs => (imgs || []).filter(i => i.id !== id));
     try {
-      await fetch(`${API}/api/journey-chapter-images/${encodeURIComponent(id)}`, {
+      await fetch(`${baseUrl}/${encodeURIComponent(id)}`, {
         method: 'DELETE',
         headers: { 'x-admin-password': localStorage.getItem(AUTH_KEY) || '' },
       });
@@ -5740,7 +5749,7 @@ function ChapterImageLibrary({ chapterId }) {
   return (
     <div className="je-imglib">
       <div className="je-imglib-head">
-        🖼 Chapter image library
+        🖼 {bank ? 'Subject image library' : 'Chapter image library'}
         <span className="je-imglib-count">
           {images === null ? '…' : `${images.length} image${images.length === 1 ? "" : "s"}`}
         </span>
@@ -5748,7 +5757,7 @@ function ChapterImageLibrary({ chapterId }) {
 
       {unavailable ? (
         <div className="je-imglib-warn">
-          The <code>journey_chapter_images</code> table has not been created yet — run the
+          The <code>{bank ? 'question_bank_images' : 'journey_chapter_images'}</code> table has not been created yet — run the
           block at the end of <code>server/schema.sql</code> in Supabase.
         </div>
       ) : (
@@ -5775,7 +5784,7 @@ function ChapterImageLibrary({ chapterId }) {
             <span>
               {busy
                 ? `Uploading ${busy}…`
-                : <>Drop images here, <button type="button" className="je-imglib-browse" onClick={e => { e.stopPropagation(); inputRef.current?.click(); }}>browse</button>, or <strong>Ctrl+V</strong> a copied picture — they attach to the chapter, not to any level or question</>}
+                : <>Drop images here, <button type="button" className="je-imglib-browse" onClick={e => { e.stopPropagation(); inputRef.current?.click(); }}>browse</button>, or <strong>Ctrl+V</strong> a copied picture — they attach to the {bank ? 'subject' : 'chapter'}, not to any {bank ? '' : 'level or '}question</>}
             </span>
             {armed && !busy && <span className="je-imglib-armed">Ctrl+V pastes here</span>}
           </div>
@@ -10208,6 +10217,53 @@ const ADMIN_GAMES = [
 ];
 const ADMIN_GAME_KEY = 'mr_admin_game';
 
+/**
+ * Question bank picture libraries: one per subject/system, not tied to any
+ * question. Pick a subject, drop/paste pictures in, then choose them mid-game
+ * for a question's stem or explanation (Developer Mode).
+ */
+function QuestionBankImagesPanel({ modeId, modeLabel, subjects }) {
+  const rows = (Array.isArray(subjects) && subjects.length)
+    ? subjects.map(s => ({ id: s.id, label: s.name || s.id }))
+    : SUBJECT_OPTIONS.map(o => ({ id: o.id, label: o.label }));
+  const storeKey = `mr_admin_banklib_${modeId}`;
+  const [open, setOpen] = useState(false);
+  const [subject, setSubject] = useState(() => {
+    try { return localStorage.getItem(storeKey) || ''; } catch { return ''; }
+  });
+  const current = rows.some(r => r.id === subject) ? subject : (rows[0]?.id || '');
+  const choose = (id) => {
+    setSubject(id);
+    try { localStorage.setItem(storeKey, id); } catch { /* private mode */ }
+  };
+
+  return (
+    <div className="ap-bank-subjects">
+      <button className="ap-bank-subjects-head" onClick={() => setOpen(o => !o)} aria-expanded={open}>
+        <span className="ap-bank-subjects-title">🖼 Subject image libraries</span>
+        <span className="ap-bank-subjects-count">pictures to pick mid-game</span>
+        <span className="ap-bank-subjects-chevron">{open ? '▾' : '▸'}</span>
+      </button>
+      {open && (
+        <div className="ap-bank-subjects-body">
+          <p className="ap-bank-subjects-note">
+            Add pictures to a subject/system here without attaching them to a question. In a
+            {' '}{modeLabel} game with Developer Mode on, click the Stem or Explanation picture
+            slot and choose one from this subject&apos;s library.
+          </p>
+          <label className="ap-banklib-pick">
+            <span>Subject / system</span>
+            <select value={current} onChange={e => choose(e.target.value)}>
+              {rows.map(r => <option key={r.id} value={r.id}>{r.label}</option>)}
+            </select>
+          </label>
+          {current && <ChapterImageLibrary key={current} bank={{ mode: modeId, subject: current }} />}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function GamesPanel({ subjects }) {
   const [game, setGame] = useState(() => {
     try {
@@ -10246,6 +10302,7 @@ function GamesPanel({ subjects }) {
         {game === 'saudi_mle'    && (
           <ErrorBoundary>
             <QuestionBankSubjectsPanel modeId={SAUDI_MLE_MODE} modeLabel="Saudi MLE" subjects={subjects} />
+            <QuestionBankImagesPanel modeId={SAUDI_MLE_MODE} modeLabel="Saudi MLE" subjects={subjects} />
             <QuestionsPanel subjects={subjects} scopeTag={SAUDI_MLE_MODE} />
           </ErrorBoundary>
         )}
@@ -10253,6 +10310,7 @@ function GamesPanel({ subjects }) {
         {game === 'uworld'       && (
           <ErrorBoundary>
             <QuestionBankSubjectsPanel modeId={UWORLD_MODE} modeLabel="UWorld Adventure" subjects={subjects} />
+            <QuestionBankImagesPanel modeId={UWORLD_MODE} modeLabel="UWorld Adventure" subjects={subjects} />
             <QuestionsPanel subjects={subjects} scopeTag={UWORLD_MODE} />
           </ErrorBoundary>
         )}
