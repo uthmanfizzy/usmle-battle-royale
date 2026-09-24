@@ -337,3 +337,94 @@
   .sf-tabs { top: 10px; gap: 6px; max-width: 94vw; }
   .sf-tab { padding: 6px 11px; font-size: 12px; }
 }
+
+/* ── Category chooser (Reels entry screen) ──────────────────────────────── */
+.sf-chooser {
+  min-height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 72px 20px 32px;
+  background: radial-gradient(120% 90% at 50% 0%, #1b2338 0%, #0b0e16 70%);
+  overflow-y: auto;
+}
+.sf-chooser-inner { width: 100%; max-width: 720px; }
+.sf-chooser-title {
+  margin: 0 0 8px;
+  font-size: clamp(22px, 5vw, 32px);
+  font-weight: 800;
+  color: #fff;
+  text-align: center;
+}
+.sf-chooser-sub {
+  margin: 0 0 24px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.62);
+  text-align: center;
+}
+.sf-chooser-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+}
+.sf-choice {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 16px 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.12s ease, background 0.12s ease, transform 0.08s ease;
+}
+.sf-choice:hover { background: rgba(255, 255, 255, 0.1); }
+.sf-choice:active { transform: scale(0.98); }
+.sf-choice.is-on {
+  border-color: #6aa7ff;
+  background: rgba(106, 167, 255, 0.18);
+}
+.sf-choice-icon { font-size: 26px; line-height: 1; }
+.sf-choice-name { font-size: 15px; font-weight: 700; }
+.sf-choice-count { font-size: 12px; color: rgba(255, 255, 255, 0.55); }
+.sf-choice-tick {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  font-size: 15px;
+  font-weight: 800;
+  color: #6aa7ff;
+}
+.sf-chooser-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 24px;
+}
+.sf-chooser-btn {
+  padding: 12px 20px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+}
+.sf-chooser-btn--ghost { background: transparent; color: rgba(255, 255, 255, 0.75); }
+.sf-chooser-btn--ghost:hover { background: rgba(255, 255, 255, 0.1); color: #fff; }
+.sf-chooser-btn--go { background: #fff; color: #10131a; border-color: #fff; }
+.sf-chooser-btn--go:hover { background: #e8eefc; }
+
+/* The ⚙ that reopens the chooser from the feed. */
+.sf-tab--edit { padding: 7px 11px; font-size: 14px; }
+
+@media (max-width: 560px) {
+  .sf-chooser { padding: 64px 16px 24px; }
+  .sf-chooser-grid { grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 10px; }
+  .sf-chooser-btn { flex: 1 1 auto; }
+}

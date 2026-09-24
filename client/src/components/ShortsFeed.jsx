@@ -120,9 +120,94 @@ function Slide({ short, isActive, isNear, soundOn, gesture }) {
   );
 }
 
-export default function ShortsFeed() {
+/**
+ * "What do you want to watch?" — the first thing the Reels page shows.
+ *
+ * Multi-select on purpose: the point is a mix, not one category. Picking
+ * nothing and pressing Watch is the same as Everything, so there is no way to
+ * land on an empty feed.
+ */
+function CategoryChooser({ categories, counts, total, initial, onDone, onCancel }) {
+  const [sel, setSel] = useState(() => new Set(initial));
+  const toggle = (slug) => setSel(prev => {
+    const next = new Set(prev);
+    if (next.has(slug)) next.delete(slug); else next.add(slug);
+    return next;
+  });
+  const chosen = categories.filter(c => sel.has(c.slug));
+  const videoCount = chosen.length
+    ? chosen.reduce((n, c) => n + (counts.get(c.slug) || 0), 0)
+    : total;
+
+  return (
+    <div className="sf-chooser">
+      <div className="sf-chooser-inner">
+        <h1 className="sf-chooser-title">What do you want to watch?</h1>
+        <p className="sf-chooser-sub">
+          Pick as many as you like — your feed mixes them together. You can change this
+          any time from the ⚙ button.
+        </p>
+
+        <div className="sf-chooser-grid">
+          {categories.map(c => (
+            <button
+              key={c.slug}
+              type="button"
+              className={`sf-choice${sel.has(c.slug) ? ' is-on' : ''}`}
+              aria-pressed={sel.has(c.slug)}
+              onClick={() => toggle(c.slug)}
+            >
+              <span className="sf-choice-icon" aria-hidden="true">{c.icon || '🎬'}</span>
+              <span className="sf-choice-name">{c.name}</span>
+              <span className="sf-choice-count">
+                {counts.get(c.slug)} video{counts.get(c.slug) === 1 ? '' : 's'}
+              </span>
+              <span className="sf-choice-tick" aria-hidden="true">{sel.has(c.slug) ? '✓' : ''}</span>
+            </button>
+          ))}
+        </div>
+
+        <div className="sf-chooser-actions">
+          {onCancel && (
+            <button type="button" className="sf-chooser-btn sf-chooser-btn--ghost" onClick={onCancel}>
+              Cancel
+            </button>
+          )}
+          <button
+            type="button"
+            className="sf-chooser-btn sf-chooser-btn--ghost"
+            onClick={() => onDone([])}
+          >
+            Show me everything
+          </button>
+          <button
+            type="button"
+            className="sf-chooser-btn sf-chooser-btn--go"
+            onClick={() => onDone([...sel])}
+          >
+            {sel.size === 0
+              ? `Watch all ${total} videos`
+              : `Watch ${sel.size === 1 ? chosen[0].name : `${sel.size} categories`} · ${videoCount}`}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function ShortsFeed({ chooseFirst = false }) {
   const [allShorts, setAllShorts] = useState(null); // null = loading
   const [categories, setCategories] = useState([]); // admin-managed tabs
+  // The viewer's chosen mix of categories: [] means everything. null means they
+  // have not chosen yet, which is what opens the chooser on the Reels page.
+  const [picks, setPicks] = useState(() => {
+    try {
+      const raw = localStorage.getItem('mr_reels_picks');
+      const parsed = raw ? JSON.parse(raw) : null;
+      return Array.isArray(parsed) ? parsed : (chooseFirst ? null : []);
+    } catch { return chooseFirst ? null : []; }
+  });
+  const [chooserOpen, setChooserOpen] = useState(false);
   // Which tab is showing. 'all' is always offered first, and is remembered so
   // the feed reopens on the kind of video this viewer actually watches.
   const [category, setCategory] = useState(() => {
@@ -172,29 +257,63 @@ export default function ShortsFeed() {
     return () => { cancelled = true; };
   }, []);
 
-  // Only tabs that actually have videos, so a category set up in advance never
-  // greets a viewer with an empty feed.
-  const tabs = useMemo(() => {
-    const counts = new Map();
+  // How many videos each category actually has. A category with none is never
+  // offered — neither as a tab nor on the chooser.
+  const counts = useMemo(() => {
+    const m = new Map();
     for (const s of allShorts || []) {
-      if (s.category) counts.set(s.category, (counts.get(s.category) || 0) + 1);
+      if (s.category) m.set(s.category, (m.get(s.category) || 0) + 1);
     }
-    return [
-      { slug: 'all', name: 'All', icon: '✨', count: (allShorts || []).length },
-      ...categories
-        .filter(c => counts.get(c.slug))
-        .map(c => ({ slug: c.slug, name: c.name, icon: c.icon, count: counts.get(c.slug) })),
-    ];
-  }, [allShorts, categories]);
+    return m;
+  }, [allShorts]);
 
-  // A remembered tab whose category has since been emptied or removed falls
-  // back to All rather than showing nothing.
+  const stocked = useMemo(
+    () => categories.filter(c => counts.get(c.slug)),
+    [categories, counts],
+  );
+
+  // The viewer's chosen mix: a list of slugs, or [] meaning "everything".
+  // Kept apart from the tab so picking a mix and then browsing one of its tabs
+  // are two separate ideas.
+  const picked = useMemo(
+    () => (picks || []).filter(slug => stocked.some(c => c.slug === slug)),
+    [picks, stocked],
+  );
+
+  function savePicks(next) {
+    setPicks(next);
+    setCategory('all');
+    setActiveIdx(0);
+    setChooserOpen(false);
+    try {
+      localStorage.setItem('mr_reels_picks', JSON.stringify(next));
+      localStorage.setItem('mr_reels_category', 'all');
+    } catch { /* private mode */ }
+    containerRef.current?.scrollTo({ top: 0 });
+  }
+
+  // Watching a mix: the feed holds those categories, and the tabs narrow it
+  // further. "Everything" (or a single pick) behaves exactly as before.
+  const inMix = useMemo(() => (
+    picked.length === 0
+      ? (allShorts || [])
+      : (allShorts || []).filter(s => picked.includes(s.category))
+  ), [allShorts, picked]);
+
+  const tabs = useMemo(() => {
+    const offered = picked.length ? stocked.filter(c => picked.includes(c.slug)) : stocked;
+    return [
+      { slug: 'all', name: picked.length > 1 ? 'My mix' : 'All', icon: '✨', count: inMix.length },
+      ...offered.map(c => ({ slug: c.slug, name: c.name, icon: c.icon, count: counts.get(c.slug) })),
+    ];
+  }, [stocked, picked, counts, inMix.length]);
+
+  // A remembered tab whose category has since been emptied, removed or dropped
+  // from the mix falls back to the whole mix rather than showing nothing.
   const activeTab = tabs.some(t => t.slug === category) ? category : 'all';
   const shorts = useMemo(() => (
-    activeTab === 'all'
-      ? allShorts
-      : (allShorts || []).filter(s => s.category === activeTab)
-  ), [allShorts, activeTab]);
+    activeTab === 'all' ? inMix : inMix.filter(s => s.category === activeTab)
+  ), [inMix, activeTab]);
 
   function chooseCategory(slug) {
     setCategory(slug);
@@ -235,8 +354,34 @@ export default function ShortsFeed() {
     return <div className="sf-state"><div className="spinner" /></div>;
   }
 
+  // Chooser: shown on the Reels page before the first video, and again from the
+  // tab bar's ⚙ button. Only when there is something to choose between —
+  // one category (or none) has no choice in it.
+  const needsChoice = (picks === null || chooserOpen) && stocked.length > 1;
+  if (needsChoice) {
+    return (
+      <CategoryChooser
+        categories={stocked}
+        counts={counts}
+        total={(allShorts || []).length}
+        initial={picked}
+        onDone={savePicks}
+        onCancel={picks === null ? null : () => setChooserOpen(false)}
+      />
+    );
+  }
+
   const tabBar = tabs.length > 1 && (
     <nav className="sf-tabs" aria-label="Reel categories">
+      <button
+        type="button"
+        className="sf-tab sf-tab--edit"
+        onClick={() => setChooserOpen(true)}
+        title="Choose which categories you want to watch"
+        aria-label="Choose categories"
+      >
+        ⚙
+      </button>
       {tabs.map(t => (
         <button
           key={t.slug}

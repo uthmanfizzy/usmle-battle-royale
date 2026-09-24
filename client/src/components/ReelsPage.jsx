@@ -27,7 +27,7 @@ export default function ReelsPage() {
       >
         ← Back
       </button>
-      <ShortsFeed />
+      <ShortsFeed chooseFirst />
     </div>
   );
 }
