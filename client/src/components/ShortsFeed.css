@@ -283,3 +283,57 @@
   transition: background 0.14s ease;
 }
 .sf-sound:hover { background: rgba(0, 0, 0, 0.65); }
+
+/* ── Category tabs ────────────────────────────────────────────────────────
+   Fixed above the feed (every slide is edge-to-edge video, so the tabs cannot
+   live in the scroll flow), and horizontally scrollable when there are more
+   categories than fit a phone's width. */
+.sf-tabs {
+  position: fixed;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 30;
+  display: flex;
+  gap: 8px;
+  max-width: min(92vw, 760px);
+  padding: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  background: rgba(10, 12, 18, 0.62);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+}
+.sf-tabs::-webkit-scrollbar { display: none; }
+.sf-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  padding: 7px 14px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.sf-tab:hover { color: #fff; background: rgba(255, 255, 255, 0.1); }
+.sf-tab.is-active { background: #fff; color: #10131a; }
+.sf-tab-icon { font-size: 14px; }
+.sf-tab-count {
+  font-size: 11px;
+  font-weight: 700;
+  opacity: 0.6;
+}
+
+/* Clear of the tab bar: the sound toggle used to sit where the tabs now are. */
+.sf-tabs ~ .sf-sound { top: 68px; }
+
+@media (max-width: 560px) {
+  .sf-tabs { top: 10px; gap: 6px; max-width: 94vw; }
+  .sf-tab { padding: 6px 11px; font-size: 12px; }
+}

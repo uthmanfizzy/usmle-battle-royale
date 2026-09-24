@@ -5146,6 +5146,288 @@ function VideosPanel() {
 // re-validates authoritatively on POST/PUT. Previews stay light: thumbnail +
 // open link only — no embeds in the admin bundle.
 
+/**
+ * Reel categories — the tabs on /reels ("AI News", "Medical Memes", …).
+ *
+ * A short stores the category SLUG, so renaming a category keeps its videos and
+ * deleting one only removes the tab: the videos stay in the feed under "All".
+ * That is why the slug is fixed at creation and never follows the name.
+ */
+function ReelCategoriesPanel({ categories, unavailable, reload }) {
+  const [name, setName] = useState('');
+  const [icon, setIcon] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  async function add(e) {
+    e.preventDefault();
+    if (!name.trim()) return;
+    setBusy(true); setError('');
+    try {
+      const res = await apiCall('/admin/reel-categories', {
+        method: 'POST',
+        body: JSON.stringify({ name: name.trim(), icon: icon.trim(), sort_order: categories.length }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to add category');
+      setName(''); setIcon('');
+      reload();
+    } catch (err) { setError(err.message); }
+    setBusy(false);
+  }
+
+  async function patch(row, updates) {
+    setBusy(true); setError('');
+    try {
+      const res = await apiCall(`/admin/reel-categories/${row.id}`, { method: 'PUT', body: JSON.stringify(updates) });
+      if (!res.ok) throw new Error((await res.json()).error || 'Failed to save');
+      reload();
+    } catch (err) { setError(err.message); }
+    setBusy(false);
+  }
+
+  async function remove(row) {
+    if (!window.confirm(`Remove the "${row.name}" tab? Its videos stay in the feed under All.`)) return;
+    setBusy(true); setError('');
+    try {
+      const res = await apiCall(`/admin/reel-categories/${row.id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error((await res.json()).error || 'Failed to delete');
+      reload();
+    } catch (err) { setError(err.message); }
+    setBusy(false);
+  }
+
+  if (unavailable) {
+    return (
+      <div className="ap-video-group">
+        <h3 className="ap-video-group-head">🏷️ Categories</h3>
+        <div className="je-imglib-warn">
+          The <code>reel_categories</code> and <code>reel_sources</code> tables have not been
+          created yet — run the block at the end of <code>server/schema.sql</code> in Supabase.
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="ap-video-group">
+      <h3 className="ap-video-group-head">🏷️ Categories ({categories.length})</h3>
+      <p className="ap-section-subtitle">
+        The tabs across the top of the Reels page. A tab only appears to players once it
+        has videos in it.
+      </p>
+      {error && <div className="ap-error">{error}</div>}
+
+      <form className="ap-reel-catform" onSubmit={add}>
+        <input
+          type="text" value={icon} onChange={e => setIcon(e.target.value)}
+          className="ap-reel-icon" placeholder="🤖" maxLength={4} title="Optional emoji"
+        />
+        <input
+          type="text" value={name} onChange={e => setName(e.target.value)}
+          placeholder="e.g. AI News, Medical Memes, Medic Shorts" maxLength={40}
+        />
+        <button type="submit" className="ap-btn-pri" disabled={busy || !name.trim()}>Add</button>
+      </form>
+
+      {categories.map((c, idx) => (
+        <div className="ap-video-row" key={c.id} style={c.active ? undefined : { opacity: 0.5 }}>
+          <div className="ap-video-thumb ap-video-thumb--placeholder">{c.icon || '🏷️'}</div>
+          <div className="ap-video-row-info">
+            <span className="ap-video-row-title">{c.name}</span>
+            <span className="ap-video-row-attach">{c.slug}</span>
+          </div>
+          <div className="ap-video-row-actions">
+            <button className="ap-topic-edit-btn" disabled={busy || idx === 0}
+              onClick={() => patch(c, { sort_order: (categories[idx - 1].sort_order || 0) - 1 })} title="Move up">↑</button>
+            <button className="ap-topic-edit-btn" disabled={busy || idx === categories.length - 1}
+              onClick={() => patch(c, { sort_order: (categories[idx + 1].sort_order || 0) + 1 })} title="Move down">↓</button>
+            <button className="ap-topic-edit-btn" disabled={busy}
+              onClick={() => patch(c, { active: !c.active })}
+              title={c.active ? 'Shown — click to hide the tab' : 'Hidden — click to show the tab'}>
+              {c.active ? '👁️' : '🚫'}
+            </button>
+            <button className="ap-topic-edit-btn" disabled={busy}
+              onClick={() => {
+                const next = window.prompt('Rename this category', c.name);
+                if (next && next.trim() && next.trim() !== c.name) patch(c, { name: next.trim() });
+              }} title="Rename">✏️</button>
+            <button className="ap-topic-del-btn" disabled={busy} onClick={() => remove(c)} title="Remove tab">🗑️</button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Linked creator accounts.
+ *
+ * YouTube channels are polled by the server (every 6 hours, plus Sync now) and
+ * their new Shorts land in the chosen category by themselves. TikTok and
+ * Instagram cannot be polled at all unless the account's OWNER authorises it
+ * through their APIs, so those rows only record the handle — their videos are
+ * added by pasting links, which is stated plainly rather than left to be
+ * discovered.
+ */
+function ReelSourcesPanel({ categories, unavailable, onSynced }) {
+  const [sources, setSources] = useState([]);
+  const [youtubeKey, setYoutubeKey] = useState(true);
+  const [platform, setPlatform] = useState('youtube');
+  const [handle, setHandle] = useState('');
+  const [category, setCategory] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [syncing, setSyncing] = useState(null);
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+
+  const load = useCallback(async () => {
+    try {
+      const res = await apiCall('/admin/reel-sources');
+      const data = await res.json();
+      setSources(Array.isArray(data.sources) ? data.sources : []);
+      if (data.youtubeKey !== undefined) setYoutubeKey(!!data.youtubeKey);
+    } catch { /* leave the last list up */ }
+  }, []);
+  useEffect(() => { if (!unavailable) load(); }, [unavailable, load]);
+
+  async function add(e) {
+    e.preventDefault();
+    if (!handle.trim()) return;
+    setBusy(true); setError(''); setNotice('');
+    try {
+      const res = await apiCall('/admin/reel-sources', {
+        method: 'POST',
+        body: JSON.stringify({ platform, handle: handle.trim(), category: category || null }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to add account');
+      setHandle('');
+      await load();
+      if (platform === 'youtube') setNotice('Account added. Press ⟳ to pull its Shorts in now.');
+    } catch (err) { setError(err.message); }
+    setBusy(false);
+  }
+
+  async function patch(row, updates) {
+    setBusy(true); setError('');
+    try {
+      const res = await apiCall(`/admin/reel-sources/${row.id}`, { method: 'PUT', body: JSON.stringify(updates) });
+      if (!res.ok) throw new Error((await res.json()).error || 'Failed to save');
+      await load();
+    } catch (err) { setError(err.message); }
+    setBusy(false);
+  }
+
+  async function remove(row) {
+    if (!window.confirm(`Unlink ${row.display_name || row.handle}? Videos already pulled in stay in the feed.`)) return;
+    setBusy(true); setError('');
+    try {
+      const res = await apiCall(`/admin/reel-sources/${row.id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error((await res.json()).error || 'Failed to unlink');
+      await load();
+    } catch (err) { setError(err.message); }
+    setBusy(false);
+  }
+
+  async function sync(row) {
+    setSyncing(row.id); setError(''); setNotice('');
+    try {
+      const res = await apiCall(`/admin/reel-sources/${row.id}/sync`, { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Sync failed');
+      setNotice(data.added
+        ? `Added ${data.added} new short${data.added === 1 ? '' : 's'} from ${row.display_name || row.handle}.`
+        : `${row.display_name || row.handle} is already up to date.`);
+      await load();
+      if (data.added) onSynced?.();
+    } catch (err) { setError(err.message); }
+    setSyncing(null);
+  }
+
+  if (unavailable) return null;
+
+  return (
+    <div className="ap-video-group">
+      <h3 className="ap-video-group-head">🔗 Linked accounts ({sources.length})</h3>
+      <p className="ap-section-subtitle">
+        YouTube channels are checked every few hours and their new Shorts are added to the
+        category you choose. TikTok and Instagram give no way to read an account you do not
+        own, so those are kept here for reference and their videos are added by pasting links
+        above.
+      </p>
+      {!youtubeKey && (
+        <div className="je-imglib-warn">
+          <code>YOUTUBE_API_KEY</code> is not set on the server, so YouTube channels cannot be
+          synced yet. Create a YouTube Data API v3 key in Google Cloud and add it as a Railway
+          variable.
+        </div>
+      )}
+      {error && <div className="ap-error">{error}</div>}
+      {notice && <div className="ap-success">{notice}</div>}
+
+      <form className="ap-reel-srcform" onSubmit={add}>
+        <select value={platform} onChange={e => setPlatform(e.target.value)}>
+          <option value="youtube">▶️ YouTube</option>
+          <option value="tiktok">🎵 TikTok</option>
+          <option value="instagram">📸 Instagram</option>
+        </select>
+        <input
+          type="text" value={handle} onChange={e => setHandle(e.target.value)}
+          placeholder={platform === 'youtube'
+            ? 'youtube.com/@channel or @channel'
+            : platform === 'tiktok' ? 'tiktok.com/@handle' : 'instagram.com/handle'}
+        />
+        <select value={category} onChange={e => setCategory(e.target.value)}>
+          <option value="">No category</option>
+          {categories.map(c => <option key={c.id} value={c.slug}>{c.name}</option>)}
+        </select>
+        <button type="submit" className="ap-btn-pri" disabled={busy || !handle.trim()}>Link</button>
+      </form>
+
+      {sources.map(src => (
+        <div className="ap-video-row" key={src.id} style={src.active ? undefined : { opacity: 0.5 }}>
+          <div className="ap-video-thumb ap-video-thumb--placeholder">{PLATFORM_ICONS[src.platform]}</div>
+          <div className="ap-video-row-info">
+            <span className="ap-video-row-title">{src.display_name || src.handle}</span>
+            <span className="ap-video-row-attach">
+              {src.platform === 'youtube'
+                ? (src.last_status || 'Never synced')
+                : 'Add this account’s videos by pasting their links'}
+              {src.last_synced_at && ` · ${new Date(src.last_synced_at).toLocaleString()}`}
+            </span>
+          </div>
+          <select
+            className="ap-reel-rowcat"
+            value={src.category || ''}
+            onChange={e => patch(src, { category: e.target.value })}
+            title="Which category this account's videos go into"
+          >
+            <option value="">No category</option>
+            {categories.map(c => <option key={c.id} value={c.slug}>{c.name}</option>)}
+          </select>
+          <div className="ap-video-row-actions">
+            {src.platform === 'youtube' && (
+              <>
+                <button className="ap-topic-edit-btn" disabled={syncing === src.id || busy}
+                  onClick={() => sync(src)} title="Pull this channel's new Shorts now">
+                  {syncing === src.id ? '…' : '⟳'}
+                </button>
+                <button className="ap-topic-edit-btn" disabled={busy}
+                  onClick={() => patch(src, { auto_sync: !src.auto_sync })}
+                  title={src.auto_sync ? 'Checked automatically — click to stop' : 'Not checked automatically — click to start'}>
+                  {src.auto_sync ? '🔁' : '⏸'}
+                </button>
+              </>
+            )}
+            <button className="ap-topic-del-btn" disabled={busy} onClick={() => remove(src)} title="Unlink">🗑️</button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function ShortsPanel() {
   const [shorts,      setShorts]      = useState([]);
   const [loading,     setLoading]     = useState(true);
@@ -5159,8 +5441,21 @@ function ShortsPanel() {
   const [url,     setUrl]     = useState('');
   const [title,   setTitle]   = useState('');
   const [caption, setCaption] = useState('');
+  const [category, setCategory] = useState('');
 
-  useEffect(() => { loadShorts(); }, []);
+  // Categories, shared with the two sections below.
+  const [categories, setCategories] = useState([]);
+  const [catsUnavailable, setCatsUnavailable] = useState(false);
+  const loadCategories = useCallback(async () => {
+    try {
+      const res = await apiCall('/admin/reel-categories');
+      const data = await res.json();
+      setCatsUnavailable(!!data.unavailable);
+      setCategories(Array.isArray(data.categories) ? data.categories : []);
+    } catch { setCategories([]); }
+  }, []);
+
+  useEffect(() => { loadShorts(); loadCategories(); }, [loadCategories]);
 
   async function loadShorts() {
     setLoading(true);
@@ -5180,6 +5475,7 @@ function ShortsPanel() {
     setUrl('');
     setTitle('');
     setCaption('');
+    setCategory('');
   }
 
   function startEdit(s) {
@@ -5188,6 +5484,7 @@ function ShortsPanel() {
     setUrl(s.video_url);
     setTitle(s.title || '');
     setCaption(s.caption || '');
+    setCategory(s.category || '');
   }
 
   async function handleSave(e) {
@@ -5201,6 +5498,7 @@ function ShortsPanel() {
         if (url.trim() !== editing.video_url)        body.url     = url.trim();
         if (title.trim() !== (editing.title || ''))   body.title   = title.trim();
         if (caption.trim() !== (editing.caption || '')) body.caption = caption.trim();
+        if (category !== (editing.category || ''))     body.category = category;
         if (Object.keys(body).length === 0) { resetForm(); setSaving(false); return; }
         res  = await apiCall(`/admin/shorts/${editing.id}`, { method: 'PUT', body: JSON.stringify(body) });
         data = await res.json();
@@ -5211,7 +5509,7 @@ function ShortsPanel() {
         const maxOrder = shorts.reduce((mx, s) => Math.max(mx, s.sort_order || 0), 0);
         res  = await apiCall('/admin/shorts', {
           method: 'POST',
-          body: JSON.stringify({ url: url.trim(), title: title.trim(), caption: caption.trim(), sort_order: maxOrder + 1 }),
+          body: JSON.stringify({ url: url.trim(), title: title.trim(), caption: caption.trim(), category, sort_order: maxOrder + 1 }),
         });
         data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed to add short');
@@ -5338,6 +5636,14 @@ function ShortsPanel() {
           />
         </div>
 
+        <div className="ap-field">
+          <label>Category (which tab it shows under on the Reels page)</label>
+          <select value={category} onChange={e => setCategory(e.target.value)}>
+            <option value="">No category — only shows under All</option>
+            {categories.map(c => <option key={c.id} value={c.slug}>{c.icon ? `${c.icon} ` : ''}{c.name}</option>)}
+          </select>
+        </div>
+
         <div className="ap-video-form-actions">
           {editing && <button type="button" className="ap-btn-sec" onClick={() => { setError(''); resetForm(); }}>Cancel</button>}
           <button type="submit" className="ap-btn-pri" disabled={!canSave}>
@@ -5345,6 +5651,17 @@ function ShortsPanel() {
           </button>
         </div>
       </form>
+
+      <ReelCategoriesPanel
+        categories={categories}
+        unavailable={catsUnavailable}
+        reload={loadCategories}
+      />
+      <ReelSourcesPanel
+        categories={categories}
+        unavailable={catsUnavailable}
+        onSynced={loadShorts}
+      />
 
       {/* Feed list, in feed order */}
       {shorts.length === 0 ? (
@@ -5368,6 +5685,11 @@ function ShortsPanel() {
                   {s.caption ? s.caption : <a href={s.video_url} target="_blank" rel="noopener noreferrer">{s.video_url}</a>}
                 </span>
               </div>
+              {s.category && (
+                <span className="ap-reel-cat-chip">
+                  {categories.find(c => c.slug === s.category)?.name || s.category}
+                </span>
+              )}
               <span className={`ap-video-badge ap-video-badge--${s.platform}`}>
                 {PLATFORM_ICONS[s.platform]} {PLATFORM_LABELS[s.platform]}
               </span>

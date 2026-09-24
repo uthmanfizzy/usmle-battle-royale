@@ -1203,3 +1203,54 @@ ALTER TABLE question_bank_images ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "server_full_access_question_bank_images" ON question_bank_images;
 CREATE POLICY "server_full_access_question_bank_images"
   ON question_bank_images FOR ALL USING (true) WITH CHECK (true);
+
+-- ── Reels: categories + creator sources ─────────────────────────────────────
+-- Categories are the tabs on /reels ("AI News", "Medical Memes", …). A short
+-- stores the category SLUG, not a foreign key, so renaming or deleting a
+-- category never orphans or deletes the videos filed under it.
+CREATE TABLE IF NOT EXISTS reel_categories (
+  id         UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  slug       TEXT        NOT NULL UNIQUE,
+  name       TEXT        NOT NULL,
+  icon       TEXT,
+  sort_order INT         NOT NULL DEFAULT 0,
+  active     BOOLEAN     NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- The creator accounts a category pulls from. YouTube channels are polled
+-- automatically (needs YOUTUBE_API_KEY); TikTok and Instagram have no API for
+-- reading an account you do not own, so those rows are a record of the handle
+-- while their videos are added by pasting links.
+CREATE TABLE IF NOT EXISTS reel_sources (
+  id                  UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  platform            TEXT        NOT NULL,
+  handle              TEXT        NOT NULL,
+  display_name        TEXT,
+  channel_id          TEXT,
+  uploads_playlist_id TEXT,
+  category            TEXT,
+  active              BOOLEAN     NOT NULL DEFAULT TRUE,
+  auto_sync           BOOLEAN     NOT NULL DEFAULT FALSE,
+  last_synced_at      TIMESTAMPTZ,
+  last_status         TEXT,
+  created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE shorts ADD COLUMN IF NOT EXISTS category     TEXT;
+ALTER TABLE shorts ADD COLUMN IF NOT EXISTS source_id    UUID;
+ALTER TABLE shorts ADD COLUMN IF NOT EXISTS published_at TIMESTAMPTZ;
+
+CREATE INDEX IF NOT EXISTS idx_shorts_category ON shorts (category, sort_order);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_shorts_video_id ON shorts (video_id);
+
+ALTER TABLE reel_categories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE reel_sources    ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "server_full_access_reel_categories" ON reel_categories;
+CREATE POLICY "server_full_access_reel_categories"
+  ON reel_categories FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "server_full_access_reel_sources" ON reel_sources;
+CREATE POLICY "server_full_access_reel_sources"
+  ON reel_sources FOR ALL USING (true) WITH CHECK (true);

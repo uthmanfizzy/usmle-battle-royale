@@ -9993,8 +9993,10 @@ async function resolveShortThumbnail(platform, videoId, url) {
 app.get('/api/shorts', async (req, res) => {
   if (!supabase) return res.json({ shorts: [] });
   try {
-    const { data, error } = await supabase.from('shorts').select('*')
-      .eq('active', true)
+    const category = (req.query.category || '').toString().trim();
+    let q = supabase.from('shorts').select('*').eq('active', true);
+    if (category && category !== 'all') q = q.eq('category', category);
+    const { data, error } = await q
       .order('sort_order', { ascending: true })
       .order('created_at', { ascending: true });
     if (error) throw error;
@@ -10021,7 +10023,7 @@ app.get('/admin/shorts', adminAuth, async (req, res) => {
 
 app.post('/admin/shorts', adminAuth, async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
-  const { url, title, caption, sort_order } = req.body;
+  const { url, title, caption, sort_order, category } = req.body;
   const parsed = parseShortUrl(url);
   if (parsed.error) return res.status(400).json({ error: parsed.error });
   try {
@@ -10035,6 +10037,7 @@ app.post('/admin/shorts', adminAuth, async (req, res) => {
         title:     title?.trim() || null,
         caption:   caption?.trim() || null,
         thumbnail_url,
+        category:  (category || '').toString().trim() || null,
         sort_order: Number.isFinite(sort_order) ? sort_order : 0,
         active: true,
       })
@@ -10049,7 +10052,7 @@ app.post('/admin/shorts', adminAuth, async (req, res) => {
 
 app.put('/admin/shorts/:id', adminAuth, async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
-  const { url, title, caption, sort_order, active } = req.body;
+  const { url, title, caption, sort_order, active, category } = req.body;
   const updates = {};
   try {
     if (url !== undefined) {
@@ -10064,6 +10067,7 @@ app.put('/admin/shorts/:id', adminAuth, async (req, res) => {
     if (caption !== undefined) updates.caption = caption?.trim() || null;
     if (Number.isFinite(sort_order)) updates.sort_order = sort_order;
     if (active !== undefined)  updates.active  = Boolean(active);
+    if (category !== undefined) updates.category = (category || '').toString().trim() || null;
     if (Object.keys(updates).length === 0) return res.status(400).json({ error: 'nothing to update' });
     const { data, error } = await supabase
       .from('shorts')
@@ -10086,6 +10090,381 @@ app.delete('/admin/shorts/:id', adminAuth, async (req, res) => {
     res.json({ ok: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
+
+// ── Reels: categories, creator sources, YouTube auto-sync ───────────────────
+// Categories ("AI News", "Medical Memes", …) are rows so the tabs can be edited
+// from the admin panel rather than shipped in the bundle. A short's category is
+// the category SLUG, not a foreign key: renaming a category must never orphan
+// the videos already filed under it, and a deleted category leaves its shorts
+// intact under "All".
+//
+// Sources are the creator accounts a category pulls from. Only YouTube can be
+// synced automatically: TikTok and Instagram have no API for reading an account
+// you do not own, so their sources are a place to keep the handle while the
+// videos themselves are added by pasting links.
+//
+// Needs reel_categories + reel_sources and two columns on shorts — the block at
+// the end of schema.sql, run by hand. Until then every read degrades to empty
+// with unavailable:true rather than failing the Reels page.
+const CATEGORY_SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const REEL_PLATFORMS = ['youtube', 'tiktok', 'instagram'];
+
+const slugify = (v) => String(v || '')
+  .toLowerCase().trim()
+  .replace(/[^a-z0-9]+/g, '-')
+  .replace(/^-+|-+$/g, '')
+  .slice(0, 40);
+
+app.get('/api/reel-categories', async (req, res) => {
+  if (!supabase) return res.json({ categories: [] });
+  try {
+    const { data, error } = await supabase
+      .from('reel_categories').select('*')
+      .eq('active', true)
+      .order('sort_order', { ascending: true })
+      .order('name', { ascending: true });
+    if (error) {
+      if (isMissingTable(error, 'reel_categories')) return res.json({ categories: [], unavailable: true });
+      throw error;
+    }
+    res.json({ categories: data || [] });
+  } catch (err) {
+    console.warn('[/api/reel-categories] unavailable —', err.message);
+    res.json({ categories: [] });
+  }
+});
+
+app.get('/admin/reel-categories', adminAuth, async (req, res) => {
+  if (!supabase) return res.json({ categories: [] });
+  try {
+    const { data, error } = await supabase
+      .from('reel_categories').select('*')
+      .order('sort_order', { ascending: true })
+      .order('name', { ascending: true });
+    if (error) {
+      if (isMissingTable(error, 'reel_categories')) return res.json({ categories: [], unavailable: true });
+      throw error;
+    }
+    res.json({ categories: data || [] });
+  } catch (err) {
+    res.json({ categories: [], error: err.message });
+  }
+});
+
+app.post('/admin/reel-categories', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  const name = (req.body?.name || '').toString().trim();
+  const slug = slugify(req.body?.slug || name);
+  if (!name) return res.status(400).json({ error: 'name required' });
+  if (!CATEGORY_SLUG_RE.test(slug)) return res.status(400).json({ error: 'name must contain letters or numbers' });
+  try {
+    const { data, error } = await supabase
+      .from('reel_categories')
+      .insert({
+        slug,
+        name,
+        icon: (req.body?.icon || '').toString().trim().slice(0, 8) || null,
+        sort_order: Number.isFinite(req.body?.sort_order) ? req.body.sort_order : 0,
+        active: true,
+      })
+      .select().single();
+    if (error) {
+      if (isMissingTable(error, 'reel_categories')) {
+        return res.status(503).json({ error: 'reel_categories table is missing — run the block at the end of server/schema.sql', reason: 'missing_table' });
+      }
+      if (error.code === '23505') return res.status(400).json({ error: 'A category with that name already exists.' });
+      throw error;
+    }
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/admin/reel-categories/:id', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  const updates = {};
+  if (req.body?.name !== undefined) {
+    const name = (req.body.name || '').toString().trim();
+    if (!name) return res.status(400).json({ error: 'name required' });
+    updates.name = name;
+  }
+  if (req.body?.icon !== undefined) updates.icon = (req.body.icon || '').toString().trim().slice(0, 8) || null;
+  if (Number.isFinite(req.body?.sort_order)) updates.sort_order = req.body.sort_order;
+  if (req.body?.active !== undefined) updates.active = Boolean(req.body.active);
+  if (Object.keys(updates).length === 0) return res.status(400).json({ error: 'nothing to update' });
+  try {
+    // The slug is deliberately NOT renamed with the name: it is what every
+    // short already filed under this category points at.
+    const { data, error } = await supabase
+      .from('reel_categories').update(updates).eq('id', req.params.id).select().single();
+    if (error) throw error;
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/admin/reel-categories/:id', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  try {
+    const { error } = await supabase.from('reel_categories').delete().eq('id', req.params.id);
+    if (error) throw error;
+    // The shorts keep their category slug and simply stop being filtered by a
+    // tab; nothing is deleted with the category.
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── YouTube channel sync ────────────────────────────────────────────────────
+// Needs YOUTUBE_API_KEY (a Data API v3 key). Without it the sources still list,
+// and a sync says exactly what is missing instead of failing obscurely.
+const YT_API = 'https://www.googleapis.com/youtube/v3';
+const ytKey = () => process.env.YOUTUBE_API_KEY || '';
+
+async function ytGet(path, params) {
+  const qs = new URLSearchParams({ ...params, key: ytKey() });
+  const r = await fetch(`${YT_API}/${path}?${qs}`, {
+    signal: AbortSignal.timeout ? AbortSignal.timeout(10000) : undefined,
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) {
+    const reason = data?.error?.message || `YouTube API ${r.status}`;
+    throw new Error(reason);
+  }
+  return data;
+}
+
+// Accepts anything an admin is likely to paste: a channel URL, an @handle, a
+// bare channel id, or a /user/ or /c/ vanity URL.
+async function resolveYouTubeChannel(input) {
+  const raw = String(input || '').trim();
+  if (!raw) throw new Error('Channel URL or @handle required');
+  const byId = raw.match(/(?:youtube\.com\/channel\/)?(UC[\w-]{20,})/i);
+  if (byId) {
+    const d = await ytGet('channels', { part: 'snippet,contentDetails', id: byId[1] });
+    const c = d.items?.[0];
+    if (!c) throw new Error('No channel with that id');
+    return { channel_id: c.id, display_name: c.snippet?.title || raw, uploads: c.contentDetails?.relatedPlaylists?.uploads || null };
+  }
+  const handle = raw.match(/@([\w.-]+)/);
+  if (handle) {
+    const d = await ytGet('channels', { part: 'snippet,contentDetails', forHandle: `@${handle[1]}` });
+    const c = d.items?.[0];
+    if (c) return { channel_id: c.id, display_name: c.snippet?.title || raw, uploads: c.contentDetails?.relatedPlaylists?.uploads || null };
+  }
+  const vanity = raw.match(/youtube\.com\/(?:c\/|user\/)?([\w.-]+)\/?$/i);
+  const term = handle?.[1] || vanity?.[1];
+  if (!term) throw new Error('Could not read a channel from that link');
+  // Last resort: search. Costs 100 quota units, so only when nothing else matched.
+  const d = await ytGet('search', { part: 'snippet', type: 'channel', q: term, maxResults: 1 });
+  const found = d.items?.[0];
+  if (!found) throw new Error('No YouTube channel found for that link');
+  const id = found.snippet?.channelId || found.id?.channelId;
+  const full = await ytGet('channels', { part: 'snippet,contentDetails', id });
+  const c = full.items?.[0];
+  if (!c) throw new Error('No YouTube channel found for that link');
+  return { channel_id: c.id, display_name: c.snippet?.title || term, uploads: c.contentDetails?.relatedPlaylists?.uploads || null };
+}
+
+// ISO8601 duration → seconds. Only ever sees YouTube's PT#M#S shapes.
+function isoDurationSeconds(v) {
+  const m = String(v || '').match(/^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/);
+  if (!m) return null;
+  return (+(m[1] || 0)) * 3600 + (+(m[2] || 0)) * 60 + (+(m[3] || 0));
+}
+
+const SHORT_MAX_SECONDS = 185; // Shorts are <= 3 min; a little slack for rounding
+
+// Pull a channel's recent uploads and add the ones that are Shorts and are not
+// in the feed yet. Returns { added, checked } or throws with a usable message.
+async function syncYouTubeSource(source) {
+  if (!ytKey()) throw new Error('YOUTUBE_API_KEY is not set on the server — add it in Railway to sync YouTube channels.');
+  let uploads = source.uploads_playlist_id;
+  if (!uploads) {
+    const resolved = await resolveYouTubeChannel(source.channel_id || source.handle);
+    uploads = resolved.uploads;
+    if (uploads) await supabase.from('reel_sources').update({ uploads_playlist_id: uploads }).eq('id', source.id);
+  }
+  if (!uploads) throw new Error('That channel has no public uploads playlist');
+
+  const list = await ytGet('playlistItems', { part: 'snippet,contentDetails', playlistId: uploads, maxResults: 25 });
+  const items = list.items || [];
+  if (items.length === 0) return { added: 0, checked: 0 };
+
+  const ids = items.map(i => i.contentDetails?.videoId).filter(Boolean);
+  // One extra call for durations: the API has no "is this a Short" flag, and
+  // length is the only signal that doesn't need scraping.
+  const details = await ytGet('videos', { part: 'contentDetails', id: ids.join(',') });
+  const seconds = new Map((details.items || []).map(v => [v.id, isoDurationSeconds(v.contentDetails?.duration)]));
+
+  // Already in the feed — by video_id, so a video added by hand is not doubled.
+  const { data: existing } = await supabase.from('shorts').select('video_id').in('video_id', ids);
+  const have = new Set((existing || []).map(r => r.video_id));
+
+  const rows = [];
+  for (const item of items) {
+    const vid = item.contentDetails?.videoId;
+    if (!vid || have.has(vid)) continue;
+    const secs = seconds.get(vid);
+    if (secs == null || secs > SHORT_MAX_SECONDS) continue; // full-length upload, not a Short
+    const sn = item.snippet || {};
+    rows.push({
+      platform: 'youtube',
+      video_url: `https://www.youtube.com/shorts/${vid}`,
+      video_id: vid,
+      title: (sn.title || '').slice(0, 300) || null,
+      caption: source.display_name ? `@${source.display_name}` : null,
+      thumbnail_url: sn.thumbnails?.high?.url || `https://img.youtube.com/vi/${vid}/hqdefault.jpg`,
+      category: source.category || null,
+      source_id: source.id,
+      published_at: sn.publishedAt || null,
+      sort_order: 0,
+      active: true,
+    });
+  }
+  if (rows.length) {
+    const { error } = await supabase.from('shorts').insert(rows);
+    if (error) throw error;
+  }
+  return { added: rows.length, checked: items.length };
+}
+
+async function runSourceSync(source) {
+  const started = new Date().toISOString();
+  try {
+    const out = await syncYouTubeSource(source);
+    await supabase.from('reel_sources').update({
+      last_synced_at: started,
+      last_status: out.added ? `Added ${out.added} new short${out.added === 1 ? '' : 's'}` : 'Up to date',
+    }).eq('id', source.id);
+    return out;
+  } catch (err) {
+    await supabase.from('reel_sources').update({
+      last_synced_at: started,
+      last_status: `Failed: ${err.message}`.slice(0, 300),
+    }).eq('id', source.id);
+    throw err;
+  }
+}
+
+app.get('/admin/reel-sources', adminAuth, async (req, res) => {
+  if (!supabase) return res.json({ sources: [] });
+  try {
+    const { data, error } = await supabase.from('reel_sources').select('*')
+      .order('created_at', { ascending: true });
+    if (error) {
+      if (isMissingTable(error, 'reel_sources')) return res.json({ sources: [], unavailable: true });
+      throw error;
+    }
+    res.json({ sources: data || [], youtubeKey: !!ytKey() });
+  } catch (err) {
+    res.json({ sources: [], error: err.message });
+  }
+});
+
+app.post('/admin/reel-sources', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  const platform = (req.body?.platform || '').toString();
+  const handle = (req.body?.handle || '').toString().trim();
+  const category = (req.body?.category || '').toString().trim() || null;
+  if (!REEL_PLATFORMS.includes(platform)) return res.status(400).json({ error: 'platform must be youtube, tiktok or instagram' });
+  if (!handle) return res.status(400).json({ error: 'Paste the channel/profile link or @handle' });
+  try {
+    const row = {
+      platform,
+      handle,
+      category,
+      display_name: handle.replace(/^https?:\/\/\S*?\//, '').slice(0, 120),
+      active: true,
+      // Only YouTube can actually be polled; the flag stays false elsewhere so
+      // the panel can say so plainly.
+      auto_sync: platform === 'youtube',
+    };
+    if (platform === 'youtube' && ytKey()) {
+      const resolved = await resolveYouTubeChannel(handle);
+      row.channel_id = resolved.channel_id;
+      row.display_name = resolved.display_name;
+      row.uploads_playlist_id = resolved.uploads;
+    }
+    const { data, error } = await supabase.from('reel_sources').insert(row).select().single();
+    if (error) {
+      if (isMissingTable(error, 'reel_sources')) {
+        return res.status(503).json({ error: 'reel_sources table is missing — run the block at the end of server/schema.sql', reason: 'missing_table' });
+      }
+      throw error;
+    }
+    res.json(data);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.put('/admin/reel-sources/:id', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  const updates = {};
+  if (req.body?.category !== undefined) updates.category = (req.body.category || '').toString().trim() || null;
+  if (req.body?.active !== undefined) updates.active = Boolean(req.body.active);
+  if (req.body?.auto_sync !== undefined) updates.auto_sync = Boolean(req.body.auto_sync);
+  if (Object.keys(updates).length === 0) return res.status(400).json({ error: 'nothing to update' });
+  try {
+    const { data, error } = await supabase.from('reel_sources').update(updates).eq('id', req.params.id).select().single();
+    if (error) throw error;
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/admin/reel-sources/:id', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  try {
+    // The videos already pulled from this account stay in the feed.
+    const { error } = await supabase.from('reel_sources').delete().eq('id', req.params.id);
+    if (error) throw error;
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/admin/reel-sources/:id/sync', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  try {
+    const { data: source, error } = await supabase.from('reel_sources').select('*').eq('id', req.params.id).maybeSingle();
+    if (error) throw error;
+    if (!source) return res.status(404).json({ error: 'No such source' });
+    if (source.platform !== 'youtube') {
+      return res.status(400).json({ error: `${source.platform} has no API for reading someone else's account — add those videos by pasting their links.` });
+    }
+    const out = await runSourceSync(source);
+    res.json({ ok: true, ...out });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Background poll: every active YouTube source with auto-sync on, a few hours
+// apart. Quota-cheap (2–3 calls per channel) and skipped entirely without a key.
+const REEL_SYNC_INTERVAL_MS = 6 * 60 * 60 * 1000;
+async function syncAllReelSources() {
+  if (!supabase || !ytKey()) return;
+  try {
+    const { data, error } = await supabase.from('reel_sources').select('*')
+      .eq('platform', 'youtube').eq('active', true).eq('auto_sync', true);
+    if (error) return; // table missing or transient — the next tick retries
+    for (const source of data || []) {
+      try { await runSourceSync(source); }
+      catch (err) { console.warn('[reels sync]', source.handle, '—', err.message); }
+    }
+  } catch (err) {
+    console.warn('[reels sync] failed —', err.message);
+  }
+}
+setTimeout(syncAllReelSources, 60 * 1000).unref?.();
+setInterval(syncAllReelSources, REEL_SYNC_INTERVAL_MS).unref?.();
 
 // ── First Aid Journey: boss questions (admin) ─────────────────────────────────
 

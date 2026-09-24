@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { embedUrl, thumbnailUrl, PLATFORM_LABELS, PLATFORM_ICONS } from '../utils/shortEmbeds';
 import './ShortsFeed.css';
 
@@ -121,7 +121,13 @@ function Slide({ short, isActive, isNear, soundOn, gesture }) {
 }
 
 export default function ShortsFeed() {
-  const [shorts, setShorts]       = useState(null); // null = loading
+  const [allShorts, setAllShorts] = useState(null); // null = loading
+  const [categories, setCategories] = useState([]); // admin-managed tabs
+  // Which tab is showing. 'all' is always offered first, and is remembered so
+  // the feed reopens on the kind of video this viewer actually watches.
+  const [category, setCategory] = useState(() => {
+    try { return localStorage.getItem('mr_reels_category') || 'all'; } catch { return 'all'; }
+  });
   const [activeIdx, setActiveIdx] = useState(0);
   // Sound is ON by default — this is a video feed, not a background banner.
   // Remembered so a viewer who silences it stays silenced next visit.
@@ -151,14 +157,52 @@ export default function ShortsFeed() {
     return () => events.forEach(e => window.removeEventListener(e, onFirst));
   }, []);
 
+  // The whole feed in one request, filtered to a tab in memory: the list is
+  // small, and switching tabs with no network round-trip is the point.
   useEffect(() => {
     let cancelled = false;
     fetch(`${SERVER_URL}/api/shorts`)
       .then(r => r.json())
-      .then(d => { if (!cancelled) setShorts(Array.isArray(d.shorts) ? d.shorts : []); })
-      .catch(() => { if (!cancelled) setShorts([]); });
+      .then(d => { if (!cancelled) setAllShorts(Array.isArray(d.shorts) ? d.shorts : []); })
+      .catch(() => { if (!cancelled) setAllShorts([]); });
+    fetch(`${SERVER_URL}/api/reel-categories`)
+      .then(r => r.json())
+      .then(d => { if (!cancelled) setCategories(Array.isArray(d.categories) ? d.categories : []); })
+      .catch(() => { if (!cancelled) setCategories([]); });
     return () => { cancelled = true; };
   }, []);
+
+  // Only tabs that actually have videos, so a category set up in advance never
+  // greets a viewer with an empty feed.
+  const tabs = useMemo(() => {
+    const counts = new Map();
+    for (const s of allShorts || []) {
+      if (s.category) counts.set(s.category, (counts.get(s.category) || 0) + 1);
+    }
+    return [
+      { slug: 'all', name: 'All', icon: '✨', count: (allShorts || []).length },
+      ...categories
+        .filter(c => counts.get(c.slug))
+        .map(c => ({ slug: c.slug, name: c.name, icon: c.icon, count: counts.get(c.slug) })),
+    ];
+  }, [allShorts, categories]);
+
+  // A remembered tab whose category has since been emptied or removed falls
+  // back to All rather than showing nothing.
+  const activeTab = tabs.some(t => t.slug === category) ? category : 'all';
+  const shorts = useMemo(() => (
+    activeTab === 'all'
+      ? allShorts
+      : (allShorts || []).filter(s => s.category === activeTab)
+  ), [allShorts, activeTab]);
+
+  function chooseCategory(slug) {
+    setCategory(slug);
+    setActiveIdx(0);
+    try { localStorage.setItem('mr_reels_category', slug); } catch { /* private mode */ }
+    // Back to the first slide of the new tab, not wherever the old one was.
+    containerRef.current?.scrollTo({ top: 0 });
+  }
 
   // Track the visible slide: the IntersectionObserver drives which slide is
   // "active" (mounts the iframe / autoplays) as the user snaps through.
@@ -187,13 +231,32 @@ export default function ShortsFeed() {
     return () => containerRef.current?._sfObserver?.disconnect();
   }, [shorts, observeSlides]);
 
-  if (shorts === null) {
+  if (allShorts === null) {
     return <div className="sf-state"><div className="spinner" /></div>;
   }
+
+  const tabBar = tabs.length > 1 && (
+    <nav className="sf-tabs" aria-label="Reel categories">
+      {tabs.map(t => (
+        <button
+          key={t.slug}
+          type="button"
+          className={`sf-tab${t.slug === activeTab ? ' is-active' : ''}`}
+          aria-pressed={t.slug === activeTab}
+          onClick={() => chooseCategory(t.slug)}
+        >
+          {t.icon && <span className="sf-tab-icon" aria-hidden="true">{t.icon}</span>}
+          {t.name}
+          <span className="sf-tab-count">{t.count}</span>
+        </button>
+      ))}
+    </nav>
+  );
 
   if (shorts.length === 0) {
     return (
       <div className="sf-state">
+        {tabBar}
         <div className="sf-empty">
           <span className="sf-empty-icon">🎬</span>
           <h2 className="sf-empty-title">No shorts yet</h2>
@@ -205,6 +268,7 @@ export default function ShortsFeed() {
 
   return (
     <div className="sf-feed" ref={observeSlides}>
+      {tabBar}
       {/* Sound control. Also the guaranteed escape hatch from the autoplay
           policy: tapping it IS the gesture that lets sound start. */}
       <button
