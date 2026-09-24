@@ -3792,3 +3792,27 @@ html[data-study="on"] .solo-body .pause-overlay {
 @media (pointer: coarse) {
   .expl-hl-pin { height: 34px; padding: 0 10px; font-size: 16px; }
 }
+
+/* "Photo" button on the in-game picture slots — the only way to add a picture
+   on a phone, where there is no drag-and-drop and no Ctrl+V. */
+.dev-imgslot-pick {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+.dev-imgslot-pick:hover:not(:disabled) { background: rgba(255, 255, 255, 0.22); }
+.dev-imgslot-pick:disabled { opacity: 0.5; cursor: default; }
+
+/* Touch: a 12px chip beside a 34px control is a miss waiting to happen. */
+@media (pointer: coarse) {
+  .dev-imgslot { padding: 10px 12px; }
+  .dev-imgslot-pick { padding: 9px 14px; font-size: 14px; }
+  .dev-imgslot-reuse { min-height: 32px; padding: 6px 12px; }
+}

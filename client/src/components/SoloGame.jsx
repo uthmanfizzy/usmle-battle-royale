@@ -113,9 +113,56 @@ function saveHi(subject, score) {
  *
  * Purely presentational: the upload/save is SoloGame's uploadDevImage.
  */
+// The bucket takes JPG/PNG/WEBP up to 5MB. A picture from a phone is often
+// neither: iOS shares HEIC, and a full-resolution photo is several times the
+// limit. Anything that isn't already a small JPG/PNG/WEBP is re-drawn through a
+// canvas as a JPEG, scaled so its longest side is at most 2000px — which is far
+// more than a question image ever needs, and gets a 12MP photo comfortably
+// under the limit. If the browser cannot decode the file at all (an Android
+// browser handed a HEIC), the original is returned and the upload reports the
+// real reason rather than silently doing nothing.
+const UPLOAD_MAX_BYTES = 5 * 1024 * 1024;
+const UPLOAD_MAX_EDGE = 2000;
+async function prepareImageForUpload(file) {
+  const fine = ['image/jpeg', 'image/png', 'image/webp'].includes(file.type)
+    && file.size <= UPLOAD_MAX_BYTES;
+  if (fine) return file;
+  try {
+    const bitmap = typeof createImageBitmap === 'function'
+      ? await createImageBitmap(file)
+      : await new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        img.src = URL.createObjectURL(file);
+      });
+    const w = bitmap.width || bitmap.naturalWidth;
+    const h = bitmap.height || bitmap.naturalHeight;
+    if (!w || !h) throw new Error('no size');
+    const scale = Math.min(1, UPLOAD_MAX_EDGE / Math.max(w, h));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(w * scale);
+    canvas.height = Math.round(h * scale);
+    canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    bitmap.close?.();
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.88));
+    if (!blob) throw new Error('encode failed');
+    const name = (file.name || 'photo').replace(/\.[^.]+$/, '') + '.jpg';
+    return new File([blob], name, { type: 'image/jpeg' });
+  } catch {
+    return file; // let the normal checks below report what is wrong
+  }
+}
+
 function DevImageSlot({ field, label, qid, armed, busy, message, currentUrl, onArm, onFile, reusable = [], onReuse, libraryName = 'chapter', onPickingChange, holding = false, onResume }) {
   const [over, setOver] = useState(false);
   const [picking, setPicking] = useState(false);
+  const fileRef = useRef(null);
+  // Phones have neither drag-and-drop nor Ctrl+V, so the hint has to say
+  // something that is actually true on the device in hand.
+  const coarse = typeof window !== 'undefined'
+    && typeof window.matchMedia === 'function'
+    && window.matchMedia('(pointer: coarse)').matches;
   // The game holds its timer while the picture list is open.
   useEffect(() => { onPickingChange?.(field, picking); }, [picking, field]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => () => onPickingChange?.(field, false), [field]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -144,7 +191,9 @@ function DevImageSlot({ field, label, qid, armed, busy, message, currentUrl, onA
         {busy ? 'Uploading…' : message?.text || `${label} image`}
       </span>
       {/* Only one slot can receive a paste at a time, so say which. */}
-      <span className="dev-imgslot-hint">{armed ? 'Ctrl+V here' : 'click to arm'}</span>
+      <span className="dev-imgslot-hint">
+        {coarse ? 'tap Photo →' : armed ? 'Ctrl+V here' : 'click to arm'}
+      </span>
       {holding && armed && (
         <button
           type="button"
@@ -155,6 +204,29 @@ function DevImageSlot({ field, label, qid, armed, busy, message, currentUrl, onA
           ⏸ Timer paused · Resume
         </button>
       )}
+      {/* Pick a picture from the device. The only way in on a phone, where
+          there is no drag-and-drop and no Ctrl+V: `accept="image/*"` with no
+          `capture` opens the photo library (with the camera as an option). */}
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        hidden
+        onChange={e => {
+          const file = e.target.files?.[0];
+          e.target.value = '';           // same photo twice in a row still fires
+          if (file) onFile(field, file, qid);
+        }}
+      />
+      <button
+        type="button"
+        className="dev-imgslot-pick"
+        disabled={busy}
+        onClick={e => { e.stopPropagation(); onArm?.(); fileRef.current?.click(); }}
+        title="Choose a picture from this device"
+      >
+        📱 Photo
+      </button>
       {/* Reuse an image already on another question in this set, instead of
           uploading the same file again. */}
       {reusable.length > 0 && (
@@ -821,21 +893,27 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   }, [imageAuthHeaders, imageTable, applyDevImage, devImgFail]);
 
   const uploadDevImage = useCallback(async (field, file, qid) => {
-    const allowed = ['image/jpeg', 'image/png', 'image/webp'];
     if (!file || !file.type?.startsWith('image/')) return devImgFail(field, 'Images only');
-    if (!allowed.includes(file.type))              return devImgFail(field, 'JPG, PNG or WEBP');
-    if (file.size > 5 * 1024 * 1024)               return devImgFail(field, 'Max 5MB');
     if (!imageAuthHeaders()) return devImgFail(field, 'Admin permissions required');
 
     setDevImgMsg(null);
     setDevImgBusy(field);
     try {
+      // A photo straight off a phone is usually neither small enough nor in a
+      // format the bucket takes: iPhones hand over HEIC, and a 12MP shot is
+      // well past the 5MB limit. Both are fixed here rather than refused.
+      const prepared = await prepareImageForUpload(file);
+      if (!['image/jpeg', 'image/png', 'image/webp'].includes(prepared.type)) {
+        return devImgFail(field, `Can't read ${(prepared.type || 'that file').replace('image/', '')} here — save it as JPG first`);
+      }
+      if (prepared.size > UPLOAD_MAX_BYTES) return devImgFail(field, 'That picture is too big (max 5MB)');
       const base64 = await new Promise((resolve, reject) => {
         const r = new FileReader();
         r.onload = () => resolve(r.result);
         r.onerror = reject;
-        r.readAsDataURL(file);
+        r.readAsDataURL(prepared);
       });
+      file = prepared;
       const upRes = await fetch(`${SERVER_URL}/admin/upload-image`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...imageAuthHeaders() },
