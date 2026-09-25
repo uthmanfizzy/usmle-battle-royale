@@ -5683,3 +5683,9 @@
   border: 1px solid rgba(180, 140, 40, 0.45);
   color: rgba(230, 200, 110, 0.95);
 }
+
+/* An untagged reel shows under "All" only — say so on the row itself. */
+.ap-reel-rowcat.is-untagged {
+  border-color: rgba(220, 160, 60, 0.6);
+  color: rgba(230, 190, 110, 0.95);
+}

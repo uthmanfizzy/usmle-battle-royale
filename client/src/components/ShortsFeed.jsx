@@ -153,14 +153,17 @@ function CategoryChooser({ categories, counts, total, initial, onDone, onCancel 
             <button
               key={c.slug}
               type="button"
-              className={`sf-choice${sel.has(c.slug) ? ' is-on' : ''}`}
+              className={`sf-choice${sel.has(c.slug) ? ' is-on' : ''}${counts.get(c.slug) ? '' : ' is-empty'}`}
               aria-pressed={sel.has(c.slug)}
+              disabled={!counts.get(c.slug)}
               onClick={() => toggle(c.slug)}
             >
               <span className="sf-choice-icon" aria-hidden="true">{c.icon || '🎬'}</span>
               <span className="sf-choice-name">{c.name}</span>
               <span className="sf-choice-count">
-                {counts.get(c.slug)} video{counts.get(c.slug) === 1 ? '' : 's'}
+                {counts.get(c.slug)
+                  ? `${counts.get(c.slug)} video${counts.get(c.slug) === 1 ? '' : 's'}`
+                  : 'Nothing here yet'}
               </span>
               <span className="sf-choice-tick" aria-hidden="true">{sel.has(c.slug) ? '✓' : ''}</span>
             </button>
@@ -357,11 +360,14 @@ export default function ShortsFeed({ chooseFirst = false }) {
   // Chooser: shown on the Reels page before the first video, and again from the
   // tab bar's ⚙ button. Only when there is something to choose between —
   // one category (or none) has no choice in it.
-  const needsChoice = (picks === null || chooserOpen) && stocked.length > 1;
+  // Every active category is listed, including ones with nothing in them yet:
+  // hiding an empty category made the whole chooser vanish when the reels had
+  // not been filed under anything, which reads as "my categories are gone".
+  const needsChoice = (picks === null || chooserOpen) && categories.length > 1;
   if (needsChoice) {
     return (
       <CategoryChooser
-        categories={stocked}
+        categories={categories}
         counts={counts}
         total={(allShorts || []).length}
         initial={picked}

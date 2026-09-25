@@ -428,3 +428,11 @@
   .sf-chooser-grid { grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 10px; }
   .sf-chooser-btn { flex: 1 1 auto; }
 }
+
+/* A category with nothing filed under it yet: shown, so the viewer can see it
+   exists, but not choosable — picking it would open an empty feed. */
+.sf-choice.is-empty {
+  opacity: 0.45;
+  cursor: default;
+}
+.sf-choice.is-empty:hover { background: rgba(255, 255, 255, 0.06); }

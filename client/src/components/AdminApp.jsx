@@ -5532,6 +5532,21 @@ function ShortsPanel() {
     setBusyRow(null);
   }
 
+  // Filing a reel under a category straight from the list. Opening the edit
+  // form for each one is what made every existing reel sit untagged — and an
+  // untagged reel never appears under any tab.
+  async function handleSetCategory(s, slug) {
+    setError('');
+    setBusyRow(s.id);
+    try {
+      const res  = await apiCall(`/admin/shorts/${s.id}`, { method: 'PUT', body: JSON.stringify({ category: slug }) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to update short');
+      setShorts(list => list.map(x => x.id === s.id ? data : x));
+    } catch (err) { setError(err.message); }
+    setBusyRow(null);
+  }
+
   // Reorder: swap sort_order with the neighbor (two PUTs, then local swap)
   async function handleMove(idx, dir) {
     const other = idx + dir;
@@ -5672,6 +5687,16 @@ function ShortsPanel() {
       ) : (
         <div className="ap-video-group">
           <h3 className="ap-video-group-head">📱 Feed order ({shorts.length})</h3>
+          {/* A tab only holds the reels filed under it, so untagged reels are
+              the reason a category can look missing on the Reels page. */}
+          {categories.length > 0 && shorts.some(s => !s.category) && (
+            <div className="je-imglib-warn">
+              {shorts.filter(s => !s.category).length} reel
+              {shorts.filter(s => !s.category).length === 1 ? ' has' : 's have'} no category, so
+              {shorts.filter(s => !s.category).length === 1 ? ' it only shows' : ' they only show'} under
+              “All”. Pick a category on each row below.
+            </div>
+          )}
           {shorts.map((s, idx) => (
             <div className="ap-video-row" key={s.id} style={s.active ? undefined : { opacity: 0.5 }}>
               {thumbFor(s) ? (
@@ -5685,10 +5710,17 @@ function ShortsPanel() {
                   {s.caption ? s.caption : <a href={s.video_url} target="_blank" rel="noopener noreferrer">{s.video_url}</a>}
                 </span>
               </div>
-              {s.category && (
-                <span className="ap-reel-cat-chip">
-                  {categories.find(c => c.slug === s.category)?.name || s.category}
-                </span>
+              {categories.length > 0 && (
+                <select
+                  className={`ap-reel-rowcat${s.category ? '' : ' is-untagged'}`}
+                  value={s.category || ''}
+                  disabled={busyRow === s.id}
+                  onChange={e => handleSetCategory(s, e.target.value)}
+                  title="Which category tab this reel shows under"
+                >
+                  <option value="">No category</option>
+                  {categories.map(c => <option key={c.id} value={c.slug}>{c.name}</option>)}
+                </select>
               )}
               <span className={`ap-video-badge ap-video-badge--${s.platform}`}>
                 {PLATFORM_ICONS[s.platform]} {PLATFORM_LABELS[s.platform]}
