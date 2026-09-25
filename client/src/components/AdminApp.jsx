@@ -5352,9 +5352,10 @@ function ReelSourcesPanel({ categories, unavailable, onSynced }) {
       <h3 className="ap-video-group-head">🔗 Linked accounts ({sources.length})</h3>
       <p className="ap-section-subtitle">
         YouTube channels are checked every few hours and their new Shorts are added to the
-        category you choose. TikTok and Instagram give no way to read an account you do not
-        own, so those are kept here for reference and their videos are added by pasting links
-        above.
+        category you choose. Instagram and TikTok give no way to read an account you do not
+        own — to have those arrive by themselves, make a feed for the account at a feed
+        service (RSS.app, Behold, Apify and similar) and add its URL here as a Feed source;
+        it is polled the same way. Otherwise paste their links above.
       </p>
       {!youtubeKey && (
         <div className="je-imglib-warn">
@@ -5371,11 +5372,13 @@ function ReelSourcesPanel({ categories, unavailable, onSynced }) {
           <option value="youtube">▶️ YouTube</option>
           <option value="tiktok">🎵 TikTok</option>
           <option value="instagram">📸 Instagram</option>
+          <option value="feed">🔗 Feed URL (RSS/JSON)</option>
         </select>
         <input
           type="text" value={handle} onChange={e => setHandle(e.target.value)}
           placeholder={platform === 'youtube'
             ? 'youtube.com/@channel or @channel'
+            : platform === 'feed' ? 'https://rss.app/feeds/….xml — the feed URL for that account'
             : platform === 'tiktok' ? 'tiktok.com/@handle' : 'instagram.com/handle'}
         />
         <select value={category} onChange={e => setCategory(e.target.value)}>
@@ -5387,18 +5390,18 @@ function ReelSourcesPanel({ categories, unavailable, onSynced }) {
 
       {sources.map(src => (
         <div className="ap-video-row" key={src.id} style={src.active ? undefined : { opacity: 0.5 }}>
-          <div className="ap-video-thumb ap-video-thumb--placeholder">{PLATFORM_ICONS[src.platform]}</div>
+          <div className="ap-video-thumb ap-video-thumb--placeholder">{PLATFORM_ICONS[src.platform] || '🔗'}</div>
           <div className="ap-video-row-info">
             <span className="ap-video-row-title">
               {src.display_name || src.handle}
-              {src.platform !== 'youtube' && (
+              {src.platform !== 'youtube' && src.platform !== 'feed' && (
                 <span className="ap-reel-manual" title={`${PLATFORM_LABELS[src.platform]} gives no way to read an account's posts, so nothing is imported from this link`}>
                   nothing is imported
                 </span>
               )}
             </span>
             <span className="ap-video-row-attach">
-              {src.platform === 'youtube'
+              {src.platform === 'youtube' || src.platform === 'feed'
                 ? (src.last_status || 'Never synced')
                 : 'Paste this account’s reel links below to add them'}
               {src.last_synced_at && ` · ${new Date(src.last_synced_at).toLocaleString()}`}
@@ -5414,7 +5417,7 @@ function ReelSourcesPanel({ categories, unavailable, onSynced }) {
             {categories.map(c => <option key={c.id} value={c.slug}>{c.name}</option>)}
           </select>
           <div className="ap-video-row-actions">
-            {src.platform === 'youtube' && (
+            {(src.platform === 'youtube' || src.platform === 'feed') && (
               <>
                 <button className="ap-topic-edit-btn" disabled={syncing === src.id || busy}
                   onClick={() => sync(src)} title="Pull this channel's new Shorts now">

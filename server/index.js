@@ -10107,7 +10107,7 @@ app.delete('/admin/shorts/:id', adminAuth, async (req, res) => {
 // the end of schema.sql, run by hand. Until then every read degrades to empty
 // with unavailable:true rather than failing the Reels page.
 const CATEGORY_SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-const REEL_PLATFORMS = ['youtube', 'tiktok', 'instagram'];
+const REEL_PLATFORMS = ['youtube', 'tiktok', 'instagram', 'feed'];
 
 const slugify = (v) => String(v || '')
   .toLowerCase().trim()
@@ -10332,10 +10332,108 @@ async function syncYouTubeSource(source) {
   return { added: rows.length, checked: items.length };
 }
 
+// ── Feed sources (RSS / JSON) ───────────────────────────────────────────────
+// The way an Instagram or TikTok account can still feed the site automatically.
+// Neither platform lets a website read an account it does not own, but feed
+// services (RSS.app, Behold, Apify and friends) publish an account's posts as
+// RSS or JSON, and polling one of those is ordinary, allowed web fetching.
+//
+// Deliberately format-agnostic: whatever the feed is, the only thing taken from
+// it is the post LINKS, which then go through the same parseShortUrl the admin
+// paste box uses. A link that isn't a YouTube/TikTok/Instagram post is ignored,
+// so a general-purpose feed can be pointed at this without curating it first.
+const FEED_MAX_ITEMS = 40;
+
+function linksFromFeed(body) {
+  const out = [];
+  const push = (v) => {
+    if (typeof v === 'string' && /^https?:\/\//i.test(v)) out.push(v);
+  };
+  const trimmed = body.trim();
+  if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+    try {
+      const data = JSON.parse(trimmed);
+      const items = Array.isArray(data) ? data
+        : Array.isArray(data.items) ? data.items
+        : Array.isArray(data.posts) ? data.posts
+        : Array.isArray(data.data) ? data.data
+        : [];
+      for (const item of items) {
+        if (typeof item === 'string') { push(item); continue; }
+        // The field a feed service calls "the post" varies; take the first that
+        // looks like a link rather than guessing one service's shape.
+        for (const key of ['url', 'link', 'permalink', 'post_url', 'postUrl', 'external_url', 'id']) {
+          if (item && typeof item[key] === 'string' && /^https?:\/\//i.test(item[key])) { push(item[key]); break; }
+        }
+      }
+      return out;
+    } catch { /* not JSON after all — fall through to the XML reader */ }
+  }
+  // RSS <link>text</link> and Atom <link href="…">, plus any bare post URL in
+  // the body (some feeds only carry the link inside the description HTML).
+  for (const m of body.matchAll(/<link[^>]*href=["']([^"']+)["']/gi)) push(m[1]);
+  for (const m of body.matchAll(/<link>\s*([^<\s]+)\s*<\/link>/gi)) push(m[1]);
+  for (const m of body.matchAll(/https?:\/\/(?:www\.)?(?:instagram\.com\/(?:reel|reels|p)\/[\w-]+|tiktok\.com\/@[\w.-]+\/video\/\d+|youtube\.com\/shorts\/[\w-]+)/gi)) push(m[0]);
+  return out;
+}
+
+async function syncFeedSource(source) {
+  const url = source.handle;
+  if (!/^https?:\/\//i.test(url || '')) throw new Error('This source has no feed URL');
+  const res = await fetch(url, {
+    headers: { Accept: 'application/json, application/rss+xml, application/atom+xml, text/xml;q=0.9, */*;q=0.8' },
+    signal: AbortSignal.timeout ? AbortSignal.timeout(15000) : undefined,
+  });
+  if (!res.ok) throw new Error(`Feed returned ${res.status}`);
+  const body = await res.text();
+
+  // Deduped in order, newest first as the feed lists them.
+  const seen = new Set();
+  const posts = [];
+  for (const link of linksFromFeed(body)) {
+    const parsed = parseShortUrl(link);
+    if (parsed.error || seen.has(parsed.video_id)) continue;
+    seen.add(parsed.video_id);
+    posts.push({ link, ...parsed });
+    if (posts.length >= FEED_MAX_ITEMS) break;
+  }
+  if (posts.length === 0) {
+    throw new Error('No Instagram, TikTok or YouTube post links found in that feed');
+  }
+
+  const { data: existing } = await supabase
+    .from('shorts').select('video_id').in('video_id', posts.map(p => p.video_id));
+  const have = new Set((existing || []).map(r => r.video_id));
+  const fresh = posts.filter(p => !have.has(p.video_id));
+
+  const rows = [];
+  for (const p of fresh) {
+    rows.push({
+      platform: p.platform,
+      video_url: p.link,
+      video_id: p.video_id,
+      title: null,
+      caption: source.display_name ? `@${source.display_name}` : null,
+      thumbnail_url: await resolveShortThumbnail(p.platform, p.video_id, p.link),
+      category: source.category || null,
+      source_id: source.id,
+      sort_order: 0,
+      active: true,
+    });
+  }
+  if (rows.length) {
+    const { error } = await supabase.from('shorts').insert(rows);
+    if (error) throw error;
+  }
+  return { added: rows.length, checked: posts.length };
+}
+
 async function runSourceSync(source) {
   const started = new Date().toISOString();
   try {
-    const out = await syncYouTubeSource(source);
+    const out = source.platform === 'feed'
+      ? await syncFeedSource(source)
+      : await syncYouTubeSource(source);
     await supabase.from('reel_sources').update({
       last_synced_at: started,
       last_status: out.added ? `Added ${out.added} new short${out.added === 1 ? '' : 's'}` : 'Up to date',
@@ -10379,10 +10477,17 @@ app.post('/admin/reel-sources', adminAuth, async (req, res) => {
       category,
       display_name: handle.replace(/^https?:\/\/\S*?\//, '').slice(0, 120),
       active: true,
-      // Only YouTube can actually be polled; the flag stays false elsewhere so
-      // the panel can say so plainly.
-      auto_sync: platform === 'youtube',
+      // Only YouTube channels and feed URLs can actually be polled; the flag
+      // stays false elsewhere so the panel can say so plainly.
+      auto_sync: platform === 'youtube' || platform === 'feed',
     };
+    if (platform === 'feed' && !/^https?:\/\//i.test(handle)) {
+      return res.status(400).json({ error: 'Paste the feed URL the feed service gave you (it starts with https://)' });
+    }
+    if (platform === 'feed') {
+      // A feed URL is unreadable as a name; use its host until the first sync.
+      try { row.display_name = new URL(handle).hostname.replace(/^www\./, ''); } catch { /* keep the raw handle */ }
+    }
     if (platform === 'youtube' && ytKey()) {
       const resolved = await resolveYouTubeChannel(handle);
       row.channel_id = resolved.channel_id;
@@ -10436,8 +10541,8 @@ app.post('/admin/reel-sources/:id/sync', adminAuth, async (req, res) => {
     const { data: source, error } = await supabase.from('reel_sources').select('*').eq('id', req.params.id).maybeSingle();
     if (error) throw error;
     if (!source) return res.status(404).json({ error: 'No such source' });
-    if (source.platform !== 'youtube') {
-      return res.status(400).json({ error: `${source.platform} has no API for reading someone else's account — add those videos by pasting their links.` });
+    if (source.platform !== 'youtube' && source.platform !== 'feed') {
+      return res.status(400).json({ error: `${source.platform} has no API for reading someone else's account — use a feed URL, or paste the links.` });
     }
     const out = await runSourceSync(source);
     res.json({ ok: true, ...out });
@@ -10450,12 +10555,13 @@ app.post('/admin/reel-sources/:id/sync', adminAuth, async (req, res) => {
 // apart. Quota-cheap (2–3 calls per channel) and skipped entirely without a key.
 const REEL_SYNC_INTERVAL_MS = 6 * 60 * 60 * 1000;
 async function syncAllReelSources() {
-  if (!supabase || !ytKey()) return;
+  if (!supabase) return;
   try {
     const { data, error } = await supabase.from('reel_sources').select('*')
-      .eq('platform', 'youtube').eq('active', true).eq('auto_sync', true);
+      .in('platform', ['youtube', 'feed']).eq('active', true).eq('auto_sync', true);
     if (error) return; // table missing or transient — the next tick retries
     for (const source of data || []) {
+      if (source.platform === 'youtube' && !ytKey()) continue;
       try { await runSourceSync(source); }
       catch (err) { console.warn('[reels sync]', source.handle, '—', err.message); }
     }
