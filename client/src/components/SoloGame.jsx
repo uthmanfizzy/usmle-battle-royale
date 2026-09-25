@@ -799,7 +799,33 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   const onImgPickingChange = useCallback((field, open) => {
     setImgPicking(prev => (!!prev[field] === open ? prev : { ...prev, [field]: open }));
   }, []);
-  const devImgHolding = imgArmHold || !!devImgBusy || Object.values(imgPicking).some(Boolean);
+  // ── Look back at the previous question (First Aid Journey) ────────────────
+  // Ten seconds with the question just answered, then straight back. The clock
+  // is held meanwhile — the point is to re-read something, not to be punished
+  // for it — and the countdown is what stops it becoming a way to sit on a
+  // question indefinitely.
+  const PEEK_SECONDS = 10;
+  const [peekIdx, setPeekIdx] = useState(null);   // which question is being looked at
+  const [peekLeft, setPeekLeft] = useState(0);    // seconds remaining
+  // What was answered where, so a look back shows the choice as well as the
+  // question. Only what the look-back needs: { [qIdx]: { label, correct } }.
+  const [answerLog, setAnswerLog] = useState({});
+  useEffect(() => {
+    if (peekIdx === null) return undefined;
+    setPeekLeft(PEEK_SECONDS);
+    const id = setInterval(() => {
+      setPeekLeft(s => {
+        if (s <= 1) { setPeekIdx(null); return 0; }
+        return s - 1;
+      });
+    }, 1000);
+    return () => clearInterval(id);
+  }, [peekIdx]);
+  // Never left open across a question change.
+  useEffect(() => { setPeekIdx(null); }, [qIdx]);
+
+  const devImgHolding = imgArmHold || !!devImgBusy || Object.values(imgPicking).some(Boolean)
+    || peekIdx !== null;
   // The question countdown's interval skips ticks while this is true, so a
   // picture hold freezes it exactly like the pause button (without the cover).
   pausedRef.current = isPaused || devImgHolding;
@@ -1186,6 +1212,8 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
       match: label === q.correct
     });
     const correct = label === q.correct;
+    // Recorded for the look-back, which shows what was picked here.
+    setAnswerLog(prev => ({ ...prev, [qIdxRef.current]: { label, correct } }));
     // Additive: a timeout (label === null) still counts as SEEN, just not answered.
     // Skipped entirely during a review pass (uwaReview) — reviewing an
     // already-rated question must never move the 3,659-question completion
@@ -1712,6 +1740,58 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
       {/* The exam skin is always the full-width sheet of the mockup: the
           explanation appears BELOW the item after answering rather than taking
           half the width while the stem is still being read. */}
+      {/* The look-back itself: the earlier question, read-only, over the top of
+          the live one. Read-only on purpose — it is a reminder, not a second
+          attempt, so nothing here can change a score. */}
+      {peekIdx !== null && questions[peekIdx] && (() => {
+        const pq = questions[peekIdx];
+        const log = answerLog[peekIdx] || {};
+        return (
+          <div className="jm-peek" onClick={() => setPeekIdx(null)}>
+            <div className="jm-peek-card" onClick={e => e.stopPropagation()}>
+              <div className="jm-peek-head">
+                <span className="jm-peek-title">Question {peekIdx + 1}</span>
+                <span className="jm-peek-clock" aria-live="polite">
+                  back in {peekLeft}s
+                </span>
+                <button type="button" className="jm-peek-close" onClick={() => setPeekIdx(null)}>
+                  Back to my question
+                </button>
+              </div>
+              <div className="jm-peek-body">
+                <div className="jm-peek-stem stem-text">{renderStem(pq.question)}</div>
+                <ul className="jm-peek-options">
+                  {(pq.options || []).map((opt, i) => {
+                    const letter = String.fromCharCode(65 + i);
+                    const isCorrect = letter === pq.correct;
+                    const isYours = letter === log.label;
+                    return (
+                      <li
+                        key={letter}
+                        className={`jm-peek-opt${isCorrect ? ' is-correct' : ''}${isYours && !isCorrect ? ' is-yours' : ''}`}
+                      >
+                        <span className="jm-peek-letter">{letter}</span>
+                        <span>{stripLetterPrefix(opt)}</span>
+                        {isCorrect && <span className="jm-peek-tag">correct</span>}
+                        {isYours && <span className="jm-peek-tag">you picked</span>}
+                      </li>
+                    );
+                  })}
+                </ul>
+                {pq.explanation && (
+                  <div className="jm-peek-expl">
+                    <ExplanationText text={pq.explanation} />
+                  </div>
+                )}
+              </div>
+              <div className="jm-peek-foot">
+                Your question is paused while you look.
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       <div className="solo-body" data-expl-layout={study ? (uworldSkin ? 'below' : explLayout) : undefined}>
         {study && (
           <div className="study-header">
@@ -1896,6 +1976,19 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
         )}
 
         <div className="question-card">
+          {/* Look back at the question before this one (Journey only), for ten
+              seconds. Offered from the second question onwards, and only once
+              that previous question has actually been answered. */}
+          {isJourney && qIdx > 0 && peekIdx === null && answerLog[qIdx - 1] && (
+            <button
+              type="button"
+              className="jm-peek-btn"
+              onClick={() => setPeekIdx(qIdx - 1)}
+              title="Look at the previous question for 10 seconds — your timer pauses"
+            >
+              ← Last question · 10s
+            </button>
+          )}
           {/* Pause (Training + Journey only, during the question countdown). NON-STUDY:
               in-flow, right-aligned above the stem so it never overlaps the question.
               STUDY: rendered in the footer between the prev/next arrows (below). */}

@@ -3816,3 +3816,115 @@ html[data-study="on"] .solo-body .pause-overlay {
   .dev-imgslot-pick { padding: 9px 14px; font-size: 14px; }
   .dev-imgslot-reuse { min-height: 32px; padding: 6px 12px; }
 }
+
+/* ── Journey: look back at the previous question ──────────────────────────
+   Ten seconds with the question just answered, then it closes itself. */
+.jm-peek-btn {
+  display: block;
+  width: fit-content;
+  margin: 0 0 10px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.jm-peek-btn:hover { background: rgba(255, 255, 255, 0.16); color: #fff; }
+
+.jm-peek {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(6, 8, 14, 0.78);
+  backdrop-filter: blur(3px);
+}
+.jm-peek-card {
+  width: min(760px, 100%);
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: #161b27;
+  color: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.55);
+  overflow: hidden;
+}
+.jm-peek-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+.jm-peek-title { font-weight: 800; font-size: 15px; }
+.jm-peek-clock {
+  margin-left: auto;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+  background: rgba(253, 203, 110, 0.18);
+  border: 1px solid rgba(253, 203, 110, 0.5);
+  color: #fdcb6e;
+}
+.jm-peek-close {
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.jm-peek-close:hover { background: rgba(255, 255, 255, 0.2); }
+.jm-peek-body { padding: 16px; overflow-y: auto; }
+.jm-peek-stem { font-size: 15px; line-height: 1.65; margin-bottom: 14px; }
+.jm-peek-options { list-style: none; margin: 0 0 14px; padding: 0; display: grid; gap: 6px; }
+.jm-peek-opt {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  font-size: 14px;
+}
+.jm-peek-opt.is-correct {
+  border-color: rgba(85, 239, 196, 0.6);
+  background: rgba(85, 239, 196, 0.12);
+}
+.jm-peek-opt.is-yours {
+  border-color: rgba(255, 118, 117, 0.6);
+  background: rgba(255, 118, 117, 0.12);
+}
+.jm-peek-letter { font-weight: 800; opacity: 0.8; }
+.jm-peek-tag {
+  margin-left: auto;
+  font-size: 10.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.85;
+  white-space: nowrap;
+}
+.jm-peek-expl { font-size: 14px; line-height: 1.7; opacity: 0.92; }
+.jm-peek-foot {
+  padding: 10px 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  font-size: 12px;
+  opacity: 0.7;
+}
+@media (max-width: 560px) {
+  .jm-peek-head { flex-wrap: wrap; gap: 8px; }
+  .jm-peek-close { width: 100%; }
+}
