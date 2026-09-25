@@ -5199,8 +5199,8 @@ function ReelCategoriesPanel({ categories, unavailable, reload }) {
 
   if (unavailable) {
     return (
-      <div className="ap-video-group">
-        <h3 className="ap-video-group-head">🏷️ Categories</h3>
+      <div className="rl-card">
+        <h3 className="rl-card-title">🏷️ Categories</h3>
         <div className="je-imglib-warn">
           The <code>reel_categories</code> and <code>reel_sources</code> tables have not been
           created yet — run the block at the end of <code>server/schema.sql</code> in Supabase.
@@ -5210,8 +5210,8 @@ function ReelCategoriesPanel({ categories, unavailable, reload }) {
   }
 
   return (
-    <div className="ap-video-group">
-      <h3 className="ap-video-group-head">🏷️ Categories ({categories.length})</h3>
+    <div className="rl-card">
+      <h3 className="rl-card-title">🏷️ Categories ({categories.length})</h3>
       <p className="ap-section-subtitle">
         The tabs across the top of the Reels page. A tab only appears to players once it
         has videos in it.
@@ -5231,28 +5231,28 @@ function ReelCategoriesPanel({ categories, unavailable, reload }) {
       </form>
 
       {categories.map((c, idx) => (
-        <div className="ap-video-row" key={c.id} style={c.active ? undefined : { opacity: 0.5 }}>
-          <div className="ap-video-thumb ap-video-thumb--placeholder">{c.icon || '🏷️'}</div>
-          <div className="ap-video-row-info">
-            <span className="ap-video-row-title">{c.name}</span>
-            <span className="ap-video-row-attach">{c.slug}</span>
+        <div className="rl-row" key={c.id} style={c.active ? undefined : { opacity: 0.5 }}>
+          <div className="rl-row-thumb rl-row-thumb--icon">{c.icon || '🏷️'}</div>
+          <div className="rl-row-main">
+            <span className="rl-row-title">{c.name}</span>
+            <span className="rl-row-link">{c.slug}</span>
           </div>
-          <div className="ap-video-row-actions">
-            <button className="ap-topic-edit-btn" disabled={busy || idx === 0}
+          <div className="rl-row-actions">
+            <button className="rl-ico" disabled={busy || idx === 0}
               onClick={() => patch(c, { sort_order: (categories[idx - 1].sort_order || 0) - 1 })} title="Move up">↑</button>
-            <button className="ap-topic-edit-btn" disabled={busy || idx === categories.length - 1}
+            <button className="rl-ico" disabled={busy || idx === categories.length - 1}
               onClick={() => patch(c, { sort_order: (categories[idx + 1].sort_order || 0) + 1 })} title="Move down">↓</button>
-            <button className="ap-topic-edit-btn" disabled={busy}
+            <button className="rl-ico" disabled={busy}
               onClick={() => patch(c, { active: !c.active })}
               title={c.active ? 'Shown — click to hide the tab' : 'Hidden — click to show the tab'}>
               {c.active ? '👁️' : '🚫'}
             </button>
-            <button className="ap-topic-edit-btn" disabled={busy}
+            <button className="rl-ico" disabled={busy}
               onClick={() => {
                 const next = window.prompt('Rename this category', c.name);
                 if (next && next.trim() && next.trim() !== c.name) patch(c, { name: next.trim() });
               }} title="Rename">✏️</button>
-            <button className="ap-topic-del-btn" disabled={busy} onClick={() => remove(c)} title="Remove tab">🗑️</button>
+            <button className="rl-ico rl-ico--del" disabled={busy} onClick={() => remove(c)} title="Remove tab">🗑️</button>
           </div>
         </div>
       ))}
@@ -5348,8 +5348,8 @@ function ReelSourcesPanel({ categories, unavailable, onSynced }) {
   if (unavailable) return null;
 
   return (
-    <div className="ap-video-group">
-      <h3 className="ap-video-group-head">🔗 Linked accounts ({sources.length})</h3>
+    <div className="rl-card">
+      <h3 className="rl-card-title">🔗 Linked accounts ({sources.length})</h3>
       <p className="ap-section-subtitle">
         YouTube channels are checked every few hours and their new Shorts are added to the
         category you choose. Instagram and TikTok give no way to read an account you do not
@@ -5389,10 +5389,10 @@ function ReelSourcesPanel({ categories, unavailable, onSynced }) {
       </form>
 
       {sources.map(src => (
-        <div className="ap-video-row" key={src.id} style={src.active ? undefined : { opacity: 0.5 }}>
-          <div className="ap-video-thumb ap-video-thumb--placeholder">{PLATFORM_ICONS[src.platform] || '🔗'}</div>
-          <div className="ap-video-row-info">
-            <span className="ap-video-row-title">
+        <div className="rl-row" key={src.id} style={src.active ? undefined : { opacity: 0.5 }}>
+          <div className="rl-row-thumb rl-row-thumb--icon">{PLATFORM_ICONS[src.platform] || '🔗'}</div>
+          <div className="rl-row-main">
+            <span className="rl-row-title">
               {src.display_name || src.handle}
               {src.platform !== 'youtube' && src.platform !== 'feed' && (
                 <span className="ap-reel-manual" title={`${PLATFORM_LABELS[src.platform]} gives no way to read an account's posts, so nothing is imported from this link`}>
@@ -5400,7 +5400,7 @@ function ReelSourcesPanel({ categories, unavailable, onSynced }) {
                 </span>
               )}
             </span>
-            <span className="ap-video-row-attach">
+            <span className="rl-row-link">
               {src.platform === 'youtube' || src.platform === 'feed'
                 ? (src.last_status || 'Never synced')
                 : 'Paste this account’s reel links below to add them'}
@@ -5416,21 +5416,21 @@ function ReelSourcesPanel({ categories, unavailable, onSynced }) {
             <option value="">No category</option>
             {categories.map(c => <option key={c.id} value={c.slug}>{c.name}</option>)}
           </select>
-          <div className="ap-video-row-actions">
+          <div className="rl-row-actions">
             {(src.platform === 'youtube' || src.platform === 'feed') && (
               <>
-                <button className="ap-topic-edit-btn" disabled={syncing === src.id || busy}
+                <button className="rl-ico" disabled={syncing === src.id || busy}
                   onClick={() => sync(src)} title="Pull this channel's new Shorts now">
                   {syncing === src.id ? '…' : '⟳'}
                 </button>
-                <button className="ap-topic-edit-btn" disabled={busy}
+                <button className="rl-ico" disabled={busy}
                   onClick={() => patch(src, { auto_sync: !src.auto_sync })}
                   title={src.auto_sync ? 'Checked automatically — click to stop' : 'Not checked automatically — click to start'}>
                   {src.auto_sync ? '🔁' : '⏸'}
                 </button>
               </>
             )}
-            <button className="ap-topic-del-btn" disabled={busy} onClick={() => remove(src)} title="Unlink">🗑️</button>
+            <button className="rl-ico rl-ico--del" disabled={busy} onClick={() => remove(src)} title="Unlink">🗑️</button>
           </div>
         </div>
       ))}
@@ -5488,8 +5488,8 @@ function ReelBulkAdd({ categories, existing, onAdded }) {
   }
 
   return (
-    <div className="ap-video-group">
-      <h3 className="ap-video-group-head">📋 Paste many links at once</h3>
+    <div className="rl-card">
+      <h3 className="rl-card-title">📋 Paste many links at once</h3>
       <p className="ap-section-subtitle">
         One link per line — Instagram Reels, TikTok videos or YouTube Shorts. They all go
         into the category you choose here. This is how Instagram and TikTok reels get in:
@@ -5691,177 +5691,265 @@ function ShortsPanel() {
   const canSave = !saving && url.trim() && !parsed.error;
   const thumbFor = (s) => s.thumbnail_url || shortThumbnailUrl(s.platform, s.video_id);
 
+  // Three jobs, three tabs: the videos themselves, the tabs players see, and
+  // the accounts that fill them. Everything used to be one long column, which
+  // made the common job — add a video, file it — the hardest to find.
+  const [tab, setTab] = useState('reels');
+  const [adder, setAdder] = useState('one');   // 'one' | 'many'
+  const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState('all'); // 'all' | 'untagged' | <slug>
+
+  const untagged = shorts.filter(s => !s.category).length;
+  const live = shorts.filter(s => s.active).length;
+  const catName = (slug) => categories.find(c => c.slug === slug)?.name || slug;
+
+  const q = search.trim().toLowerCase();
+  const visible = shorts.filter(s => {
+    if (filter === 'untagged' ? !!s.category : (filter !== 'all' && s.category !== filter)) return false;
+    if (!q) return true;
+    return [s.title, s.caption, s.video_url, catName(s.category || '')]
+      .some(v => (v || '').toLowerCase().includes(q));
+  });
+
+  // An edit always happens in the add card, so jump to it rather than leaving
+  // the form filled in somewhere off-screen.
+  function beginEdit(s) {
+    setTab('reels');
+    setAdder('one');
+    startEdit(s);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
   if (loading) return <div className="ap-loading"><div className="ap-spinner" /></div>;
 
   return (
-    <div className="ap-panel">
-      <div className="ap-panel-head">
-        <h2>🎬 Shorts</h2>
-      </div>
-      <p className="ap-section-subtitle" style={{ marginTop: -8, marginBottom: 16 }}>
-        The vertical Shorts feed on the new dashboard. YouTube plays inline;
-        TikTok / Instagram show as tap-to-open cards for now.
-      </p>
+    <div className="ap-panel rl">
+      <header className="rl-head">
+        <div>
+          <h2 className="rl-title">🎬 Reels</h2>
+          <p className="rl-sub">
+            The vertical video feed at <code>/reels</code>. YouTube plays inline; TikTok and
+            Instagram open in their own app.
+          </p>
+        </div>
+        <div className="rl-stats">
+          <span className="rl-stat"><b>{shorts.length}</b> reels</span>
+          <span className="rl-stat"><b>{live}</b> live</span>
+          <span className="rl-stat"><b>{categories.length}</b> categories</span>
+        </div>
+      </header>
 
       {error && <div className="ap-error">{error}</div>}
 
-      {/* Add / edit form */}
-      <form onSubmit={handleSave} className="ap-qform ap-video-form">
-        <h3 className="ap-video-form-title">{editing ? '✏️ Edit Short' : '➕ Add Short'}</h3>
-        <div className="ap-field">
-          <label>Video URL (YouTube Shorts, TikTok, or Instagram Reel)</label>
-          <input
-            type="text"
-            value={url}
-            onChange={e => setUrl(e.target.value)}
-            placeholder="https://www.youtube.com/shorts/… · https://www.tiktok.com/@user/video/… · https://www.instagram.com/reel/…"
-          />
-        </div>
-
-        {/* Live parse preview via the shared helper */}
-        {url.trim() && (parsed.error ? (
-          <div className="ap-video-invalid">⚠ {parsed.error}</div>
-        ) : (
-          <div className="ap-video-preview">
-            {shortThumbnailUrl(parsed.platform, parsed.video_id) ? (
-              <img className="ap-video-thumb" src={shortThumbnailUrl(parsed.platform, parsed.video_id)} alt="" />
-            ) : (
-              <div className="ap-video-thumb ap-video-thumb--placeholder">{PLATFORM_ICONS[parsed.platform]}</div>
-            )}
-            <span className={`ap-video-badge ap-video-badge--${parsed.platform}`}>
-              {PLATFORM_ICONS[parsed.platform]} {PLATFORM_LABELS[parsed.platform]} · {parsed.video_id}
-            </span>
-          </div>
-        ))}
-
-        <div className="ap-field">
-          <label>Title (optional)</label>
-          <input
-            type="text"
-            value={title}
-            onChange={e => setTitle(e.target.value)}
-            placeholder="e.g. Murmurs in 60 seconds"
-            maxLength={200}
-          />
-        </div>
-        <div className="ap-field">
-          <label>Caption (optional)</label>
-          <input
-            type="text"
-            value={caption}
-            onChange={e => setCaption(e.target.value)}
-            placeholder="Shown under the title in the feed"
-            maxLength={300}
-          />
-        </div>
-
-        <div className="ap-field">
-          <label>Category (which tab it shows under on the Reels page)</label>
-          <select value={category} onChange={e => setCategory(e.target.value)}>
-            <option value="">No category — only shows under All</option>
-            {categories.map(c => <option key={c.id} value={c.slug}>{c.icon ? `${c.icon} ` : ''}{c.name}</option>)}
-          </select>
-        </div>
-
-        <div className="ap-video-form-actions">
-          {editing && <button type="button" className="ap-btn-sec" onClick={() => { setError(''); resetForm(); }}>Cancel</button>}
-          <button type="submit" className="ap-btn-pri" disabled={!canSave}>
-            {saving ? 'Saving…' : editing ? 'Save Changes' : 'Add Short'}
+      <nav className="rl-tabs" role="tablist">
+        {[
+          { id: 'reels', icon: '🎞️', label: 'Videos', badge: shorts.length },
+          { id: 'categories', icon: '🏷️', label: 'Categories', badge: categories.length },
+          { id: 'sources', icon: '🔗', label: 'Auto-import', badge: null },
+        ].map(t => (
+          <button
+            key={t.id}
+            type="button"
+            role="tab"
+            aria-selected={tab === t.id}
+            className={`rl-tab${tab === t.id ? ' is-active' : ''}`}
+            onClick={() => setTab(t.id)}
+          >
+            <span aria-hidden="true">{t.icon}</span> {t.label}
+            {t.badge !== null && <span className="rl-tab-badge">{t.badge}</span>}
           </button>
-        </div>
-      </form>
+        ))}
+      </nav>
 
-      <ReelCategoriesPanel
-        categories={categories}
-        unavailable={catsUnavailable}
-        reload={loadCategories}
-      />
-      <ReelBulkAdd
-        categories={categories}
-        existing={shorts}
-        onAdded={() => loadShorts({ quiet: true })}
-      />
-      <ReelSourcesPanel
-        categories={categories}
-        unavailable={catsUnavailable}
-        onSynced={() => loadShorts({ quiet: true })}
-      />
-
-      {/* Feed list, in feed order */}
-      {shorts.length === 0 ? (
-        <div className="ap-topic-empty">
-          <div className="ap-topic-empty-icon">🎬</div>
-          <p>No shorts yet. Paste a YouTube Shorts, TikTok, or Instagram Reel link above to add the first one.</p>
-        </div>
-      ) : (
-        <div className="ap-video-group">
-          <h3 className="ap-video-group-head">📱 Feed order ({shorts.length})</h3>
-          {/* A tab only holds the reels filed under it, so untagged reels are
-              the reason a category can look missing on the Reels page. */}
-          {categories.length > 0 && shorts.some(s => !s.category) && (
-            <div className="je-imglib-warn">
-              {shorts.filter(s => !s.category).length} reel
-              {shorts.filter(s => !s.category).length === 1 ? ' has' : 's have'} no category, so
-              {shorts.filter(s => !s.category).length === 1 ? ' it only shows' : ' they only show'} under
-              “All”. Pick a category on each row below.
-            </div>
-          )}
-          {shorts.map((s, idx) => (
-            <div className="ap-video-row" key={s.id} style={s.active ? undefined : { opacity: 0.5 }}>
-              {thumbFor(s) ? (
-                <img className="ap-video-thumb" src={thumbFor(s)} alt="" />
-              ) : (
-                <div className="ap-video-thumb ap-video-thumb--placeholder">{PLATFORM_ICONS[s.platform]}</div>
+      {tab === 'reels' && (
+        <>
+          {/* Add: one link with its details, or a whole list at once. */}
+          <section className="rl-card">
+            <div className="rl-card-head">
+              <h3>{editing ? '✏️ Edit this reel' : '➕ Add reels'}</h3>
+              {!editing && (
+                <div className="rl-seg" role="tablist">
+                  <button type="button" className={`rl-seg-btn${adder === 'one' ? ' is-on' : ''}`}
+                    onClick={() => setAdder('one')}>One link</button>
+                  <button type="button" className={`rl-seg-btn${adder === 'many' ? ' is-on' : ''}`}
+                    onClick={() => setAdder('many')}>Many links</button>
+                </div>
               )}
-              <div className="ap-video-row-info">
-                <span className="ap-video-row-title">{s.title || '(untitled)'}</span>
-                <span className="ap-video-row-attach">
-                  {s.caption ? s.caption : <a href={s.video_url} target="_blank" rel="noopener noreferrer">{s.video_url}</a>}
-                </span>
-              </div>
-              {categories.length > 0 && (
-                <select
-                  className={`ap-reel-rowcat${s.category ? '' : ' is-untagged'}`}
-                  value={s.category || ''}
-                  disabled={busyRow === s.id}
-                  onChange={e => handleSetCategory(s, e.target.value)}
-                  title="Which category tab this reel shows under"
-                >
-                  <option value="">No category</option>
+            </div>
+
+            {(editing || adder === 'one') ? (
+              <form onSubmit={handleSave} className="rl-form">
+                <label className="rl-field rl-field--wide">
+                  <span>Link</span>
+                  <input
+                    type="text"
+                    value={url}
+                    onChange={e => setUrl(e.target.value)}
+                    placeholder="youtube.com/shorts/… · tiktok.com/@user/video/… · instagram.com/reel/…"
+                  />
+                </label>
+
+                {url.trim() && (parsed.error ? (
+                  <div className="rl-parse rl-parse--bad">⚠ {parsed.error}</div>
+                ) : (
+                  <div className="rl-parse">
+                    {shortThumbnailUrl(parsed.platform, parsed.video_id)
+                      ? <img src={shortThumbnailUrl(parsed.platform, parsed.video_id)} alt="" />
+                      : <span className="rl-parse-icon">{PLATFORM_ICONS[parsed.platform]}</span>}
+                    <span>{PLATFORM_ICONS[parsed.platform]} {PLATFORM_LABELS[parsed.platform]} · {parsed.video_id}</span>
+                  </div>
+                ))}
+
+                <label className="rl-field">
+                  <span>Category <em>shows under this tab</em></span>
+                  <select value={category} onChange={e => setCategory(e.target.value)}>
+                    <option value="">No category — only under “All”</option>
+                    {categories.map(c => <option key={c.id} value={c.slug}>{c.icon ? `${c.icon} ` : ''}{c.name}</option>)}
+                  </select>
+                </label>
+                <label className="rl-field">
+                  <span>Title <em>optional</em></span>
+                  <input type="text" value={title} onChange={e => setTitle(e.target.value)}
+                    placeholder="e.g. Murmurs in 60 seconds" maxLength={200} />
+                </label>
+                <label className="rl-field rl-field--wide">
+                  <span>Caption <em>optional, shown under the title</em></span>
+                  <input type="text" value={caption} onChange={e => setCaption(e.target.value)}
+                    placeholder="e.g. @cardiology.daily" maxLength={300} />
+                </label>
+
+                <div className="rl-form-actions">
+                  {editing && <button type="button" className="ap-btn-sec" onClick={() => { setError(''); resetForm(); }}>Cancel</button>}
+                  <button type="submit" className="ap-btn-pri" disabled={!canSave}>
+                    {saving ? 'Saving…' : editing ? 'Save changes' : 'Add reel'}
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <ReelBulkAdd
+                categories={categories}
+                existing={shorts}
+                onAdded={() => loadShorts({ quiet: true })}
+              />
+            )}
+          </section>
+
+          {untagged > 0 && categories.length > 0 && (
+            <button
+              type="button"
+              className="rl-flag"
+              onClick={() => { setFilter('untagged'); setSearch(''); }}
+            >
+              ⚠ {untagged} reel{untagged === 1 ? '' : 's'} with no category — {untagged === 1 ? 'it only shows' : 'they only show'} under “All”. Show {untagged === 1 ? 'it' : 'them'}.
+            </button>
+          )}
+
+          {shorts.length === 0 ? (
+            <div className="rl-empty">
+              <span className="rl-empty-icon">🎬</span>
+              <h3>No reels yet</h3>
+              <p>Paste a YouTube Shorts, TikTok or Instagram Reel link above to add the first one.</p>
+            </div>
+          ) : (
+            <section className="rl-card">
+              <div className="rl-toolbar">
+                <input
+                  className="rl-search"
+                  type="search"
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  placeholder="Search title, caption or link…"
+                />
+                <select className="rl-filter" value={filter} onChange={e => setFilter(e.target.value)}>
+                  <option value="all">All categories</option>
+                  {untagged > 0 && <option value="untagged">No category ({untagged})</option>}
                   {categories.map(c => <option key={c.id} value={c.slug}>{c.name}</option>)}
                 </select>
-              )}
-              <span className={`ap-video-badge ap-video-badge--${s.platform}`}>
-                {PLATFORM_ICONS[s.platform]} {PLATFORM_LABELS[s.platform]}
-              </span>
-              <div className="ap-video-row-actions">
-                <button className="ap-topic-edit-btn" disabled={busyRow === s.id || idx === 0} onClick={() => handleMove(idx, -1)} title="Move up">↑</button>
-                <button className="ap-topic-edit-btn" disabled={busyRow === s.id || idx === shorts.length - 1} onClick={() => handleMove(idx, 1)} title="Move down">↓</button>
-                <button
-                  className="ap-topic-edit-btn"
-                  disabled={busyRow === s.id}
-                  onClick={() => handleToggleActive(s)}
-                  title={s.active ? 'Active — click to hide from the feed' : 'Hidden — click to show in the feed'}
-                >
-                  {s.active ? '👁️' : '🚫'}
-                </button>
-                <button className="ap-topic-edit-btn" onClick={() => startEdit(s)} title="Edit">✏️</button>
-                <button className="ap-topic-del-btn" onClick={() => setDeleteShort(s)} title="Delete">🗑️</button>
+                <span className="rl-count">{visible.length} of {shorts.length}</span>
               </div>
-            </div>
-          ))}
-        </div>
+
+              <ul className="rl-list">
+                {visible.map((s) => {
+                  const idx = shorts.indexOf(s);
+                  return (
+                    <li className={`rl-row${s.active ? '' : ' is-hidden'}`} key={s.id}>
+                      <div className="rl-row-thumb">
+                        {thumbFor(s)
+                          ? <img src={thumbFor(s)} alt="" loading="lazy" />
+                          : <span>{PLATFORM_ICONS[s.platform]}</span>}
+                        <span className={`rl-row-plat rl-row-plat--${s.platform}`}>{PLATFORM_ICONS[s.platform]}</span>
+                      </div>
+
+                      <div className="rl-row-main">
+                        <span className="rl-row-title">{s.title || 'Untitled reel'}</span>
+                        <a className="rl-row-link" href={s.video_url} target="_blank" rel="noopener noreferrer">
+                          {s.caption || s.video_url}
+                        </a>
+                      </div>
+
+                      {categories.length > 0 && (
+                        <select
+                          className={`rl-row-cat${s.category ? '' : ' is-untagged'}`}
+                          value={s.category || ''}
+                          disabled={busyRow === s.id}
+                          onChange={e => handleSetCategory(s, e.target.value)}
+                          title="Which category tab this reel shows under"
+                        >
+                          <option value="">No category</option>
+                          {categories.map(c => <option key={c.id} value={c.slug}>{c.name}</option>)}
+                        </select>
+                      )}
+
+                      <div className="rl-row-actions">
+                        <button className="rl-ico" disabled={busyRow === s.id || idx === 0}
+                          onClick={() => handleMove(idx, -1)} title="Move up">↑</button>
+                        <button className="rl-ico" disabled={busyRow === s.id || idx === shorts.length - 1}
+                          onClick={() => handleMove(idx, 1)} title="Move down">↓</button>
+                        <button className={`rl-ico${s.active ? '' : ' is-off'}`} disabled={busyRow === s.id}
+                          onClick={() => handleToggleActive(s)}
+                          title={s.active ? 'Showing in the feed — click to hide' : 'Hidden — click to show'}>
+                          {s.active ? '👁️' : '🚫'}
+                        </button>
+                        <button className="rl-ico" onClick={() => beginEdit(s)} title="Edit">✏️</button>
+                        <button className="rl-ico rl-ico--del" onClick={() => setDeleteShort(s)} title="Delete">🗑️</button>
+                      </div>
+                    </li>
+                  );
+                })}
+                {visible.length === 0 && (
+                  <li className="rl-row rl-row--none">Nothing matches that search.</li>
+                )}
+              </ul>
+            </section>
+          )}
+        </>
+      )}
+
+      {tab === 'categories' && (
+        <ReelCategoriesPanel
+          categories={categories}
+          unavailable={catsUnavailable}
+          reload={loadCategories}
+        />
+      )}
+
+      {tab === 'sources' && (
+        <ReelSourcesPanel
+          categories={categories}
+          unavailable={catsUnavailable}
+          onSynced={() => loadShorts({ quiet: true })}
+        />
       )}
 
       {deleteShort && (
         <div className="ap-backdrop" onClick={() => setDeleteShort(null)}>
           <div className="ap-confirm" onClick={e => e.stopPropagation()}>
             <div className="ap-confirm-icon">🎬</div>
-            <h3>Delete {deleteShort.title ? `"${deleteShort.title}"` : 'this short'}?</h3>
-            <p>It will be removed from the Shorts feed. The video itself is untouched on {PLATFORM_LABELS[deleteShort.platform]}.</p>
+            <h3>Delete {deleteShort.title ? `"${deleteShort.title}"` : 'this reel'}?</h3>
+            <p>It leaves the feed here. The video itself is untouched on {PLATFORM_LABELS[deleteShort.platform]}.</p>
             <div className="ap-modal-foot">
               <button className="ap-btn-sec" onClick={() => setDeleteShort(null)}>Cancel</button>
-              <button className="ap-btn-danger" onClick={handleDelete}>Delete Short</button>
+              <button className="ap-btn-danger" onClick={handleDelete}>Delete reel</button>
             </div>
           </div>
         </div>
