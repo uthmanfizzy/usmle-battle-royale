@@ -5689,3 +5689,33 @@
   border-color: rgba(220, 160, 60, 0.6);
   color: rgba(230, 190, 110, 0.95);
 }
+
+/* Bulk link paste */
+.ap-reel-bulk {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  resize: vertical;
+}
+.ap-reel-bulk-fails {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  font-size: 12px;
+}
+.ap-reel-manual {
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: rgba(220, 120, 60, 0.18);
+  border: 1px solid rgba(220, 120, 60, 0.5);
+  color: rgba(240, 175, 120, 0.95);
+  white-space: nowrap;
+}

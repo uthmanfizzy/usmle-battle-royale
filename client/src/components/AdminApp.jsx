@@ -5389,11 +5389,18 @@ function ReelSourcesPanel({ categories, unavailable, onSynced }) {
         <div className="ap-video-row" key={src.id} style={src.active ? undefined : { opacity: 0.5 }}>
           <div className="ap-video-thumb ap-video-thumb--placeholder">{PLATFORM_ICONS[src.platform]}</div>
           <div className="ap-video-row-info">
-            <span className="ap-video-row-title">{src.display_name || src.handle}</span>
+            <span className="ap-video-row-title">
+              {src.display_name || src.handle}
+              {src.platform !== 'youtube' && (
+                <span className="ap-reel-manual" title={`${PLATFORM_LABELS[src.platform]} gives no way to read an account's posts, so nothing is imported from this link`}>
+                  nothing is imported
+                </span>
+              )}
+            </span>
             <span className="ap-video-row-attach">
               {src.platform === 'youtube'
                 ? (src.last_status || 'Never synced')
-                : 'Add this account’s videos by pasting their links'}
+                : 'Paste this account’s reel links below to add them'}
               {src.last_synced_at && ` · ${new Date(src.last_synced_at).toLocaleString()}`}
             </span>
           </div>
@@ -5428,6 +5435,97 @@ function ReelSourcesPanel({ categories, unavailable, onSynced }) {
   );
 }
 
+/**
+ * Paste a batch of links into one category.
+ *
+ * Instagram and TikTok cannot be read by any API, so their reels arrive as
+ * links — one at a time through the form above is the slow way to fill a
+ * category. This takes a whole list at once and reports each line that failed
+ * rather than stopping at the first bad one.
+ */
+function ReelBulkAdd({ categories, existing, onAdded }) {
+  const [text, setText] = useState('');
+  const [category, setCategory] = useState('');
+  const [busy, setBusy] = useState(null);      // "3 / 12"
+  const [report, setReport] = useState(null);  // { added, skipped[], failed[] }
+
+  const links = text.split(/[\s,]+/).map(s => s.trim()).filter(Boolean);
+  const haveIds = new Set((existing || []).map(s => s.video_id));
+
+  async function addAll(e) {
+    e.preventDefault();
+    if (!links.length) return;
+    setReport(null);
+    const skipped = [];
+    const failed = [];
+    let added = 0;
+    for (let i = 0; i < links.length; i++) {
+      setBusy(`${i + 1} / ${links.length}`);
+      const link = links[i];
+      const parsed = parseShortUrl(link);
+      if (parsed.error) { failed.push(`${link} — ${parsed.error}`); continue; }
+      // Already in the feed: the same reel twice would just repeat in the feed.
+      if (haveIds.has(parsed.video_id)) { skipped.push(`${link} — already added`); continue; }
+      try {
+        const res = await apiCall('/admin/shorts', {
+          method: 'POST',
+          body: JSON.stringify({ url: link, category, sort_order: 0 }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || `Failed (${res.status})`);
+        haveIds.add(parsed.video_id);
+        added++;
+      } catch (err) {
+        failed.push(`${link} — ${err.message}`);
+      }
+    }
+    setBusy(null);
+    setReport({ added, skipped, failed });
+    if (added) { setText(''); onAdded?.(); }
+  }
+
+  return (
+    <div className="ap-video-group">
+      <h3 className="ap-video-group-head">📋 Paste many links at once</h3>
+      <p className="ap-section-subtitle">
+        One link per line — Instagram Reels, TikTok videos or YouTube Shorts. They all go
+        into the category you choose here. This is how Instagram and TikTok reels get in:
+        neither platform lets a website read an account&apos;s posts.
+      </p>
+      <form onSubmit={addAll}>
+        <textarea
+          className="ap-reel-bulk"
+          value={text}
+          onChange={e => setText(e.target.value)}
+          rows={6}
+          placeholder={'https://www.instagram.com/reel/ABC123/\nhttps://www.instagram.com/reel/DEF456/\nhttps://www.tiktok.com/@user/video/123456'}
+        />
+        <div className="ap-reel-srcform">
+          <select value={category} onChange={e => setCategory(e.target.value)}>
+            <option value="">No category</option>
+            {categories.map(c => <option key={c.id} value={c.slug}>{c.name}</option>)}
+          </select>
+          <button type="submit" className="ap-btn-pri" disabled={!!busy || links.length === 0}>
+            {busy ? `Adding ${busy}…` : `Add ${links.length || ''} link${links.length === 1 ? '' : 's'}`}
+          </button>
+        </div>
+      </form>
+
+      {report && (
+        <div className={report.failed.length ? 'ap-error' : 'ap-success'}>
+          Added {report.added}.
+          {report.skipped.length > 0 && ` Skipped ${report.skipped.length} already in the feed.`}
+          {report.failed.length > 0 && (
+            <ul className="ap-reel-bulk-fails">
+              {report.failed.map((f, i) => <li key={i}>{f}</li>)}
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ShortsPanel() {
   const [shorts,      setShorts]      = useState([]);
   const [loading,     setLoading]     = useState(true);
@@ -5457,8 +5555,11 @@ function ShortsPanel() {
 
   useEffect(() => { loadShorts(); loadCategories(); }, [loadCategories]);
 
-  async function loadShorts() {
-    setLoading(true);
+  // `quiet` refreshes the list in place. The full-page spinner unmounts the
+  // whole panel, which would throw away the bulk-add report the moment it was
+  // written.
+  async function loadShorts({ quiet = false } = {}) {
+    if (!quiet) setLoading(true);
     try {
       const res  = await apiCall('/admin/shorts');
       const data = await res.json();
@@ -5467,7 +5568,7 @@ function ShortsPanel() {
     } catch (err) {
       setError(err.message);
     }
-    setLoading(false);
+    if (!quiet) setLoading(false);
   }
 
   function resetForm() {
@@ -5672,10 +5773,15 @@ function ShortsPanel() {
         unavailable={catsUnavailable}
         reload={loadCategories}
       />
+      <ReelBulkAdd
+        categories={categories}
+        existing={shorts}
+        onAdded={() => loadShorts({ quiet: true })}
+      />
       <ReelSourcesPanel
         categories={categories}
         unavailable={catsUnavailable}
-        onSynced={loadShorts}
+        onSynced={() => loadShorts({ quiet: true })}
       />
 
       {/* Feed list, in feed order */}
