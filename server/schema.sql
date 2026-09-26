@@ -1254,3 +1254,5 @@ CREATE POLICY "server_full_access_reel_categories"
 DROP POLICY IF EXISTS "server_full_access_reel_sources" ON reel_sources;
 CREATE POLICY "server_full_access_reel_sources"
   ON reel_sources FOR ALL USING (true) WITH CHECK (true);
+
+ALTER TABLE reel_sources ADD COLUMN IF NOT EXISTS scope TEXT NOT NULL DEFAULT 'recent';

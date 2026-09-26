@@ -10280,6 +10280,13 @@ const SHORT_MAX_SECONDS = 185; // Shorts are <= 3 min; a little slack for roundi
 
 // Pull a channel's recent uploads and add the ones that are Shorts and are not
 // in the feed yet. Returns { added, checked } or throws with a usable message.
+// How much of a channel a sync takes: 'recent' keeps the feed topped up with
+// new uploads (one page, cheap, every few hours), 'all' walks the channel's
+// whole upload history once so an account joins with its full back catalogue.
+// Capped so one enormous channel cannot burn the day's API quota in a run.
+const YT_PAGE = 50;
+const YT_MAX_PAGES_ALL = 20;   // <= 1000 uploads examined
+
 async function syncYouTubeSource(source) {
   if (!ytKey()) throw new Error('YOUTUBE_API_KEY is not set on the server — add it in Railway to sync YouTube channels.');
   let uploads = source.uploads_playlist_id;
@@ -10290,46 +10297,64 @@ async function syncYouTubeSource(source) {
   }
   if (!uploads) throw new Error('That channel has no public uploads playlist');
 
-  const list = await ytGet('playlistItems', { part: 'snippet,contentDetails', playlistId: uploads, maxResults: 25 });
-  const items = list.items || [];
-  if (items.length === 0) return { added: 0, checked: 0 };
+  const everything = source.scope === 'all';
+  const maxPages = everything ? YT_MAX_PAGES_ALL : 1;
 
-  const ids = items.map(i => i.contentDetails?.videoId).filter(Boolean);
-  // One extra call for durations: the API has no "is this a Short" flag, and
-  // length is the only signal that doesn't need scraping.
-  const details = await ytGet('videos', { part: 'contentDetails', id: ids.join(',') });
-  const seconds = new Map((details.items || []).map(v => [v.id, isoDurationSeconds(v.contentDetails?.duration)]));
-
-  // Already in the feed — by video_id, so a video added by hand is not doubled.
-  const { data: existing } = await supabase.from('shorts').select('video_id').in('video_id', ids);
-  const have = new Set((existing || []).map(r => r.video_id));
-
-  const rows = [];
-  for (const item of items) {
-    const vid = item.contentDetails?.videoId;
-    if (!vid || have.has(vid)) continue;
-    const secs = seconds.get(vid);
-    if (secs == null || secs > SHORT_MAX_SECONDS) continue; // full-length upload, not a Short
-    const sn = item.snippet || {};
-    rows.push({
-      platform: 'youtube',
-      video_url: `https://www.youtube.com/shorts/${vid}`,
-      video_id: vid,
-      title: (sn.title || '').slice(0, 300) || null,
-      caption: source.display_name ? `@${source.display_name}` : null,
-      thumbnail_url: sn.thumbnails?.high?.url || `https://img.youtube.com/vi/${vid}/hqdefault.jpg`,
-      category: source.category || null,
-      source_id: source.id,
-      published_at: sn.publishedAt || null,
-      sort_order: 0,
-      active: true,
+  let pageToken;
+  let checked = 0;
+  let added = 0;
+  for (let page = 0; page < maxPages; page++) {
+    const list = await ytGet('playlistItems', {
+      part: 'snippet,contentDetails',
+      playlistId: uploads,
+      maxResults: everything ? YT_PAGE : 25,
+      ...(pageToken ? { pageToken } : {}),
     });
+    const items = list.items || [];
+    if (items.length === 0) break;
+    checked += items.length;
+
+    const ids = items.map(i => i.contentDetails?.videoId).filter(Boolean);
+    // One extra call per page for durations: the API has no "is this a Short"
+    // flag, and length is the only signal that doesn't need scraping.
+    const details = await ytGet('videos', { part: 'contentDetails', id: ids.join(',') });
+    const seconds = new Map((details.items || []).map(v => [v.id, isoDurationSeconds(v.contentDetails?.duration)]));
+
+    // Already in the feed — by video_id, so a video added by hand is not doubled.
+    const { data: existing } = await supabase.from('shorts').select('video_id').in('video_id', ids);
+    const have = new Set((existing || []).map(r => r.video_id));
+
+    const rows = [];
+    for (const item of items) {
+      const vid = item.contentDetails?.videoId;
+      if (!vid || have.has(vid)) continue;
+      const secs = seconds.get(vid);
+      if (secs == null || secs > SHORT_MAX_SECONDS) continue; // full-length upload, not a Short
+      const sn = item.snippet || {};
+      rows.push({
+        platform: 'youtube',
+        video_url: `https://www.youtube.com/shorts/${vid}`,
+        video_id: vid,
+        title: (sn.title || '').slice(0, 300) || null,
+        caption: source.display_name ? `@${source.display_name}` : null,
+        thumbnail_url: sn.thumbnails?.high?.url || `https://img.youtube.com/vi/${vid}/hqdefault.jpg`,
+        category: source.category || null,
+        source_id: source.id,
+        published_at: sn.publishedAt || null,
+        sort_order: 0,
+        active: true,
+      });
+    }
+    if (rows.length) {
+      const { error } = await supabase.from('shorts').insert(rows);
+      if (error) throw error;
+      added += rows.length;
+    }
+
+    pageToken = list.nextPageToken;
+    if (!pageToken) break;
   }
-  if (rows.length) {
-    const { error } = await supabase.from('shorts').insert(rows);
-    if (error) throw error;
-  }
-  return { added: rows.length, checked: items.length };
+  return { added, checked };
 }
 
 // ── Feed sources (RSS / JSON) ───────────────────────────────────────────────
@@ -10480,6 +10505,8 @@ app.post('/admin/reel-sources', adminAuth, async (req, res) => {
       // Only YouTube channels and feed URLs can actually be polled; the flag
       // stays false elsewhere so the panel can say so plainly.
       auto_sync: platform === 'youtube' || platform === 'feed',
+      // 'recent' keeps a channel topped up; 'all' takes its whole back catalogue.
+      scope: req.body?.scope === 'all' ? 'all' : 'recent',
     };
     if (platform === 'feed' && !/^https?:\/\//i.test(handle)) {
       return res.status(400).json({ error: 'Paste the feed URL the feed service gave you (it starts with https://)' });
@@ -10513,6 +10540,7 @@ app.put('/admin/reel-sources/:id', adminAuth, async (req, res) => {
   if (req.body?.category !== undefined) updates.category = (req.body.category || '').toString().trim() || null;
   if (req.body?.active !== undefined) updates.active = Boolean(req.body.active);
   if (req.body?.auto_sync !== undefined) updates.auto_sync = Boolean(req.body.auto_sync);
+  if (req.body?.scope !== undefined) updates.scope = req.body.scope === 'all' ? 'all' : 'recent';
   if (Object.keys(updates).length === 0) return res.status(400).json({ error: 'nothing to update' });
   try {
     const { data, error } = await supabase.from('reel_sources').update(updates).eq('id', req.params.id).select().single();

@@ -5968,3 +5968,18 @@
   .rl-row-cat { max-width: none; flex: 1; }
   .rl-stats { width: 100%; }
 }
+
+/* Inline help ("Adding an Instagram or TikTok account?") */
+.rl-help {
+  margin: 0 0 14px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--rl-line, rgba(255,255,255,0.1));
+  background: rgba(255, 255, 255, 0.04);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.rl-help summary { cursor: pointer; font-weight: 700; }
+.rl-help p { margin: 10px 0 6px; opacity: 0.8; }
+.rl-help ol { margin: 0; padding-left: 20px; opacity: 0.8; }
+.rl-help li { margin-bottom: 6px; }

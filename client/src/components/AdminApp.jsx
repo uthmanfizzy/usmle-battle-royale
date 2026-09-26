@@ -5276,6 +5276,7 @@ function ReelSourcesPanel({ categories, unavailable, onSynced }) {
   const [platform, setPlatform] = useState('youtube');
   const [handle, setHandle] = useState('');
   const [category, setCategory] = useState('');
+  const [scope, setScope] = useState('recent');
   const [busy, setBusy] = useState(false);
   const [syncing, setSyncing] = useState(null);
   const [error, setError] = useState('');
@@ -5298,13 +5299,15 @@ function ReelSourcesPanel({ categories, unavailable, onSynced }) {
     try {
       const res = await apiCall('/admin/reel-sources', {
         method: 'POST',
-        body: JSON.stringify({ platform, handle: handle.trim(), category: category || null }),
+        body: JSON.stringify({ platform, handle: handle.trim(), category: category || null, scope }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to add account');
       setHandle('');
       await load();
-      if (platform === 'youtube') setNotice('Account added. Press ⟳ to pull its Shorts in now.');
+      setNotice(scope === 'all' && platform === 'youtube'
+        ? 'Channel added. Press ⟳ to pull in its whole back catalogue — that first run can take a minute.'
+        : 'Added. Press ⟳ to pull its videos in now.');
     } catch (err) { setError(err.message); }
     setBusy(false);
   }
@@ -5351,12 +5354,30 @@ function ReelSourcesPanel({ categories, unavailable, onSynced }) {
     <div className="rl-card">
       <h3 className="rl-card-title">🔗 Linked accounts ({sources.length})</h3>
       <p className="ap-section-subtitle">
-        YouTube channels are checked every few hours and their new Shorts are added to the
-        category you choose. Instagram and TikTok give no way to read an account you do not
-        own — to have those arrive by themselves, make a feed for the account at a feed
-        service (RSS.app, Behold, Apify and similar) and add its URL here as a Feed source;
-        it is polled the same way. Otherwise paste their links above.
+        Accounts that fill the feed by themselves. Each is checked every few hours, and new
+        videos land in the category you pick for it.
       </p>
+      {/* The single most-asked question here: pasting an Instagram profile does
+          nothing, and the panel should say why before the row is created, not
+          after. */}
+      <details className="rl-help">
+        <summary>Adding an Instagram or TikTok account?</summary>
+        <p>
+          Neither platform lets a website read an account it does not own, so a profile link
+          imports nothing — there is no setting that changes this. Two ways round it:
+        </p>
+        <ol>
+          <li>
+            <b>Automatic:</b> make a feed for that account at a feed service (RSS.app, Behold,
+            Apify and similar), copy the feed URL it gives you, and add it below as
+            <b> Feed URL</b>. It is then polled like a YouTube channel.
+          </li>
+          <li>
+            <b>By hand:</b> open the Videos tab and use <b>Many links</b> to paste a batch of
+            that account&apos;s reel links into a category.
+          </li>
+        </ol>
+      </details>
       {!youtubeKey && (
         <div className="je-imglib-warn">
           <code>YOUTUBE_API_KEY</code> is not set on the server, so YouTube channels cannot be
@@ -5368,19 +5389,25 @@ function ReelSourcesPanel({ categories, unavailable, onSynced }) {
       {notice && <div className="ap-success">{notice}</div>}
 
       <form className="ap-reel-srcform" onSubmit={add}>
+        {/* Only what can actually be polled is offered. Instagram and TikTok
+            profiles used to be choosable here and created rows that imported
+            nothing — the help above sends those to a feed URL instead. */}
         <select value={platform} onChange={e => setPlatform(e.target.value)}>
-          <option value="youtube">▶️ YouTube</option>
-          <option value="tiktok">🎵 TikTok</option>
-          <option value="instagram">📸 Instagram</option>
+          <option value="youtube">▶️ YouTube channel</option>
           <option value="feed">🔗 Feed URL (RSS/JSON)</option>
         </select>
         <input
           type="text" value={handle} onChange={e => setHandle(e.target.value)}
           placeholder={platform === 'youtube'
             ? 'youtube.com/@channel or @channel'
-            : platform === 'feed' ? 'https://rss.app/feeds/….xml — the feed URL for that account'
-            : platform === 'tiktok' ? 'tiktok.com/@handle' : 'instagram.com/handle'}
+            : 'https://rss.app/feeds/….xml — the feed URL for that account'}
         />
+        {platform === 'youtube' && (
+          <select value={scope} onChange={e => setScope(e.target.value)} title="How much of the channel to take">
+            <option value="recent">Recent uploads</option>
+            <option value="all">Every short on the channel</option>
+          </select>
+        )}
         <select value={category} onChange={e => setCategory(e.target.value)}>
           <option value="">No category</option>
           {categories.map(c => <option key={c.id} value={c.slug}>{c.name}</option>)}
@@ -5407,8 +5434,20 @@ function ReelSourcesPanel({ categories, unavailable, onSynced }) {
               {src.last_synced_at && ` · ${new Date(src.last_synced_at).toLocaleString()}`}
             </span>
           </div>
+          {src.platform === 'youtube' && (
+            <select
+              className="rl-row-cat"
+              value={src.scope === 'all' ? 'all' : 'recent'}
+              disabled={busy}
+              onChange={e => patch(src, { scope: e.target.value })}
+              title="How much of this channel to take"
+            >
+              <option value="recent">Recent uploads</option>
+              <option value="all">Every short on the channel</option>
+            </select>
+          )}
           <select
-            className="ap-reel-rowcat"
+            className="rl-row-cat"
             value={src.category || ''}
             onChange={e => patch(src, { category: e.target.value })}
             title="Which category this account's videos go into"
@@ -5420,7 +5459,8 @@ function ReelSourcesPanel({ categories, unavailable, onSynced }) {
             {(src.platform === 'youtube' || src.platform === 'feed') && (
               <>
                 <button className="rl-ico" disabled={syncing === src.id || busy}
-                  onClick={() => sync(src)} title="Pull this channel's new Shorts now">
+                  onClick={() => sync(src)}
+                  title={src.scope === 'all' ? 'Pull in every short on this channel now' : "Pull this channel's recent Shorts now"}>
                   {syncing === src.id ? '…' : '⟳'}
                 </button>
                 <button className="rl-ico" disabled={busy}
