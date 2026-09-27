@@ -576,13 +576,7 @@ export default function UWorldAdventure({ mode = DEFAULT_QUESTION_BANK_MODE }) {
           <span className="uwa-brand-name">Medvale</span>
         </a>
 
-        <div className="uwa-nav-links">
-          <a className="uwa-nav-link" href="/dashboard"><span aria-hidden="true">🏠</span> Home</a>
-          <span className="uwa-nav-link is-active" aria-current="page"><span aria-hidden="true">🗺️</span> Study Path</span>
-          <a className="uwa-nav-link" href="/quests"><span aria-hidden="true">🏆</span> Achievements</a>
-          <a className="uwa-nav-link" href="/guide"><span aria-hidden="true">📖</span> Resources</a>
-          <a className="uwa-nav-link" href="/settings"><span aria-hidden="true">👤</span> Profile</a>
-        </div>
+        <span className="uwa-nav-spacer" />
 
         {/* Level chip: 500 XP a level, the same arithmetic the dashboard and
             stats page use, so the three never disagree. */}
