@@ -8878,6 +8878,7 @@ const LANDING_IMAGE_SLOTS = [
   { id: 'speed_race',    label: 'Speed Race Card Image',      desc: 'Image for the Speed Race game mode card' },
   { id: 'tower',         label: 'The Tower Card Image',       desc: 'Image for The Tower game mode card' },
   { id: 'more_to_come',  label: 'More to Come Card Image',    desc: 'Image for the More to Come placeholder card' },
+  { id: 'uwa_hero',      label: 'UWorld Adventure Hero',      desc: 'Wide banner behind the title on the UWorld Adventure / Saudi MLE page' },
 ];
 
 function LandingImagesPanel() {

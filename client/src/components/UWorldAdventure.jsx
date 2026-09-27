@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { getToken, fetchMe, getCachedUser, authFetch } from '../auth';
 import SoloGame from './SoloGame';
 import { useStudyActivity } from '../studyPresence';
+import { cachedImageMap, rememberImageMap } from '../utils/cachedImages';
 import { DEFAULT_QUESTION_BANK_MODE } from '../questionBankModes';
 import './UWorldAdventure.css';
 
@@ -105,6 +106,45 @@ const PACE_SAVE_MAX = 200;
  *
  * There is deliberately NO "Systems" facet — no real data backs one today.
  */
+// The four paces the mockup offers as one tap each. The slider under
+// "Fine-tune your plan" still reaches everything in between.
+const PACE_PRESETS = [10, 20, 30, 40];
+
+// A line under each subject's name. Keyed on the subject NAME rather than its
+// id because ids differ between banks while the names are the standard ones;
+// anything unrecognised gets a sentence built from its own name rather than a
+// blank space.
+const SUBJECT_BLURBS = {
+  anatomy: 'Explore the structure that makes life possible.',
+  physiology: 'Discover how the body works together.',
+  pathology: 'Uncover the why behind disease.',
+  pharmacology: 'Learn how treatments make a difference.',
+  microbiology: 'Meet the microbes that shape our world.',
+  biochemistry: 'Connect the molecules of life.',
+  'behavioral science': 'Understand the mind, behavior, and society.',
+  'behavioural science': 'Understand the mind, behaviour, and society.',
+  immunology: 'Explore the body’s defense systems.',
+  biostatistics: 'Read the evidence with confidence.',
+  genetics: 'Trace the code we inherit.',
+  cardiology: 'Follow the heart and its circulation.',
+  neurology: 'Map the nervous system, nerve by nerve.',
+  psychiatry: 'Recognise the patterns behind the presentation.',
+};
+const subjectBlurb = (name) =>
+  SUBJECT_BLURBS[String(name || '').trim().toLowerCase()] || `Work through ${name} question by question.`;
+
+// Artwork for a subject with no picture of its own: a calm tint derived from
+// the name, so each card is distinct and stable rather than randomly coloured
+// on every render.
+function subjectArt(s) {
+  let h = 0;
+  for (const ch of String(s.id || s.name || '')) h = (h * 31 + ch.charCodeAt(0)) % 360;
+  return {
+    '--uwa-art-h': h,
+    background: `linear-gradient(135deg, hsl(${h} 62% 93%), hsl(${(h + 38) % 360} 58% 88%))`,
+  };
+}
+
 export default function UWorldAdventure({ mode = DEFAULT_QUESTION_BANK_MODE }) {
   // Which bank this page is working through. Everything below is the same
   // machine — only the tag it filters on, the pace it plans and the colours
@@ -121,6 +161,8 @@ export default function UWorldAdventure({ mode = DEFAULT_QUESTION_BANK_MODE }) {
   const [devSubjects, setDevSubjects] = useState([]);
   const [subjectsError, setSubjectsError] = useState(false);
   const [selected, setSelected] = useState(null);       // subject id
+  // Hero backdrop, admin-set via the landing-images slot 'uwa_hero'.
+  const [heroUrl, setHeroUrl] = useState(() => cachedImageMap('landing').uwa_hero || null);
   useStudyActivity(mode?.label || 'Question Bank',
     selected ? (subjects.find(s => s.id === selected)?.name || null) : null,
     mode?.id || 'question_bank');
@@ -192,6 +234,13 @@ export default function UWorldAdventure({ mode = DEFAULT_QUESTION_BANK_MODE }) {
   // one for this bank's list. Applying the filter here matches the rule the
   // progress endpoints apply server-side, so the grid and the pace maths can
   // never describe different sets of subjects.
+  useEffect(() => {
+    authFetch('/api/landing-images')
+      .then(r => r.json())
+      .then(d => { rememberImageMap('landing', d.images); setHeroUrl(d.images?.uwa_hero || null); })
+      .catch(() => {}); // no backdrop → the page's own gradient
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     Promise.all([
@@ -512,31 +561,103 @@ export default function UWorldAdventure({ mode = DEFAULT_QUESTION_BANK_MODE }) {
         ))}
       </div>
 
-      {/* Mockup's top bar is deliberately minimal here — wordmark and avatar
-          only, no currency pills. */}
-      <div className="uwa-topbar">
-        <a className="uwa-wordmark" href="/dashboard">MEDVALE</a>
-        <div className="uwa-avatar" title={user?.username || 'Player'}>
-          {user?.avatar_url
-            ? <img src={user.avatar_url} alt={user.username} referrerPolicy="no-referrer" />
-            : <span>{user?.username?.[0]?.toUpperCase() || '?'}</span>}
-        </div>
-      </div>
+      {/* ── Top bar ──────────────────────────────────────────────────────
+          Site nav rather than a lone wordmark: this page is a destination in
+          its own right, so the way out (and the player's level) belong here. */}
+      <nav className="uwa-nav">
+        <a className="uwa-brand" href="/dashboard">
+          <span className="uwa-brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 32 32" width="30" height="30">
+              <circle cx="16" cy="16" r="15" fill="rgb(var(--uwa-accent-rgb))" opacity="0.12" />
+              <path d="M16 5a11 11 0 1 0 11 11" fill="none" stroke="rgb(var(--uwa-accent-rgb))" strokeWidth="2.6" strokeLinecap="round" />
+              <circle cx="16" cy="16" r="4.2" fill="rgb(var(--uwa-accent-rgb))" />
+            </svg>
+          </span>
+          <span className="uwa-brand-name">Medvale</span>
+        </a>
 
-      <div className="uwa-headrow">
-        <button type="button" className="uwa-back" onClick={() => { window.location.href = '/?story=1'; }}>
-          ← Back to Story Mode
+        <div className="uwa-nav-links">
+          <a className="uwa-nav-link" href="/dashboard"><span aria-hidden="true">🏠</span> Home</a>
+          <span className="uwa-nav-link is-active" aria-current="page"><span aria-hidden="true">🗺️</span> Study Path</span>
+          <a className="uwa-nav-link" href="/quests"><span aria-hidden="true">🏆</span> Achievements</a>
+          <a className="uwa-nav-link" href="/guide"><span aria-hidden="true">📖</span> Resources</a>
+          <a className="uwa-nav-link" href="/settings"><span aria-hidden="true">👤</span> Profile</a>
+        </div>
+
+        {/* Level chip: 500 XP a level, the same arithmetic the dashboard and
+            stats page use, so the three never disagree. */}
+        <a className="uwa-levelchip" href="/stats" title="Your progress">
+          <span className="uwa-avatar">
+            {user?.avatar_url
+              ? <img src={user.avatar_url} alt="" referrerPolicy="no-referrer" />
+              : <span>{user?.username?.[0]?.toUpperCase() || '?'}</span>}
+          </span>
+          <span className="uwa-levelchip-text">
+            <b>Level {Math.floor((user?.xp || 0) / 500) + 1}</b>
+            <span className="uwa-xpbar">
+              <span className="uwa-xpbar-fill" style={{ width: `${((user?.xp || 0) % 500) / 5}%` }} />
+            </span>
+            <small>{(user?.xp || 0) % 500} / 500 XP</small>
+          </span>
+        </a>
+      </nav>
+
+      {/* ── Hero ─────────────────────────────────────────────────────────── */}
+      <header className="uwa-hero" style={heroUrl ? { backgroundImage: `url(${heroUrl})` } : undefined}>
+        <button type="button" className="uwa-hero-back" onClick={() => { window.location.href = '/?story=1'; }}>
+          ← Story Mode
         </button>
-        <h1 className="uwa-title">{mode.icon} {mode.label}</h1>
-        <div />
-      </div>
+        <h1 className="uwa-hero-title">
+          {mode.label.split(' ').map((word, i, all) => (
+            <span key={i} className={i === all.length - 1 ? 'uwa-hero-title-accent' : undefined}>
+              {word}{i < all.length - 1 ? ' ' : ''}
+            </span>
+          ))}
+        </h1>
+        <p className="uwa-hero-sub">Choose your subject to begin your journey.</p>
+      </header>
 
       <div className="uwa-col">
-        <p className="uwa-intro">
-          {mode.tagline}
-          {plannedTotal > 0 && ` — ${plannedTotal.toLocaleString()} questions`}
-        </p>
+        {/* ── Set your pace ───────────────────────────────────────────────
+            The four common paces are one tap; everything else the planner can
+            do (finish-by-a-date, the projection, question order) is a click
+            further in rather than gone. */}
+        <section className="uwa-pace">
+          <div className="uwa-pace-lead">
+            <span className="uwa-pace-icon" aria-hidden="true">🗓️</span>
+            <div>
+              <h2>Set Your Pace</h2>
+              <p>Choose how many questions you&apos;d like to complete each day.</p>
+            </div>
+          </div>
 
+          <div className="uwa-pace-right">
+            <div className="uwa-pace-picks" role="group" aria-label="Questions per day">
+              {PACE_PRESETS.map(n => (
+                <button
+                  key={n}
+                  type="button"
+                  className={`uwa-pace-pick${pace === n ? ' is-on' : ''}`}
+                  aria-pressed={pace === n}
+                  onClick={() => { setPlanBy('pace'); setPickedDate(null); setDeadlineWarning(''); setPace(n); }}
+                >
+                  {n}
+                </button>
+              ))}
+              {!PACE_PRESETS.includes(pace) && (
+                <span className="uwa-pace-pick is-on is-custom">{pace}</span>
+              )}
+              <span className="uwa-pace-unit">questions per day</span>
+            </div>
+            <p className="uwa-pace-note">
+              A consistent daily goal helps you build momentum and reach your target.
+            </p>
+          </div>
+        </section>
+
+
+        <details className="uwa-more">
+          <summary>Fine-tune your plan</summary>
         {/* ── Set Your Pace ─────────────────────────────────────────────── */}
         <div className="uwa-card">
           <div className="uwa-card-title">Set Your Pace</div>
@@ -731,48 +852,48 @@ export default function UWorldAdventure({ mode = DEFAULT_QUESTION_BANK_MODE }) {
               : `Start Today's Questions (${todaysCount})`}
           </button>
         </div>
+        </details>
 
         {/* ── Subjects ──────────────────────────────────────────────────── */}
         <h2 className="uwa-section-title">Subjects</h2>
         {subjectsError && <p className="uwa-empty">Couldn&apos;t load subjects — check your connection.</p>}
         {!subjectsError && subjects.length === 0 && <p className="uwa-empty">Loading subjects…</p>}
         <div className="uwa-subjects">
-          {subjects.map(s => (
-            <button
-              key={s.id}
-              type="button"
-              className={`uwa-subject${selected === s.id ? ' uwa-subject--active' : ''}`}
-              // Picking a subject changes only what TODAY draws from. The plan
-              // spans the whole adventure, so the pace and any chosen deadline
-              // deliberately survive the switch.
-              // Selecting also opens the system's own menu: today's set, a
-              // full redo, and the rating piles are all one decision about
-              // this system, so they belong on one surface rather than
-              // scattered up and down the page.
-              onClick={() => { setSelected(s.id); setSystemModal(s.id); setReviewError(''); }}
-              aria-pressed={selected === s.id}
-            >
-              {/* Mockup uses the subject's first letter in this badge; the real
-                  subjects carry their own icons AND two of the four both start
-                  with "B", so the icon goes in the mockup's circle instead. */}
-              <span className="uwa-subject-badge" aria-hidden="true">{s.icon || s.name[0]}</span>
-              <span className="uwa-subject-name">{s.name}</span>
-              {(() => {
-                // ONE source for every card. Preferring the selected subject's
-                // own `progress` object here would let the card you clicked
-                // disagree with its neighbours if the two ever drifted; both
-                // are refreshed at the same points, so there is nothing to gain
-                // from mixing them.
-                const c = subjectCounts[s.id];
-                if (!c) return null;
-                return (
-                  <span className={`uwa-subject-meta${c.unseen === 0 ? ' uwa-subject-meta--done' : ''}`}>
-                    {c.unseen === 0 ? '✓ complete' : `${c.unseen.toLocaleString()} left`}
+          {subjects.map(s => {
+            const c = subjectCounts[s.id];
+            return (
+              <button
+                key={s.id}
+                type="button"
+                className={`uwa-subject${selected === s.id ? ' uwa-subject--active' : ''}`}
+                // Picking a subject changes only what TODAY draws from. The plan
+                // spans the whole adventure, so the pace and any chosen deadline
+                // deliberately survive the switch. Selecting also opens the
+                // system's own menu: today's set, a full redo and the rating
+                // piles are one decision about this system.
+                onClick={() => { setSelected(s.id); setSystemModal(s.id); setReviewError(''); }}
+                aria-pressed={selected === s.id}
+              >
+                <span className="uwa-subject-art" style={subjectArt(s)}>
+                  {s.image_url
+                    ? <img src={s.image_url} alt="" loading="lazy" />
+                    : <span className="uwa-subject-glyph" aria-hidden="true">{s.icon || s.name[0]}</span>}
+                </span>
+                <span className="uwa-subject-body">
+                  <span className="uwa-subject-text">
+                    <span className="uwa-subject-name">{s.name}</span>
+                    <span className="uwa-subject-desc">{subjectBlurb(s.name)}</span>
+                    {c && (
+                      <span className={`uwa-subject-meta${c.unseen === 0 ? ' uwa-subject-meta--done' : ''}`}>
+                        {c.unseen === 0 ? '✓ complete' : `${c.unseen.toLocaleString()} left`}
+                      </span>
+                    )}
                   </span>
-                );
-              })()}
-            </button>
-          ))}
+                  <span className="uwa-subject-go" aria-hidden="true">→</span>
+                </span>
+              </button>
+            );
+          })}
           {devSubjects.map(s => (
             <button
               key={s.id}
@@ -781,9 +902,15 @@ export default function UWorldAdventure({ mode = DEFAULT_QUESTION_BANK_MODE }) {
               disabled
               title={`${s.name} is under development`}
             >
-              <span className="uwa-subject-badge" aria-hidden="true">{s.icon || s.name[0]}</span>
-              <span className="uwa-subject-name">{s.name}</span>
-              <span className="uwa-subject-meta uwa-subject-meta--dev">🔒 Under development</span>
+              <span className="uwa-subject-art" style={subjectArt(s)}>
+                <span className="uwa-subject-glyph" aria-hidden="true">{s.icon || s.name[0]}</span>
+              </span>
+              <span className="uwa-subject-body">
+                <span className="uwa-subject-text">
+                  <span className="uwa-subject-name">{s.name}</span>
+                  <span className="uwa-subject-meta uwa-subject-meta--dev">🔒 Under development</span>
+                </span>
+              </span>
             </button>
           ))}
         </div>
