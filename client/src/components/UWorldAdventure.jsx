@@ -137,12 +137,12 @@ const subjectBlurb = (name) =>
 // the name, so each card is distinct and stable rather than randomly coloured
 // on every render.
 function subjectArt(s) {
+  // Hues are kept inside a narrow blue band: eight cards should look like
+  // one navy set with a little variation, not eight different colours.
   let h = 0;
   for (const ch of String(s.id || s.name || '')) h = (h * 31 + ch.charCodeAt(0)) % 360;
-  return {
-    '--uwa-art-h': h,
-    background: `linear-gradient(135deg, hsl(${h} 62% 93%), hsl(${(h + 38) % 360} 58% 88%))`,
-  };
+  h = 198 + (h % 54);
+  return { '--uwa-art-h': h };
 }
 
 export default function UWorldAdventure({ mode = DEFAULT_QUESTION_BANK_MODE }) {
@@ -597,18 +597,66 @@ export default function UWorldAdventure({ mode = DEFAULT_QUESTION_BANK_MODE }) {
       </nav>
 
       {/* ── Hero ─────────────────────────────────────────────────────────── */}
-      <header className="uwa-hero" style={heroUrl ? { backgroundImage: `url(${heroUrl})` } : undefined}>
+      <header className="uwa-hero">
+        {/* Layered ridgelines behind the title: drawn rather than shipped as a
+            photo so it stays crisp at any width and costs nothing. An admin
+            image, when set, sits over the top of it. */}
+        <div className="uwa-hero-art" aria-hidden="true" style={heroUrl ? { backgroundImage: `url(${heroUrl})` } : undefined}>
+          {!heroUrl && (
+            <svg className="uwa-ridge" viewBox="0 0 1200 320" preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="uwaSky" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#12284f" />
+                  <stop offset="100%" stopColor="#0a1730" />
+                </linearGradient>
+              </defs>
+              <rect width="1200" height="320" fill="url(#uwaSky)" />
+              <circle cx="960" cy="86" r="42" fill="#4d8bf0" opacity="0.18" />
+              <circle cx="960" cy="86" r="22" fill="#9cc4ff" opacity="0.5" />
+              <path d="M0 232 L170 150 L280 206 L420 116 L560 232 L700 168 L840 236 L1000 150 L1200 226 L1200 320 L0 320 Z" fill="#16305c" opacity="0.85" />
+              <path d="M0 268 L150 210 L300 262 L470 190 L620 268 L780 216 L940 274 L1100 214 L1200 262 L1200 320 L0 320 Z" fill="#1d3f74" opacity="0.75" />
+              <path d="M0 300 L200 262 L380 300 L560 258 L760 302 L960 262 L1200 298 L1200 320 L0 320 Z" fill="#274e8c" opacity="0.6" />
+            </svg>
+          )}
+        </div>
+
         <button type="button" className="uwa-hero-back" onClick={() => { window.location.href = '/?story=1'; }}>
           ← Story Mode
         </button>
-        <h1 className="uwa-hero-title">
-          {mode.label.split(' ').map((word, i, all) => (
-            <span key={i} className={i === all.length - 1 ? 'uwa-hero-title-accent' : undefined}>
-              {word}{i < all.length - 1 ? ' ' : ''}
-            </span>
-          ))}
-        </h1>
-        <p className="uwa-hero-sub">Choose your subject to begin your journey.</p>
+
+        <div className="uwa-hero-inner">
+          <span className="uwa-hero-eyebrow">{mode.icon} Question bank</span>
+          <h1 className="uwa-hero-title">
+            {mode.label.split(' ').map((word, i, all) => (
+              <span key={i} className={i === all.length - 1 ? 'uwa-hero-title-accent' : undefined}>
+                {word}{i < all.length - 1 ? ' ' : ''}
+              </span>
+            ))}
+          </h1>
+          <p className="uwa-hero-sub">Choose your subject to begin your journey.</p>
+
+          {/* Where the whole bank stands, so the page opens with the one number
+              a returning student actually wants. */}
+          {plannedTotal > 0 && (
+            <div className="uwa-hero-stats">
+              <span className="uwa-hstat">
+                <b>{plannedSeen.toLocaleString()}</b>
+                <small>answered</small>
+              </span>
+              <span className="uwa-hstat">
+                <b>{plannedRemaining.toLocaleString()}</b>
+                <small>remaining</small>
+              </span>
+              <span className="uwa-hstat">
+                <b>{plannedTotal.toLocaleString()}</b>
+                <small>in the bank</small>
+              </span>
+              <span className="uwa-hero-bar" aria-hidden="true">
+                <span style={{ width: `${Math.min(100, Math.round((plannedSeen / plannedTotal) * 100))}%` }} />
+              </span>
+            </div>
+          )}
+        </div>
       </header>
 
       <div className="uwa-col">

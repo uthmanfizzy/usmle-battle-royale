@@ -853,16 +853,36 @@
   text-transform: uppercase;
 }
 
-/* ══ Mockup rebuild, in Medvale colours ════════════════════════════════════
-   Same structure as the mockup (top bar · hero · pace strip · subject cards),
-   painted with the shared brand tokens instead of the mockup's white sheet:
-   dark glass panels, gold rules, Cinzel headings. The page keeps its own blue
-   as a secondary accent, the way the Story Mode card that leads here does. */
+/* ══ UWorld Adventure — navy edition ═══════════════════════════════════════
+   Deep navy page, glass panels with a cool blue rim, one warm accent kept for
+   "done" states. Every tint is a static rgba (never color-mix), per the token
+   rules, and the whole page reads on one palette:
+
+     ink       #060d1d   page base
+     panel     #0e1b33   card fill
+     rim       #244a86   hairline
+     accent    #4d8bf0   primary blue
+     accent-lo #9cc4ff   text-weight blue on dark
+*/
 .uwa {
+  --uwa-ink: #060d1d;
+  --uwa-panel: rgba(14, 27, 51, 0.92);
+  --uwa-panel-2: rgba(19, 35, 63, 0.92);
+  --uwa-rim: rgba(36, 74, 134, 0.65);
+  --uwa-rim-soft: rgba(36, 74, 134, 0.35);
+  --uwa-acc: #4d8bf0;
+  --uwa-acc-lo: #9cc4ff;
+  --uwa-txt: #eaf1ff;
+  --uwa-txt-dim: rgba(207, 223, 250, 0.68);
+  --uwa-txt-faint: rgba(207, 223, 250, 0.45);
+
+  min-height: 100vh;
+  color: var(--uwa-txt);
   background:
-    radial-gradient(120% 90% at 50% -10%, rgba(63, 127, 214, 0.12), transparent 60%),
-    var(--mv-bg-base, #0f1512);
-  color: var(--mv-text, #fff);
+    radial-gradient(90% 60% at 12% -10%, rgba(77, 139, 240, 0.18), transparent 60%),
+    radial-gradient(70% 50% at 100% 0%, rgba(122, 92, 240, 0.14), transparent 62%),
+    radial-gradient(80% 60% at 50% 110%, rgba(31, 78, 148, 0.22), transparent 65%),
+    var(--uwa-ink);
 }
 
 /* ── Top bar ── */
@@ -872,22 +892,22 @@
   display: flex;
   align-items: center;
   gap: 18px;
-  max-width: 1240px;
-  margin: 14px auto 0;
-  padding: 10px 16px;
-  border-radius: 16px;
-  border: 1px solid rgba(232, 176, 75, 0.28);
-  background: var(--mv-glass-strong, rgba(16, 26, 32, 0.92));
-  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.45);
+  max-width: 1200px;
+  margin: 16px auto 0;
+  padding: 10px 14px;
+  border-radius: 18px;
+  border: 1px solid var(--uwa-rim-soft);
+  background: rgba(10, 21, 40, 0.72);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 10px 30px rgba(2, 8, 20, 0.55);
 }
-.uwa-brand { display: flex; align-items: center; gap: 10px; text-decoration: none; }
-.uwa-brand-mark { display: flex; }
+.uwa-brand { display: flex; align-items: center; gap: 11px; text-decoration: none; }
 .uwa-brand-name {
   font-family: var(--mv-font-display, 'Cinzel', serif);
-  font-size: 21px;
+  font-size: 20px;
   font-weight: 700;
-  letter-spacing: 0.04em;
-  color: var(--mv-gold, #e8b04b);
+  letter-spacing: 0.05em;
+  color: var(--uwa-txt);
 }
 .uwa-nav-spacer { flex: 1; }
 
@@ -895,277 +915,375 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 6px 12px 6px 6px;
-  border-radius: 14px;
-  border: 1px solid rgba(232, 176, 75, 0.3);
-  background: rgba(232, 176, 75, 0.08);
+  padding: 6px 14px 6px 6px;
+  border-radius: 999px;
+  border: 1px solid var(--uwa-rim-soft);
+  background: rgba(77, 139, 240, 0.1);
   text-decoration: none;
   color: inherit;
 }
-.uwa-levelchip:hover { background: rgba(232, 176, 75, 0.14); }
-.uwa-levelchip .uwa-avatar { width: 34px; height: 34px; flex-shrink: 0; }
-.uwa-levelchip-text { display: grid; gap: 3px; font-size: 12px; line-height: 1.1; }
-.uwa-levelchip-text b {
-  font-family: var(--mv-font-display, 'Cinzel', serif);
-  font-size: 13px;
-  color: var(--mv-gold, #e8b04b);
-}
-.uwa-levelchip-text small { color: var(--mv-text-dim-45, rgba(255,255,255,0.45)); font-size: 10.5px; }
-.uwa-xpbar { width: 110px; height: 7px; border-radius: 99px; background: rgba(255, 255, 255, 0.12); overflow: hidden; }
-.uwa-xpbar-fill { display: block; height: 100%; border-radius: 99px; background: linear-gradient(90deg, var(--mv-gold, #e8b04b), #f2d089); }
+.uwa-levelchip:hover { background: rgba(77, 139, 240, 0.18); }
+.uwa-levelchip .uwa-avatar { width: 34px; height: 34px; flex-shrink: 0; border: 1px solid var(--uwa-rim); }
+.uwa-levelchip-text { display: grid; gap: 4px; font-size: 12px; line-height: 1.1; }
+.uwa-levelchip-text b { font-size: 12.5px; letter-spacing: 0.02em; color: var(--uwa-acc-lo); }
+.uwa-levelchip-text small { color: var(--uwa-txt-faint); font-size: 10.5px; }
+.uwa-xpbar { width: 108px; height: 6px; border-radius: 99px; background: rgba(255, 255, 255, 0.1); overflow: hidden; }
+.uwa-xpbar-fill { display: block; height: 100%; border-radius: 99px; background: linear-gradient(90deg, var(--uwa-acc), var(--uwa-acc-lo)); }
 
 /* ── Hero ── */
 .uwa-hero {
   position: relative;
   z-index: 2;
-  margin: 14px auto 0;
-  padding: 66px 20px 74px;
-  max-width: 1240px;
-  border-radius: 20px;
+  max-width: 1200px;
+  margin: 18px auto 0;
+  padding: 74px 24px 92px;
+  border-radius: 26px;
+  border: 1px solid var(--uwa-rim-soft);
   text-align: center;
-  border: 1px solid rgba(232, 176, 75, 0.22);
-  background-color: #0c1218;
-  background-image:
-    radial-gradient(90% 120% at 50% 0%, rgba(63, 127, 214, 0.22), transparent 65%),
-    linear-gradient(180deg, #101a22, #0b1116);
+  overflow: hidden;
+  box-shadow: 0 24px 60px rgba(2, 8, 20, 0.6);
+}
+.uwa-hero-art {
+  position: absolute;
+  inset: 0;
   background-size: cover;
   background-position: center;
-  overflow: hidden;
+  background-color: #0b1730;
 }
-/* With an admin image behind it, this keeps the title readable. */
+.uwa-ridge { width: 100%; height: 100%; display: block; }
+/* Fades the artwork into the page so the panel has no hard bottom edge. */
 .uwa-hero::after {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, rgba(8, 12, 16, 0.55), rgba(8, 12, 16, 0.75));
+  background: linear-gradient(180deg, rgba(6, 13, 29, 0.55) 0%, rgba(6, 13, 29, 0.35) 40%, rgba(6, 13, 29, 0.92) 100%);
 }
-.uwa-hero > * { position: relative; z-index: 1; }
+.uwa-hero-inner { position: relative; z-index: 2; }
 .uwa-hero-back {
   position: absolute;
-  top: 16px;
-  left: 18px;
-  padding: 7px 14px;
+  top: 18px;
+  left: 20px;
+  z-index: 3;
+  padding: 8px 15px;
   border-radius: 999px;
-  border: 1px solid rgba(232, 176, 75, 0.35);
-  background: rgba(0, 0, 0, 0.35);
-  color: var(--mv-gold, #e8b04b);
-  font-family: var(--mv-font-display, 'Cinzel', serif);
+  border: 1px solid var(--uwa-rim);
+  background: rgba(8, 18, 36, 0.66);
+  backdrop-filter: blur(8px);
+  color: var(--uwa-acc-lo);
   font-size: 12.5px;
   font-weight: 700;
   cursor: pointer;
 }
-.uwa-hero-back:hover { background: rgba(232, 176, 75, 0.18); }
+.uwa-hero-back:hover { background: rgba(77, 139, 240, 0.24); color: #fff; }
+.uwa-hero-eyebrow {
+  display: inline-block;
+  margin-bottom: 14px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--uwa-rim);
+  background: rgba(77, 139, 240, 0.14);
+  color: var(--uwa-acc-lo);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
 .uwa-hero-title {
   margin: 0;
   font-family: var(--mv-font-display, 'Cinzel', serif);
-  font-size: clamp(32px, 5.6vw, 58px);
+  font-size: clamp(34px, 6vw, 62px);
   font-weight: 700;
-  letter-spacing: 0.02em;
+  line-height: 1.05;
+  letter-spacing: 0.01em;
   color: #fff;
-  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.6);
+  text-shadow: 0 6px 32px rgba(2, 8, 20, 0.75);
 }
-.uwa-hero-title-accent { color: var(--mv-gold, #e8b04b); }
+.uwa-hero-title-accent {
+  background: linear-gradient(120deg, #9cc4ff, #4d8bf0 55%, #7f9cff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
 .uwa-hero-sub {
-  margin: 12px 0 0;
-  font-size: clamp(14px, 1.8vw, 19px);
-  color: var(--mv-text-dim-65, rgba(255,255,255,0.65));
+  margin: 12px auto 0;
+  max-width: 46ch;
+  font-size: clamp(14px, 1.7vw, 18px);
+  color: var(--uwa-txt-dim);
+}
+
+/* Bank progress, right in the hero. */
+.uwa-hero-stats {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 10px 26px;
+  margin-top: 26px;
+}
+.uwa-hstat { display: grid; gap: 2px; line-height: 1.1; }
+.uwa-hstat b {
+  font-size: 22px;
+  font-weight: 800;
+  color: #fff;
+}
+.uwa-hstat small {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--uwa-txt-faint);
+}
+.uwa-hero-bar {
+  flex: 1 1 100%;
+  max-width: 420px;
+  height: 6px;
+  margin: 6px auto 0;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+}
+.uwa-hero-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: 99px;
+  background: linear-gradient(90deg, var(--uwa-acc), var(--uwa-acc-lo));
+  box-shadow: 0 0 14px rgba(77, 139, 240, 0.7);
 }
 
 /* ── Layout column ── */
-.uwa .uwa-col { max-width: 1240px; margin: 0 auto; padding: 0 16px 60px; }
+.uwa .uwa-col { max-width: 1200px; margin: 0 auto; padding: 0 16px 70px; }
 
 /* ── Set your pace ── */
 .uwa-pace {
+  position: relative;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 22px;
-  margin: -34px 0 22px;
-  padding: 22px 26px;
-  border-radius: 18px;
-  border: 1px solid rgba(232, 176, 75, 0.25);
-  background: var(--mv-glass-strong, rgba(16, 26, 32, 0.92));
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  gap: 24px;
+  margin: -46px 0 22px;
+  padding: 24px 28px;
+  border-radius: 22px;
+  border: 1px solid var(--uwa-rim-soft);
+  background: linear-gradient(180deg, rgba(19, 35, 63, 0.96), rgba(12, 24, 45, 0.96));
+  box-shadow: 0 20px 44px rgba(2, 8, 20, 0.55);
 }
 .uwa-pace-lead { display: flex; align-items: center; gap: 16px; flex: 1 1 320px; }
 .uwa-pace-icon {
   display: grid;
   place-items: center;
-  width: 58px;
-  height: 58px;
+  width: 56px;
+  height: 56px;
   flex-shrink: 0;
-  border-radius: 50%;
-  border: 1px solid rgba(232, 176, 75, 0.35);
-  background: rgba(232, 176, 75, 0.12);
-  font-size: 26px;
+  border-radius: 18px;
+  border: 1px solid var(--uwa-rim);
+  background: rgba(77, 139, 240, 0.14);
+  font-size: 25px;
 }
 .uwa-pace-lead h2 {
   margin: 0 0 4px;
   font-family: var(--mv-font-display, 'Cinzel', serif);
-  font-size: 21px;
+  font-size: 20px;
   font-weight: 700;
-  color: var(--mv-gold, #e8b04b);
+  color: #fff;
 }
-.uwa-pace-lead p {
-  margin: 0;
-  font-size: 14px;
-  line-height: 1.5;
-  color: var(--mv-text-dim-65, rgba(255,255,255,0.65));
-  max-width: 34ch;
-}
-.uwa-pace-right {
-  flex: 1 1 380px;
-  border-left: 1px solid rgba(255, 255, 255, 0.1);
-  padding-left: 22px;
-}
-.uwa-pace-picks { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.uwa-pace-lead p { margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--uwa-txt-dim); max-width: 34ch; }
+.uwa-pace-right { flex: 1 1 380px; border-left: 1px solid var(--uwa-rim-soft); padding-left: 24px; }
+.uwa-pace-picks { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
 .uwa-pace-pick {
-  min-width: 74px;
-  padding: 11px 6px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--mv-text-dim-85, rgba(255,255,255,0.85));
-  font-family: var(--mv-font-display, 'Cinzel', serif);
+  min-width: 70px;
+  padding: 12px 6px;
+  border: 1px solid var(--uwa-rim-soft);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--uwa-txt-dim);
   font-size: 16px;
   font-weight: 700;
   cursor: pointer;
+  transition: transform 0.1s ease, background 0.12s ease, border-color 0.12s ease;
 }
-.uwa-pace-pick:hover { background: rgba(255, 255, 255, 0.1); }
+.uwa-pace-pick:hover { background: rgba(77, 139, 240, 0.16); color: #fff; }
 .uwa-pace-pick.is-on {
-  background: rgba(232, 176, 75, 0.18);
-  border-color: var(--mv-gold, #e8b04b);
-  color: var(--mv-gold, #e8b04b);
-  box-shadow: 0 0 0 1px rgba(232, 176, 75, 0.35), 0 4px 14px rgba(0, 0, 0, 0.4);
+  background: linear-gradient(140deg, #4d8bf0, #2f6fd0);
+  border-color: #6ea3f5;
+  color: #fff;
+  box-shadow: 0 8px 22px rgba(47, 111, 208, 0.45);
 }
 .uwa-pace-pick.is-custom { cursor: default; }
-.uwa-pace-unit { margin-left: 4px; font-size: 14.5px; color: var(--mv-text-dim-65, rgba(255,255,255,0.65)); }
+.uwa-pace-unit { margin-left: 6px; font-size: 14px; color: var(--uwa-txt-dim); }
 .uwa-pace-note {
   margin: 14px 0 0;
   padding-top: 12px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-  font-size: 13px;
-  color: var(--mv-text-dim-45, rgba(255,255,255,0.45));
+  border-top: 1px solid var(--uwa-rim-soft);
+  font-size: 12.5px;
+  color: var(--uwa-txt-faint);
 }
 
-/* ── Fine-tune: the original planner, folded away ── */
+/* ── Fine-tune ── */
 .uwa-more {
-  margin: 0 0 26px;
-  border-radius: 16px;
-  border: 1px solid rgba(232, 176, 75, 0.2);
-  background: var(--mv-glass, rgba(22, 35, 42, 0.75));
+  margin: 0 0 30px;
+  border-radius: 18px;
+  border: 1px solid var(--uwa-rim-soft);
+  background: rgba(12, 24, 45, 0.8);
   overflow: hidden;
 }
 .uwa-more > summary {
   padding: 15px 22px;
-  font-family: var(--mv-font-display, 'Cinzel', serif);
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 700;
-  color: var(--mv-gold, #e8b04b);
+  letter-spacing: 0.04em;
+  color: var(--uwa-acc-lo);
   cursor: pointer;
   list-style: none;
 }
-.uwa-more[open] > summary { border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
+.uwa-more > summary:hover { background: rgba(77, 139, 240, 0.1); }
+.uwa-more[open] > summary { border-bottom: 1px solid var(--uwa-rim-soft); }
 .uwa-more .uwa-card { background: transparent; border: 0; box-shadow: none; margin: 0; }
 
-/* ── Subject cards ── */
+/* ── Subjects ── */
 .uwa .uwa-section-title {
-  margin: 0 0 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 16px;
   font-family: var(--mv-font-display, 'Cinzel', serif);
-  font-size: 20px;
+  font-size: 15px;
   font-weight: 700;
-  letter-spacing: 0.06em;
-  color: var(--mv-gold, #e8b04b);
+  letter-spacing: 0.18em;
   text-transform: uppercase;
+  color: var(--uwa-acc-lo);
   border: 0;
   padding: 0;
 }
+.uwa .uwa-section-title::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, var(--uwa-rim), transparent);
+}
 .uwa .uwa-subjects {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(236px, 1fr));
+  gap: 18px;
 }
 .uwa .uwa-subject {
+  position: relative;
   display: flex;
   flex-direction: column;
   padding: 0;
   overflow: hidden;
-  border-radius: 16px;
-  border: 1px solid rgba(232, 176, 75, 0.22);
-  background: var(--mv-glass-strong, rgba(16, 26, 32, 0.92));
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+  border-radius: 20px;
+  border: 1px solid var(--uwa-rim-soft);
+  background: linear-gradient(180deg, rgba(19, 35, 63, 0.94), rgba(11, 21, 40, 0.94));
+  box-shadow: 0 14px 30px rgba(2, 8, 20, 0.45);
   text-align: left;
   cursor: pointer;
-  transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
+  transition: transform 0.14s ease, box-shadow 0.14s ease, border-color 0.14s ease;
 }
 .uwa .uwa-subject:hover:not(:disabled) {
-  transform: translateY(-3px);
-  border-color: var(--mv-gold, #e8b04b);
-  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(232, 176, 75, 0.25);
+  transform: translateY(-4px);
+  border-color: rgba(110, 163, 245, 0.8);
+  box-shadow: 0 22px 44px rgba(2, 8, 20, 0.6), 0 0 0 1px rgba(110, 163, 245, 0.28);
 }
 .uwa .uwa-subject--active {
-  border-color: var(--mv-gold, #e8b04b);
-  box-shadow: 0 0 0 1px rgba(232, 176, 75, 0.45), 0 10px 26px rgba(0, 0, 0, 0.5);
+  border-color: var(--uwa-acc);
+  box-shadow: 0 0 0 1px rgba(77, 139, 240, 0.5), 0 18px 38px rgba(8, 26, 56, 0.7);
 }
+/* Artwork panel: the per-subject hue is kept, pulled deep into navy so the
+   grid reads as one family instead of eight different pastels. */
 .uwa-subject-art {
   position: relative;
   display: grid;
   place-items: center;
-  height: 150px;
+  height: 132px;
   overflow: hidden;
-  border-bottom: 1px solid rgba(232, 176, 75, 0.18);
+  background: linear-gradient(150deg, hsl(var(--uwa-art-h, 214) 58% 24%), #0b1830);
 }
-/* The tint behind a subject with no picture is dimmed to sit in a dark page
-   rather than glowing out of it. */
 .uwa-subject-art::after {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, rgba(8, 12, 16, 0.45), rgba(8, 12, 16, 0.72));
+  background:
+    radial-gradient(70% 90% at 50% 0%, rgba(156, 196, 255, 0.22), transparent 70%),
+    linear-gradient(180deg, transparent 55%, rgba(8, 16, 32, 0.85));
 }
-.uwa-subject-art img { width: 100%; height: 100%; object-fit: cover; }
-.uwa-subject-glyph { position: relative; z-index: 1; font-size: 54px; filter: drop-shadow(0 4px 10px rgba(0,0,0,0.5)); }
+.uwa-subject-art img { width: 100%; height: 100%; object-fit: cover; opacity: 0.92; }
+.uwa-subject-glyph {
+  position: relative;
+  z-index: 1;
+  font-size: 46px;
+  filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.55));
+  transition: transform 0.16s ease;
+}
+.uwa .uwa-subject:hover:not(:disabled) .uwa-subject-glyph { transform: scale(1.08) translateY(-2px); }
 .uwa-subject-body {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 15px 17px 17px;
+  padding: 15px 16px 17px;
 }
 .uwa-subject-text { display: grid; gap: 4px; flex: 1; min-width: 0; }
 .uwa .uwa-subject-name {
   font-family: var(--mv-font-display, 'Cinzel', serif);
-  font-size: 16px;
+  font-size: 15.5px;
   font-weight: 700;
   color: #fff;
 }
-.uwa-subject-desc { font-size: 13px; line-height: 1.45; color: var(--mv-text-dim-65, rgba(255,255,255,0.65)); }
-.uwa .uwa-subject-meta { font-size: 12px; color: var(--mv-text-dim-45, rgba(255,255,255,0.45)); }
-.uwa .uwa-subject-meta--done { color: var(--mv-success, #3ddc84); font-weight: 700; }
+.uwa-subject-desc { font-size: 12.5px; line-height: 1.45; color: var(--uwa-txt-dim); }
+.uwa .uwa-subject-meta {
+  justify-self: start;
+  margin-top: 2px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--uwa-rim-soft);
+  background: rgba(77, 139, 240, 0.12);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--uwa-acc-lo);
+}
+.uwa .uwa-subject-meta--done {
+  border-color: rgba(61, 220, 132, 0.45);
+  background: rgba(61, 220, 132, 0.14);
+  color: #7ff0b4;
+}
 .uwa-subject-go {
   display: grid;
   place-items: center;
-  width: 38px;
-  height: 38px;
+  width: 36px;
+  height: 36px;
   flex-shrink: 0;
   border-radius: 50%;
-  border: 1px solid rgba(232, 176, 75, 0.35);
-  background: rgba(232, 176, 75, 0.1);
-  color: var(--mv-gold, #e8b04b);
-  font-size: 17px;
+  border: 1px solid var(--uwa-rim);
+  background: rgba(77, 139, 240, 0.12);
+  color: var(--uwa-acc-lo);
+  font-size: 16px;
   font-weight: 700;
+  transition: background 0.14s ease, color 0.14s ease, transform 0.14s ease;
 }
 .uwa .uwa-subject:hover:not(:disabled) .uwa-subject-go {
-  background: var(--mv-gold, #e8b04b);
-  color: #1a1206;
+  background: var(--uwa-acc);
+  border-color: #8ab4f8;
+  color: #04122c;
+  transform: translateX(2px);
 }
-.uwa .uwa-subject--dev { opacity: 0.5; cursor: default; }
-.uwa .uwa-subject--dev .uwa-subject-art { filter: grayscale(0.8); }
+.uwa .uwa-subject--dev { opacity: 0.45; cursor: default; }
+.uwa .uwa-subject--dev .uwa-subject-art { filter: grayscale(0.85); }
+
+.uwa .uwa-intro, .uwa .uwa-empty { color: var(--uwa-txt-faint); }
+
+@media (prefers-reduced-motion: reduce) {
+  .uwa .uwa-subject, .uwa-subject-glyph, .uwa-subject-go, .uwa-pace-pick { transition: none; }
+  .uwa .uwa-subject:hover:not(:disabled) { transform: none; }
+}
 
 @media (max-width: 900px) {
-  .uwa-nav { gap: 10px; padding: 9px 12px; }
-  .uwa-hero { padding: 50px 16px 60px; border-radius: 16px; }
-  .uwa-pace { margin-top: -26px; padding: 18px; }
-  .uwa-pace-right { border-left: 0; border-top: 1px solid rgba(255,255,255,0.1); padding: 16px 0 0; }
-  .uwa-pace-pick { flex: 1; min-width: 62px; }
-  .uwa-xpbar { width: 84px; }
+  .uwa-nav { margin: 10px 10px 0; padding: 9px 12px; }
+  .uwa-hero { margin: 12px 10px 0; padding: 52px 18px 72px; border-radius: 20px; }
+  .uwa-pace { margin-top: -40px; padding: 18px; border-radius: 18px; }
+  .uwa-pace-right { border-left: 0; border-top: 1px solid var(--uwa-rim-soft); padding: 16px 0 0; }
+  .uwa-pace-pick { flex: 1; min-width: 60px; }
+  .uwa-hero-stats { gap: 8px 18px; }
+  .uwa-hstat b { font-size: 18px; }
+  .uwa-xpbar { width: 78px; }
+  .uwa .uwa-subjects { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+  .uwa-subject-art { height: 104px; }
+  .uwa-subject-desc { display: none; }
 }
