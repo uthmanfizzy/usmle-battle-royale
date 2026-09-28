@@ -153,9 +153,12 @@ export default function ExplanationHighlightToolbar({ containerRef, highlights, 
       clearTimeout(settleRef.current);
       const sel = window.getSelection();
       if (!sel || sel.isCollapsed) { setPopup(null); return; }
+      const coarsePointer = typeof window !== 'undefined'
+        && typeof window.matchMedia === 'function'
+        && window.matchMedia('(pointer: coarse)').matches;
       settleRef.current = setTimeout(() => {
         if (!pointerDownRef.current) show();
-      }, 250);
+      }, coarsePointer ? 700 : 250);
     }
 
     // Follow the selection instead of dismissing. Dismissing was fine on
@@ -183,16 +186,26 @@ export default function ExplanationHighlightToolbar({ containerRef, highlights, 
     };
   }, [computeFromSelection, applyTo]);
 
+  // What is selected RIGHT NOW wins over what was selected when the bar
+  // appeared. On a phone the selection is dragged out with the OS's own
+  // handles, which fire no pointer events on the document: the bar could still
+  // be holding the single word a double-tap started with, so bolding a
+  // sentence bolded only its first word. Tapping a button cannot collapse the
+  // selection (pointerdown is prevented), so re-reading it here is safe.
+  const liveSelection = () => computeFromSelection() || popup;
+
   const pick = (color) => {
-    if (!popup) return;
+    const sel = liveSelection();
+    if (!sel) return;
     if (pinArmed) { setSticky({ color }); setPinArmed(false); }
-    applyTo(popup, { color });
+    applyTo(sel, { color });
   };
 
   const pickFormat = (format) => {
-    if (!popup) return;
+    const sel = liveSelection();
+    if (!sel) return;
     if (pinArmed) { setSticky({ format }); setPinArmed(false); }
-    applyTo(popup, { format });
+    applyTo(sel, { format });
   };
 
   // Shown while keep-on mode is active, so it is never on without the player
@@ -215,8 +228,9 @@ export default function ExplanationHighlightToolbar({ containerRef, highlights, 
     : null;
 
   const removeOverlap = () => {
-    if (!popup) return;
-    onRemoveRange(popup.start, popup.end);
+    const sel = liveSelection();
+    if (!sel) return;
+    onRemoveRange(sel.start, sel.end);
     window.getSelection()?.removeAllRanges();
     setPopup(null);
   };

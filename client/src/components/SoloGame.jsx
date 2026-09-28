@@ -11,7 +11,7 @@ import Calculator from './Calculator';
 import LabValues from './LabValues';
 import { shuffleQuestionOptions } from '../utils/shuffleOptions';
 import { useScrollToTopOnChange } from '../utils/useScrollToTopOnChange';
-import { toVisibleText, resolveHighlights, normalizeHighlightRow } from '../utils/explanationHighlights';
+import { toVisibleText, resolveHighlights, normalizeHighlightRow, captureContext } from '../utils/explanationHighlights';
 import { getToken } from '../auth';
 import './SoloGameJourney.css';
 import './SoloGameUWorld.css';
@@ -1674,6 +1674,12 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
     if (!deletable.length) return;
     const ids = deletable.map(h => h.id);
     setHighlights(hs => hs.filter(h => !ids.includes(h.id)));
+    // A highlight the selection only PARTLY covers is rebuilt from what is
+    // left: the row itself has one range, so trimming means dropping it and
+    // re-creating the piece before and/or after the erased part. Erasing three
+    // words out of a paragraph used to take the whole paragraph with them.
+    const visible = region === 'question' ? stemVisibleText : explVisibleText;
+    const leftovers = [];
     deletable.forEach(h => {
       const headers = {};
       if (h.scope === 'official' && adminSession) headers['x-admin-password'] = adminSession;
@@ -1681,7 +1687,24 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
       fetch(`${SERVER_URL}/api/questions/${encodeURIComponent(q.id)}/highlights/${encodeURIComponent(h.id)}`, {
         method: 'DELETE', headers,
       }).catch(() => {});
+
+      const piece = (from, to) => {
+        // One character of highlight left behind is noise, not a remainder.
+        if (to - from < 2) return;
+        leftovers.push({
+          start: from,
+          end: to,
+          color: h.color ?? undefined,
+          format: h.format ?? undefined,
+          ...captureContext(visible, from, to, 30),
+        });
+      };
+      if (h.start < start) piece(h.start, start);
+      if (h.end > end) piece(end, h.end);
     });
+    // After the deletes are away, so a re-created piece cannot be caught by the
+    // removal it came from.
+    leftovers.forEach(p => handleCreateHighlight(region, p));
   }
 
   const pct = (timeLeft / defaultTimer) * 100;
