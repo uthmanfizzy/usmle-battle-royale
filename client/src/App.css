@@ -3928,3 +3928,57 @@ html[data-study="on"] .solo-body .pause-overlay {
   .jm-peek-head { flex-wrap: wrap; gap: 8px; }
   .jm-peek-close { width: 100%; }
 }
+
+/* ── Comparison questions as a table ──────────────────────────────────────
+   Options like "Reduced, increased, increased" are three answers in a trench
+   coat: read as prose they can only be compared by holding all of them in your
+   head. When every option is the same set of directions, each one becomes a row
+   of arrows under a shared header, which is how the exams print them. */
+.options--table .option-btn {
+  display: grid;
+  grid-template-columns: 34px repeat(var(--opt-cols, 3), minmax(52px, 1fr));
+  align-items: center;
+  gap: 4px;
+  text-align: center;
+}
+.opt-thead {
+  display: grid;
+  grid-template-columns: 34px repeat(var(--opt-cols, 3), minmax(52px, 1fr));
+  align-items: end;
+  gap: 4px;
+  padding: 0 14px 6px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  opacity: 0.7;
+}
+.opt-col {
+  display: block;
+  text-align: center;
+  font-size: 19px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.opt-thead .opt-col { font-size: 12px; font-weight: 700; }
+
+/* Kept for screen readers: the arrow is shorthand, the words are the answer. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 560px) {
+  .options--table .option-btn,
+  .opt-thead { grid-template-columns: 26px repeat(var(--opt-cols, 3), minmax(40px, 1fr)); }
+  .opt-col { font-size: 17px; }
+  .opt-thead { font-size: 10.5px; padding: 0 10px 5px; letter-spacing: 0.02em; }
+}

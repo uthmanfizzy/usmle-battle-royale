@@ -7,6 +7,7 @@ import ExplanationText from './ExplanationText';
 import ExplanationHighlightToolbar from './ExplanationHighlightToolbar';
 import { parseRichText } from '../utils/parseRichText';
 import { renderStem, toStemVisibleText } from '../utils/renderStem';
+import { buildOptionTable, extractColumns } from '../utils/optionTable';
 import Calculator from './Calculator';
 import LabValues from './LabValues';
 import { shuffleQuestionOptions } from '../utils/shuffleOptions';
@@ -1633,6 +1634,17 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
     });
   }
 
+  // Comparison questions ("renal plasma flow, GFR, then filtration fraction")
+  // render as a table instead of three prose answers that have to be held in
+  // the head at once. Null for every ordinary question, which is most of them.
+  // Plain calls, not hooks: this runs after the component's early returns, and
+  // it has to see the options in the order they are DISPLAYED (they may have
+  // been shuffled). Both are small string operations on five short strings.
+  const optionTable = buildOptionTable(q?.question || '', (q?.options || []).map(stripLetterPrefix));
+  // The author's "Columns:" line is instruction to the renderer, not part of
+  // the question, so it never reaches the screen.
+  const stemText = extractColumns(q?.question || '').stem;
+
   // Region-split (MANDATORY): explanation offsets and stem ('question') offsets live
   // in DIFFERENT visible-text spaces — mixing them would mis-anchor. Resolve each
   // against its own visible string (drift-resilient).
@@ -2099,7 +2111,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
             </div>
           )}
           <div className="stem-text" ref={stemContainerRef}>
-            {renderStem(q.question, { highlights: stemDisplayHighlights })}
+            {renderStem(stemText, { highlights: stemDisplayHighlights })}
           </div>
           {/* Stem hint authoring toolbar — admin + dev mode only; official region='question'.
               v1 rejects selections that touch a lab box or table (prose-only authoring). */}
@@ -2160,13 +2172,28 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
           {/* Calculator inline - between question and answers on mobile */}
           {showCalculator && <Calculator onClose={() => setShowCalculator(false)} />}
 
-          <div className="options">
+          <div
+            className={`options${optionTable ? ' options--table' : ''}`}
+            style={optionTable ? { '--opt-cols': optionTable.rows[0].length } : undefined}
+          >
+            {/* Column headers, once, above the rows. Written by the author as
+                "Columns: RPF | GFR | FF", or read from the stem's own
+                "listed as …" phrase when it has one. */}
+            {optionTable?.headers && (
+              <div className="opt-thead" aria-hidden="true">
+                <span className="opt-label" />
+                {optionTable.headers.map((h, i) => (
+                  <span className="opt-col" key={i} title={h.full}>{h.short}</span>
+                ))}
+              </div>
+            )}
             {q.options.map((opt, i) => {
               const label = LABELS[i];
               const isMine = selected === label;
               // Compare letter to letter (q.correct is now "A", "B", "C"...)
               const isRight = revealed && label === q.correct;
               const isWrong = revealed && isMine && label !== q.correct;
+              const cells = optionTable?.rows[i];
               return (
                 <button
                   key={i}
@@ -2175,7 +2202,19 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
                   disabled={revealed}
                 >
                   <span className="opt-label">{label}</span>
-                  <span className="opt-text">{stripLetterPrefix(opt)}</span>
+                  {cells ? (
+                    // The arrow is what the eye compares down a column; the
+                    // words it came from stay readable to screen readers and
+                    // on hover, so nothing is lost by the shorthand.
+                    cells.map((c, ci) => (
+                      <span className="opt-col" key={ci} title={c.text}>
+                        <span aria-hidden="true">{c.arrow}</span>
+                        <span className="sr-only">{c.text}</span>
+                      </span>
+                    ))
+                  ) : (
+                    <span className="opt-text">{stripLetterPrefix(opt)}</span>
+                  )}
                 </button>
               );
             })}
