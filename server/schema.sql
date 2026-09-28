@@ -1256,3 +1256,14 @@ CREATE POLICY "server_full_access_reel_sources"
   ON reel_sources FOR ALL USING (true) WITH CHECK (true);
 
 ALTER TABLE reel_sources ADD COLUMN IF NOT EXISTS scope TEXT NOT NULL DEFAULT 'recent';
+
+-- ── activity_sessions.client_run_id ─────────────────────────────────────────
+-- The id a play session makes for itself. A run posts its progress every few
+-- seconds while it plays, so a session killed mid-way (phone swiped away, tab
+-- force-closed) still shows on the Daily Activity timeline; the id is what
+-- makes those repeated posts update one row instead of adding a row each time.
+ALTER TABLE activity_sessions ADD COLUMN IF NOT EXISTS client_run_id TEXT;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_activity_sessions_run
+  ON activity_sessions (user_id, client_run_id)
+  WHERE client_run_id IS NOT NULL;

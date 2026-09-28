@@ -5515,6 +5515,11 @@ app.post('/api/study-session', requireAuth, async (req, res) => {
 
   const subject = (req.body?.subject ?? '').toString().trim() || null;
   const levelLabel = (req.body?.level_label ?? '').toString().trim().slice(0, 160) || null;
+  // A run's own id, made by the client. Sent repeatedly while a run is in
+  // progress so a session that is killed (phone swiped away, tab force-closed)
+  // still has everything up to its last heartbeat on the timeline — the row is
+  // UPDATED each time rather than added, so one run is one entry.
+  const runId = (req.body?.run_id ?? '').toString().trim().slice(0, 64) || null;
   // pct is optional: a run abandoned before answering anything has no score to
   // report, and a null outcome_type renders as a plain "—" on the timeline.
   const rawPct = Number(req.body?.pct);
@@ -5527,21 +5532,37 @@ app.post('/api/study-session', requireAuth, async (req, res) => {
     // Training Grounds, Journey and the question bank already use.
     const endedAt   = new Date();
     const startedAt = new Date(endedAt.getTime() - seconds * 1000);
+    const row = {
+      user_id:              req.userId,   // requireAuth guarantees a real user
+      game_mode:            gameMode,
+      subject,
+      journey_chapter_name: null,
+      journey_level_name:   levelLabel,
+      outcome_type:         hasPct ? 'score_pct' : null,
+      score_pct:            pct,
+      is_win:               null,
+      duration_seconds:     seconds,
+      started_at:           startedAt.toISOString(),
+      ended_at:             endedAt.toISOString(),
+    };
+
+    if (runId) {
+      const { data: existing } = await supabase
+        .from('activity_sessions')
+        .select('id')
+        .eq('user_id', req.userId)
+        .eq('client_run_id', runId)
+        .maybeSingle();
+      if (existing?.id) {
+        const err = await logWrite('activity_sessions.study_session_update', supabase
+          .from('activity_sessions').update(row).eq('id', existing.id));
+        return res.json({ ok: !err, updated: true });
+      }
+      row.client_run_id = runId;
+    }
+
     const err = await logWrite('activity_sessions.study_session', supabase
-      .from('activity_sessions')
-      .insert({
-        user_id:              req.userId,   // requireAuth guarantees a real user
-        game_mode:            gameMode,
-        subject,
-        journey_chapter_name: null,
-        journey_level_name:   levelLabel,
-        outcome_type:         hasPct ? 'score_pct' : null,
-        score_pct:            pct,
-        is_win:               null,
-        duration_seconds:     seconds,
-        started_at:           startedAt.toISOString(),
-        ended_at:             endedAt.toISOString(),
-      }));
+      .from('activity_sessions').insert(row));
     res.json({ ok: !err });
   } catch (e) {
     console.error('[/api/study-session] threw —', e.message);
@@ -7934,6 +7955,27 @@ app.get('/api/question-image/:id', async (req, res) => {
   } catch (err) {
     console.warn('[/api/question-image GET] failed —', err.message);
     res.json({});
+  }
+});
+
+// The in-progress row a run keeps updating while it plays. When the run
+// finishes properly, its mode's completion endpoint (journey / question bank /
+// training) writes the real row, so this placeholder is removed and the
+// timeline keeps exactly one entry per run.
+app.delete('/api/study-session/run/:runId', requireAuth, async (req, res) => {
+  if (!supabase) return res.json({ ok: false });
+  const runId = (req.params.runId || '').toString().trim().slice(0, 64);
+  if (!runId) return res.status(400).json({ error: 'run id required' });
+  try {
+    const { error } = await supabase
+      .from('activity_sessions')
+      .delete()
+      .eq('user_id', req.userId)     // only ever your own row
+      .eq('client_run_id', runId);
+    res.json({ ok: !error });
+  } catch (e) {
+    console.error('[/api/study-session/run DELETE] threw —', e.message);
+    res.json({ ok: false });
   }
 });
 

@@ -593,6 +593,15 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   const sentSecondsRef     = useRef(0);
   const sentQuestionsRef   = useRef(0);
   const runLoggedRef       = useRef(false); // activity_sessions row written for this run
+  // This run's own id. Sent with every progress post so the server updates one
+  // timeline row rather than adding one per post, and so the placeholder can be
+  // removed when the mode's own completion endpoint writes the real row.
+  const runIdRef = useRef(null);
+  if (!runIdRef.current) {
+    runIdRef.current = (typeof crypto !== 'undefined' && crypto.randomUUID)
+      ? crypto.randomUUID()
+      : `run-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  }
   // Exam skin only. ratedRef mirrors `rated` state but is readable synchronously
   // from doAdvance's closure (avoids a stale-closure read of the state value).
   // doAdvanceRef holds the CURRENT question's doAdvance closure independently of
@@ -672,6 +681,30 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   // sendBeacon would be the more reliable unload transport, but it cannot set
   // an Authorization header and /api/study-time authenticates via Bearer — so
   // per the endpoint's existing contract we keep fetch(keepalive) instead.
+  // Saving only at the end loses everything when a session is KILLED rather
+  // than closed: swiped away on a phone, force-closed, a crash, a flat battery.
+  // None of those fire pagehide or unmount. So the run also saves itself every
+  // 45 seconds, and whenever it is backgrounded — at worst 45 seconds of a run
+  // is lost instead of the whole thing.
+  useEffect(() => {
+    const save = (keepalive) => {
+      postStudyTimeRef.current(keepalive);
+      if (completionFiredRef.current || answeredCountRef.current === 0) return;
+      const total = answeredCountRef.current;
+      const c     = correctCountRef.current;
+      logRunSessionRef.current(total ? Math.round((c / total) * 100) : 0);
+    };
+    const id = setInterval(() => save(false), 45000);
+    // 'hidden' is the last moment a phone reliably gives a web page before the
+    // browser may be killed in the background without any further event.
+    const onHide = () => { if (document.hidden) save(true); };
+    document.addEventListener('visibilitychange', onHide);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener('visibilitychange', onHide);
+    };
+  }, []);
+
   useEffect(() => {
     const finish = () => {
       postStudyTimeRef.current(true);
@@ -712,7 +745,6 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   // abandoned run must never bank those. keepalive because the Home button
   // navigates with window.location.href, which would otherwise cancel this.
   const logRunSession = (pct) => {
-    if (runLoggedRef.current) return;
     const seconds = Math.round(activeSecondsRef.current);
     if (seconds <= 0) return;
     const token = getToken();
@@ -727,10 +759,30 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
         pct,
         seconds,
         level_label: levelLabel || null,
+        // Repeat posts for the same run replace each other rather than piling
+        // up, which is what makes saving mid-run safe.
+        run_id: runIdRef.current,
       }),
       keepalive: true,
     }).catch(() => {});
   };
+
+  // The placeholder row this run has been keeping up to date. Dropped when the
+  // run ends properly, because the mode's completion endpoint then writes the
+  // real row and two entries for one run would be wrong.
+  const dropRunSession = () => {
+    if (!runLoggedRef.current) return;
+    const token = getToken();
+    if (!token) return;
+    runLoggedRef.current = false;
+    fetch(`${SERVER_URL}/api/study-session/run/${encodeURIComponent(runIdRef.current)}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+      keepalive: true,
+    }).catch(() => {});
+  };
+  const dropRunSessionRef = useRef(dropRunSession);
+  dropRunSessionRef.current = dropRunSession;
   const logRunSessionRef = useRef(logRunSession);
   logRunSessionRef.current = logRunSession;
 
@@ -751,6 +803,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
     // that path. Journey/Training deliberately do NOT go through onComplete
     // here — theirs carries progress the player hasn't earned.
     if (uworldSkin && onCompleteRef.current) {
+      dropRunSessionRef.current();
       onCompleteRef.current({ correct: c, total, pct, activeSeconds: activeSecondsRef.current });
       return;
     }
@@ -1312,6 +1365,9 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
           const c = correctCountRef.current;
           const pct = total ? Math.round((c / total) * 100) : 0;
           if (onCompleteRef.current) {
+            // Journey / question bank / training all write their own row from
+            // their completion endpoint, so the in-progress one goes.
+            dropRunSessionRef.current();
             onCompleteRef.current({ correct: c, total, pct, activeSeconds: activeSecondsRef.current });
           } else {
             // Plain Solo has no completion handler, so nothing else would ever
