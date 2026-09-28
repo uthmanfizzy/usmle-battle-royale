@@ -1287,3 +1287,110 @@
   .uwa-subject-art { height: 104px; }
   .uwa-subject-desc { display: none; }
 }
+
+/* ══ Lift ══════════════════════════════════════════════════════════════════
+   The navy was sitting almost at black, which made the whole page feel heavy.
+   The base moves up to a mid navy with a light sky wash behind the hero, the
+   panels move up with it, and each subject card takes its own colour from the
+   First Aid Journey palette so the grid is the colourful part of the page. */
+.uwa {
+  --uwa-ink: #14244a;
+  --uwa-panel: rgba(29, 50, 92, 0.92);
+  --uwa-panel-2: rgba(35, 59, 105, 0.92);
+  --uwa-rim: rgba(126, 168, 232, 0.55);
+  --uwa-rim-soft: rgba(126, 168, 232, 0.28);
+  --uwa-acc: #5f9bf5;
+  --uwa-acc-lo: #bcd9ff;
+  --uwa-txt: #f2f7ff;
+  --uwa-txt-dim: rgba(226, 238, 255, 0.78);
+  --uwa-txt-faint: rgba(226, 238, 255, 0.55);
+
+  background:
+    radial-gradient(85% 55% at 15% -8%, rgba(186, 216, 255, 0.4), transparent 62%),
+    radial-gradient(70% 45% at 92% 2%, rgba(167, 196, 255, 0.3), transparent 60%),
+    radial-gradient(90% 55% at 50% 108%, rgba(96, 150, 230, 0.28), transparent 65%),
+    linear-gradient(180deg, #24406f 0%, #1b3159 45%, #14244a 100%);
+  background-attachment: fixed;
+}
+
+.uwa-nav {
+  border-color: rgba(174, 206, 250, 0.35);
+  background: rgba(31, 55, 100, 0.72);
+}
+
+/* Hero: a daylight sky over the ridgelines rather than a night one. */
+.uwa-hero { border-color: rgba(174, 206, 250, 0.3); }
+.uwa-hero-art { background-color: #2b4a80; }
+.uwa-hero::after {
+  background: linear-gradient(180deg, rgba(20, 36, 74, 0.28) 0%, rgba(20, 36, 74, 0.2) 40%, rgba(20, 36, 74, 0.78) 100%);
+}
+.uwa-hero-back { background: rgba(20, 36, 74, 0.55); }
+.uwa-hero-title-accent {
+  background: linear-gradient(120deg, #d7e8ff, #7fb2ff 55%, #a6c4ff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.uwa-pace {
+  border-color: rgba(174, 206, 250, 0.3);
+  background: linear-gradient(180deg, rgba(41, 68, 118, 0.96), rgba(30, 52, 95, 0.96));
+}
+.uwa-pace-pick { background: rgba(255, 255, 255, 0.08); }
+.uwa-pace-pick:hover { background: rgba(255, 255, 255, 0.16); }
+.uwa-pace-pick.is-on { background: linear-gradient(140deg, #5f9bf5, #3d78d8); border-color: #a7c8ff; }
+.uwa-more { background: rgba(30, 52, 95, 0.82); border-color: rgba(174, 206, 250, 0.26); }
+
+/* ── Subject cards: one colour each ───────────────────────────────────────
+   --uwa-art-rgb is the subject's own colour (the Journey palette), set inline
+   per card. Every tint here is built from that one value. */
+.uwa .uwa-subject {
+  --uwa-art-rgb: 95, 155, 245;
+  border-color: rgba(var(--uwa-art-rgb), 0.45);
+  background:
+    linear-gradient(180deg, rgba(var(--uwa-art-rgb), 0.16), rgba(var(--uwa-art-rgb), 0.06) 45%),
+    linear-gradient(180deg, rgba(38, 63, 112, 0.96), rgba(27, 47, 88, 0.96));
+}
+.uwa .uwa-subject:hover:not(:disabled) {
+  border-color: rgb(var(--uwa-art-rgb));
+  box-shadow:
+    0 22px 44px rgba(10, 20, 45, 0.5),
+    0 0 0 1px rgba(var(--uwa-art-rgb), 0.5),
+    0 10px 30px rgba(var(--uwa-art-rgb), 0.28);
+}
+.uwa .uwa-subject--active {
+  border-color: rgb(var(--uwa-art-rgb));
+  box-shadow: 0 0 0 1px rgba(var(--uwa-art-rgb), 0.6), 0 16px 34px rgba(var(--uwa-art-rgb), 0.3);
+}
+/* The artwork panel is the subject's colour, full strength. */
+.uwa-subject-art {
+  background:
+    radial-gradient(120% 120% at 50% 0%, rgba(255, 255, 255, 0.28), transparent 62%),
+    linear-gradient(150deg, rgb(var(--uwa-art-rgb)), rgba(var(--uwa-art-rgb), 0.55));
+  border-bottom: 1px solid rgba(var(--uwa-art-rgb), 0.5);
+}
+/* A soft vignette, not the near-black wash the dark version needed. */
+.uwa-subject-art::after {
+  background: linear-gradient(180deg, transparent 55%, rgba(18, 32, 62, 0.4));
+}
+.uwa-subject-glyph { filter: drop-shadow(0 6px 12px rgba(12, 24, 48, 0.45)); }
+.uwa .uwa-subject-meta {
+  border-color: rgba(var(--uwa-art-rgb), 0.5);
+  background: rgba(var(--uwa-art-rgb), 0.18);
+  color: #eaf3ff;
+}
+.uwa .uwa-subject-meta--done {
+  border-color: rgba(61, 220, 132, 0.5);
+  background: rgba(61, 220, 132, 0.18);
+  color: #a9f5cd;
+}
+.uwa-subject-go {
+  border-color: rgba(var(--uwa-art-rgb), 0.55);
+  background: rgba(var(--uwa-art-rgb), 0.2);
+  color: #eaf3ff;
+}
+.uwa .uwa-subject:hover:not(:disabled) .uwa-subject-go {
+  background: rgb(var(--uwa-art-rgb));
+  border-color: #fff;
+  color: #10203f;
+}

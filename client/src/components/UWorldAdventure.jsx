@@ -4,6 +4,7 @@ import { getToken, fetchMe, getCachedUser, authFetch } from '../auth';
 import SoloGame from './SoloGame';
 import { useStudyActivity } from '../studyPresence';
 import { cachedImageMap, rememberImageMap } from '../utils/cachedImages';
+import { JOURNEY_SUBJECTS } from '../journeySubjects';
 import { DEFAULT_QUESTION_BANK_MODE } from '../questionBankModes';
 import './UWorldAdventure.css';
 
@@ -136,13 +137,45 @@ const subjectBlurb = (name) =>
 // Artwork for a subject with no picture of its own: a calm tint derived from
 // the name, so each card is distinct and stable rather than randomly coloured
 // on every render.
-function subjectArt(s) {
-  // Hues are kept inside a narrow blue band: eight cards should look like
-  // one navy set with a little variation, not eight different colours.
+// The same subject colours First Aid Journey uses, matched by id or name so a
+// subject looks like itself wherever it appears. Anything with no match falls
+// back to a hue derived from its name, so a new subject is still distinct.
+const JOURNEY_RGB = new Map();
+for (const s of JOURNEY_SUBJECTS) {
+  JOURNEY_RGB.set(s.id, s.rgb);
+  JOURNEY_RGB.set(s.label.toLowerCase(), s.rgb);
+}
+// Names the two lists spell differently.
+const SUBJECT_RGB_ALIASES = {
+  anatomy: '161, 136, 127',
+  physiology: '38, 198, 218',
+  'behavioral science': '92, 107, 192',
+  'behavioural science': '92, 107, 192',
+  biostatistics: '255, 202, 40',
+  genetics: '124, 179, 66',
+  cardiology: '239, 83, 80',
+  neurology: '126, 87, 194',
+  nephrology: '41, 182, 246',
+};
+function subjectRgb(s) {
+  const id = String(s.id || '').toLowerCase();
+  const name = String(s.name || '').toLowerCase();
+  const hit = JOURNEY_RGB.get(id) || JOURNEY_RGB.get(name)
+    || SUBJECT_RGB_ALIASES[id] || SUBJECT_RGB_ALIASES[name];
+  if (hit) return hit;
   let h = 0;
-  for (const ch of String(s.id || s.name || '')) h = (h * 31 + ch.charCodeAt(0)) % 360;
-  h = 198 + (h % 54);
-  return { '--uwa-art-h': h };
+  for (const ch of (id || name)) h = (h * 31 + ch.charCodeAt(0)) % 360;
+  return hslToRgbTriple(h, 62, 58);
+}
+function hslToRgbTriple(h, sPct, lPct) {
+  const sat = sPct / 100, light = lPct / 100;
+  const k = n => (n + h / 30) % 12;
+  const a = sat * Math.min(light, 1 - light);
+  const f = n => Math.round(255 * (light - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)))));
+  return `${f(0)}, ${f(8)}, ${f(4)}`;
+}
+function subjectArt(s) {
+  return { '--uwa-art-rgb': subjectRgb(s) };
 }
 
 export default function UWorldAdventure({ mode = DEFAULT_QUESTION_BANK_MODE }) {
