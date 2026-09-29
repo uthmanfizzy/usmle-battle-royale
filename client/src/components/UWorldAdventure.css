@@ -1428,3 +1428,118 @@
 /* Every row the same height, so a two-line name does not make one row
    taller than the next. */
 .uwa .uwa-subjects { grid-auto-rows: 1fr; }
+
+/* ══ Contrast pass ═════════════════════════════════════════════════════════
+   Two problems with the lighter navy: everything was the same blue, so panels
+   barely separated from the page, and the planner inherited text colours meant
+   for a LIGHT panel (--uwa-ink is near-black) which left it unreadable on a
+   dark one. The base goes slate rather than saturated blue, panels sit clearly
+   above it, and blue is kept for things you can actually press. */
+.uwa {
+  --uwa-ink: #eef3fb;
+  --uwa-panel: rgba(25, 38, 62, 0.96);
+  --uwa-panel-2: rgba(31, 46, 74, 0.96);
+  --uwa-rim: rgba(148, 178, 222, 0.5);
+  --uwa-rim-soft: rgba(148, 178, 222, 0.24);
+  --uwa-acc: #5f9bf5;
+  --uwa-acc-lo: #cfe2ff;
+  --uwa-txt: #f6f9ff;
+  --uwa-txt-dim: rgba(233, 240, 252, 0.8);
+  --uwa-txt-faint: rgba(233, 240, 252, 0.6);
+
+  background:
+    radial-gradient(75% 45% at 14% -6%, rgba(126, 166, 224, 0.26), transparent 62%),
+    radial-gradient(60% 40% at 94% 2%, rgba(120, 146, 200, 0.18), transparent 60%),
+    linear-gradient(180deg, #27374f 0%, #1b2942 42%, #131d30 100%);
+  background-attachment: fixed;
+  color: var(--uwa-txt);
+}
+
+/* Panels: a step lighter than the page, with a defined edge. */
+.uwa-nav,
+.uwa-pace,
+.uwa-more,
+.uwa .uwa-subject {
+  border-color: rgba(148, 178, 222, 0.28);
+}
+.uwa-nav { background: rgba(30, 44, 70, 0.86); }
+.uwa-pace { background: linear-gradient(180deg, rgba(36, 53, 83, 0.98), rgba(28, 42, 68, 0.98)); }
+.uwa-hero-art { background-color: #24384f; }
+.uwa-hero::after {
+  background: linear-gradient(180deg, rgba(14, 22, 38, 0.3) 0%, rgba(14, 22, 38, 0.25) 40%, rgba(19, 29, 48, 0.9) 100%);
+}
+.uwa-hero-title-accent {
+  background: linear-gradient(120deg, #e4efff, #8fbcff 55%, #b9d1ff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.uwa-pace-lead p, .uwa-pace-note { color: var(--uwa-txt-dim); }
+.uwa-pace-note { color: var(--uwa-txt-faint); }
+
+/* ── The planner, made readable ────────────────────────────────────────────
+   Its rules were written against a light panel: --uwa-ink is near-black and
+   --uwa-blue-deep is a dark blue, both invisible here. Redefining the tokens on
+   the container fixes every one of its labels, figures and controls at once. */
+.uwa-more {
+  --uwa-ink: #f6f9ff;
+  --uwa-ink-soft: rgba(233, 240, 252, 0.8);
+  --uwa-ink-dim: rgba(233, 240, 252, 0.62);
+  --uwa-blue-deep: #9ec5ff;
+  --uwa-blue: #6ba4f7;
+  --uwa-panel: rgba(36, 53, 83, 0.98);
+  --uwa-panel-soft: rgba(36, 53, 83, 0.98);
+  --uwa-panel-hover: rgba(46, 66, 100, 0.98);
+  --uwa-panel-border: rgba(148, 178, 222, 0.32);
+  background: linear-gradient(180deg, rgba(32, 47, 75, 0.98), rgba(26, 39, 63, 0.98));
+  color: var(--uwa-ink);
+}
+.uwa-more > summary {
+  color: #fff;
+  background: rgba(107, 164, 247, 0.16);
+}
+.uwa-more > summary:hover { background: rgba(107, 164, 247, 0.26); }
+.uwa-more .uwa-card-title { color: #fff; }
+.uwa-more .uwa-card-sub,
+.uwa-more .uwa-note { color: var(--uwa-ink-soft); }
+.uwa-more .uwa-proj-label { color: var(--uwa-ink-dim); }
+.uwa-more .uwa-proj-val,
+.uwa-more .uwa-count-val { color: #fff; }
+.uwa-more .uwa-proj-val--blue,
+.uwa-more .uwa-count-val--blue { color: #9ec5ff; }
+.uwa-more .uwa-planby {
+  background: rgba(14, 22, 38, 0.5);
+  border-radius: 12px;
+}
+.uwa-more .uwa-planby-btn { color: var(--uwa-ink-soft); }
+.uwa-more .uwa-planby-btn.on {
+  background: rgba(107, 164, 247, 0.28);
+  color: #fff;
+}
+.uwa-more .uwa-pace-chip {
+  background: rgba(107, 164, 247, 0.2);
+  border: 1px solid rgba(148, 178, 222, 0.4);
+  color: #fff;
+}
+.uwa-more .uwa-bar { background: rgba(14, 22, 38, 0.6); }
+.uwa-more .uwa-date {
+  background: rgba(14, 22, 38, 0.6);
+  border-color: rgba(148, 178, 222, 0.4);
+  color: #fff;
+}
+.uwa-more .uwa-slider { accent-color: #6ba4f7; }
+.uwa-more .uwa-start {
+  background: linear-gradient(140deg, #5f9bf5, #3a74d4);
+  border: 1px solid #a7c8ff;
+  color: #fff;
+}
+.uwa-more .uwa-start:disabled { opacity: 0.55; }
+
+/* Subject cards keep their own colour, but the body sits on a neutral panel so
+   eight different hues don't make eight different backgrounds. */
+.uwa .uwa-subject {
+  background:
+    linear-gradient(180deg, rgba(var(--uwa-art-rgb), 0.1), transparent 40%),
+    linear-gradient(180deg, rgba(36, 53, 83, 0.97), rgba(27, 41, 66, 0.97));
+}
+.uwa-subject-desc { color: var(--uwa-txt-dim); }
