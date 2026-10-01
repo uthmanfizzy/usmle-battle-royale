@@ -185,6 +185,9 @@ export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld, onSaudiMLE, c
           intentionally OMITTED here; the Journey page has its own per-subject
           progress now, this list does not. */}
       <div className="ms-campaign-list">
+        {/* First Aid and the flashcard decks are medical content, so a
+            dentistry student's menu is the ORE/LDS campaign alone. */}
+        {!isDentistry && (
         <button className="ms-journey-card" onClick={onJourney}>
           <div className="ms-journey-art" aria-hidden="true">
             <span className="ms-journey-art-icon">🚑</span>
@@ -196,11 +199,13 @@ export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld, onSaudiMLE, c
             </span>
           </div>
         </button>
+        )}
 
         {/* FLASHCARDS is a category, not a mode: it opens in place to reveal
             the decks underneath. An accordion rather than a new screen because
             there are two entries — a whole phase and a back button for that
             would be more chrome than content. */}
+        {!isDentistry && (
         <button
           className={`ms-journey-card ms-journey-card--orange${flashOpen ? ' ms-journey-card--open' : ''}`}
           onClick={() => setFlashOpen(o => !o)}
@@ -215,8 +220,9 @@ export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld, onSaudiMLE, c
           </div>
           <span className="ms-flash-caret" aria-hidden="true">{flashOpen ? '▾' : '▸'}</span>
         </button>
+        )}
 
-        {flashOpen && (
+        {!isDentistry && flashOpen && (
           <div className="ms-flash-decks">
             {/* Real: 27,319 imported cards with spaced repetition. */}
             <button className="ms-flash-deck" onClick={onAnKing}>
