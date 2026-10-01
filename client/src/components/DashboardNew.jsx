@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import FriendsPanel from './FriendsPanel';
 import NotificationsDropdown from './NotificationsDropdown';
+import SettingsDropdown from './SettingsDropdown';
 import ClansPage from './ClansPage';
 import ShortsFeed from './ShortsFeed';
 import { HomeSection, LeaderboardSection, AnnouncementsSection } from './Dashboard';
@@ -50,6 +51,8 @@ export default function DashboardNew({ user, onPlayNow, onLogout, onUserUpdate }
   const [showFriendsPanel,  setShowFriendsPanel]  = useState(false);
   const notifDropdownRef    = useRef(null);
   const friendsDropdownRef  = useRef(null);
+  const settingsDropdownRef = useRef(null);
+  const [showSettings, setShowSettings] = useState(false);
 
   const [bgUrl,      setBgUrl]      = useState(() => cachedImageMap('home').dashboard_bg || null);
   const [homeImages, setHomeImages] = useState(() => cachedImageMap('home'));
@@ -84,6 +87,7 @@ export default function DashboardNew({ user, onPlayNow, onLogout, onUserUpdate }
     const handle = (e) => {
       if (showNotifications && notifDropdownRef.current && !notifDropdownRef.current.contains(e.target)) setShowNotifications(false);
       if (showFriendsPanel && friendsDropdownRef.current && !friendsDropdownRef.current.contains(e.target)) setShowFriendsPanel(false);
+      if (showSettings && settingsDropdownRef.current && !settingsDropdownRef.current.contains(e.target)) setShowSettings(false);
     };
     document.addEventListener('mousedown', handle);
     document.addEventListener('touchstart', handle);
@@ -171,16 +175,22 @@ export default function DashboardNew({ user, onPlayNow, onLogout, onUserUpdate }
                 </div>
               )}
             </div>
-            {/* Navigates to the standalone /settings page (the old
-                SettingsDropdown is retired) */}
-            <button
-              type="button"
-              className="dn-icon-btn"
-              title="Settings"
-              onClick={() => { window.location.href = '/settings'; }}
-            >
-              ⚙️
-            </button>
+            <div className="dn-drop-wrap settings-wrapper" ref={settingsDropdownRef}>
+              <button
+                type="button"
+                className="dn-icon-btn"
+                title="Settings"
+                onClick={() => { setShowNotifications(false); setShowFriendsPanel(false); setShowSettings(v => !v); }}
+                aria-pressed={showSettings}
+              >
+                ⚙️
+              </button>
+              {showSettings && (
+                <div className="dn-dropdown">
+                  <SettingsDropdown onClose={() => setShowSettings(false)} />
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </header>

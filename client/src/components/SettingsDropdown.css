@@ -1,0 +1,101 @@
+/* Settings panel under the gear — same shape and weight as the notifications
+   panel (NotificationsDropdown.css), so the two header panels read as a pair. */
+.sd-panel {
+  position: relative;
+  width: min(300px, calc(100vw - 24px));
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(232, 176, 75, 0.28);
+  background: #141a19;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.55);
+  color: #fff;
+  text-align: left;
+}
+.sd-caret {
+  position: absolute;
+  top: -7px;
+  width: 12px;
+  height: 12px;
+  transform: rotate(45deg);
+  background: #141a19;
+  border-left: 1px solid rgba(232, 176, 75, 0.28);
+  border-top: 1px solid rgba(232, 176, 75, 0.28);
+}
+
+.sd-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 2px 4px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.sd-title {
+  margin: 0;
+  font-family: var(--mv-font-display, 'Cinzel', serif);
+  font-size: 15px;
+  color: var(--mv-gold, #e8b04b);
+}
+.sd-who {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.45);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 48%;
+}
+
+.sd-group {
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.sd-group:last-child { border-bottom: 0; padding-bottom: 2px; }
+
+.sd-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  font-size: 14px;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.sd-row:hover { background: rgba(255, 255, 255, 0.07); }
+.sd-ico { font-size: 16px; width: 20px; text-align: center; flex-shrink: 0; }
+.sd-label { flex: 1; }
+.sd-chev { color: rgba(255, 255, 255, 0.35); font-size: 17px; }
+.sd-row--danger { color: #ff8a80; }
+.sd-row--danger:hover { background: rgba(231, 76, 60, 0.16); }
+
+/* Toggle: a switch rather than a tick, so its state is readable at a glance. */
+.sd-switch {
+  position: relative;
+  width: 38px;
+  height: 22px;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  transition: background 0.15s ease;
+}
+.sd-switch > span {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.15s ease;
+}
+.sd-switch.is-on { background: rgba(61, 220, 132, 0.55); }
+.sd-switch.is-on > span { transform: translateX(16px); }
+
+@media (prefers-reduced-motion: reduce) {
+  .sd-switch, .sd-switch > span { transition: none; }
+}

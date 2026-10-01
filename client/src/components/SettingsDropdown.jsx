@@ -1,121 +1,126 @@
-import { useState, useEffect } from 'react';
-import { useTheme, PALETTE } from '../theme';
-import { DefaultPreview, PixelPreview } from './AppearanceSection';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { clearToken, getCachedUser } from '../auth';
+import * as audio from '../audio';
+import './SettingsDropdown.css';
 
-export default function SettingsDropdown({ user, onClose, onLogout }) {
-  const { theme, color, study, applyTheme } = useTheme();
-  const [soundEnabled, setSoundEnabled] = useState(true);
-  const [musicEnabled, setMusicEnabled] = useState(true);
+/**
+ * Settings as a panel under the gear, the way notifications sit under the bell.
+ *
+ * The things people actually open settings for — sound, music, and the way out
+ * — are here and take effect immediately. Everything else (account detail, the
+ * toggles that are still coming) stays on the full /settings page, one tap
+ * away, rather than being duplicated into a menu this size.
+ */
+export default function SettingsDropdown({ onClose }) {
+  const panelRef = useRef(null);
+  const [caretX, setCaretX] = useState(null);
+  const user = getCachedUser();
 
-  useEffect(() => {
-    // Load saved settings from localStorage
-    const savedSound = localStorage.getItem('medvale_sound') !== 'false';
-    const savedMusic = localStorage.getItem('medvale_music') !== 'false';
-    setSoundEnabled(savedSound);
-    setMusicEnabled(savedMusic);
+  const [soundOn, setSoundOn] = useState(() => {
+    try { return localStorage.getItem('medvale_sound') !== 'false'; } catch { return true; }
+  });
+  const [musicOn, setMusicOn] = useState(() => {
+    try { return localStorage.getItem('medvale_music') !== 'false'; } catch { return true; }
+  });
+
+  // Same caret placement as the notifications panel: pointed at whichever
+  // button opened it, wherever that button sits at this width.
+  useLayoutEffect(() => {
+    const panel = panelRef.current;
+    const btn = panel?.closest('.settings-wrapper, .dn-drop-wrap, .friends-dropdown-wrapper')?.querySelector('button');
+    if (!panel || !btn) return;
+    const place = () => {
+      const b = btn.getBoundingClientRect();
+      const p = panel.getBoundingClientRect();
+      setCaretX(Math.max(18, Math.min(p.width - 18, b.left + b.width / 2 - p.left)));
+    };
+    place();
+    window.addEventListener('resize', place);
+    return () => window.removeEventListener('resize', place);
   }, []);
 
+  // Escape closes, like every other panel in the header.
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
   const toggleSound = () => {
-    const newValue = !soundEnabled;
-    setSoundEnabled(newValue);
-    localStorage.setItem('medvale_sound', newValue);
+    setSoundOn(v => {
+      const next = !v;
+      try { localStorage.setItem('medvale_sound', String(next)); } catch { /* private mode */ }
+      return next;
+    });
   };
-
   const toggleMusic = () => {
-    const newValue = !musicEnabled;
-    setMusicEnabled(newValue);
-    localStorage.setItem('medvale_music', newValue);
+    setMusicOn(v => {
+      const next = !v;
+      try { localStorage.setItem('medvale_music', String(next)); } catch { /* private mode */ }
+      // Silence whatever is playing right now; the next screen reads the flag.
+      if (!next) audio.stopBgMusic?.();
+      return next;
+    });
   };
 
-  const settingToggle = (label, value, onChange) => (
-    <div className="settings-row">
-      <span className="settings-row-label">{label}</span>
-      <div
-        className={`settings-toggle ${value ? 'settings-toggle--on' : 'settings-toggle--off'}`}
-        onClick={onChange}
-      >
-        <div className="settings-toggle-knob" />
-      </div>
-    </div>
-  );
+  const go = (href) => { onClose?.(); window.location.href = href; };
+
+  const logout = () => {
+    if (!window.confirm('Log out of Medvale?')) return;
+    clearToken();
+    window.location.href = '/';
+  };
 
   return (
-    <div className="dropdown-panel dropdown-panel--settings">
-      <div className="dropdown-panel-header">
-        <h3 className="dropdown-panel-title">⚙️ Settings</h3>
-        <button className="dropdown-close-btn" onClick={onClose}>✕</button>
+    <div className="sd-panel mv-plain" ref={panelRef} role="dialog" aria-label="Settings">
+      <span className="sd-caret" style={caretX != null ? { left: caretX } : undefined} aria-hidden="true" />
+
+      <div className="sd-head">
+        <h3 className="sd-title">Settings</h3>
+        {user?.username && <span className="sd-who">{user.username}</span>}
       </div>
 
-      <div className="dropdown-panel-content">
+      <div className="sd-group">
+        <button type="button" className="sd-row sd-row--toggle" onClick={toggleSound} aria-pressed={soundOn}>
+          <span className="sd-ico" aria-hidden="true">{soundOn ? '🔊' : '🔇'}</span>
+          <span className="sd-label">Sound effects</span>
+          <span className={`sd-switch${soundOn ? ' is-on' : ''}`} aria-hidden="true"><span /></span>
+        </button>
+        <button type="button" className="sd-row sd-row--toggle" onClick={toggleMusic} aria-pressed={musicOn}>
+          <span className="sd-ico" aria-hidden="true">{musicOn ? '🎵' : '🔕'}</span>
+          <span className="sd-label">Background music</span>
+          <span className={`sd-switch${musicOn ? ' is-on' : ''}`} aria-hidden="true"><span /></span>
+        </button>
+      </div>
 
-        <div className="settings-section">
-          <p className="settings-section-label">APPEARANCE</p>
+      <div className="sd-group">
+        <button type="button" className="sd-row" onClick={() => go('/stats')}>
+          <span className="sd-ico" aria-hidden="true">📈</span>
+          <span className="sd-label">My stats</span>
+          <span className="sd-chev" aria-hidden="true">›</span>
+        </button>
+        <button type="button" className="sd-row" onClick={() => go('/activity')}>
+          <span className="sd-ico" aria-hidden="true">🗓️</span>
+          <span className="sd-label">Daily activity</span>
+          <span className="sd-chev" aria-hidden="true">›</span>
+        </button>
+        <button type="button" className="sd-row" onClick={() => go('/guide')}>
+          <span className="sd-ico" aria-hidden="true">📖</span>
+          <span className="sd-label">Guide</span>
+          <span className="sd-chev" aria-hidden="true">›</span>
+        </button>
+        <button type="button" className="sd-row" onClick={() => go('/settings')}>
+          <span className="sd-ico" aria-hidden="true">⚙️</span>
+          <span className="sd-label">All settings</span>
+          <span className="sd-chev" aria-hidden="true">›</span>
+        </button>
+      </div>
 
-          <div className="settings-themes">
-            {[
-              { id: 'default', name: 'Default', Preview: DefaultPreview },
-              { id: 'pixel',   name: 'Pixel Art', Preview: PixelPreview  },
-            ].map(({ id, name, Preview }) => (
-              <button
-                key={id}
-                className={`settings-theme-card ${theme === id ? 'settings-theme-card--active' : ''}`}
-                onClick={() => applyTheme(id, color)}
-              >
-                {theme === id && <div className="settings-theme-check">✓</div>}
-                <Preview color={color} />
-                <div className="settings-theme-name">{name}</div>
-              </button>
-            ))}
-          </div>
-
-          <div className="settings-colors">
-            {PALETTE.map(p => (
-              <button
-                key={p.id}
-                className={`settings-color-dot ${color === p.id ? 'settings-color-dot--active' : ''}`}
-                style={{ '--c': p.hex }}
-                onClick={() => applyTheme(theme, p.id)}
-                title={p.label}
-              >
-                <div className="settings-color-inner" />
-              </button>
-            ))}
-          </div>
-
-          {settingToggle('Study Mode (light answers)', study, () => applyTheme(theme, color, !study))}
-        </div>
-
-        <div className="settings-section">
-          <p className="settings-section-label">AUDIO</p>
-          {settingToggle('Sound Effects', soundEnabled, toggleSound)}
-          {settingToggle('Background Music', musicEnabled, toggleMusic)}
-        </div>
-
-        <div className="settings-section">
-          <p className="settings-section-label">ACCOUNT</p>
-          <div className="settings-row">
-            <span className="settings-row-label">{user?.username || 'Player'}</span>
-            <span className="settings-row-value">Level {user?.level || 1}</span>
-          </div>
-          <button
-            className="settings-link-btn"
-            onClick={() => { window.location.href = '/guide'; }}
-          >
-            📖 View Guide
-          </button>
-          <button
-            className="settings-danger-btn"
-            onClick={() => {
-              if(window.confirm('Sign out?')) {
-                onClose();
-                if (onLogout) onLogout();
-              }
-            }}
-          >
-            Sign Out
-          </button>
-        </div>
-
+      <div className="sd-group">
+        <button type="button" className="sd-row sd-row--danger" onClick={logout}>
+          <span className="sd-ico" aria-hidden="true">🚪</span>
+          <span className="sd-label">Log out</span>
+        </button>
       </div>
     </div>
   );

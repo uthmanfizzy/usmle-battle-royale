@@ -887,3 +887,14 @@
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
+
+/* ORE / LDS — the dental bank's own colour, alongside the blue and green ones. */
+.ms-journey-card--teal {
+  border-color: #0f9aad;
+  box-shadow: 0 0 18px rgba(0, 150, 170, 0.2);
+}
+.ms-journey-card--teal:hover { box-shadow: 0 0 28px rgba(0, 150, 170, 0.45); }
+.ms-journey-card--teal .ms-journey-name { color: #6fd8e4; }
+.ms-journey-card--teal .ms-journey-art {
+  background: linear-gradient(150deg, rgba(0, 150, 170, 0.55), rgba(0, 90, 110, 0.4));
+}

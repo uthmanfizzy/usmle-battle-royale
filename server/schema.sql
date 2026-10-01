@@ -1267,3 +1267,7 @@ ALTER TABLE activity_sessions ADD COLUMN IF NOT EXISTS client_run_id TEXT;
 CREATE UNIQUE INDEX IF NOT EXISTS idx_activity_sessions_run
   ON activity_sessions (user_id, client_run_id)
   WHERE client_run_id IS NOT NULL;
+
+-- The course a student picked at signup: 'medicine' (default behaviour) or
+-- 'dentistry', which swaps Story Mode's board-exam campaigns for ORE/LDS.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS course TEXT;

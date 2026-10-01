@@ -21,6 +21,11 @@ export default function UsernameSetupPage() {
   const [available, setAvailable] = useState(null); // null | true | false
   const [loading,   setLoading]   = useState(false);
   const [error,     setError]     = useState('');
+  // Two steps on one page: pick a name, then say which course you are on.
+  // Asked here because it is the only screen a brand-new account must pass
+  // through, and it decides what Story Mode offers from the first visit.
+  const [step,      setStep]      = useState('username'); // 'username' | 'course'
+  const [course,    setCourse]    = useState(null);
 
   useEffect(() => {
     if (!getToken()) { window.location.href = '/'; return; }
@@ -66,20 +71,73 @@ export default function UsernameSetupPage() {
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error || 'Failed to set username.'); setLoading(false); return; }
-      // Brand-new account's first navigation: land on the Guide once, with a
-      // Continue button back to the dashboard. This page only runs pre-username,
-      // so it can never re-fire for an existing account.
-      window.location.href = '/guide?onboarding=1';
+      setLoading(false);
+      setStep('course');
     } catch {
       setError('Network error. Please try again.');
       setLoading(false);
     }
   }
 
+  async function chooseCourse(value) {
+    if (loading) return;
+    setCourse(value);
+    setLoading(true);
+    setError('');
+    try {
+      // A failure here must not strand a new account on this screen: the course
+      // only changes which campaigns are offered, and it can be set later from
+      // Settings, so the signup continues either way.
+      await authFetch('/auth/course', { method: 'PUT', body: JSON.stringify({ course: value }) });
+    } catch { /* continue regardless */ }
+    // Brand-new account's first navigation: land on the Guide once, with a
+    // Continue button back to the dashboard.
+    window.location.href = '/guide?onboarding=1';
+  }
+
   if (!user) {
     return (
       <div className="usp-screen">
         <div className="spinner" style={{ width: 52, height: 52 }} />
+      </div>
+    );
+  }
+
+  if (step === 'course') {
+    return (
+      <div className="usp-screen">
+        <div className="usp-card">
+          <h1 className="usp-title">What are you studying?</h1>
+          <p className="usp-sub">
+            This sets which exams Medvale offers you. You can change it later in Settings.
+          </p>
+
+          <div className="usp-courses">
+            <button
+              type="button"
+              className={`usp-course${course === 'medicine' ? ' is-on' : ''}`}
+              onClick={() => chooseCourse('medicine')}
+              disabled={loading}
+            >
+              <span className="usp-course-icon" aria-hidden="true">🩺</span>
+              <span className="usp-course-name">Medicine</span>
+              <span className="usp-course-sub">USMLE, SMLE and the First Aid journey</span>
+            </button>
+
+            <button
+              type="button"
+              className={`usp-course${course === 'dentistry' ? ' is-on' : ''}`}
+              onClick={() => chooseCourse('dentistry')}
+              disabled={loading}
+            >
+              <span className="usp-course-icon" aria-hidden="true">🦷</span>
+              <span className="usp-course-name">Dentistry</span>
+              <span className="usp-course-sub">ORE / LDS exam preparation</span>
+            </button>
+          </div>
+
+          {loading && <p className="usp-status usp-status-chk">Saving…</p>}
+        </div>
       </div>
     );
   }

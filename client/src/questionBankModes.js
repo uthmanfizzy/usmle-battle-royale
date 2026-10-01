@@ -44,6 +44,19 @@ export const QUESTION_BANK_MODES = [
     // and grows as questions are added.
     targetTotal: null,
   },
+  {
+    id: 'ore_lds',
+    label: 'ORE / LDS',
+    icon: '🦷',
+    route: '/ore-lds',
+    tagline: 'Work the ORE and LDS dental bank down, at your own pace.',
+    paceScope: '__ore_lds__',
+    accentRgb: '0, 150, 170',    // dental teal
+    activityMode: 'ore_lds_practice',
+    // No published total yet: the plan tracks the live count and grows as
+    // questions are added, the way Saudi MLE started.
+    targetTotal: null,
+  },
 ];
 
 export const DEFAULT_QUESTION_BANK_MODE = QUESTION_BANK_MODES[0];

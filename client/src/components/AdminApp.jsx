@@ -51,6 +51,7 @@ const GAME_MODES = [
 // The game_modes tag and its matching special folder id are the SAME string;
 // keeping one constant makes the folder/tag pairing impossible to desync.
 const UWORLD_MODE = 'uworld_adventure';
+const ORE_LDS_MODE = 'ore_lds';
 const SAUDI_MLE_MODE = 'saudi_mle';
 // Folders that scope by game_modes TAG rather than by subject/category.
 // Anything true of one is true of the other, so they are listed once here
@@ -10806,6 +10807,7 @@ const ADMIN_GAMES = [
   { id: 'uworld',       icon: '🌍', label: 'UWorld Adventure' },
   { id: 'anking',       icon: '🃏', label: 'AnKing' },
   { id: 'tower',        icon: '🏰', label: 'Tower' },
+  { id: 'ore_lds',      icon: '🦷', label: 'ORE / LDS' },
 ];
 const ADMIN_GAME_KEY = 'mr_admin_game';
 
@@ -10904,6 +10906,15 @@ function GamesPanel({ subjects }) {
             <QuestionBankSubjectsPanel modeId={UWORLD_MODE} modeLabel="UWorld Adventure" subjects={subjects} />
             <QuestionBankImagesPanel modeId={UWORLD_MODE} modeLabel="UWorld Adventure" subjects={subjects} />
             <QuestionsPanel subjects={subjects} scopeTag={UWORLD_MODE} />
+          </ErrorBoundary>
+        )}
+        {/* The dental bank: the same question-bank machine as UWorld and SMLE,
+            pointed at its own tag. Shown to students whose course is Dentistry. */}
+        {game === 'ore_lds'      && (
+          <ErrorBoundary>
+            <QuestionBankSubjectsPanel modeId={ORE_LDS_MODE} modeLabel="ORE / LDS" subjects={subjects} />
+            <QuestionBankImagesPanel modeId={ORE_LDS_MODE} modeLabel="ORE / LDS" subjects={subjects} />
+            <QuestionsPanel subjects={subjects} scopeTag={ORE_LDS_MODE} />
           </ErrorBoundary>
         )}
         {game === 'anking'       && <AnKingAdmin />}

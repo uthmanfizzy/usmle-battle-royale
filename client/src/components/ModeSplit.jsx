@@ -110,7 +110,13 @@ export default function ModeSplit({ onStory, onOnline, onTraining, onBack }) {
 // card). The Tower campaign was removed from this list — TowerMode.jsx and its
 // App.jsx phase/route are untouched (unreachable, not deleted) in case it
 // comes back.
-export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld, onSaudiMLE }) {
+export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld, onSaudiMLE, course }) {
+  // Dentistry students get the ORE/LDS bank in place of the medical licensing
+  // ones; everything else (First Aid, flashcards) is shared, so their menu is
+  // the same list with the board-exam campaign swapped. Medicine — and anyone
+  // who signed up before the question existed — sees exactly what it always
+  // showed.
+  const isDentistry = String(course || '').toLowerCase() === 'dentistry';
   // Whether the Flashcards deck list is expanded. Local — nothing outside this
   // menu cares which category is open.
   const [flashOpen, setFlashOpen] = useState(false);
@@ -193,6 +199,21 @@ export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld, onSaudiMLE })
             phase, so onUWorld navigates rather than setting phase; the card
             stays presentational either way. Last in the list — every entry
             here is a playable mode now. */}
+        {isDentistry && (
+          <button className="ms-journey-card ms-journey-card--teal" onClick={() => { window.location.href = '/ore-lds'; }}>
+            <div className="ms-journey-art" aria-hidden="true">
+              <span className="ms-journey-art-icon">🦷</span>
+            </div>
+            <div className="ms-journey-body">
+              <span className="ms-journey-name">ORE / LDS EXAM</span>
+              <span className="ms-journey-sub">
+                Work the ORE and LDS dental bank down, at your own pace.
+              </span>
+            </div>
+          </button>
+        )}
+
+        {!isDentistry && (
         <button className="ms-journey-card ms-journey-card--blue" onClick={onUWorld}>
           <div className="ms-journey-art" aria-hidden="true">
             <span className="ms-journey-art-icon">📊</span>
@@ -205,8 +226,11 @@ export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld, onSaudiMLE })
           </div>
         </button>
 
+        )}
+
         {/* The same question-bank machine pointed at the Saudi MLE pool — its
             own route, pace and colours, sharing one component. */}
+        {!isDentistry && (
         <button className="ms-journey-card ms-journey-card--green" onClick={onSaudiMLE}>
           <div className="ms-journey-art" aria-hidden="true">
             <span className="ms-journey-art-icon">📗</span>
@@ -218,6 +242,7 @@ export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld, onSaudiMLE })
             </span>
           </div>
         </button>
+        )}
       </div>
     </div>
   );

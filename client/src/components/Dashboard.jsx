@@ -3,6 +3,8 @@ import { fetchMe, authFetch } from '../auth';
 import FriendsPage from './FriendsPage';
 import ProfileModal, { formatStudyTime } from './ProfileModal';
 import NotificationsDropdown from './NotificationsDropdown';
+import SettingsDropdown from './SettingsDropdown';
+import FriendsPanel from './FriendsPanel';
 import { SwordsGlyph, TrophyGlyph, GroupGlyph, PlayRingGlyph } from './HomeGlyphs';
 import UsernameChangeModal from './UsernameChangeModal';
 import { cachedImageMap, rememberImageMap, isImageReady } from '../utils/cachedImages';
@@ -888,8 +890,20 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
   const [welcomeAnn,   setWelcomeAnn]   = useState(null);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showFriendsPanel, setShowFriendsPanel] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const friendsDropdownRef = useRef(null);
   const notifDropdownRef = useRef(null);
+  const settingsDropdownRef = useRef(null);
+
+  // Settings closes on an outside click, exactly as the other two panels do.
+  useEffect(() => {
+    if (!showSettings) return undefined;
+    const close = (e) => {
+      if (settingsDropdownRef.current && !settingsDropdownRef.current.contains(e.target)) setShowSettings(false);
+    };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [showSettings]);
   // Seeded from the last-known image URLs so a refresh paints the art at once
   // instead of flashing empty until /api/home-images answers (utils/cachedImages).
   const [bgUrl,        setBgUrl]        = useState(() => cachedImageMap('home').dashboard_bg || null);
@@ -1191,10 +1205,10 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
               {/* 2. FRIENDS - middle on mobile */}
               <div className="friends-dropdown-wrapper" ref={friendsDropdownRef}>
                 <button
-                  className={`header-icon-bubble friends-btn${dashTab === 'friends' ? ' is-active' : ''}`}
-                  onClick={() => { setShowNotifications(false); setDashTab(t => (t === 'friends' ? 'home' : 'friends')); }}
+                  className={`header-icon-bubble friends-btn${showFriendsPanel ? ' is-active' : ''}`}
+                  onClick={() => { setShowNotifications(false); setShowSettings(false); setShowFriendsPanel(v => !v); }}
                   title="Friends"
-                  aria-pressed={dashTab === 'friends'}
+                  aria-pressed={showFriendsPanel}
                 >
                   {homeImages.icon_friends ? (
                     <img src={homeImages.icon_friends} alt="Friends" className="header-icon-img" />
@@ -1203,14 +1217,26 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
                   )}
                 </button>
 
+                {showFriendsPanel && (
+                  <div className="friends-dropdown">
+                    <FriendsPanel
+                      user={user}
+                      onClose={() => setShowFriendsPanel(false)}
+                      onInviteToGame={() => setShowFriendsPanel(false)}
+                      isDropdown
+                    />
+                  </div>
+                )}
               </div>
 
-              {/* 3. SETTINGS - bottom on mobile. Navigates to the standalone
-                  /settings page (the old SettingsDropdown is retired). */}
+              {/* 3. SETTINGS - bottom on mobile. A panel under the gear, the
+                  same shape as notifications; the full page is one tap on. */}
+              <div className="friends-dropdown-wrapper settings-wrapper" ref={settingsDropdownRef}>
               <button
-                className="header-icon-bubble settings-btn"
-                onClick={() => { window.location.href = '/settings'; }}
+                className={`header-icon-bubble settings-btn${showSettings ? ' is-active' : ''}`}
+                onClick={() => { setShowNotifications(false); setShowFriendsPanel(false); setShowSettings(v => !v); }}
                 title="Settings"
+                aria-pressed={showSettings}
               >
                 {homeImages.icon_settings ? (
                   <img
@@ -1224,6 +1250,13 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
                   <span>⚙️</span>
                 )}
               </button>
+
+              {showSettings && (
+                <div className="friends-dropdown friends-dropdown--left settings-dropdown">
+                  <SettingsDropdown onClose={() => setShowSettings(false)} />
+                </div>
+              )}
+              </div>
             </div>
           </div>
         </div>

@@ -2844,7 +2844,7 @@ const UWORLD_MODE_JSON = JSON.stringify([UWORLD_MODE]);
 // Whitelisted, never passed through: this string goes straight into a
 // game_modes containment filter, so an arbitrary one from the query would let a
 // caller scope these endpoints to any tag they liked.
-const QUESTION_BANK_MODE_IDS = ['uworld_adventure', 'saudi_mle'];
+const QUESTION_BANK_MODE_IDS = ['uworld_adventure', 'saudi_mle', 'ore_lds'];
 
 function modeTagFrom(req) {
   const m = (req.query.mode || '').toString();
@@ -2872,6 +2872,7 @@ function bankSubjectAllowList(modeId) {
 const QUESTION_BANK_ACTIVITY_MODE = {
   uworld_adventure: 'question_bank_practice',
   saudi_mle:        'saudi_mle_practice',
+  ore_lds:          'ore_lds_practice',
 };
 
 // Self-assessment buckets a UWorld Adventure question can be rated into after
@@ -4856,6 +4857,25 @@ app.get('/auth/google/callback', (req, res) => {
   })(req, res);
 });
 
+const COURSES = ['medicine', 'dentistry'];
+
+app.put('/auth/course', requireAuth, async (req, res) => {
+  const course = (req.body?.course ?? '').toString().trim().toLowerCase();
+  if (!COURSES.includes(course)) {
+    return res.status(400).json({ error: `course must be one of: ${COURSES.join(', ')}` });
+  }
+  if (!supabase) return res.status(503).json({ error: 'Database not configured.' });
+  try {
+    const { data, error } = await supabase
+      .from('users').update({ course }).eq('id', req.userId).select('id, course').single();
+    if (error) throw error;
+    res.json({ ok: true, course: data.course });
+  } catch (e) {
+    console.error('[/auth/course] failed —', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.get('/auth/me', requireAuth, async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Database not configured.' });
   try {
@@ -5503,6 +5523,7 @@ app.post('/api/question-bank-session', requireAuth, async (req, res) => {
  */
 const STUDY_SESSION_MODES = new Set([
   'solo', 'training_grounds', 'journey', 'question_bank_practice', 'saudi_mle_practice',
+  'ore_lds_practice',
 ]);
 
 app.post('/api/study-session', requireAuth, async (req, res) => {

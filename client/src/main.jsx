@@ -137,6 +137,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
                 {/* Same component, different bank: the mode carries the tag it
                     filters on, the pace it plans and the colours it wears. */}
                 <Route path="/saudi-mle" element={<RouteErrorBoundary name="SaudiMLE"><UWorldAdventure mode={questionBankMode('saudi_mle')} /></RouteErrorBoundary>} />
+                <Route path="/ore-lds" element={<RouteErrorBoundary name="OreLds"><UWorldAdventure mode={questionBankMode('ore_lds')} /></RouteErrorBoundary>} />
                 <Route path="/hy-flashcards" element={<RouteErrorBoundary name="HYFlashcards"><HYFlashcards /></RouteErrorBoundary>} />
                 <Route path="/reels"          element={<RouteErrorBoundary name="ReelsPage"><ReelsPage /></RouteErrorBoundary>} />
                 <Route path="/username-setup" element={<UsernameSetupPage />} />
