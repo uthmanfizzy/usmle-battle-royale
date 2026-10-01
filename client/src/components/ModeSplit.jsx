@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { cachedImageMap, rememberImageMap } from '../utils/cachedImages';
+import { authFetch, getCachedUser, setCachedUser } from '../auth';
 import './ModeSplit.css';
 import './ChooseYourPath.css';
 
@@ -116,7 +117,32 @@ export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld, onSaudiMLE, c
   // the same list with the board-exam campaign swapped. Medicine — and anyone
   // who signed up before the question existed — sees exactly what it always
   // showed.
-  const isDentistry = String(course || '').toLowerCase() === 'dentistry';
+  // Switchable here as well as at signup: students do change course, and a
+  // dentist who wants a look at the medical banks should not have to go
+  // hunting through Settings for it. Starts from the account, falls back to
+  // the cached user so the toggle is right on a cold load of this screen.
+  const [chosen, setChosen] = useState(
+    () => String(course || getCachedUser()?.course || 'medicine').toLowerCase(),
+  );
+  // A later /auth/me (App refreshes the user) is authoritative.
+  useEffect(() => {
+    if (course) setChosen(String(course).toLowerCase());
+  }, [course]);
+
+  const isDentistry = chosen === 'dentistry';
+
+  function switchCourse(next) {
+    if (next === chosen) return;
+    setChosen(next);
+    // Remembered on the account, so the choice holds on every other device and
+    // on the next visit. Optimistic: the menu has already switched, and a
+    // failed save only means it reverts on the next full refresh.
+    const cached = getCachedUser();
+    if (cached) setCachedUser({ ...cached, course: next });
+    authFetch('/auth/course', { method: 'PUT', body: JSON.stringify({ course: next }) })
+      .catch(() => {});
+  }
+
   // Whether the Flashcards deck list is expanded. Local — nothing outside this
   // menu cares which category is open.
   const [flashOpen, setFlashOpen] = useState(false);
@@ -129,6 +155,26 @@ export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld, onSaudiMLE, c
         <h1 className="ms-title">📖 STORY MODE</h1>
         <p className="ms-tagline">Choose your campaign.</p>
         <div className="ms-title-rule" />
+
+        {/* Which set of board-exam campaigns this menu offers. */}
+        <div className="ms-course" role="group" aria-label="Course">
+          <button
+            type="button"
+            className={`ms-course-btn${!isDentistry ? ' is-on' : ''}`}
+            aria-pressed={!isDentistry}
+            onClick={() => switchCourse('medicine')}
+          >
+            <span aria-hidden="true">🩺</span> Medicine
+          </button>
+          <button
+            type="button"
+            className={`ms-course-btn${isDentistry ? ' is-on' : ''}`}
+            aria-pressed={isDentistry}
+            onClick={() => switchCourse('dentistry')}
+          >
+            <span aria-hidden="true">🦷</span> Dentistry
+          </button>
+        </div>
       </div>
 
       {/* All four campaigns share the ms-journey-card layout so they read as

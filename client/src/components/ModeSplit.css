@@ -898,3 +898,40 @@
 .ms-journey-card--teal .ms-journey-art {
   background: linear-gradient(150deg, rgba(0, 150, 170, 0.55), rgba(0, 90, 110, 0.4));
 }
+
+/* Course switch in the Story Mode banner: which board-exam campaigns show. */
+.ms-course {
+  display: inline-flex;
+  gap: 4px;
+  margin-top: 16px;
+  padding: 4px;
+  border-radius: 999px;
+  border: 1px solid rgba(232, 176, 75, 0.3);
+  background: rgba(0, 0, 0, 0.35);
+}
+.ms-course-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 18px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.6);
+  font-family: var(--mv-font-display, 'Cinzel', serif);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: background 0.14s ease, color 0.14s ease;
+}
+.ms-course-btn:hover { color: #fff; background: rgba(255, 255, 255, 0.08); }
+.ms-course-btn.is-on {
+  background: rgba(232, 176, 75, 0.2);
+  color: var(--mv-gold, #e8b04b);
+  box-shadow: inset 0 0 0 1px rgba(232, 176, 75, 0.5);
+}
+@media (max-width: 560px) {
+  .ms-course { width: 100%; justify-content: center; }
+  .ms-course-btn { flex: 1; justify-content: center; padding: 9px 10px; }
+}
