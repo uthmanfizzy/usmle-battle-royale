@@ -1982,6 +1982,16 @@ function QuestionBankSubjectsPanel({ modeId, modeLabel, subjects }) {
 }
 
 function QuestionsPanel({ subjects = [], scopeTag = null }) {
+  // The category rail folds away to give the question list the whole width —
+  // question text, options and explanations are what this screen is for.
+  const [sideOpen, setSideOpen] = useState(() => {
+    try { return localStorage.getItem('mr_admin_qm_side') !== 'closed'; } catch { return true; }
+  });
+  const toggleSide = () => setSideOpen(v => {
+    const next = !v;
+    try { localStorage.setItem('mr_admin_qm_side', next ? 'open' : 'closed'); } catch { /* private mode */ }
+    return next;
+  });
   // ─── Data ────────────────────────────────────────────────────────────────────
   const [questions,     setQuestions]     = useState([]);
   const [loading,       setLoading]       = useState(true);
@@ -2819,11 +2829,22 @@ function QuestionsPanel({ subjects = [], scopeTag = null }) {
           </div>
         </div>
       )}
-      <div className="ap-qm-layout">
+      <div className={`ap-qm-layout${sideOpen ? '' : ' ap-qm-layout--wide'}`}>
 
         {/* ── Folder Sidebar ───────────────────────────────────────── */}
-        <aside className="ap-sidebar">
-          <div className="ap-sidebar-title">Categories</div>
+        <aside className={`ap-sidebar${sideOpen ? '' : ' ap-sidebar--closed'}`}>
+          <div className="ap-sidebar-head">
+            <span className="ap-sidebar-title">Categories</span>
+            <button
+              type="button"
+              className="ap-sidebar-toggle"
+              onClick={toggleSide}
+              title={sideOpen ? 'Hide categories' : 'Show categories'}
+              aria-expanded={sideOpen}
+            >
+              {sideOpen ? '⟨' : '⟩'}
+            </button>
+          </div>
 
           {/* Active subjects */}
           {(() => {

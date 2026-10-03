@@ -5998,3 +5998,42 @@
   cursor: pointer;
 }
 .sj-merge-btn:hover { background: rgba(255, 255, 255, 0.16); }
+
+/* ── Collapsible category rail (Question Manager) ────────────────────────
+   Closed, the sidebar keeps just its reopen handle so the question list gets
+   the full width; the handle stays visible so it can never be lost. */
+.ap-sidebar-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 4px 4px 8px 10px;
+}
+.ap-sidebar-head .ap-sidebar-title { padding: 0; }
+.ap-sidebar-toggle {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.06);
+  color: inherit;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+.ap-sidebar-toggle:hover { background: rgba(255, 255, 255, 0.16); }
+.ap-sidebar--closed {
+  width: 40px !important;
+  padding: 12px 6px;
+  overflow: hidden;
+}
+.ap-sidebar--closed .ap-sidebar-head { justify-content: center; padding: 0; }
+.ap-sidebar--closed .ap-sidebar-title { display: none; }
+/* Everything below the head is the list itself. */
+.ap-sidebar--closed > *:not(.ap-sidebar-head) { display: none; }
+
+@media (max-width: 900px) {
+  .ap-sidebar--closed { width: 100% !important; }
+  .ap-sidebar--closed .ap-sidebar-head { justify-content: flex-end; }
+}
