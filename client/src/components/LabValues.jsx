@@ -16,10 +16,10 @@ function readExam() {
 export default function LabValues({ onClose, questionText = '' }) {
   const [exam, setExam] = useState(readExam);
   const [query, setQuery] = useState('');
-  // 'question' = only what this stem mentions, 'all' = the whole sheet. The
-  // question's own values are the point of opening this mid-game, so they are
-  // what opens — but only when the stem actually names something, otherwise
-  // the panel would open on an empty list.
+  // The tab row is three-way: USMLE and PLAB are unit systems showing the whole
+  // sheet, "This question" is the same sheet filtered to what the stem names.
+  // Exactly one is active, so there is never a question about what is on screen;
+  // the question tab uses whichever unit system was last chosen.
   const [scope, setScope] = useState('question');
 
   // Draggable panel (desktop). On mobile CSS pins it as a bottom sheet.
@@ -99,42 +99,33 @@ export default function LabValues({ onClose, questionText = '' }) {
       </div>
 
       <div className="lab-controls">
-        <div className="lab-toggle" role="tablist" aria-label="Exam">
+        <div className="lab-toggle" role="tablist" aria-label="Values shown">
           {EXAMS.map((ex) => (
             <button
               key={ex}
               role="tab"
-              aria-selected={exam === ex}
-              className={`lab-toggle-btn ${exam === ex ? 'active' : ''}`}
-              onClick={() => setExam(ex)}
+              aria-selected={effectiveScope === 'all' && exam === ex}
+              className={`lab-toggle-btn ${effectiveScope === 'all' && exam === ex ? 'active' : ''}`}
+              onClick={() => { setExam(ex); setScope('all'); }}
+              title={`All ${ex} reference ranges`}
             >
               {ex}
             </button>
           ))}
+          <button
+            role="tab"
+            aria-selected={effectiveScope === 'question'}
+            className={`lab-toggle-btn lab-toggle-btn--q ${effectiveScope === 'question' ? 'active' : ''}`}
+            onClick={() => { setScope('question'); setQuery(''); }}
+            disabled={mentioned.length === 0}
+            title={mentioned.length
+              ? 'Only the values this question mentions'
+              : 'Nothing in this question has a reference range here'}
+          >
+            🧪 This question
+            {mentioned.length > 0 && <span className="lab-tab-count">{mentioned.length}</span>}
+          </button>
         </div>
-        {mentioned.length > 0 && (
-          <div className="lab-scope" role="tablist" aria-label="Which values">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={effectiveScope === 'question'}
-              className={`lab-scope-btn ${effectiveScope === 'question' ? 'active' : ''}`}
-              onClick={() => { setScope('question'); setQuery(''); }}
-            >
-              In this question <span className="lab-scope-count">{mentioned.length}</span>
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={effectiveScope === 'all'}
-              className={`lab-scope-btn ${effectiveScope === 'all' ? 'active' : ''}`}
-              onClick={() => setScope('all')}
-            >
-              All values
-            </button>
-          </div>
-        )}
-
         <input
           className="lab-search"
           type="text"

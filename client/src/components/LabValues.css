@@ -238,3 +238,14 @@
   background: rgba(255, 255, 255, 0.16);
   font-size: 11px;
 }
+
+/* Third tab: this question's own values, beside the two unit systems. */
+.lab-toggle-btn--q { gap: 6px; white-space: nowrap; }
+.lab-toggle-btn--q:disabled { opacity: 0.4; cursor: default; }
+.lab-tab-count {
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.28);
+  font-size: 11px;
+}
