@@ -1271,3 +1271,15 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_activity_sessions_run
 -- The course a student picked at signup: 'medicine' (default behaviour) or
 -- 'dentistry', which swaps Story Mode's board-exam campaigns for ORE/LDS.
 ALTER TABLE users ADD COLUMN IF NOT EXISTS course TEXT;
+
+-- ── explanation_highlights: the purple swatch ───────────────────────────────
+-- The table was created with a CHECK listing the original four highlight
+-- colours, so saving a purple one fails with
+--   violates check constraint "explanation_highlights_color_check"
+-- Colour is NULL on bold/italic rows, so the constraint has to keep allowing it.
+ALTER TABLE explanation_highlights
+  DROP CONSTRAINT IF EXISTS explanation_highlights_color_check;
+
+ALTER TABLE explanation_highlights
+  ADD CONSTRAINT explanation_highlights_color_check
+  CHECK (color IS NULL OR color IN ('yellow', 'green', 'pink', 'blue', 'purple'));

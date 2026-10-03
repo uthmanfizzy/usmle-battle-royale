@@ -1710,7 +1710,11 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
         setHlError(
           /foreign key/i.test(detail)
             ? 'Highlights aren’t enabled for this question type yet — run the explanation_highlights migration in schema.sql.'
-            : `Couldn’t save highlight — ${detail}`
+            // The database still lists the original four colours; the colour
+            // itself is fine, the constraint just has not been widened yet.
+            : /color_check/i.test(detail)
+              ? 'This colour isn’t allowed by the database yet — run the explanation_highlights colour migration at the end of schema.sql.'
+              : `Couldn’t save highlight — ${detail}`
         );
         setTimeout(() => setHlError(''), 6000);
         return null;
