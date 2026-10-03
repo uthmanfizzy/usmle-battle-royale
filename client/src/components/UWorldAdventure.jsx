@@ -1104,6 +1104,12 @@ export default function UWorldAdventure({ mode = DEFAULT_QUESTION_BANK_MODE }) {
               })()}
               {UWORLD_RATING_PILES.map(p => {
                 const count = ratingCounts ? (ratingCounts[p.key === 'all' ? 'total' : p.key] ?? 0) : 0;
+                // An empty pile is not a choice — it is a dead row that reads as
+                // broken. 'Not Yet Rated' is the usual one: the exam skin makes
+                // you rate a question before it moves on, so it only fills when
+                // a block is abandoned mid-question. Study All stays whatever
+                // its count, since it is the entry point to reviewing at all.
+                if (ratingCounts && count === 0 && p.key !== 'all') return null;
                 const loadingThis = reviewLoading === p.key;
                 const disabled = !ratingCounts || count === 0 || !!reviewLoading;
                 return (
