@@ -3985,3 +3985,50 @@ html[data-study="on"] .solo-body .pause-overlay {
   .opt-col { font-size: 17px; }
   .opt-thead { font-size: 10.5px; padding: 0 10px 5px; letter-spacing: 0.02em; }
 }
+
+/* ── Crossing options out ─────────────────────────────────────────────────
+   Elimination is how these questions are answered. A struck option stays
+   readable (you may change your mind) but is clearly out of the running, and
+   cannot be chosen by accident — the first click on it restores it. */
+.option-btn { position: relative; }
+.opt-cross {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(0, 0, 0, 0.25);
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.12s ease, background 0.12s ease;
+}
+.option-btn:hover .opt-cross,
+.opt-cross:focus-visible { opacity: 1; }
+.opt-cross:hover { background: rgba(231, 76, 60, 0.4); color: #fff; }
+
+/* Struck out: the line is the state, so the control stays visible. */
+.option-btn.is-crossed { opacity: 0.55; }
+.option-btn.is-crossed .opt-text,
+.option-btn.is-crossed .opt-col,
+.option-btn.is-crossed .opt-label {
+  text-decoration: line-through;
+  text-decoration-thickness: 2px;
+  text-decoration-color: rgba(231, 76, 60, 0.9);
+}
+.option-btn.is-crossed .opt-cross { opacity: 1; border-color: rgba(231, 76, 60, 0.6); }
+
+/* Touch has no hover: the control is always there. */
+@media (pointer: coarse) {
+  .opt-cross { opacity: 0.75; width: 32px; height: 32px; font-size: 14px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .opt-cross { transition: none; }
+}

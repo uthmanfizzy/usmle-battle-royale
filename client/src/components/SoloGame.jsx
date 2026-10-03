@@ -402,6 +402,16 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   const [fetchError, setFetchError] = useState('');
   const [showCalculator, setShowCalculator] = useState(false);
   const [showLabValues, setShowLabValues] = useState(false);
+  // Options struck out by hand while working through a question. Elimination
+  // is how these are answered, and holding four maybes in your head is the
+  // part that wastes time. Per question, and never sent anywhere — this is a
+  // working surface, not an answer.
+  const [crossed, setCrossed] = useState(() => new Set());
+  const toggleCrossed = (label) => setCrossed(prev => {
+    const next = new Set(prev);
+    if (next.has(label)) next.delete(label); else next.add(label);
+    return next;
+  });
   const [noQuestionsFound, setNoQuestionsFound] = useState(false);
   const [noQuestionsMessage, setNoQuestionsMessage] = useState('');
 
@@ -1446,6 +1456,9 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   // A new question never inherits a hold from the last one.
   useEffect(() => { setImgArmHold(false); }, [qIdx]);
 
+  // ...nor anyone's crossings-out from it.
+  useEffect(() => { setCrossed(new Set()); }, [qIdx]);
+
   function handleSkip() {
     if (skipTimerRef.current) { clearTimeout(skipTimerRef.current); skipTimerRef.current = null; }
     const fn = skipActionRef.current;
@@ -2198,11 +2211,16 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
               const isRight = revealed && label === q.correct;
               const isWrong = revealed && isMine && label !== q.correct;
               const cells = optionTable?.rows[i];
+              const isCrossed = crossed.has(label);
               return (
                 <button
                   key={i}
-                  className={['option-btn', isMine ? 'selected' : '', isRight ? 'correct' : '', isWrong ? 'wrong' : ''].join(' ')}
-                  onClick={() => processAnswer(label)}
+                  className={['option-btn', isMine ? 'selected' : '', isRight ? 'correct' : '', isWrong ? 'wrong' : '', isCrossed ? 'is-crossed' : ''].join(' ')}
+                  // A struck-out option cannot be answered by accident: the
+                  // first click on one takes the line off again.
+                  onClick={() => (isCrossed ? toggleCrossed(label) : processAnswer(label))}
+                  // Right-click is how this is done in the real thing.
+                  onContextMenu={(e) => { if (!revealed) { e.preventDefault(); toggleCrossed(label); } }}
                   disabled={revealed}
                 >
                   <span className="opt-label">{label}</span>
@@ -2218,6 +2236,28 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
                     ))
                   ) : (
                     <span className="opt-text">{stripLetterPrefix(opt)}</span>
+                  )}
+                  {/* The control, for anyone not reaching for right-click —
+                      and the only way to do it on a phone. */}
+                  {!revealed && (
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      className="opt-cross"
+                      aria-label={`${isCrossed ? 'Restore' : 'Cross out'} option ${label}`}
+                      aria-pressed={isCrossed}
+                      title={isCrossed ? 'Bring this option back' : 'Cross this option out'}
+                      onClick={(e) => { e.stopPropagation(); toggleCrossed(label); }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          toggleCrossed(label);
+                        }
+                      }}
+                    >
+                      {isCrossed ? '↺' : '✕'}
+                    </span>
                   )}
                 </button>
               );
