@@ -2808,27 +2808,6 @@ function QuestionsPanel({ subjects = [], scopeTag = null }) {
 
   return (
     <div className={`ap-questions${scopeTag ? ' ap-uworld' : ''}`}>
-      {/* A scoped tab is a different job from Question Manager — one mode's
-          content, not the whole bank — so it says what it is and wears the
-          mode's own colour rather than looking like a second Question Manager. */}
-      {scopeTag && (
-        <div className="ap-uw-head">
-          <div className="ap-uw-head-main">
-            <span className="ap-uw-head-icon" aria-hidden="true">{scopeFolder?.icon || '🌍'}</span>
-            <div>
-              <h2 className="ap-uw-head-title">{scopeLabel}</h2>
-              <p className="ap-uw-head-sub">
-                Questions tagged <code>{scopeTag}</code>. Players only ever see these here —
-                tagging an existing question adds it, it is never copied.
-              </p>
-            </div>
-          </div>
-          <div className="ap-uw-head-stat">
-            <span className="ap-uw-head-num">{scoped.length}</span>
-            <span className="ap-uw-head-lbl">tagged</span>
-          </div>
-        </div>
-      )}
       <div className={`ap-qm-layout${sideOpen ? '' : ' ap-qm-layout--wide'}`}>
 
         {/* ── Folder Sidebar ───────────────────────────────────────── */}
@@ -3179,7 +3158,13 @@ function QuestionsPanel({ subjects = [], scopeTag = null }) {
                   to name — the full trail would read "Hard Mode › undefined". */}
               {isCatFolder(activeFolder) && scopeTag && (
                 <div className="ap-breadcrumb">
-                  <span className="ap-bc-item">{scopeLabel}</span>
+                  {/* With no Back button here, this IS the way out of a subject:
+                     back to every question in this bank, which is what the mode's
+                     name means in a scoped tab. */}
+                  <span
+                    className="ap-bc-item ap-bc-link"
+                    onClick={() => { setActiveFolder('all'); setSelectedTopic(null); setSearch(''); setGameModeFilter('all'); }}
+                  >{scopeLabel}</span>
                   <span className="ap-bc-sep">›</span>
                   <span className="ap-bc-item ap-bc-cur">{curFolder?.icon} {curFolder?.label}</span>
                 </div>
@@ -3295,7 +3280,7 @@ function QuestionsPanel({ subjects = [], scopeTag = null }) {
 
               <div className="ap-toolbar">
                 <div className="ap-toolbar-left">
-                  {isCatFolder(activeFolder) && (
+                  {isCatFolder(activeFolder) && !scopeTag && (
                     <button className="ap-btn-back" onClick={() => { setView('topics'); setSelectedTopic(null); setSearch(''); setGameModeFilter('all'); }}>
                       ← Back
                     </button>
