@@ -689,21 +689,31 @@ export default function UWorldAdventure({ mode = DEFAULT_QUESTION_BANK_MODE }) {
               a returning student actually wants. */}
           {plannedTotal > 0 && (
             <div className="uwa-hero-stats">
-              <span className="uwa-hstat">
-                <b>{plannedSeen.toLocaleString()}</b>
-                <small>answered</small>
-              </span>
-              <span className="uwa-hstat">
-                <b>{plannedRemaining.toLocaleString()}</b>
-                <small>remaining</small>
-              </span>
-              <span className="uwa-hstat">
-                <b>{plannedTotal.toLocaleString()}</b>
-                <small>in the bank</small>
-              </span>
-              <span className="uwa-hero-bar" aria-hidden="true">
-                <span style={{ width: `${Math.min(100, Math.round((plannedSeen / plannedTotal) * 100))}%` }} />
-              </span>
+              <div className="uwa-hstat-row">
+                <span className="uwa-hstat">
+                  <b>{plannedSeen.toLocaleString()}</b>
+                  <small>Answered</small>
+                </span>
+                <span className="uwa-hstat-div" aria-hidden="true" />
+                <span className="uwa-hstat">
+                  <b>{plannedRemaining.toLocaleString()}</b>
+                  <small>Remaining</small>
+                </span>
+                <span className="uwa-hstat-div" aria-hidden="true" />
+                <span className="uwa-hstat">
+                  <b>{plannedTotal.toLocaleString()}</b>
+                  <small>In the bank</small>
+                </span>
+              </div>
+
+              <div className="uwa-hero-progress">
+                <span className="uwa-hero-bar" aria-hidden="true">
+                  <span style={{ width: `${Math.min(100, Math.round((plannedSeen / plannedTotal) * 100))}%` }} />
+                </span>
+                <span className="uwa-hero-pct">
+                  {Math.min(100, Math.round((plannedSeen / plannedTotal) * 100))}% of the bank answered
+                </span>
+              </div>
             </div>
           )}
         </div>
@@ -737,7 +747,10 @@ export default function UWorldAdventure({ mode = DEFAULT_QUESTION_BANK_MODE }) {
                 </button>
               ))}
               {!PACE_PRESETS.includes(pace) && (
-                <span className="uwa-pace-pick is-on is-custom">{pace}</span>
+                <span className="uwa-pace-pick is-on is-custom" title="Set under Fine-tune your plan">
+                  {pace}
+                  <small>custom</small>
+                </span>
               )}
               <span className="uwa-pace-unit">questions per day</span>
             </div>

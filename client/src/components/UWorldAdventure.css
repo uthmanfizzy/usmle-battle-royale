@@ -1737,3 +1737,168 @@
   .uwa-subject-icon { width: 44px; height: 44px; font-size: 20px; }
   .uwa-subject-desc { display: none; }
 }
+
+/* ══ Hero figures and the pace strip, made plain ═══════════════════════════
+   Lighter surfaces, bigger type and more room: the three figures sit together
+   as one group with the bar underneath explaining them, and the pace row reads
+   left to right as a sentence. */
+
+/* The ridgeline art stays, but no longer dims the words sitting on it. */
+.uwa-hero::after {
+  background: linear-gradient(180deg, rgba(23, 38, 66, 0.3) 0%, rgba(23, 38, 66, 0.22) 45%, rgba(20, 33, 58, 0.72) 100%);
+}
+.uwa-hero-sub { color: rgba(240, 246, 255, 0.86); }
+.uwa-hero-eyebrow {
+  background: rgba(186, 214, 255, 0.22);
+  border-color: rgba(186, 214, 255, 0.55);
+  color: #eaf2ff;
+}
+
+/* ── The three figures ── */
+.uwa-hero-stats {
+  display: block;
+  max-width: 560px;
+  margin: 28px auto 0;
+  padding: 16px 20px 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(186, 214, 255, 0.25);
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(6px);
+}
+.uwa-hstat-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  gap: 8px;
+}
+.uwa-hstat {
+  display: grid;
+  gap: 3px;
+  justify-items: center;
+  line-height: 1.1;
+}
+.uwa-hstat b {
+  font-size: clamp(22px, 3vw, 30px);
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: -0.01em;
+}
+.uwa-hstat small {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(226, 238, 255, 0.78);
+}
+/* A hairline between the figures, so three numbers do not read as one. */
+.uwa-hstat-div {
+  width: 1px;
+  align-self: stretch;
+  min-height: 34px;
+  background: rgba(186, 214, 255, 0.28);
+}
+
+.uwa-hero-progress {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(186, 214, 255, 0.2);
+}
+.uwa-hero-bar {
+  flex: 1;
+  max-width: none;
+  margin: 0;
+  height: 8px;
+  border-radius: 99px;
+  background: rgba(10, 20, 40, 0.5);
+  overflow: hidden;
+}
+.uwa-hero-bar > span {
+  background: linear-gradient(90deg, #7fb2ff, #bcd9ff);
+  box-shadow: 0 0 12px rgba(146, 185, 255, 0.6);
+}
+.uwa-hero-pct {
+  flex-shrink: 0;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: rgba(233, 242, 255, 0.9);
+  white-space: nowrap;
+}
+
+/* ── Set your pace ── */
+.uwa-pace {
+  gap: 20px;
+  padding: 22px 24px;
+  border-color: rgba(186, 214, 255, 0.28);
+  background: linear-gradient(180deg, rgba(49, 72, 112, 0.96), rgba(38, 57, 92, 0.96));
+}
+.uwa-pace-icon {
+  background: rgba(186, 214, 255, 0.2);
+  border-color: rgba(186, 214, 255, 0.45);
+}
+.uwa-pace-lead h2 { font-size: 21px; color: #fff; }
+.uwa-pace-lead p {
+  font-size: 14px;
+  color: rgba(233, 242, 255, 0.82);
+  max-width: 40ch;
+}
+.uwa-pace-right { border-left-color: rgba(186, 214, 255, 0.24); }
+
+/* One row, one line: the four presets, any custom value, then the unit. */
+.uwa-pace-picks { gap: 10px; }
+.uwa-pace-pick {
+  min-width: 66px;
+  padding: 12px 10px;
+  border-color: rgba(186, 214, 255, 0.35);
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-size: 17px;
+}
+.uwa-pace-pick:hover { background: rgba(255, 255, 255, 0.2); }
+.uwa-pace-pick.is-on {
+  background: linear-gradient(140deg, #7fb2ff, #4d86e0);
+  border-color: #cfe2ff;
+  color: #0d1c35;
+  box-shadow: 0 6px 18px rgba(127, 178, 255, 0.4);
+}
+/* A custom pace says so, rather than looking like a fifth preset. */
+.uwa-pace-pick.is-custom {
+  display: grid;
+  justify-items: center;
+  gap: 1px;
+  padding: 8px 12px;
+}
+.uwa-pace-pick.is-custom small {
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+.uwa-pace-unit {
+  font-size: 15px;
+  color: rgba(233, 242, 255, 0.88);
+}
+.uwa-pace-note {
+  font-size: 13px;
+  color: rgba(233, 242, 255, 0.62);
+  border-top-color: rgba(186, 214, 255, 0.2);
+}
+
+/* ── Fine-tune header ── */
+.uwa-more {
+  border-color: rgba(186, 214, 255, 0.26);
+  background: rgba(40, 59, 95, 0.9);
+}
+.uwa-more > summary { color: #dbe9ff; font-size: 14px; }
+
+@media (max-width: 720px) {
+  .uwa-hero-stats { margin-top: 20px; padding: 14px 12px 12px; }
+  .uwa-hstat b { font-size: 20px; }
+  .uwa-hstat small { font-size: 10.5px; letter-spacing: 0.04em; }
+  .uwa-hero-progress { flex-wrap: wrap; gap: 8px; }
+  .uwa-hero-pct { width: 100%; text-align: center; }
+  .uwa-pace-pick { min-width: 56px; font-size: 15px; }
+}
