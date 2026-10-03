@@ -1819,6 +1819,17 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   return (
     <div className={`${screenClass}${timeUpLock ? ' uw-timeup' : ''}`} ref={screenRef}>
       {ratingErrorBanner}
+
+      {(isPaused || (revealed && explPaused)) && (
+        <button
+          type="button"
+          className="pause-float"
+          onClick={() => (isPaused ? setIsPaused(false) : toggleExplPause())}
+        >
+          ▶ Resume
+          {!isPaused && explPaused && <span className="pause-float-left">{explPausedLeft}s left</span>}
+        </button>
+      )}
       {/* Developer-mode unlock: only when ?dev=1 is in the URL and not yet unlocked.
           Lets an admin enable official-highlight authoring from any play tab. */}
       {devParam && !isAdminSession && (
@@ -2447,6 +2458,17 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
               </div>
             ) : (
               <div className="rr-skip-row">
+                {canPause && (
+                  <button
+                    type="button"
+                    className={`rr-skip-btn rr-pause-btn${explPaused ? ' is-held' : ''}`}
+                    onClick={toggleExplPause}
+                    aria-pressed={explPaused}
+                    title={explPaused ? 'Resume and let it move on by itself' : 'Stop it moving on while you read'}
+                  >
+                    {explPaused ? `▶ Resume · ${explPausedLeft}s left` : '⏸ Pause'}
+                  </button>
+                )}
                 <button className="rr-skip-btn" onClick={handleSkip}>Next Question →</button>
               </div>
             )}
@@ -2462,13 +2484,15 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
               <button className="stb-arrow" disabled title="Previous (not available)">←</button>
               {/* Pause sits BETWEEN the arrows (training/journey only, during the
                   question countdown): [← prev] [⏸ pause] [next →]. */}
-              {canPause && !revealed && !isPaused && (
+              {canPause && !isPaused && (
                 <button
-                  className="stb-arrow stb-pause"
-                  onClick={() => setIsPaused(true)}
-                  title="Pause"
+                  className={`stb-arrow stb-pause${revealed && explPaused ? ' is-held' : ''}`}
+                  onClick={() => (revealed ? toggleExplPause() : setIsPaused(true))}
+                  title={revealed
+                    ? (explPaused ? 'Resume the explanation timer' : 'Pause while you read the explanation')
+                    : 'Pause'}
                 >
-                  ⏸
+                  {revealed && explPaused ? '▶' : '⏸'}
                 </button>
               )}
               <button
