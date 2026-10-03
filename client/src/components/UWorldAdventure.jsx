@@ -953,11 +953,16 @@ export default function UWorldAdventure({ mode = DEFAULT_QUESTION_BANK_MODE }) {
         <div className="uwa-subjects">
           {subjects.map(s => {
             const c = subjectCounts[s.id];
+            // Done is answered-so-far: the bar reads the same way Journey's
+            // does, as "how much of this is behind me".
+            const total = c?.total || 0;
+            const done  = total ? Math.max(0, total - (c?.unseen ?? total)) : 0;
+            const pct   = total ? Math.round((done / total) * 100) : 0;
             return (
               <button
                 key={s.id}
                 type="button"
-                className={`uwa-subject${selected === s.id ? ' uwa-subject--active' : ''}`}
+                className={`uwa-subject${selected === s.id ? ' uwa-subject--active' : ''}${pct === 100 && total ? ' uwa-subject--done' : ''}`}
                 // Picking a subject changes only what TODAY draws from. The plan
                 // spans the whole adventure, so the pace and any chosen deadline
                 // deliberately survive the switch. Selecting also opens the
@@ -965,24 +970,29 @@ export default function UWorldAdventure({ mode = DEFAULT_QUESTION_BANK_MODE }) {
                 // piles are one decision about this system.
                 onClick={() => { setSelected(s.id); setSystemModal(s.id); setReviewError(''); }}
                 aria-pressed={selected === s.id}
+                // The subject's own colour, fed to CSS once and used for the
+                // rail, icon badge, bar and glow alike — as Journey does.
+                style={subjectArt(s)}
               >
-                <span className="uwa-subject-art" style={subjectArt(s)}>
+                <span className="uwa-subject-icon" aria-hidden="true">
                   {s.image_url
                     ? <img src={s.image_url} alt="" loading="lazy" />
-                    : <span className="uwa-subject-glyph" aria-hidden="true">{s.icon || s.name[0]}</span>}
+                    : (s.icon || s.name[0])}
                 </span>
-                <span className="uwa-subject-body">
-                  <span className="uwa-subject-text">
-                    <span className="uwa-subject-name">{s.name}</span>
-                    <span className="uwa-subject-desc">{subjectBlurb(s.name)}</span>
-                    {c && (
-                      <span className={`uwa-subject-meta${c.unseen === 0 ? ' uwa-subject-meta--done' : ''}`}>
-                        {c.unseen === 0 ? '✓ complete' : `${c.unseen.toLocaleString()} left`}
-                      </span>
-                    )}
+                <span className="uwa-subject-name">{s.name}</span>
+                <span className="uwa-subject-desc">{subjectBlurb(s.name)}</span>
+                {c && (
+                  <span className="uwa-subject-progress">
+                    <span className="uwa-subject-bar" aria-hidden="true">
+                      <span className="uwa-subject-bar-fill" style={{ width: `${pct}%` }} />
+                    </span>
+                    <span className="uwa-subject-prog-text">
+                      {c.unseen === 0
+                        ? '✓ Complete'
+                        : `${done.toLocaleString()} / ${total.toLocaleString()} questions`}
+                    </span>
                   </span>
-                  <span className="uwa-subject-go" aria-hidden="true">→</span>
-                </span>
+                )}
               </button>
             );
           })}
@@ -993,16 +1003,11 @@ export default function UWorldAdventure({ mode = DEFAULT_QUESTION_BANK_MODE }) {
               className="uwa-subject uwa-subject--dev"
               disabled
               title={`${s.name} is under development`}
+              style={subjectArt(s)}
             >
-              <span className="uwa-subject-art" style={subjectArt(s)}>
-                <span className="uwa-subject-glyph" aria-hidden="true">{s.icon || s.name[0]}</span>
-              </span>
-              <span className="uwa-subject-body">
-                <span className="uwa-subject-text">
-                  <span className="uwa-subject-name">{s.name}</span>
-                  <span className="uwa-subject-meta uwa-subject-meta--dev">🔒 Under development</span>
-                </span>
-              </span>
+              <span className="uwa-subject-icon" aria-hidden="true">{s.icon || s.name[0]}</span>
+              <span className="uwa-subject-name">{s.name}</span>
+              <span className="uwa-subject-meta uwa-subject-meta--dev">🔒 Under development</span>
             </button>
           ))}
         </div>

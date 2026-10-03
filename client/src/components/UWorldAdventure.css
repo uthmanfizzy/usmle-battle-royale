@@ -1543,3 +1543,197 @@
     linear-gradient(180deg, rgba(36, 53, 83, 0.97), rgba(27, 41, 66, 0.97));
 }
 .uwa-subject-desc { color: var(--uwa-txt-dim); }
+
+/* ══ Subject cards, First Aid Journey's shape ══════════════════════════════
+   A colour rail along the top, a round icon badge in the subject's own colour,
+   the name, a line about it, and a progress bar pinned to the bottom so bars
+   line up across a row. One variable — --uwa-art-rgb, set per card — drives
+   the rail, badge, border, bar and glow. */
+.uwa .uwa-subjects {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(188px, 1fr));
+  gap: 16px;
+}
+
+.uwa .uwa-subject {
+  --uwa-art-rgb: 95, 155, 245;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 9px;
+  padding: 22px 14px 16px;
+  border-radius: 14px;
+  overflow: hidden;
+  text-align: center;
+  color: #fff;
+  background:
+    linear-gradient(180deg, rgba(var(--uwa-art-rgb), 0.16), rgba(var(--uwa-art-rgb), 0.04)),
+    rgba(14, 24, 44, 0.86);
+  border: 1.5px solid rgba(var(--uwa-art-rgb), 0.5);
+  box-shadow: 0 2px 12px rgba(2, 8, 20, 0.4), 0 0 16px rgba(var(--uwa-art-rgb), 0.14);
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+  animation: uwa-card-rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* The quickest way to tell cards apart in a grid, without tinting the whole
+   surface so hard that the name suffers. */
+.uwa .uwa-subject::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: rgb(var(--uwa-art-rgb));
+}
+
+.uwa .uwa-subject:hover:not(:disabled) {
+  transform: translateY(-4px);
+  border-color: rgb(var(--uwa-art-rgb));
+  background:
+    linear-gradient(180deg, rgba(var(--uwa-art-rgb), 0.24), rgba(var(--uwa-art-rgb), 0.08)),
+    rgba(16, 28, 50, 0.9);
+  box-shadow: 0 16px 34px rgba(2, 8, 20, 0.5), 0 0 26px rgba(var(--uwa-art-rgb), 0.3);
+}
+.uwa .uwa-subject--active {
+  border-color: rgb(var(--uwa-art-rgb));
+  box-shadow: 0 0 0 1px rgba(var(--uwa-art-rgb), 0.6), 0 14px 30px rgba(var(--uwa-art-rgb), 0.28);
+}
+.uwa .uwa-subject--done { border-color: rgba(61, 220, 132, 0.6); }
+
+/* Staggered entrance, three across, so the grid assembles rather than popping. */
+.uwa .uwa-subject:nth-child(4n+1) { animation-delay: 0.04s; }
+.uwa .uwa-subject:nth-child(4n+2) { animation-delay: 0.10s; }
+.uwa .uwa-subject:nth-child(4n+3) { animation-delay: 0.16s; }
+.uwa .uwa-subject:nth-child(4n)   { animation-delay: 0.22s; }
+
+@keyframes uwa-card-rise {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.uwa-subject-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  font-size: 24px;
+  line-height: 1;
+  background: rgb(var(--uwa-art-rgb));
+  box-shadow: 0 0 0 4px rgba(var(--uwa-art-rgb), 0.18);
+  filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.45));
+  transition: transform 0.2s ease;
+}
+.uwa-subject-icon img { width: 100%; height: 100%; object-fit: cover; }
+.uwa .uwa-subject:hover:not(:disabled) .uwa-subject-icon { transform: scale(1.07) translateY(-2px); }
+
+.uwa .uwa-subject-name {
+  font-family: var(--mv-font-display, 'Cinzel', serif);
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: #fff;
+}
+.uwa-subject-desc {
+  font-size: 12px;
+  line-height: 1.45;
+  color: rgba(226, 238, 255, 0.62);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Pinned to the bottom so bars line up across a row, whatever the name wraps
+   to and whether a neighbour has one at all. */
+.uwa-subject-progress {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  margin-top: auto;
+  padding-top: 8px;
+}
+.uwa-subject-bar {
+  width: 100%;
+  height: 5px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.14);
+  overflow: hidden;
+}
+.uwa-subject-bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: rgb(var(--uwa-art-rgb));
+  transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.uwa-subject-prog-text {
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  color: rgba(226, 238, 255, 0.6);
+}
+.uwa .uwa-subject--done .uwa-subject-prog-text { color: #7ff0b4; font-weight: 700; }
+.uwa .uwa-subject--done .uwa-subject-bar-fill { background: #3ddc84; }
+
+.uwa .uwa-subject--dev {
+  opacity: 0.5;
+  cursor: default;
+  animation: none;
+}
+.uwa .uwa-subject-meta--dev {
+  margin-top: auto;
+  padding-top: 8px;
+  font-size: 11px;
+  color: rgba(226, 238, 255, 0.55);
+}
+
+/* ══ Page entrance ═════════════════════════════════════════════════════════
+   Each band arrives just after the one above it, so the page settles in order
+   instead of appearing all at once. */
+.uwa-nav   { animation: uwa-fade-down 0.5s ease both; }
+.uwa-hero  { animation: uwa-fade-down 0.55s ease 0.06s both; }
+.uwa-pace  { animation: uwa-rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) 0.14s both; }
+.uwa-more  { animation: uwa-rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) 0.2s both; }
+.uwa .uwa-section-title { animation: uwa-rise 0.5s ease 0.24s both; }
+
+.uwa-hero-eyebrow { animation: uwa-rise 0.5s ease 0.18s both; }
+.uwa-hero-title   { animation: uwa-rise 0.6s cubic-bezier(0.22, 1, 0.36, 1) 0.22s both; }
+.uwa-hero-sub     { animation: uwa-rise 0.6s ease 0.3s both; }
+.uwa-hero-stats   { animation: uwa-rise 0.6s ease 0.36s both; }
+.uwa-hero-bar > span { animation: uwa-bar-grow 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.5s both; }
+
+@keyframes uwa-fade-down {
+  from { opacity: 0; transform: translateY(-10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes uwa-rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes uwa-bar-grow {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+.uwa-hero-bar > span { transform-origin: left center; }
+
+/* Everything above is decoration: with reduced motion it is simply not there. */
+@media (prefers-reduced-motion: reduce) {
+  .uwa-nav, .uwa-hero, .uwa-pace, .uwa-more, .uwa .uwa-section-title,
+  .uwa-hero-eyebrow, .uwa-hero-title, .uwa-hero-sub, .uwa-hero-stats,
+  .uwa-hero-bar > span, .uwa .uwa-subject {
+    animation: none;
+  }
+  .uwa .uwa-subject:hover:not(:disabled) { transform: none; }
+  .uwa-subject-bar-fill { transition: none; }
+}
+
+@media (max-width: 900px) {
+  .uwa .uwa-subjects { grid-template-columns: repeat(auto-fill, minmax(144px, 1fr)); gap: 12px; }
+  .uwa .uwa-subject { padding: 18px 10px 14px; }
+  .uwa-subject-icon { width: 44px; height: 44px; font-size: 20px; }
+  .uwa-subject-desc { display: none; }
+}
