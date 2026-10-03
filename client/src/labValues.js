@@ -32,6 +32,9 @@ const labValues = {
     { category: 'Serum', name: 'Lipase', value: '14–280', units: 'U/L' },
     { category: 'Serum', name: 'CK (creatine kinase), male', value: '25–90', units: 'U/L' },
     { category: 'Serum', name: 'Troponin I', value: '0–0.04', units: 'ng/mL' },
+    { category: 'Serum', name: 'Lactate dehydrogenase (LDH)', value: '140–280', units: 'U/L' },
+    { category: 'Serum', name: 'Haptoglobin', value: '30–200', units: 'mg/dL' },
+    { category: 'Serum', name: 'Lactate (venous)', value: '0.5–2.2', units: 'mmol/L' },
     { category: 'Serum', name: 'Ferritin, male', value: '20–250', units: 'ng/mL' },
     { category: 'Serum', name: 'Ferritin, female', value: '10–120', units: 'ng/mL' },
     { category: 'Serum', name: 'Iron, male', value: '65–175', units: 'µg/dL' },
@@ -127,6 +130,8 @@ const labValues = {
     { category: 'Serum', name: 'Total protein', value: '60–80', units: 'g/L' },
     { category: 'Serum', name: 'Amylase', value: '25–125', units: 'U/L' },
     { category: 'Serum', name: 'CRP', value: '< 5', units: 'mg/L' },
+    { category: 'Serum', name: 'Lactate dehydrogenase (LDH)', value: '135–225', units: 'U/L' },
+    { category: 'Serum', name: 'Lactate (venous)', value: '0.5–2.2', units: 'mmol/L' },
     { category: 'Serum', name: 'CK (creatine kinase), male', value: '25–195', units: 'U/L' },
     { category: 'Serum', name: 'Troponin T (hs)', value: '< 14', units: 'ng/L' },
     { category: 'Serum', name: 'Ferritin, male', value: '20–250', units: 'µg/L' },
@@ -166,6 +171,7 @@ const labValues = {
     { category: 'Hematologic', name: 'APTT', value: '25–38', units: 'sec' },
     { category: 'Hematologic', name: 'INR (normal)', value: '0.8–1.1', units: '' },
     { category: 'Hematologic', name: 'Fibrinogen', value: '1.5–4.0', units: 'g/L' },
+    { category: 'Hematologic', name: 'Haptoglobin', value: '0.3–2.0', units: 'g/L' },
     { category: 'Hematologic', name: 'D-dimer', value: '< 500', units: 'ng/mL' },
 
     // Endocrine

@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import labValues from '../labValues';
+import { labsMentionedIn } from '../utils/labMatch';
 import './LabValues.css';
 
 const EXAMS = ['USMLE', 'PLAB'];
@@ -12,9 +13,14 @@ function readExam() {
   return 'USMLE';
 }
 
-export default function LabValues({ onClose }) {
+export default function LabValues({ onClose, questionText = '' }) {
   const [exam, setExam] = useState(readExam);
   const [query, setQuery] = useState('');
+  // 'question' = only what this stem mentions, 'all' = the whole sheet. The
+  // question's own values are the point of opening this mid-game, so they are
+  // what opens — but only when the stem actually names something, otherwise
+  // the panel would open on an empty list.
+  const [scope, setScope] = useState('question');
 
   // Draggable panel (desktop). On mobile CSS pins it as a bottom sheet.
   const [position, setPosition] = useState({ x: Math.max(16, window.innerWidth - 400), y: 80 });
@@ -47,9 +53,18 @@ export default function LabValues({ onClose }) {
     };
   }, [isDragging, dragOffset]);
 
+  // What this question mentions, for the scope switch and its count.
+  const mentioned = useMemo(
+    () => labsMentionedIn(questionText, labValues[exam] || []),
+    [questionText, exam],
+  );
+  // A stem that names nothing (or a panel opened outside a question) falls
+  // back to the full sheet rather than showing "nothing here".
+  const effectiveScope = mentioned.length === 0 ? 'all' : scope;
+
   // Filter + group by category for the selected exam
   const grouped = useMemo(() => {
-    const list = labValues[exam] || [];
+    const list = effectiveScope === 'question' ? mentioned : (labValues[exam] || []);
     const q = query.trim().toLowerCase();
     const filtered = q
       ? list.filter(
@@ -65,7 +80,7 @@ export default function LabValues({ onClose }) {
       map.get(row.category).push(row);
     }
     return Array.from(map.entries()); // [ [category, rows[]], ... ]
-  }, [exam, query]);
+  }, [exam, query, effectiveScope, mentioned]);
 
   const panelStyle = window.innerWidth > 768
     ? { left: `${position.x}px`, top: `${position.y}px` }
@@ -97,6 +112,29 @@ export default function LabValues({ onClose }) {
             </button>
           ))}
         </div>
+        {mentioned.length > 0 && (
+          <div className="lab-scope" role="tablist" aria-label="Which values">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={effectiveScope === 'question'}
+              className={`lab-scope-btn ${effectiveScope === 'question' ? 'active' : ''}`}
+              onClick={() => { setScope('question'); setQuery(''); }}
+            >
+              In this question <span className="lab-scope-count">{mentioned.length}</span>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={effectiveScope === 'all'}
+              className={`lab-scope-btn ${effectiveScope === 'all' ? 'active' : ''}`}
+              onClick={() => setScope('all')}
+            >
+              All values
+            </button>
+          </div>
+        )}
+
         <input
           className="lab-search"
           type="text"
@@ -108,7 +146,11 @@ export default function LabValues({ onClose }) {
 
       <div className="lab-body">
         {grouped.length === 0 && (
-          <div className="lab-empty">No values match “{query}”.</div>
+          <div className="lab-empty">
+            {query
+              ? <>No values match “{query}”.</>
+              : <>Nothing in this question has a reference range here.</>}
+          </div>
         )}
         {grouped.map(([category, rows]) => (
           <div key={category} className="lab-group">

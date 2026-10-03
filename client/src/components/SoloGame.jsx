@@ -2461,7 +2461,15 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
 
         {/* Lab Values reference overlay — independent of game/timer/scoring,
             available in all modes (solo / training / journey) */}
-        {showLabValues && <LabValues onClose={() => setShowLabValues(false)} />}
+        {/* The stem as plain text: the panel opens on the values THIS question
+            mentions, so it needs to read it. Explanation included once it is on
+            screen, since a value can first appear there. */}
+        {showLabValues && (
+          <LabValues
+            onClose={() => setShowLabValues(false)}
+            questionText={[toStemVisibleText(q?.question || ''), revealed ? (q?.explanation || '') : ''].join(' ')}
+          />
+        )}
       </div>
     </div>
   );

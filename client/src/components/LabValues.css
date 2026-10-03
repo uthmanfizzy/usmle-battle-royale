@@ -198,3 +198,43 @@
     cursor: default;
   }
 }
+
+/* Scope switch: this question only, or the whole sheet. */
+.lab-scope {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 8px;
+  padding: 3px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.25);
+}
+.lab-scope-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  opacity: 0.68;
+  font-size: 12.5px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.lab-scope-btn:hover { opacity: 1; background: rgba(255, 255, 255, 0.08); }
+.lab-scope-btn.active {
+  opacity: 1;
+  background: rgba(79, 209, 197, 0.22);
+  box-shadow: inset 0 0 0 1px rgba(79, 209, 197, 0.5);
+}
+.lab-scope-count {
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  font-size: 11px;
+}
