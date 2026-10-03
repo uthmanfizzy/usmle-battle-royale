@@ -379,6 +379,12 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   // Exam skin only: "End Block" asks for confirmation first — a stray tap used
   // to lose the rest of the block instantly, with no way back.
   const [showEndBlockConfirm, setShowEndBlockConfirm] = useState(false);
+  // Ended by hand rather than by running out of questions — the summary says
+  // so instead of claiming the block was completed.
+  const [endedEarly, setEndedEarly] = useState(false);
+  // Frozen at the end: the refs keep moving (study-time flushes), and a
+  // summary that changes while being read is worse than no summary.
+  const [runStats, setRunStats] = useState(null);
   // Exam skin only: has the CURRENT question been rated yet? Gates advancing —
   // see ratedRef below.
   const [rated, setRated] = useState(false);
@@ -826,7 +832,19 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   function confirmEndBlock() {
     setShowEndBlockConfirm(false);
     endRunEarly();
-    onBack();
+    // Nothing answered means nothing to show, so that case leaves as before.
+    if (answeredCountRef.current === 0) { onBack(); return; }
+    setRunStats({
+      answered: answeredCountRef.current,
+      correct: correctCountRef.current,
+      seconds: Math.round(activeSecondsRef.current),
+      marked: marked.size,
+    });
+    setFinalScore(scoreRef.current);
+    setFinalBestStreak(bestStreakRef.current);
+    setEndedEarly(true);
+    setGameOver(true);
+    audio.stopGameMusic();
   }
 
   // In-game Home. Solo/Training exit via window.location.href, which never
@@ -1579,7 +1597,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
         <div className="solo-gameover">
           {/* "Game Over" is a survival-game word, and nothing was survived here
               — the block simply ran out of items. */}
-          <h2>{uworldSkin ? 'Block Complete' : 'Game Over'}</h2>
+          <h2>{uworldSkin ? (endedEarly ? 'Block Ended' : 'Block Complete') : 'Game Over'}</h2>
           {uworldSkin && marked.size > 0 && (
             <p className="sgo-level-label">
               ⚑ {marked.size} item{marked.size === 1 ? '' : 's'} marked for review
@@ -1587,6 +1605,43 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
           )}
           {levelLabel && <p className="sgo-level-label">{levelLabel}</p>}
           {isNewHi && <div className="new-hi-badge">🏆 New High Score!</div>}
+
+          {/* How the run actually went: answered, how many right, and how long
+              it took. Score and streak are a game's measures; these are the
+              ones a question bank is judged on. */}
+          {runStats && (
+            <div className="sgo-stats sgo-stats--run">
+              <div className="sgo-stat">
+                <span className="sgo-val">{runStats.answered}</span>
+                <span className="sgo-label">Answered</span>
+              </div>
+              <div className="sgo-stat">
+                <span className="sgo-val">{runStats.correct}</span>
+                <span className="sgo-label">Correct</span>
+              </div>
+              <div className="sgo-stat">
+                <span className="sgo-val">
+                  {runStats.answered ? Math.round((runStats.correct / runStats.answered) * 100) : 0}%
+                </span>
+                <span className="sgo-label">Accuracy</span>
+              </div>
+              <div className="sgo-stat">
+                <span className="sgo-val">
+                  {Math.floor(runStats.seconds / 60)}m {runStats.seconds % 60}s
+                </span>
+                <span className="sgo-label">Time</span>
+              </div>
+              {runStats.answered > 0 && (
+                <div className="sgo-stat">
+                  <span className="sgo-val">
+                    {Math.round(runStats.seconds / runStats.answered)}s
+                  </span>
+                  <span className="sgo-label">Per question</span>
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="sgo-stats">
             <div className="sgo-stat">
               <span className="sgo-val">{finalScore}</span>
@@ -1603,7 +1658,9 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
           </div>
           {onTryAgain      && <button className="btn-start"    onClick={onTryAgain}>Try Again</button>}
           {onBackToTopics  && <button className="btn-secondary" onClick={onBackToTopics}>Back to Topics</button>}
-          <button className="btn-secondary" onClick={onBack}>Home</button>
+          <button className="btn-secondary" onClick={onBack}>
+            {uworldSkin ? 'Back to subjects' : 'Home'}
+          </button>
         </div>
       </div>
     );

@@ -4084,3 +4084,13 @@ html[data-study="on"] .solo-body .pause-overlay {
 @media (max-width: 560px) {
   .pause-float { bottom: 76px; padding: 11px 20px; font-size: 14px; }
 }
+
+/* The run summary on the Block Ended / Block Complete screen. */
+.sgo-stats--run {
+  flex-wrap: wrap;
+  gap: 10px 22px;
+  margin-bottom: 14px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+.sgo-stats--run .sgo-val { font-size: 26px; }
