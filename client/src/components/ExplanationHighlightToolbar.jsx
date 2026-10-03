@@ -4,14 +4,14 @@ import { rangeToOffsets, captureContext, HIGHLIGHT_COLORS } from '../utils/expla
 
 // Swatch backgrounds (the 4 offered colours). Kept readable on both themes via CSS
 // (.hl marks force dark text on the bright highlight).
-const SWATCH = { yellow: '#fdcb6e', green: '#55efc4', pink: '#fd79a8', blue: '#74b9ff' };
+const SWATCH = { yellow: '#fdcb6e', green: '#55efc4', pink: '#fd79a8', blue: '#74b9ff', purple: '#a29bfe' };
 
 // ── "Keep on" mode ──────────────────────────────────────────────────────────
 // Pin a colour or Bold/Italic and every later selection gets it straight away,
 // with no toolbar click. Shared by every toolbar on the page (stem and
 // explanation) and remembered across questions until turned off.
 const STICKY_KEY = 'mr_hl_sticky';
-const STICKY_NAMES = { bold: 'Bold', italic: 'Italic', yellow: 'Yellow', green: 'Green', pink: 'Pink', blue: 'Blue' };
+const STICKY_NAMES = { bold: 'Bold', italic: 'Italic', yellow: 'Yellow', green: 'Green', pink: 'Pink', blue: 'Blue', purple: 'Purple' };
 let sticky = (() => {
   try {
     const v = JSON.parse(localStorage.getItem(STICKY_KEY) || 'null');

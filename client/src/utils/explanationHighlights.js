@@ -27,8 +27,9 @@ export const COLORS = {
   white:  '#ffffff',
 };
 
-// The 4 highlight swatch colours offered in the toolbar (a separate, fixed set).
-export const HIGHLIGHT_COLORS = ['yellow', 'green', 'pink', 'blue'];
+// The highlight swatch colours offered in the toolbar (a separate, fixed set
+// from COLORS above, though purple deliberately shares its hex).
+export const HIGHLIGHT_COLORS = ['yellow', 'green', 'pink', 'blue', 'purple'];
 
 // ── Markup tokenizers (mirror parseRichText exactly, but emit text RUNS) ─────────
 //

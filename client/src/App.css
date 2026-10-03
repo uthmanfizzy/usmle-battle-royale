@@ -831,6 +831,8 @@ html[data-study="on"] .solo-body .stem-table td { color: #1c2030; }
 .explanation-text mark.hl-green  { background: #55efc4; }
 .explanation-text mark.hl-pink   { background: #fd79a8; }
 .explanation-text mark.hl-blue   { background: #74b9ff; }
+/* Light enough that the forced dark text stays readable on it. */
+.explanation-text mark.hl-purple { background: #a29bfe; }
 /* Keep inline-coloured text legible when it falls inside a highlight. */
 .explanation-text mark.hl span { color: #1a1a2e !important; }
 
@@ -848,6 +850,7 @@ html[data-study="on"] .solo-body .stem-table td { color: #1c2030; }
 .stem-text mark.hl-green  { background: #55efc4; }
 .stem-text mark.hl-pink   { background: #fd79a8; }
 .stem-text mark.hl-blue   { background: #74b9ff; }
+.stem-text mark.hl-purple { background: #a29bfe; }
 
 /* Floating selection toolbar */
 .expl-hl-toolbar {

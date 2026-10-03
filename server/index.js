@@ -3628,7 +3628,7 @@ app.get('/api/questions', async (req, res) => {
 // explanationHighlights.js). Stage 2 will add scope='official' (admin/developer
 // mode) — the handlers below are structured so that path drops in cleanly.
 
-const HL_COLORS  = ['yellow', 'green', 'pink', 'blue'];
+const HL_COLORS  = ['yellow', 'green', 'pink', 'blue', 'purple'];
 const HL_REGIONS = ['explanation', 'why_wrong', 'question'];
 const HL_FORMATS = ['bold', 'italic'];
 
