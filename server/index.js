@@ -11386,6 +11386,38 @@ app.post('/admin/questions/bulk-delete', adminAuth, async (req, res) => {
 });
 
 // Bulk move questions
+// Merge one subject into another: every question filed under `from` moves to
+// `to`, in one statement rather than by selecting a thousand rows by hand.
+// Nothing is deleted — the empty subject stays, to be switched off or kept.
+app.post('/admin/subjects/merge', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  const from = (req.body?.from ?? '').toString().trim();
+  const to   = (req.body?.to ?? '').toString().trim();
+  if (!from || !to) return res.status(400).json({ error: 'from and to are required' });
+  if (from === to)  return res.status(400).json({ error: 'from and to must differ' });
+  try {
+    // The destination must exist, or the questions would land on a subject the
+    // game never offers and disappear from every mode at once.
+    const { data: dest } = await supabase.from('subjects').select('id').eq('id', to).maybeSingle();
+    if (!dest) return res.status(400).json({ error: `No subject with id "${to}"` });
+
+    const { count: moving } = await supabase
+      .from('questions').select('id', { count: 'exact', head: true }).eq('subject', from);
+
+    const { error } = await supabase
+      .from('questions')
+      .update({ subject: to, category: to, updated_at: new Date().toISOString() })
+      .eq('subject', from);
+    if (error) throw error;
+
+    await forceRefreshQuestions();
+    res.json({ ok: true, moved: moving || 0, from, to });
+  } catch (e) {
+    console.error('[/admin/subjects/merge] failed —', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.post('/admin/questions/bulk-move', adminAuth, async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
   

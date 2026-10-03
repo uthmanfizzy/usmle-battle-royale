@@ -4646,7 +4646,7 @@ function GuidePanel() {
 
 const MIN_QUESTIONS_TO_ACTIVATE = 5;
 
-function SubjectCard({ subject, qCount, onToggle, saving }) {
+function SubjectCard({ subject, qCount, onToggle, saving, onMerge }) {
   const folder  = FOLDERS.find(f => f.id === subject.id);
   const icon    = folder?.icon || subject.icon || '📚';
   const hasEnough = qCount >= MIN_QUESTIONS_TO_ACTIVATE;
@@ -4676,6 +4676,18 @@ function SubjectCard({ subject, qCount, onToggle, saving }) {
         </div>
       </div>
       <div className="sj-card-right">
+        {/* Two subjects that mean the same thing: fold one into the other
+            rather than hiding it and its questions with it. */}
+        {onMerge && qCount > 0 && (
+          <button
+            type="button"
+            className="sj-merge-btn"
+            onClick={onMerge}
+            title={`Move all ${qCount} questions into another subject`}
+          >
+            ⇄ Merge
+          </button>
+        )}
         <span className="sj-toggle-label">{subject.active ? 'On' : 'Off'}</span>
         <label className={`ap-toggle${saving ? ' sj-saving' : ''}`} title={saving ? 'Saving…' : (subject.active ? 'Deactivate subject' : 'Activate subject')}>
           <input
@@ -4714,6 +4726,35 @@ function SubjectsPanel({ subjects, setSubjects }) {
     return questions.filter(q => q.subject === subjectId).length;
   }
 
+  // Merging is how two subjects that mean the same thing (a "Haematology" and
+  // a "Haematology & Oncology") become one without hiding the questions filed
+  // under the loser.
+  const [merge, setMerge] = useState(null);   // { from } while the picker is open
+  const [mergeTo, setMergeTo] = useState('');
+  const [merging, setMerging] = useState(false);
+  const [mergeMsg, setMergeMsg] = useState('');
+
+  async function doMerge() {
+    if (!merge || !mergeTo || merging) return;
+    setMerging(true);
+    setError('');
+    try {
+      const res = await apiCall('/admin/subjects/merge', {
+        method: 'POST',
+        body: JSON.stringify({ from: merge.from, to: mergeTo }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Merge failed');
+      setQuestions(qs => qs.map(q => (q.subject === merge.from ? { ...q, subject: mergeTo } : q)));
+      setMergeMsg(`Moved ${data.moved} question${data.moved === 1 ? '' : 's'} into ${mergeTo}.`);
+      setMerge(null);
+      setMergeTo('');
+    } catch (err) {
+      setError(err.message);
+    }
+    setMerging(false);
+  }
+
   async function toggleSubject(id, currentActive) {
     setSaving(s => ({ ...s, [id]: true }));
     setError('');
@@ -4740,6 +4781,38 @@ function SubjectsPanel({ subjects, setSubjects }) {
   return (
     <div className="sj-panel">
       {error && <div className="ap-error" style={{ marginBottom: 16 }}>{error}</div>}
+      {mergeMsg && <div className="ap-success" style={{ marginBottom: 16 }}>{mergeMsg}</div>}
+
+      {merge && (
+        <div className="ap-backdrop" onClick={() => setMerge(null)}>
+          <div className="ap-confirm" onClick={e => e.stopPropagation()}>
+            <div className="ap-confirm-icon">⇄</div>
+            <h3>Merge “{merge.from}” into another subject</h3>
+            <p>
+              All <strong>{qCount(merge.from)}</strong> of its questions move to the subject you
+              pick. Nothing is deleted, and “{merge.from}” stays in this list — switch it off
+              afterwards to take it out of the games.
+            </p>
+            <select
+              className="ap-reel-rowcat"
+              value={mergeTo}
+              onChange={e => setMergeTo(e.target.value)}
+              style={{ maxWidth: 'none', width: '100%', padding: '10px 12px', margin: '6px 0 4px' }}
+            >
+              <option value="">Choose the subject to keep…</option>
+              {subjects.filter(s => s.id !== merge.from).map(s => (
+                <option key={s.id} value={s.id}>{s.name || s.id} ({qCount(s.id)})</option>
+              ))}
+            </select>
+            <div className="ap-modal-foot">
+              <button className="ap-btn-sec" onClick={() => setMerge(null)}>Cancel</button>
+              <button className="ap-btn-pri" disabled={!mergeTo || merging} onClick={doMerge}>
+                {merging ? 'Moving…' : `Move ${qCount(merge.from)} questions`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Summary */}
       <div className="sj-summary">
@@ -4781,6 +4854,7 @@ function SubjectsPanel({ subjects, setSubjects }) {
               qCount={qCount(s.id)}
               saving={!!saving[s.id]}
               onToggle={() => toggleSubject(s.id, s.active)}
+              onMerge={() => { setMergeMsg(''); setMerge({ from: s.id }); }}
             />
           ))}
         </div>
