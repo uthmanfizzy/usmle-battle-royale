@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import labValues from '../labValues';
-import { labsMentionedIn } from '../utils/labMatch';
+import { labsWithValuesIn } from '../utils/labMatch';
 import './LabValues.css';
 
 const EXAMS = ['USMLE', 'PLAB'];
@@ -54,8 +54,11 @@ export default function LabValues({ onClose, questionText = '' }) {
   }, [isDragging, dragOffset]);
 
   // What this question mentions, for the scope switch and its count.
+  // Each row carries the figure the question gave for it, and whether that is
+  // above or below the range — reading "LDH 420 (140–280) HIGH" is the whole
+  // job, and doing it in your head under time pressure is where mistakes live.
   const mentioned = useMemo(
-    () => labsMentionedIn(questionText, labValues[exam] || []),
+    () => labsWithValuesIn(questionText, labValues[exam] || []),
     [questionText, exam],
   );
   // A stem that names nothing (or a panel opened outside a question) falls
@@ -146,13 +149,47 @@ export default function LabValues({ onClose, questionText = '' }) {
         {grouped.map(([category, rows]) => (
           <div key={category} className="lab-group">
             <div className="lab-group-title">{category}</div>
-            <table className="lab-table">
+            <table className={`lab-table${effectiveScope === 'question' ? ' lab-table--q' : ''}`}>
+              {effectiveScope === 'question' && (
+                <thead>
+                  <tr className="lab-head-row">
+                    <th>Test</th>
+                    <th>In this question</th>
+                    <th>Normal</th>
+                  </tr>
+                </thead>
+              )}
               <tbody>
                 {rows.map((r, i) => (
-                  <tr key={i}>
+                  <tr key={i} className={r.verdict ? `lab-row lab-row--${r.verdict}` : 'lab-row'}>
                     <td className="lab-name">{r.name}</td>
-                    <td className="lab-val">{r.value}</td>
-                    <td className="lab-units">{r.units}</td>
+                    {effectiveScope === 'question' && (
+                      <td className="lab-given">
+                        {r.patient ? (
+                          <>
+                            <span className="lab-given-num">{r.patient.raw}</span>
+                            {r.patient.unit && <span className="lab-given-unit">{r.patient.unit}</span>}
+                            {r.verdict && r.verdict !== 'normal' && (
+                              <span className={`lab-flag lab-flag--${r.verdict}`}>
+                                {r.verdict === 'high' ? '▲ High' : '▼ Low'}
+                              </span>
+                            )}
+                            {r.verdict === 'normal' && <span className="lab-flag lab-flag--normal">✓ Normal</span>}
+                            {/* Said out loud rather than guessed: a figure in
+                                other units cannot be compared with this range. */}
+                            {!r.verdict && r.unitMismatch && (
+                              <span className="lab-flag lab-flag--unknown">different units</span>
+                            )}
+                          </>
+                        ) : (
+                          <span className="lab-given-none">—</span>
+                        )}
+                      </td>
+                    )}
+                    <td className="lab-val">
+                      {r.value}
+                      {r.units && <span className="lab-units">{r.units}</span>}
+                    </td>
                   </tr>
                 ))}
               </tbody>

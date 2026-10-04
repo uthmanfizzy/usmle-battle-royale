@@ -128,14 +128,14 @@ const flattenDigits = (t) => t
 const normalise = (text) => flattenDigits(String(text || ''))
   .replace(/[⁺⁻±]/g, '')     // ⁺ ⁻ ±
   .toLowerCase()
-  .replace(/[^a-z0-9\s+:.-]/g, ' ')
+  .replace(/[^a-z0-9µ%/\s+:.-]/g, ' ')
   .replace(/\s+/g, ' ')
   .trim();
 
 // Same, but keeping case — abbreviations are matched against this.
 const normaliseKeepCase = (text) => flattenDigits(String(text || ''))
   .replace(/[⁺⁻±]/g, '')
-  .replace(/[^A-Za-z0-9\s+:.-]/g, ' ')
+  .replace(/[^A-Za-z0-9µ%/\s+:.-]/g, ' ')
   .replace(/\s+/g, ' ')
   .trim();
 
@@ -143,7 +143,7 @@ const escapeRe = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 // An abbreviation is short and has no spaces; those are the ones that collide
 // with ordinary words, so they carry their capitalisation into the match.
-const isAbbrev = (term) => term.length <= 4 && !/\s/.test(term);
+const isAbbrev = (term) => !/\s/.test(term) && (term.length <= 3 || !/[a-z]/.test(term));
 
 function termsFor(row) {
   const name = String(row.name || '');
@@ -188,21 +188,110 @@ function termsFor(row) {
  * @param {string} text  the question stem (and anything else worth scanning)
  * @param {Array}  rows  labValues[exam]
  */
+// Where in the text a lab is named, or -1. Names are case-insensitive, and
+// abbreviations keep their capitals (see the note at the top of the file).
+function findMention(row, original, haystack) {
+  const { names, abbrevs } = termsFor(row);
+  let best = -1;
+  const consider = (i) => { if (i >= 0 && (best === -1 || i < best)) best = i; };
+  for (const n of names) {
+    const m = new RegExp(`(^|[^a-z0-9])(${escapeRe(n)})`).exec(haystack);
+    if (m) consider(m.index + m[1].length);
+  }
+  for (const a of abbrevs) {
+    const m = new RegExp(`(^|[^A-Za-z0-9])(${escapeRe(a)})($|[^A-Za-z0-9])`).exec(original);
+    if (m) consider(m.index + m[1].length);
+  }
+  return best;
+}
+
+// A number stated close after the lab's name: "LDH is 420 U/L", "Na 128",
+// "potassium of 5.9 mEq/L". Deliberately short-sighted — the next sentence's
+// figures belong to the next lab, not this one.
+const VALUE_RE = /^[^0-9]{0,18}?(\d+(?:,\d{3})*(?:\.\d+)?)\s*(%|[A-Za-zµ/·0-9]{1,14})?/;
+
+function valueAfter(original, from) {
+  if (from < 0) return null;
+  let tail = original.slice(from).replace(/^[A-Za-z]+/, '');  // step over the name itself
+  // Stop at the end of the sentence the lab was named in. Without this, a lab
+  // named by a word rather than a figure ("jaundice") would adopt the next
+  // sentence's number — the one belonging to whatever is mentioned there.
+  // Split on punctuation FOLLOWED BY A SPACE, so decimals survive.
+  const stop = tail.search(/[.;?!](\s|$)/);
+  if (stop >= 0) tail = tail.slice(0, stop);
+  const m = VALUE_RE.exec(tail);
+  if (!m) return null;
+  const num = Number(m[1].replace(/,/g, ''));
+  if (!Number.isFinite(num)) return null;
+  // A unit-looking word right after the number, for the sanity check below.
+  const unit = (m[2] || '').trim();
+  return { num, unit, raw: m[1] };
+}
+
+const cleanUnit = (u) => String(u || '').toLowerCase()
+  .replace(/µ/g, 'u').replace(/\s+/g, '').replace(/[.]/g, '');
+
+// "136–145" → {low,high}; "< 0.5" → {high}; "> 60" → {low}. Anything with no
+// numbers (or a range this does not understand) returns null, and the row then
+// shows the value without a verdict rather than guessing one.
+function parseRange(value) {
+  const v = String(value || '').replace(/,/g, '').replace(/\s/g, '');
+  let m = /^(-?\d+(?:\.\d+)?)[–—-](-?\d+(?:\.\d+)?)/.exec(v);
+  if (m) return { low: Number(m[1]), high: Number(m[2]) };
+  m = /^<=?(-?\d+(?:\.\d+)?)/.exec(v);
+  if (m) return { high: Number(m[1]) };
+  m = /^>=?(-?\d+(?:\.\d+)?)/.exec(v);
+  if (m) return { low: Number(m[1]) };
+  return null;
+}
+
+/**
+ * The rows `text` mentions, in the sheet's own order.
+ */
 export function labsMentionedIn(text, rows) {
   const original = normaliseKeepCase(text);
   const haystack = original.toLowerCase();
   if (!haystack || !Array.isArray(rows)) return [];
+  return rows.filter(row => findMention(row, original, haystack) >= 0);
+}
 
-  return rows.filter((row) => {
-    const { names, abbrevs } = termsFor(row);
-    // A name only has to appear; "hyponatraemia" finding sodium is wanted, and
-    // these are long enough not to collide by accident.
-    for (const n of names) {
-      if (new RegExp(`(^|[^a-z0-9])${escapeRe(n)}`).test(haystack)) return true;
+/**
+ * The same rows, each carrying the figure the question gave for it and how
+ * that compares with the reference range.
+ *
+ * @returns {Array} [{ ...row, patient: { num, unit, raw } | null,
+ *                     verdict: 'low' | 'high' | 'normal' | null,
+ *                     unitMismatch: boolean }]
+ */
+export function labsWithValuesIn(text, rows) {
+  const original = normaliseKeepCase(text);
+  const haystack = original.toLowerCase();
+  if (!haystack || !Array.isArray(rows)) return [];
+
+  const out = [];
+  for (const row of rows) {
+    const at = findMention(row, original, haystack);
+    if (at < 0) continue;
+
+    const patient = valueAfter(original, at);
+    const range = parseRange(row.value);
+    let verdict = null;
+    let unitMismatch = false;
+
+    if (patient && range) {
+      // Units the sheet and the stem disagree on (mmol/L against mg/dL) make a
+      // comparison meaningless, so the figure is shown without a verdict.
+      const rowUnit = cleanUnit(row.units);
+      const gotUnit = cleanUnit(patient.unit);
+      unitMismatch = !!(gotUnit && rowUnit && gotUnit !== rowUnit
+        && !rowUnit.startsWith(gotUnit) && !gotUnit.startsWith(rowUnit));
+      if (!unitMismatch) {
+        if (range.low != null && patient.num < range.low) verdict = 'low';
+        else if (range.high != null && patient.num > range.high) verdict = 'high';
+        else verdict = 'normal';
+      }
     }
-    for (const a of abbrevs) {
-      if (new RegExp(`(^|[^A-Za-z0-9])${escapeRe(a)}($|[^A-Za-z0-9])`).test(original)) return true;
-    }
-    return false;
-  });
+    out.push({ ...row, patient, verdict, unitMismatch });
+  }
+  return out;
 }

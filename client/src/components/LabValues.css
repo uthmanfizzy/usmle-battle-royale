@@ -249,3 +249,81 @@
   background: rgba(0, 0, 0, 0.28);
   font-size: 11px;
 }
+
+/* ══ Lab panel: made readable ══════════════════════════════════════════════
+   Bigger type, a line between rows, the category heading pinned while its
+   group scrolls, and — in "This question" — the figure the stem gave sitting
+   next to the range it is being judged against. */
+.lab-table { width: 100%; border-collapse: collapse; }
+.lab-group-title {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 8px 10px 6px;
+  background: inherit;
+  backdrop-filter: blur(4px);
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.lab-head-row th {
+  padding: 4px 10px 8px;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-align: left;
+  opacity: 0.55;
+}
+.lab-head-row th:last-child { text-align: right; }
+
+.lab-row > td {
+  padding: 9px 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  font-size: 13.5px;
+  vertical-align: middle;
+}
+.lab-row:first-child > td { border-top: 0; }
+.lab-name { font-weight: 600; }
+.lab-val {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.78;
+}
+.lab-val .lab-units { margin-left: 6px; font-size: 11.5px; opacity: 0.7; }
+
+/* ── The question's own figure ── */
+.lab-table--q .lab-given { white-space: nowrap; }
+.lab-given-num {
+  font-size: 15px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.lab-given-unit { margin-left: 5px; font-size: 11.5px; opacity: 0.7; }
+.lab-given-none { opacity: 0.45; }
+.lab-flag {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+.lab-flag--high    { background: rgba(231, 76, 60, 0.22);  color: #ff9d8a; }
+.lab-flag--low     { background: rgba(79, 140, 255, 0.22); color: #9cc4ff; }
+.lab-flag--normal  { background: rgba(61, 220, 132, 0.18); color: #7ff0b4; }
+.lab-flag--unknown { background: rgba(255, 255, 255, 0.12); opacity: 0.8; }
+
+/* A tinted edge, so an abnormal row is findable without reading the flag. */
+.lab-row--high .lab-name { box-shadow: inset 3px 0 0 rgba(231, 76, 60, 0.75); padding-left: 13px; }
+.lab-row--low  .lab-name { box-shadow: inset 3px 0 0 rgba(79, 140, 255, 0.75); padding-left: 13px; }
+
+@media (max-width: 560px) {
+  .lab-row > td { padding: 8px 6px; font-size: 13px; }
+  .lab-given-num { font-size: 14px; }
+  .lab-flag { margin-left: 5px; padding: 2px 6px; }
+}
