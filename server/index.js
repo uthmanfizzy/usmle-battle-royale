@@ -7955,7 +7955,18 @@ app.put('/api/question-image/:id', moderatorAuth, async (req, res) => {
     const updates = {};
     if (hasField) updates[field] = url;
     if (hasPos) updates.explanation_image_pos = pos;
-    const { error } = await supabase.from(table).update(updates).eq(questionImageKey(table, req.params.id), req.params.id);
+    const key = questionImageKey(table, req.params.id);
+    let { error } = await supabase.from(table).update(updates).eq(key, req.params.id);
+    if (error && /explanation_image_pos/.test(error.message || '')) {
+      delete updates.explanation_image_pos;
+      if (Object.keys(updates).length === 0) {
+        return res.status(503).json({
+          error: 'explanation_image_pos column is missing — run the migration at the end of server/schema.sql',
+          reason: 'missing_column',
+        });
+      }
+      ({ error } = await supabase.from(table).update(updates).eq(key, req.params.id));
+    }
     if (error) throw error;
     // The in-memory bank is what Solo/Training actually serve, so patch it too —
     // otherwise the change only appears after the next full reload.
@@ -7978,9 +7989,15 @@ app.get('/api/question-image/:id', async (req, res) => {
   const table = questionImageTable(req.query.table);
   if (!table) return res.status(400).json({ error: 'unknown table' });
   try {
-    const { data, error } = await supabase
+    const key = questionImageKey(table, req.params.id);
+    let { data, error } = await supabase
       .from(table).select('image_url, explanation_image_url, explanation_image_pos')
-      .eq(questionImageKey(table, req.params.id), req.params.id).maybeSingle();
+      .eq(key, req.params.id).maybeSingle();
+    if (error && /explanation_image_pos/.test(error.message || '')) {
+      ({ data, error } = await supabase
+        .from(table).select('image_url, explanation_image_url')
+        .eq(key, req.params.id).maybeSingle());
+    }
     if (error) throw error;
     res.json({
       image_url: data?.image_url ?? null,

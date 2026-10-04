@@ -1179,8 +1179,15 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
         if (cancelled) return;
         const local = questionsRef.current.find(x => x.id === currentQid);
         for (const f of ['image_url', 'explanation_image_url']) {
+          // Absent key = the server told us nothing about this field, which is
+          // not the same as telling us it is empty.
+          if (!Object.prototype.hasOwnProperty.call(data, f)) continue;
           const incoming = data[f] ?? null;
           if (incoming !== (local?.[f] ?? null)) applyDevImage(f, incoming, currentQid);
+        }
+        if (Object.prototype.hasOwnProperty.call(data, 'explanation_image_pos')
+            && data.explanation_image_pos != null) {
+          setExplImgPos(Number(data.explanation_image_pos) || 0);
         }
       } catch { /* transient — the next tick retries */ }
     };
