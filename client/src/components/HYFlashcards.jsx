@@ -27,6 +27,41 @@ const HY_RATINGS = [
 ];
 
 /**
+ * The appearances a student can pick between. `light` selects the shared
+ * light base in the CSS (.is-light); `swatch` is [paper, accent], drawn as the
+ * little two-tone dot in the picker. Every id here needs a matching
+ * .hyf-t-<id> block in HYFlashcards.css.
+ */
+const HYF_THEMES = [
+  { id: 'midnight',  name: 'Midnight',  light: false, swatch: ['#0b0710', '#e8b04b'] },
+  { id: 'slate',     name: 'Slate',     light: false, swatch: ['#14181c', '#a3b8cd'] },
+  { id: 'royal',     name: 'Royal',     light: false, swatch: ['#07122a', '#66aeff'] },
+  { id: 'forest',    name: 'Forest',    light: false, swatch: ['#06140d', '#7ed694'] },
+  { id: 'mocha',     name: 'Mocha',     light: false, swatch: ['#16100c', '#dca064'] },
+  { id: 'nebula',    name: 'Nebula',    light: false, swatch: ['#120a1e', '#c494ff'] },
+  { id: 'parchment', name: 'Parchment', light: true,  swatch: ['#f7f2e7', '#a4701a'] },
+  { id: 'arctic',    name: 'Arctic',    light: true,  swatch: ['#eef3f9', '#1665b0'] },
+  { id: 'rose',      name: 'Rosewater', light: true,  swatch: ['#fdf1f4', '#ba2c64'] },
+  { id: 'contrast',  name: 'Contrast',  light: false, swatch: ['#000000', '#ffd65c'] },
+];
+const HYF_DEFAULT_THEME = 'midnight';
+
+/** The classes that dress a .hyf-page in one appearance. */
+function themeClasses(themeId) {
+  const t = HYF_THEMES.find(x => x.id === themeId) || HYF_THEMES[0];
+  return ` hyf-t-${t.id}${t.light ? ' is-light' : ''}`;
+}
+
+/** Reads the stored choice, including the 'light'/'dark' the old two-way
+ *  toggle wrote — a student who had picked light keeps a light page. */
+function storedTheme() {
+  const v = localStorage.getItem('hyf-theme');
+  if (v === 'light') return 'parchment';
+  if (HYF_THEMES.some(t => t.id === v)) return v;
+  return HYF_DEFAULT_THEME;
+}
+
+/**
  * /hy-flashcards — subject/topic picker, then a straight-through card flipper.
  *
  * Deliberately NOT built on SoloGame (that's for timed MCQ with lives/scoring,
@@ -44,13 +79,12 @@ export default function HYFlashcards() {
   const [menu, setMenu] = useState(null);           // null = loading, [] = loaded-but-empty never happens (always all active subjects)
   const [menuError, setMenuError] = useState(false);
   const [openSubject, setOpenSubject] = useState(null); // subject id whose bucket list is expanded
-  const [theme, setTheme] = useState(() => (localStorage.getItem('hyf-theme') === 'light' ? 'light' : 'dark'));
-  const toggleTheme = () => setTheme(t => {
-    const next = t === 'light' ? 'dark' : 'light';
-    localStorage.setItem('hyf-theme', next);
-    return next;
-  });
-  const themeClass = theme === 'light' ? ' is-light' : '';
+  const [theme, setTheme] = useState(storedTheme);
+  const pickTheme = (id) => {
+    localStorage.setItem('hyf-theme', id);
+    setTheme(id);
+  };
+  const themeClass = themeClasses(theme);
 
   // Own study track ("Quest Log", a lo-fi chiptune loop in audio.js), distinct
   // from the quiz-show music every other mode uses, since flashcard review
@@ -135,7 +169,7 @@ export default function HYFlashcards() {
         deck={deck}
         onExit={() => setDeck(null)}
         theme={theme}
-        onToggleTheme={toggleTheme}
+        onPickTheme={pickTheme}
         musicOn={musicOn}
         onToggleMusic={toggleMusic}
       />
@@ -152,7 +186,7 @@ export default function HYFlashcards() {
         }}
         onBack={() => setPendingBucket(null)}
         theme={theme}
-        onToggleTheme={toggleTheme}
+        onPickTheme={pickTheme}
         musicOn={musicOn}
         onToggleMusic={toggleMusic}
       />
@@ -165,7 +199,7 @@ export default function HYFlashcards() {
         <a className="hyf-wordmark" href="/dashboard">MEDVALE</a>
         <div className="hyf-topbar-right">
           <MusicToggle musicOn={musicOn} onToggle={toggleMusic} />
-          <ThemeToggle theme={theme} onToggle={toggleTheme} />
+          <ThemePicker theme={theme} onPick={pickTheme} />
           <div className="hyf-avatar" title={user?.username || 'Player'}>
             {user?.avatar_url
               ? <img src={user.avatar_url} alt={user.username} referrerPolicy="no-referrer" />
@@ -288,18 +322,63 @@ export default function HYFlashcards() {
   );
 }
 
-function ThemeToggle({ theme, onToggle }) {
-  const isLight = theme === 'light';
+/**
+ * The appearance picker — a palette button with a popover of swatches. A
+ * popover rather than a cycling button because ten appearances would take ten
+ * taps to get round, and you cannot see what you are cycling towards.
+ */
+function ThemePicker({ theme, onPick }) {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef(null);
+
+  // Click-away and Escape, both only while it is open.
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e) => { if (!wrapRef.current || !wrapRef.current.contains(e.target)) setOpen(false); };
+    const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  const current = HYF_THEMES.find(t => t.id === theme) || HYF_THEMES[0];
+
   return (
-    <button
-      type="button"
-      className="hyf-theme-toggle"
-      onClick={onToggle}
-      title={isLight ? 'Switch to dark theme' : 'Switch to light theme'}
-      aria-label={isLight ? 'Switch to dark theme' : 'Switch to light theme'}
-    >
-      {isLight ? '🌙' : '☀️'}
-    </button>
+    <div className="hyf-theme-wrap" ref={wrapRef}>
+      <button
+        type="button"
+        className="hyf-theme-toggle"
+        onClick={() => setOpen(o => !o)}
+        title={`Appearance: ${current.name}`}
+        aria-label={`Appearance: ${current.name}. Change it`}
+        aria-expanded={open}
+      >🎨</button>
+      {open && (
+        <div className="hyf-theme-pop" role="listbox" aria-label="Appearance">
+          <span className="hyf-theme-pop-title">Appearance</span>
+          <div className="hyf-theme-grid">
+            {HYF_THEMES.map(t => (
+              <button
+                key={t.id}
+                type="button"
+                role="option"
+                aria-selected={t.id === current.id}
+                className={`hyf-theme-opt${t.id === current.id ? ' is-on' : ''}`}
+                onClick={() => { onPick(t.id); setOpen(false); }}
+              >
+                <span className="hyf-theme-chip" style={{ background: t.swatch[0] }}>
+                  <span style={{ background: t.swatch[1] }} />
+                </span>
+                <span className="hyf-theme-opt-name">{t.name}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -324,7 +403,7 @@ function MusicToggle({ musicOn, onToggle }) {
  * round trip. A pile with zero cards is disabled rather than hidden, so a
  * student can see at a glance that e.g. they have no Careless Misses left.
  */
-function PilePicker({ bucket, onChoose, onBack, theme, onToggleTheme, musicOn, onToggleMusic }) {
+function PilePicker({ bucket, onChoose, onBack, theme, onPickTheme, musicOn, onToggleMusic }) {
   const cards = bucket.cards;
   const countFor = (key) => {
     if (key === null) return cards.length;
@@ -344,13 +423,13 @@ function PilePicker({ bucket, onChoose, onBack, theme, onToggleTheme, musicOn, o
   ];
 
   return (
-    <div className={`hyf-page${theme === 'light' ? ' is-light' : ''}`}>
+    <div className={`hyf-page${themeClasses(theme)}`}>
       <div className="hyf-headrow">
         <button type="button" className="hyf-back" onClick={onBack}>← Back</button>
         <h1 className="hyf-title">{bucket.topicName || bucket.subject.name}</h1>
         <div className="hyf-headrow-right">
           <MusicToggle musicOn={musicOn} onToggle={onToggleMusic} />
-          <ThemeToggle theme={theme} onToggle={onToggleTheme} />
+          <ThemePicker theme={theme} onPick={onPickTheme} />
         </div>
       </div>
 
@@ -384,7 +463,7 @@ function PilePicker({ bucket, onChoose, onBack, theme, onToggleTheme, musicOn, o
 
 /** The actual flip-through session. Its own tiny component so the flip/index
  * state resets cleanly every time a new deck is opened (mounted fresh). */
-function Player({ deck, onExit, theme, onToggleTheme, musicOn, onToggleMusic }) {
+function Player({ deck, onExit, theme, onPickTheme, musicOn, onToggleMusic }) {
   const [idx, setIdx] = useState(0);
   const [flipped, setFlipped] = useState(false);
   // Set for the single render in which we move to another card. Flipping back
@@ -521,7 +600,7 @@ function Player({ deck, onExit, theme, onToggleTheme, musicOn, onToggleMusic }) 
 
   if (done) {
     return (
-      <div className={`hyf-page hyf-page--center${theme === 'light' ? ' is-light' : ''}`}>
+      <div className={`hyf-page hyf-page--center${themeClasses(theme)}`}>
         <div className="hyf-done-card">
           <span className="hyf-done-icon" aria-hidden="true">🎉</span>
           <h2>Deck Complete!</h2>
@@ -539,14 +618,14 @@ function Player({ deck, onExit, theme, onToggleTheme, musicOn, onToggleMusic }) 
   }
 
   return (
-    <div className={`hyf-page hyf-page--player${theme === 'light' ? ' is-light' : ''}`}>
+    <div className={`hyf-page hyf-page--player${themeClasses(theme)}`}>
       <div className="hyf-player-head">
         <button type="button" className="hyf-back" onClick={onExit}>← Exit</button>
         <span className="hyf-player-title">{deck.topicName || `${deck.subjectName} — All`}</span>
         <div className="hyf-player-right">
           <span className="hyf-player-count">{idx + 1} / {total}</span>
           <MusicToggle musicOn={musicOn} onToggle={onToggleMusic} />
-          <ThemeToggle theme={theme} onToggle={onToggleTheme} />
+          <ThemePicker theme={theme} onPick={onPickTheme} />
         </div>
       </div>
 

@@ -6,26 +6,39 @@
    Colors are routed through --hyf-* custom properties (scoped to .hyf-page)
    so a single class, `.is-light`, can flip the whole surface to a light
    theme without a second copy of every rule. Static rgba() values only —
-   color-mix() ships broken on older browsers (see design_tokens memory). */
+   color-mix() ships broken on older browsers (see design_tokens memory).
+
+   On top of that light/dark base sit the named appearances (.hyf-t-*, further
+   down) a student picks for themselves. Each one only has to restate the
+   surfaces and the two accents, because the accents are carried as RGB
+   triplets — rgba(var(--hyf-accent-rgb), 0.4) — rather than as finished
+   colours, the same trick UWorld Adventure uses for its per-subject tints. */
 
 .hyf-page {
+  /* The two accents: --hyf-accent dresses the chrome (carets, titles, the
+     question face), --hyf-accent2 is the answer side only. */
+  --hyf-accent-rgb: 232, 176, 75;
+  --hyf-accent2-rgb: 61, 220, 132;
+  --hyf-accent: rgb(var(--hyf-accent-rgb));
+
   --hyf-bg: #0b0710;
-  --hyf-fg: #ffffff;
-  --hyf-fg-85: rgba(255, 255, 255, 0.85);
-  --hyf-fg-75: rgba(255, 255, 255, 0.75);
-  --hyf-fg-70: rgba(255, 255, 255, 0.7);
-  --hyf-fg-60: rgba(255, 255, 255, 0.6);
-  --hyf-fg-55: rgba(255, 255, 255, 0.55);
-  --hyf-fg-50: rgba(255, 255, 255, 0.5);
-  --hyf-fg-40: rgba(255, 255, 255, 0.4);
-  --hyf-fg-35: rgba(255, 255, 255, 0.35);
-  --hyf-fg-16: rgba(255, 255, 255, 0.16);
-  --hyf-fg-12: rgba(255, 255, 255, 0.12);
-  --hyf-fg-10: rgba(255, 255, 255, 0.1);
-  --hyf-fg-06: rgba(255, 255, 255, 0.06);
-  --hyf-fg-05: rgba(255, 255, 255, 0.05);
-  --hyf-fg-03: rgba(255, 255, 255, 0.03);
-  --hyf-fg-02: rgba(255, 255, 255, 0.02);
+  --hyf-ink-rgb: 255, 255, 255;
+  --hyf-fg: rgb(var(--hyf-ink-rgb));
+  --hyf-fg-85: rgba(var(--hyf-ink-rgb), 0.85);
+  --hyf-fg-75: rgba(var(--hyf-ink-rgb), 0.75);
+  --hyf-fg-70: rgba(var(--hyf-ink-rgb), 0.7);
+  --hyf-fg-60: rgba(var(--hyf-ink-rgb), 0.6);
+  --hyf-fg-55: rgba(var(--hyf-ink-rgb), 0.55);
+  --hyf-fg-50: rgba(var(--hyf-ink-rgb), 0.5);
+  --hyf-fg-40: rgba(var(--hyf-ink-rgb), 0.4);
+  --hyf-fg-35: rgba(var(--hyf-ink-rgb), 0.35);
+  --hyf-fg-16: rgba(var(--hyf-ink-rgb), 0.16);
+  --hyf-fg-12: rgba(var(--hyf-ink-rgb), 0.12);
+  --hyf-fg-10: rgba(var(--hyf-ink-rgb), 0.1);
+  --hyf-fg-06: rgba(var(--hyf-ink-rgb), 0.06);
+  --hyf-fg-05: rgba(var(--hyf-ink-rgb), 0.05);
+  --hyf-fg-03: rgba(var(--hyf-ink-rgb), 0.03);
+  --hyf-fg-02: rgba(var(--hyf-ink-rgb), 0.02);
   --hyf-back-btn-bg: rgba(0, 0, 0, 0.4);
   --hyf-subject-bg: rgba(6, 10, 7, 0.55);
   --hyf-face-front-bg: linear-gradient(160deg, rgba(20, 12, 10, 0.9), rgba(8, 5, 4, 0.95));
@@ -42,31 +55,219 @@
 }
 
 /* ── Light theme — warm paper tone rather than stark white, easier on the
-   eyes for long review sessions. Accent borders (gold/green) stay put; only
-   the surfaces and text opacities flip. ─────────────────────────────────── */
+   eyes for long review sessions. Shared by every light appearance, which
+   restates only its own paper, ink and accents below. ─────────────────────────────────── */
 .hyf-page.is-light {
   --hyf-bg: #f7f2e7;
-  --hyf-fg: #241a10;
-  --hyf-fg-85: rgba(36, 26, 16, 0.85);
-  --hyf-fg-75: rgba(36, 26, 16, 0.75);
-  --hyf-fg-70: rgba(36, 26, 16, 0.7);
-  --hyf-fg-60: rgba(36, 26, 16, 0.62);
-  --hyf-fg-55: rgba(36, 26, 16, 0.58);
-  --hyf-fg-50: rgba(36, 26, 16, 0.52);
-  --hyf-fg-40: rgba(36, 26, 16, 0.45);
-  --hyf-fg-35: rgba(36, 26, 16, 0.4);
-  --hyf-fg-16: rgba(36, 26, 16, 0.18);
-  --hyf-fg-12: rgba(36, 26, 16, 0.14);
-  --hyf-fg-10: rgba(36, 26, 16, 0.12);
-  --hyf-fg-06: rgba(36, 26, 16, 0.07);
-  --hyf-fg-05: rgba(36, 26, 16, 0.06);
-  --hyf-fg-03: rgba(36, 26, 16, 0.04);
-  --hyf-fg-02: rgba(36, 26, 16, 0.03);
+  --hyf-ink-rgb: 36, 26, 16;
+  --hyf-fg: rgb(var(--hyf-ink-rgb));
+  --hyf-fg-85: rgba(var(--hyf-ink-rgb), 0.85);
+  --hyf-fg-75: rgba(var(--hyf-ink-rgb), 0.75);
+  --hyf-fg-70: rgba(var(--hyf-ink-rgb), 0.7);
+  --hyf-fg-60: rgba(var(--hyf-ink-rgb), 0.62);
+  --hyf-fg-55: rgba(var(--hyf-ink-rgb), 0.58);
+  --hyf-fg-50: rgba(var(--hyf-ink-rgb), 0.52);
+  --hyf-fg-40: rgba(var(--hyf-ink-rgb), 0.45);
+  --hyf-fg-35: rgba(var(--hyf-ink-rgb), 0.4);
+  --hyf-fg-16: rgba(var(--hyf-ink-rgb), 0.18);
+  --hyf-fg-12: rgba(var(--hyf-ink-rgb), 0.14);
+  --hyf-fg-10: rgba(var(--hyf-ink-rgb), 0.12);
+  --hyf-fg-06: rgba(var(--hyf-ink-rgb), 0.07);
+  --hyf-fg-05: rgba(var(--hyf-ink-rgb), 0.06);
+  --hyf-fg-03: rgba(var(--hyf-ink-rgb), 0.04);
+  --hyf-fg-02: rgba(var(--hyf-ink-rgb), 0.03);
   --hyf-back-btn-bg: rgba(255, 255, 255, 0.55);
   --hyf-subject-bg: rgba(255, 255, 255, 0.65);
   --hyf-face-front-bg: linear-gradient(160deg, #fffaf0, #fbedd2);
   --hyf-face-back-bg: linear-gradient(160deg, #f2faf3, #e2f4e6);
   --hyf-done-bg: rgba(255, 255, 255, 0.8);
+}
+
+/* ── Appearances ───────────────────────────────────────────────
+   One per entry in HYF_THEMES (HYFlashcards.jsx) — the two lists have to stay
+   in step, and a light one carries .is-light alongside its own class. These
+   come AFTER .is-light on purpose: same specificity, so source order is what
+   lets a light appearance override the shared light base. ──────────── */
+
+/* Midnight — the original: the site's own gold and green on near-black. */
+.hyf-page.hyf-t-midnight {
+  --hyf-accent-rgb: 232, 176, 75;
+  --hyf-accent2-rgb: 61, 220, 132;
+}
+
+/* Slate — neutral grey, no colour cast; the quietest of the dark set. */
+.hyf-page.hyf-t-slate {
+  --hyf-accent-rgb: 163, 184, 205;
+  --hyf-accent2-rgb: 110, 199, 185;
+  --hyf-bg: #14181c;
+  --hyf-subject-bg: rgba(26, 32, 38, 0.6);
+  --hyf-face-front-bg: linear-gradient(160deg, rgba(32, 39, 46, 0.95), rgba(18, 22, 26, 0.96));
+  --hyf-face-back-bg: linear-gradient(160deg, rgba(24, 42, 42, 0.95), rgba(14, 24, 24, 0.96));
+  --hyf-done-bg: rgba(28, 34, 40, 0.88);
+}
+
+/* Royal — deep navy with a cool blue accent. */
+.hyf-page.hyf-t-royal {
+  --hyf-accent-rgb: 102, 174, 255;
+  --hyf-accent2-rgb: 86, 222, 196;
+  --hyf-bg: #07122a;
+  --hyf-subject-bg: rgba(10, 24, 50, 0.6);
+  --hyf-face-front-bg: linear-gradient(160deg, rgba(14, 32, 66, 0.95), rgba(7, 17, 38, 0.96));
+  --hyf-face-back-bg: linear-gradient(160deg, rgba(10, 44, 48, 0.95), rgba(5, 24, 28, 0.96));
+  --hyf-done-bg: rgba(12, 28, 58, 0.88);
+}
+
+/* Forest — dark moss, with gold kept for the answer side. */
+.hyf-page.hyf-t-forest {
+  --hyf-accent-rgb: 126, 214, 148;
+  --hyf-accent2-rgb: 232, 200, 96;
+  --hyf-bg: #06140d;
+  --hyf-subject-bg: rgba(10, 28, 19, 0.6);
+  --hyf-face-front-bg: linear-gradient(160deg, rgba(12, 34, 23, 0.95), rgba(5, 16, 11, 0.96));
+  --hyf-face-back-bg: linear-gradient(160deg, rgba(32, 28, 12, 0.95), rgba(16, 13, 5, 0.96));
+  --hyf-done-bg: rgba(12, 32, 22, 0.88);
+}
+
+/* Mocha — warm dark brown, for late sessions. */
+.hyf-page.hyf-t-mocha {
+  --hyf-accent-rgb: 220, 160, 100;
+  --hyf-accent2-rgb: 150, 205, 150;
+  --hyf-bg: #16100c;
+  --hyf-subject-bg: rgba(34, 24, 17, 0.6);
+  --hyf-face-front-bg: linear-gradient(160deg, rgba(44, 31, 22, 0.95), rgba(22, 15, 10, 0.96));
+  --hyf-face-back-bg: linear-gradient(160deg, rgba(26, 36, 26, 0.95), rgba(13, 19, 13, 0.96));
+  --hyf-done-bg: rgba(40, 28, 20, 0.88);
+}
+
+/* Nebula — violet-black with a lilac accent. */
+.hyf-page.hyf-t-nebula {
+  --hyf-accent-rgb: 196, 148, 255;
+  --hyf-accent2-rgb: 94, 218, 206;
+  --hyf-bg: #120a1e;
+  --hyf-subject-bg: rgba(26, 16, 42, 0.6);
+  --hyf-face-front-bg: linear-gradient(160deg, rgba(38, 22, 62, 0.95), rgba(18, 10, 30, 0.96));
+  --hyf-face-back-bg: linear-gradient(160deg, rgba(14, 42, 44, 0.95), rgba(7, 22, 24, 0.96));
+  --hyf-done-bg: rgba(32, 19, 52, 0.88);
+}
+
+/* Parchment — the original light theme: warm paper, with a deeper gold so the
+   accent still reads as text on it. */
+.hyf-page.hyf-t-parchment {
+  --hyf-accent-rgb: 164, 112, 26;
+  --hyf-accent2-rgb: 27, 122, 70;
+}
+
+/* Arctic — cool white-blue with navy ink. */
+.hyf-page.hyf-t-arctic {
+  --hyf-accent-rgb: 22, 101, 176;
+  --hyf-accent2-rgb: 13, 118, 102;
+  --hyf-bg: #eef3f9;
+  --hyf-ink-rgb: 14, 27, 42;
+  --hyf-back-btn-bg: rgba(255, 255, 255, 0.7);
+  --hyf-subject-bg: rgba(255, 255, 255, 0.72);
+  --hyf-face-front-bg: linear-gradient(160deg, #ffffff, #e5eef8);
+  --hyf-face-back-bg: linear-gradient(160deg, #f1fbf8, #ddf0ec);
+  --hyf-done-bg: rgba(255, 255, 255, 0.85);
+}
+
+/* Rosewater — pale pink paper, plum ink. */
+.hyf-page.hyf-t-rose {
+  --hyf-accent-rgb: 186, 44, 100;
+  --hyf-accent2-rgb: 104, 74, 162;
+  --hyf-bg: #fdf1f4;
+  --hyf-ink-rgb: 46, 22, 33;
+  --hyf-back-btn-bg: rgba(255, 255, 255, 0.7);
+  --hyf-subject-bg: rgba(255, 255, 255, 0.72);
+  --hyf-face-front-bg: linear-gradient(160deg, #fffafb, #fbe4ec);
+  --hyf-face-back-bg: linear-gradient(160deg, #f8f3fd, #ece2f8);
+  --hyf-done-bg: rgba(255, 255, 255, 0.85);
+}
+
+/* High contrast — pure black and white, for when nothing else is readable
+   enough. Borders go to full strength rather than washed tints. */
+.hyf-page.hyf-t-contrast {
+  --hyf-accent-rgb: 255, 214, 92;
+  --hyf-accent2-rgb: 90, 240, 160;
+  --hyf-bg: #000000;
+  --hyf-subject-bg: rgba(255, 255, 255, 0.04);
+  --hyf-face-front-bg: linear-gradient(160deg, #111111, #000000);
+  --hyf-face-back-bg: linear-gradient(160deg, #0b1410, #000000);
+  --hyf-done-bg: rgba(10, 10, 10, 0.95);
+}
+.hyf-page.hyf-t-contrast .hyf-face { border-width: 2px; }
+.hyf-page.hyf-t-contrast .hyf-face--front { border-color: rgba(var(--hyf-accent-rgb), 0.9); }
+.hyf-page.hyf-t-contrast .hyf-face--back { border-color: rgba(var(--hyf-accent2-rgb), 0.9); }
+.hyf-page.hyf-t-contrast .hyf-subject { border-color: rgba(var(--hyf-accent-rgb), 0.6); }
+
+/* ── Appearance picker — the swatch popover behind the palette button ─── */
+.hyf-theme-wrap { position: relative; display: inline-flex; }
+.hyf-theme-pop {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 40;
+  width: 252px;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--hyf-bg);
+  border: 1px solid rgba(var(--hyf-accent-rgb), 0.45);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.45);
+}
+.hyf-theme-pop-title {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--hyf-fg-50);
+  margin-bottom: 9px;
+}
+.hyf-theme-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+}
+.hyf-theme-opt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--hyf-fg-12);
+  background: var(--hyf-fg-03);
+  color: var(--hyf-fg-85);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.14s ease, background 0.14s ease;
+}
+.hyf-theme-opt:hover { border-color: rgba(var(--hyf-accent-rgb), 0.5); background: var(--hyf-fg-06); }
+.hyf-theme-opt.is-on {
+  border-color: rgba(var(--hyf-accent-rgb), 0.75);
+  background: rgba(var(--hyf-accent-rgb), 0.12);
+  color: var(--hyf-fg);
+}
+/* The swatch: the appearance's own paper with a wedge of its accent — enough
+   to recognise it without rendering a whole preview card. */
+.hyf-theme-chip {
+  position: relative;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1px solid var(--hyf-fg-16);
+  flex-shrink: 0;
+  overflow: hidden;
+}
+.hyf-theme-chip span {
+  position: absolute;
+  inset: 0 0 0 50%;
+}
+.hyf-theme-opt-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+@media (max-width: 420px) {
+  .hyf-theme-pop { width: min(252px, calc(100vw - 32px)); }
 }
 
 .hyf-page--center {
@@ -103,7 +304,7 @@
   justify-content: center;
   font-family: var(--mv-font-display, 'Cinzel', serif);
   font-size: 14px;
-  color: var(--mv-gold, #e8b04b);
+  color: var(--hyf-accent);
   flex-shrink: 0;
 }
 .hyf-avatar img { width: 100%; height: 100%; object-fit: cover; }
@@ -199,10 +400,10 @@
 }
 .hyf-order-btn:hover { color: var(--hyf-fg-85); }
 .hyf-order-btn.is-on {
-  background: rgba(232, 176, 75, 0.18);
-  border: 1px solid rgba(232, 176, 75, 0.5);
+  background: rgba(var(--hyf-accent-rgb), 0.18);
+  border: 1px solid rgba(var(--hyf-accent-rgb), 0.5);
   padding: 6px 13px;
-  color: var(--mv-gold, #e8b04b);
+  color: var(--hyf-accent);
 }
 
 .hyf-empty {
@@ -215,11 +416,11 @@
 
 .hyf-subject {
   border-radius: 10px;
-  border: 1.5px solid rgba(232, 176, 75, 0.25);
+  border: 1.5px solid rgba(var(--hyf-accent-rgb), 0.25);
   background: var(--hyf-subject-bg);
   overflow: hidden;
 }
-.hyf-subject.is-open { border-color: rgba(232, 176, 75, 0.55); }
+.hyf-subject.is-open { border-color: rgba(var(--hyf-accent-rgb), 0.55); }
 .hyf-subject.is-empty { opacity: 0.5; }
 
 .hyf-subject-head {
@@ -247,7 +448,7 @@
   font-size: 12px;
   color: var(--hyf-fg-50);
 }
-.hyf-subject-caret { color: var(--mv-gold, #e8b04b); font-size: 13px; }
+.hyf-subject-caret { color: var(--hyf-accent); font-size: 13px; }
 
 .hyf-decks {
   display: flex;
@@ -269,7 +470,7 @@
   font-family: inherit;
   transition: border-color 0.14s ease, background 0.14s ease;
 }
-.hyf-deck:hover { border-color: rgba(232, 176, 75, 0.5); background: rgba(232, 176, 75, 0.08); }
+.hyf-deck:hover { border-color: rgba(var(--hyf-accent-rgb), 0.5); background: rgba(var(--hyf-accent-rgb), 0.08); }
 .hyf-deck-name { font-size: 14px; font-weight: 700; }
 .hyf-deck-sub { font-size: 12px; color: var(--hyf-fg-55); }
 .hyf-deck--topic .hyf-deck-name::before { content: '📁 '; }
@@ -280,7 +481,7 @@
   border: 1px solid var(--hyf-fg-10);
   overflow: hidden;
 }
-.hyf-chapter.is-open { border-color: rgba(232, 176, 75, 0.4); }
+.hyf-chapter.is-open { border-color: rgba(var(--hyf-accent-rgb), 0.4); }
 .hyf-chapter-head {
   width: 100%;
   display: flex;
@@ -296,7 +497,7 @@
   font-family: inherit;
 }
 .hyf-chapter-name { font-size: 13px; font-weight: 700; }
-.hyf-chapter-caret { color: var(--mv-gold, #e8b04b); font-size: 12px; }
+.hyf-chapter-caret { color: var(--hyf-accent); font-size: 12px; }
 .hyf-topics {
   display: flex;
   flex-direction: column;
@@ -321,7 +522,7 @@
   font-family: var(--mv-font-display, 'Cinzel', serif);
   font-size: 15px;
   font-weight: 700;
-  color: var(--mv-gold, #e8b04b);
+  color: var(--hyf-accent);
   text-align: center;
   flex: 1;
   overflow: hidden;
@@ -384,13 +585,13 @@
 }
 .hyf-face--front {
   background: var(--hyf-face-front-bg);
-  border: 1.5px solid rgba(232, 176, 75, 0.4);
-  box-shadow: 0 0 22px rgba(232, 176, 75, 0.12);
+  border: 1.5px solid rgba(var(--hyf-accent-rgb), 0.4);
+  box-shadow: 0 0 22px rgba(var(--hyf-accent-rgb), 0.12);
 }
 .hyf-face--back {
   background: var(--hyf-face-back-bg);
-  border: 1.5px solid rgba(61, 220, 132, 0.4);
-  box-shadow: 0 0 22px rgba(61, 220, 132, 0.12);
+  border: 1.5px solid rgba(var(--hyf-accent2-rgb), 0.4);
+  box-shadow: 0 0 22px rgba(var(--hyf-accent2-rgb), 0.12);
   transform: rotateY(180deg);
   /* Answer + optional explanation can outgrow the card's fixed height — the
      whole face scrolls as one block rather than each piece separately.
@@ -407,8 +608,7 @@
   letter-spacing: 0.12em;
   color: var(--hyf-fg-40);
 }
-.hyf-face--back .hyf-face-label { color: rgba(61, 220, 132, 0.7); }
-.hyf-page.is-light .hyf-face--back .hyf-face-label { color: rgba(29, 130, 74, 0.85); }
+.hyf-face--back .hyf-face-label { color: rgba(var(--hyf-accent2-rgb), 0.85); }
 /* Card content uses Atkinson Hyperlegible — a typeface designed specifically
    for reading accuracy (distinguishable letterforms, generous spacing),
    rather than the app's usual display/UI fonts which prioritize style. */
@@ -515,7 +715,7 @@
   padding: 40px 36px;
   border-radius: 16px;
   background: var(--hyf-done-bg);
-  border: 1.5px solid rgba(232, 176, 75, 0.4);
+  border: 1.5px solid rgba(var(--hyf-accent-rgb), 0.4);
   text-align: center;
 }
 .hyf-done-icon { font-size: 40px; margin-bottom: 6px; }
@@ -524,7 +724,7 @@
   margin: 0;
   color: var(--hyf-fg);
 }
-.hyf-done-sub { color: var(--mv-gold, #e8b04b); font-size: 13px; margin: 0; }
+.hyf-done-sub { color: var(--hyf-accent); font-size: 13px; margin: 0; }
 .hyf-done-count { color: var(--hyf-fg-70); font-size: 14px; margin: 6px 0 18px; }
 .hyf-done-actions { display: flex; gap: 12px; }
 
