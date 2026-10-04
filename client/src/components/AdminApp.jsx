@@ -467,7 +467,11 @@ function HYFlashcardsAdmin({ subjects }) {
     else if (activeChapterId) params.set('chapter_id', activeChapterId);
     apiCall(`/admin/hy-flashcards?${params.toString()}`)
       .then(r => r.json())
-      .then(d => { setCards(d.cards || []); setNeedsMigration(!!d.needs_migration); })
+      .then(d => {
+        setCards(d.cards || []);
+        setNeedsMigration(!!d.needs_migration);
+        setQSel(new Set());   // a selection belongs to the bucket it was made in
+      })
       .catch(() => setError('Failed to load cards.'))
       .finally(() => setLoading(false));
   }, [subject, activeTopicId, activeChapterId, bucketReady]);
@@ -495,6 +499,14 @@ function HYFlashcardsAdmin({ subjects }) {
 
   function toggleSel(id) {
     setQSel(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  }
+
+  // Everything in the bucket on screen — which is what "all" means here, since
+  // the list is already narrowed to one chapter/topic (or General).
+  const selectedHere = cards.reduce((n, c) => (qSel.has(c.id) ? n + 1 : n), 0);
+  const allHere = cards.length > 0 && selectedHere === cards.length;
+  function toggleSelectAll() {
+    setQSel(() => (allHere ? new Set() : new Set(cards.map(c => c.id))));
   }
 
   async function handleDelete() {
@@ -740,6 +752,21 @@ function HYFlashcardsAdmin({ subjects }) {
           </details>
 
           <div className="hyf-list-head">
+            {cards.length > 0 && (
+              <label className="hyf-selectall" title={allHere ? 'Clear the selection' : `Select all ${cards.length} cards here`}>
+                <input
+                  type="checkbox"
+                  className="je-qcheck"
+                  checked={allHere}
+                  // Some but not all: the box shows a dash rather than
+                  // pretending the selection is empty or complete.
+                  ref={el => { if (el) el.indeterminate = selectedHere > 0 && !allHere; }}
+                  onChange={toggleSelectAll}
+                  aria-label="Select all cards"
+                />
+                <span>All</span>
+              </label>
+            )}
             <h3 className="ap-ann-title" style={{ fontSize: 15 }}>
               {bucketLabel} <span className="perm-count">{cards.length}</span>
             </h3>

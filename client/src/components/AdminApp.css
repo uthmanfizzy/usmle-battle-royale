@@ -6049,3 +6049,17 @@
   background-color: var(--card);
   color: var(--text);
 }
+
+/* Select-all, beside the bucket name in the flashcard list header. */
+.hyf-selectall {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-dim);
+  cursor: pointer;
+  user-select: none;
+}
+.hyf-selectall:hover { color: var(--text); }
