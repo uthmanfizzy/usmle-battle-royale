@@ -1916,16 +1916,6 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
     <div className={`${screenClass}${timeUpLock ? ' uw-timeup' : ''}`} ref={screenRef}>
       {ratingErrorBanner}
 
-      {(isPaused || (revealed && explPaused)) && (
-        <button
-          type="button"
-          className="pause-float"
-          onClick={() => (isPaused ? setIsPaused(false) : toggleExplPause())}
-        >
-          ▶ Resume
-          {!isPaused && explPaused && <span className="pause-float-left">{explPausedLeft}s left</span>}
-        </button>
-      )}
       {/* Developer-mode unlock: only when ?dev=1 is in the URL and not yet unlocked.
           Lets an admin enable official-highlight authoring from any play tab. */}
       {devParam && !isAdminSession && (
@@ -2612,15 +2602,19 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
               <button className="stb-arrow" disabled title="Previous (not available)">←</button>
               {/* Pause sits BETWEEN the arrows (training/journey only, during the
                   question countdown): [← prev] [⏸ pause] [next →]. */}
-              {canPause && !isPaused && (
+              {/* One button for both: it stays in place while paused and
+                  becomes ▶, so resuming is the same tap in the same spot
+                  rather than a control to go looking for. */}
+              {canPause && (
                 <button
-                  className={`stb-arrow stb-pause${revealed && explPaused ? ' is-held' : ''}`}
-                  onClick={() => (revealed ? toggleExplPause() : setIsPaused(true))}
+                  className={`stb-arrow stb-pause${(isPaused || (revealed && explPaused)) ? ' is-held' : ''}`}
+                  onClick={() => (revealed ? toggleExplPause() : setIsPaused(v => !v))}
                   title={revealed
                     ? (explPaused ? 'Resume the explanation timer' : 'Pause while you read the explanation')
-                    : 'Pause'}
+                    : (isPaused ? 'Resume' : 'Pause')}
+                  aria-pressed={isPaused || (revealed && explPaused)}
                 >
-                  {revealed && explPaused ? '▶' : '⏸'}
+                  {(isPaused || (revealed && explPaused)) ? '▶' : '⏸'}
                 </button>
               )}
               <button

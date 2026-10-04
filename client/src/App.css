@@ -4033,57 +4033,11 @@ html[data-study="on"] .solo-body .pause-overlay {
   .opt-cross { transition: none; }
 }
 
-/* ── Resume, always reachable ─────────────────────────────────────────────
-   The pause overlay lives inside the question card, so on a long stem (or
-   after any scrolling) its Resume button could be off screen — a paused game
-   with no visible way out. This one is pinned to the viewport. */
-.pause-float {
-  position: fixed;
-  left: 50%;
-  bottom: 22px;
-  transform: translateX(-50%);
-  z-index: 9500;
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  padding: 13px 26px;
-  border-radius: 999px;
-  border: 1px solid rgba(253, 203, 110, 0.65);
-  background: #1f2230;
-  color: #fdcb6e;
-  font-family: var(--mv-font-display, 'Cinzel', serif);
-  font-size: 15px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55);
-  cursor: pointer;
-  animation: pause-float-in 0.2s ease both;
-}
-.pause-float:hover { background: #2a2e40; }
-.pause-float-left {
-  padding: 2px 9px;
-  border-radius: 999px;
-  background: rgba(253, 203, 110, 0.18);
-  font-size: 12px;
-  font-weight: 700;
-}
-@keyframes pause-float-in {
-  from { opacity: 0; transform: translate(-50%, 10px); }
-  to   { opacity: 1; transform: translate(-50%, 0); }
-}
-
 /* Pause beside Next Question, during the explanation. */
 .rr-pause-btn.is-held { border-color: rgba(253, 203, 110, 0.7); color: #fdcb6e; }
 .stb-arrow.stb-pause.is-held { color: #fdcb6e; }
 
-@media (prefers-reduced-motion: reduce) {
-  .pause-float { animation: none; }
-}
-
 /* Clear of the study footer on a phone. */
-@media (max-width: 560px) {
-  .pause-float { bottom: 76px; padding: 11px 20px; font-size: 14px; }
-}
 
 /* The run summary on the Block Ended / Block Complete screen. */
 .sgo-stats--run {
