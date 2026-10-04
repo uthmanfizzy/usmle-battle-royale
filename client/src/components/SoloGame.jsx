@@ -912,6 +912,12 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   // picture hold freezes it exactly like the pause button (without the cover).
   pausedRef.current = isPaused || devImgHolding;
   const [devImgMsg,   setDevImgMsg]   = useState(null);        // { field, kind: 'ok'|'err', text }
+  // Where the explanation picture sits in the explanation: 0 (the default) is
+  // above the first paragraph, 1 after it, and so on. Dragged into place by an
+  // author with permissions; everyone else just sees it where they left it.
+  const [explImgPos, setExplImgPos] = useState(0);
+  const [draggingImg, setDraggingImg] = useState(false);
+
 
   // Show the new image immediately. Matched BY ID rather than by index, since
   // the game may have advanced while the upload was in flight. The patched
@@ -1037,6 +1043,25 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
     }
   }, [imageAuthHeaders, saveDevImage, devImgFail]);
 
+  const saveExplImgPos = useCallback(async (pos, qid) => {
+    const target = qid
+      ? questionsRef.current.find(x => x.id === qid)
+      : questionsRef.current[qIdxRef.current];
+    if (!target?.id) return;
+    const headers = imageAuthHeaders();
+    if (!headers) return;
+    // Shown immediately; the write follows. A failed move only means it is back
+    // where it was on the next load, which is visible and harmless.
+    applyDevImage('explanation_image_pos', pos, target.id);
+    try {
+      await fetch(`${SERVER_URL}/api/question-image/${encodeURIComponent(target.id)}?table=${imageTable}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', ...headers },
+        body: JSON.stringify({ explanation_image_pos: pos }),
+      });
+    } catch { /* the position is already on screen; the next load re-reads it */ }
+  }, [imageAuthHeaders, imageTable, applyDevImage]);
+
   // Every distinct image already used by the questions in THIS run — which is
   // exactly "the other questions in this level/topic". Built from the questions
   // already in memory, so the picker costs no extra request. Deduped by URL:
@@ -1110,6 +1135,13 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
 
   // Stable per-question id (survives the option shuffle — shuffle keeps `id`).
   const currentQid = questions[qIdx]?.id;
+
+  // Each question brings its own picture position.
+  useEffect(() => {
+    const row = questionsRef.current[qIdxRef.current];
+    setExplImgPos(Number(row?.explanation_image_pos) || 0);
+    setDraggingImg(false);
+  }, [qIdx, currentQid]);
 
   // Fetch this question's highlights on question LOAD (not gated behind reveal) so
   // the stem's official bold/italic format spans (region='question') — the hints —
@@ -2374,6 +2406,46 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
                   text={q.explanation}
                   highlights={displayHighlights}
                   containerRef={explContainerRef}
+                  imageAt={explImgPos}
+                  imageNode={q.explanation_image_url ? (
+                    <span
+                      className={`rr-expl-img-wrap${canWriteImages ? ' is-movable' : ''}${draggingImg ? ' is-dragging' : ''}`}
+                      draggable={canWriteImages}
+                      onDragStart={(e) => {
+                        if (!canWriteImages) return;
+                        setDraggingImg(true);
+                        e.dataTransfer.effectAllowed = 'move';
+                        // Firefox needs something on the transfer or the drag
+                        // never starts.
+                        try { e.dataTransfer.setData('text/plain', 'explanation-image'); } catch { /* ignore */ }
+                      }}
+                      onDragEnd={() => setDraggingImg(false)}
+                      title={canWriteImages ? 'Drag me anywhere in the explanation' : undefined}
+                    >
+                      <img
+                        src={q.explanation_image_url}
+                        alt="Explanation"
+                        className="rr-explanation-img"
+                        onError={e => { e.target.style.display = 'none'; }}
+                      />
+                      {canWriteImages && <span className="rr-expl-img-grip" aria-hidden="true">⠿ drag</span>}
+                    </span>
+                  ) : null}
+                  renderGap={canWriteImages && q.explanation_image_url && draggingImg ? (i) => (
+                    <span
+                      className="rr-expl-drop"
+                      onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add('is-over'); }}
+                      onDragLeave={(e) => e.currentTarget.classList.remove('is-over')}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        e.currentTarget.classList.remove('is-over');
+                        setDraggingImg(false);
+                        if (i !== explImgPos) { setExplImgPos(i); saveExplImgPos(i, q?.id); }
+                      }}
+                    >
+                      Drop the picture here
+                    </span>
+                  ) : null}
                 />
               )}
               {!hideExplanations && canHighlight && (
@@ -2422,14 +2494,6 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
                     </>
                   )}
                 </div>
-              )}
-              {!hideExplanations && q.explanation_image_url && (
-                <img
-                  src={q.explanation_image_url}
-                  alt="Explanation"
-                  className="rr-explanation-img"
-                  onError={e => { e.target.style.display = 'none'; }}
-                />
               )}
               {needsImageUnlock && imageUnlockNotice}
               {canWriteImages && (

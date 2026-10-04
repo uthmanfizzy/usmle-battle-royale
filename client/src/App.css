@@ -4094,3 +4094,39 @@ html[data-study="on"] .solo-body .pause-overlay {
   border-bottom: 1px solid rgba(255, 255, 255, 0.12);
 }
 .sgo-stats--run .sgo-val { font-size: 26px; }
+
+/* ── The explanation picture, and moving it ───────────────────────────────
+   It sits inside the explanation now — above the first paragraph by default —
+   so an author can drag it to whichever point it actually illustrates. */
+.rr-expl-img-wrap { display: block; position: relative; margin: 10px 0 14px; }
+.rr-expl-img-wrap.is-movable { cursor: grab; }
+.rr-expl-img-wrap.is-movable:hover { outline: 2px dashed rgba(253, 203, 110, 0.6); outline-offset: 4px; }
+.rr-expl-img-wrap.is-dragging { opacity: 0.5; cursor: grabbing; }
+.rr-expl-img-grip {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.65);
+  color: #fdcb6e;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  pointer-events: none;
+}
+
+/* Only while a picture is being dragged: where it can land. */
+.rr-expl-drop {
+  display: block;
+  margin: 6px 0;
+  padding: 9px;
+  border: 2px dashed rgba(253, 203, 110, 0.55);
+  border-radius: 10px;
+  background: rgba(253, 203, 110, 0.08);
+  color: rgba(253, 203, 110, 0.9);
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+}
+.rr-expl-drop.is-over { background: rgba(253, 203, 110, 0.25); border-style: solid; }

@@ -13,8 +13,19 @@ import { parseExplanation, offsetsToSegments, sliceRun, COLORS } from '../utils/
  * @param {string}   text         raw explanation string
  * @param {Array}    highlights   resolved highlights [{ start, end, color, created_at }]
  * @param {Function} containerRef ref attached to .explanation-text (for selection capture)
+ * @param {Node}     imageNode    optional picture, placed BETWEEN paragraphs
+ * @param {number}   imageAt      which gap it sits in: 0 above the first
+ *                                paragraph, 1 after it, and so on
+ * @param {Function} renderGap    optional (index) => node, for the drop zones
+ *                                an author sees while dragging that picture
+ *
+ * The picture carries no text, so inserting it cannot move a highlight: the
+ * container's textContent — what offsets are anchored to — is unchanged.
  */
-export default function ExplanationText({ text, className = '', highlights = [], containerRef }) {
+export default function ExplanationText({
+  text, className = '', highlights = [], containerRef,
+  imageNode = null, imageAt = 0, renderGap = null,
+}) {
   if (!text) return null;
 
   const blocks = parseExplanation(text);
@@ -24,9 +35,20 @@ export default function ExplanationText({ text, className = '', highlights = [],
   for (const b of blocks) for (const line of b.lines) for (const run of line) visibleLen = run.end;
   const segments = offsetsToSegments({ length: visibleLen }, highlights);
 
+  const gapCount = blocks.length + 1;
+  const slot = Math.max(0, Math.min(gapCount - 1, Number(imageAt) || 0));
+  const gap = (i) => (
+    <React.Fragment key={`gap-${i}`}>
+      {renderGap ? renderGap(i) : null}
+      {imageNode && slot === i ? imageNode : null}
+    </React.Fragment>
+  );
+
   return (
     <div className={`explanation-text explanation-rich ${className}`} ref={containerRef}>
+      {gap(0)}
       {blocks.map((block, bi) => (
+        <React.Fragment key={bi}>
         <p key={bi} className="explanation-sentence">
           {block.lines.map((runs, li) => (
             <React.Fragment key={li}>
@@ -39,6 +61,8 @@ export default function ExplanationText({ text, className = '', highlights = [],
             </React.Fragment>
           ))}
         </p>
+        {gap(bi + 1)}
+        </React.Fragment>
       ))}
     </div>
   );

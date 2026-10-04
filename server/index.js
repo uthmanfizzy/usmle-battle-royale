@@ -7932,26 +7932,38 @@ app.put('/api/question-image/:id', moderatorAuth, async (req, res) => {
   const table = questionImageTable(req.query.table || req.body?.table);
   const field = (req.body?.field || '').toString();
   if (!table) return res.status(400).json({ error: 'unknown table' });
-  if (!QUESTION_IMAGE_FIELDS.includes(field)) {
+
+  // Where the explanation image sits WITHIN the explanation: 0 is above the
+  // first paragraph (the default), 1 is after it, and so on. Sent on its own
+  // when an author drags the picture, so a move does not re-send the URL.
+  const posRaw = req.body?.explanation_image_pos;
+  const hasPos = posRaw !== undefined && posRaw !== null;
+  const pos = hasPos ? Math.max(0, Math.min(99, Number.parseInt(posRaw, 10) || 0)) : null;
+
+  const hasField = QUESTION_IMAGE_FIELDS.includes(field);
+  if (!hasField && !hasPos) {
     return res.status(400).json({ error: 'field must be image_url or explanation_image_url' });
   }
   // null/'' clears the image; anything else must look like a URL we served.
   const raw = req.body?.url;
   const url = raw === null || raw === '' ? null : String(raw);
-  if (url !== null && !/^https?:\/\//i.test(url)) {
+  if (hasField && url !== null && !/^https?:\/\//i.test(url)) {
     return res.status(400).json({ error: 'url must be http(s)' });
   }
   if (!supabase) return res.status(503).json({ error: 'Supabase not configured' });
   try {
-    const { error } = await supabase.from(table).update({ [field]: url }).eq(questionImageKey(table, req.params.id), req.params.id);
+    const updates = {};
+    if (hasField) updates[field] = url;
+    if (hasPos) updates.explanation_image_pos = pos;
+    const { error } = await supabase.from(table).update(updates).eq(questionImageKey(table, req.params.id), req.params.id);
     if (error) throw error;
     // The in-memory bank is what Solo/Training actually serve, so patch it too —
     // otherwise the change only appears after the next full reload.
     if (table === 'questions') {
       const q = questionBank.find(x => x._supabase_id === req.params.id || x.id === req.params.id);
-      if (q) q[field] = url;
+      if (q) Object.assign(q, updates);
     }
-    res.json({ ok: true, url });
+    res.json({ ok: true, url, explanation_image_pos: pos });
   } catch (err) {
     console.warn('[/api/question-image] failed —', err.message);
     res.status(500).json({ error: err.message });
@@ -7967,11 +7979,13 @@ app.get('/api/question-image/:id', async (req, res) => {
   if (!table) return res.status(400).json({ error: 'unknown table' });
   try {
     const { data, error } = await supabase
-      .from(table).select('image_url, explanation_image_url').eq(questionImageKey(table, req.params.id), req.params.id).maybeSingle();
+      .from(table).select('image_url, explanation_image_url, explanation_image_pos')
+      .eq(questionImageKey(table, req.params.id), req.params.id).maybeSingle();
     if (error) throw error;
     res.json({
       image_url: data?.image_url ?? null,
       explanation_image_url: data?.explanation_image_url ?? null,
+      explanation_image_pos: data?.explanation_image_pos ?? null,
     });
   } catch (err) {
     console.warn('[/api/question-image GET] failed —', err.message);

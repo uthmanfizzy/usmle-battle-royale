@@ -1283,3 +1283,11 @@ ALTER TABLE explanation_highlights
 ALTER TABLE explanation_highlights
   ADD CONSTRAINT explanation_highlights_color_check
   CHECK (color IS NULL OR color IN ('yellow', 'green', 'pink', 'blue', 'purple'));
+
+-- ── explanation_image_pos ───────────────────────────────────────────────────
+-- Where the explanation picture sits inside the explanation: 0 (the default)
+-- puts it above the first paragraph, 1 after the first, and so on. Set by
+-- dragging the picture in-game with admin permissions on.
+ALTER TABLE questions         ADD COLUMN IF NOT EXISTS explanation_image_pos INT;
+ALTER TABLE journey_questions ADD COLUMN IF NOT EXISTS explanation_image_pos INT;
+ALTER TABLE boss_questions    ADD COLUMN IF NOT EXISTS explanation_image_pos INT;
