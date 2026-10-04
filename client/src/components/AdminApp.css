@@ -6037,3 +6037,15 @@
   .ap-sidebar--closed { width: 100% !important; }
   .ap-sidebar--closed .ap-sidebar-head { justify-content: flex-end; }
 }
+
+/* ── Dropdown lists ──────────────────────────────────────────────────────
+   The <select> itself is styled dark, but the list the browser pops up is
+   its own window: on Windows it paints white and only takes the option
+   COLOUR from the page, so light text landed on white and the subject names
+   were invisible. Options have to carry their own background. Both are taken
+   from the admin theme, so this holds in light mode too. */
+.ap-root select option,
+.ap-root select optgroup {
+  background-color: var(--card);
+  color: var(--text);
+}
