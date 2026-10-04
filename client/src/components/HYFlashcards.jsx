@@ -387,6 +387,12 @@ function PilePicker({ bucket, onChoose, onBack, theme, onToggleTheme, musicOn, o
 function Player({ deck, onExit, theme, onToggleTheme, musicOn, onToggleMusic }) {
   const [idx, setIdx] = useState(0);
   const [flipped, setFlipped] = useState(false);
+  // Set for the single render in which we move to another card. Flipping back
+  // to the front is a half-second rotation, so without this the NEXT card's
+  // answer swings past the screen on the way round — a free peek. The card
+  // turns to its front instantly instead, and the animation is restored a
+  // frame later so tapping to reveal still flips properly.
+  const [swapping, setSwapping] = useState(false);
   const [seenCount, setSeenCount] = useState(0);   // cards actually flipped to their back
   const [done, setDone] = useState(false);
 
@@ -482,17 +488,35 @@ function Player({ deck, onExit, theme, onToggleTheme, musicOn, onToggleMusic }) 
     });
   }
 
+  // Move to another card with the flip animation switched off for that one
+  // render, then switch it back on once the browser has painted the front.
+  const goTo = useCallback((move) => {
+    setSwapping(true);
+    setFlipped(false);
+    move();
+  }, []);
+
+  useEffect(() => {
+    if (!swapping) return;
+    // Two frames: the first paints the un-rotated card, the second re-enables
+    // the transition. Re-enabling in the same frame would animate after all.
+    let raf2 = 0;
+    const raf1 = requestAnimationFrame(() => { raf2 = requestAnimationFrame(() => setSwapping(false)); });
+    // A backgrounded tab gets no frames at all, which would leave the flip
+    // animation switched off until the student came back to it.
+    const fallback = setTimeout(() => setSwapping(false), 120);
+    return () => { cancelAnimationFrame(raf1); cancelAnimationFrame(raf2); clearTimeout(fallback); };
+  }, [swapping]);
+
   function next() {
     bankCardTime();
     if (idx + 1 >= total) { setDone(true); postSession(); return; }
-    setIdx(i => i + 1);
-    setFlipped(false);
+    goTo(() => setIdx(i => i + 1));
   }
   function prev() {
     if (idx === 0) return;
     bankCardTime();
-    setIdx(i => i - 1);
-    setFlipped(false);
+    goTo(() => setIdx(i => i - 1));
   }
 
   if (done) {
@@ -527,7 +551,7 @@ function Player({ deck, onExit, theme, onToggleTheme, musicOn, onToggleMusic }) 
       </div>
 
       <div className="hyf-card-wrap">
-        <div className={`hyf-flip${flipped ? ' is-flipped' : ''}`} onClick={flip}>
+        <div className={`hyf-flip${flipped ? ' is-flipped' : ''}${swapping ? ' is-swapping' : ''}`} onClick={flip}>
           <div className="hyf-flip-inner">
             <div className="hyf-face hyf-face--front">
               <span className="hyf-face-label">QUESTION</span>

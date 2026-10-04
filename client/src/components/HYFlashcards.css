@@ -364,6 +364,9 @@
   transform-style: preserve-3d;
 }
 .hyf-flip.is-flipped .hyf-flip-inner { transform: rotateY(180deg); }
+/* Moving to another card: show its front at once rather than rotating the new
+   answer past the screen on the way back. */
+.hyf-flip.is-swapping .hyf-flip-inner { transition: none; }
 
 .hyf-face {
   position: absolute;
