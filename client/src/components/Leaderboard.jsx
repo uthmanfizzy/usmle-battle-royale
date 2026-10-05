@@ -1,3 +1,6 @@
+import { useState } from 'react';
+import MedathonReview from './MedathonReview';
+
 const MEDALS = ['🥇', '🥈', '🥉'];
 
 const GOOGLE_SVG = (
@@ -78,59 +81,19 @@ export default function Leaderboard({ gameResult, username, gameMode, onPlayAgai
   }
 
   // ── Medathon ───────────────────────────────────────────────────────────────
-  // Ranked by points, which is correct answers plus the speed bonus each one
-  // earned — so the table shows both numbers rather than making the reader
-  // guess why a smaller correct count finished higher.
+  // Its own component because the race review below it needs state, and a
+  // hook cannot sit behind the mode branches above.
   if (detectedMode === 'medathon') {
-    const { podium = [], reason, total = 0 } = gameResult;
-    const mine = podium.find(p => p.username === username) || null;
-    const subtitle = isWinner
-      ? `You won the Medathon with ${(winner.score || 0).toLocaleString()} points!`
-      : winner
-      ? `${winner.username} took it with ${(winner.score || 0).toLocaleString()} points${reason === 'time_up' ? ' (time ran out)' : ''}`
-      : 'The race is over';
-
     return (
-      <div className="screen leaderboard-screen">
-        <div className="leaderboard-card">
-          <div className="victory-header">
-            <span className="victory-trophy">{isWinner ? '🏆' : winner ? '🏁' : '🤝'}</span>
-            <h2>{isWinner ? 'VICTORY!' : winner ? `${winner.username} wins!` : 'Medathon over'}</h2>
-            <p>{subtitle}</p>
-            {mine && (
-              <p style={{ marginTop: 4 }}>
-                {mine.correctCount} of {total} correct · {(mine.score || 0).toLocaleString()} points
-              </p>
-            )}
-          </div>
-
-          <div className="lb-section">
-            <p className="section-title">🏁 Medathon Final Standings</p>
-            <table className="lb-table">
-              <thead>
-                <tr><th>Rank</th><th>Player</th><th>Points</th><th>Correct</th><th>Status</th></tr>
-              </thead>
-              <tbody>
-                {podium.map(p => (
-                  <tr key={p.id} className={p.username === username ? 'me' : ''}>
-                    <td className="lb-rank">{MEDALS[p.rank - 1] ?? `#${p.rank}`}</td>
-                    <td>
-                      {p.username}{p.username === username ? ' 👤' : ''}
-                      {p.isGuest && <span className="guest-badge" style={{ marginLeft: 6 }}>👤 Guest</span>}
-                    </td>
-                    <td>{(p.score || 0).toLocaleString()}</td>
-                    <td>{p.correctCount} / {total}</td>
-                    <td>{p.finished ? '🏁 Finished' : `${p.answered} answered`}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {isGuest && <GuestSignInBanner onSignIn={onSignIn || (() => window.location.href = '/')} />}
-          <button className="btn-play-again" onClick={onPlayAgain}>🏁 Race Again</button>
-        </div>
-      </div>
+      <MedathonResult
+        gameResult={gameResult}
+        username={username}
+        isWinner={isWinner}
+        winner={winner}
+        onPlayAgain={onPlayAgain}
+        isGuest={isGuest}
+        onSignIn={onSignIn}
+      />
     );
   }
 
@@ -324,4 +287,90 @@ export default function Leaderboard({ gameResult, username, gameMode, onPlayAgai
       </div>
     </div>
   );
+}
+
+/**
+ * The end of a Medathon: the standings, and the door to the race review.
+ *
+ * Ranked by points — correct answers plus the speed bonus each one earned —
+ * so the table shows both numbers rather than leaving the reader to guess why
+ * a smaller correct count finished higher.
+ */
+function MedathonResult({ gameResult, username, isWinner, winner, onPlayAgain, isGuest, onSignIn }) {
+  // The review arrives inside game_over, so it opens with no round trip. The
+  // match id is the fallback for a tab that has been closed and reopened.
+  const [reviewing, setReviewing] = useState(false);
+  const review = gameResult.review || null;
+  const me = (review?.players || []).find(p => p.username === username) || null;
+
+  if (reviewing) {
+    return (
+    <MedathonReview
+      review={review}
+      matchId={review?.matchId}
+      meId={me?.id}
+      username={username}
+      onClose={() => setReviewing(false)}
+    />
+    );
+  }
+
+  // Ranked by points, which is correct answers plus the speed bonus each one
+  // earned — so the table shows both numbers rather than making the reader
+  // guess why a smaller correct count finished higher.
+  const { podium = [], reason, total = 0 } = gameResult;
+  const mine = podium.find(p => p.username === username) || null;
+  const subtitle = isWinner
+    ? `You won the Medathon with ${(winner.score || 0).toLocaleString()} points!`
+    : winner
+    ? `${winner.username} took it with ${(winner.score || 0).toLocaleString()} points${reason === 'time_up' ? ' (time ran out)' : ''}`
+    : 'The race is over';
+
+  return (
+      <div className="screen leaderboard-screen">
+        <div className="leaderboard-card">
+          <div className="victory-header">
+            <span className="victory-trophy">{isWinner ? '🏆' : winner ? '🏁' : '🤝'}</span>
+            <h2>{isWinner ? 'VICTORY!' : winner ? `${winner.username} wins!` : 'Medathon over'}</h2>
+            <p>{subtitle}</p>
+            {mine && (
+              <p style={{ marginTop: 4 }}>
+                {mine.correctCount} of {total} correct · {(mine.score || 0).toLocaleString()} points
+              </p>
+            )}
+          </div>
+
+          <div className="lb-section">
+            <p className="section-title">🏁 Medathon Final Standings</p>
+            <table className="lb-table">
+              <thead>
+                <tr><th>Rank</th><th>Player</th><th>Points</th><th>Correct</th><th>Status</th></tr>
+              </thead>
+              <tbody>
+                {podium.map(p => (
+                  <tr key={p.id} className={p.username === username ? 'me' : ''}>
+                    <td className="lb-rank">{MEDALS[p.rank - 1] ?? `#${p.rank}`}</td>
+                    <td>
+                      {p.username}{p.username === username ? ' 👤' : ''}
+                      {p.isGuest && <span className="guest-badge" style={{ marginLeft: 6 }}>👤 Guest</span>}
+                    </td>
+                    <td>{(p.score || 0).toLocaleString()}</td>
+                    <td>{p.correctCount} / {total}</td>
+                    <td>{p.finished ? '🏁 Finished' : `${p.answered} answered`}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {isGuest && <GuestSignInBanner onSignIn={onSignIn || (() => window.location.href = '/')} />}
+          {review && (
+            <button type="button" className="btn-play-again mdt-review-btn" onClick={() => setReviewing(true)}>
+              📋 Review the race — every question, with explanations
+            </button>
+          )}
+          <button className="btn-play-again" onClick={onPlayAgain}>🏁 Race Again</button>
+        </div>
+      </div>
+    );
 }

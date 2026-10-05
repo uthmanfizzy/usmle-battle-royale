@@ -2041,6 +2041,74 @@ function medathonTimeLimit() {
 const medathonSubjectKey = (v) => String(v || '').toLowerCase().trim().replace(/[\s&/-]+/g, '_');
 
 /**
+ * The post-match review.
+ *
+ * The mode shows no explanations while it is running; this is where they
+ * live. One copy of the question list — everyone raced the same run — plus
+ * each player's own answers against it, so a racer can read back their own
+ * race AND anyone else's from the same match. The correct answer is stored as
+ * TEXT because each player saw the options in their own shuffled order.
+ */
+function buildMedathonReview(lobby, ranked) {
+  const letters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+  const questions = (lobby.medathonQueue || []).map((entry, i) => {
+    const q = entry.q;
+    const ci = letters.indexOf(String(q.correct || '').trim().toUpperCase());
+    return {
+      i,
+      system: entry.sys.name,
+      systemShort: entry.sys.short,
+      systemIcon: entry.sys.icon,
+      question: q.question,
+      correctAnswer: ci >= 0 ? (q.options?.[ci] ?? null) : (q.correct ?? null),
+      explanation: q.explanation || '',
+      imageUrl: q.image_url || null,
+    };
+  });
+
+  const players = ranked.map((p, i) => {
+    const st = lobby.medathonPlayers?.get(p.id);
+    return {
+      id: p.id,
+      username: p.username,
+      isBot: Boolean(p.isBot),
+      isGuest: Boolean(p.isGuest),
+      rank: i + 1,
+      score: st?.score || 0,
+      correct: st?.correct || 0,
+      answered: st?.answered || 0,
+      totalMs: st?.totalMs || 0,
+      answers: st?.log || [],
+    };
+  });
+
+  return { matchId: lobby.id, total: questions.length, playedAt: new Date().toISOString(), questions, players };
+}
+
+/**
+ * Keep the review so it can be opened again after the tab is closed.
+ *
+ * Best-effort by design: if the table has not been created yet the match
+ * still finishes and everyone still gets their review in the game_over
+ * payload — only the later lookup is unavailable, and the log says so.
+ */
+async function saveMedathonReview(review) {
+  if (!supabase) return;
+  try {
+    const { error } = await supabase.from('medathon_matches').insert({
+      match_id:  review.matchId,
+      total:     review.total,
+      played_at: review.playedAt,
+      questions: review.questions,
+      players:   review.players,
+    });
+    if (error) console.error('[medathon_matches] insert failed —', error.message);
+  } catch (err) {
+    console.error('[medathon_matches] insert threw —', err.message);
+  }
+}
+
+/**
  * Pick the run: up to five real questions per system, in system order.
  *
  * A system the bank cannot fill is SHORTENED rather than padded with
@@ -2125,6 +2193,8 @@ function startMedathon(lobby) {
     lobby.medathonPlayers.set(p.id, {
       idx: 0, score: 0, correct: 0, answered: 0, totalMs: 0,
       timer: null, botTimer: null, finished: false, currentQ: null, askedAt: 0,
+      // Per-question record for the post-match review.
+      log: [],
     });
     lobby.medathonCorrects.set(p.id, 0);
   }
@@ -2234,6 +2304,19 @@ function advanceMedathonPlayer(lobby, playerId, answer) {
 
   trackPlayerAnswer(playerId, q, { answered, correct: isCorrect });
 
+  const letters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+  const textOf = (letter) => {
+    const i = letters.indexOf(String(letter || '').trim().toUpperCase());
+    return i >= 0 && q?.options ? (q.options[i] ?? null) : null;
+  };
+  state.log.push({
+    i: state.idx,
+    picked: answered ? (textOf(answer) ?? String(answer)) : null,
+    correct: isCorrect,
+    ms: elapsed,
+    points,
+  });
+
   state.answered++;
   state.totalMs += elapsed;
   if (isCorrect) {
@@ -2319,11 +2402,14 @@ function endMedathon(lobby, reason) {
   // that is the length of the run everybody was served.
   lobby.questionIdx = Math.max(0, (lobby.medathonQueue?.length || 1) - 1);
 
+  const review = buildMedathonReview(lobby, sorted);
   io.to(lobby.id).emit('game_over', {
     gameMode: 'medathon', winner, podium, reason,
     total: lobby.medathonQueue?.length || 0,
     stages: lobby.medathonStages || [],
+    review,
   });
+  void saveMedathonReview(review);
   awardXP(lobby, sorted).catch(err => console.error('[awardXP medathon]', err.message));
 }
 
@@ -3172,6 +3258,38 @@ io.on('connection', (socket) => {
 });
 
 // ── REST API ───────────────────────────────────────────────────────────────────
+
+/**
+ * A finished Medathon, for the review screen after the tab has been closed.
+ * Public on purpose: a match review is shared between the people who raced it,
+ * and the row holds no private data beyond the usernames already on the
+ * leaderboard. 404 covers both "no such match" and "the table is not there
+ * yet", which is the honest answer to the caller either way.
+ */
+app.get('/api/medathon/match/:matchId', rateLimit(60, 60000), async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Match history is unavailable.' });
+  try {
+    const { data, error } = await supabase
+      .from('medathon_matches')
+      .select('match_id, total, played_at, questions, players')
+      .eq('match_id', req.params.matchId)
+      .maybeSingle();
+    if (error) {
+      console.error('[medathon_matches] read failed —', error.message);
+      return res.status(404).json({ error: 'Match not found.' });
+    }
+    if (!data) return res.status(404).json({ error: 'Match not found.' });
+    res.json({
+      matchId: data.match_id,
+      total: data.total,
+      playedAt: data.played_at,
+      questions: data.questions || [],
+      players: data.players || [],
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // Largest batch of seen-rows accepted in one POST, and the biggest unseen page
 // a caller can ask for. Both bound the work a single request can cause.

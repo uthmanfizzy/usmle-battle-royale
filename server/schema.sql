@@ -1291,3 +1291,29 @@ ALTER TABLE explanation_highlights
 ALTER TABLE questions         ADD COLUMN IF NOT EXISTS explanation_image_pos INT;
 ALTER TABLE journey_questions ADD COLUMN IF NOT EXISTS explanation_image_pos INT;
 ALTER TABLE boss_questions    ADD COLUMN IF NOT EXISTS explanation_image_pos INT;
+
+-- ──────────────────────────────────────────────────────────────────────────────
+-- Medathon match reviews
+--
+-- One row per finished Medathon. `questions` is the run everybody raced (with
+-- the explanations that the mode deliberately withholds while it is running);
+-- `players` holds each racer's own answers against it, which is what lets a
+-- player read back their own race and anyone else's from the same match.
+--
+-- Everything works without this table — the review is handed to every player
+-- in the game_over payload — but creating it is what makes a review openable
+-- again after the tab is closed.
+-- ──────────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS medathon_matches (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  match_id   TEXT NOT NULL UNIQUE,
+  total      INT  NOT NULL DEFAULT 0,
+  played_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  questions  JSONB NOT NULL DEFAULT '[]'::jsonb,
+  players    JSONB NOT NULL DEFAULT '[]'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS medathon_matches_played_idx ON medathon_matches (played_at DESC);
+
+NOTIFY pgrst, 'reload schema';
