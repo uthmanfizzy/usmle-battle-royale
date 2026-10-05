@@ -22,6 +22,7 @@ const SoloGame = lazy(() => import('./components/SoloGame'));
 const TowerMode = lazy(() => import('./components/TowerMode'));
 const BuzzFunGame = lazy(() => import('./components/BuzzFunGame'));
 const PvpDuelGame = lazy(() => import('./components/PvpDuelGame'));
+const MedathonGame = lazy(() => import('./components/MedathonGame'));
 const LandingPage = lazy(() => import('./components/LandingPage'));
 const TrainingGrounds = lazy(() => import('./components/TrainingGrounds'));
 const PlayPage = lazy(() => import('./components/PlayPage'));
@@ -77,6 +78,10 @@ export default function App() {
   const [playInitialMode, setPlayInitialMode] = useState(null); // Story→AnKing passes 'anking'; Online leaves null
 
   const [raceProgress, setRaceProgress] = useState([]);
+  // Medathon: the run's shape (stages, length, clock) arrives once at the
+  // start; the standings arrive after every answer anyone gives.
+  const [medathonSetup, setMedathonSetup] = useState(null);
+  const [medathonProgress, setMedathonProgress] = useState([]);
   const [openToQuickJoin, setOpenToQuickJoin] = useState(true);
   const [streaks, setStreaks] = useState({});
   const [suddenDeath, setSuddenDeath] = useState(false);
@@ -311,6 +316,15 @@ export default function App() {
       }
     });
 
+    socket.on('medathon_setup', (data) => {
+      setMedathonSetup(data);
+      setMedathonProgress([]);
+    });
+
+    socket.on('medathon_progress', ({ players: rows }) => {
+      setMedathonProgress(rows || []);
+    });
+
     socket.on('trivia_turn', (data) => {
       setTriviaState(data);
       setTriviaResult(null);
@@ -456,6 +470,7 @@ export default function App() {
 
     return () => {
       ['lobby_update', 'game_start', 'new_question', 'answer_count',
+       'medathon_setup', 'medathon_progress', 'medathon_finished',
        'answer_result', 'round_results', 'game_over', 'game_reset',
        'player_left', 'error', 'sudden_death',
        'race_progress', 'trivia_turn', 'trivia_rolled', 'trivia_question', 'trivia_answer_result',
@@ -848,7 +863,7 @@ export default function App() {
   // The duel HUD carries its own Sound toggle and Forfeit button, and its
   // fixed top-left plate sits where the floating buttons live — hide the
   // global pair for that screen only.
-  const inDuelHud   = phase === 'game' && gameMode === 'pvp_duel';
+  const inDuelHud   = phase === 'game' && (gameMode === 'pvp_duel' || gameMode === 'medathon');
   const showMuteBtn = ['lobby', 'game', 'game_over', 'solo_game', 'tower'].includes(phase) && !inDuelHud;
 
   return (
@@ -1116,6 +1131,27 @@ export default function App() {
           muted={muted}
           onToggleMute={toggleMute}
           onForfeit={handleReturnHome}
+        />
+        </RouteErrorBoundary>
+      )}
+
+      {phase === 'game' && gameMode === 'medathon' && (
+        <RouteErrorBoundary name="MedathonGame">
+        <MedathonGame
+          question={question}
+          timeLimit={timeLimit}
+          myAnswer={myAnswer}
+          hasAnswered={hasAnswered}
+          answerResult={answerResult}
+          progress={medathonProgress}
+          setup={medathonSetup}
+          onAnswer={handleAnswer}
+          username={username}
+          onTick={audio.playTick}
+          socketId={socket.id}
+          muted={muted}
+          onToggleMute={toggleMute}
+          onQuit={handleReturnHome}
         />
         </RouteErrorBoundary>
       )}

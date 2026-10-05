@@ -451,6 +451,7 @@ let gameSettings = {
   // Section 1: Question settings
   timerDefault: 20,
   timerSpeedRace: 10,
+  timerMedathon: 25,
   timerTriviaPursuit: 25,
   timerScanMaster: 25,
   explanationTime: 5,
@@ -1105,6 +1106,7 @@ function startGame(lobby) {
   if (lobby.gameMode === 'trivia_pursuit') return startTriviaPursuit(lobby);
   if (lobby.gameMode === 'buzz_fun')       return startBuzzFun(lobby);
   if (lobby.gameMode === 'pvp_duel')       return startPvpDuel(lobby);
+  if (lobby.gameMode === 'medathon')       return startMedathon(lobby);
 
   // ── Battle Royale & Scan Master ────────────────────────────────────────────
   // Guard: Scan Master needs image questions
@@ -1598,6 +1600,8 @@ async function awardXP(lobby, sorted) {
       correctCount = (lobby.triviaWedges?.get(player.id) || new Set()).size * 2;
     } else if (lobby.gameMode === 'pvp_duel') {
       correctCount = lobby.duelCorrects?.get(player.id) || 0;
+    } else if (lobby.gameMode === 'medathon') {
+      correctCount = lobby.medathonCorrects?.get(player.id) || 0;
     } else {
       correctCount = lobby.correctCounts?.get(player.id) || 0;
     }
@@ -1983,6 +1987,344 @@ function endSpeedRace(lobby, reason) {
 
   io.to(lobby.id).emit('game_over', { gameMode: 'speed_race', winner, podium, reason });
   awardXP(lobby, sorted).catch(err => console.error('[awardXP speed_race]', err.message));
+}
+
+
+// ── Medathon ─────────────────────────────────────────────────────────────────
+// A marathon race through the whole of medicine: five questions from each
+// system, answered at your own pace. Everyone is served the SAME questions in
+// the SAME order — it is a race, so the field has to be identical — but each
+// player moves through it independently, the way Speed Race does.
+//
+// Scoring: a correct answer is worth MEDATHON_BASE_POINTS plus up to
+// MEDATHON_SPEED_BONUS more, scaled by how much of the clock was left. Wrong
+// and timed-out answers score nothing. Final placement is by points, so
+// answering well matters first and answering fast breaks the tie.
+//
+// No explanations anywhere: a player is told right or wrong, and on a wrong
+// answer which option was right. That is the mode's whole feedback contract.
+const MEDATHON_PER_SYSTEM  = 5;
+const MEDATHON_BASE_POINTS = 100;
+const MEDATHON_SPEED_BONUS = 60;
+const MEDATHON_TIMEOUT     = 40 * 60 * 1000;
+// How long the verdict stays on screen before the next question. A wrong
+// answer gets longer because there is a correct option to read.
+const MEDATHON_GAP_RIGHT = 1100;
+const MEDATHON_GAP_WRONG = 2200;
+
+// The fifteen systems, in running order. `subjects` are the question-bank
+// subject ids that count as that system — the bank has grown several spellings
+// over time (haematology / hematology / heme_onc), and the journey taxonomy
+// uses its own ids again, so each system accepts all of them.
+const MEDATHON_SYSTEMS = [
+  { id: 'cardio',      name: 'Cardiovascular',      short: 'Cardio',    icon: '❤️', subjects: ['cardiology', 'cardiovascular', 'cardio'] },
+  { id: 'pulm',        name: 'Pulmonary',           short: 'Pulm',      icon: '🫁', subjects: ['pulmonology', 'respiratory', 'pulmonary', 'pulm'] },
+  { id: 'renal',       name: 'Renal',               short: 'Renal',     icon: '💧', subjects: ['nephrology', 'renal', 'kidney'] },
+  { id: 'gi',          name: 'Gastrointestinal',    short: 'GI',        icon: '🫃', subjects: ['gastroenterology', 'gastrointestinal', 'gi'] },
+  { id: 'neuro',       name: 'Neurology',           short: 'Neuro',     icon: '🧠', subjects: ['neurology', 'neuro', 'neuro_special'] },
+  { id: 'msk',         name: 'Musculoskeletal',     short: 'MSK',       icon: '🦴', subjects: ['musculoskeletal', 'msk', 'msk_skin', 'rheumatology', 'orthopedics'] },
+  { id: 'derm',        name: 'Dermatology',         short: 'Derm',      icon: '🩹', subjects: ['dermatology', 'derm', 'skin'] },
+  { id: 'heme_onc',    name: 'Heme / Onc',          short: 'Heme/Onc',  icon: '🩸', subjects: ['haematology_oncology', 'haematology', 'hematology', 'heme_onc', 'oncology', 'hematology_oncology'] },
+  { id: 'immuno',      name: 'Immunology',          short: 'Immuno',    icon: '🛡️', subjects: ['immunology', 'immuno'] },
+  { id: 'endo',        name: 'Endocrine',           short: 'Endo',      icon: '🦋', subjects: ['endocrinology', 'endocrine', 'endo'] },
+  { id: 'repro',       name: 'Reproductive',        short: 'Repro',     icon: '👶', subjects: ['reproductive', 'obstetrics', 'gynecology', 'obgyn', 'reproductive_obstetrics'] },
+  { id: 'psych',       name: 'Behavioural / Psych', short: 'Psych',     icon: '🗣️', subjects: ['psychiatry', 'psych', 'behavioral', 'behavioural', 'behavioral_science'] },
+  { id: 'multisystem', name: 'Multisystem',         short: 'Multi',     icon: '🩺', subjects: ['multisystem', 'general', 'pathology', 'pharmacology', 'biochemistry', 'genetics', 'anatomy'] },
+  { id: 'biostats',    name: 'Biostats / Ethics',   short: 'Biostats',  icon: '📊', subjects: ['biostatistics', 'biostats', 'ethics', 'public_health', 'epidemiology'] },
+  { id: 'micro',       name: 'Microbiology',        short: 'Micro',     icon: '🦠', subjects: ['microbiology', 'micro', 'infectious_disease'] },
+];
+
+function medathonTimeLimit() {
+  return Number(gameSettings.timerMedathon) || 25;
+}
+
+const medathonSubjectKey = (v) => String(v || '').toLowerCase().trim().replace(/[\s&/-]+/g, '_');
+
+/**
+ * Pick the run: up to five real questions per system, in system order.
+ *
+ * A system the bank cannot fill is SHORTENED rather than padded with
+ * something else — a question shown under "Cardio" is a cardiology question
+ * or it is not there at all. A system with nothing at all is skipped, so the
+ * stage list the client draws is always the truth about what is coming.
+ */
+function buildMedathonRun() {
+  const pool = questionBank.filter(q => {
+    const tags = q.game_modes || [];
+    return tags.length === 0 || tags.includes('medathon') || tags.includes('battle_royale');
+  });
+  const used   = new Set();
+  const queue  = [];
+  const stages = [];
+
+  for (const sys of MEDATHON_SYSTEMS) {
+    const aliases = sys.subjects;
+    const picked  = shuffle(
+      pool.filter(q => !used.has(q.id) && aliases.includes(medathonSubjectKey(q.subject))),
+    ).slice(0, MEDATHON_PER_SYSTEM);
+    if (picked.length === 0) continue;
+    stages.push({
+      id: sys.id, name: sys.name, short: sys.short, icon: sys.icon,
+      from: queue.length, count: picked.length,
+    });
+    for (const q of picked) { used.add(q.id); queue.push({ q, sys, stage: stages.length - 1 }); }
+  }
+  return { queue, stages };
+}
+
+function medathonRow(lobby, player) {
+  const st = lobby.medathonPlayers?.get(player.id);
+  const stageIdx = st && lobby.medathonQueue[Math.min(st.idx, lobby.medathonQueue.length - 1)]?.stage;
+  return {
+    id: player.id,
+    username: player.username,
+    isBot: Boolean(player.isBot),
+    isGuest: Boolean(player.isGuest),
+    score: st?.score || 0,
+    correct: st?.correct || 0,
+    answered: st?.answered || 0,
+    finished: Boolean(st?.finished),
+    system: lobby.medathonStages?.[stageIdx]?.short || null,
+    systemIcon: lobby.medathonStages?.[stageIdx]?.icon || null,
+  };
+}
+
+// Points first, then correct answers, then the fastest total time: the same
+// order endMedathon ranks by, so the live positions never disagree with the
+// final table.
+function medathonSort(lobby) {
+  return [...lobby.players.values()].sort((a, b) => {
+    const sa = lobby.medathonPlayers?.get(a.id), sb = lobby.medathonPlayers?.get(b.id);
+    return (sb?.score || 0) - (sa?.score || 0)
+        || (sb?.correct || 0) - (sa?.correct || 0)
+        || (sa?.totalMs || 0) - (sb?.totalMs || 0);
+  });
+}
+
+function emitMedathonProgress(lobby) {
+  if (!lobby.medathonPlayers) return;
+  const players = medathonSort(lobby).map((p, i) => ({ ...medathonRow(lobby, p), place: i + 1 }));
+  io.to(lobby.id).emit('medathon_progress', { players, total: lobby.medathonQueue.length });
+}
+
+function startMedathon(lobby) {
+  const { queue, stages } = buildMedathonRun();
+  if (queue.length === 0) {
+    io.to(lobby.id).emit('error', { message: 'No questions available for the Medathon yet. Add some via the admin panel.' });
+    return;
+  }
+
+  lobby.status          = 'medathon';
+  lobby.medathonQueue   = queue;
+  lobby.medathonStages  = stages;
+  lobby.medathonPlayers = new Map();
+  lobby.medathonCorrects = new Map();
+
+  for (const p of lobby.players.values()) {
+    p.lives = 3; p.score = 0; p.alive = true;
+    lobby.medathonPlayers.set(p.id, {
+      idx: 0, score: 0, correct: 0, answered: 0, totalMs: 0,
+      timer: null, botTimer: null, finished: false, currentQ: null, askedAt: 0,
+    });
+    lobby.medathonCorrects.set(p.id, 0);
+  }
+
+  io.to(lobby.id).emit('game_start', { gameMode: 'medathon' });
+  io.to(lobby.id).emit('medathon_setup', {
+    stages,
+    total: queue.length,
+    timeLimit: medathonTimeLimit(),
+    basePoints: MEDATHON_BASE_POINTS,
+    maxSpeedBonus: MEDATHON_SPEED_BONUS,
+  });
+
+  lobby.medathonTimer = setTimeout(() => {
+    if (lobby.status === 'medathon') endMedathon(lobby, 'time_up');
+  }, MEDATHON_TIMEOUT);
+
+  // Long enough for the client's opening animation to play out.
+  setTimeout(() => {
+    if (lobby.status !== 'medathon') return;
+    for (const p of lobby.players.values()) sendMedathonQuestion(lobby, p.id);
+    emitMedathonProgress(lobby);
+  }, 2200);
+}
+
+function sendMedathonQuestion(lobby, playerId) {
+  if (lobby.status !== 'medathon') return;
+  const player = lobby.players.get(playerId);
+  const state  = lobby.medathonPlayers?.get(playerId);
+  if (!player || !state || state.finished) return;
+
+  const entry = lobby.medathonQueue[state.idx];
+  if (!entry) return finishMedathonPlayer(lobby, playerId);
+
+  // Per-player shuffle held on this player's own state, so the verdict is
+  // checked against the exact order this player was shown (Speed Race
+  // precedent — never write the shared queue slot, someone else is on it).
+  const q = withShuffledOptions(entry.q);
+  state.currentQ = q;
+  state.askedAt  = Date.now();
+  const timeLimit = medathonTimeLimit();
+  const stage     = lobby.medathonStages[entry.stage];
+  const posInStage = state.idx - stage.from + 1;
+
+  if (!player.isBot) {
+    const sock = io.sockets.sockets.get(playerId);
+    if (sock) {
+      sock.emit('new_question', {
+        ...toPublicQuestion(q),
+        round: state.idx + 1,
+        timeLimit,
+        alivePlayers: lobby.players.size,
+        medathon: {
+          index: state.idx + 1,
+          total: lobby.medathonQueue.length,
+          stageIndex: entry.stage + 1,
+          stageTotal: lobby.medathonStages.length,
+          stagePos: posInStage,
+          stageCount: stage.count,
+          newStage: posInStage === 1,
+          system: stage.name,
+          systemShort: stage.short,
+          systemIcon: stage.icon,
+          systemId: stage.id,
+          score: state.score,
+          correct: state.correct,
+        },
+      });
+    }
+  }
+
+  clearTimeout(state.timer);
+  state.timer = setTimeout(() => advanceMedathonPlayer(lobby, playerId, null), timeLimit * 1000);
+
+  if (player.isBot) {
+    clearTimeout(state.botTimer);
+    const delay = botReactionDelay(player.difficulty, timeLimit);
+    state.botTimer = setTimeout(() => {
+      const correct = Math.random() < BOT_ACCURACY[player.difficulty];
+      advanceMedathonPlayer(lobby, playerId, correct ? q.correct : randomWrongAnswer(q.correct));
+    }, delay);
+  }
+}
+
+function advanceMedathonPlayer(lobby, playerId, answer) {
+  if (lobby.status !== 'medathon') return;
+  const player = lobby.players.get(playerId);
+  const state  = lobby.medathonPlayers?.get(playerId);
+  if (!player || !state || state.finished) return;
+
+  clearTimeout(state.timer);
+  clearTimeout(state.botTimer);
+  state.timer = null;
+  state.botTimer = null;
+
+  const q         = state.currentQ || lobby.medathonQueue[state.idx]?.q;
+  const timeLimit = medathonTimeLimit();
+  const elapsed   = Math.max(0, Date.now() - (state.askedAt || Date.now()));
+  const answered  = answer !== null && answer !== '__skip__';
+  const isCorrect = answered && isAnswerCorrect(answer, q);
+
+  // The clock that was left when the answer landed, as a fraction. A timeout
+  // is zero by construction, so it can never earn a bonus.
+  const leftFrac   = Math.max(0, Math.min(1, 1 - elapsed / (timeLimit * 1000)));
+  const speedBonus = isCorrect ? Math.round(MEDATHON_SPEED_BONUS * leftFrac) : 0;
+  const points     = isCorrect ? MEDATHON_BASE_POINTS + speedBonus : 0;
+
+  trackPlayerAnswer(playerId, q, { answered, correct: isCorrect });
+
+  state.answered++;
+  state.totalMs += elapsed;
+  if (isCorrect) {
+    state.correct++;
+    state.score += points;
+    lobby.medathonCorrects.set(playerId, state.correct);
+  }
+  player.score = state.score;
+
+  if (!player.isBot) {
+    const sock = io.sockets.sockets.get(playerId);
+    if (sock) {
+      sock.emit('answer_result', answerResultPayload({
+        isCorrect, q,
+        extras: {
+          lives: 3, alive: true,
+          score: state.score,
+          points, speedBonus,
+          correctCount: state.correct,
+          answeredCount: state.answered,
+          index: state.idx + 1,
+          total: lobby.medathonQueue.length,
+          timedOut: !answered,
+        },
+      }));
+    }
+  }
+
+  emitMedathonProgress(lobby);
+
+  state.idx++;
+  if (state.idx >= lobby.medathonQueue.length) {
+    setTimeout(() => finishMedathonPlayer(lobby, playerId), isCorrect ? MEDATHON_GAP_RIGHT : MEDATHON_GAP_WRONG);
+    return;
+  }
+  setTimeout(() => sendMedathonQuestion(lobby, playerId), isCorrect ? MEDATHON_GAP_RIGHT : MEDATHON_GAP_WRONG);
+}
+
+function finishMedathonPlayer(lobby, playerId) {
+  const state = lobby.medathonPlayers?.get(playerId);
+  if (!state || state.finished) return;
+  state.finished = true;
+  state.finishedAt = Date.now();
+  emitMedathonProgress(lobby);
+
+  const sock = io.sockets.sockets.get(playerId);
+  if (sock) sock.emit('medathon_finished', { score: state.score, correct: state.correct, total: lobby.medathonQueue.length });
+
+  const everyone = [...lobby.medathonPlayers.values()].every(st => st.finished);
+  if (everyone) setTimeout(() => endMedathon(lobby, 'all_finished'), 800);
+}
+
+function endMedathon(lobby, reason) {
+  if (lobby.status === 'game_over') return;
+  lobby.status = 'game_over';
+
+  if (lobby.medathonPlayers) {
+    for (const st of lobby.medathonPlayers.values()) {
+      clearTimeout(st.timer);
+      clearTimeout(st.botTimer);
+    }
+  }
+  clearTimer(lobby);
+  if (lobby.medathonTimer) { clearTimeout(lobby.medathonTimer); lobby.medathonTimer = null; }
+
+  const sorted = medathonSort(lobby);
+  const podium = sorted.map((p, i) => {
+    const st = lobby.medathonPlayers?.get(p.id);
+    return {
+      rank: i + 1, id: p.id, username: p.username,
+      isGuest: Boolean(p.isGuest), isBot: Boolean(p.isBot),
+      score: st?.score || 0,
+      correctCount: st?.correct || 0,
+      answered: st?.answered || 0,
+      finished: Boolean(st?.finished),
+    };
+  });
+  const winner = podium.length > 0
+    ? { username: podium[0].username, score: podium[0].score, correctCount: podium[0].correctCount }
+    : null;
+
+  // game_history records "questions this match had"; for a per-player race
+  // that is the length of the run everybody was served.
+  lobby.questionIdx = Math.max(0, (lobby.medathonQueue?.length || 1) - 1);
+
+  io.to(lobby.id).emit('game_over', {
+    gameMode: 'medathon', winner, podium, reason,
+    total: lobby.medathonQueue?.length || 0,
+    stages: lobby.medathonStages || [],
+  });
+  awardXP(lobby, sorted).catch(err => console.error('[awardXP medathon]', err.message));
 }
 
 // ── Trivia Pursuit (Board Game) ──────────────────────────────────────────────
@@ -2605,6 +2947,12 @@ io.on('connection', (socket) => {
       return;
     }
 
+    // ── Medathon ───────────────────────────────────────────────────────────
+    if (lobby.status === 'medathon') {
+      advanceMedathonPlayer(lobby, socket.id, answer);
+      return;
+    }
+
     // ── Trivia Pursuit ─────────────────────────────────────────────────────
     if (lobby.status === 'trivia_question') {
       if (socket.id !== lobby.triviaCurrentPlayerId || lobby.answers.has(socket.id)) return;
@@ -2798,6 +3146,15 @@ io.on('connection', (socket) => {
         lobby.speedPlayers.delete(socket.id);
       }
       if (lobby.players.size <= 1) endSpeedRace(lobby, 'forfeit');
+    } else if (lobby.status === 'medathon') {
+      const state = lobby.medathonPlayers?.get(socket.id);
+      if (state) {
+        clearTimeout(state.timer);
+        clearTimeout(state.botTimer);
+        lobby.medathonPlayers.delete(socket.id);
+      }
+      if (lobby.players.size <= 1) endMedathon(lobby, 'forfeit');
+      else emitMedathonProgress(lobby);
     } else if (lobby.status === 'trivia_question') {
       if (lobby.players.size <= 1) {
         endTriviaPursuit(lobby, [...lobby.players.keys()][0]);
@@ -7435,7 +7792,7 @@ app.post('/admin/settings', adminAuth, async (req, res) => {
   if (b.startingLives   !== undefined) gameSettings.startingLives   = Math.max(1, Math.min(10, Number(b.startingLives)));
   // Numeric fields
   const numFields = [
-    'timerDefault','timerSpeedRace','timerTriviaPursuit','timerScanMaster','explanationTime',
+    'timerDefault','timerSpeedRace','timerMedathon','timerTriviaPursuit','timerScanMaster','explanationTime',
     'speedRaceQuestions','battleRoyaleMaxQ','minQuestionsPerCategory',
     'battleRoyaleLives','suddenDeathTrigger','suddenDeathTimer','towerFloorLives','bossTolerance',
     'maxPlayersPerLobby','minPlayersToStart','maxBotsPerLobby','lobbyAutoStart',

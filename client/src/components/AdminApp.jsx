@@ -42,6 +42,9 @@ const GAME_MODES = [
   { id: 'scan_master',    label: 'Scan Master',    icon: '🔬', color: '#00b894' },
   { id: 'tower',          label: 'The Tower',      icon: '🏰', color: '#f5c518' },
   { id: 'buzz_fun',       label: 'Buzz Fun',       icon: '⚡', color: '#e67e22' },
+  // Optional: the Medathon already draws on the Battle Royale pool, so this
+  // tag is only needed to put a question in the marathon and nowhere else.
+  { id: 'medathon',       label: 'Medathon',       icon: '🏁', color: '#d6a13f' },
   // /uworld-adventure serves ONLY questions carrying this tag — see
   // UWORLD_MODE below and the game_modes filter on GET /api/questions/unseen.
   { id: 'uworld_adventure', label: 'UWorld Adventure', icon: '🌍', color: '#3f7fd6' },

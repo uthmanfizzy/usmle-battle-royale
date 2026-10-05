@@ -78,16 +78,16 @@ export default function ModeSplit({ onStory, onOnline, onTraining, onBack }) {
           art={art.path_story_art}
           onClick={onStory}
         />
-        {/* Online and Training Grounds are closed while under development.
-            Re-enable by dropping `locked` and passing onClick (onOnline /
-            onTraining, plus cta="Start training" for Training Grounds). */}
+        {/* Training Grounds is still closed; re-enable by dropping `locked`
+            and passing onClick={onTraining} plus cta="Start training". */}
         <PathCard
           variant="online"
           icon="⚔️"
           title="Online"
           sub="Battle other doctors live"
+          cta="Enter the arena"
           art={art.path_online_art}
-          locked
+          onClick={onOnline}
         />
         <PathCard
           variant="training"

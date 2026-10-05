@@ -42,6 +42,15 @@ const GAME_MODES = [
     supportsSolo: false,
   },
   {
+    id: 'medathon',
+    name: 'MEDATHON',
+    icon: '🏁',
+    shortDesc: 'Race the whole of medicine, system by system.',
+    meta: 'Multiplayer',
+    longDescription: 'A marathon across fifteen systems — five questions from each, from Cardio to Microbiology. Everyone races the same run at their own pace: every correct answer scores, and the faster you answer the bigger the bonus on top. Watch the field move on the live track and take the lead. You are told only right or wrong — and when you are wrong, which answer was right.',
+    supportsSolo: false,
+  },
+  {
     // Real, live 1v1 mode (Phase 4a). Card copy follows the Deploy mockup's
     // "PvP Arenas" treatment; kept ALL-CAPS to match the five sibling names.
     id: 'pvp_duel',
