@@ -1,0 +1,637 @@
+/* PlayPageArena — the Online page's arena skin.
+
+   Loaded after PlayPage.css and scoped to its own arena-* classes, so the
+   lobby overlay, the matchmaking overlay and the AnKing branch keep the
+   styles they already had while the screen around them is rebuilt.
+
+   Each mode card carries its own colour as --ac (an "r, g, b" triplet, the
+   pattern used across this project), so one set of rules paints six modes and
+   the briefing panel picks up whichever is selected. Static rgba only —
+   color-mix() ships broken on older browsers. */
+
+/* ── Background: a lit floor, a glow and a drift of embers ────────────────── */
+.arena-bg {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+.arena-glow {
+  position: absolute;
+  left: 50%;
+  top: -22%;
+  width: min(1100px, 150%);
+  height: 70%;
+  transform: translateX(-50%);
+  background: radial-gradient(50% 50% at 50% 50%, rgba(214, 161, 63, 0.16) 0%, rgba(193, 41, 30, 0.07) 45%, rgba(0, 0, 0, 0) 72%);
+  animation: arena-breathe 7s ease-in-out infinite;
+}
+@keyframes arena-breathe {
+  50% { opacity: 0.62; transform: translateX(-50%) scale(1.06); }
+}
+/* A perspective floor made of two gradients — cheap, and it gives the page a
+   horizon to sit on. */
+.arena-floor {
+  position: absolute;
+  left: -10%;
+  right: -10%;
+  bottom: -2%;
+  height: 46%;
+  background:
+    repeating-linear-gradient(90deg, rgba(214, 161, 63, 0.09) 0 1px, rgba(0, 0, 0, 0) 1px 72px),
+    repeating-linear-gradient(0deg, rgba(214, 161, 63, 0.07) 0 1px, rgba(0, 0, 0, 0) 1px 48px),
+    linear-gradient(0deg, rgba(10, 6, 4, 0.75), rgba(0, 0, 0, 0));
+  transform: perspective(520px) rotateX(64deg);
+  transform-origin: bottom center;
+  mask-image: linear-gradient(0deg, rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0) 85%);
+  -webkit-mask-image: linear-gradient(0deg, rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0) 85%);
+}
+
+.arena-ember {
+  position: absolute;
+  bottom: -14px;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: rgba(240, 180, 90, 0.85);
+  box-shadow: 0 0 8px rgba(240, 160, 60, 0.8);
+  animation: arena-rise linear infinite;
+}
+@keyframes arena-rise {
+  0% { transform: translateY(0) scale(0.6); opacity: 0; }
+  12% { opacity: 0.9; }
+  75% { opacity: 0.65; }
+  100% { transform: translateY(-78vh) translateX(26px) scale(1.1); opacity: 0; }
+}
+.arena-ember--0 { left: 6%;  animation-duration: 11s; animation-delay: 0s; }
+.arena-ember--1 { left: 18%; animation-duration: 14s; animation-delay: 1.6s; }
+.arena-ember--2 { left: 31%; animation-duration: 9.5s; animation-delay: 3.2s; }
+.arena-ember--3 { left: 47%; animation-duration: 13s; animation-delay: 0.8s; }
+.arena-ember--4 { left: 63%; animation-duration: 10.5s; animation-delay: 2.4s; }
+.arena-ember--5 { left: 78%; animation-duration: 15s; animation-delay: 4.1s; }
+.arena-ember--6 { left: 91%; animation-duration: 12s; animation-delay: 1.1s; }
+
+/* ── Top bar ──────────────────────────────────────────────────────────────── */
+.arena-top {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: clamp(12px, 2vw, 20px) clamp(14px, 3vw, 30px) 0;
+}
+.arena-wordmark {
+  font-family: var(--mv-font-display, 'Cinzel', serif);
+  font-size: clamp(16px, 2vw, 21px);
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: #f1ece4;
+  text-decoration: none;
+}
+.arena-exit {
+  margin-left: 10px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(0, 0, 0, 0.35);
+  color: rgba(241, 236, 228, 0.8);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.arena-exit:hover { background: rgba(255, 255, 255, 0.12); }
+
+.arena-player {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 14px 6px 6px;
+  border-radius: 999px;
+  background: rgba(8, 7, 10, 0.6);
+  border: 1px solid rgba(214, 161, 63, 0.3);
+}
+.arena-player-avatar {
+  position: relative;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  overflow: visible;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(circle at 40% 35%, #2a2118, #110d09);
+  border: 2px solid rgba(214, 161, 63, 0.6);
+  font-family: var(--mv-font-display, 'Cinzel', serif);
+  font-size: 15px;
+  color: #e8b04b;
+  flex-shrink: 0;
+}
+.arena-player-avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+.arena-player-lvl {
+  position: absolute;
+  bottom: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  min-width: 20px;
+  padding: 1px 5px;
+  border-radius: 999px;
+  background: #c1291e;
+  border: 1px solid rgba(0, 0, 0, 0.5);
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 9.5px;
+  font-weight: 800;
+  color: #fff;
+  text-align: center;
+}
+.arena-player-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.arena-player-name {
+  font-size: 13px;
+  font-weight: 800;
+  color: #f1ece4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 150px;
+}
+.arena-player-xp {
+  position: relative;
+  display: block;
+  width: 118px;
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+}
+.arena-player-xp i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #d6a13f, #f3d07a);
+  transition: width 0.4s ease;
+}
+.arena-player-xp small {
+  position: absolute;
+  top: 7px;
+  left: 0;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  color: rgba(241, 236, 228, 0.5);
+  white-space: nowrap;
+}
+.arena-player-guest { font-size: 10px; letter-spacing: 0.08em; color: rgba(241, 236, 228, 0.5); }
+
+/* ── Header ───────────────────────────────────────────────────────────────── */
+.arena-col { position: relative; z-index: 2; }
+.arena-head { display: flex; flex-direction: column; align-items: center; gap: 6px; margin: clamp(10px, 3vh, 30px) 0 clamp(16px, 3vh, 28px); text-align: center; }
+.arena-kicker {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.4em;
+  text-transform: uppercase;
+  color: rgba(214, 161, 63, 0.85);
+  animation: arena-in 0.5s ease both;
+}
+.arena-title {
+  margin: 0;
+  font-family: var(--mv-font-display, 'Cinzel', serif);
+  font-size: clamp(30px, 6vw, 58px);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #f7f2e9;
+  text-shadow: 0 4px 26px rgba(214, 161, 63, 0.35);
+  animation: arena-in 0.55s 0.05s ease both;
+}
+@keyframes arena-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: none; }
+}
+.arena-rule {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: min(340px, 72vw);
+  color: rgba(214, 161, 63, 0.75);
+  animation: arena-in 0.6s 0.1s ease both;
+}
+.arena-rule span { flex: 1; height: 1px; background: linear-gradient(90deg, rgba(214, 161, 63, 0), rgba(214, 161, 63, 0.6), rgba(214, 161, 63, 0)); }
+.arena-rule i { font-style: normal; font-size: 13px; }
+.arena-sub { margin: 0; font-size: 13.5px; color: rgba(241, 236, 228, 0.62); animation: arena-in 0.65s 0.15s ease both; }
+
+/* ── The card wall ────────────────────────────────────────────────────────── */
+.arena-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: clamp(9px, 1.4vw, 14px);
+  margin-bottom: 18px;
+}
+.arena-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+  padding: 16px 15px 14px;
+  min-height: 148px;
+  border-radius: 13px;
+  border: 1.5px solid rgba(255, 255, 255, 0.12);
+  background:
+    radial-gradient(120% 80% at 50% -20%, rgba(var(--ac), 0.2) 0%, rgba(0, 0, 0, 0) 60%),
+    linear-gradient(165deg, rgba(22, 19, 24, 0.9), rgba(10, 9, 12, 0.95));
+  color: #f1ece4;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+  isolation: isolate;
+  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+  animation: arena-card-in 0.45s var(--d, 0s) cubic-bezier(0.2, 0.9, 0.3, 1) both;
+}
+@keyframes arena-card-in {
+  from { opacity: 0; transform: translateY(16px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+.arena-card:hover:not(:disabled) {
+  transform: translateY(-4px);
+  border-color: rgba(var(--ac), 0.7);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.5), 0 0 26px rgba(var(--ac), 0.22);
+}
+/* A light that crosses the card on hover — the one flourish per card. */
+.arena-card-sheen {
+  position: absolute;
+  inset: -40% -60%;
+  z-index: -1;
+  background: linear-gradient(72deg, rgba(255, 255, 255, 0) 42%, rgba(255, 255, 255, 0.09) 50%, rgba(255, 255, 255, 0) 58%);
+  transform: translateX(-60%);
+  transition: transform 0.6s ease;
+}
+.arena-card:hover:not(:disabled) .arena-card-sheen { transform: translateX(60%); }
+
+.arena-card-medal {
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  font-size: 23px;
+  background: radial-gradient(circle at 38% 32%, rgba(var(--ac), 0.5), rgba(var(--ac), 0.16));
+  border: 1px solid rgba(var(--ac), 0.5);
+  margin-bottom: 4px;
+}
+.arena-card-name {
+  font-family: var(--mv-font-display, 'Cinzel', serif);
+  font-size: 15.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.arena-card-tag { font-size: 12px; color: rgba(241, 236, 228, 0.62); line-height: 1.35; }
+.arena-card-meta {
+  margin-top: auto;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(var(--ac), 0.95);
+}
+.arena-card-flag {
+  position: absolute;
+  top: 10px;
+  right: -30px;
+  padding: 3px 32px;
+  transform: rotate(38deg);
+  background: rgba(var(--ac), 0.9);
+  color: #120d08;
+  font-size: 8.5px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+}
+.arena-card.is-active {
+  border-color: rgba(var(--ac), 0.95);
+  box-shadow: 0 0 0 1px rgba(var(--ac), 0.4), 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 30px rgba(var(--ac), 0.3);
+  animation: arena-card-in 0.45s var(--d, 0s) cubic-bezier(0.2, 0.9, 0.3, 1) both, arena-pulse 2.6s 0.6s ease-in-out infinite;
+}
+@keyframes arena-pulse {
+  50% { box-shadow: 0 0 0 1px rgba(var(--ac), 0.5), 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 46px rgba(var(--ac), 0.45); }
+}
+.arena-card.is-locked { opacity: 0.45; cursor: default; filter: grayscale(0.6); }
+.arena-card-lock {
+  margin-top: 4px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(241, 236, 228, 0.7);
+}
+
+/* ── Briefing ─────────────────────────────────────────────────────────────── */
+.arena-brief {
+  padding: 16px 18px;
+  margin-bottom: 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(var(--ac), 0.4);
+  background:
+    radial-gradient(110% 100% at 0% 0%, rgba(var(--ac), 0.16) 0%, rgba(0, 0, 0, 0) 55%),
+    rgba(12, 10, 14, 0.8);
+  animation: arena-brief-in 0.4s cubic-bezier(0.2, 0.9, 0.3, 1) both;
+}
+@keyframes arena-brief-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+.arena-brief-head { display: flex; align-items: center; gap: 13px; margin-bottom: 10px; }
+.arena-brief-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 11px;
+  display: grid;
+  place-items: center;
+  font-size: 22px;
+  background: rgba(var(--ac), 0.2);
+  border: 1px solid rgba(var(--ac), 0.45);
+  flex-shrink: 0;
+}
+.arena-brief-name {
+  margin: 0;
+  font-family: var(--mv-font-display, 'Cinzel', serif);
+  font-size: 20px;
+  letter-spacing: 0.02em;
+  color: #f7f2e9;
+}
+.arena-brief-meta {
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(var(--ac), 0.95);
+}
+.arena-brief-desc {
+  margin: 0 0 12px;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: rgba(241, 236, 228, 0.82);
+}
+.arena-facts { display: flex; flex-wrap: wrap; gap: 7px; list-style: none; margin: 0; padding: 0; }
+.arena-facts li {
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: rgba(var(--ac), 0.14);
+  border: 1px solid rgba(var(--ac), 0.35);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #f1ece4;
+}
+
+/* ── Kit ──────────────────────────────────────────────────────────────────── */
+.arena-kit {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.arena-kit-block {
+  padding: 13px 15px;
+  border-radius: 12px;
+  background: rgba(10, 9, 12, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.arena-kit-label {
+  display: block;
+  margin-bottom: 9px;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(241, 236, 228, 0.45);
+}
+.arena-squad { display: flex; gap: 7px; }
+.arena-squad-btn {
+  flex: 1;
+  padding: 9px 6px;
+  border-radius: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(241, 236, 228, 0.8);
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.arena-squad-btn:hover:not(:disabled) { background: rgba(255, 255, 255, 0.1); }
+.arena-squad-btn.is-on { border-color: #c1291e; background: rgba(193, 41, 30, 0.22); color: #fff; }
+.arena-squad-btn.is-locked { opacity: 0.45; cursor: default; }
+.arena-kit-note { margin: 8px 0 0; font-size: 10.5px; color: rgba(241, 236, 228, 0.4); }
+
+.arena-loadout { display: flex; align-items: center; gap: 10px; }
+.arena-loadout-thumb {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  flex-shrink: 0;
+  background: repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.06) 0 6px, rgba(255, 255, 255, 0.02) 6px 12px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+.arena-loadout-text {
+  flex: 1;
+  min-width: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: rgba(241, 236, 228, 0.85);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.arena-loadout-link { font-size: 11.5px; font-weight: 800; color: #d6a13f; text-decoration: none; white-space: nowrap; }
+.arena-loadout-link:hover { text-decoration: underline; }
+
+/* ── Deploy ───────────────────────────────────────────────────────────────── */
+.arena-deploy { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 12px; margin-bottom: 12px; }
+.arena-go {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 15px 20px;
+  border: 0;
+  cursor: pointer;
+  color: #fff;
+  font-family: inherit;
+  text-align: left;
+  overflow: hidden;
+  background: linear-gradient(100deg, #d6342a, #8c1a12);
+  clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);
+  box-shadow: 0 10px 30px rgba(193, 41, 30, 0.35);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.arena-go::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 -40%;
+  width: 36%;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0));
+  animation: arena-shine 3.4s ease-in-out infinite;
+}
+@keyframes arena-shine {
+  0%, 62% { transform: translateX(0); }
+  100% { transform: translateX(420%); }
+}
+.arena-go:hover { transform: translateY(-2px); box-shadow: 0 16px 38px rgba(193, 41, 30, 0.5); }
+.arena-go-icon { font-size: 24px; }
+.arena-go-text { display: flex; flex-direction: column; gap: 2px; }
+.arena-go-text strong { font-family: var(--mv-font-display, 'Cinzel', serif); font-size: 17px; letter-spacing: 0.06em; }
+.arena-go-text small { font-size: 11px; color: rgba(255, 255, 255, 0.78); }
+.arena-go-chev { margin-left: auto; font-size: 26px; opacity: 0.8; }
+
+.arena-quick {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1.5px solid rgba(214, 161, 63, 0.5);
+  background: rgba(214, 161, 63, 0.1);
+  color: #e8c47d;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+.arena-quick small { font-size: 10.5px; font-weight: 600; letter-spacing: 0; color: rgba(241, 236, 228, 0.55); }
+.arena-quick:hover { background: rgba(214, 161, 63, 0.2); transform: translateY(-2px); }
+
+/* ── Join by code ─────────────────────────────────────────────────────────── */
+.arena-code { margin-bottom: 26px; }
+.arena-code-label {
+  display: block;
+  margin-bottom: 7px;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(241, 236, 228, 0.45);
+}
+.arena-code-row { display: flex; gap: 9px; }
+.arena-code-input {
+  flex: 1;
+  min-width: 0;
+  padding: 12px 16px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(0, 0, 0, 0.4);
+  color: #f1ece4;
+  font-family: var(--mv-font-display, 'Cinzel', serif);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+}
+.arena-code-input::placeholder { color: rgba(241, 236, 228, 0.25); letter-spacing: 0.3em; }
+.arena-code-input:focus { outline: none; border-color: rgba(214, 161, 63, 0.7); box-shadow: 0 0 0 3px rgba(214, 161, 63, 0.15); }
+.arena-code-btn {
+  padding: 12px 22px;
+  border-radius: 10px;
+  border: 1px solid rgba(214, 161, 63, 0.55);
+  background: rgba(214, 161, 63, 0.16);
+  color: #e8c47d;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+}
+.arena-code-btn:hover:not(:disabled) { background: rgba(214, 161, 63, 0.28); }
+.arena-code-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+@media (max-width: 760px) {
+  .arena-deploy { grid-template-columns: 1fr; }
+  .arena-player-xp { width: 92px; }
+  .arena-card { min-height: 132px; padding: 13px 12px 12px; }
+  .arena-card-medal { width: 40px; height: 40px; font-size: 20px; }
+}
+
+@media (max-width: 420px) {
+  .arena-grid { grid-template-columns: repeat(auto-fit, minmax(146px, 1fr)); }
+  .arena-player-text { display: none; }
+  .arena-card-tag { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .arena-glow,
+  .arena-ember,
+  .arena-go::after,
+  .arena-card,
+  .arena-card.is-active,
+  .arena-brief,
+  .arena-kicker,
+  .arena-title,
+  .arena-rule,
+  .arena-sub { animation: none; }
+  .arena-card-sheen { transition: none; }
+}
+
+/* ── Grid rhythm: six modes read better as two rows of three than as a
+   four-plus-two orphan row. ──────────────────────────────────────────────── */
+@media (min-width: 900px) {
+  .arena-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+.arena-rule i { font-size: 17px; opacity: 0.9; }
+
+/* ── The lobby, dressed for the same room ─────────────────────────────────
+   These re-skin the markup PlayPage already had. Same selectors, later in the
+   bundle (this file is imported after PlayPage.css), so they win on source
+   order without an !important anywhere. ──────────────────────────────────── */
+.lobby-overlay {
+  background: radial-gradient(70% 60% at 50% 0%, rgba(193, 41, 30, 0.18) 0%, rgba(0, 0, 0, 0.82) 60%), rgba(0, 0, 0, 0.84);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.lobby-panel {
+  background:
+    radial-gradient(120% 70% at 50% -10%, rgba(214, 161, 63, 0.14) 0%, rgba(0, 0, 0, 0) 60%),
+    linear-gradient(170deg, rgba(18, 15, 20, 0.97), rgba(8, 7, 10, 0.98));
+  border: 1.5px solid rgba(214, 161, 63, 0.45);
+  box-shadow: 0 26px 70px rgba(0, 0, 0, 0.65), 0 0 40px rgba(214, 161, 63, 0.12);
+  animation: arena-brief-in 0.3s cubic-bezier(0.2, 0.9, 0.3, 1) both;
+}
+.lobby-panel-title h2 { color: #f0dba6; letter-spacing: 0.04em; }
+.lobby-code-box {
+  background: rgba(0, 0, 0, 0.55);
+  border-color: rgba(214, 161, 63, 0.7);
+  box-shadow: inset 0 0 22px rgba(214, 161, 63, 0.1);
+}
+.lobby-code-text { letter-spacing: 0.4em; }
+.lobby-player-row {
+  background: linear-gradient(100deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
+  border-color: rgba(214, 161, 63, 0.22);
+  transition: border-color 0.15s ease, transform 0.15s ease;
+  /* Each arrival slides its slot in rather than appearing. */
+  animation: arena-slot-in 0.3s ease both;
+}
+@keyframes arena-slot-in {
+  from { opacity: 0; transform: translateX(-10px); }
+  to { opacity: 1; transform: none; }
+}
+.lobby-player-row:hover { border-color: rgba(214, 161, 63, 0.45); }
+.lobby-start-btn--ready {
+  background: linear-gradient(100deg, #d6342a, #8c1a12);
+  border-color: transparent;
+  box-shadow: 0 10px 28px rgba(193, 41, 30, 0.4);
+  animation: arena-ready 2.2s ease-in-out infinite;
+}
+@keyframes arena-ready {
+  50% { box-shadow: 0 10px 34px rgba(193, 41, 30, 0.7); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lobby-panel,
+  .lobby-player-row,
+  .lobby-start-btn--ready { animation: none; }
+}

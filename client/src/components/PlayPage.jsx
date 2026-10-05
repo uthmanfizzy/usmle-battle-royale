@@ -1,6 +1,7 @@
 import { useState, useEffect, Fragment } from 'react';
 import { authFetch } from '../auth';
 import './PlayPage.css';
+import './PlayPageArena.css';
 import { cachedImageMap, rememberImageMap } from '../utils/cachedImages';
 import AnKingMode from './AnKingMode';
 
@@ -11,15 +12,22 @@ const GAME_MODES = [
     icon: '💀',
     shortDesc: 'Last doctor standing wins',
     meta: 'Multiplayer',
+    // The arena skin: a colour per mode, and three facts that are true of it.
+    accent: '220, 62, 48',
+    tagline: 'Lives on the line',
+    facts: ['3 lives', 'Sudden death', 'Last one standing'],
     longDescription: 'Drop into the medical arena. Wrong answers cost lives. Outlast every other player through skill and knowledge. Strategy and speed will lead you to victory.',
     supportsSolo: false,
   },
   {
     id: 'speed_race',
     name: 'SPEED RACE',
-    icon: '🏁',
+    icon: '⚡',
     shortDesc: 'First to 20 correct answers wins',
     meta: 'Multiplayer',
+    accent: '86, 170, 235',
+    tagline: 'Pure pace',
+    facts: ['20 correct', 'No lives', 'Fastest wins'],
     longDescription: 'Race against the clock and your opponents. Answer 20 questions correctly as fast as possible. No lives lost, just pure speed and accuracy.',
     supportsSolo: false,
   },
@@ -29,15 +37,21 @@ const GAME_MODES = [
     icon: '🔬',
     shortDesc: 'Identify conditions from medical images',
     meta: 'Multiplayer',
+    accent: '0, 184, 148',
+    tagline: 'Read the film',
+    facts: ['ECGs & imaging', 'Histology', 'Visual diagnosis'],
     longDescription: 'Study real medical images including ECGs, X-rays, histology slides, and dermatology photos. Last doctor standing wins through visual diagnosis mastery.',
     supportsSolo: false,
   },
   {
     id: 'buzz_fun',
     name: 'BUZZ FUN',
-    icon: '⚡',
+    icon: '🧠',
     shortDesc: 'Buzzwords, triads & classic HY facts',
     meta: 'Multiplayer',
+    accent: '230, 126, 34',
+    tagline: 'Eight seconds',
+    facts: ['8s a card', 'Buzzwords', 'Speed bonuses'],
     longDescription: 'Fast-paced flash cards of buzzwords, triads, side effects and classic high-yield associations. 8 seconds each — fast answers earn bonus points!',
     supportsSolo: false,
   },
@@ -47,6 +61,9 @@ const GAME_MODES = [
     icon: '🏁',
     shortDesc: 'Race the whole of medicine, system by system.',
     meta: 'Multiplayer',
+    accent: '214, 161, 63',
+    tagline: 'The long race',
+    facts: ['15 systems', '5 each', 'Speed bonus'],
     longDescription: 'A marathon across fifteen systems — five questions from each, from Cardio to Microbiology. Everyone races the same run at their own pace: every correct answer scores, and the faster you answer the bigger the bonus on top. Watch the field move on the live track and take the lead. You are told only right or wrong — and when you are wrong, which answer was right.',
     supportsSolo: false,
   },
@@ -58,6 +75,9 @@ const GAME_MODES = [
     icon: '⚔️',
     shortDesc: 'Duel rival healers in ranked combat.',
     meta: '1V1',
+    accent: '155, 89, 182',
+    tagline: 'One on one',
+    facts: ['100 HP', 'First answer strikes', 'Auto-start'],
     longDescription: 'Face a single opponent in a duel of knowledge. Both of you see the same question — whoever answers correctly first strikes the other for 5 damage. Reduce your rival from 100 HP to zero to claim victory. The duel begins the moment your opponent arrives.',
     supportsSolo: false,
   },
@@ -97,6 +117,11 @@ export default function PlayPage({
   const [joinError, setJoinError] = useState('');
   const [ownedGear, setOwnedGear] = useState([]);
   const [gearLoading, setGearLoading] = useState(false);
+
+  // Whatever is selected, whether or not it has a tile: Story Mode opens
+  // AnKing through this page, and its briefing comes from STORY_MODES.
+  const selectedModeData = [...GAME_MODES, ...STORY_MODES].find(m => m.id === selectedMode) || null;
+  const lobbyModeData = GAME_MODES.find(m => m.id === (lobbyGameMode || selectedMode)) || null;
 
   // PvP Duel is 1v1-only today, so Duo/Squad party sizes don't apply to it.
   const duelSelected = selectedMode === 'pvp_duel';
@@ -217,22 +242,47 @@ export default function PlayPage({
         backgroundRepeat: 'no-repeat',
       }}
     >
-      {/* ── Page chrome: MEDVALE wordmark + avatar (currency lives on the Shop page) ── */}
-      <div className="pp-topbar">
-        <a className="pp-wordmark" href="/dashboard">MEDVALE</a>
-        <div className="pp-topbar-right">
-          <div className="pp-avatar" title={username || 'Player'}>
+      {/* ── The arena: embers over a vignette, drawn in CSS so the page
+             still weighs nothing. ─────────────────────────────────────── */}
+      <div className="arena-bg" aria-hidden="true">
+        <span className="arena-glow" />
+        <span className="arena-floor" />
+        {Array.from({ length: 14 }).map((_, i) => (
+          <span key={i} className={`arena-ember arena-ember--${i % 7}`} />
+        ))}
+      </div>
+
+      <div className="arena-top">
+        <a className="arena-wordmark" href="/dashboard">MEDVALE</a>
+        <button type="button" className="arena-exit" onClick={onBack}>← Leave</button>
+        <div className="arena-player">
+          <div className="arena-player-avatar">
             {user?.avatar_url
               ? <img src={user.avatar_url} alt={username} referrerPolicy="no-referrer" />
               : <span>{username?.[0]?.toUpperCase() || '?'}</span>}
+            {user?.level != null && <span className="arena-player-lvl">{user.level}</span>}
+          </div>
+          <div className="arena-player-text">
+            <span className="arena-player-name">{username || 'Challenger'}</span>
+            {user?.level != null ? (
+              <span className="arena-player-xp">
+                <i style={{ width: `${Math.min(100, ((user.xp || 0) % 500) / 5)}%` }} />
+                <small>{(user.xp || 0) % 500} / 500 XP</small>
+              </span>
+            ) : (
+              <span className="arena-player-guest">Playing as a guest</span>
+            )}
           </div>
         </div>
       </div>
 
-      <div className="pp-col">
-        <button type="button" className="pp-back pp-rise" onClick={onBack}>← Back</button>
-        <h1 className="pp-title pp-rise" style={{ '--pp-delay': '0.04s' }}>Deploy</h1>
-        <p className="pp-subtitle pp-rise" style={{ '--pp-delay': '0.1s' }}>Choose your battlefield.</p>
+      <div className="pp-col arena-col">
+        <header className="arena-head">
+          <span className="arena-kicker">Online</span>
+          <h1 className="arena-title">Enter the Arena</h1>
+          <div className="arena-rule" aria-hidden="true"><span /><i>⚔</i><span /></div>
+          <p className="arena-sub">Pick your battlefield, then call the field together.</p>
+        </header>
 
         {selectedMode === 'anking' ? (
           <div className="pp-anking">
@@ -240,137 +290,145 @@ export default function PlayPage({
               user={user}
               config={{ limit: 20 }}
               onBack={() => setSelectedMode('battle_royale')}
-              // AnKingMode logs its own activity_sessions row on Finish/unmount;
-              // this only needs to return the user to the mode grid.
               onComplete={() => setSelectedMode('battle_royale')}
             />
           </div>
         ) : (
           <>
-            {/* ── Mode grid ─────────────────────────────────────────────── */}
-            <div className="pp-mode-grid pp-rise" style={{ '--pp-delay': '0.16s' }}>
-              {GAME_MODES.map(mode => {
+            {/* ── The card wall ───────────────────────────────────────── */}
+            <div className="arena-grid">
+              {GAME_MODES.map((mode, i) => {
                 const isEnabled = gameModesConfig[mode.id]?.enabled ?? true;
                 const active = selectedMode === mode.id;
                 return (
-                  <div
+                  <button
+                    type="button"
                     key={mode.id}
-                    className={`pp-mode-card${active ? ' pp-mode-card--active' : ''}${!isEnabled ? ' pp-mode-card--disabled' : ''}`}
+                    className={`arena-card${active ? ' is-active' : ''}${isEnabled ? '' : ' is-locked'}`}
+                    style={{ '--ac': mode.accent || '214, 161, 63', '--d': `${0.06 * i}s` }}
                     onClick={() => isEnabled && setSelectedMode(mode.id)}
-                    role="button"
-                    tabIndex={isEnabled ? 0 : -1}
                     aria-pressed={active}
                     aria-disabled={!isEnabled}
-                    onKeyDown={e => {
-                      if (isEnabled && (e.key === 'Enter' || e.key === ' ')) {
-                        e.preventDefault();
-                        setSelectedMode(mode.id);
-                      }
-                    }}
+                    disabled={!isEnabled}
                   >
-                    {!isEnabled && <span className="pp-soon-chip">COMING SOON</span>}
-                    <div className="pp-mode-icon">{mode.icon}</div>
-                    <div className="pp-mode-name">{mode.name}</div>
-                    <div className="pp-mode-desc">{mode.shortDesc}</div>
-                    {mode.meta && <div className="pp-mode-meta">{mode.meta}</div>}
-                  </div>
+                    <span className="arena-card-sheen" aria-hidden="true" />
+                    <span className="arena-card-medal" aria-hidden="true">{mode.icon}</span>
+                    <span className="arena-card-name">{mode.name}</span>
+                    <span className="arena-card-tag">{mode.tagline || mode.shortDesc}</span>
+                    <span className="arena-card-meta">{mode.meta}</span>
+                    {!isEnabled && <span className="arena-card-lock">🔒 Coming soon</span>}
+                    {active && <span className="arena-card-flag" aria-hidden="true">SELECTED</span>}
+                  </button>
                 );
               })}
             </div>
 
-            {/* ── Squad Size (Fill Team toggle intentionally dropped) ────── */}
-            <div className="squad-section pp-block pp-rise" style={{ '--pp-delay': '0.24s' }}>
-              <label className="squad-label">SQUAD SIZE</label>
-              <div className="squad-options">
-                <button
-                  className={squadSize === 'solo' ? 'squad-btn active' : 'squad-btn'}
-                  onClick={() => setSquadSize('solo')}
-                >
-                  👤 SOLO
-                </button>
-                <button
-                  className={`${squadSize === 'duo' ? 'squad-btn active' : 'squad-btn'}${duelSelected ? ' squad-btn--soon' : ''}`}
-                  onClick={() => !duelSelected && setSquadSize('duo')}
-                  disabled={duelSelected}
-                  title={duelSelected ? 'PvP Arenas is 1v1 only — coming soon' : ''}
-                >
-                  {duelSelected ? '🔒 DUO' : '👥 DUO'}
-                </button>
-                <button
-                  className={`${squadSize === 'squad' ? 'squad-btn active' : 'squad-btn'}${duelSelected ? ' squad-btn--soon' : ''}`}
-                  onClick={() => !duelSelected && setSquadSize('squad')}
-                  disabled={duelSelected}
-                  title={duelSelected ? 'PvP Arenas is 1v1 only — coming soon' : ''}
-                >
-                  {duelSelected ? '🔒 SQUAD' : '👥 SQUAD (4)'}
-                </button>
+            {/* ── The briefing for whatever is selected ───────────────── */}
+            {selectedModeData && (
+              <section
+                className="arena-brief"
+                key={selectedModeData.id}
+                style={{ '--ac': selectedModeData.accent || '214, 161, 63' }}
+              >
+                <div className="arena-brief-head">
+                  <span className="arena-brief-icon" aria-hidden="true">{selectedModeData.icon}</span>
+                  <div>
+                    <h2 className="arena-brief-name">{selectedModeData.name}</h2>
+                    <span className="arena-brief-meta">{selectedModeData.meta}</span>
+                  </div>
+                </div>
+                <p className="arena-brief-desc">{selectedModeData.longDescription}</p>
+                {selectedModeData.facts && (
+                  <ul className="arena-facts">
+                    {selectedModeData.facts.map(f => <li key={f}>{f}</li>)}
+                  </ul>
+                )}
+              </section>
+            )}
+
+            {/* ── Kit: party size and loadout, side by side ───────────── */}
+            <div className="arena-kit">
+              <div className="arena-kit-block">
+                <span className="arena-kit-label">Party</span>
+                <div className="arena-squad">
+                  {[['solo', '👤', 'SOLO'], ['duo', '👥', 'DUO'], ['squad', '🛡️', 'SQUAD']].map(([key, icon, label]) => {
+                    const locked = duelSelected && key !== 'solo';
+                    return (
+                      <button
+                        type="button"
+                        key={key}
+                        className={`arena-squad-btn${squadSize === key ? ' is-on' : ''}${locked ? ' is-locked' : ''}`}
+                        onClick={() => !locked && setSquadSize(key)}
+                        disabled={locked}
+                        title={locked ? 'PvP Arenas is 1v1 only' : ''}
+                      >
+                        <span aria-hidden="true">{locked ? '🔒' : icon}</span> {label}
+                      </button>
+                    );
+                  })}
+                </div>
+                {duelSelected && <p className="arena-kit-note">PvP Arenas is 1v1 — Duo and Squad are coming soon.</p>}
               </div>
-              {duelSelected && (
-                <p className="squad-note">PvP Arenas is 1v1 — Duo & Squad coming soon.</p>
-              )}
+
+              <div className="arena-kit-block">
+                <span className="arena-kit-label">Loadout</span>
+                <div className="arena-loadout">
+                  <span className="arena-loadout-thumb" aria-hidden="true" />
+                  <span className="arena-loadout-text">
+                    {gearLoading
+                      ? 'Loading loadout…'
+                      : ownedGear.length > 0
+                        ? ownedGear.slice(0, 3).map(g => g.name).join(' · ')
+                        : 'No gear collected yet'}
+                  </span>
+                  <a className="arena-loadout-link" href="/shop">Shop →</a>
+                </div>
+                <p className="arena-kit-note">Gear is a collection — it changes nothing in a match.</p>
+              </div>
             </div>
 
-            {/* ── Loadout bar (read-only; gear has no gameplay effect) ───── */}
-            <div className="loadout-bar pp-block pp-rise" style={{ '--pp-delay': '0.32s' }}>
-              <div className="loadout-thumb" aria-hidden="true" />
-              <div className="loadout-info">
-                <span className="loadout-items">
-                  {gearLoading
-                    ? 'Loading loadout…'
-                    : ownedGear.length > 0
-                      ? ownedGear.slice(0, 3).map(g => g.name).join(' · ')
-                      : 'No gear collected yet'}
+            {/* ── Deploy ──────────────────────────────────────────────── */}
+            <div className="arena-deploy">
+              <button type="button" className="arena-go" onClick={handleCreateLobby}>
+                <span className="arena-go-icon" aria-hidden="true">⚔️</span>
+                <span className="arena-go-text">
+                  <strong>CREATE LOBBY</strong>
+                  <small>Open a room and invite the field</small>
                 </span>
-                <span className="loadout-label">Current loadout</span>
-              </div>
-              <a className="loadout-change" href="/shop">Change Loadout →</a>
+                <span className="arena-go-chev" aria-hidden="true">›</span>
+              </button>
+              <button type="button" className="arena-quick" onClick={handleQuickJoinClick}>
+                <span aria-hidden="true">🔍</span> QUICK JOIN
+                <small>Drop into the first open room</small>
+              </button>
             </div>
-
-            {/* ── Deploy CTA (red octagon-cut, full width) ──────────────── */}
-            <button
-              className="lobby-btn lobby-btn--create pp-deploy pp-rise"
-              style={{ '--pp-delay': '0.4s' }}
-              onClick={handleCreateLobby}
-            >
-              <span className="lobby-btn-icon">⚔️</span>
-              <div className="lobby-btn-text">
-                <span className="lobby-btn-title">CREATE LOBBY</span>
-              </div>
-            </button>
 
             {error && <p className="pp-error">{error}</p>}
 
-            {/* ── Preserved: Join by code + Quick Join (no mockup ref) ───── */}
-            <div className="pp-secondary">
-              <div className="pp-join">
-                <label className="pp-mini-label">JOIN BY CODE</label>
-                <div className="pp-join-row">
-                  <input
-                    className="pp-join-input"
-                    placeholder="Enter code..."
-                    value={lobbyCode}
-                    onChange={e => {
-                      setLobbyCode(e.target.value.toUpperCase());
-                      setJoinError('');
-                      if (onClearError) onClearError();
-                    }}
-                    maxLength={8}
-                    onKeyDown={e => e.key === 'Enter' && lobbyCode.trim() && handleJoinLobby()}
-                  />
-                  <button
-                    className="pp-join-btn"
-                    onClick={handleJoinLobby}
-                    disabled={!lobbyCode.trim()}
-                  >
-                    JOIN →
-                  </button>
-                </div>
-                {joinError && <p className="join-lobby-error">{joinError}</p>}
+            <div className="arena-code">
+              <label className="arena-code-label" htmlFor="arena-code-input">Join by code</label>
+              <div className="arena-code-row">
+                <input
+                  id="arena-code-input"
+                  className="arena-code-input"
+                  placeholder="ABC123"
+                  value={lobbyCode}
+                  onChange={e => {
+                    setLobbyCode(e.target.value.toUpperCase());
+                    setJoinError('');
+                    if (onClearError) onClearError();
+                  }}
+                  maxLength={8}
+                  onKeyDown={e => e.key === 'Enter' && lobbyCode.trim() && handleJoinLobby()}
+                />
+                <button
+                  type="button"
+                  className="arena-code-btn"
+                  onClick={handleJoinLobby}
+                  disabled={!lobbyCode.trim()}
+                >JOIN →</button>
               </div>
-
-              <button className="pp-quick" onClick={handleQuickJoinClick}>
-                🔍 QUICK JOIN
-              </button>
+              {joinError && <p className="join-lobby-error">{joinError}</p>}
             </div>
           </>
         )}
@@ -425,9 +483,11 @@ export default function PlayPage({
 
             {/* Header */}
             <div className="lobby-panel-header">
+              {/* The lobby's OWN mode, not whatever is selected on the page
+                  behind it: joining by code puts you in someone else's room. */}
               <div className="lobby-panel-title">
-                <span>⚔️</span>
-                <h2>{GAME_MODES.find(m => m.id === selectedMode)?.name || 'LOBBY'}</h2>
+                <span>{lobbyModeData?.icon || '⚔️'}</span>
+                <h2>{lobbyModeData?.name || 'LOBBY'}</h2>
               </div>
               <button className="lobby-close-btn" onClick={onLeaveLobby}>✕ Leave</button>
             </div>
