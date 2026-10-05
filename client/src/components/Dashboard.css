@@ -4611,13 +4611,16 @@ button.settings-btn img,
 .lb-cell-label { display: none; }
 
 /* ══════════════════════════════════════════════════════════════════════════════
-   MOBILE HOME (≤600px, Home tab only)
+   HOME LAYOUT (Home tab only, every width)
    Follows the phone home mockup: an in-flow header (profile + icon row, then
    currency pills + motto), an art-backed PLAY hero with a red crossed-swords
    badge, a three-up Leaderboards / Clans / Reels tile row, and a tall event
    card. Scoped to .dashboard-screen.dash-home so the other tabs keep the fixed
    header they reserve clearance for. The earlier ≤768/480/400/380 header rules
    use !important, so the overrides here do too, winning on specificity.
+   This began as the phone layout and is now the layout at every width — the
+   desktop home was asked to look like the phone one — so the only width query
+   left in it is the min-width:601px band that centres it.
    Card art = admin → Home Page → home_*_art; every card has a painted fallback.
    ══════════════════════════════════════════════════════════════════════════════ */
 
@@ -4632,312 +4635,384 @@ button.settings-btn img,
 .dash-event-sub.mv-plain { font-family: 'Cinzel', serif; font-weight: 700; }
 .dash-event-art-img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
-@media (max-width: 600px) {
-  .dash-desktop-only { display: none !important; }
+/* These rules were phone-only (≤600px) until the desktop home was asked to
+   match the phone one; they now apply at every width, with the block below
+   centring the three bands and adding the pointer states a phone never
+   needed. Anything still inside a width query further down (≤400, ≤340) is a
+   small-phone refinement and stays there. */
+.dashboard-screen.dash-home .dash-desktop-only { display: none !important; }
 
-  /* ── Header: in flow, two rows ─────────────────────────────────────────── */
-  .dashboard-screen.dash-home .dashboard-header {
-    position: relative !important;
-    /* Above the PLAY card and tiles so the notifications panel overlays them. */
-    z-index: 120 !important;
-    display: grid !important;
-    grid-template-columns: minmax(0, 1fr) auto;
-    /* No currency pills on the phone home header — coins and gems live on the
-       Shop page (reachable from the dock), which shows both in its top bar. */
-    grid-template-areas:
-      "profile icons"
-      ".       quote";
-    align-items: center !important;
-    row-gap: 6px;
-    column-gap: 10px;
-    padding: 22px 16px 4px !important;
-    pointer-events: auto;
-  }
-  .dashboard-screen.dash-home .header-right { display: contents !important; }
-  .dashboard-screen.dash-home .header-left { grid-area: profile; min-width: 0; animation: none; }
-
-  .dashboard-screen.dash-home .header-icon-group {
-    grid-area: icons;
-    /* Containing block for the notifications panel (NotificationsDropdown.css). */
-    position: relative !important;
-    top: auto !important;
-    right: auto !important;
-    gap: 10px !important;
-    justify-self: end;
-  }
-  .dashboard-screen.dash-home .header-icon-bubble {
-    width: 50px !important;
-    height: 50px !important;
-    min-width: 50px !important;
-    min-height: 50px !important;
-    background: radial-gradient(circle at 50% 35%, #1b2420, #0b100e) !important;
-    border: 1.5px solid rgba(255, 255, 255, 0.14) !important;
-    box-shadow: inset 0 0 0 3px rgba(0, 0, 0, 0.35), 0 4px 12px rgba(0, 0, 0, 0.45);
-  }
-  .dashboard-screen.dash-home .header-icon-bubble .header-icon-img,
-  .dashboard-screen.dash-home .header-icon-bubble.settings-btn .header-icon-img {
-    /* Uploaded icon PNGs carry their own padding, so they run larger than the
-       bubble and overflow it (the bubble is overflow:visible). */
-    width: 44px !important;
-    height: 44px !important;
-    min-width: 44px !important;
-    min-height: 44px !important;
-    max-width: 44px !important;
-    max-height: 44px !important;
-    margin: -4px !important;
-  }
-  .dashboard-screen.dash-home .header-icon-bubble span { font-size: 24px !important; }
-
-  .dashboard-screen.dash-home .currency-bar { display: none !important; }
-  .dashboard-screen.dash-home .currency-pill {
-    gap: 10px !important;
-    padding: 9px 10px 9px 12px !important;
-    border-radius: 10px;
-    background: rgba(8, 12, 10, 0.72);
-    border-color: rgba(255, 255, 255, 0.12);
-    min-width: 0;
-  }
-  .dashboard-screen.dash-home .currency-token--coin { width: 20px; height: 20px; background: radial-gradient(circle at 40% 35%, #ffd66b, #e3a228); }
-  .dashboard-screen.dash-home .currency-token--gem { width: 15px; height: 15px; }
-  .dashboard-screen.dash-home .currency-value { font-size: 16px; }
-  .dashboard-screen.dash-home .currency-add { width: 24px; height: 24px; font-size: 16px; border-radius: 6px; }
-
-  .dashboard-screen.dash-home .dash-header-quote {
-    grid-area: quote;
-    display: block;
-    justify-self: end;
-    max-width: 128px;
-    font-size: 9.5px;
-    line-height: 1.45;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: rgba(255, 255, 255, 0.7);
-  }
-  .dashboard-screen.dash-home .dash-header-quote span::before { content: "\201C\00a0"; color: rgba(255, 255, 255, 0.5); }
-  .dashboard-screen.dash-home .dash-header-quote span::after { content: "\00a0\201D"; color: rgba(255, 255, 255, 0.5); }
-
-  /* Profile: no glass panel. Avatar ring, then name / XP / level as text. */
-  .dashboard-screen.dash-home .profile-card-avatar {
-    width: 62px !important;
-    height: 62px !important;
-    min-width: 62px !important;
-    border-width: 3px !important;
-    box-shadow: 0 0 0 2px rgba(232, 176, 75, 0.25), 0 6px 16px rgba(0, 0, 0, 0.5);
-  }
-  .dashboard-screen.dash-home .profile-card-lvl-badge {
-    width: 22px !important;
-    height: 22px !important;
-    bottom: -4px !important;
-    left: 30% !important;
-  }
-  .dashboard-screen.dash-home .profile-card-lvl-num { font-size: 10px !important; }
-  .dashboard-screen.dash-home .profile-card-panel {
-    background: none !important;
-    border: 0 !important;
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-    box-shadow: none !important;
-    margin-left: 0 !important;
-    padding: 0 0 0 12px !important;
-    min-width: 0 !important;
-    max-width: none !important;
-    gap: 5px !important;
-  }
-  .dashboard-screen.dash-home .profile-card-username {
-    font-size: 19px !important;
-    letter-spacing: 0.03em;
-    white-space: nowrap;
-    min-width: 0;
-  }
-  .dashboard-screen.dash-home .profile-card-crown { font-size: 15px !important; }
-  .dashboard-screen.dash-home .profile-card-xp { gap: 5px; }
-  .dashboard-screen.dash-home .profile-card-xp-bar { width: min(130px, 30vw); height: 6px !important; }
-  .dashboard-screen.dash-home .profile-card-xp-text { font-size: 12px !important; color: rgba(255, 255, 255, 0.85); }
-  .dashboard-screen.dash-home .profile-card-level-text {
-    display: block;
-    font-size: 11px;
-    color: rgba(255, 255, 255, 0.55);
-    margin-top: -2px;
-  }
-
-  /* ── Body ───────────────────────────────────────────────────────────────── */
-  .dashboard-screen.dash-home .dash-main {
-    padding: 14px 16px 20px !important;
-    gap: 16px !important;
-  }
-
-  .dashboard-screen.dash-home .dash-nav-col {
-    display: grid !important;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 10px !important;
-  }
-  .dashboard-screen.dash-home .dash-nav-card--news { display: none !important; }
-
-  /* Every card is an art surface: image fills, a scrim keeps text legible. */
-  .dashboard-screen.dash-home .dash-nav-card--play,
-  .dashboard-screen.dash-home .dash-nav-card--tile {
-    position: relative;
-    overflow: hidden;
-    isolation: isolate;
-  }
-  .dashboard-screen.dash-home .dash-card-art {
-    display: block;
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    z-index: -2;
-  }
-  .dashboard-screen.dash-home .dash-nav-card--play::after,
-  .dashboard-screen.dash-home .dash-nav-card--tile::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    z-index: -1;
-    pointer-events: none;
-  }
-  .dashboard-screen.dash-home .dash-card-chev {
-    display: inline-block;
-    line-height: 1;
-  }
-
-  /* PLAY hero */
-  .dashboard-screen.dash-home .dash-nav-card--play {
-    grid-column: 1 / -1;
-    flex-direction: column;
-    align-items: flex-start;
-    justify-content: center;
-    gap: 10px;
-    min-height: 152px;
-    padding: 16px 18px;
-    border: 2px solid #e0382b;
-    border-radius: 12px;
-    background: radial-gradient(120% 140% at 85% 30%, #7a2416 0%, #3a0f0a 45%, #150605 100%);
-    box-shadow: 0 0 0 1px rgba(255, 90, 60, 0.25), 0 0 24px rgba(224, 56, 43, 0.5), inset 0 0 30px rgba(224, 56, 43, 0.22);
-  }
-  .dashboard-screen.dash-home .dash-nav-card--play:hover,
-  .dashboard-screen.dash-home .dash-nav-card--play:active {
-    border-color: #e0382b;
-    background: radial-gradient(120% 140% at 85% 30%, #7a2416 0%, #3a0f0a 45%, #150605 100%);
-    box-shadow: 0 0 0 1px rgba(255, 90, 60, 0.35), 0 0 32px rgba(224, 56, 43, 0.7), inset 0 0 30px rgba(224, 56, 43, 0.28);
-  }
-  .dashboard-screen.dash-home .dash-nav-card--play::after {
-    background: linear-gradient(90deg, rgba(20, 5, 4, 0.85) 0%, rgba(20, 5, 4, 0.45) 45%, rgba(20, 5, 4, 0) 75%);
-  }
-  .dashboard-screen.dash-home .dash-nav-card-icon--play {
-    width: 52px;
-    height: 52px;
-    background: radial-gradient(circle at 40% 35%, #e5412f, #b3201a);
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45), inset 0 0 0 2px rgba(255, 255, 255, 0.08);
-  }
-  .dashboard-screen.dash-home .dash-play-swords { display: block; width: 30px; height: 30px; }
-  .dashboard-screen.dash-home .dash-nav-card--play .dash-nav-card-text { gap: 4px; }
-  .dashboard-screen.dash-home .dash-nav-card--play .dash-nav-card-name {
-    font-size: 44px;
-    font-weight: 900 !important;
-    line-height: 0.95;
-    letter-spacing: 0.01em;
-    text-shadow: 0 3px 12px rgba(0, 0, 0, 0.6);
-  }
-  .dashboard-screen.dash-home .dash-nav-card--play .dash-nav-card-sub {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    font-size: 13px;
-    letter-spacing: 0.12em;
-    color: rgba(255, 255, 255, 0.72);
-  }
-  .dashboard-screen.dash-home .dash-nav-card--play .dash-card-chev { font-size: 24px; color: #fff; margin-top: -2px; }
-
-  /* Tiles */
-  .dashboard-screen.dash-home .dash-nav-card--tile {
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 0;
-    min-height: 150px;
-    padding: 10px 4px 8px;
-    border-radius: 10px;
-    border: 1px solid rgba(255, 255, 255, 0.14);
-    background: radial-gradient(110% 90% at 50% 25%, #26312b 0%, #111815 60%, #0a0f0c 100%);
-    text-align: center;
-  }
-  .dashboard-screen.dash-home .dash-nav-card--tile::after {
-    background: linear-gradient(180deg, rgba(6, 9, 8, 0.05) 0%, rgba(6, 9, 8, 0.25) 45%, rgba(6, 9, 8, 0.92) 100%);
-  }
-  .dashboard-screen.dash-home .dash-nav-card--tile .dash-nav-card-icon {
-    position: absolute;
-    top: 16%;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 52px;
-    height: 52px;
-    background: none;
-    border-radius: 0;
-  }
-  .dashboard-screen.dash-home .dash-nav-card--tile .dash-nav-card-icon img { width: 64px; height: 64px; margin: -6px; filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.6)); }
-  .dashboard-screen.dash-home .dash-tile-glyph { display: block; width: 48px; height: 48px; filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.6)); }
-  .dashboard-screen.dash-home .dash-nav-card--tile .dash-nav-card-text { align-items: center; gap: 3px; width: 100%; }
-  .dashboard-screen.dash-home .dash-nav-card--tile .dash-nav-card-name {
-    justify-content: center;
-    font-size: clamp(10.5px, 3.15vw, 14px);
-    letter-spacing: 0;
-    white-space: nowrap;
-    text-shadow: 0 2px 6px rgba(0, 0, 0, 0.8);
-  }
-  .dashboard-screen.dash-home .dash-nav-card--tile .dash-nav-card-sub {
-    font-size: clamp(7.5px, 2.2vw, 9.5px);
-    letter-spacing: 0.04em;
-    line-height: 1.2;
-    color: rgba(255, 255, 255, 0.72);
-  }
-  .dashboard-screen.dash-home .dash-nav-card--tile .dash-card-chev { font-size: 20px; color: #fff; margin-top: 2px; }
-
-  /* ── Event card: tall, art full-bleed, text top-left ────────────────────── */
-  .dashboard-screen.dash-home .dash-content-col { gap: 16px; }
-  .dashboard-screen.dash-home .dash-event-card {
-    position: relative;
-    isolation: isolate;
-    min-height: 340px;
-    border-radius: 12px;
-    border: 1px solid rgba(255, 255, 255, 0.14);
-    background: radial-gradient(120% 80% at 70% 45%, #3a2a1e 0%, #18140f 55%, #0b0a08 100%);
-  }
-  .dashboard-screen.dash-home .dash-event-art {
-    position: absolute;
-    inset: 0;
-    height: auto;
-    z-index: -2;
-    background: none;
-    align-items: flex-end;
-    padding-bottom: 18px;
-    font-size: 11px;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: rgba(255, 255, 255, 0.55);
-  }
-  .dashboard-screen.dash-home .dash-event-card::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    z-index: -1;
-    pointer-events: none;
-    background: linear-gradient(180deg, rgba(8, 8, 8, 0.72) 0%, rgba(8, 8, 8, 0.25) 40%, rgba(8, 8, 8, 0) 60%, rgba(8, 8, 8, 0.35) 100%);
-  }
-  .dashboard-screen.dash-home .dash-event-body { padding: 22px 20px; gap: 8px; }
-  .dashboard-screen.dash-home .dash-event-label { font-size: 13px; letter-spacing: 0.22em; color: #e0382b; }
-  .dashboard-screen.dash-home .dash-event-title { font-size: 38px; line-height: 1.05; font-weight: 700; }
-  .dashboard-screen.dash-home .dash-event-sub.mv-plain {
-    font-family: 'Crimson Text', Georgia, serif;
-    font-weight: 400;
-    font-size: 18px;
-    line-height: 1.35;
-    color: rgba(255, 255, 255, 0.88);
-    max-width: 270px;
-  }
-  .dashboard-screen.dash-home .dash-event-dots { display: none; }
+/* ── Header: in flow, two rows ─────────────────────────────────────────── */
+.dashboard-screen.dash-home .dashboard-header {
+  position: relative !important;
+  /* Above the PLAY card and tiles so the notifications panel overlays them. */
+  z-index: 120 !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto;
+  /* No currency pills on the phone home header — coins and gems live on the
+     Shop page (reachable from the dock), which shows both in its top bar. */
+  grid-template-areas:
+    "profile icons"
+    ".       quote";
+  align-items: center !important;
+  row-gap: 6px;
+  column-gap: 10px;
+  padding: 22px 16px 4px !important;
+  pointer-events: auto;
 }
+.dashboard-screen.dash-home .header-right { display: contents !important; }
+.dashboard-screen.dash-home .header-left { grid-area: profile; min-width: 0; animation: none; }
+
+.dashboard-screen.dash-home .header-icon-group {
+  grid-area: icons;
+  /* Containing block for the notifications panel (NotificationsDropdown.css). */
+  position: relative !important;
+  top: auto !important;
+  right: auto !important;
+  gap: 10px !important;
+  justify-self: end;
+}
+.dashboard-screen.dash-home .header-icon-bubble {
+  width: 50px !important;
+  height: 50px !important;
+  min-width: 50px !important;
+  min-height: 50px !important;
+  background: radial-gradient(circle at 50% 35%, #1b2420, #0b100e) !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.14) !important;
+  box-shadow: inset 0 0 0 3px rgba(0, 0, 0, 0.35), 0 4px 12px rgba(0, 0, 0, 0.45);
+}
+.dashboard-screen.dash-home .header-icon-bubble .header-icon-img,
+.dashboard-screen.dash-home .header-icon-bubble.settings-btn .header-icon-img {
+  /* Uploaded icon PNGs carry their own padding, so they run larger than the
+     bubble and overflow it (the bubble is overflow:visible). */
+  width: 44px !important;
+  height: 44px !important;
+  min-width: 44px !important;
+  min-height: 44px !important;
+  max-width: 44px !important;
+  max-height: 44px !important;
+  margin: -4px !important;
+}
+.dashboard-screen.dash-home .header-icon-bubble span { font-size: 24px !important; }
+
+.dashboard-screen.dash-home .currency-bar { display: none !important; }
+.dashboard-screen.dash-home .currency-pill {
+  gap: 10px !important;
+  padding: 9px 10px 9px 12px !important;
+  border-radius: 10px;
+  background: rgba(8, 12, 10, 0.72);
+  border-color: rgba(255, 255, 255, 0.12);
+  min-width: 0;
+}
+.dashboard-screen.dash-home .currency-token--coin { width: 20px; height: 20px; background: radial-gradient(circle at 40% 35%, #ffd66b, #e3a228); }
+.dashboard-screen.dash-home .currency-token--gem { width: 15px; height: 15px; }
+.dashboard-screen.dash-home .currency-value { font-size: 16px; }
+.dashboard-screen.dash-home .currency-add { width: 24px; height: 24px; font-size: 16px; border-radius: 6px; }
+
+.dashboard-screen.dash-home .dash-header-quote {
+  grid-area: quote;
+  display: block;
+  justify-self: end;
+  max-width: 128px;
+  font-size: 9.5px;
+  line-height: 1.45;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.7);
+}
+.dashboard-screen.dash-home .dash-header-quote span::before { content: "\201C\00a0"; color: rgba(255, 255, 255, 0.5); }
+.dashboard-screen.dash-home .dash-header-quote span::after { content: "\00a0\201D"; color: rgba(255, 255, 255, 0.5); }
+
+/* Profile: no glass panel. Avatar ring, then name / XP / level as text. */
+.dashboard-screen.dash-home .profile-card-avatar {
+  width: 62px !important;
+  height: 62px !important;
+  min-width: 62px !important;
+  border-width: 3px !important;
+  box-shadow: 0 0 0 2px rgba(232, 176, 75, 0.25), 0 6px 16px rgba(0, 0, 0, 0.5);
+}
+.dashboard-screen.dash-home .profile-card-lvl-badge {
+  width: 22px !important;
+  height: 22px !important;
+  bottom: -4px !important;
+  left: 30% !important;
+}
+.dashboard-screen.dash-home .profile-card-lvl-num { font-size: 10px !important; }
+.dashboard-screen.dash-home .profile-card-panel {
+  background: none !important;
+  border: 0 !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: none !important;
+  margin-left: 0 !important;
+  padding: 0 0 0 12px !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  gap: 5px !important;
+}
+.dashboard-screen.dash-home .profile-card-username {
+  font-size: 19px !important;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  min-width: 0;
+}
+.dashboard-screen.dash-home .profile-card-crown { font-size: 15px !important; }
+.dashboard-screen.dash-home .profile-card-xp { gap: 5px; }
+.dashboard-screen.dash-home .profile-card-xp-bar { width: min(130px, 30vw); height: 6px !important; }
+.dashboard-screen.dash-home .profile-card-xp-text { font-size: 12px !important; color: rgba(255, 255, 255, 0.85); }
+.dashboard-screen.dash-home .profile-card-level-text {
+  display: block;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.55);
+  margin-top: -2px;
+}
+
+/* ── Body ───────────────────────────────────────────────────────────────── */
+.dashboard-screen.dash-home .dash-main {
+  padding: 14px 16px 20px !important;
+  gap: 16px !important;
+}
+
+.dashboard-screen.dash-home .dash-nav-col {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px !important;
+}
+.dashboard-screen.dash-home .dash-nav-card--news { display: none !important; }
+
+/* Every card is an art surface: image fills, a scrim keeps text legible. */
+.dashboard-screen.dash-home .dash-nav-card--play,
+.dashboard-screen.dash-home .dash-nav-card--tile {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+.dashboard-screen.dash-home .dash-card-art {
+  display: block;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: -2;
+}
+.dashboard-screen.dash-home .dash-nav-card--play::after,
+.dashboard-screen.dash-home .dash-nav-card--tile::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+.dashboard-screen.dash-home .dash-card-chev {
+  display: inline-block;
+  line-height: 1;
+}
+
+/* PLAY hero */
+.dashboard-screen.dash-home .dash-nav-card--play {
+  grid-column: 1 / -1;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 10px;
+  min-height: 152px;
+  padding: 16px 18px;
+  border: 2px solid #e0382b;
+  border-radius: 12px;
+  background: radial-gradient(120% 140% at 85% 30%, #7a2416 0%, #3a0f0a 45%, #150605 100%);
+  box-shadow: 0 0 0 1px rgba(255, 90, 60, 0.25), 0 0 24px rgba(224, 56, 43, 0.5), inset 0 0 30px rgba(224, 56, 43, 0.22);
+}
+.dashboard-screen.dash-home .dash-nav-card--play:hover,
+.dashboard-screen.dash-home .dash-nav-card--play:active {
+  border-color: #e0382b;
+  background: radial-gradient(120% 140% at 85% 30%, #7a2416 0%, #3a0f0a 45%, #150605 100%);
+  box-shadow: 0 0 0 1px rgba(255, 90, 60, 0.35), 0 0 32px rgba(224, 56, 43, 0.7), inset 0 0 30px rgba(224, 56, 43, 0.28);
+}
+.dashboard-screen.dash-home .dash-nav-card--play::after {
+  background: linear-gradient(90deg, rgba(20, 5, 4, 0.85) 0%, rgba(20, 5, 4, 0.45) 45%, rgba(20, 5, 4, 0) 75%);
+}
+.dashboard-screen.dash-home .dash-nav-card-icon--play {
+  width: 52px;
+  height: 52px;
+  background: radial-gradient(circle at 40% 35%, #e5412f, #b3201a);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45), inset 0 0 0 2px rgba(255, 255, 255, 0.08);
+}
+.dashboard-screen.dash-home .dash-play-swords { display: block; width: 30px; height: 30px; }
+.dashboard-screen.dash-home .dash-nav-card--play .dash-nav-card-text { gap: 4px; }
+.dashboard-screen.dash-home .dash-nav-card--play .dash-nav-card-name {
+  font-size: 44px;
+  font-weight: 900 !important;
+  line-height: 0.95;
+  letter-spacing: 0.01em;
+  text-shadow: 0 3px 12px rgba(0, 0, 0, 0.6);
+}
+.dashboard-screen.dash-home .dash-nav-card--play .dash-nav-card-sub {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+  letter-spacing: 0.12em;
+  color: rgba(255, 255, 255, 0.72);
+}
+.dashboard-screen.dash-home .dash-nav-card--play .dash-card-chev { font-size: 24px; color: #fff; margin-top: -2px; }
+
+/* Tiles */
+.dashboard-screen.dash-home .dash-nav-card--tile {
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0;
+  min-height: 150px;
+  padding: 10px 4px 8px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: radial-gradient(110% 90% at 50% 25%, #26312b 0%, #111815 60%, #0a0f0c 100%);
+  text-align: center;
+}
+.dashboard-screen.dash-home .dash-nav-card--tile::after {
+  background: linear-gradient(180deg, rgba(6, 9, 8, 0.05) 0%, rgba(6, 9, 8, 0.25) 45%, rgba(6, 9, 8, 0.92) 100%);
+}
+.dashboard-screen.dash-home .dash-nav-card--tile .dash-nav-card-icon {
+  position: absolute;
+  top: 16%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 52px;
+  height: 52px;
+  background: none;
+  border-radius: 0;
+}
+.dashboard-screen.dash-home .dash-nav-card--tile .dash-nav-card-icon img { width: 64px; height: 64px; margin: -6px; filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.6)); }
+.dashboard-screen.dash-home .dash-tile-glyph { display: block; width: 48px; height: 48px; filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.6)); }
+.dashboard-screen.dash-home .dash-nav-card--tile .dash-nav-card-text { align-items: center; gap: 3px; width: 100%; }
+.dashboard-screen.dash-home .dash-nav-card--tile .dash-nav-card-name {
+  justify-content: center;
+  font-size: clamp(10.5px, 3.15vw, 14px);
+  letter-spacing: 0;
+  white-space: nowrap;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.8);
+}
+.dashboard-screen.dash-home .dash-nav-card--tile .dash-nav-card-sub {
+  font-size: clamp(7.5px, 2.2vw, 9.5px);
+  letter-spacing: 0.04em;
+  line-height: 1.2;
+  color: rgba(255, 255, 255, 0.72);
+}
+.dashboard-screen.dash-home .dash-nav-card--tile .dash-card-chev { font-size: 20px; color: #fff; margin-top: 2px; }
+
+/* ── Event card: tall, art full-bleed, text top-left ────────────────────── */
+.dashboard-screen.dash-home .dash-content-col { gap: 16px; }
+.dashboard-screen.dash-home .dash-event-card {
+  position: relative;
+  isolation: isolate;
+  min-height: 340px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: radial-gradient(120% 80% at 70% 45%, #3a2a1e 0%, #18140f 55%, #0b0a08 100%);
+}
+.dashboard-screen.dash-home .dash-event-art {
+  position: absolute;
+  inset: 0;
+  height: auto;
+  z-index: -2;
+  background: none;
+  align-items: flex-end;
+  padding-bottom: 18px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+}
+.dashboard-screen.dash-home .dash-event-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(8, 8, 8, 0.72) 0%, rgba(8, 8, 8, 0.25) 40%, rgba(8, 8, 8, 0) 60%, rgba(8, 8, 8, 0.35) 100%);
+}
+.dashboard-screen.dash-home .dash-event-body { padding: 22px 20px; gap: 8px; }
+.dashboard-screen.dash-home .dash-event-label { font-size: 13px; letter-spacing: 0.22em; color: #e0382b; }
+.dashboard-screen.dash-home .dash-event-title { font-size: 38px; line-height: 1.05; font-weight: 700; }
+.dashboard-screen.dash-home .dash-event-sub.mv-plain {
+  font-family: 'Crimson Text', Georgia, serif;
+  font-weight: 400;
+  font-size: 18px;
+  line-height: 1.35;
+  color: rgba(255, 255, 255, 0.88);
+  max-width: 270px;
+}
+.dashboard-screen.dash-home .dash-event-dots { display: none; }
+
+/* ── The same home, on a wide screen ────────────────────────────────
+   One centred column at close to the phone's own width. Stretching the hero
+   and the three tiles across 1900px would not be the mobile design any more,
+   just a very wide version of it — so the band keeps its proportions and the
+   extra room becomes margin. Everything here must out-rank the (now
+   unconditional) rules above, hence the !important on the same selectors, and
+   it must beat the ≤1024px two-column collapse further up the file.
+   ─────────────────────────────────────────────────────────────── */
+@media (min-width: 601px) {
+  .dashboard-screen.dash-home .dashboard-header,
+  .dashboard-screen.dash-home .dash-main,
+  .dashboard-screen.dash-home .dash-dock {
+    max-width: 700px !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+  }
+  .dashboard-screen.dash-home .dashboard-header { padding: 26px 20px 6px !important; }
+  .dashboard-screen.dash-home .dash-main {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 16px 20px 26px !important;
+    gap: 20px !important;
+  }
+  .dashboard-screen.dash-home .dash-nav-col,
+  .dashboard-screen.dash-home .dash-content-col {
+    width: 100% !important;
+    margin-top: 0 !important;
+  }
+
+  /* The phone's dock sits in flow under the content. Left sticky, it floated
+     over the event card now that the column is narrow and the page is tall.
+     .dash-main still grows, so on a short page it lands at the bottom anyway.
+     Same treatment the ≤1024px rules already give it, tiles centred with the
+     reward pill on its own row underneath. */
+  .dashboard-screen.dash-home .dash-dock {
+    position: static;
+    padding: 4px 20px;
+    margin-bottom: 16px;
+    justify-content: center;
+    background: none;
+  }
+  .dashboard-screen.dash-home .dash-dock-reward-wrap { flex-basis: 100%; }
+  .dashboard-screen.dash-home .dash-dock-reward-wrap .dash-dock-reward {
+    flex: 1;
+    justify-content: center;
+  }
+
+  /* The quote sits beside the icon row, which has more room here. */
+  .dashboard-screen.dash-home .dash-header-quote {
+    max-width: 180px;
+    font-size: 10.5px;
+  }
+
+  /* A touch taller now that vertical space is not at a premium. */
+  .dashboard-screen.dash-home .dash-nav-card--play { min-height: 178px; }
+  .dashboard-screen.dash-home .dash-nav-card--tile { min-height: 166px; }
+
+  /* Hover: the phone layout has none, and the base .dash-nav-card:hover is
+     out-ranked by the tile rules above, so the cards would sit inert. */
+  .dashboard-screen.dash-home .dash-card-art { transition: transform 0.3s ease; }
+  .dashboard-screen.dash-home .dash-nav-card--tile:not([disabled]):hover,
+  .dashboard-screen.dash-home .dash-nav-card--play:hover {
+    border-color: rgba(255, 255, 255, 0.34);
+  }
+  .dashboard-screen.dash-home .dash-nav-card--play:hover { border-color: #ff5a3c; }
+  .dashboard-screen.dash-home .dash-nav-card:not([disabled]):hover .dash-card-art { transform: scale(1.045); }
+}
+
 
 @media (max-width: 400px) {
   .dashboard-screen.dash-home .dashboard-header { padding: 18px 12px 4px !important; }
