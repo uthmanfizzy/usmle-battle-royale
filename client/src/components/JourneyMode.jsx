@@ -119,6 +119,11 @@ export default function JourneyMode({
     (editorMode ? { 'data-edit-name': label, 'data-edit-kind': kind, 'data-edit-id': String(id) } : {});
 
   const frontierRef      = useRef(null);
+  // Where to open a chapter's map. The frontier above is the next node in the
+  // WHOLE subject, so it is usually in some other chapter — opening chapter 7
+  // would scroll nowhere and land at the top. This one is always inside the
+  // chapter being looked at.
+  const scrollTargetRef  = useRef(null);
   const lastPlayedRef    = useRef(null); // { subject, levelKey, questionsUrl, levelLabel } — survives reentry for TRY AGAIN
   const onReentryConsumedRef = useRef(onReentryConsumed);
   onReentryConsumedRef.current = onReentryConsumed;
@@ -455,12 +460,14 @@ export default function JourneyMode({
     );
   };
 
-  // Auto-scroll to the frontier node (first unlocked, not-yet-completed) when
-  // a chapter's level map renders and contains it
+  // Open a chapter's map where the student actually is: their next level in
+  // this chapter, or — if they have finished it — the last one they completed.
+  // The same effect re-runs when `path` is replaced after a level is
+  // completed, which is what puts the next level on screen afterwards.
   useEffect(() => {
-    if (view === 'levels' && path && frontierRef.current) {
-      frontierRef.current.scrollIntoView({ block: 'center' });
-    }
+    if (view !== 'levels' || !path) return;
+    const target = scrollTargetRef.current || frontierRef.current;
+    if (target) target.scrollIntoView({ block: 'center' });
   }, [view, path, chapterIdx]);
 
   // Editor: jump straight to the requested subject's map so panels can be placed on it.
@@ -510,8 +517,21 @@ export default function JourneyMode({
       return (pathData?.chapters || []).findIndex(c =>
         c.boss.level_key === levelKey || c.levels.some(l => l.level_key === levelKey));
     };
+    // Does this chapter still have something to play?
+    const chapterHasNext = (c) => Boolean(c) && (
+      c.levels.some(l => l.unlocked && !l.completed && l.question_count > 0)
+      || (c.boss.unlocked && !c.boss.completed && !c.boss.auto_skipped)
+    );
+
     const landOn = (pathData) => {
-      const idx = chapterIndexForKey(pathData, reentry.levelKey);
+      let idx = chapterIndexForKey(pathData, reentry.levelKey);
+      // Finishing the last node of a chapter should show the next level, not
+      // the top of a chapter with nothing left in it — so step forward to
+      // wherever the next playable node is.
+      if (idx >= 0 && !chapterHasNext(pathData?.chapters?.[idx])) {
+        const nextIdx = (pathData?.chapters || []).findIndex((c, i) => i > idx && chapterHasNext(c));
+        if (nextIdx >= 0) idx = nextIdx;
+      }
       if (idx >= 0) { setChapterIdx(idx); setView('levels'); }
       else { setView('chapters'); }
     };
@@ -754,6 +774,22 @@ export default function JourneyMode({
     return null;
   })();
 
+  // The open chapter's own landing spot: its first playable-but-unfinished
+  // node, else the last node finished in it. Null for a chapter that has
+  // neither (nothing unlocked yet) — then the map opens at the top, which is
+  // the only honest place for it.
+  const chapterTargetKey = (() => {
+    const c = chapters[chapterIdx];
+    if (!c) return null;
+    for (const l of c.levels) {
+      if (l.unlocked && !l.completed && l.question_count > 0) return l.level_key;
+    }
+    if (c.boss.unlocked && !c.boss.completed && !c.boss.auto_skipped) return c.boss.level_key;
+    if (c.boss.completed) return c.boss.level_key;
+    const done = c.levels.filter(l => l.completed);
+    return done.length ? done[done.length - 1].level_key : null;
+  })();
+
   // Winding trail: nodes alternate left/right; a dashed hand-drawn segment leads into each node
   let slot = 0;
   let nodeCount = 0;
@@ -823,6 +859,7 @@ export default function JourneyMode({
     nodeCount += 1;
     const empty      = l.question_count === 0;
     const isFrontier = l.level_key === frontierKey;
+    const isTarget   = l.level_key === chapterTargetKey;
     const tappable   = l.unlocked && !empty;
     const stars      = l.completed ? getStarCount(l.best_score_pct) : 0;
     const cls = [
@@ -841,7 +878,13 @@ export default function JourneyMode({
     return (
       <Fragment key={l.level_key}>
         {showSeg && trailSeg(side, segState)}
-        <div className={`jm-node-row jm-node-row--${side}`} ref={isFrontier ? frontierRef : null}>
+        <div
+          className={`jm-node-row jm-node-row--${side}`}
+          ref={(el) => {
+            if (isFrontier) frontierRef.current = el;
+            if (isTarget) scrollTargetRef.current = el;
+          }}
+        >
           <button
             className={cls}
             disabled={!tappable}
@@ -880,6 +923,7 @@ export default function JourneyMode({
     const showSeg    = nodeCount > 0;
     nodeCount += 1;
     const isFrontier = boss.level_key === frontierKey;
+    const isTarget   = boss.level_key === chapterTargetKey;
     const tappable   = boss.unlocked && !boss.auto_skipped && boss.question_count > 0;
     const stars      = boss.completed ? getStarCount(boss.best_score_pct) : 0;
     const cls = [
@@ -893,7 +937,13 @@ export default function JourneyMode({
     return (
       <Fragment key={boss.level_key}>
         {showSeg && trailSeg(side, segState)}
-        <div className={`jm-node-row jm-node-row--${side}`} ref={isFrontier ? frontierRef : null}>
+        <div
+          className={`jm-node-row jm-node-row--${side}`}
+          ref={(el) => {
+            if (isFrontier) frontierRef.current = el;
+            if (isTarget) scrollTargetRef.current = el;
+          }}
+        >
           <button
             className={cls}
             disabled={!tappable}
