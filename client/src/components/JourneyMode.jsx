@@ -467,7 +467,22 @@ export default function JourneyMode({
   useEffect(() => {
     if (view !== 'levels' || !path) return;
     const target = scrollTargetRef.current || frontierRef.current;
-    if (target) target.scrollIntoView({ block: 'center' });
+    if (!target) return;
+    const scroller = target.closest('.jm-path-scroll');
+    if (!scroller) return;
+    // Scroll ONLY the map's own scroller. scrollIntoView() walks every
+    // scrollable ancestor on the way up — and an overflow:hidden box is still
+    // scrollable programmatically, so the screen itself got nudged and took
+    // the chapter header off the top with no scrollbar to bring it back.
+    const t = target.getBoundingClientRect();
+    const s = scroller.getBoundingClientRect();
+    scroller.scrollTop += (t.top + t.height / 2) - (s.top + s.height / 2);
+    // Belt and braces: if anything above has been scrolled (by this effect
+    // before the fix, by a browser restoring a position, by an anchor jump),
+    // put it back so the header is always on screen.
+    for (let el = scroller.parentElement; el; el = el.parentElement) {
+      if (el.scrollTop) el.scrollTop = 0;
+    }
   }, [view, path, chapterIdx]);
 
   // Editor: jump straight to the requested subject's map so panels can be placed on it.
