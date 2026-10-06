@@ -11170,6 +11170,9 @@ export default function AdminApp() {
         <button className={`ap-nav-btn ${tab === 'games'         ? 'active' : ''}`} onClick={() => setTab('games')}>
           🕹️ Games
         </button>
+        <button className={`ap-nav-btn ${tab === 'reports'       ? 'active' : ''}`} onClick={() => setTab('reports')}>
+          🔍 Game Reports
+        </button>
         <button className={`ap-nav-btn ${tab === 'journeyeditor' ? 'active' : ''}`} onClick={() => setTab('journeyeditor')}>
           🗺️ Journey Page Editor
         </button>
@@ -11202,6 +11205,7 @@ export default function AdminApp() {
         {tab === 'journeyeditor' && <JourneyPageEditor />}
         {tab === 'announcements' && <AnnouncementsPanel />}
         {tab === 'guide'         && <GuidePanel />}
+        {tab === 'reports'       && <GameReportsPanel />}
         {tab === 'pages'         && <PagesPanel />}
         {tab === 'settings'      && (
           <>
@@ -11214,6 +11218,214 @@ export default function AdminApp() {
         )}
 
       </main>
+    </div>
+  );
+}
+
+/**
+ * Game Reports — what happened in a finished Medathon.
+ *
+ * Two levels: a list of matches, and the full report for one of them. The
+ * report holds every question with every player's answer and time, and the
+ * attention events the browser was able to see during the match.
+ *
+ * A word on those events, because the wording matters: a browser CANNOT
+ * detect a screenshot. The operating system takes it, outside anything a
+ * page can observe. What is recorded is the SHORTCUT being pressed in the
+ * tab, and the screen-capture API being called by the page. A phone camera
+ * or a capture started elsewhere leaves nothing behind. The panel says so on
+ * screen so nobody reads these rows as proof of something they are not.
+ */
+const REPORT_EVENTS = {
+  tab_hidden:         { label: 'Left the tab',            icon: '🚪', weight: 'warn' },
+  tab_visible:        { label: 'Came back',               icon: '↩️', weight: 'calm' },
+  window_blur:        { label: 'Clicked away',            icon: '👁️', weight: 'warn' },
+  window_focus:       { label: 'Back on the window',      icon: '↩️', weight: 'calm' },
+  screenshot_key:     { label: 'Screenshot shortcut',     icon: '📸', weight: 'flag' },
+  screen_capture_api: { label: 'Screen capture started',  icon: '🎥', weight: 'flag' },
+  print_key:          { label: 'Print shortcut',          icon: '🖨️', weight: 'warn' },
+  copy_key:           { label: 'Copy shortcut',           icon: '⌨️', weight: 'warn' },
+  copy:               { label: 'Copied text',             icon: '📋', weight: 'warn' },
+  highlight:          { label: 'Selected text',           icon: '🖍️', weight: 'calm' },
+  context_menu:       { label: 'Right-click menu',        icon: '🖱️', weight: 'calm' },
+};
+
+function GameReportsPanel() {
+  const [matches, setMatches] = useState(null);
+  const [error, setError] = useState('');
+  const [openId, setOpenId] = useState(null);
+  const [report, setReport] = useState(null);
+  const [reportError, setReportError] = useState('');
+  const [who, setWho] = useState(null);
+
+  useEffect(() => {
+    apiCall('/admin/medathon/matches?limit=50')
+      .then(async r => {
+        if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'Could not load matches.');
+        return r.json();
+      })
+      .then(d => setMatches(d.matches || []))
+      .catch(e => { setMatches([]); setError(e.message); });
+  }, []);
+
+  function openMatch(matchId) {
+    setOpenId(matchId);
+    setReport(null);
+    setReportError('');
+    setWho(null);
+    apiCall(`/api/medathon/match/${encodeURIComponent(matchId)}`)
+      .then(async r => {
+        if (!r.ok) throw new Error('That match is no longer saved.');
+        return r.json();
+      })
+      .then(d => { setReport(d); setWho(d.players?.[0]?.id || null); })
+      .catch(e => setReportError(e.message));
+  }
+
+  if (matches === null) return <div className="ap-loading">Loading matches…</div>;
+
+  // ── One match, in full ────────────────────────────────────────────────
+  if (openId) {
+    const player = report?.players?.find(x => x.id === who) || report?.players?.[0] || null;
+    const answersByIndex = new Map((player?.answers || []).map(a => [a.i, a]));
+
+    return (
+      <div className="ap-panel">
+        <div className="rep-head">
+          <button className="ap-btn-sec" onClick={() => { setOpenId(null); setReport(null); }}>← All matches</button>
+          <h2 className="ap-ann-title">Match {openId}</h2>
+          {report && <span className="perm-hint">{new Date(report.playedAt).toLocaleString()} · {report.total} questions</span>}
+        </div>
+
+        {reportError && <p className="ap-error">{reportError}</p>}
+        {!report && !reportError && <div className="ap-loading">Opening the match…</div>}
+
+        {report && (
+          <>
+            <table className="lb-table rep-table">
+              <thead>
+                <tr><th>#</th><th>Player</th><th>Points</th><th>Correct</th><th>Answered</th><th>Avg time</th><th>Flags</th></tr>
+              </thead>
+              <tbody>
+                {report.players.map(pl => {
+                  const flags = (pl.events || []).filter(e => REPORT_EVENTS[e.type]?.weight === 'flag').length;
+                  const away = (pl.events || []).filter(e => e.type === 'tab_hidden' || e.type === 'window_blur').length;
+                  return (
+                    <tr
+                      key={pl.id}
+                      className={pl.id === who ? 'me' : ''}
+                      onClick={() => setWho(pl.id)}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <td>{pl.rank}</td>
+                      <td>{pl.username}{pl.isBot ? ' (bot)' : ''}{pl.isGuest ? ' (guest)' : ''}</td>
+                      <td>{(pl.score || 0).toLocaleString()}</td>
+                      <td>{pl.correct} / {report.total}</td>
+                      <td>{pl.answered}</td>
+                      <td>{pl.answered ? ((pl.totalMs / pl.answered) / 1000).toFixed(1) + 's' : '—'}</td>
+                      <td>
+                        {flags > 0 && <span className="rep-chip rep-chip--flag">{flags} capture</span>}
+                        {away > 0 && <span className="rep-chip rep-chip--warn">{away} away</span>}
+                        {flags === 0 && away === 0 && <span className="perm-hint">clean</span>}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+
+            {player && (
+              <>
+                <h3 className="ap-ann-title rep-sub">Attention log — {player.username}</h3>
+                <p className="perm-hint rep-caveat">
+                  A browser cannot detect a screenshot — the operating system takes it, out of reach of any web page.
+                  What is below is the shortcut being pressed in the tab, the screen-capture API being called, and the tab
+                  or window losing focus. A phone pointed at the screen leaves no trace at all, so read these as signals,
+                  never as proof.
+                </p>
+                {(player.events || []).length === 0 ? (
+                  <p className="perm-hint">Nothing recorded — they stayed on the tab and selected nothing.</p>
+                ) : (
+                  <div className="rep-events">
+                    {player.events.map((e, i) => {
+                      const def = REPORT_EVENTS[e.type] || { label: e.type, icon: '•', weight: 'calm' };
+                      return (
+                        <div key={i} className={`rep-event rep-event--${def.weight}`}>
+                          <span className="rep-event-icon" aria-hidden="true">{def.icon}</span>
+                          <span className="rep-event-label">{def.label}</span>
+                          {e.combo && <span className="rep-event-meta">{e.combo}</span>}
+                          {e.ms > 0 && <span className="rep-event-meta">away {(e.ms / 1000).toFixed(1)}s</span>}
+                          {e.chars > 0 && <span className="rep-event-meta">{e.chars} chars</span>}
+                          <span className="rep-event-q">Q{e.q}</span>
+                          <span className="rep-event-time">{new Date(e.at).toLocaleTimeString()}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                <h3 className="ap-ann-title rep-sub">Every question — {player.username}</h3>
+                <table className="lb-table rep-table">
+                  <thead>
+                    <tr><th>#</th><th>System</th><th>Question</th><th>Their answer</th><th>Correct answer</th><th>Time</th><th>Points</th></tr>
+                  </thead>
+                  <tbody>
+                    {report.questions.map(q => {
+                      const a = answersByIndex.get(q.i);
+                      const state = !a || a.picked == null ? 'missed' : a.correct ? 'right' : 'wrong';
+                      return (
+                        <tr key={q.i} className={`rep-row rep-row--${state}`}>
+                          <td>{q.i + 1}</td>
+                          <td>{q.systemIcon} {q.systemShort}</td>
+                          <td className="rep-q">{q.question}</td>
+                          <td>{a && a.picked != null ? a.picked : <span className="perm-hint">no answer</span>}</td>
+                          <td>{q.correctAnswer}</td>
+                          <td>{a ? (a.ms / 1000).toFixed(1) + 's' : '—'}</td>
+                          <td>{a?.points || 0}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </>
+            )}
+          </>
+        )}
+      </div>
+    );
+  }
+
+  // ── The list ──────────────────────────────────────────────────────────
+  return (
+    <div className="ap-panel">
+      <h2 className="ap-ann-title">🔍 Game Reports</h2>
+      <p className="perm-hint">
+        Finished Medathon races, newest first. Open one for every question, every answer and the
+        attention log for each racer.
+      </p>
+      {error && <p className="ap-error">{error}</p>}
+      {matches.length === 0 && !error && <p className="perm-hint">No finished races yet.</p>}
+      {matches.length > 0 && (
+        <table className="lb-table rep-table">
+          <thead>
+            <tr><th>Played</th><th>Match</th><th>Racers</th><th>Winner</th><th>Top score</th><th>Questions</th><th>Flags</th><th /></tr>
+          </thead>
+          <tbody>
+            {matches.map(m => (
+              <tr key={m.matchId}>
+                <td>{new Date(m.playedAt).toLocaleString()}</td>
+                <td><code>{m.matchId}</code></td>
+                <td>{m.playerCount}</td>
+                <td>{m.winner || '—'}</td>
+                <td>{(m.topScore || 0).toLocaleString()}</td>
+                <td>{m.total}</td>
+                <td>{m.flags > 0 ? <span className="rep-chip rep-chip--warn">{m.flags}</span> : <span className="perm-hint">0</span>}</td>
+                <td><button className="ap-btn-sec" onClick={() => openMatch(m.matchId)}>Open report</button></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </div>
   );
 }

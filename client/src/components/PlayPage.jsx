@@ -16,6 +16,10 @@ const GAME_MODES = [
     accent: '220, 62, 48',
     tagline: 'Lives on the line',
     facts: ['3 lives', 'Sudden death', 'Last one standing'],
+    // Default state when an admin has set nothing for this mode. Admin config
+    // still wins either way, so a mode can be opened from /admin without a
+    // deploy.
+    comingSoon: true,
     longDescription: 'Drop into the medical arena. Wrong answers cost lives. Outlast every other player through skill and knowledge. Strategy and speed will lead you to victory.',
     supportsSolo: false,
   },
@@ -78,6 +82,7 @@ const GAME_MODES = [
     accent: '155, 89, 182',
     tagline: 'One on one',
     facts: ['100 HP', 'First answer strikes', 'Auto-start'],
+    comingSoon: true,
     longDescription: 'Face a single opponent in a duel of knowledge. Both of you see the same question — whoever answers correctly first strikes the other for 5 damage. Reduce your rival from 100 HP to zero to claim victory. The duel begins the moment your opponent arrives.',
     supportsSolo: false,
   },
@@ -122,6 +127,42 @@ export default function PlayPage({
   // AnKing through this page, and its briefing comes from STORY_MODES.
   const selectedModeData = [...GAME_MODES, ...STORY_MODES].find(m => m.id === selectedMode) || null;
   const lobbyModeData = GAME_MODES.find(m => m.id === (lobbyGameMode || selectedMode)) || null;
+
+  // Which mode's briefing sheet is open. Clicking a card opens it rather than
+  // silently selecting: a mode is a choice, so it gets a yes or a no.
+  const [detailMode, setDetailMode] = useState(null);
+  const detailData = GAME_MODES.find(m => m.id === detailMode) || null;
+  const detailEnabled = detailData
+    ? (gameModesConfig[detailData.id]?.enabled ?? !detailData.comingSoon)
+    : false;
+
+  // Escape closes the sheet.
+  useEffect(() => {
+    if (!detailMode) return undefined;
+    const onKey = (e) => { if (e.key === 'Escape') setDetailMode(null); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [detailMode]);
+
+  function playThisMode() {
+    if (!detailData || !detailEnabled) return;
+    setSelectedMode(detailData.id);
+    setDetailMode(null);
+  }
+
+  function createFromSheet() {
+    if (!detailData || !detailEnabled) return;
+    setSelectedMode(detailData.id);
+    setDetailMode(null);
+    onModeSelect({
+      mode: detailData.id,
+      action: 'create',
+      squadSize: detailData.id === 'pvp_duel' ? 'solo' : squadSize,
+      fillTeam,
+      exam: selectedExam,
+      step: selectedStep,
+    });
+  }
 
   // PvP Duel is 1v1-only today, so Duo/Squad party sizes don't apply to it.
   const duelSelected = selectedMode === 'pvp_duel';
@@ -227,10 +268,11 @@ export default function PlayPage({
     });
   }
 
-  // AnKing cards run far past the viewport — several images in the Extra field
-  // is normal — and this wrapper is a fixed, clipped box. Opt that one mode into
-  // scrolling; see .play-page-wrapper--scroll in PlayPage.css.
-  const wrapperClass = `play-page-wrapper${selectedMode === 'anking' ? ' play-page-wrapper--scroll' : ''}`;
+  // App.css pins this wrapper to the viewport with `overflow: hidden`, which
+  // clipped anything past the fold — the deploy row and the join-by-code
+  // field, on a short window. Everything here scrolls now; the modifier
+  // outranks that rule (see .play-page-wrapper--scroll in PlayPage.css).
+  const wrapperClass = 'play-page-wrapper play-page-wrapper--scroll';
 
   return (
     <div
@@ -298,7 +340,9 @@ export default function PlayPage({
             {/* ── The card wall ───────────────────────────────────────── */}
             <div className="arena-grid">
               {GAME_MODES.map((mode, i) => {
-                const isEnabled = gameModesConfig[mode.id]?.enabled ?? true;
+                // Admin config wins; a mode it says nothing about falls back
+                // to its own comingSoon flag.
+                const isEnabled = gameModesConfig[mode.id]?.enabled ?? !mode.comingSoon;
                 const active = selectedMode === mode.id;
                 return (
                   <button
@@ -306,10 +350,9 @@ export default function PlayPage({
                     key={mode.id}
                     className={`arena-card${active ? ' is-active' : ''}${isEnabled ? '' : ' is-locked'}`}
                     style={{ '--ac': mode.accent || '214, 161, 63', '--d': `${0.06 * i}s` }}
-                    onClick={() => isEnabled && setSelectedMode(mode.id)}
+                    onClick={() => setDetailMode(mode.id)}
                     aria-pressed={active}
-                    aria-disabled={!isEnabled}
-                    disabled={!isEnabled}
+                    aria-haspopup="dialog"
                   >
                     <span className="arena-card-sheen" aria-hidden="true" />
                     <span className="arena-card-medal" aria-hidden="true">{mode.icon}</span>
@@ -433,6 +476,71 @@ export default function PlayPage({
           </>
         )}
       </div>
+
+      {/* ── Mode briefing sheet ──────────────────────────────────────────
+             Opened by any card, including a locked one: a mode that is not
+             ready yet should still be able to say what it will be. ──────── */}
+      {detailData && (
+        <div
+          className="arena-sheet-wrap"
+          role="dialog"
+          aria-modal="true"
+          aria-label={detailData.name}
+          onClick={(e) => { if (e.target === e.currentTarget) setDetailMode(null); }}
+        >
+          <div className="arena-sheet" style={{ '--ac': detailData.accent || '214, 161, 63' }}>
+            <button type="button" className="arena-sheet-x" onClick={() => setDetailMode(null)} aria-label="Close">✕</button>
+
+            <div className="arena-sheet-head">
+              <span className="arena-sheet-icon" aria-hidden="true">{detailData.icon}</span>
+              <div>
+                <h2 className="arena-sheet-name">{detailData.name}</h2>
+                <span className="arena-sheet-meta">
+                  {detailData.meta}{!detailEnabled ? ' ' : null}
+                  {!detailEnabled && <em className="arena-sheet-soon">· Coming soon</em>}
+                </span>
+              </div>
+            </div>
+
+            <p className="arena-sheet-tag">{detailData.shortDesc}</p>
+            <p className="arena-sheet-desc">{detailData.longDescription}</p>
+
+            {detailData.facts && (
+              <ul className="arena-facts arena-sheet-facts">
+                {detailData.facts.map(f => <li key={f}>{f}</li>)}
+              </ul>
+            )}
+
+            {detailEnabled ? (
+              <>
+                <p className="arena-sheet-ask">Fancy it?</p>
+                <div className="arena-sheet-actions">
+                  <button type="button" className="arena-sheet-go" onClick={createFromSheet}>
+                    ⚔️ Play — create a lobby
+                  </button>
+                  <button type="button" className="arena-sheet-pick" onClick={playThisMode}>
+                    Choose it, deploy later
+                  </button>
+                  <button type="button" className="arena-sheet-no" onClick={() => setDetailMode(null)}>
+                    Not now
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="arena-sheet-ask arena-sheet-ask--soon">
+                  This one is not open yet — it will appear here the moment it is.
+                </p>
+                <div className="arena-sheet-actions">
+                  <button type="button" className="arena-sheet-no arena-sheet-no--wide" onClick={() => setDetailMode(null)}>
+                    Back to the arena
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ── PVP MATCHMAKING OVERLAY ────────────────────────────────────────
           Replaces the lobby panel for a PvP Arenas quick join: the duel

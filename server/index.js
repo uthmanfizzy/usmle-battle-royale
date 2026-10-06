@@ -2079,6 +2079,7 @@ function buildMedathonReview(lobby, ranked) {
       answered: st?.answered || 0,
       totalMs: st?.totalMs || 0,
       answers: st?.log || [],
+      events: st?.events || [],
     };
   });
 
@@ -2195,6 +2196,8 @@ function startMedathon(lobby) {
       timer: null, botTimer: null, finished: false, currentQ: null, askedAt: 0,
       // Per-question record for the post-match review.
       log: [],
+      // What the browser could see of their attention during the match.
+      events: [],
     });
     lobby.medathonCorrects.set(p.id, 0);
   }
@@ -2841,6 +2844,35 @@ io.on('connection', (socket) => {
     maybeAutoStartDuel(lobby);
   });
 
+  // Attention events during a live match (see client/src/matchWatch.js).
+  // Capped per player and ignored outside a match, so a chatty or malicious
+  // client cannot grow a lobby without bound.
+  const MATCH_EVENT_CAP = 250;
+  const MATCH_EVENT_TYPES = new Set([
+    'tab_hidden', 'tab_visible', 'window_blur', 'window_focus', 'screenshot_key',
+    'screen_capture_api', 'print_key', 'copy_key', 'copy', 'highlight', 'context_menu',
+  ]);
+  socket.on('match_event', (evt) => {
+    const lobby = lobbies.get(socket.lobbyId);
+    if (!lobby || lobby.status !== 'medathon') return;
+    const state = lobby.medathonPlayers?.get(socket.id);
+    if (!state || state.events.length >= MATCH_EVENT_CAP) return;
+    const type = String(evt?.type || '');
+    if (!MATCH_EVENT_TYPES.has(type)) return;
+    const ms = Number(evt?.meta?.ms);
+    const chars = Number(evt?.meta?.chars);
+    state.events.push({
+      type,
+      at: Date.now(),
+      // The question they were on when it happened — the part that makes an
+      // event worth reading.
+      q: state.idx + 1,
+      ...(Number.isFinite(ms) && ms > 0 ? { ms: Math.min(ms, 60 * 60 * 1000) } : {}),
+      ...(Number.isFinite(chars) && chars > 0 ? { chars: Math.min(chars, 100000) } : {}),
+      ...(typeof evt?.meta?.combo === 'string' ? { combo: evt.meta.combo.slice(0, 24) } : {}),
+    });
+  });
+
   socket.on('quick_join', ({ username, gameMode = 'battle_royale', clanTag = null, isGuest = false }, ack) => {
     const name = (username ?? '').trim().slice(0, 20);
     if (!name) return ack({ ok: false, error: 'Username required.' });
@@ -3266,6 +3298,47 @@ io.on('connection', (socket) => {
  * leaderboard. 404 covers both "no such match" and "the table is not there
  * yet", which is the honest answer to the caller either way.
  */
+/**
+ * Finished matches, newest first, for the admin report list.
+ *
+ * Returns a summary per match rather than the whole thing: the questions and
+ * every player's answers are fetched one match at a time by the detail route
+ * below, which is what the panel opens when a row is clicked.
+ */
+app.get('/admin/medathon/matches', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Match history is unavailable.' });
+  const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 30));
+  try {
+    const { data, error } = await supabase
+      .from('medathon_matches')
+      .select('match_id, total, played_at, players')
+      .order('played_at', { ascending: false })
+      .limit(limit);
+    if (error) {
+      console.error('[medathon_matches] list failed —', error.message);
+      return res.status(404).json({ error: 'No match history yet — create the medathon_matches table.' });
+    }
+    const matches = (data || []).map(row => {
+      const players = row.players || [];
+      const flags = players.reduce((n, p) => n + (p.events || []).filter(e =>
+        e.type === 'screenshot_key' || e.type === 'screen_capture_api' || e.type === 'tab_hidden' || e.type === 'window_blur'
+      ).length, 0);
+      return {
+        matchId: row.match_id,
+        total: row.total,
+        playedAt: row.played_at,
+        playerCount: players.length,
+        winner: players[0]?.username || null,
+        topScore: players[0]?.score || 0,
+        flags,
+      };
+    });
+    res.json({ matches });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/api/medathon/match/:matchId', rateLimit(60, 60000), async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Match history is unavailable.' });
   try {

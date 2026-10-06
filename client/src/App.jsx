@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
 import socket from './socket';
 import * as audio from './audio';
+import { watchMatch } from './matchWatch';
 import { getToken, clearToken, fetchMe, getCachedUser, redirectToGoogle } from './auth';
 import UsernameEntry from './components/UsernameEntry';
 import ExamSelect from './components/ExamSelect';
@@ -798,6 +799,16 @@ export default function App() {
   function handleUsePowerup(type, targetId) {
     socket.emit('use_powerup', { type, targetId: targetId || null });
   }
+
+  // Attention tracking for the match report: starts when a match starts and
+  // stops the moment it ends. See matchWatch.js for what a browser can and
+  // cannot actually observe.
+  useEffect(() => {
+    if (phase !== 'game') return undefined;
+    return watchMatch((evt) => {
+      try { socket.emit('match_event', evt); } catch { /* socket may be gone */ }
+    });
+  }, [phase]);
 
   function handleAnswer(answer) {
     if (hasAnswered) return;

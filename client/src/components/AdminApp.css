@@ -6063,3 +6063,50 @@
   user-select: none;
 }
 .hyf-selectall:hover { color: var(--text); }
+
+/* ── Game Reports ─────────────────────────────────────────────────────────── */
+.rep-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.rep-sub { margin: 22px 0 8px; font-size: 15px; }
+.rep-caveat { max-width: 760px; line-height: 1.55; }
+.rep-table { width: 100%; }
+.rep-table td, .rep-table th { vertical-align: middle; }
+.rep-q { max-width: 420px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rep-row--right td:first-child { box-shadow: inset 3px 0 0 rgba(61, 220, 132, 0.8); }
+.rep-row--wrong td:first-child { box-shadow: inset 3px 0 0 rgba(255, 90, 74, 0.8); }
+.rep-row--missed td:first-child { box-shadow: inset 3px 0 0 rgba(232, 176, 75, 0.8); }
+
+.rep-chip {
+  display: inline-block;
+  margin-right: 5px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+}
+.rep-chip--flag { background: rgba(255, 90, 74, 0.18); color: #ff7a6b; border: 1px solid rgba(255, 90, 74, 0.5); }
+.rep-chip--warn { background: rgba(232, 176, 75, 0.16); color: #e8b04b; border: 1px solid rgba(232, 176, 75, 0.45); }
+
+.rep-events { display: flex; flex-direction: column; gap: 5px; max-height: 340px; overflow-y: auto; }
+.rep-event {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 11px;
+  border-radius: 8px;
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+  background: var(--bg-soft, rgba(255, 255, 255, 0.03));
+  font-size: 12.5px;
+}
+.rep-event--flag { border-color: rgba(255, 90, 74, 0.5); background: rgba(255, 90, 74, 0.08); }
+.rep-event--warn { border-color: rgba(232, 176, 75, 0.4); background: rgba(232, 176, 75, 0.07); }
+.rep-event-icon { font-size: 14px; }
+.rep-event-label { font-weight: 700; }
+.rep-event-meta {
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgba(127, 127, 127, 0.18);
+  font-size: 11px;
+}
+.rep-event-q { margin-left: auto; font-weight: 800; opacity: 0.75; }
+.rep-event-time { opacity: 0.55; font-size: 11px; min-width: 76px; text-align: right; }
