@@ -2015,6 +2015,13 @@
     linear-gradient(165deg, #101713 0%, #0a0f0c 45%, #060a07 100%);
   padding: 0;
   justify-content: flex-start;
+  /* The base .jm-screen scrolls, and .jm-chapters-scroll below scrolls too —
+     which drew TWO vertical scrollbars, the outer one moving nothing but the
+     header. The header is meant to stay put and the list is meant to scroll
+     under it, so this screen holds still (the path view already does) and
+     .jm-chapters-scroll is the only scroller. It also clips the stray
+     horizontal overflow a wide custom panel could cause. */
+  overflow: hidden;
 }
 
 .jm-chapters-scroll {
