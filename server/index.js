@@ -3299,6 +3299,51 @@ io.on('connection', (socket) => {
  * yet", which is the honest answer to the caller either way.
  */
 /**
+ * What the Medathon would build right now, system by system.
+ *
+ * Counted from the SAME in-memory bank and the SAME filters the run itself
+ * uses, so the panel cannot drift from the game: `pool` is what a run can
+ * draw on, `tagged` is the subset carrying the medathon tag, and `picks` is
+ * how many the next run would actually take from that system. Anything less
+ * than five means the stage is short — the run shortens a system rather than
+ * padding it with another one's questions.
+ */
+app.get('/admin/medathon/systems', adminAuth, (req, res) => {
+  const pool = questionBank.filter(q => {
+    const tags = q.game_modes || [];
+    return tags.length === 0 || tags.includes('medathon') || tags.includes('battle_royale');
+  });
+  const systems = MEDATHON_SYSTEMS.map(sys => {
+    const mine = pool.filter(q => sys.subjects.includes(medathonSubjectKey(q.subject)));
+    const tagged = mine.filter(q => (q.game_modes || []).includes('medathon')).length;
+    // Which subject ids the questions actually sit under, so an admin can see
+    // where a system's content lives rather than guessing from the aliases.
+    const bySubject = {};
+    for (const q of mine) {
+      const k = medathonSubjectKey(q.subject) || '(none)';
+      bySubject[k] = (bySubject[k] || 0) + 1;
+    }
+    return {
+      id: sys.id,
+      name: sys.name,
+      short: sys.short,
+      icon: sys.icon,
+      subjects: sys.subjects,
+      pool: mine.length,
+      tagged,
+      picks: Math.min(mine.length, MEDATHON_PER_SYSTEM),
+      bySubject,
+    };
+  });
+  res.json({
+    perSystem: MEDATHON_PER_SYSTEM,
+    systems,
+    runLength: systems.reduce((n, x) => n + x.picks, 0),
+    fullLength: MEDATHON_SYSTEMS.length * MEDATHON_PER_SYSTEM,
+  });
+});
+
+/**
  * Finished matches, newest first, for the admin report list.
  *
  * Returns a summary per match rather than the whole thing: the questions and

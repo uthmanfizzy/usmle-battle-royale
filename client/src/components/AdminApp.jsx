@@ -87,6 +87,7 @@ const FOLDERS = [
   { id: 'scan_master',      label: 'Scan Master',                  icon: '🔬', prefix: 'SM',  special: true  },
   { id: 'uworld_adventure', label: 'UWorld Adventure',             icon: '🌍', prefix: null,  special: true  },
   { id: 'saudi_mle',        label: 'Saudi MLE',                    icon: '🇸🇦', prefix: null,  special: true  },
+  { id: 'medathon',         label: 'Medathon',                     icon: '🏁', prefix: null,  special: true  },
   { id: 'cardiology',       label: 'Cardiology',                   icon: '❤️',  prefix: 'CA',  special: false },
   { id: 'neurology',        label: 'Neurology',                    icon: '🧠', prefix: 'NE',  special: false },
   { id: 'pharmacology',     label: 'Pharmacology',                 icon: '💊', prefix: 'PH',  special: false },
@@ -10915,6 +10916,7 @@ const ADMIN_GAMES = [
   { id: 'saudi_mle',    icon: '📗', label: 'SMLE' },
   { id: 'hyflashcards', icon: '🎴', label: 'HY Flashcards' },
   { id: 'uworld',       icon: '🌍', label: 'UWorld Adventure' },
+  { id: 'medathon',     icon: '🏁', label: 'Medathon' },
   { id: 'anking',       icon: '🃏', label: 'AnKing' },
   { id: 'tower',        icon: '🏰', label: 'Tower' },
   { id: 'ore_lds',      icon: '🦷', label: 'ORE / LDS' },
@@ -10968,6 +10970,98 @@ function QuestionBankImagesPanel({ modeId, modeLabel, subjects }) {
   );
 }
 
+
+/**
+ * Medathon — the fifteen systems, and what each one can field.
+ *
+ * The counts come from /admin/medathon/systems, which reads the same bank and
+ * applies the same filters the run itself does, so what this panel says is
+ * what the next race will do. A system with fewer than five questions makes a
+ * SHORT stage: the run never pads one system with another's questions, so the
+ * honest thing to show is the shortfall and where to fix it.
+ */
+function MedathonSystemsPanel() {
+  const [data, setData] = useState(null);
+  const [error, setError] = useState('');
+  const [open, setOpen] = useState(true);
+
+  const load = useCallback(() => {
+    apiCall('/admin/medathon/systems')
+      .then(async r => {
+        if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'Could not read the systems.');
+        return r.json();
+      })
+      .then(setData)
+      .catch(e => setError(e.message));
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  if (error) return <p className="ap-error">{error}</p>;
+  if (!data) return <div className="ap-loading">Reading the question bank…</div>;
+
+  const short = data.systems.filter(x => x.picks < data.perSystem);
+
+  return (
+    <div className="ap-bank-subjects">
+      <button className="ap-bank-subjects-head" onClick={() => setOpen(o => !o)} aria-expanded={open}>
+        <span className="ap-bank-subjects-title">🏁 Medathon systems</span>
+        <span className="ap-bank-subjects-count">
+          a run is {data.runLength} of {data.fullLength} questions
+        </span>
+        <span className="ap-bank-subjects-chevron">{open ? '▾' : '▸'}</span>
+      </button>
+
+      {open && (
+        <div className="ap-bank-subjects-body">
+          <p className="ap-bank-subjects-note">
+            Every race takes {data.perSystem} questions at random from each system, in this order.
+            A system with fewer than {data.perSystem} makes a shorter stage — the run never fills a
+            system with another one&apos;s questions, so a Cardio slot is always a Cardio question.
+            Add questions under any of the subjects listed against a system and they join its pool;
+            tag one <code>medathon</code> to keep it to this mode alone.
+          </p>
+
+          {short.length > 0 && (
+            <p className="perm-hint mdn-short-note">
+              {short.length} system{short.length === 1 ? '' : 's'} short of {data.perSystem}:
+              {' '}{short.map(x => x.short).join(', ')}
+            </p>
+          )}
+
+          <div className="mdn-systems">
+            {data.systems.map(sys => {
+              const full = sys.picks >= data.perSystem;
+              const empty = sys.pool === 0;
+              return (
+                <div key={sys.id} className={`mdn-system${full ? ' is-full' : ''}${empty ? ' is-empty' : ''}`}>
+                  <span className="mdn-system-icon" aria-hidden="true">{sys.icon}</span>
+                  <div className="mdn-system-main">
+                    <span className="mdn-system-name">{sys.name}</span>
+                    <span className="mdn-system-subs">
+                      {Object.keys(sys.bySubject).length > 0
+                        ? Object.entries(sys.bySubject).map(([k, n]) => `${k} (${n})`).join(' · ')
+                        : `no questions under: ${sys.subjects.join(', ')}`}
+                    </span>
+                  </div>
+                  <span className="mdn-system-count">
+                    <strong>{sys.pool}</strong> in pool
+                    {sys.tagged > 0 && <em>{sys.tagged} tagged</em>}
+                  </span>
+                  <span className={`mdn-system-state${full ? ' is-ok' : ''}`}>
+                    {empty ? 'skipped' : full ? `${data.perSystem} / ${data.perSystem}` : `${sys.picks} / ${data.perSystem}`}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+
+          <button type="button" className="ap-btn-sec" onClick={load}>↻ Recount</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function GamesPanel({ subjects }) {
   const [game, setGame] = useState(() => {
     try {
@@ -11000,6 +11094,15 @@ function GamesPanel({ subjects }) {
 
       <div className="ap-games-body">
         {game === 'journey'      && <JourneyPanel />}
+        {/* Medathon: the systems summary over the same scoped Question
+            Manager the other banks use, so adding and editing questions is
+            the one surface everywhere. */}
+        {game === 'medathon'     && (
+          <ErrorBoundary>
+            <MedathonSystemsPanel />
+            <QuestionsPanel subjects={subjects} scopeTag="medathon" />
+          </ErrorBoundary>
+        )}
         {/* Same panel as Question Manager, scoped to the bank's tag: its sidebar
             becomes one folder per SUBJECT holding that subject's tagged
             questions, so the whole question CRUD surface comes along. */}
