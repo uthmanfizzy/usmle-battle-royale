@@ -251,6 +251,16 @@ function getNoiseBuf(c) {
   return noiseBuffer;
 }
 
+function schedNote(c, dest, freq, type, vol, t, dur) {
+  const osc = c.createOscillator();
+  const gn = c.createGain();
+  osc.type = type;
+  osc.frequency.value = freq;
+  gn.gain.setValueAtTime(vol, t);
+  gn.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  osc.connect(gn); gn.connect(dest);
+  osc.start(t); osc.stop(t + dur + 0.01);
+}
 
 function schedNoise(c, dest, vol, t, dur, hpFreq) {
   const src = c.createBufferSource();
@@ -265,239 +275,64 @@ function schedNoise(c, dest, vol, t, dur, hpFreq) {
   src.connect(filter); filter.connect(gn); gn.connect(dest);
 }
 
-// ── "The Arena" — tournament theme ──────────────────────────────────────────
-// The competitive modes used a bright quiz-show sequencer: triangle melody,
-// sine bass, a polite hi-hat. Fine for a quiz, wrong for a tournament. This
-// replaces it with something that sounds like an entrance: taiko-ish drums,
-// a low brass swell, a driving string ostinato and a horn theme over a D
-// minor progression.
-//
-// Everything is synthesised — there are no audio files in this project and a
-// tournament theme is not worth a megabyte of download. The "orchestra" is:
-//   brass    detuned sawtooth pair through a lowpass that opens on the note
-//   strings  short sawtooth stabs, high-passed, played as an 8th-note engine
-//   choir    sine + triangle stack with slow vibrato, swelling across a bar
-//   taiko    pitch-dropping sine with a noise transient
-//   cymbal   filtered noise swelling into the downbeat of a new section
-//
-// 16 bars at 140 BPM (~27s):
-//   0–3   entrance   drums and bass only, cymbal swell into
-//   4–7   theme      horns take the melody
-//   8–11  turn       the progression lifts to Gm, strings double time
-//   12–15 climax     full stack, long held A, cymbal into the loop
-const ARENA_BPM = 140;
-const ARENA_STEP = 60 / ARENA_BPM / 4;   // one 16th note, in seconds
-
-// [bass root, chord tones] per bar: Dm Bb F C | Dm Bb F C | Gm Dm Bb C | Dm Bb F A
-const ARENA_BARS = [
-  [38, [50, 53, 57]], [34, [46, 50, 53]], [41, [45, 48, 53]], [36, [43, 48, 52]],
-  [38, [50, 53, 57]], [34, [46, 50, 53]], [41, [45, 48, 53]], [36, [43, 48, 52]],
-  [43, [43, 46, 50]], [38, [50, 53, 57]], [34, [46, 50, 53]], [36, [43, 48, 52]],
-  [38, [50, 53, 57]], [34, [46, 50, 53]], [41, [45, 48, 53]], [33, [45, 49, 52]],
+// Quiz-show melody & bass patterns (16 steps = 2 bars of 8th notes)
+// Key: C major   BPM: game=132, lobby=98
+const MELODY_FREQS = [
+  523.25, null, 659.25, null, 783.99, 659.25, 523.25, null,
+  587.33, null, 698.46, null, 880.00, 783.99, 659.25, null,
+];
+const BASS_FREQS = [
+  130.81, 164.81, 98.00, 123.47,
+  130.81, null,   98.00, 123.47,
+  110.00, 164.81, 110.00, 146.83,
+  87.31,  110.00, 130.81, null,
 ];
 
-// Horn theme: bar -> [[step, midi, length in 16ths], ...]
-const ARENA_HORNS = {
-  4:  [[0, 62, 4], [4, 65, 4], [8, 69, 8]],
-  5:  [[0, 67, 6], [6, 65, 2], [8, 62, 8]],
-  6:  [[0, 65, 4], [4, 69, 4], [8, 72, 8]],
-  7:  [[0, 69, 8], [8, 67, 4], [12, 65, 4]],
-  8:  [[0, 70, 6], [6, 69, 2], [8, 67, 8]],
-  9:  [[0, 69, 4], [4, 65, 4], [8, 62, 8]],
-  10: [[0, 65, 6], [6, 69, 2], [8, 70, 8]],
-  11: [[0, 72, 8], [8, 71, 8]],
-  12: [[0, 69, 4], [4, 69, 2], [6, 67, 2], [8, 65, 4], [12, 64, 4]],
-  13: [[0, 62, 8], [8, 65, 4], [12, 69, 4]],
-  14: [[0, 72, 6], [6, 69, 2], [8, 67, 8]],
-  15: [[0, 69, 16]],
-};
-
-// Where the 8th-note string engine runs, and where it doubles to 16ths.
-const ARENA_STRINGS_FROM = 4;
-const ARENA_STRINGS_DOUBLE = [8, 9, 10, 11, 14, 15];
-
-let arenaSawWave = null;
-let arenaSawCtx = null;
-// A sawtooth with the top partials rolled off — closer to a bowed string than
-// the raw 'sawtooth' type, which is harsh at these volumes.
-function getArenaSaw(c) {
-  if (arenaSawWave && arenaSawCtx === c) return arenaSawWave;
-  const N = 24;
-  const real = new Float32Array(N), imag = new Float32Array(N);
-  for (let k = 1; k < N; k++) imag[k] = (1 / k) * (1 - (k - 1) / N);
-  arenaSawWave = c.createPeriodicWave(real, imag);
-  arenaSawCtx = c;
-  return arenaSawWave;
-}
-
-/** Brass/strings: two detuned saws through a lowpass that opens on attack. */
-function arenaBrass(c, dest, { freq, t, dur, vol, detune = 7, open = 2600, attack = 0.05 }) {
-  const filter = c.createBiquadFilter();
-  filter.type = 'lowpass';
-  filter.Q.value = 0.9;
-  filter.frequency.setValueAtTime(Math.max(220, freq * 1.4), t);
-  filter.frequency.linearRampToValueAtTime(open, t + Math.min(0.18, dur * 0.5));
-  filter.frequency.linearRampToValueAtTime(Math.max(300, freq * 2), t + dur);
-
-  const gn = c.createGain();
-  gn.gain.setValueAtTime(0.0001, t);
-  gn.gain.exponentialRampToValueAtTime(vol, t + attack);
-  gn.gain.setValueAtTime(vol, t + Math.max(attack, dur * 0.72));
-  gn.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-
-  for (const cents of [-detune, detune]) {
-    const osc = c.createOscillator();
-    osc.setPeriodicWave(getArenaSaw(c));
-    osc.frequency.value = freq;
-    osc.detune.value = cents;
-    osc.connect(filter);
-    osc.start(t); osc.stop(t + dur + 0.05);
-  }
-  filter.connect(gn); gn.connect(dest);
-}
-
-/** Choir-ish pad: a sine/triangle stack that swells and fades across a bar. */
-function arenaPad(c, dest, { freq, t, dur, vol }) {
-  const gn = c.createGain();
-  gn.gain.setValueAtTime(0.0001, t);
-  gn.gain.exponentialRampToValueAtTime(vol, t + dur * 0.35);
-  gn.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-
-  for (const [mult, type, g] of [[1, 'sine', 1], [2, 'triangle', 0.32], [3, 'sine', 0.16]]) {
-    const osc = c.createOscillator();
-    const og = c.createGain();
-    osc.type = type;
-    osc.frequency.value = freq * mult;
-    osc.detune.value = (mult === 1 ? 0 : 5);
-    og.gain.value = g;
-    osc.connect(og); og.connect(gn);
-    osc.start(t); osc.stop(t + dur + 0.05);
-  }
-  gn.connect(dest);
-}
-
-/** Taiko: a short pitch drop with a noise transient on top. */
-function arenaTaiko(c, dest, { t, vol, from = 160, to = 48, dur = 0.42 }) {
-  const osc = c.createOscillator();
-  const gn = c.createGain();
-  osc.type = 'sine';
-  osc.frequency.setValueAtTime(from, t);
-  osc.frequency.exponentialRampToValueAtTime(to, t + dur * 0.4);
-  gn.gain.setValueAtTime(vol, t);
-  gn.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-  osc.connect(gn); gn.connect(dest);
-  osc.start(t); osc.stop(t + dur + 0.02);
-  schedNoise(c, dest, vol * 0.28, t, 0.045, 1200);
-}
-
-/** Cymbal swell into the next section. */
-function arenaSwell(c, dest, t, dur, vol) {
-  const src = c.createBufferSource();
-  const filter = c.createBiquadFilter();
-  const gn = c.createGain();
-  src.buffer = getNoiseBuf(c);
-  src.loop = true;
-  filter.type = 'bandpass';
-  filter.Q.value = 0.7;
-  filter.frequency.setValueAtTime(900, t);
-  filter.frequency.exponentialRampToValueAtTime(7000, t + dur);
-  gn.gain.setValueAtTime(0.0001, t);
-  gn.gain.exponentialRampToValueAtTime(vol, t + dur * 0.9);
-  gn.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.25);
-  src.connect(filter); filter.connect(gn); gn.connect(dest);
-  src.start(t); src.stop(t + dur + 0.3);
-}
-
-/**
- * Schedule the whole theme on a 16th-note clock.
- *
- * `lobby` mode is the same music with the drums and the string engine pulled
- * out and the tempo left alone — the waiting room sounds like the arena next
- * door rather than a different building.
- */
-function startArena(gainNode, { lobby = false } = {}) {
+function startSequencer(gainNode, bpm, withDrums) {
   const c = getCtx();
+  const STEP = 60 / bpm / 2; // 8th-note duration in seconds
   let step = 0;
 
-  const tick = () => {
+  const interval = setInterval(() => {
     if (!gainNode) return;
-    const t = c.currentTime + 0.02;
-    const bar = Math.floor(step / 16) % 16;
+    const t = c.currentTime + 0.01; // small lookahead
     const s = step % 16;
-    const [root, pad] = ARENA_BARS[bar];
-    const section = Math.floor(bar / 4);        // 0 entrance, 1 theme, 2 turn, 3 climax
 
-    // Pad: once a bar, swelling under everything.
-    if (s === 0) {
-      for (const n of pad) {
-        arenaPad(c, gainNode, {
-          freq: midi(n), t, dur: ARENA_STEP * 16,
-          vol: (lobby ? 0.1 : 0.075) * (section === 0 ? 0.7 : 1),
-        });
+    // Melody (triangle — bright, quiz-show feel)
+    const mf = MELODY_FREQS[s];
+    if (mf) schedNote(c, gainNode, mf, 'triangle', 0.28, t, STEP * 0.9);
+
+    // Bass (sine — bouncy)
+    const bf = BASS_FREQS[s];
+    if (bf) schedNote(c, gainNode, bf, 'sine', 0.55, t, STEP * 0.8);
+
+    if (withDrums) {
+      // Kick on beats 1 & 3 (steps 0, 8)
+      if (s === 0 || s === 8) {
+        const ok = c.createOscillator();
+        const gk = c.createGain();
+        ok.type = 'sine';
+        ok.frequency.setValueAtTime(130, t);
+        ok.frequency.exponentialRampToValueAtTime(42, t + 0.1);
+        gk.gain.setValueAtTime(0.9, t);
+        gk.gain.exponentialRampToValueAtTime(0.0001, t + 0.13);
+        ok.connect(gk); gk.connect(gainNode);
+        ok.start(t); ok.stop(t + 0.14);
       }
-    }
 
-    // Bass: root on 1, octave pickup on the and-of-3 — the push that makes it
-    // feel like it is going somewhere.
-    if (s === 0) arenaBrass(c, gainNode, { freq: midi(root - 12), t, dur: ARENA_STEP * 9, vol: 0.3, open: 900, attack: 0.02 });
-    if (s === 10) arenaBrass(c, gainNode, { freq: midi(root - 12), t, dur: ARENA_STEP * 5, vol: 0.22, open: 800, attack: 0.02 });
-
-    // Strings: the engine. 8ths from bar 4, 16ths where the arrangement lifts.
-    if (!lobby && bar >= ARENA_STRINGS_FROM) {
-      const double = ARENA_STRINGS_DOUBLE.includes(bar);
-      if (double || s % 2 === 0) {
-        const tone = pad[(s / (double ? 1 : 2)) % pad.length];
-        arenaBrass(c, gainNode, {
-          freq: midi(tone + 12), t, dur: ARENA_STEP * (double ? 0.8 : 1.5),
-          vol: 0.085, open: 3400, attack: 0.012, detune: 10,
-        });
+      // Snare on beats 2 & 4 (steps 4, 12)
+      if (s === 4 || s === 12) {
+        schedNoise(c, gainNode, 0.45, t, 0.1, 800);
       }
-    }
 
-    // Horns: the theme itself.
-    const phrase = ARENA_HORNS[bar];
-    if (phrase && !lobby) {
-      for (const [at, note, len] of phrase) {
-        if (at !== s) continue;
-        arenaBrass(c, gainNode, {
-          freq: midi(note), t, dur: ARENA_STEP * len * 0.96,
-          vol: 0.2, open: 3000, attack: 0.055, detune: 9,
-        });
-        // Octave below, quieter — one horn sounds thin, two sound like a section.
-        arenaBrass(c, gainNode, {
-          freq: midi(note - 12), t, dur: ARENA_STEP * len * 0.96,
-          vol: 0.09, open: 1800, attack: 0.06, detune: 6,
-        });
-      }
-    }
-
-    if (!lobby) {
-      // Taiko: 1 and the and-of-3, with doubles once the theme is running.
-      if (s === 0) arenaTaiko(c, gainNode, { t, vol: 0.85 });
-      if (s === 6) arenaTaiko(c, gainNode, { t, vol: 0.5, from: 150 });
-      if (s === 10 && bar >= 4) arenaTaiko(c, gainNode, { t, vol: 0.6 });
-      if (s === 14 && section >= 2) arenaTaiko(c, gainNode, { t, vol: 0.4, from: 140 });
-
-      // Backbeat from the theme on, and a tambourine-ish 8th for drive.
-      if (bar >= 4 && (s === 4 || s === 12)) schedNoise(c, gainNode, 0.3, t, 0.12, 1400);
-      if (bar >= 8 && s % 2 === 0) schedNoise(c, gainNode, 0.07, t, 0.03, 8000);
-
-      // Fill across the last half-bar of each section.
-      if (s >= 12 && bar % 4 === 3 && section >= 1) {
-        arenaTaiko(c, gainNode, { t, vol: 0.35 + (s - 12) * 0.08, from: 120 + (s - 12) * 30, dur: 0.2 });
-      }
-    }
-
-    // Cymbal swell into every new section.
-    if (s === 8 && bar % 4 === 3) {
-      arenaSwell(c, gainNode, t, ARENA_STEP * 8, lobby ? 0.05 : 0.11);
+      // Hi-hat every 8th note (all steps), very quiet
+      schedNoise(c, gainNode, 0.1, t, 0.035, 7000);
     }
 
     step++;
-  };
+  }, STEP * 1000);
 
-  tick();
-  return setInterval(tick, ARENA_STEP * 1000);
+  return interval;
 }
 
 let bgInterval = null;
@@ -508,11 +343,9 @@ export function startBgMusic() {
   if (muted) return;
   const c = getCtx();
   bgGain = c.createGain();
-  bgGain.gain.value = 0.07; // quieter for lobby
+  bgGain.gain.value = 0.07; // quieter for lobby (+40%)
   bgGain.connect(c.destination);
-  // Same theme as the match, with the drums and the string engine out: the
-  // waiting room sounds like the arena next door.
-  bgInterval = startArena(bgGain, { lobby: true });
+  bgInterval = startSequencer(bgGain, 98, false); // slow, no drums
 }
 
 export function stopBgMusic() {
@@ -531,9 +364,9 @@ export function startGameMusic() {
   if (muted) return;
   const c = getCtx();
   gameGain = c.createGain();
-  gameGain.gain.value = 0.09625; // full energy
+  gameGain.gain.value = 0.09625; // full energy (+40%)
   gameGain.connect(c.destination);
-  gameNodes = [{ interval: startArena(gameGain) }];
+  gameNodes = [{ interval: startSequencer(gameGain, 132, true) }];
 }
 
 export function stopGameMusic() {
@@ -595,27 +428,24 @@ export function playTick() {
   osc.stop(c.currentTime + 0.06);
 }
 
-// A brass fanfare in the arena theme's own key (D minor, landing on the
-// major chord): horns, a taiko hit under each note and a cymbal on the last
-// one. The old triangle-beep version belonged to the quiz-show music that is
-// no longer there.
 export function playVictory() {
   if (muted) return;
   const c = getCtx();
-  // [midi, length in seconds]
-  const line = [[69, 0.16], [69, 0.16], [69, 0.16], [72, 0.5], [71, 0.22], [72, 0.22], [74, 0.95]];
+  const notes = [523.3, 523.3, 523.3, 415.3, 523.3, 622.3, 783.9];
+  const durs  = [0.12,  0.12,  0.12,  0.09,  0.12,  0.12,  0.55];
   let t = c.currentTime + 0.05;
-  line.forEach(([note, dur], i) => {
-    arenaBrass(c, c.destination, { freq: midi(note), t, dur, vol: 0.15, open: 3400, attack: 0.035 });
-    arenaBrass(c, c.destination, { freq: midi(note - 12), t, dur, vol: 0.075, open: 1900, attack: 0.04 });
-    if (i === line.length - 1) {
-      // Final chord: the fifth and the third above the held note.
-      arenaBrass(c, c.destination, { freq: midi(note + 4), t, dur, vol: 0.07, open: 3000, attack: 0.05 });
-      arenaBrass(c, c.destination, { freq: midi(note + 7), t, dur, vol: 0.06, open: 3000, attack: 0.05 });
-      arenaSwell(c, c.destination, t, 0.3, 0.06);
-    }
-    arenaTaiko(c, c.destination, { t, vol: i === line.length - 1 ? 0.45 : 0.22 });
-    t += dur;
+  notes.forEach((freq, i) => {
+    const osc = c.createOscillator();
+    const gn  = c.createGain();
+    osc.type = 'triangle';
+    osc.frequency.value = freq;
+    gn.gain.setValueAtTime(0.3, t);
+    gn.gain.exponentialRampToValueAtTime(0.001, t + durs[i]);
+    osc.connect(gn);
+    gn.connect(c.destination);
+    osc.start(t);
+    osc.stop(t + durs[i]);
+    t += durs[i];
   });
 }
 
