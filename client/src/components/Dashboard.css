@@ -4953,6 +4953,8 @@ button.settings-btn img,
    unconditional) rules above, hence the !important on the same selectors, and
    it must beat the ≤1024px two-column collapse further up the file.
    ─────────────────────────────────────────────────────────────── */
+/* 601–1023px: one centred column, the phone layout with room to breathe. A
+   wide screen gets its two columns back in the next block. */
 @media (min-width: 601px) {
   .dashboard-screen.dash-home .dashboard-header,
   .dashboard-screen.dash-home .dash-main,
@@ -5013,6 +5015,68 @@ button.settings-btn img,
   .dashboard-screen.dash-home .dash-nav-card:not([disabled]):hover .dash-card-art { transform: scale(1.045); }
 }
 
+
+
+/* ── ≥1024px: the two-column desktop home ─────────────────────────────────
+   The arrangement the desktop had before the phone layout came up to meet
+   it — PLAY, Leaderboards, Clans and Reels down the left, the event card and
+   the News Feed on the right — wearing the phone layout's art cards, header
+   and dock. Only the frame changes here: every card style above still
+   applies, which is why this block is short.
+   ─────────────────────────────────────────────────────────────────────────── */
+@media (min-width: 1024px) {
+  .dashboard-screen.dash-home .dashboard-header,
+  .dashboard-screen.dash-home .dash-main,
+  .dashboard-screen.dash-home .dash-dock {
+    max-width: 1180px !important;
+  }
+  .dashboard-screen.dash-home .dashboard-header { padding: 26px 28px 8px !important; }
+
+  .dashboard-screen.dash-home .dash-main {
+    flex-direction: row;
+    align-items: flex-start;
+    flex-wrap: nowrap;
+    padding: 18px 28px 30px !important;
+    gap: 24px !important;
+  }
+
+  /* Left: the nav cards keep their three-up grid, so PLAY still spans the
+     row and the three tiles sit under it — just inside a column now. */
+  .dashboard-screen.dash-home .dash-nav-col {
+    flex: 1 1 auto;
+    min-width: 0;
+    width: auto !important;
+    gap: 14px !important;
+  }
+
+  /* Right: the event card and the News Feed, at the width they were. */
+  .dashboard-screen.dash-home .dash-content-col {
+    flex: 0 0 380px;
+    width: 380px !important;
+    max-width: 380px;
+  }
+
+  /* The event card no longer has a full-width column to fill, so it stops
+     being a hero and goes back to a panel the news feed can sit beside. */
+  .dashboard-screen.dash-home .dash-event-card { min-height: 300px; }
+  .dashboard-screen.dash-home .dash-event-title { font-size: 30px; }
+  .dashboard-screen.dash-home .dash-event-sub.mv-plain { font-size: 16px; max-width: none; }
+
+  /* With the width back, the dock can hold one row again. */
+  .dashboard-screen.dash-home .dash-dock {
+    padding: 6px 28px;
+    justify-content: space-between;
+  }
+  .dashboard-screen.dash-home .dash-dock-reward-wrap { flex-basis: auto; }
+  .dashboard-screen.dash-home .dash-dock-reward-wrap .dash-dock-reward { flex: 0 0 auto; }
+}
+
+@media (min-width: 1360px) {
+  .dashboard-screen.dash-home .dashboard-header,
+  .dashboard-screen.dash-home .dash-main,
+  .dashboard-screen.dash-home .dash-dock { max-width: 1320px !important; }
+  .dashboard-screen.dash-home .dash-content-col { flex-basis: 420px; width: 420px !important; max-width: 420px; }
+}
 
 @media (max-width: 400px) {
   .dashboard-screen.dash-home .dashboard-header { padding: 18px 12px 4px !important; }
