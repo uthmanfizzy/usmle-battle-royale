@@ -15,6 +15,7 @@ import { useScrollToTopOnChange } from '../utils/useScrollToTopOnChange';
 import { toVisibleText, resolveHighlights, normalizeHighlightRow, captureContext } from '../utils/explanationHighlights';
 import { getToken } from '../auth';
 import './SoloGameJourney.css';
+import { JOURNEY_THEMES, loadJourneyTheme, saveJourneyTheme } from '../journeyThemes';
 import './SoloGameUWorld.css';
 
 const LABELS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
@@ -305,8 +306,15 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   // The exam skin is shared by every question-bank mode; examTheme is what
   // makes a Saudi MLE block green instead of UWorld blue. Absent, it renders
   // exactly as it always did.
+  // Journey's colour theme: the student's own pick, remembered between
+  // sessions. It only ever restates background and accent tokens — see
+  // journeyThemes.js and the theme blocks in SoloGameJourney.css.
+  const [jmTheme, setJmTheme] = useState(loadJourneyTheme);
+  const pickJourneyTheme = (id) => { saveJourneyTheme(id); setJmTheme(id); };
+
   const screenClass = `screen solo-screen${isJourney ? ' jm-vibrant' : ''}${uworldSkin ? ' uw-exam' : ''}` +
-    (uworldSkin && examTheme ? ` uw-theme-${examTheme.id}` : '');
+    (uworldSkin && examTheme ? ` uw-theme-${examTheme.id}` : '') +
+    (isJourney ? ` jm-theme-${jmTheme}` : '');
 
   // The study LAYOUT rules live behind html[data-study="on"], which follows the
   // user's preference. Journey duplicates them under .jm-vibrant; this mode
@@ -2057,6 +2065,29 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
                     >
                       Hide hints
                     </button>
+                    {isJourney && (
+                      <>
+                        <div className="smp-title">Theme</div>
+                        <div className="jm-theme-grid">
+                          {JOURNEY_THEMES.map(t => (
+                            <button
+                              key={t.id}
+                              type="button"
+                              className={`jm-theme-opt${jmTheme === t.id ? ' is-on' : ''}`}
+                              onClick={() => pickJourneyTheme(t.id)}
+                              aria-pressed={jmTheme === t.id}
+                            >
+                              <span className="jm-theme-chip" style={{ background: t.swatch[0] }} aria-hidden="true">
+                                <i style={{ background: t.swatch[1] }} />
+                                <b style={{ background: t.swatch[2] }} />
+                              </span>
+                              <span className="jm-theme-name">{t.name}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
+
                     <div className="smp-title">Music</div>
                     <button
                       className={`smp-opt ${musicOn ? 'smp-active' : ''}`}

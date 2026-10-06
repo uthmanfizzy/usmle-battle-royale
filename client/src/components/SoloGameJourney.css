@@ -25,24 +25,40 @@
   --border:    var(--mv-border);
   --text:      var(--mv-text);
   --text-dim:  var(--mv-text-dim-65);
-  --gold:      var(--mv-gold);
+  /* Decorative accent only — the score, the pause key, a table's header rule.
+     --green and --red below are the answer verdict and never move. */
+  --gold:      var(--jm-accent);
   --gold-dim:  var(--mv-gold-dim);
   --green:     var(--mv-success);
   --red:       var(--mv-danger);
   --blue:      var(--mv-teal);
   --shadow:    0 18px 44px rgba(0, 0, 0, 0.55);
 
+  /* ── Theme tokens ──────────────────────────────────────────────────────
+     The three glows and the base gradient, as "r, g, b" triplets and plain
+     colours, so one set of background rules paints every theme in
+     journeyThemes.js. A theme restates these and nothing else — the colours
+     that MEAN something (green = correct, red = wrong) are deliberately not
+     in here. Static rgba only: color-mix() ships broken on older browsers. */
+  --jm-glow-a: 232, 176, 75;    /* top-right  — the accent */
+  --jm-glow-b: 79, 209, 197;    /* top-left   — the second accent */
+  --jm-glow-c: 193, 41, 30;     /* bottom     — the deep one */
+  --jm-base-1: #12261d;
+  --jm-base-2: #0d1712;
+  --jm-base-3: #060a07;
+  --jm-accent: var(--mv-gold);
+
   color: var(--text);
   font-family: 'Nunito', system-ui, sans-serif;
-  /* Same layered structure as before, re-hued onto the brand void: gold and
-     teal glows over the dark green/black base (was purple/magenta/violet). */
   background:
     radial-gradient(circle, rgba(255, 255, 255, 0.05) 1.2px, transparent 1.8px) 0 0 / 28px 28px,
-    radial-gradient(ellipse 60% 45% at 85% 0%,  rgba(232, 176, 75, 0.14), transparent 60%),
-    radial-gradient(ellipse 55% 45% at 8% 12%,  rgba(79, 209, 197, 0.12), transparent 58%),
-    radial-gradient(ellipse 70% 55% at 50% 110%, rgba(193, 41, 30, 0.16), transparent 62%),
-    linear-gradient(165deg, #12261d 0%, #0d1712 45%, #060a07 100%);
+    radial-gradient(ellipse 60% 45% at 85% 0%,  rgba(var(--jm-glow-a), 0.14), transparent 60%),
+    radial-gradient(ellipse 55% 45% at 8% 12%,  rgba(var(--jm-glow-b), 0.12), transparent 58%),
+    radial-gradient(ellipse 70% 55% at 50% 110%, rgba(var(--jm-glow-c), 0.16), transparent 62%),
+    linear-gradient(165deg, var(--jm-base-1) 0%, var(--jm-base-2) 45%, var(--jm-base-3) 100%);
   background-attachment: fixed;
+  position: relative;
+  isolation: isolate;
 
   /* Layout frame (mirrors the study layout): content pinned to the top, panes
      stretch edge-to-edge, bottom padding clears the fixed footer. */
@@ -316,12 +332,12 @@ body:has(.solo-screen.jm-vibrant) .mute-btn { display: none; }
 /* Pause between the arrows — amber so it reads as pause, not navigation */
 .screen.solo-screen.jm-vibrant .stb-arrow.stb-pause {
   color: var(--gold);
-  border-color: rgba(232, 176, 75, 0.55);
-  background: rgba(232, 176, 75, 0.12);
+  border-color: rgba(var(--jm-glow-a), 0.55);
+  background: rgba(var(--jm-glow-a), 0.12);
 }
 .screen.solo-screen.jm-vibrant .stb-arrow.stb-pause:hover {
   border-color: var(--gold);
-  background: rgba(232, 176, 75, 0.2);
+  background: rgba(var(--jm-glow-a), 0.2);
 }
 
 /* The floating in-card calc/lab buttons duplicate the footer ones — hide (as study does) */
@@ -376,8 +392,8 @@ body:has(.solo-screen.jm-vibrant) .mute-btn { display: none; }
 }
 .screen.solo-screen.jm-vibrant .timer-fill { border-radius: 999px; }
 .screen.solo-screen.jm-vibrant .timer-fill.green {
-  background: linear-gradient(90deg, var(--mv-gold), var(--mv-gold-dim));
-  box-shadow: 0 0 12px rgba(232, 176, 75, 0.6);
+  background: linear-gradient(90deg, rgba(var(--jm-glow-a), 1), rgba(var(--jm-glow-b), 0.9));
+  box-shadow: 0 0 12px rgba(var(--jm-glow-a), 0.6);
 }
 .screen.solo-screen.jm-vibrant .timer-fill.yellow {
   background: linear-gradient(90deg, var(--mv-gold), var(--mv-gold-dim));
@@ -411,7 +427,7 @@ body:has(.solo-screen.jm-vibrant) .mute-btn { display: none; }
 .screen.solo-screen.jm-vibrant .solo-body .stem-table,
 .screen.solo-screen.jm-vibrant .solo-body .stem-table td { color: var(--text); }
 .screen.solo-screen.jm-vibrant .solo-body .stem-table thead th {
-  background: rgba(232, 176, 75, 0.16);
+  background: rgba(var(--jm-glow-a), 0.16);
   color: var(--text);
   border-bottom: 2px solid var(--gold);
 }
@@ -1005,4 +1021,225 @@ body:has(.solo-screen) .calc-button.equals-btn {
 }
 .screen.solo-screen.jm-vibrant .solo-body .explanation-line:last-child {
   margin-bottom: 0;
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   AURORA — the animated layer behind the question
+   Two slow drifting glows and a drift of motes, painted on the screen's own
+   pseudo-elements at z-index -1 so they sit under every pane without a single
+   extra DOM node. They use the same theme tokens as the background, so a
+   theme change moves the light too. Stopped entirely under
+   prefers-reduced-motion, where the page keeps its colours and loses only the
+   movement.
+   ════════════════════════════════════════════════════════════════════════════ */
+.screen.solo-screen.jm-vibrant::before,
+.screen.solo-screen.jm-vibrant::after {
+  content: "";
+  position: fixed;
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* Two aurora ribbons crossing each other on different clocks, so the pattern
+   never repeats on a short loop. */
+.screen.solo-screen.jm-vibrant::before {
+  inset: -30% -20% auto -20%;
+  height: 90vh;
+  background:
+    radial-gradient(ellipse 42% 36% at 28% 42%, rgba(var(--jm-glow-b), 0.2), transparent 62%),
+    radial-gradient(ellipse 38% 30% at 72% 30%, rgba(var(--jm-glow-a), 0.17), transparent 60%);
+  filter: blur(14px);
+  animation: jm-aurora-a 26s ease-in-out infinite alternate;
+}
+.screen.solo-screen.jm-vibrant::after {
+  inset: auto -20% -35% -20%;
+  height: 80vh;
+  background:
+    radial-gradient(ellipse 45% 38% at 62% 58%, rgba(var(--jm-glow-c), 0.18), transparent 62%),
+    radial-gradient(ellipse 34% 30% at 24% 70%, rgba(var(--jm-glow-a), 0.12), transparent 58%);
+  filter: blur(18px);
+  animation: jm-aurora-b 34s ease-in-out infinite alternate;
+}
+@keyframes jm-aurora-a {
+  0%   { transform: translate3d(-4%, 0, 0) scale(1); opacity: 0.85; }
+  50%  { transform: translate3d(3%, 2.5%, 0) scale(1.08); opacity: 1; }
+  100% { transform: translate3d(6%, -1.5%, 0) scale(1.03); opacity: 0.8; }
+}
+@keyframes jm-aurora-b {
+  0%   { transform: translate3d(5%, 0, 0) scale(1.04); opacity: 0.8; }
+  50%  { transform: translate3d(-3%, -3%, 0) scale(1); opacity: 1; }
+  100% { transform: translate3d(-6%, 1.5%, 0) scale(1.07); opacity: 0.85; }
+}
+
+/* The dotted layer in the background drifts upward very slowly — the one cue
+   that the room is alive while a question sits still on screen. */
+.screen.solo-screen.jm-vibrant {
+  animation: jm-drift 70s linear infinite;
+}
+@keyframes jm-drift {
+  from { background-position: 0 0, 0 0, 0 0, 0 0, 0 0; }
+  to   { background-position: 0 -336px, 0 0, 0 0, 0 0, 0 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .screen.solo-screen.jm-vibrant,
+  .screen.solo-screen.jm-vibrant::before,
+  .screen.solo-screen.jm-vibrant::after { animation: none; }
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   THEMES — one block per entry in client/src/journeyThemes.js.
+   Keep the two lists in step; each theme restates only the glows, the base
+   gradient and the accent.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* Emerald Hall — the original: gold and teal over deep green. */
+.screen.solo-screen.jm-vibrant.jm-theme-emerald {
+  --jm-glow-a: 232, 176, 75;
+  --jm-glow-b: 79, 209, 197;
+  --jm-glow-c: 193, 41, 30;
+  --jm-base-1: #12261d;
+  --jm-base-2: #0d1712;
+  --jm-base-3: #060a07;
+}
+
+/* Midnight Blue — ice blue and violet over navy. */
+.screen.solo-screen.jm-vibrant.jm-theme-sapphire {
+  --jm-glow-a: 127, 180, 255;
+  --jm-glow-b: 180, 140, 255;
+  --jm-glow-c: 40, 90, 200;
+  --jm-base-1: #142449;
+  --jm-base-2: #0c1733;
+  --jm-base-3: #050a18;
+  --jm-accent: #7fb4ff;
+}
+
+/* Rosewood — rose and gold over plum. */
+.screen.solo-screen.jm-vibrant.jm-theme-rosewood {
+  --jm-glow-a: 240, 166, 192;
+  --jm-glow-b: 232, 176, 75;
+  --jm-glow-c: 150, 40, 90;
+  --jm-base-1: #2a1024;
+  --jm-base-2: #1b0c16;
+  --jm-base-3: #0b040a;
+  --jm-accent: #f0a6c0;
+}
+
+/* Desert Amber — amber and sage over warm brown. */
+.screen.solo-screen.jm-vibrant.jm-theme-amber {
+  --jm-glow-a: 240, 184, 96;
+  --jm-glow-b: 159, 207, 138;
+  --jm-glow-c: 180, 90, 40;
+  --jm-base-1: #2c1d0d;
+  --jm-base-2: #1a1209;
+  --jm-base-3: #0b0704;
+  --jm-accent: #f0b860;
+}
+
+/* Arctic Glass — cyan and periwinkle over slate. */
+.screen.solo-screen.jm-vibrant.jm-theme-arctic {
+  --jm-glow-a: 127, 227, 234;
+  --jm-glow-b: 170, 185, 255;
+  --jm-glow-c: 30, 120, 160;
+  --jm-base-1: #122838;
+  --jm-base-2: #0a1620;
+  --jm-base-3: #050b10;
+  --jm-accent: #7fe3ea;
+}
+
+/* Nebula — lilac and cyan over violet-black. */
+.screen.solo-screen.jm-vibrant.jm-theme-nebula {
+  --jm-glow-a: 196, 148, 255;
+  --jm-glow-b: 90, 214, 234;
+  --jm-glow-c: 120, 40, 180;
+  --jm-base-1: #241038;
+  --jm-base-2: #120a1e;
+  --jm-base-3: #07040d;
+  --jm-accent: #c494ff;
+}
+
+/* Last Light — the warm end of a sunset over dusk. */
+.screen.solo-screen.jm-vibrant.jm-theme-sunset {
+  --jm-glow-a: 255, 154, 99;
+  --jm-glow-b: 255, 211, 107;
+  --jm-glow-c: 150, 50, 110;
+  --jm-base-1: #2c1424;
+  --jm-base-2: #180e1a;
+  --jm-base-3: #09050c;
+  --jm-accent: #ff9a63;
+}
+
+/* Ink & Pearl — near-monochrome, for anyone who wants the colour out of the
+   way entirely. */
+.screen.solo-screen.jm-vibrant.jm-theme-ink {
+  --jm-glow-a: 207, 214, 224;
+  --jm-glow-b: 143, 184, 216;
+  --jm-glow-c: 70, 80, 95;
+  --jm-base-1: #1a1e24;
+  --jm-base-2: #0e1013;
+  --jm-base-3: #050607;
+  --jm-accent: #cfd6e0;
+}
+
+/* The accent carries into the chrome a theme is allowed to touch: the level
+   label, the item counter's rule, the menu's active row and the question
+   card's top edge. Correct/wrong colours are untouched everywhere. */
+.screen.solo-screen.jm-vibrant .stb-id { color: var(--jm-accent); }
+.screen.solo-screen.jm-vibrant .smp-opt.smp-active {
+  border-color: rgba(var(--jm-glow-a), 0.65);
+  background: rgba(var(--jm-glow-a), 0.16);
+  color: var(--jm-accent);
+}
+
+/* ── The theme picker, in the burger menu ─────────────────────────────────── */
+.jm-theme-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 2px 0 4px;
+}
+.jm-theme-opt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.85);
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.14s ease, background 0.14s ease;
+}
+.jm-theme-opt:hover { background: rgba(255, 255, 255, 0.1); }
+.jm-theme-opt.is-on {
+  border-color: rgba(var(--jm-glow-a), 0.8);
+  background: rgba(var(--jm-glow-a), 0.16);
+  color: #fff;
+}
+/* The swatch: the theme's own paper with a wedge of each accent. */
+.jm-theme-chip {
+  position: relative;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  flex-shrink: 0;
+  overflow: hidden;
+}
+.jm-theme-chip i { position: absolute; inset: 0 0 0 50%; }
+.jm-theme-chip b { position: absolute; inset: 50% 0 0 50%; }
+.jm-theme-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* A breath of the theme on the two panes, so the colour reads around the
+   content and not only behind it. Kept low: the question has to stay the
+   brightest thing on the screen. */
+.screen.solo-screen.jm-vibrant .solo-body .question-card,
+.screen.solo-screen.jm-vibrant .solo-body .study-expl-placeholder,
+.screen.solo-screen.jm-vibrant .solo-body .round-result {
+  border-color: rgba(var(--jm-glow-a), 0.22);
+  box-shadow: var(--shadow), inset 0 1px 0 rgba(var(--jm-glow-a), 0.1);
 }
