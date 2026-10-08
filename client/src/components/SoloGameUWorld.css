@@ -885,3 +885,24 @@ html[data-study="on"] .screen.solo-screen.uw-exam .pause-resume-btn:hover {
   background: var(--uwq-blue-lt, #3f7fd6);
   filter: none;
 }
+
+/* ── Nothing scrolls sideways on an exam page ──────────────────────────────
+   .solo-screen is a centred flex column, so a child wider than the page
+   overflows BOTH edges: the right half gives you a horizontal scrollbar that
+   reveals nothing, and the left half is unreachable anyway. Clip it at the
+   screen (overflow-x: clip, which — unlike hidden — leaves the vertical axis
+   visible and does not turn this into a scroll container), and make the
+   things that get wide behave: a picture shrinks to fit, and a wide table
+   scrolls inside its own box where it belongs. */
+.screen.solo-screen.uw-exam {
+  overflow-x: clip;
+  max-width: 100%;
+}
+.screen.solo-screen.uw-exam img { max-width: 100%; height: auto; }
+.screen.solo-screen.uw-exam .stem-table-wrap,
+.screen.solo-screen.uw-exam .stem-text table,
+.screen.solo-screen.uw-exam .rr-explanation table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+}

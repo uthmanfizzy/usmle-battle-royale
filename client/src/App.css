@@ -4099,3 +4099,71 @@ html[data-study="on"] .solo-body .pause-overlay {
   letter-spacing: 0.04em;
   color: rgba(255, 255, 255, 0.6);
 }
+
+/* ── A figure, full size ───────────────────────────────────────────────────
+   Any question or explanation picture opens in this; click anywhere or press
+   Escape to put it back. */
+.sg-zoomable { cursor: zoom-in; }
+.sg-zoom {
+  position: fixed;
+  inset: 0;
+  z-index: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  box-sizing: border-box;
+  background: rgba(4, 6, 10, 0.92);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  cursor: zoom-out;
+  animation: sg-zoom-in 0.18s ease both;
+}
+@keyframes sg-zoom-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.sg-zoom-img {
+  max-width: 100%;
+  max-height: calc(100vh - 110px);
+  object-fit: contain;
+  border-radius: 10px;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.7);
+  animation: sg-zoom-pop 0.22s cubic-bezier(0.2, 1.1, 0.4, 1) both;
+}
+@keyframes sg-zoom-pop {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+.sg-zoom-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 20px;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.72);
+  background: linear-gradient(0deg, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0));
+}
+.sg-zoom-close {
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font: inherit;
+  cursor: pointer;
+}
+.sg-zoom-close:hover { background: rgba(255, 255, 255, 0.2); }
+
+@media (prefers-reduced-motion: reduce) {
+  .sg-zoom, .sg-zoom-img { animation: none; }
+}

@@ -408,6 +408,9 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   // is the remaining seconds frozen at the moment it was held — it cannot tick
   // down while held, so there is nothing to keep updating.
   const [explPaused, setExplPaused] = useState(false);
+  // A figure opened for a proper look. Holds the url and which one it was, so
+  // the viewer can say so.
+  const [zoomImg, setZoomImg] = useState(null);   // { url, label } | null
   const [explPausedLeft, setExplPausedLeft] = useState(0);
   const [finalScore, setFinalScore] = useState(0);
   const [finalBestStreak, setFinalBestStreak] = useState(0);
@@ -1494,6 +1497,14 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
     return () => { if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; } };
   }, [qIdx, loading, gameOver, questions.length, defaultTimer]);
 
+  // Escape closes the figure viewer, like every other overlay here.
+  useEffect(() => {
+    if (!zoomImg) return undefined;
+    const onKey = (e) => { if (e.key === 'Escape') setZoomImg(null); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [zoomImg]);
+
   const imgHeldExplRef = useRef(false);
   useEffect(() => {
     if (devImgHolding) {
@@ -2028,6 +2039,25 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
         );
       })()}
 
+      {/* A figure, full size. Click anywhere or press Escape to put it back.
+          The image is capped to the window rather than scaled up past its own
+          resolution, so a small figure does not turn into a blurry poster. */}
+      {zoomImg && (
+        <div
+          className="sg-zoom"
+          role="dialog"
+          aria-modal="true"
+          aria-label={zoomImg.label}
+          onClick={() => setZoomImg(null)}
+        >
+          <img className="sg-zoom-img" src={zoomImg.url} alt={zoomImg.label} />
+          <div className="sg-zoom-bar">
+            <span>{zoomImg.label}</span>
+            <button type="button" className="sg-zoom-close" onClick={() => setZoomImg(null)}>Close ✕</button>
+          </div>
+        </div>
+      )}
+
       {/* Paused during the explanation: the explanation sits in its own pane
           beside or below the question, so the in-card overlay below would
           leave half the screen readable. This one covers the lot. */}
@@ -2281,8 +2311,11 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
             </button>
           )}
           {/* Pause overlay — covers stem + options so you can't read/answer while paused */}
+          {/* The exam layout's card is a narrow centred column, so an overlay
+              inside it reads as off-centre against a footer that spans the
+              page: there the paused screen covers the window instead. */}
           {canPause && isPaused && !revealed && (
-            <div className="pause-overlay">
+            <div className={`pause-overlay${uworldSkin ? ' pause-overlay--full' : ''}`}>
               <div className="pause-overlay-inner">
                 <div className="pause-overlay-icon">⏸</div>
                 <div className="pause-overlay-title">Paused</div>
@@ -2313,7 +2346,15 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
           )}
           {q?.image_url && (
             <div className="game-question-image">
-              <img src={q.image_url} alt="Question" style={{maxWidth:'100%', maxHeight:'300px', borderRadius:'8px', margin:'12px auto', display:'block'}} onError={e => { e.target.style.display = 'none'; }} />
+              <img
+                src={q.image_url}
+                alt="Question"
+                className="sg-zoomable"
+                title="Click to enlarge"
+                style={{maxWidth:'100%', maxHeight:'300px', borderRadius:'8px', margin:'12px auto', display:'block'}}
+                onClick={() => setZoomImg({ url: q.image_url, label: 'Question figure' })}
+                onError={e => { e.target.style.display = 'none'; }}
+              />
             </div>
           )}
           {needsImageUnlock && imageUnlockNotice}
@@ -2494,7 +2535,9 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
                       <img
                         src={q.explanation_image_url}
                         alt="Explanation"
-                        className="rr-explanation-img"
+                        className="rr-explanation-img sg-zoomable"
+                        title="Click to enlarge"
+                        onClick={() => { if (!draggingImg) setZoomImg({ url: q.explanation_image_url, label: 'Explanation figure' }); }}
                         onError={e => { e.target.style.display = 'none'; }}
                       />
                       {canWriteImages && <span className="rr-expl-img-grip" aria-hidden="true">⠿ drag</span>}
