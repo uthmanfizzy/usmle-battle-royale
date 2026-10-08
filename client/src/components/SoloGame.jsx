@@ -1534,8 +1534,10 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   // explanation can be read without the deadline closing the question mid-read.
   // Re-arms with exactly what was left, so a hold costs no time either way.
   // skipActionRef is deliberately untouched — Next still works while held.
+  // Returns the new held state, or null when there was nothing to hold or
+  // release — the caller needs to know, because the paused SCREEN follows it.
   function toggleExplPause() {
-    if (imgHeldExplRef.current) return;   // held for a picture — Resume on the slot releases it
+    if (imgHeldExplRef.current) return null;   // held for a picture — Resume on the slot releases it
     if (explPauseStartRef.current) {
       explPausedMsRef.current += Date.now() - explPauseStartRef.current;
       explPauseStartRef.current = 0;
@@ -1546,15 +1548,36 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
       const fn = doAdvanceRef.current;
       if (fn) skipTimerRef.current = setTimeout(fn, left);
       setExplPaused(false);
-      return;
+      return false;
     }
-    if (!skipTimerRef.current) return;   // already fired — nothing left to hold
+    if (!skipTimerRef.current) return null;   // already fired — nothing left to hold
     clearTimeout(skipTimerRef.current);
     skipTimerRef.current = null;
     explRemainingRef.current = Math.max(0, explDeadlineRef.current - Date.now());
     explPauseStartRef.current = Date.now();
     setExplPausedLeft(Math.ceil(explRemainingRef.current / 1000));
     setExplPaused(true);
+    return true;
+  }
+
+  /**
+   * The Pause key, wherever you are in a question.
+   *
+   * On the question it covers the stem and options. On the explanation it used
+   * to only hold the countdown, leaving the screen exactly as it was — so
+   * pressing Pause looked like it had done nothing. It now puts the paused
+   * screen up there too, and holds the countdown behind it.
+   *
+   * The explanation's own "Pause timer" button is a different promise — stop
+   * the page moving on WHILE I READ — so that one stays hold-only and covers
+   * nothing.
+   */
+  function togglePause() {
+    if (!revealed) { setIsPaused(v => !v); return; }
+    const held = toggleExplPause();
+    // null = nothing to hold (the countdown had already fired, or a picture
+    // is holding it); the screen still pauses, there is just no clock to stop.
+    setIsPaused(held === null ? !isPaused : held);
   }
 
   // Exam skin only: rating IS the advance action, same as HY Flashcards' own
@@ -2004,6 +2027,24 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
           </div>
         );
       })()}
+
+      {/* Paused during the explanation: the explanation sits in its own pane
+          beside or below the question, so the in-card overlay below would
+          leave half the screen readable. This one covers the lot. */}
+      {canPause && isPaused && revealed && (
+        <div className="pause-overlay pause-overlay--full">
+          <div className="pause-overlay-inner">
+            <div className="pause-overlay-icon">⏸</div>
+            <div className="pause-overlay-title">Paused</div>
+            {explPaused && explPausedLeft > 0 && (
+              <div className="pause-overlay-sub">{explPausedLeft}s left on the explanation</div>
+            )}
+            <button type="button" className="pause-resume-btn" onClick={togglePause}>
+              ▶ Resume
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="solo-body" data-expl-layout={study ? (uworldSkin ? 'below' : explLayout) : undefined}>
         {study && (
@@ -2639,7 +2680,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
               {canPause && (
                 <button
                   className={`stb-arrow stb-pause${(isPaused || (revealed && explPaused)) ? ' is-held' : ''}`}
-                  onClick={() => (revealed ? toggleExplPause() : setIsPaused(v => !v))}
+                  onClick={togglePause}
                   title={revealed
                     ? (explPaused ? 'Resume the explanation timer' : 'Pause while you read the explanation')
                     : (isPaused ? 'Resume' : 'Pause')}

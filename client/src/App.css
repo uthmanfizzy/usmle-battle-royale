@@ -4084,3 +4084,18 @@ html[data-study="on"] .solo-body .pause-overlay {
   text-align: center;
 }
 .rr-expl-drop.is-over { background: rgba(253, 203, 110, 0.25); border-style: solid; }
+
+/* Paused while the explanation is on screen. The in-card .pause-overlay only
+   covers the question card; the explanation lives in its own pane beside or
+   below it, so pausing there needs a cover over the whole screen. */
+.pause-overlay--full {
+  position: fixed;
+  inset: 0;
+  z-index: 400;
+  border-radius: 0;
+}
+.pause-overlay-sub {
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  color: rgba(255, 255, 255, 0.6);
+}
