@@ -96,7 +96,6 @@ export default function App() {
     if (!medathonIntroRef.current) return;
     medathonIntroRef.current = false;
     setMedathonIntro(false);
-    audio.startGameMusic();
   }, []);
   const [openToQuickJoin, setOpenToQuickJoin] = useState(true);
   const [streaks, setStreaks] = useState({});
@@ -285,9 +284,10 @@ export default function App() {
       setHiddenOptions([]);
       setExtraTimeBonus(0);
       setShowPowerupIntro(false);
-      // A Medathon opens on a single plucked string and nothing else, so the
-      // music waits until the doors are behind us.
-      if (gm !== 'medathon') audio.startGameMusic();
+      // A Medathon runs without music: one plucked string at the door, and
+      // then the fall. Anything the lobby had going stops here.
+      if (gm === 'medathon') { audio.stopBgMusic(); audio.stopGameMusic(); }
+      else audio.startGameMusic();
     });
 
     socket.on('powerup_assigned', ({ powerups }) => {

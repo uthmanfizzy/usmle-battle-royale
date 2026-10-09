@@ -31,6 +31,9 @@
     radial-gradient(70% 60% at 110% 110%, rgba(193, 41, 30, 0.14) 0%, rgba(0, 0, 0, 0) 55%),
     linear-gradient(170deg, #0d1016 0%, #080a0f 50%, #05070a 100%);
 }
+/* The fall sits behind everything on this screen. The bands already claim
+   z-index 2; this is what puts the shaft under them rather than over. */
+.mdt-root > .fs { z-index: 0; }
 
 /* The arena breathes — a slow sweep of light across the whole surface, so a
    still screen never looks frozen while a player reads. */
@@ -211,7 +214,12 @@
   min-height: 0;
   padding: clamp(14px, 2vw, 24px);
   border-radius: 14px;
-  background: linear-gradient(160deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
+  /* The sheen it always had, over a dark base — there is a shaft falling
+     past behind this now, and a stem on a timer has to read on every frame
+     of it. */
+  background:
+    linear-gradient(160deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02)),
+    linear-gradient(160deg, rgba(11, 7, 4, 0.66), rgba(6, 4, 2, 0.76));
   border: 1px solid rgba(255, 255, 255, 0.1);
   overflow-y: auto;
 }
@@ -340,6 +348,7 @@
   max-height: 28vh;
   overflow-y: auto;
 }
+.mdt-bottom { position: relative; z-index: 2; }
 .mdt-track { display: flex; flex-direction: column; gap: 5px; }
 
 .mdt-lane {

@@ -119,24 +119,24 @@ html.mv-shoji #root {
   margin-left: calc(var(--door-w) / -2);
   margin-top: calc(var(--door-h) / -2);
   transform-style: preserve-3d;
-  animation: mi-dolly var(--d-dolly) var(--t-dolly) cubic-bezier(0.4, 0, 0.62, 1) forwards;
+  /* Eased IN, not out: a fall gathers pace and does not settle. */
+  animation: mi-fall var(--d-dolly) var(--t-dolly) cubic-bezier(0.45, 0, 0.78, 0.7) forwards;
 }
-@keyframes mi-dolly {
-  from { transform: translateZ(0); }
-  to   { transform: translateZ(700px); }
+/* Going over the edge. Three things at once, which is what tells you this is
+   a fall and not another step forward: the world comes at you (translateZ),
+   it rises past you (translateY — the camera is dropping), and the view tips
+   down to look where you are going (rotateX). */
+@keyframes mi-fall {
+  0%   { transform: translateZ(0) translateY(0) rotateX(0deg); }
+  30%  { transform: translateZ(140px) translateY(-1.5vh) rotateX(-2.5deg); }
+  100% { transform: translateZ(760px) translateY(-17vh) rotateX(-9deg); }
 }
 
 /* ── Beyond the doorway ──────────────────────────────────────────────────
-   WHERE THINGS GO: the room box is 310% of the doorway and the doorway only
-   shows its middle — roughly 34% to 66% on both axes when the doors first
-   part. Anything meant to be seen then has to live inside that band. Laid out
-   across the whole box, a post that should stand waist-high in the view comes
-   out as a full-height bar.
-
-   What is in here: a dark warm wall at the back with a second, smaller shoji
-   screen glowing in the distance, a floor lying away from you, and two pairs
-   of posts at different depths. The distant screen is the thing you are
-   walking towards, and it rhymes with the door you are walking through. */
+   Not a room: the top of the shaft, which is also the race's own backdrop.
+   It is held at the room's old depth and size so the doorway frames it, and
+   the sum in the header still has to hold — the shaft has to stay wider than
+   the wall's hole for the whole fall. */
 .mi-room {
   position: absolute;
   left: -105%;
@@ -144,91 +144,8 @@ html.mv-shoji #root {
   width: 310%;
   height: 310%;
   transform: translateZ(-520px);
-  transform-style: preserve-3d;
+  overflow: hidden;
 }
-/* The wall at the back. It has to be a child, not the room's own background:
-   a background paints at its box's depth, so floor, posts and the distant
-   screen would all be hidden behind it. Lit only enough to be read — the
-   bright thing in this space is the screen, not the wall. */
-.mi-back {
-  position: absolute;
-  inset: 0;
-  transform: translateZ(-330px);
-  background:
-    linear-gradient(0deg, rgba(0, 0, 0, 0) 33.4%, rgba(26, 11, 4, 0.55) 34%, rgba(0, 0, 0, 0) 34.8%),
-    radial-gradient(30% 26% at 50% 50%,
-      #a4571f 0%,
-      #7c3e14 32%,
-      #4a230c 54%,
-      #1d0c04 76%,
-      #070301 100%);
-}
-/* The far screen: the same paper and lattice as the door, several rooms
-   away. Its halo is what lights the space. */
-.mi-far {
-  position: absolute;
-  left: 46.2%;
-  right: 46.2%;
-  top: 43%;
-  height: 21%;
-  transform: translateZ(-300px);
-  border: 2px solid #3a2015;
-  box-sizing: border-box;
-  background:
-    repeating-linear-gradient(90deg, #3a2015 0 2px, rgba(0, 0, 0, 0) 2px 33.3333%),
-    repeating-linear-gradient(0deg, #3a2015 0 2px, rgba(0, 0, 0, 0) 2px 25%),
-    radial-gradient(90% 80% at 50% 50%, #fff2d6 0%, #ffd79c 42%, #f0ab5e 78%, #cf8336 100%);
-  box-shadow:
-    0 0 60px 20px rgba(255, 168, 86, 0.3),
-    0 0 160px 60px rgba(255, 140, 60, 0.16);
-  filter: blur(1.6px);
-  animation: mi-focus var(--d-dolly) var(--t-dolly) ease-out forwards;
-}
-/* Depth of field: the far screen is soft while the doorway is what you are
-   looking at, and sharpens as you walk towards it. */
-@keyframes mi-focus {
-  from { filter: blur(1.6px); }
-  to   { filter: blur(0.2px); }
-}
-/* The floor, as an actual plane, so it falls away underfoot on the way in. */
-.mi-floor {
-  position: absolute;
-  left: 18%;
-  right: 18%;
-  bottom: 30%;
-  height: 42%;
-  /* Hinged on its NEAR edge so the rest lies down away from the camera. The
-     other way round and the far end swings forward through the wall and
-     hangs over the door as a slab. */
-  transform-origin: 50% 100%;
-  transform: rotateX(74deg);
-  background:
-    repeating-linear-gradient(0deg,
-      rgba(255, 214, 158, 0.15) 0 1px,
-      rgba(0, 0, 0, 0) 1px 40px),
-    linear-gradient(0deg,
-      rgba(255, 190, 120, 0.34) 0%,
-      rgba(150, 76, 28, 0.17) 44%,
-      rgba(0, 0, 0, 0) 100%);
-  filter: blur(1.1px);
-}
-/* Posts, standing on that floor and lit from beyond, so they read as
-   silhouettes. Two depths: what makes the walk a walk rather than a zoom. */
-.mi-post {
-  position: absolute;
-  background: linear-gradient(90deg,
-    rgba(6, 3, 1, 0.96) 0%,
-    rgba(34, 18, 10, 0.94) 50%,
-    rgba(84, 46, 24, 0.7) 78%,
-    rgba(6, 3, 1, 0.96) 100%);
-  box-shadow: 0 0 14px rgba(0, 0, 0, 0.6);
-}
-/* The near pair: tall, close to the edges of the view, feet on the floor. */
-.mi-post--l1 { left: 37.4%; top: 24%; width: 1%; height: 41.5%; transform: translateZ(-110px); }
-.mi-post--r1 { left: 61.6%; top: 24%; width: 1%; height: 41.5%; transform: translateZ(-110px); }
-/* The far pair: smaller, dimmer, further in. */
-.mi-post--l2 { left: 42.6%; top: 28%; width: 0.6%; height: 36%; transform: translateZ(-260px); opacity: 0.6; }
-.mi-post--r2 { left: 56.8%; top: 28%; width: 0.6%; height: 36%; transform: translateZ(-260px); opacity: 0.6; }
 
 /* ── The light that gets out ─────────────────────────────────────────────── */
 .mi-spill {
@@ -285,8 +202,11 @@ html.mv-shoji #root {
   height: 150vmax;
   margin-left: -7vmax;
   transform-origin: 50% 0;
-  background: linear-gradient(180deg, rgba(255, 190, 120, 0.22), rgba(255, 170, 90, 0.05) 44%, rgba(255, 160, 80, 0) 78%);
-  filter: blur(34px);
+  /* Radial rather than linear: a linear wedge is soft along its length but
+     has hard sides, and at the edge of the screen there is no blur left to
+     hide them. This fades out in every direction. */
+  background: radial-gradient(46% 40% at 50% 0%, rgba(255, 190, 120, 0.26) 0%, rgba(255, 172, 92, 0.07) 42%, rgba(255, 160, 80, 0) 74%);
+  filter: blur(30px);
 }
 .mi-rays span:nth-child(1) { transform: rotate(-122deg); }
 .mi-rays span:nth-child(2) { transform: rotate(180deg) scaleX(1.5); opacity: 0.8; }
@@ -396,6 +316,5 @@ html.mv-shoji #root {
   @keyframes mi-fadeout { to { opacity: 0; } }
   .mi-line { animation: mi-line-on 1ms var(--t-line) linear forwards, mi-line-off calc(var(--t-dark) - var(--t-point)) var(--t-point) linear forwards; }
   .mi-world { animation: none; transform: translateZ(90px); }
-  .mi-far { animation: none; filter: blur(3px); }
   .mi-rays span { filter: blur(26px); }
 }

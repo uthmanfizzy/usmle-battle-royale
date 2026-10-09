@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
+import FallingShaft from './FallingShaft';
 import './MedathonGame.css';
 
 const LABELS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
@@ -166,6 +167,11 @@ export default function MedathonGame({
 
   return (
     <div className={`mdt-root${verdict ? ` mdt-root--${verdict}` : ''}`}>
+      {/* The race happens on the way down. Same shaft the opening falls into,
+          held well back behind its own scrim so a timed question is never
+          competing with it. */}
+      <FallingShaft className="fs--bg" layers={8} seconds={9} />
+
       {/* ── Top bar: where you are, how long you have, how you are doing ── */}
       <header className="mdt-top">
         <div className="mdt-stage">

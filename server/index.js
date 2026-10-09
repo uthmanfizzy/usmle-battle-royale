@@ -2047,10 +2047,11 @@ const MEDATHON_BASE_POINTS = 100;
 const MEDATHON_SPEED_BONUS = 60;
 const MEDATHON_TIMEOUT     = 40 * 60 * 1000;
 // How long the client has to play its opening before question one is sent.
-// The animation itself is 5.22s (MEDATHON_INTRO_MS in
-// client/src/components/MedathonIntro.jsx); the rest lets the waiting screen
-// settle rather than cutting straight from the doorway to a question.
-const MEDATHON_OPENING_MS  = 6600;
+// The animation itself is 7.95s (MEDATHON_INTRO_MS in
+// client/src/components/MedathonIntro.jsx); the rest is a breath at the
+// bottom of the fall rather than cutting straight from the doorway to a
+// question. Raise the animation and you must raise this with it.
+const MEDATHON_OPENING_MS  = 9000;
 // How long the verdict stays on screen before the next question. A wrong
 // answer gets longer because there is a correct option to read.
 const MEDATHON_GAP_RIGHT = 1100;

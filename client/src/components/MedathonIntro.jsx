@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { playShojiPluck } from '../audio';
+import FallingShaft from './FallingShaft';
 import './MedathonIntro.css';
 
 /**
@@ -11,8 +12,11 @@ import './MedathonIntro.css';
  *      into a bright horizontal line, the line draws into a point, gone.
  *   2. One plucked string. The shoji door is THERE on the attack, not faded
  *      in, lit from behind in amber and alone in the dark.
- *   3. The two leaves slide apart. Light spills through the widening gap.
- *   4. The camera walks through, the frame passing either side of you.
+ *   3. The two leaves slide apart, slowly. Light spills through the
+ *      widening gap, and what is behind them is a drop.
+ *   4. The camera tips over the threshold and falls — the frame passing
+ *      either side of you, the shaft opening up below. It hands over to the
+ *      race still falling, because the race is played over the same shaft.
  *
  * WHY A PORTAL: scene 1 collapses the real interface, not a picture of it —
  * `#root` itself is what folds away (see the .mv-shoji rules). That only
@@ -28,16 +32,16 @@ import './MedathonIntro.css';
 // Milliseconds from mount. These drive BOTH the JavaScript cues and the CSS
 // (handed over as custom properties below), so there is one clock, not two.
 const T = {
-  line:     170,   // the picture is a sliver; the bright line takes over
-  point:    300,   // the line draws into a point
-  dark:     470,   // nothing at all
-  note:     560,   // the string is struck — and the door is there
-  slide:   1500,   // the leaves begin to part
-  slideMs: 1650,
-  dolly:   2720,   // open enough to walk through
-  dollyMs: 2230,
-  out:     4960,   // the world underneath is revealed
-  done:    5220,
+  line:     220,   // the picture is a sliver; the bright line takes over
+  point:    380,   // the line draws into a point
+  dark:     560,   // nothing at all
+  note:     680,   // the string is struck — and the door is there
+  slide:   2200,   // the leaves begin to part
+  slideMs: 2500,
+  fall:    4100,   // open enough to go over the edge
+  fallMs:  3500,
+  out:     7600,   // the race underneath is revealed, still falling
+  done:    7950,
 };
 
 export const MEDATHON_INTRO_MS = T.done;
@@ -102,8 +106,8 @@ export default function MedathonIntro({ onDone, muted = false }) {
     '--t-dark': `${T.dark}ms`,
     '--t-slide': since(T.slide),
     '--d-slide': `${T.slideMs}ms`,
-    '--t-dolly': since(T.dolly),
-    '--d-dolly': `${T.dollyMs}ms`,
+    '--t-dolly': since(T.fall),
+    '--d-dolly': `${T.fallMs}ms`,
     '--t-out': since(T.out),
     '--d-out': `${T.done - T.out}ms`,
   };
@@ -117,17 +121,12 @@ export default function MedathonIntro({ onDone, muted = false }) {
           not one pixel of it can be seen before the string is struck. */}
       <div className="mi-scene">
         <div className="mi-world">
-          {/* Beyond the doorway: a warm room with floor and posts set at
-              different depths, so walking in gives real parallax rather than
-              a picture being scaled up. */}
+          {/* Beyond the doorway there is no floor: the shaft the race is
+              played over, seen from its top. The same component the game
+              mounts behind itself, so going over the edge and landing in the
+              match is one continuous fall. */}
           <div className="mi-room">
-            <span className="mi-back" />
-            <span className="mi-far" />
-            <span className="mi-floor" />
-            <span className="mi-post mi-post--l1" />
-            <span className="mi-post mi-post--r1" />
-            <span className="mi-post mi-post--l2" />
-            <span className="mi-post mi-post--r2" />
+            <FallingShaft layers={8} seconds={8} />
           </div>
 
           {/* The light that gets out as the gap widens. */}
