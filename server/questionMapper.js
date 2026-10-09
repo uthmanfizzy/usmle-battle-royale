@@ -16,6 +16,113 @@
  */
 
 /**
+ * Explanation pictures — one list, however many images.
+ *
+ * STORAGE SHAPE: `explanation_images` is a JSONB array of { url, pos }, where
+ * `pos` is which paragraph gap the picture sits in (0 = above the first
+ * paragraph, 1 = after it, and so on) — the same meaning the old single
+ * `explanation_image_pos` column had.
+ *
+ * THE LEGACY COLUMNS ARE A MIRROR, NOT A SECOND SOURCE OF TRUTH:
+ * `explanation_image_url` / `explanation_image_pos` always hold picture #1, so
+ * every reader written before this (other game modes, the row thumbnails in
+ * the admin list, any cached payload) keeps showing the first picture instead
+ * of nothing. When the list is present it WINS — so anything that writes the
+ * legacy column alone must go through mergeExplanationImages(), or its change
+ * would be invisible behind a stale list.
+ *
+ * A row whose list is empty but whose legacy column is set is a pre-migration
+ * row: it reads back as a one-picture list, which is exactly what it is.
+ *
+ * The client keeps an identical copy at client/src/utils/explanationImages.js —
+ * keep the two in sync.
+ */
+
+// Enough for any explanation that is still an explanation, and a cap means a
+// bad payload can't push an unbounded array into a JSONB column.
+const MAX_EXPLANATION_IMAGES = 8;
+
+function clampImagePos(v) {
+  const n = Number.parseInt(v, 10);
+  if (!Number.isFinite(n)) return 0;
+  return Math.max(0, Math.min(99, n));
+}
+
+/**
+ * Row (or anything row-shaped) -> [{ url, pos }]. Accepts a list of plain URL
+ * strings too, since that is what a hand-written payload tends to send.
+ */
+function normalizeExplanationImages(row) {
+  const out = [];
+  const raw = row && row.explanation_images;
+  if (Array.isArray(raw)) {
+    for (const item of raw) {
+      const url = typeof item === 'string' ? item : (item && item.url);
+      if (!url || typeof url !== 'string' || !url.trim()) continue;
+      out.push({ url: url.trim(), pos: clampImagePos(typeof item === 'string' ? 0 : item.pos) });
+      if (out.length >= MAX_EXPLANATION_IMAGES) break;
+    }
+  }
+  if (out.length === 0 && row && row.explanation_image_url) {
+    out.push({
+      url: String(row.explanation_image_url).trim(),
+      pos: clampImagePos(row.explanation_image_pos),
+    });
+  }
+  return out;
+}
+
+/**
+ * The three columns to write for a list. Picture #1 is mirrored into the
+ * legacy pair; an empty list clears all three.
+ */
+function explanationImagesToDb(images) {
+  const list = normalizeExplanationImages({ explanation_images: images });
+  return {
+    explanation_images: list.length ? list : null,
+    explanation_image_url: list[0] ? list[0].url : null,
+    explanation_image_pos: list[0] ? list[0].pos : null,
+  };
+}
+
+/**
+ * What the picture list becomes after a write. `body` is a request body (or any
+ * partial update); `existing` is the row as it stands.
+ *
+ *   explanation_images present  -> it IS the new list, in full
+ *   explanation_image_url alone -> replaces picture #1 and keeps the rest;
+ *                                  null/'' drops picture #1 only
+ *   neither                     -> unchanged
+ *
+ * The middle case is what keeps every single-picture control — the admin row
+ * drop zones, the in-game slot — working against a row that now holds several.
+ */
+function mergeExplanationImages(existing, body) {
+  const has = (k) => body && Object.prototype.hasOwnProperty.call(body, k);
+  if (has('explanation_images')) {
+    return normalizeExplanationImages({ explanation_images: body.explanation_images });
+  }
+  const list = normalizeExplanationImages(existing);
+  if (!has('explanation_image_url')) {
+    // A bare position update still moves picture #1.
+    if (has('explanation_image_pos') && list.length) {
+      const next = [...list];
+      next[0] = { ...next[0], pos: clampImagePos(body.explanation_image_pos) };
+      return next;
+    }
+    return list;
+  }
+  const url = body.explanation_image_url;
+  if (!url) return list.slice(1);
+  const pos = has('explanation_image_pos')
+    ? body.explanation_image_pos
+    : (list[0] ? list[0].pos : 0);
+  const next = [...list];
+  next[0] = { url: String(url), pos: clampImagePos(pos) };
+  return normalizeExplanationImages({ explanation_images: next });
+}
+
+/**
  * DB row -> internal question. Verbatim lift of the loadQuestions() mapping.
  */
 function fromDb(row) {
@@ -29,6 +136,8 @@ function fromDb(row) {
     explanation: row.explanation || '',
     why_others_wrong: row.why_others_wrong || undefined,
     explanation_image_url: row.explanation_image_url || undefined,
+    explanation_images: normalizeExplanationImages(row),
+    explanation_image_pos: row.explanation_image_pos ?? undefined,
     game_modes: row.game_modes || ['battle_royale', 'speed_race', 'trivia_pursuit'],
     image_url: row.image_url || undefined,
     tower_floor: row.tower_floor || undefined,
@@ -54,7 +163,9 @@ function toDb(question) {
     correct: question.correct,
     explanation: question.explanation,
     why_others_wrong: question.why_others_wrong || null,
-    explanation_image_url: question.explanation_image_url || null,
+    // All three picture columns at once: the merged object this is built from
+    // may carry the list, the legacy url alone, or both.
+    ...explanationImagesToDb(mergeExplanationImages(question, question)),
     category: question.subject,
     difficulty: question.difficulty || 'easy',
     game_modes: question.game_modes || ['battle_royale', 'speed_race', 'trivia_pursuit'],
@@ -219,4 +330,7 @@ function withShuffledOptions(q) {
   return { ...q, options, correct };
 }
 
-module.exports = { fromDb, toDb, toPublicQuestion, answerResultPayload, normalizeImport, shuffleQuestionOptions, withShuffledOptions };
+module.exports = {
+  MAX_EXPLANATION_IMAGES, clampImagePos, normalizeExplanationImages,
+  explanationImagesToDb, mergeExplanationImages,
+  fromDb, toDb, toPublicQuestion, answerResultPayload, normalizeImport, shuffleQuestionOptions, withShuffledOptions };

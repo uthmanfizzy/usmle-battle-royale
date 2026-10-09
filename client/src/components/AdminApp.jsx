@@ -7,6 +7,7 @@ import QuestionParser from './QuestionParser';
 import { parseRichText } from '../utils/parseRichText';
 import { parseShortUrl, thumbnailUrl as shortThumbnailUrl, PLATFORM_LABELS, PLATFORM_ICONS } from '../utils/shortEmbeds';
 import { JOURNEY_SUBJECTS, JOURNEY_SECTIONS } from '../journeySubjects';
+import { normalizeExplanationImages, MAX_EXPLANATION_IMAGES } from '../utils/explanationImages';
 
 const API = 'https://usmle-battle-royale-production.up.railway.app';
 const AUTH_KEY = 'usmle_admin_session';
@@ -1048,7 +1049,7 @@ function QuestionModal({ question, defaultSubject = 'cardiology', onSave, onClos
     explanation:  question.explanation,
     why_others_wrong: question.why_others_wrong || '',
     image_url:    question.image_url || '',
-    explanation_image_url: question.explanation_image_url || '',
+    explanation_images: normalizeExplanationImages(question),
     questionType: question.image_url ? 'image' : 'text',
     game_modes:   question.game_modes || ['battle_royale', 'speed_race', 'trivia_pursuit'],
     tower_floor:  question.tower_floor || '',
@@ -1070,7 +1071,7 @@ function QuestionModal({ question, defaultSubject = 'cardiology', onSave, onClos
     explanation:  '',
     why_others_wrong: '',
     image_url:    '',
-    explanation_image_url: '',
+    explanation_images: [],
     questionType: 'text',
     game_modes:   defaultGameModes,
     tower_floor:  '',
@@ -1082,10 +1083,6 @@ function QuestionModal({ question, defaultSubject = 'cardiology', onSave, onClos
   const [error,        setError]        = useState('');
   const [uploading,    setUploading]    = useState(false);
   const [uploadError,  setUploadError]  = useState('');
-  // Explanation image upload uses its own busy/error state so the two controls
-  // never spin or error over each other.
-  const [expUploading,   setExpUploading]   = useState(false);
-  const [expUploadError, setExpUploadError] = useState('');
 
   function set(key, val) { setForm(f => ({ ...f, [key]: val })); }
 
@@ -1157,7 +1154,7 @@ function QuestionModal({ question, defaultSubject = 'cardiology', onSave, onClos
       explanation: form.explanation.trim(),
       why_others_wrong: form.why_others_wrong ? form.why_others_wrong.trim() : null,
       image_url:   form.questionType === 'image' ? form.image_url : '',
-      explanation_image_url: form.explanation_image_url || null,
+      explanation_images: form.explanation_images || [],
       game_modes:  form.game_modes,
       tower_floor: form.game_modes.includes('tower') && form.tower_floor !== '' ? parseInt(form.tower_floor) : null,
       buzz_type:   form.game_modes.includes('buzz_fun') ? form.buzz_type : undefined,
@@ -1361,44 +1358,12 @@ function QuestionModal({ question, defaultSubject = 'cardiology', onSave, onClos
             )}
           </div>
 
-          {/* Explanation image (independent of question type) — shown at reveal time */}
-          <div className="ap-field ap-image-field">
-            <label>Explanation Image <span className="ap-field-opt">(optional · shown when the answer is revealed)</span></label>
-            {form.explanation_image_url ? (
-              <div className="ap-image-preview-wrap">
-                <img src={form.explanation_image_url} alt="Explanation preview" className="ap-image-preview" />
-                <div className="ap-image-preview-actions">
-                  <label className="ap-btn-sec ap-file-label">
-                    🔄 Replace Image
-                    <input type="file" accept="image/jpeg,image/png,image/webp" onChange={e => handleImageFile(e, 'explanation_image_url', setExpUploading, setExpUploadError)} style={{ display: 'none' }} />
-                  </label>
-                  <button type="button" className="ap-btn-danger ap-btn-sm" onClick={() => set('explanation_image_url', '')}>Remove</button>
-                </div>
-              </div>
-            ) : (
-              <label className={`ap-image-upload-zone ${expUploading ? 'uploading' : ''}`}>
-                <input type="file" accept="image/jpeg,image/png,image/webp" onChange={e => handleImageFile(e, 'explanation_image_url', setExpUploading, setExpUploadError)} style={{ display: 'none' }} disabled={expUploading} />
-                {expUploading ? (
-                  <><div className="ap-upload-spinner" /><span>Uploading…</span></>
-                ) : (
-                  <><span className="ap-upload-icon">📤</span><span>Click to upload explanation image</span><span className="ap-upload-hint">JPG, PNG, WEBP · max 5MB</span></>
-                )}
-              </label>
-            )}
-            {expUploadError && <div className="ap-error ap-upload-error">{expUploadError}</div>}
-            {!form.explanation_image_url && !expUploading && (
-              <div className="ap-image-url-alt">
-                <label style={{ marginBottom: 4 }}>Or paste image URL directly:</label>
-                <input
-                  type="url"
-                  value={form.explanation_image_url}
-                  onChange={e => set('explanation_image_url', e.target.value)}
-                  placeholder="https://…"
-                  className="ap-input-plain"
-                />
-              </div>
-            )}
-          </div>
+          {/* Explanation pictures (independent of question type) — shown at
+              reveal time, as many as the explanation needs. */}
+          <ExplanationImagesField
+            value={form.explanation_images}
+            onChange={list => set('explanation_images', list)}
+          />
 
           <div className="ap-field">
             <label>Why Are Other Options Wrong? <span style={{color:'rgba(255,255,255,0.3)', fontSize:'11px'}}>(optional)</span></label>
@@ -6115,15 +6080,61 @@ function ShortsPanel() {
 const BOSS_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F'];
 const BOSS_EMPTY_FORM = {
   question: '', optionA: '', optionB: '', optionC: '', optionD: '', optionE: '', optionF: '',
-  correct: 'A', explanation: '', why_others_wrong: '', explanation_image_url: '',
+  correct: 'A', explanation: '', why_others_wrong: '', explanation_images: [],
 };
 
-// Shared explanation-image control (upload OR paste URL) for the journey/boss
-// question forms (JourneyPanel + JourneyEditor). Uploads to the same bucket as
-// question images via /admin/upload-image. Controlled: value + onChange(url).
-function ExplanationImageField({ value, onChange }) {
+/**
+ * Every picture one explanation carries — add, remove, reorder, and say which
+ * paragraph each sits above. Shared by all three question forms (main bank,
+ * journey levels, bosses); uploads go to the same bucket as question images
+ * via /admin/upload-image.
+ *
+ * Controlled on the LIST: value is [{ url, pos }] (a bare url string is
+ * accepted too, which is what an old row looks like) and onChange hands back a
+ * new list. `pos` is the paragraph gap — 0 above the first paragraph, 1 after
+ * it — the same number an author can drag a picture to in-game.
+ */
+function ExplanationImagesField({ value, onChange }) {
+  const images = normalizeExplanationImages({ explanation_images: value });
   const [busy, setBusy] = useState(false);
   const [err,  setErr]  = useState('');
+  const [pasteUrl, setPasteUrl] = useState('');
+  const full = images.length >= MAX_EXPLANATION_IMAGES;
+
+  // Listed in READING order — by position first, then by how they were added
+  // — because that is the order a player meets them, and "figure 2" has to
+  // mean the same thing here and in the game. `i` is the entry's place in the
+  // stored list, which is what the buttons act on.
+  const ordered = images
+    .map((img, i) => ({ img, i }))
+    .sort((a, b) => (a.img.pos - b.img.pos) || (a.i - b.i));
+
+  const add = (url) => onChange([
+    ...images,
+    // A new picture joins the last one rather than jumping to the top.
+    { url, pos: ordered.length ? ordered[ordered.length - 1].img.pos : 0 },
+  ]);
+  const patch = (i, fields) => onChange(images.map((im, k) => (k === i ? { ...im, ...fields } : im)));
+  const removeAt = (i) => onChange(images.filter((_, k) => k !== i));
+
+  // Up/down moves a picture EARLIER or LATER in the explanation, which means
+  // trading positions with its neighbour. Two pictures sharing one position
+  // have nothing to trade, so those swap places in the list instead — which is
+  // exactly what decides their order within that paragraph gap.
+  const move = (row, d) => {
+    const here = ordered[row];
+    const there = ordered[row + d];
+    if (!here || !there) return;
+    const next = [...images];
+    if (here.img.pos !== there.img.pos) {
+      next[here.i] = { ...here.img, pos: there.img.pos };
+      next[there.i] = { ...there.img, pos: here.img.pos };
+    } else {
+      [next[here.i], next[there.i]] = [next[there.i], next[here.i]];
+    }
+    onChange(next);
+  };
+
   async function onFile(e) {
     const file = e.target.files[0];
     if (!file) return;
@@ -6141,40 +6152,89 @@ function ExplanationImageField({ value, onChange }) {
       const res  = await apiCall('/admin/upload-image', { method: 'POST', body: JSON.stringify({ base64, filename: file.name, mimeType: file.type }) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Upload failed');
-      onChange(data.url);
+      add(data.url);
     } catch (e2) { setErr(e2.message); }
     setBusy(false);
     e.target.value = '';
   }
+
   return (
     <div className="ap-field ap-image-field">
-      <label>Explanation Image <span className="ap-field-opt">(optional · shown when the answer is revealed)</span></label>
-      {value ? (
-        <div className="ap-image-preview-wrap">
-          <img src={value} alt="Explanation preview" className="ap-image-preview" />
-          <div className="ap-image-preview-actions">
-            <label className="ap-btn-sec ap-file-label">
-              🔄 Replace Image
-              <input type="file" accept="image/jpeg,image/png,image/webp" onChange={onFile} style={{ display: 'none' }} />
-            </label>
-            <button type="button" className="ap-btn-danger ap-btn-sm" onClick={() => onChange('')}>Remove</button>
-          </div>
-        </div>
+      <label>
+        Explanation Images{' '}
+        <span className="ap-field-opt">
+          (optional · shown when the answer is revealed{images.length > 1 ? ` · ${images.length} pictures` : ''})
+        </span>
+      </label>
+
+      {images.length > 0 && (
+        <ul className="ap-explimgs">
+          {ordered.map(({ img, i }, row) => (
+            <li className="ap-explimg" key={`${img.url}-${i}`}>
+              <span className="ap-explimg-n">{row + 1}</span>
+              <img src={img.url} alt={`Explanation figure ${row + 1}`} className="ap-explimg-thumb" />
+              <div className="ap-explimg-meta">
+                <label className="ap-explimg-pos">
+                  After paragraph
+                  <input
+                    type="number"
+                    min="0"
+                    max="99"
+                    value={img.pos}
+                    onChange={e => patch(i, { pos: Math.max(0, Math.min(99, parseInt(e.target.value, 10) || 0)) })}
+                  />
+                </label>
+                {/* Saying what 0 means beats making an author find out by
+                    saving and playing the question. */}
+                <span className="ap-explimg-hint">
+                  {img.pos === 0 ? 'above the explanation' : `after paragraph ${img.pos}`}
+                </span>
+              </div>
+              <div className="ap-explimg-actions">
+                <button type="button" className="ap-btn-sm" disabled={row === 0} onClick={() => move(row, -1)} title="Move up">↑</button>
+                <button type="button" className="ap-btn-sm" disabled={row === ordered.length - 1} onClick={() => move(row, 1)} title="Move down">↓</button>
+                <button type="button" className="ap-btn-danger ap-btn-sm" onClick={() => removeAt(i)} title="Remove this picture">✕</button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {full ? (
+        <div className="ap-field-opt">That&apos;s the limit — {MAX_EXPLANATION_IMAGES} pictures per explanation.</div>
       ) : (
-        <label className={`ap-image-upload-zone ${busy ? 'uploading' : ''}`}>
-          <input type="file" accept="image/jpeg,image/png,image/webp" onChange={onFile} style={{ display: 'none' }} disabled={busy} />
-          {busy
-            ? (<><div className="ap-upload-spinner" /><span>Uploading…</span></>)
-            : (<><span className="ap-upload-icon">📤</span><span>Click to upload explanation image</span><span className="ap-upload-hint">JPG, PNG, WEBP · max 5MB</span></>)}
-        </label>
+        <>
+          <label className={`ap-image-upload-zone ${busy ? 'uploading' : ''}`}>
+            <input type="file" accept="image/jpeg,image/png,image/webp" onChange={onFile} style={{ display: 'none' }} disabled={busy} />
+            {busy
+              ? (<><div className="ap-upload-spinner" /><span>Uploading…</span></>)
+              : (<><span className="ap-upload-icon">📤</span><span>{images.length ? `Click to add picture ${images.length + 1}` : 'Click to upload an explanation image'}</span><span className="ap-upload-hint">JPG, PNG, WEBP · max 5MB</span></>)}
+          </label>
+          {!busy && (
+            <div className="ap-image-url-alt">
+              <label style={{ marginBottom: 4 }}>Or paste an image URL:</label>
+              <div className="ap-explimg-add">
+                <input
+                  type="url"
+                  value={pasteUrl}
+                  onChange={e => setPasteUrl(e.target.value)}
+                  placeholder="https://…"
+                  className="ap-input-plain"
+                />
+                <button
+                  type="button"
+                  className="ap-btn-sec ap-btn-sm"
+                  disabled={!pasteUrl.trim()}
+                  onClick={() => { add(pasteUrl.trim()); setPasteUrl(''); }}
+                >
+                  Add
+                </button>
+              </div>
+            </div>
+          )}
+        </>
       )}
       {err && <div className="ap-error ap-upload-error">{err}</div>}
-      {!value && !busy && (
-        <div className="ap-image-url-alt">
-          <label style={{ marginBottom: 4 }}>Or paste image URL directly:</label>
-          <input type="url" value={value} onChange={e => onChange(e.target.value)} placeholder="https://…" className="ap-input-plain" />
-        </div>
-      )}
     </div>
   );
 }
@@ -7056,7 +7116,7 @@ function JourneyPanel() {
       correct: q.correct || 'A',
       explanation: q.explanation || '',
       why_others_wrong: typeof q.why_others_wrong === 'string' ? q.why_others_wrong : '',
-      explanation_image_url: q.explanation_image_url || '',
+      explanation_images: normalizeExplanationImages(q),
     });
   }
 
@@ -7113,7 +7173,9 @@ function JourneyPanel() {
         if (form.explanation.trim() !== (editing.explanation || '')) body.explanation = form.explanation.trim() || null;
         const prevWhy = typeof editing.why_others_wrong === 'string' ? editing.why_others_wrong : '';
         if (form.why_others_wrong.trim() !== prevWhy) body.why_others_wrong = form.why_others_wrong.trim() || null;
-        if ((form.explanation_image_url || '') !== (editing.explanation_image_url || '')) body.explanation_image_url = form.explanation_image_url || null;
+        if (JSON.stringify(form.explanation_images || []) !== JSON.stringify(normalizeExplanationImages(editing))) {
+          body.explanation_images = form.explanation_images || [];
+        }
         if (Object.keys(body).length === 0) { closeForm(); setSaving(false); return; }
         res  = await apiCall(`${base}/${editing.id}`, { method: 'PUT', body: JSON.stringify(body) });
         data = await res.json();
@@ -7130,7 +7192,7 @@ function JourneyPanel() {
           correct: form.correct,
           explanation: form.explanation.trim() || null,
           why_others_wrong: form.why_others_wrong.trim() || null,
-          explanation_image_url: form.explanation_image_url || null,
+          explanation_images: form.explanation_images || [],
         };
         res  = await apiCall(base, { method: 'POST', body: JSON.stringify(body) });
         data = await res.json();
@@ -7532,7 +7594,7 @@ function JourneyPanel() {
               )}
             </div>
 
-            <ExplanationImageField value={form.explanation_image_url} onChange={url => set('explanation_image_url', url)} />
+            <ExplanationImagesField value={form.explanation_images} onChange={list => set('explanation_images', list)} />
 
             <div className="ap-video-form-actions">
               {/* Always offered now — Cancel is how you collapse the form again,
@@ -7965,7 +8027,7 @@ function JourneyEditor() {
       correct: q.correct || 'A',
       explanation: q.explanation || '',
       why_others_wrong: typeof q.why_others_wrong === 'string' ? q.why_others_wrong : '',
-      explanation_image_url: q.explanation_image_url || '',
+      explanation_images: normalizeExplanationImages(q),
     });
     setQEditor({ targetKey: targetKey(target), target, mode: 'edit', id: q.id });
   }
@@ -7985,7 +8047,7 @@ function JourneyEditor() {
       correct: form.correct,
       explanation: form.explanation.trim() || null,
       why_others_wrong: form.why_others_wrong.trim() || null,
-      explanation_image_url: form.explanation_image_url || null,
+      explanation_images: form.explanation_images || [],
     };
     try {
       if (qEditor.mode === 'edit') {
@@ -8112,7 +8174,7 @@ function JourneyEditor() {
           </div>
         )}
       </div>
-      <ExplanationImageField value={form.explanation_image_url} onChange={url => set('explanation_image_url', url)} />
+      <ExplanationImagesField value={form.explanation_images} onChange={list => set('explanation_images', list)} />
       <div className="ap-video-form-actions">
         <button type="button" className="ap-btn-sec" onClick={closeForm}>Cancel</button>
         <button type="submit" className="ap-btn-pri" disabled={!canSaveQ}>{qSaving ? 'Saving…' : qEditor.mode === 'edit' ? 'Save Changes' : 'Add Question'}</button>

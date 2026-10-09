@@ -1317,3 +1317,27 @@ CREATE TABLE IF NOT EXISTS medathon_matches (
 CREATE INDEX IF NOT EXISTS medathon_matches_played_idx ON medathon_matches (played_at DESC);
 
 NOTIFY pgrst, 'reload schema';
+
+-- ──────────────────────────────────────────────────────────────────────────────
+-- explanation_images — several pictures in one explanation
+--
+-- A JSONB array of { "url": "...", "pos": 0 }, in the order they should read.
+-- `pos` is the paragraph gap the picture sits in, exactly as the single
+-- explanation_image_pos meant: 0 above the first paragraph, 1 after it, and so
+-- on. Two pictures may share a gap; they then show in list order.
+--
+-- explanation_image_url / explanation_image_pos STAY, as a mirror of picture
+-- #1, so every reader written before this keeps showing the first picture.
+-- The list is authoritative wherever it is non-empty, and a row that has only
+-- the old columns reads back as a one-picture list — so nothing needs
+-- backfilling and this migration is safe to run at any time.
+--
+-- Until it runs, the server notices the missing column, drops it from the
+-- write and saves picture #1 through the old column. Adding extra pictures is
+-- the one thing that waits for this SQL.
+-- ──────────────────────────────────────────────────────────────────────────────
+ALTER TABLE questions         ADD COLUMN IF NOT EXISTS explanation_images JSONB;
+ALTER TABLE journey_questions ADD COLUMN IF NOT EXISTS explanation_images JSONB;
+ALTER TABLE boss_questions    ADD COLUMN IF NOT EXISTS explanation_images JSONB;
+
+NOTIFY pgrst, 'reload schema';

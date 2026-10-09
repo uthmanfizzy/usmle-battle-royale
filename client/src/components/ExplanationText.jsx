@@ -13,18 +13,21 @@ import { parseExplanation, offsetsToSegments, sliceRun, COLORS } from '../utils/
  * @param {string}   text         raw explanation string
  * @param {Array}    highlights   resolved highlights [{ start, end, color, created_at }]
  * @param {Function} containerRef ref attached to .explanation-text (for selection capture)
- * @param {Node}     imageNode    optional picture, placed BETWEEN paragraphs
- * @param {number}   imageAt      which gap it sits in: 0 above the first
- *                                paragraph, 1 after it, and so on
+ * @param {Array}    images       the explanation's pictures, placed BETWEEN
+ *                                paragraphs: [{ key, node, at }], where `at`
+ *                                is the gap it sits in — 0 above the first
+ *                                paragraph, 1 after it, and so on. Several may
+ *                                share a gap; they then render in list order.
  * @param {Function} renderGap    optional (index) => node, for the drop zones
- *                                an author sees while dragging that picture
+ *                                an author sees while dragging a picture
  *
- * The picture carries no text, so inserting it cannot move a highlight: the
- * container's textContent — what offsets are anchored to — is unchanged.
+ * A picture carries no text, so inserting one cannot move a highlight: the
+ * container's textContent — what offsets are anchored to — is unchanged. That
+ * holds for any number of them.
  */
 export default function ExplanationText({
   text, className = '', highlights = [], containerRef,
-  imageNode = null, imageAt = 0, renderGap = null,
+  images = [], renderGap = null,
 }) {
   if (!text) return null;
 
@@ -35,12 +38,22 @@ export default function ExplanationText({
   for (const b of blocks) for (const line of b.lines) for (const run of line) visibleLen = run.end;
   const segments = offsetsToSegments({ length: visibleLen }, highlights);
 
+  // A picture positioned past the end of a shortened explanation still has to
+  // appear somewhere, so every slot is clamped into the gaps that exist.
   const gapCount = blocks.length + 1;
-  const slot = Math.max(0, Math.min(gapCount - 1, Number(imageAt) || 0));
+  const placed = (Array.isArray(images) ? images : [])
+    .filter(img => img && img.node)
+    .map((img, i) => ({
+      key: img.key ?? i,
+      node: img.node,
+      slot: Math.max(0, Math.min(gapCount - 1, Number(img.at) || 0)),
+    }));
   const gap = (i) => (
     <React.Fragment key={`gap-${i}`}>
       {renderGap ? renderGap(i) : null}
-      {imageNode && slot === i ? imageNode : null}
+      {placed.map(img => (img.slot === i
+        ? <React.Fragment key={img.key}>{img.node}</React.Fragment>
+        : null))}
     </React.Fragment>
   );
 

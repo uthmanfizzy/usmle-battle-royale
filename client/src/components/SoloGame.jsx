@@ -11,6 +11,7 @@ import { buildOptionTable, extractColumns } from '../utils/optionTable';
 import Calculator from './Calculator';
 import LabValues from './LabValues';
 import { shuffleQuestionOptions } from '../utils/shuffleOptions';
+import { normalizeExplanationImages, MAX_EXPLANATION_IMAGES } from '../utils/explanationImages';
 import { useScrollToTopOnChange } from '../utils/useScrollToTopOnChange';
 import { toVisibleText, resolveHighlights, normalizeHighlightRow, captureContext } from '../utils/explanationHighlights';
 import { getToken } from '../auth';
@@ -19,6 +20,12 @@ import { JOURNEY_THEMES, loadJourneyTheme, saveJourneyTheme } from '../journeyTh
 import './SoloGameUWorld.css';
 
 const LABELS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
+
+// A pseudo field name for the "add another picture" slot. Only the client uses
+// it: the real write is the whole explanation_images list, so the server never
+// sees this string — it is just how the armed-slot machinery (which is keyed by
+// field) tells "replace picture #1" apart from "append one".
+const EXPL_IMAGE_ADD = 'explanation_image_add';
 const SERVER_URL = 'https://usmle-battle-royale-production.up.railway.app';
 
 // Self-assessment buckets shown below the explanation on every UWorld
@@ -923,11 +930,17 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   // picture hold freezes it exactly like the pause button (without the cover).
   pausedRef.current = isPaused || devImgHolding;
   const [devImgMsg,   setDevImgMsg]   = useState(null);        // { field, kind: 'ok'|'err', text }
-  // Where the explanation picture sits in the explanation: 0 (the default) is
-  // above the first paragraph, 1 after it, and so on. Dragged into place by an
-  // author with permissions; everyone else just sees it where they left it.
-  const [explImgPos, setExplImgPos] = useState(0);
-  const [draggingImg, setDraggingImg] = useState(false);
+  // Every picture this explanation carries, in reading order: [{ url, pos }].
+  // `pos` is where one sits in the explanation — 0 (the default) above the
+  // first paragraph, 1 after it, and so on — so two pictures can illustrate
+  // two different paragraphs. Dragged into place by an author with
+  // permissions; everyone else just sees them where they were left.
+  const [explImages, setExplImages] = useState([]);
+  // Which picture is mid-drag (an index), or null. An index rather than a flag
+  // because the drop zones have to move THAT picture, not "the" picture.
+  const [dragImgIdx, setDragImgIdx] = useState(null);
+  const explImagesRef = useRef(explImages);
+  explImagesRef.current = explImages;
 
 
   // Show the new image immediately. Matched BY ID rather than by index, since
@@ -959,19 +972,36 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
     return null;
   }, [adminSession, isModerator]);
 
-  const applyDevImage = useCallback((field, url, qid) => {
+  // Several fields in ONE call, because setQuestions does not update
+  // questionsRef synchronously: two calls in the same tick would both start
+  // from the same stale row and the first patch would be lost.
+  const applyDevFields = useCallback((fields, qid) => {
     const arr = questionsRef.current;
     const idx = arr.findIndex(x => x.id === qid);
     if (idx === -1) return;
     // ONE patched object shared by the array and the memo — two separate copies
     // would differ by identity and trip the memo's reshuffle check.
-    const patched = { ...arr[idx], [field]: url };
+    const patched = { ...arr[idx], ...fields };
     setQuestions(qs => qs.map((x, i) => (i === idx ? patched : x)));
     const memo = shuffledQRef.current;
     if (memo.q && memo.base?.id === qid) {
-      shuffledQRef.current = { ...memo, base: patched, q: { ...memo.q, [field]: url } };
+      shuffledQRef.current = { ...memo, base: patched, q: { ...memo.q, ...fields } };
     }
   }, []);
+
+  const applyDevImage = useCallback(
+    (field, url, qid) => applyDevFields({ [field]: url }, qid),
+    [applyDevFields]);
+
+  // The picture list, with picture #1 mirrored into the legacy single field so
+  // anything still reading that one url agrees with the list.
+  const applyExplImages = useCallback((list, qid) => {
+    applyDevFields({
+      explanation_images: list,
+      explanation_image_url: list[0]?.url ?? null,
+      explanation_image_pos: list[0]?.pos ?? null,
+    }, qid);
+  }, [applyDevFields]);
 
   const devImgFail = useCallback((field, text) => {
     setDevImgBusy(null);
@@ -984,6 +1014,28 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   // "reuse one already on another question in this set" — reuse is just this
   // step without the upload, which is the whole point: one stored image, many
   // questions, no duplicate uploads.
+  // Writes the whole list in one go — how a move, a removal, an added picture
+  // and a reorder all save. Shown first and written after: a failed write only
+  // means the list is back as it was on the next load, which is visible and
+  // harmless.
+  const saveExplImages = useCallback(async (list, qid) => {
+    const target = qid
+      ? questionsRef.current.find(x => x.id === qid)
+      : questionsRef.current[qIdxRef.current];
+    if (!target?.id) return;
+    const headers = imageAuthHeaders();
+    if (!headers) return;
+    setExplImages(list);
+    applyExplImages(list, target.id);
+    try {
+      await fetch(`${SERVER_URL}/api/question-image/${encodeURIComponent(target.id)}?table=${imageTable}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', ...headers },
+        body: JSON.stringify({ explanation_images: list }),
+      });
+    } catch { /* already on screen; the next load re-reads it */ }
+  }, [imageAuthHeaders, imageTable, applyExplImages]);
+
   const saveDevImage = useCallback(async (field, url, qid) => {
     // Resolve the question the slot/paste was aimed at, NOT whatever happens to
     // be on screen now — an explanation can auto-advance mid-flight.
@@ -992,6 +1044,27 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
       : questionsRef.current[qIdxRef.current];
     if (!target?.id) return devImgFail(field, 'Question gone');
     if (!imageAuthHeaders()) return devImgFail(field, 'Admin permissions required');
+
+    // The add-another slot is the same upload aimed at the END of the list
+    // rather than at picture #1, so it sends the list instead of one field.
+    const appending = field === EXPL_IMAGE_ADD;
+    if (appending) {
+      const list = normalizeExplanationImages(target);
+      if (list.length >= MAX_EXPLANATION_IMAGES) {
+        return devImgFail(field, `That's the limit — ${MAX_EXPLANATION_IMAGES} pictures`);
+      }
+      setDevImgMsg(null);
+      setDevImgBusy(field);
+      // A new picture joins the one before it rather than jumping to the top,
+      // which is almost always where an author wants it.
+      const next = [...list, { url, pos: list[list.length - 1]?.pos ?? 0 }];
+      await saveExplImages(next, target.id);
+      setDevImgBusy(null);
+      setImgArmHold(false);
+      setDevImgMsg({ field, kind: 'ok', text: 'Added' });
+      setTimeout(() => setDevImgMsg(null), 2000);
+      return;
+    }
 
     setDevImgMsg(null);
     setDevImgBusy(field);
@@ -1007,7 +1080,17 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || `Save failed (${res.status})`);
-      applyDevImage(field, url, target.id);
+      if (field === 'explanation_image_url') {
+        // The server replaced picture #1 and kept the rest; mirror that here
+        // rather than guessing, so the on-screen list matches the row.
+        const list = Array.isArray(data.explanation_images)
+          ? normalizeExplanationImages(data)
+          : normalizeExplanationImages({ explanation_image_url: url });
+        setExplImages(list);
+        applyExplImages(list, target.id);
+      } else {
+        applyDevImage(field, url, target.id);
+      }
       setDevImgBusy(null);
       setImgArmHold(false);
       setDevImgMsg({ field, kind: 'ok', text: 'Saved' });
@@ -1015,7 +1098,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
     } catch (err) {
       devImgFail(field, err.message || 'Failed');
     }
-  }, [imageAuthHeaders, imageTable, applyDevImage, devImgFail]);
+  }, [imageAuthHeaders, imageTable, applyDevImage, applyExplImages, saveExplImages, devImgFail]);
 
   const uploadDevImage = useCallback(async (field, file, qid) => {
     if (!file || !file.type?.startsWith('image/')) return devImgFail(field, 'Images only');
@@ -1054,25 +1137,6 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
     }
   }, [imageAuthHeaders, saveDevImage, devImgFail]);
 
-  const saveExplImgPos = useCallback(async (pos, qid) => {
-    const target = qid
-      ? questionsRef.current.find(x => x.id === qid)
-      : questionsRef.current[qIdxRef.current];
-    if (!target?.id) return;
-    const headers = imageAuthHeaders();
-    if (!headers) return;
-    // Shown immediately; the write follows. A failed move only means it is back
-    // where it was on the next load, which is visible and harmless.
-    applyDevImage('explanation_image_pos', pos, target.id);
-    try {
-      await fetch(`${SERVER_URL}/api/question-image/${encodeURIComponent(target.id)}?table=${imageTable}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', ...headers },
-        body: JSON.stringify({ explanation_image_pos: pos }),
-      });
-    } catch { /* the position is already on screen; the next load re-reads it */ }
-  }, [imageAuthHeaders, imageTable, applyDevImage]);
-
   // Every distinct image already used by the questions in THIS run — which is
   // exactly "the other questions in this level/topic". Built from the questions
   // already in memory, so the picker costs no extra request. Deduped by URL:
@@ -1080,8 +1144,14 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   const reusableDevImages = useMemo(() => {
     const byUrl = new Map();
     for (const item of questions) {
-      for (const f of ['explanation_image_url', 'image_url']) {
-        const url = item?.[f];
+      // Every explanation picture, not just the first — reuse exists so one
+      // stored file can serve many questions, and an explanation's second
+      // picture is just as reusable as its first.
+      const urls = [
+        ...normalizeExplanationImages(item).map(img => img.url),
+        item?.image_url,
+      ];
+      for (const url of urls) {
         if (!url) continue;
         const entry = byUrl.get(url) || { url, uses: 0, source: 'in-use' };
         entry.uses += 1;
@@ -1147,11 +1217,11 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   // Stable per-question id (survives the option shuffle — shuffle keeps `id`).
   const currentQid = questions[qIdx]?.id;
 
-  // Each question brings its own picture position.
+  // Each question brings its own pictures, each with its own position.
   useEffect(() => {
     const row = questionsRef.current[qIdxRef.current];
-    setExplImgPos(Number(row?.explanation_image_pos) || 0);
-    setDraggingImg(false);
+    setExplImages(normalizeExplanationImages(row));
+    setDragImgIdx(null);
   }, [qIdx, currentQid]);
 
   // Fetch this question's highlights on question LOAD (not gated behind reveal) so
@@ -1189,23 +1259,43 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
         const data = await res.json();
         if (cancelled) return;
         const local = questionsRef.current.find(x => x.id === currentQid);
-        for (const f of ['image_url', 'explanation_image_url']) {
-          // Absent key = the server told us nothing about this field, which is
-          // not the same as telling us it is empty.
-          if (!Object.prototype.hasOwnProperty.call(data, f)) continue;
-          const incoming = data[f] ?? null;
-          if (incoming !== (local?.[f] ?? null)) applyDevImage(f, incoming, currentQid);
+        // ONE patch for the whole tick: applyDevFields reads a ref that
+        // setQuestions has not updated yet, so two calls would lose the first.
+        const patch = {};
+        // Absent key = the server told us nothing about this field, which is
+        // not the same as telling us it is empty.
+        if (Object.prototype.hasOwnProperty.call(data, 'image_url')) {
+          const incoming = data.image_url ?? null;
+          if (incoming !== (local?.image_url ?? null)) patch.image_url = incoming;
         }
-        if (Object.prototype.hasOwnProperty.call(data, 'explanation_image_pos')
-            && data.explanation_image_pos != null) {
-          setExplImgPos(Number(data.explanation_image_pos) || 0);
+        if (Array.isArray(data.explanation_images)) {
+          const incoming = normalizeExplanationImages(data);
+          if (JSON.stringify(incoming) !== JSON.stringify(explImagesRef.current)) {
+            setExplImages(incoming);
+            patch.explanation_images = incoming;
+            patch.explanation_image_url = incoming[0]?.url ?? null;
+            patch.explanation_image_pos = incoming[0]?.pos ?? null;
+          }
+        } else if (Object.prototype.hasOwnProperty.call(data, 'explanation_image_url')) {
+          // A server without the list column still answers with the one url.
+          const incoming = data.explanation_image_url ?? null;
+          if (incoming !== (local?.explanation_image_url ?? null)) {
+            patch.explanation_image_url = incoming;
+            const list = normalizeExplanationImages({
+              explanation_image_url: incoming,
+              explanation_image_pos: data.explanation_image_pos,
+            });
+            patch.explanation_images = list;
+            setExplImages(list);
+          }
         }
+        if (Object.keys(patch).length) applyDevFields(patch, currentQid);
       } catch { /* transient — the next tick retries */ }
     };
     tick();
     const id = setInterval(tick, 8000);
     return () => { cancelled = true; clearInterval(id); };
-  }, [devImageAuthoring, currentQid, imageTable, applyDevImage]);
+  }, [devImageAuthoring, currentQid, imageTable, applyDevFields]);
 
   // Journey only: the chapter's image library, for the in-game picker. The
   // level id is the one handle this component has on where it is in the
@@ -2516,34 +2606,68 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
                   text={q.explanation}
                   highlights={displayHighlights}
                   containerRef={explContainerRef}
-                  imageAt={explImgPos}
-                  imageNode={q.explanation_image_url ? (
-                    <span
-                      className={`rr-expl-img-wrap${canWriteImages ? ' is-movable' : ''}${draggingImg ? ' is-dragging' : ''}`}
-                      draggable={canWriteImages}
-                      onDragStart={(e) => {
-                        if (!canWriteImages) return;
-                        setDraggingImg(true);
-                        e.dataTransfer.effectAllowed = 'move';
-                        // Firefox needs something on the transfer or the drag
-                        // never starts.
-                        try { e.dataTransfer.setData('text/plain', 'explanation-image'); } catch { /* ignore */ }
-                      }}
-                      onDragEnd={() => setDraggingImg(false)}
-                      title={canWriteImages ? 'Drag me anywhere in the explanation' : undefined}
-                    >
-                      <img
-                        src={q.explanation_image_url}
-                        alt="Explanation"
-                        className="rr-explanation-img sg-zoomable"
-                        title="Click to enlarge"
-                        onClick={() => { if (!draggingImg) setZoomImg({ url: q.explanation_image_url, label: 'Explanation figure' }); }}
-                        onError={e => { e.target.style.display = 'none'; }}
-                      />
-                      {canWriteImages && <span className="rr-expl-img-grip" aria-hidden="true">⠿ drag</span>}
-                    </span>
-                  ) : null}
-                  renderGap={canWriteImages && q.explanation_image_url && draggingImg ? (i) => (
+                  images={explImages
+                    .map((img, i) => ({ img, i }))
+                    .sort((a, b) => (a.img.pos - b.img.pos) || (a.i - b.i))
+                    .map(({ img, i }, n) => ({
+                    key: `${img.url}-${i}`,
+                    at: img.pos,
+                    node: (
+                      <span
+                        className={`rr-expl-img-wrap${canWriteImages ? ' is-movable' : ''}${dragImgIdx === i ? ' is-dragging' : ''}`}
+                        draggable={canWriteImages}
+                        onDragStart={(e) => {
+                          if (!canWriteImages) return;
+                          setDragImgIdx(i);
+                          e.dataTransfer.effectAllowed = 'move';
+                          // Firefox needs something on the transfer or the drag
+                          // never starts.
+                          try { e.dataTransfer.setData('text/plain', 'explanation-image'); } catch { /* ignore */ }
+                        }}
+                        onDragEnd={() => setDragImgIdx(null)}
+                        title={canWriteImages ? 'Drag me anywhere in the explanation' : undefined}
+                      >
+                        <img
+                          src={img.url}
+                          alt={explImages.length > 1 ? `Explanation figure ${n + 1}` : 'Explanation'}
+                          className="rr-explanation-img sg-zoomable"
+                          title="Click to enlarge"
+                          onClick={() => {
+                            if (dragImgIdx !== null) return;
+                            setZoomImg({
+                              url: img.url,
+                              label: explImages.length > 1
+                                ? `Explanation figure ${n + 1} of ${explImages.length}`
+                                : 'Explanation figure',
+                            });
+                          }}
+                          onError={e => { e.target.style.display = 'none'; }}
+                        />
+                        {/* Which picture this is, once there is more than one —
+                            otherwise the explanation refers to "the figure" and
+                            nobody can tell which. */}
+                        {explImages.length > 1 && (
+                          <span className="rr-expl-img-num">Figure {n + 1}</span>
+                        )}
+                        {canWriteImages && <span className="rr-expl-img-grip" aria-hidden="true">⠿ drag</span>}
+                        {canWriteImages && (
+                          <button
+                            type="button"
+                            className="rr-expl-img-del"
+                            title="Take this picture off the explanation"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              saveExplImages(explImages.filter((_, k) => k !== i), q?.id);
+                            }}
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </span>
+                    ),
+                  }))
+                  }
+                  renderGap={canWriteImages && dragImgIdx !== null ? (i) => (
                     <span
                       className="rr-expl-drop"
                       onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add('is-over'); }}
@@ -2551,8 +2675,14 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
                       onDrop={(e) => {
                         e.preventDefault();
                         e.currentTarget.classList.remove('is-over');
-                        setDraggingImg(false);
-                        if (i !== explImgPos) { setExplImgPos(i); saveExplImgPos(i, q?.id); }
+                        const moved = dragImgIdx;
+                        setDragImgIdx(null);
+                        const img = explImages[moved];
+                        if (!img || img.pos === i) return;
+                        saveExplImages(
+                          explImages.map((it, k) => (k === moved ? { ...it, pos: i } : it)),
+                          q?.id,
+                        );
                       }}
                     >
                       Drop the picture here
@@ -2611,18 +2741,38 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
               {canWriteImages && (
                 <DevImageSlot
                   field="explanation_image_url"
-                  label="Explanation"
+                  label={explImages.length > 1 ? 'Explanation · figure 1' : 'Explanation'}
                   qid={q?.id}
                   armed={devImgArmed.field === 'explanation_image_url'}
                   busy={devImgBusy === 'explanation_image_url'}
                   message={devImgMsg?.field === 'explanation_image_url' ? devImgMsg : null}
-                  currentUrl={q?.explanation_image_url}
+                  currentUrl={explImages[0]?.url}
                   onArm={() => { setDevImgArmed({ field: 'explanation_image_url', qid: q?.id ?? null }); setImgArmHold(true); }}
                   onFile={uploadDevImage}
                   reusable={reusableDevImages}
                   onReuse={saveDevImage}
                   libraryName={uworldSkin ? 'subject' : 'chapter'}
-              libraryName={uworldSkin ? 'subject' : 'chapter'}
+                  onPickingChange={onImgPickingChange}
+                  holding={devImgHolding}
+                  onResume={() => { setImgArmHold(false); setImgPicking({}); }}
+                />
+              )}
+              {/* A second slot that ADDS rather than replaces, so an
+                  explanation can carry several figures. Only once it has one —
+                  with none, the slot above is the way in. */}
+              {canWriteImages && explImages.length > 0 && explImages.length < MAX_EXPLANATION_IMAGES && (
+                <DevImageSlot
+                  field={EXPL_IMAGE_ADD}
+                  label={`Add figure ${explImages.length + 1}`}
+                  qid={q?.id}
+                  armed={devImgArmed.field === EXPL_IMAGE_ADD}
+                  busy={devImgBusy === EXPL_IMAGE_ADD}
+                  message={devImgMsg?.field === EXPL_IMAGE_ADD ? devImgMsg : null}
+                  onArm={() => { setDevImgArmed({ field: EXPL_IMAGE_ADD, qid: q?.id ?? null }); setImgArmHold(true); }}
+                  onFile={uploadDevImage}
+                  reusable={reusableDevImages}
+                  onReuse={saveDevImage}
+                  libraryName={uworldSkin ? 'subject' : 'chapter'}
                   onPickingChange={onImgPickingChange}
                   holding={devImgHolding}
                   onResume={() => { setImgArmHold(false); setImgPicking({}); }}

@@ -14,7 +14,9 @@ const path       = require('path');
 const multer     = require('multer');
 const AdmZip     = require('adm-zip');
 const os         = require('os');
-const { fromDb, toDb, toPublicQuestion, answerResultPayload, normalizeImport, withShuffledOptions } = require('./questionMapper');
+const { fromDb, toDb, toPublicQuestion, answerResultPayload, normalizeImport, withShuffledOptions,
+        normalizeExplanationImages, explanationImagesToDb, mergeExplanationImages,
+        MAX_EXPLANATION_IMAGES } = require('./questionMapper');
 const ankingScheduler = require('./ankingScheduler');
 
 // Use sql.js - pure JavaScript SQLite, no native compilation needed
@@ -197,6 +199,43 @@ function isMissingColumn(error) {
   return error.code === '42703' || error.code === 'PGRST204' ||
          (msg.includes('retired_at') && msg.includes('does not exist')) ||
          (msg.includes('column') && msg.includes('retired'));
+}
+
+// explanation_images (questions / journey_questions / boss_questions) — the
+// JSONB list that lets ONE explanation carry several pictures. Same
+// deploy-order safety as the flags above, but it matters more here because
+// this one is written, not just read: until the migration runs, a write
+// naming the column fails the WHOLE row, which would turn "add a picture"
+// into "your edit was lost". So a write that trips on it drops the column and
+// goes again, and the legacy explanation_image_url mirror means picture #1
+// still saves. The extra pictures are the only thing that waits for the SQL.
+let hasExplanationImages = true;
+
+function isMissingExplanationImages(error) {
+  if (!error) return false;
+  const msg = `${error.message || ''} ${error.details || ''}`.toLowerCase();
+  return msg.includes('explanation_images');
+}
+
+// Strip the column when we already know it isn't there, so the common
+// pre-migration case costs one request rather than two.
+function withoutExplImages(record) {
+  if (hasExplanationImages || !record || !('explanation_images' in record)) return record;
+  const rest = { ...record };
+  delete rest.explanation_images;
+  return rest;
+}
+
+// Run a question write, dropping explanation_images and retrying once if the
+// column has not been migrated yet. `run` takes the record to send.
+async function questionWrite(record, run) {
+  let res = await run(withoutExplImages(record));
+  if (res && res.error && isMissingExplanationImages(res.error)) {
+    hasExplanationImages = false;
+    console.warn('[explanation_images] column missing — saving picture #1 only. Run the migration at the end of server/schema.sql.');
+    res = await run(withoutExplImages(record));
+  }
+  return res;
 }
 
 // journey_questions and boss_questions get the SAME retired_at/by/reason columns,
@@ -8158,6 +8197,8 @@ app.get('/admin/questions', adminAuth, async (req, res) => {
           explanation: q.explanation || '',
           why_others_wrong: q.why_others_wrong || undefined,
           explanation_image_url: q.explanation_image_url || undefined,
+          explanation_images: normalizeExplanationImages(q),
+          explanation_image_pos: q.explanation_image_pos ?? undefined,
           game_modes: q.game_modes || ['battle_royale', 'speed_race', 'trivia_pursuit'],
           image_url: q.image_url || undefined,
           tower_floor: q.tower_floor || undefined,
@@ -8533,8 +8574,25 @@ app.put('/api/question-image/:id', moderatorAuth, async (req, res) => {
   const hasPos = posRaw !== undefined && posRaw !== null;
   const pos = hasPos ? Math.max(0, Math.min(99, Number.parseInt(posRaw, 10) || 0)) : null;
 
+  // A whole picture list in one write: how the game saves a reordered,
+  // repositioned or trimmed set of explanation pictures. Validated here
+  // because this route is open to moderators, not just the owner.
+  const hasList = Object.prototype.hasOwnProperty.call(req.body || {}, 'explanation_images');
+  if (hasList && !Array.isArray(req.body.explanation_images)) {
+    return res.status(400).json({ error: 'explanation_images must be an array' });
+  }
+  if (hasList && req.body.explanation_images.length > MAX_EXPLANATION_IMAGES) {
+    return res.status(400).json({ error: `at most ${MAX_EXPLANATION_IMAGES} explanation images` });
+  }
+  if (hasList && req.body.explanation_images.some(it => {
+    const u = typeof it === 'string' ? it : (it && it.url);
+    return !u || !/^https?:\/\//i.test(String(u));
+  })) {
+    return res.status(400).json({ error: 'every explanation image url must be http(s)' });
+  }
+
   const hasField = QUESTION_IMAGE_FIELDS.includes(field);
-  if (!hasField && !hasPos) {
+  if (!hasField && !hasPos && !hasList) {
     return res.status(400).json({ error: 'field must be image_url or explanation_image_url' });
   }
   // null/'' clears the image; anything else must look like a URL we served.
@@ -8545,11 +8603,42 @@ app.put('/api/question-image/:id', moderatorAuth, async (req, res) => {
   }
   if (!supabase) return res.status(503).json({ error: 'Supabase not configured' });
   try {
-    const updates = {};
-    if (hasField) updates[field] = url;
-    if (hasPos) updates.explanation_image_pos = pos;
     const key = questionImageKey(table, req.params.id);
-    let { error } = await supabase.from(table).update(updates).eq(key, req.params.id);
+    const updates = {};
+    if (hasField && field !== 'explanation_image_url') updates[field] = url;
+
+    // Anything touching the explanation's pictures is resolved against the row
+    // as it stands, so replacing picture #1 — or moving it — leaves the others
+    // alone. One read, and only when the explanation is what changed.
+    const touchesExplanation = hasList || hasPos || field === 'explanation_image_url';
+    if (touchesExplanation) {
+      const cols = hasExplanationImages
+        ? 'explanation_images, explanation_image_url, explanation_image_pos'
+        : 'explanation_image_url, explanation_image_pos';
+      let { data: row, error: readErr } = await supabase
+        .from(table).select(cols).eq(key, req.params.id).maybeSingle();
+      if (readErr && isMissingExplanationImages(readErr)) {
+        hasExplanationImages = false;
+        ({ data: row, error: readErr } = await supabase
+          .from(table).select('explanation_image_url, explanation_image_pos')
+          .eq(key, req.params.id).maybeSingle());
+      }
+      if (readErr && /explanation_image_pos/.test(readErr.message || '')) {
+        ({ data: row, error: readErr } = await supabase
+          .from(table).select('explanation_image_url').eq(key, req.params.id).maybeSingle());
+      }
+      if (readErr) throw readErr;
+      const body = hasList
+        ? { explanation_images: req.body.explanation_images }
+        : {
+            ...(field === 'explanation_image_url' ? { explanation_image_url: url } : {}),
+            ...(hasPos ? { explanation_image_pos: pos } : {}),
+          };
+      Object.assign(updates, explanationImagesToDb(mergeExplanationImages(row, body)));
+    }
+
+    let { error } = await questionWrite(updates, r =>
+      supabase.from(table).update(r).eq(key, req.params.id));
     if (error && /explanation_image_pos/.test(error.message || '')) {
       delete updates.explanation_image_pos;
       if (Object.keys(updates).length === 0) {
@@ -8558,7 +8647,8 @@ app.put('/api/question-image/:id', moderatorAuth, async (req, res) => {
           reason: 'missing_column',
         });
       }
-      ({ error } = await supabase.from(table).update(updates).eq(key, req.params.id));
+      ({ error } = await questionWrite(updates, r =>
+        supabase.from(table).update(r).eq(key, req.params.id)));
     }
     if (error) throw error;
     // The in-memory bank is what Solo/Training actually serve, so patch it too —
@@ -8567,7 +8657,13 @@ app.put('/api/question-image/:id', moderatorAuth, async (req, res) => {
       const q = questionBank.find(x => x._supabase_id === req.params.id || x.id === req.params.id);
       if (q) Object.assign(q, updates);
     }
-    res.json({ ok: true, url, explanation_image_pos: pos });
+    res.json({
+      ok: true,
+      url,
+      explanation_image_pos: updates.explanation_image_pos ?? pos,
+      explanation_images: updates.explanation_images ?? undefined,
+      explanation_image_url: 'explanation_image_url' in updates ? updates.explanation_image_url : undefined,
+    });
   } catch (err) {
     console.warn('[/api/question-image] failed —', err.message);
     res.status(500).json({ error: err.message });
@@ -8583,9 +8679,17 @@ app.get('/api/question-image/:id', async (req, res) => {
   if (!table) return res.status(400).json({ error: 'unknown table' });
   try {
     const key = questionImageKey(table, req.params.id);
+    const cols = hasExplanationImages
+      ? 'image_url, explanation_image_url, explanation_image_pos, explanation_images'
+      : 'image_url, explanation_image_url, explanation_image_pos';
     let { data, error } = await supabase
-      .from(table).select('image_url, explanation_image_url, explanation_image_pos')
-      .eq(key, req.params.id).maybeSingle();
+      .from(table).select(cols).eq(key, req.params.id).maybeSingle();
+    if (error && isMissingExplanationImages(error)) {
+      hasExplanationImages = false;
+      ({ data, error } = await supabase
+        .from(table).select('image_url, explanation_image_url, explanation_image_pos')
+        .eq(key, req.params.id).maybeSingle());
+    }
     if (error && /explanation_image_pos/.test(error.message || '')) {
       ({ data, error } = await supabase
         .from(table).select('image_url, explanation_image_url')
@@ -8596,6 +8700,7 @@ app.get('/api/question-image/:id', async (req, res) => {
       image_url: data?.image_url ?? null,
       explanation_image_url: data?.explanation_image_url ?? null,
       explanation_image_pos: data?.explanation_image_pos ?? null,
+      explanation_images: normalizeExplanationImages(data),
     });
   } catch (err) {
     console.warn('[/api/question-image GET] failed —', err.message);
@@ -9239,6 +9344,9 @@ app.post('/admin/questions', adminAuth, async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Supabase not configured. Cannot save questions.' });
 
   const { subject, difficulty, question, options, correct, explanation, why_others_wrong, image_url, explanation_image_url, game_modes, tower_floor, buzz_type, topic_id } = req.body;
+  // Every picture the explanation carries. The legacy single field still works
+  // on its own — it reads back as a one-picture list.
+  const explImages = mergeExplanationImages(null, req.body);
   if (!subject || !question || !Array.isArray(options) || options.length < 2 || options.length > 10 || !correct || !explanation)
     return res.status(400).json({ error: 'Missing required fields (options must be array of 2-10)' });
 
@@ -9252,7 +9360,7 @@ app.post('/admin/questions', adminAuth, async (req, res) => {
     correct,
     explanation,
     why_others_wrong: why_others_wrong || null,
-    explanation_image_url: explanation_image_url || null,
+    ...explanationImagesToDb(explImages),
     category: subject,
     difficulty: difficulty || 'easy',
     game_modes: gameModes,
@@ -9263,7 +9371,8 @@ app.post('/admin/questions', adminAuth, async (req, res) => {
   };
 
   try {
-    const { data, error } = await supabase.from('questions').insert(record).select().single();
+    const { data, error } = await questionWrite(record, r =>
+      supabase.from('questions').insert(r).select().single());
     if (error) throw error;
 
     // Also add to in-memory cache
@@ -9277,6 +9386,8 @@ app.post('/admin/questions', adminAuth, async (req, res) => {
       explanation,
       why_others_wrong: record.why_others_wrong || undefined,
       explanation_image_url: record.explanation_image_url || undefined,
+      explanation_images: explImages,
+      explanation_image_pos: record.explanation_image_pos ?? undefined,
       game_modes: gameModes,
       image_url: record.image_url || undefined,
       tower_floor: record.tower_floor || undefined,
@@ -9299,16 +9410,23 @@ app.put('/admin/questions/:id', adminAuth, async (req, res) => {
   if (idx === -1) return res.status(404).json({ error: 'Question not found' });
 
   const existing = questionBank[idx];
-  const updated = { ...existing, ...req.body, id };
+  // The picture list is resolved against the row as it stands, so a body that
+  // sends only explanation_image_url (a row drop zone, the in-game slot)
+  // replaces picture #1 instead of being overruled by the stale list that the
+  // spread below would otherwise carry over.
+  const updated = {
+    ...existing, ...req.body, id,
+    explanation_images: mergeExplanationImages(existing, req.body),
+  };
 
   // Build Supabase update record
   const record = toDb(updated);
 
   try {
-    const { error } = await supabase
+    const { error } = await questionWrite(record, r => supabase
       .from('questions')
-      .update(record)
-      .eq('question_id', id);
+      .update(r)
+      .eq('question_id', id));
     if (error) throw error;
 
     // Update in-memory cache
@@ -11326,22 +11444,20 @@ app.post('/admin/boss-questions', adminAuth, async (req, res) => {
   const invalid = bossQuestionError({ question, options, correct });
   if (invalid) return res.status(400).json({ error: invalid });
   try {
-    const { data, error } = await supabase
-      .from('boss_questions')
-      .insert({
-        subject,
-        boss_key,
-        question: question.trim(),
-        options,
-        correct: String(correct).trim().toUpperCase(),
-        explanation: explanation || null,
-        why_others_wrong: why_others_wrong || null,
-        image_url: image_url || null,
-        explanation_image_url: explanation_image_url || null,
-        sort_order: Number.isFinite(sort_order) ? sort_order : 0,
-      })
-      .select()
-      .single();
+    const record = {
+      subject,
+      boss_key,
+      question: question.trim(),
+      options,
+      correct: String(correct).trim().toUpperCase(),
+      explanation: explanation || null,
+      why_others_wrong: why_others_wrong || null,
+      image_url: image_url || null,
+      ...explanationImagesToDb(mergeExplanationImages(null, req.body)),
+      sort_order: Number.isFinite(sort_order) ? sort_order : 0,
+    };
+    const { data, error } = await questionWrite(record, r =>
+      supabase.from('boss_questions').insert(r).select().single());
     if (error) throw error;
     res.json(data);
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -11358,6 +11474,9 @@ app.put('/admin/boss-questions/:id', adminAuth, async (req, res) => {
     for (const k of ['subject', 'boss_key', 'question', 'options', 'correct', 'explanation', 'why_others_wrong', 'image_url', 'explanation_image_url']) {
       if (k in req.body) updates[k] = req.body[k];
     }
+    if ('explanation_images' in req.body || 'explanation_image_url' in req.body || 'explanation_image_pos' in req.body) {
+      Object.assign(updates, explanationImagesToDb(mergeExplanationImages(existing, req.body)));
+    }
     if (Number.isFinite(req.body.sort_order)) updates.sort_order = req.body.sort_order;
     if (Object.keys(updates).length === 0) return res.status(400).json({ error: 'nothing to update' });
 
@@ -11368,12 +11487,12 @@ app.put('/admin/boss-questions/:id', adminAuth, async (req, res) => {
     if (updates.question) updates.question = updates.question.trim();
     if (updates.correct)  updates.correct  = String(updates.correct).trim().toUpperCase();
 
-    const { data, error } = await supabase
+    const { data, error } = await questionWrite(updates, r => supabase
       .from('boss_questions')
-      .update(updates)
+      .update(r)
       .eq('id', req.params.id)
       .select()
-      .single();
+      .single());
     if (error) throw error;
     res.json(data);
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -11864,21 +11983,19 @@ app.post('/admin/journey-questions', adminAuth, async (req, res) => {
   const invalid = bossQuestionError({ question, options, correct });
   if (invalid) return res.status(400).json({ error: invalid });
   try {
-    const { data, error } = await supabase
-      .from('journey_questions')
-      .insert({
-        level_id,
-        question: question.trim(),
-        options,
-        correct: String(correct).trim().toUpperCase(),
-        explanation: explanation || null,
-        why_others_wrong: why_others_wrong || null,
-        image_url: image_url || null,
-        explanation_image_url: explanation_image_url || null,
-        sort_order: Number.isFinite(sort_order) ? sort_order : 0,
-      })
-      .select()
-      .single();
+    const record = {
+      level_id,
+      question: question.trim(),
+      options,
+      correct: String(correct).trim().toUpperCase(),
+      explanation: explanation || null,
+      why_others_wrong: why_others_wrong || null,
+      image_url: image_url || null,
+      ...explanationImagesToDb(mergeExplanationImages(null, req.body)),
+      sort_order: Number.isFinite(sort_order) ? sort_order : 0,
+    };
+    const { data, error } = await questionWrite(record, r =>
+      supabase.from('journey_questions').insert(r).select().single());
     if (error) throw error;
     res.json(data);
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -11895,6 +12012,9 @@ app.put('/admin/journey-questions/:id', adminAuth, async (req, res) => {
     for (const k of ['level_id', 'question', 'options', 'correct', 'explanation', 'why_others_wrong', 'image_url', 'explanation_image_url', 'is_bonus']) {
       if (k in req.body) updates[k] = req.body[k];
     }
+    if ('explanation_images' in req.body || 'explanation_image_url' in req.body || 'explanation_image_pos' in req.body) {
+      Object.assign(updates, explanationImagesToDb(mergeExplanationImages(existing, req.body)));
+    }
     if (Number.isFinite(req.body.sort_order)) updates.sort_order = req.body.sort_order;
     if (Object.keys(updates).length === 0) return res.status(400).json({ error: 'nothing to update' });
 
@@ -11905,12 +12025,12 @@ app.put('/admin/journey-questions/:id', adminAuth, async (req, res) => {
     if (updates.question) updates.question = updates.question.trim();
     if (updates.correct)  updates.correct  = String(updates.correct).trim().toUpperCase();
 
-    const { data, error } = await supabase
+    const { data, error } = await questionWrite(updates, r => supabase
       .from('journey_questions')
-      .update(updates)
+      .update(r)
       .eq('id', req.params.id)
       .select()
-      .single();
+      .single());
     if (error) throw error;
     res.json(data);
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -12902,6 +13022,7 @@ app.get('/api/journey-questions', async (req, res) => {
       why_others_wrong: q.why_others_wrong || null,
       image_url: q.image_url || null,
       explanation_image_url: q.explanation_image_url || null,
+      explanation_images: normalizeExplanationImages(q),
     }));
     if (questions.length === 0) {
       return res.json({
@@ -12945,6 +13066,7 @@ app.get('/api/boss-questions', async (req, res) => {
       why_others_wrong: q.why_others_wrong || null,
       image_url: q.image_url || null,
       explanation_image_url: q.explanation_image_url || null,
+      explanation_images: normalizeExplanationImages(q),
     }));
     if (questions.length === 0) {
       return res.json({ questions: [], empty: true, message: 'No boss questions authored yet.' });

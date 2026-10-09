@@ -6168,3 +6168,83 @@
   .mdn-system-count { grid-column: 2 / 4; text-align: left; }
   .mdn-system-count em { display: inline; margin-left: 6px; }
 }
+
+/* ── An explanation's pictures ───────────────────────────────────────────────
+   One row per picture: which number it is, a thumbnail, where it sits in the
+   explanation, and the controls to move or drop it. */
+.ap-explimgs {
+  list-style: none;
+  margin: 0 0 10px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ap-explimg {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+}
+.ap-explimg-n {
+  flex: 0 0 24px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+}
+.ap-explimg-thumb {
+  width: 84px;
+  height: 56px;
+  object-fit: cover;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.3);
+}
+.ap-explimg-meta {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.ap-explimg-pos {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.75);
+}
+.ap-explimg-pos input {
+  width: 64px;
+  padding: 4px 6px;
+}
+.ap-explimg-hint {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.45);
+}
+.ap-explimg-actions {
+  display: flex;
+  gap: 4px;
+}
+.ap-explimg-actions button { min-width: 30px; }
+.ap-explimg-add {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.ap-explimg-add .ap-input-plain { flex: 1 1 auto; }
+
+@media (max-width: 640px) {
+  .ap-explimg { flex-wrap: wrap; }
+  .ap-explimg-thumb { width: 64px; height: 44px; }
+  .ap-explimg-meta { flex-basis: 100%; order: 3; }
+}

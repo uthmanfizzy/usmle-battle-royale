@@ -4070,6 +4070,43 @@ html[data-study="on"] .solo-body .pause-overlay {
   pointer-events: none;
 }
 
+/* Which figure this is. Only shown when an explanation carries more than one,
+   because "Figure 1" on a lone picture is noise — and because the text can
+   then say "figure 2" and be followed. */
+.rr-expl-img-num {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.65);
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  pointer-events: none;
+}
+
+/* Take one picture off the explanation. Authors only. Sits under the figure
+   number so the two never overlap. */
+.rr-expl-img-del {
+  position: absolute;
+  top: 34px;
+  right: 6px;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 118, 117, 0.6);
+  background: rgba(0, 0, 0, 0.7);
+  color: #ff7675;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+.rr-expl-img-del:hover { background: #ff7675; color: #fff; }
+
 /* Only while a picture is being dragged: where it can land. */
 .rr-expl-drop {
   display: block;
