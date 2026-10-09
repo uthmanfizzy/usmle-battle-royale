@@ -2046,6 +2046,11 @@ const MEDATHON_PER_SYSTEM  = 5;
 const MEDATHON_BASE_POINTS = 100;
 const MEDATHON_SPEED_BONUS = 60;
 const MEDATHON_TIMEOUT     = 40 * 60 * 1000;
+// How long the client has to play its opening before question one is sent.
+// The animation itself is 5.22s (MEDATHON_INTRO_MS in
+// client/src/components/MedathonIntro.jsx); the rest lets the waiting screen
+// settle rather than cutting straight from the doorway to a question.
+const MEDATHON_OPENING_MS  = 6600;
 // How long the verdict stays on screen before the next question. A wrong
 // answer gets longer because there is a correct option to read.
 const MEDATHON_GAP_RIGHT = 1100;
@@ -2254,12 +2259,18 @@ function startMedathon(lobby) {
     if (lobby.status === 'medathon') endMedathon(lobby, 'time_up');
   }, MEDATHON_TIMEOUT);
 
-  // Long enough for the client's opening animation to play out.
+  // Held back for the opening: the screen switches off, a string is struck,
+  // the shoji door opens and the camera walks through it. None of that may
+  // eat into question one, because a Medathon pays a bonus for answering
+  // fast — a cutscene would be deciding the score. Must stay at or above the
+  // client sequence (MEDATHON_INTRO_MS in client/src/components/
+  // MedathonIntro.jsx), with enough left over for the waiting screen to
+  // settle before the first question lands.
   setTimeout(() => {
     if (lobby.status !== 'medathon') return;
     for (const p of lobby.players.values()) sendMedathonQuestion(lobby, p.id);
     emitMedathonProgress(lobby);
-  }, 2200);
+  }, MEDATHON_OPENING_MS);
 }
 
 function sendMedathonQuestion(lobby, playerId) {

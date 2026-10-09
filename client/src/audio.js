@@ -428,6 +428,110 @@ export function playTick() {
   osc.stop(c.currentTime + 0.06);
 }
 
+// ── The Medathon threshold: one plucked string ─────────────────────────────
+// Karplus–Strong, which is how you get a string rather than a beep: a short
+// burst of noise is fed round a delay line one period long, and each lap is
+// averaged with the lap before it. The averaging is a gentle low-pass, so the
+// bright top of the pluck dies away first and the fundamental rings on — the
+// way a real string behaves. Rendered into a buffer rather than played with
+// oscillators because the whole point is the decay, and that is a filter, not
+// an envelope.
+//
+// Deliberately the ONLY sound in the opening: no pad, no percussion, no
+// sweetener. See MedathonIntro.jsx.
+function pluckBuffer(c, freq, seconds) {
+  const sr  = c.sampleRate;
+  const len = Math.floor(sr * seconds);
+  const buf = c.createBuffer(1, len, sr);
+  const out = buf.getChannelData(0);
+
+  const n = Math.max(2, Math.round(sr / freq));
+  const line = new Float32Array(n);
+  // The exciter: noise through a one-pole low-pass, so the attack is a
+  // fingertip on a wound string rather than a snare crack.
+  let lp = 0;
+  for (let i = 0; i < n; i++) {
+    lp += 0.52 * ((Math.random() * 2 - 1) - lp);
+    line[i] = lp;
+  }
+
+  // Each slot of the line is rewritten once per LAP, not once per sample, so
+  // this is per-cycle damping: at 147 Hz, 0.9915 lands the note ~40 dB down
+  // after about three and a half seconds. The averaging on its own would
+  // hardly touch the fundamental and the note would ring on for ever.
+  const decay = 0.9915;
+  let idx = 0;
+  for (let i = 0; i < len; i++) {
+    const cur = line[idx];
+    out[i] = cur;
+    line[idx] = decay * 0.5 * (cur + line[(idx + 1) % n]);
+    idx = (idx + 1) % n;
+  }
+
+  // A long tail that never quite reaches zero reads as a cut-off, so the last
+  // fifth is faded out properly.
+  const fade = Math.floor(len * 0.2);
+  for (let i = len - fade; i < len; i++) out[i] *= (len - i) / fade;
+  return buf;
+}
+
+// A room for it to ring in: exponentially decaying noise as an impulse
+// response. Short and dark — a wooden interior, not a cathedral.
+function roomImpulse(c, seconds = 1.9) {
+  const sr  = c.sampleRate;
+  const len = Math.floor(sr * seconds);
+  const buf = c.createBuffer(2, len, sr);
+  for (let ch = 0; ch < 2; ch++) {
+    const d = buf.getChannelData(ch);
+    for (let i = 0; i < len; i++) {
+      d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3.2);
+    }
+  }
+  return buf;
+}
+
+export function playShojiPluck() {
+  if (muted) return null;
+  const c = getCtx();
+  const t = c.currentTime;
+
+  // D3. Low enough to feel like a resonant body, high enough to speak
+  // immediately on a laptop speaker.
+  const src = c.createBufferSource();
+  src.buffer = pluckBuffer(c, 146.83, 4.2);
+
+  // Takes the fizz off the attack without dulling the note.
+  const tone = c.createBiquadFilter();
+  tone.type = 'lowpass';
+  tone.frequency.setValueAtTime(5200, t);
+  tone.frequency.exponentialRampToValueAtTime(1300, t + 2.6);
+  tone.Q.value = 0.4;
+
+  const dry = c.createGain();
+  dry.gain.value = 0.5;
+
+  const wet = c.createGain();
+  wet.gain.value = 0.22;
+  let verb = null;
+  try {
+    verb = c.createConvolver();
+    verb.buffer = roomImpulse(c);
+  } catch { verb = null; }
+
+  src.connect(tone);
+  tone.connect(dry);
+  dry.connect(c.destination);
+  if (verb) {
+    tone.connect(verb);
+    verb.connect(wet);
+    wet.connect(c.destination);
+  }
+
+  src.start(t);
+  src.stop(t + 4.3);
+  return src;
+}
+
 export function playVictory() {
   if (muted) return;
   const c = getCtx();

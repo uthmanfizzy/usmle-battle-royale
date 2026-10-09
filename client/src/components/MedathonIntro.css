@@ -1,0 +1,401 @@
+/* MedathonIntro — the threshold into a Medathon.
+
+   Geometry notes, because the camera move depends on them:
+
+   The scene is a real 3D arrangement under one perspective. The wall, the
+   frame and the two leaves sit at the near plane; the room sits 520px behind
+   them. Walking forward is one transform on .mi-world — translateZ — so the
+   parallax between the doorway and the room is the browser's, not a fake.
+
+   The wall is a box the size of the doorway with enormous borders, which
+   makes it a dark surface with a doorway-shaped hole in it. That is what
+   keeps the room from showing around the frame, and because it is part of
+   the world rather than a 2D mask, it flies past the edges on its own as the
+   camera crosses the threshold.
+
+   The room therefore has to stay wider than that hole for the whole move. At
+   the end of the dolly the hole has grown 3.6x while the room has grown
+   1.9x, so the room is built at 310% of the doorway to stay ahead of it. If
+   you change the perspective, the room depth, the room size or how far the
+   dolly travels, check that sum again or black corners appear mid-move. */
+
+.mi {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  overflow: hidden;
+  /* Transparent while the interface is still collapsing underneath — the page
+     behind is already black, so there is no seam when this takes over. */
+  background: transparent;
+
+  --door-h: min(78vh, 46vw);
+  --door-w: calc(var(--door-h) * 0.92);
+  --bar: 3px;
+  --wood: #4a2a1d;
+  --wood-lit: #6d4029;
+  --wood-dark: #2b1710;
+  --paper-h: 78%;
+}
+.mi.is-lit { background: #000; }
+/* The handover. The page beneath has been restored by now, so the bright
+   interior gives way to the tournament rather than being switched off. The
+   class arrives on the note, so this delay is an offset from the note like
+   everything else inside the scene. */
+.mi.is-lit { animation: mi-handover var(--d-out) var(--t-out) ease-in forwards; }
+@keyframes mi-handover {
+  to { opacity: 0; }
+}
+
+/* ── Scene 1: the picture dies ───────────────────────────────────────────── */
+
+/* The real interface is what folds away — #root itself, not a screenshot of
+   it. These live on <html> because the overlay is portalled outside #root,
+   which is the only way the two can move independently. */
+html.mv-shoji,
+html.mv-shoji body {
+  background: #000 !important;
+  overflow: hidden !important;
+}
+html.mv-shoji #root {
+  transform-origin: 50% 50%;
+  pointer-events: none;
+  animation: mi-tvoff var(--mi-t-line, 170ms) cubic-bezier(0.62, 0.02, 0.9, 0.22) forwards;
+}
+@keyframes mi-tvoff {
+  0%   { transform: scaleY(1); filter: brightness(1) contrast(1); }
+  78%  { transform: scaleY(0.014); filter: brightness(2.1) contrast(1.5) saturate(0.4); }
+  100% { transform: scaleY(0.004); filter: brightness(3) saturate(0); opacity: 0; }
+}
+
+/* The bright line takes over exactly as the picture reaches a sliver, then
+   draws itself into a point. */
+.mi-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 3px;
+  margin-top: -1.5px;
+  opacity: 0;
+  background: linear-gradient(90deg,
+    rgba(255, 240, 214, 0) 0%,
+    rgba(255, 246, 230, 0.9) 10%,
+    #fffaf0 50%,
+    rgba(255, 246, 230, 0.9) 90%,
+    rgba(255, 240, 214, 0) 100%);
+  box-shadow: 0 0 16px 3px rgba(255, 216, 156, 0.8), 0 0 56px 10px rgba(255, 168, 80, 0.3);
+  animation:
+    mi-line-on 1ms var(--t-line) linear forwards,
+    mi-line-off calc(var(--t-dark) - var(--t-point)) var(--t-point) cubic-bezier(0.7, 0, 0.88, 0.3) forwards;
+}
+@keyframes mi-line-on { to { opacity: 1; } }
+@keyframes mi-line-off {
+  0%   { transform: scaleX(1); opacity: 1; }
+  70%  { transform: scaleX(0.03); opacity: 1; }
+  100% { transform: scaleX(0.004); opacity: 0; }
+}
+/* Once the door is up, the line has no business still being in the DOM's way. */
+.mi.is-lit .mi-line { display: none; }
+
+/* ── Scenes 2–4 ──────────────────────────────────────────────────────────── */
+
+/* display:none until the string is struck, so not one pixel of the door can
+   be seen before its note. No fade, by design. */
+.mi-scene {
+  position: absolute;
+  inset: 0;
+  display: none;
+  perspective: 1000px;
+  perspective-origin: 50% 50%;
+}
+.mi.is-lit .mi-scene { display: block; }
+
+.mi-world {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: var(--door-w);
+  height: var(--door-h);
+  margin-left: calc(var(--door-w) / -2);
+  margin-top: calc(var(--door-h) / -2);
+  transform-style: preserve-3d;
+  animation: mi-dolly var(--d-dolly) var(--t-dolly) cubic-bezier(0.4, 0, 0.62, 1) forwards;
+}
+@keyframes mi-dolly {
+  from { transform: translateZ(0); }
+  to   { transform: translateZ(700px); }
+}
+
+/* ── Beyond the doorway ──────────────────────────────────────────────────
+   WHERE THINGS GO: the room box is 310% of the doorway and the doorway only
+   shows its middle — roughly 34% to 66% on both axes when the doors first
+   part. Anything meant to be seen then has to live inside that band. Laid out
+   across the whole box, a post that should stand waist-high in the view comes
+   out as a full-height bar.
+
+   What is in here: a dark warm wall at the back with a second, smaller shoji
+   screen glowing in the distance, a floor lying away from you, and two pairs
+   of posts at different depths. The distant screen is the thing you are
+   walking towards, and it rhymes with the door you are walking through. */
+.mi-room {
+  position: absolute;
+  left: -105%;
+  top: -105%;
+  width: 310%;
+  height: 310%;
+  transform: translateZ(-520px);
+  transform-style: preserve-3d;
+}
+/* The wall at the back. It has to be a child, not the room's own background:
+   a background paints at its box's depth, so floor, posts and the distant
+   screen would all be hidden behind it. Lit only enough to be read — the
+   bright thing in this space is the screen, not the wall. */
+.mi-back {
+  position: absolute;
+  inset: 0;
+  transform: translateZ(-330px);
+  background:
+    linear-gradient(0deg, rgba(0, 0, 0, 0) 33.4%, rgba(26, 11, 4, 0.55) 34%, rgba(0, 0, 0, 0) 34.8%),
+    radial-gradient(30% 26% at 50% 50%,
+      #a4571f 0%,
+      #7c3e14 32%,
+      #4a230c 54%,
+      #1d0c04 76%,
+      #070301 100%);
+}
+/* The far screen: the same paper and lattice as the door, several rooms
+   away. Its halo is what lights the space. */
+.mi-far {
+  position: absolute;
+  left: 46.2%;
+  right: 46.2%;
+  top: 43%;
+  height: 21%;
+  transform: translateZ(-300px);
+  border: 2px solid #3a2015;
+  box-sizing: border-box;
+  background:
+    repeating-linear-gradient(90deg, #3a2015 0 2px, rgba(0, 0, 0, 0) 2px 33.3333%),
+    repeating-linear-gradient(0deg, #3a2015 0 2px, rgba(0, 0, 0, 0) 2px 25%),
+    radial-gradient(90% 80% at 50% 50%, #fff2d6 0%, #ffd79c 42%, #f0ab5e 78%, #cf8336 100%);
+  box-shadow:
+    0 0 60px 20px rgba(255, 168, 86, 0.3),
+    0 0 160px 60px rgba(255, 140, 60, 0.16);
+  filter: blur(1.6px);
+  animation: mi-focus var(--d-dolly) var(--t-dolly) ease-out forwards;
+}
+/* Depth of field: the far screen is soft while the doorway is what you are
+   looking at, and sharpens as you walk towards it. */
+@keyframes mi-focus {
+  from { filter: blur(1.6px); }
+  to   { filter: blur(0.2px); }
+}
+/* The floor, as an actual plane, so it falls away underfoot on the way in. */
+.mi-floor {
+  position: absolute;
+  left: 18%;
+  right: 18%;
+  bottom: 30%;
+  height: 42%;
+  /* Hinged on its NEAR edge so the rest lies down away from the camera. The
+     other way round and the far end swings forward through the wall and
+     hangs over the door as a slab. */
+  transform-origin: 50% 100%;
+  transform: rotateX(74deg);
+  background:
+    repeating-linear-gradient(0deg,
+      rgba(255, 214, 158, 0.15) 0 1px,
+      rgba(0, 0, 0, 0) 1px 40px),
+    linear-gradient(0deg,
+      rgba(255, 190, 120, 0.34) 0%,
+      rgba(150, 76, 28, 0.17) 44%,
+      rgba(0, 0, 0, 0) 100%);
+  filter: blur(1.1px);
+}
+/* Posts, standing on that floor and lit from beyond, so they read as
+   silhouettes. Two depths: what makes the walk a walk rather than a zoom. */
+.mi-post {
+  position: absolute;
+  background: linear-gradient(90deg,
+    rgba(6, 3, 1, 0.96) 0%,
+    rgba(34, 18, 10, 0.94) 50%,
+    rgba(84, 46, 24, 0.7) 78%,
+    rgba(6, 3, 1, 0.96) 100%);
+  box-shadow: 0 0 14px rgba(0, 0, 0, 0.6);
+}
+/* The near pair: tall, close to the edges of the view, feet on the floor. */
+.mi-post--l1 { left: 37.4%; top: 24%; width: 1%; height: 41.5%; transform: translateZ(-110px); }
+.mi-post--r1 { left: 61.6%; top: 24%; width: 1%; height: 41.5%; transform: translateZ(-110px); }
+/* The far pair: smaller, dimmer, further in. */
+.mi-post--l2 { left: 42.6%; top: 28%; width: 0.6%; height: 36%; transform: translateZ(-260px); opacity: 0.6; }
+.mi-post--r2 { left: 56.8%; top: 28%; width: 0.6%; height: 36%; transform: translateZ(-260px); opacity: 0.6; }
+
+/* ── The light that gets out ─────────────────────────────────────────────── */
+.mi-spill {
+  position: absolute;
+  left: -60%;
+  top: -40%;
+  width: 220%;
+  height: 180%;
+  transform: translateZ(26px);
+  background: radial-gradient(34% 42% at 50% 50%, rgba(255, 186, 110, 0.5), rgba(255, 150, 70, 0.14) 46%, rgba(255, 140, 60, 0) 72%);
+  mix-blend-mode: screen;
+  opacity: 0;
+  animation:
+    mi-spill var(--d-slide) var(--t-slide) ease-out forwards,
+    mi-dim calc(var(--d-dolly) * 0.5) var(--t-dolly) ease-in forwards;
+}
+@keyframes mi-spill {
+  from { opacity: 0; transform: translateZ(26px) scale(0.55); }
+  to   { opacity: 1; transform: translateZ(26px) scale(1); }
+}
+/* Once you are through, the glow around the doorway is behind you. */
+@keyframes mi-dim {
+  to { opacity: 0; }
+}
+/* Shafts, not sparkles: three soft wedges leaning out of the gap. */
+.mi-rays {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0;
+  height: 0;
+  transform: translateZ(26px);
+  mix-blend-mode: screen;
+  opacity: 0;
+  animation:
+    mi-rays var(--d-slide) var(--t-slide) ease-out forwards,
+    mi-rays-out calc(var(--d-dolly) * 0.6) var(--t-dolly) ease-in forwards;
+}
+@keyframes mi-rays {
+  0%   { opacity: 0; }
+  60%  { opacity: 0.6; }
+  100% { opacity: 0.44; }
+}
+/* Through the doorway, the shafts are behind you. */
+@keyframes mi-rays-out {
+  from { opacity: 0.44; }
+  to   { opacity: 0; }
+}
+.mi-rays span {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 14vmax;
+  height: 150vmax;
+  margin-left: -7vmax;
+  transform-origin: 50% 0;
+  background: linear-gradient(180deg, rgba(255, 190, 120, 0.22), rgba(255, 170, 90, 0.05) 44%, rgba(255, 160, 80, 0) 78%);
+  filter: blur(34px);
+}
+.mi-rays span:nth-child(1) { transform: rotate(-122deg); }
+.mi-rays span:nth-child(2) { transform: rotate(180deg) scaleX(1.5); opacity: 0.8; }
+.mi-rays span:nth-child(3) { transform: rotate(122deg); }
+
+/* ── The leaves ──────────────────────────────────────────────────────────── */
+.mi-door {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 50%;
+  box-sizing: border-box;
+  border: calc(var(--bar) * 2.6) solid var(--wood);
+  background: var(--wood-dark);
+  overflow: hidden;
+  box-shadow: 0 0 34px rgba(0, 0, 0, 0.75);
+  animation: var(--d-slide) var(--t-slide) cubic-bezier(0.42, 0, 0.22, 1) forwards;
+}
+.mi-door--l {
+  left: 0;
+  border-right-width: calc(var(--bar) * 1.4);
+  animation-name: mi-slide-l;
+  --lit-x: 100%;
+}
+.mi-door--r {
+  right: 0;
+  border-left-width: calc(var(--bar) * 1.4);
+  animation-name: mi-slide-r;
+  --lit-x: 0%;
+}
+@keyframes mi-slide-l { to { transform: translate3d(-101%, 0, 0); } }
+@keyframes mi-slide-r { to { transform: translate3d(101%, 0, 0); } }
+
+/* Paper over a lattice. The grid repeats in percentages so there are exactly
+   three panes across and six down however big the door is drawn, while the
+   bars stay the same thickness in both directions. Lit from the middle of the
+   doorway outward, which is where the light actually is. */
+.mi-paper {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: var(--paper-h);
+  background:
+    repeating-linear-gradient(90deg, var(--wood) 0 var(--bar), rgba(0, 0, 0, 0) var(--bar) 33.3333%),
+    repeating-linear-gradient(0deg, var(--wood) 0 var(--bar), rgba(0, 0, 0, 0) var(--bar) 16.6667%),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.05) 0 1px, rgba(0, 0, 0, 0) 1px 4px),
+    radial-gradient(135% 100% at var(--lit-x) 52%,
+      #fff6e2 0%,
+      #ffe7bf 18%,
+      #f9d099 38%,
+      #e3ab6b 58%,
+      #bb8044 78%,
+      #8a5628 100%);
+}
+/* The slatted panel along the bottom: closely spaced bars with a thin warm
+   line showing between them. */
+.mi-koshi {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: var(--paper-h);
+  bottom: 0;
+  border-top: calc(var(--bar) * 1.2) solid var(--wood);
+  background:
+    repeating-linear-gradient(0deg,
+      var(--wood-dark) 0 5px,
+      rgba(255, 170, 92, 0.18) 5px 7px,
+      var(--wood) 7px 10px),
+    var(--wood);
+}
+
+/* ── The surround, and the dark it sits in ───────────────────────────────── */
+.mi-jamb {
+  position: absolute;
+  left: calc(var(--bar) * -5);
+  right: calc(var(--bar) * -5);
+  top: calc(var(--bar) * -5);
+  bottom: calc(var(--bar) * -5);
+  box-sizing: border-box;
+  border: calc(var(--bar) * 5) solid var(--wood);
+  border-bottom-width: calc(var(--bar) * 7);
+  transform: translateZ(20px);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 186, 112, 0.26),
+    inset 0 0 50px rgba(0, 0, 0, 0.7),
+    0 0 26px 2px rgba(255, 150, 70, 0.16),
+    0 0 90px 18px rgba(255, 132, 52, 0.09);
+}
+/* A box the size of the doorway with enormous borders: the dark everything
+   else is. It travels with the world, so it leaves by the edges rather than
+   being switched off. */
+.mi-wall {
+  position: absolute;
+  inset: 0;
+  box-sizing: content-box;
+  border-style: solid;
+  border-color: #000;
+  border-width: 160vmax;
+  margin: -160vmax;
+  transform: translateZ(14px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Same beats, same length — the picture simply stops rushing at you. */
+  html.mv-shoji #root { animation: mi-fadeout var(--mi-t-line, 170ms) linear forwards; }
+  @keyframes mi-fadeout { to { opacity: 0; } }
+  .mi-line { animation: mi-line-on 1ms var(--t-line) linear forwards, mi-line-off calc(var(--t-dark) - var(--t-point)) var(--t-point) linear forwards; }
+  .mi-world { animation: none; transform: translateZ(90px); }
+  .mi-far { animation: none; filter: blur(3px); }
+  .mi-rays span { filter: blur(26px); }
+}

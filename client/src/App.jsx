@@ -30,6 +30,10 @@ const PlayPage = lazy(() => import('./components/PlayPage'));
 // Styles for the Training Grounds 'under development' screen, which can be
 // reached by link before the (lazy) Choose Your Path page has ever loaded.
 import './components/ChooseYourPath.css';
+// Eagerly imported, unlike the game screens: it has to be on screen on the
+// same tick the match starts, and a chunk fetched at that moment would mean a
+// blank hole where the opening should be.
+import MedathonIntro from './components/MedathonIntro';
 const ModeSplit = lazy(() => import('./components/ModeSplit'));
 const StoryMenu = lazy(() => import('./components/ModeSplit').then(m => ({ default: m.StoryMenu })));
 const JourneyMode = lazy(() => import('./components/JourneyMode'));
@@ -83,6 +87,17 @@ export default function App() {
   // start; the standings arrive after every answer anyone gives.
   const [medathonSetup, setMedathonSetup] = useState(null);
   const [medathonProgress, setMedathonProgress] = useState([]);
+  // The shoji opening, played by every racer at the moment the match starts —
+  // which is the moment the leader presses the button. Mirrored in a ref so
+  // the socket handlers, which are registered once, can see it.
+  const [medathonIntro, setMedathonIntro] = useState(false);
+  const medathonIntroRef = useRef(false);
+  const endMedathonIntro = useCallback(() => {
+    if (!medathonIntroRef.current) return;
+    medathonIntroRef.current = false;
+    setMedathonIntro(false);
+    audio.startGameMusic();
+  }, []);
   const [openToQuickJoin, setOpenToQuickJoin] = useState(true);
   const [streaks, setStreaks] = useState({});
   const [suddenDeath, setSuddenDeath] = useState(false);
@@ -247,6 +262,8 @@ export default function App() {
 
     socket.on('game_start', ({ gameMode: gm }) => {
       setGameMode(gm || 'battle_royale');
+      medathonIntroRef.current = gm === 'medathon';
+      setMedathonIntro(gm === 'medathon');
       setPhase('game');
       setMyLives(3);
       setMyScore(0);
@@ -268,7 +285,9 @@ export default function App() {
       setHiddenOptions([]);
       setExtraTimeBonus(0);
       setShowPowerupIntro(false);
-      audio.startGameMusic();
+      // A Medathon opens on a single plucked string and nothing else, so the
+      // music waits until the doors are behind us.
+      if (gm !== 'medathon') audio.startGameMusic();
     });
 
     socket.on('powerup_assigned', ({ powerups }) => {
@@ -367,6 +386,10 @@ export default function App() {
     });
 
     socket.on('new_question', (data) => {
+      // Whatever became of the animation — a throttled background tab, a slow
+      // frame — a question arriving ends it. Nobody watches a cutscene while
+      // their own clock is running.
+      endMedathonIntro();
       setQuestion(data);
       setRound(data.round);
       setTimeLimit(data.timeLimit);
@@ -1144,6 +1167,12 @@ export default function App() {
           onForfeit={handleReturnHome}
         />
         </RouteErrorBoundary>
+      )}
+
+      {/* Portalled onto the body, so where it sits in this tree decides only
+          when it mounts, not what it covers. */}
+      {medathonIntro && phase === 'game' && gameMode === 'medathon' && (
+        <MedathonIntro muted={muted} onDone={endMedathonIntro} />
       )}
 
       {phase === 'game' && gameMode === 'medathon' && (
