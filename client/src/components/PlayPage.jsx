@@ -68,7 +68,7 @@ const GAME_MODES = [
     accent: '214, 161, 63',
     tagline: 'The long race',
     facts: ['15 systems', '5 each', 'Speed bonus'],
-    longDescription: 'A marathon across fifteen systems — five questions from each, from Cardio to Microbiology. Everyone races the same run at their own pace: every correct answer scores, and the faster you answer the bigger the bonus on top. Watch the field move on the live track and take the lead. You are told only right or wrong — and when you are wrong, which answer was right.',
+    longDescription: 'Fifteen systems, five questions each, Cardio to Microbiology. Everyone races the same run at their own pace, and the faster you answer the bigger the bonus. Watch the field move on the live track. Right or wrong only — no explanations until the finish.',
     supportsSolo: false,
   },
   {
@@ -88,18 +88,6 @@ const GAME_MODES = [
   },
 ];
 
-// Launched from Story Mode (via the initialMode prop), not listed as Online tiles.
-const STORY_MODES = [
-  {
-    id: 'anking',
-    name: 'ANKING',
-    icon: '🃏',
-    shortDesc: 'Master AnKing flashcards',
-    longDescription: 'Study and master AnKing flashcards. Flip cards, test your knowledge, and track your progress through the entire AnKing deck.',
-    supportsSolo: true,
-  },
-];
-
 export default function PlayPage({
   user, username, onModeSelect, onBack, error, onClearError,
   lobbyId, lobbyPlayers, isHost, lobbySubject, lobbyGameMode, openToQuickJoin,
@@ -108,7 +96,9 @@ export default function PlayPage({
 }) {
   // Default preserves the existing behavior exactly (Online passes no initialMode)
   const [selectedMode, setSelectedMode] = useState(initialMode || 'battle_royale');
-  const [squadSize, setSquadSize] = useState('solo');
+  // Party sizes are gone from the page, so every room is a solo entry. Kept as
+  // a value rather than dropped so the lobby payload's shape is unchanged.
+  const squadSize = 'solo';
   // Exam board + difficulty values: the visible picker UI is gone, but the
   // underlying defaults must still flow into lobby-creation calls exactly as
   // before (App currently destructures but doesn't consume them; kept so the
@@ -120,58 +110,23 @@ export default function PlayPage({
   const [playBgImage, setPlayBgImage] = useState(() => cachedImageMap('play').play_page_background || '');
   const [lobbyCode, setLobbyCode] = useState('');
   const [joinError, setJoinError] = useState('');
-  const [ownedGear, setOwnedGear] = useState([]);
-  const [gearLoading, setGearLoading] = useState(false);
 
-  // Whatever is selected, whether or not it has a tile: Story Mode opens
-  // AnKing through this page, and its briefing comes from STORY_MODES.
-  const selectedModeData = [...GAME_MODES, ...STORY_MODES].find(m => m.id === selectedMode) || null;
+  // The lobby overlay titles itself from the lobby's OWN mode, not whatever is
+  // selected behind it: joining by code puts you in someone else's room.
   const lobbyModeData = GAME_MODES.find(m => m.id === (lobbyGameMode || selectedMode)) || null;
 
-  // Which mode's briefing sheet is open. Clicking a card opens it rather than
-  // silently selecting: a mode is a choice, so it gets a yes or a no.
-  const [detailMode, setDetailMode] = useState(null);
-  const detailData = GAME_MODES.find(m => m.id === detailMode) || null;
-  const detailEnabled = detailData
-    ? (gameModesConfig[detailData.id]?.enabled ?? !detailData.comingSoon)
-    : false;
-
-  // Escape closes the sheet.
+  // Never sit on a battlefield that isn't open. The default selection is made
+  // before the admin config arrives, and Battle Royale — the default — is one
+  // of the modes currently marked coming soon, so without this the page could
+  // open with a locked mode selected and Deploy would act on it.
   useEffect(() => {
-    if (!detailMode) return undefined;
-    const onKey = (e) => { if (e.key === 'Escape') setDetailMode(null); };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [detailMode]);
-
-  function playThisMode() {
-    if (!detailData || !detailEnabled) return;
-    setSelectedMode(detailData.id);
-    setDetailMode(null);
-  }
-
-  function createFromSheet() {
-    if (!detailData || !detailEnabled) return;
-    setSelectedMode(detailData.id);
-    setDetailMode(null);
-    onModeSelect({
-      mode: detailData.id,
-      action: 'create',
-      squadSize: detailData.id === 'pvp_duel' ? 'solo' : squadSize,
-      fillTeam,
-      exam: selectedExam,
-      step: selectedStep,
-    });
-  }
-
-  // PvP Duel is 1v1-only today, so Duo/Squad party sizes don't apply to it.
-  const duelSelected = selectedMode === 'pvp_duel';
-
-  // Keep the (UI-only) squad size honest for the duel: force Solo when the
-  // 1v1 mode is selected so a stale Duo/Squad choice can't linger visually.
-  useEffect(() => {
-    if (duelSelected && squadSize !== 'solo') setSquadSize('solo');
-  }, [duelSelected, squadSize]);
+    const open = (m) => gameModesConfig[m.id]?.enabled ?? !m.comingSoon;
+    const current = GAME_MODES.find(m => m.id === selectedMode);
+    // A mode with no tile (Story Mode's AnKing) is not ours to second-guess.
+    if (!current || open(current)) return;
+    const first = GAME_MODES.find(open);
+    if (first) setSelectedMode(first.id);
+  }, [gameModesConfig, selectedMode]);
 
   // Fetch game-modes config (drives the COMING SOON state per admin settings)
   // and the optional page background image.
@@ -189,24 +144,6 @@ export default function PlayPage({
     }
     loadConfigs();
   }, []);
-
-  // Fetch owned gear for the read-only Loadout bar (real Shop endpoint).
-  // Gear is collection-only — it has no gameplay effect (locked decision).
-  useEffect(() => {
-    async function loadGear() {
-      if (!user?.id) { setOwnedGear([]); return; }
-      setGearLoading(true);
-      try {
-        const res = await authFetch(`/api/users/${user.id}/gear`);
-        const data = await res.json();
-        setOwnedGear(Array.isArray(data.gear) ? data.gear : []);
-      } catch {
-        setOwnedGear([]);
-      }
-      setGearLoading(false);
-    }
-    loadGear();
-  }, [user]);
 
   function handleCreateLobby() {
     onModeSelect({
@@ -337,7 +274,13 @@ export default function PlayPage({
           </div>
         ) : (
           <>
-            {/* ── The card wall ───────────────────────────────────────── */}
+            {/* ── The card wall ─────────────────────────────────────────
+                   Each card says the whole of what its mode is — no sheet to
+                   open, nothing hidden behind a second click. Clicking one
+                   simply chooses that battlefield. Every card is built from
+                   the same frame and type scale; what makes each its own is
+                   its colour, its emblem and the art behind it (data-mode in
+                   PlayPageArena.css). ─────────────────────────────────── */}
             <div className="arena-grid">
               {GAME_MODES.map((mode, i) => {
                 // Admin config wins; a mode it says nothing about falls back
@@ -348,86 +291,39 @@ export default function PlayPage({
                   <button
                     type="button"
                     key={mode.id}
+                    data-mode={mode.id}
                     className={`arena-card${active ? ' is-active' : ''}${isEnabled ? '' : ' is-locked'}`}
                     style={{ '--ac': mode.accent || '214, 161, 63', '--d': `${0.06 * i}s` }}
-                    onClick={() => setDetailMode(mode.id)}
+                    onClick={() => { if (isEnabled) setSelectedMode(mode.id); }}
                     aria-pressed={active}
-                    aria-haspopup="dialog"
+                    disabled={!isEnabled}
                   >
+                    <span className="arena-card-art" aria-hidden="true" />
                     <span className="arena-card-sheen" aria-hidden="true" />
-                    <span className="arena-card-medal" aria-hidden="true">{mode.icon}</span>
-                    <span className="arena-card-name">{mode.name}</span>
+                    <span className="arena-card-head">
+                      <span className="arena-card-medal" aria-hidden="true">{mode.icon}</span>
+                      <span className="arena-card-titles">
+                        <span className="arena-card-name">{mode.name}</span>
+                        <span className="arena-card-meta">{mode.meta}</span>
+                      </span>
+                    </span>
                     <span className="arena-card-tag">{mode.tagline || mode.shortDesc}</span>
-                    <span className="arena-card-meta">{mode.meta}</span>
-                    {!isEnabled && <span className="arena-card-lock">🔒 Coming soon</span>}
-                    {active && <span className="arena-card-flag" aria-hidden="true">SELECTED</span>}
+                    <span className="arena-card-desc">{mode.longDescription}</span>
+                    {mode.facts && (
+                      <span className="arena-card-facts">
+                        {mode.facts.map(f => <span className="arena-card-fact" key={f}>{f}</span>)}
+                      </span>
+                    )}
+                    <span className="arena-card-foot">
+                      {!isEnabled
+                        ? <><span aria-hidden="true">🔒</span> Coming soon</>
+                        : active
+                          ? <><span aria-hidden="true">✓</span> Selected — deploy below</>
+                          : 'Choose this battlefield'}
+                    </span>
                   </button>
                 );
               })}
-            </div>
-
-            {/* ── The briefing for whatever is selected ───────────────── */}
-            {selectedModeData && (
-              <section
-                className="arena-brief"
-                key={selectedModeData.id}
-                style={{ '--ac': selectedModeData.accent || '214, 161, 63' }}
-              >
-                <div className="arena-brief-head">
-                  <span className="arena-brief-icon" aria-hidden="true">{selectedModeData.icon}</span>
-                  <div>
-                    <h2 className="arena-brief-name">{selectedModeData.name}</h2>
-                    <span className="arena-brief-meta">{selectedModeData.meta}</span>
-                  </div>
-                </div>
-                <p className="arena-brief-desc">{selectedModeData.longDescription}</p>
-                {selectedModeData.facts && (
-                  <ul className="arena-facts">
-                    {selectedModeData.facts.map(f => <li key={f}>{f}</li>)}
-                  </ul>
-                )}
-              </section>
-            )}
-
-            {/* ── Kit: party size and loadout, side by side ───────────── */}
-            <div className="arena-kit">
-              <div className="arena-kit-block">
-                <span className="arena-kit-label">Party</span>
-                <div className="arena-squad">
-                  {[['solo', '👤', 'SOLO'], ['duo', '👥', 'DUO'], ['squad', '🛡️', 'SQUAD']].map(([key, icon, label]) => {
-                    const locked = duelSelected && key !== 'solo';
-                    return (
-                      <button
-                        type="button"
-                        key={key}
-                        className={`arena-squad-btn${squadSize === key ? ' is-on' : ''}${locked ? ' is-locked' : ''}`}
-                        onClick={() => !locked && setSquadSize(key)}
-                        disabled={locked}
-                        title={locked ? 'PvP Arenas is 1v1 only' : ''}
-                      >
-                        <span aria-hidden="true">{locked ? '🔒' : icon}</span> {label}
-                      </button>
-                    );
-                  })}
-                </div>
-                {duelSelected && <p className="arena-kit-note">PvP Arenas is 1v1 — Duo and Squad are coming soon.</p>}
-              </div>
-
-              <div className="arena-kit-block">
-                <span className="arena-kit-label">Loadout</span>
-                <div className="arena-loadout">
-                  <span className="arena-loadout-thumb" aria-hidden="true" />
-                  <span className="arena-loadout-text">
-                    {gearLoading
-                      ? 'Loading loadout…'
-                      : ownedGear.length > 0
-                        ? ownedGear.slice(0, 3).map(g => g.name).join(' · ')
-                        : 'No gear collected yet'}
-                  </span>
-                  <a className="arena-loadout-link" href="/shop">Shop →</a>
-                </div>
-                <p className="arena-kit-note">Gear is a collection — it changes nothing in a match.</p>
-              </div>
             </div>
 
             {/* ── Deploy ──────────────────────────────────────────────── */}
@@ -476,71 +372,6 @@ export default function PlayPage({
           </>
         )}
       </div>
-
-      {/* ── Mode briefing sheet ──────────────────────────────────────────
-             Opened by any card, including a locked one: a mode that is not
-             ready yet should still be able to say what it will be. ──────── */}
-      {detailData && (
-        <div
-          className="arena-sheet-wrap"
-          role="dialog"
-          aria-modal="true"
-          aria-label={detailData.name}
-          onClick={(e) => { if (e.target === e.currentTarget) setDetailMode(null); }}
-        >
-          <div className="arena-sheet" style={{ '--ac': detailData.accent || '214, 161, 63' }}>
-            <button type="button" className="arena-sheet-x" onClick={() => setDetailMode(null)} aria-label="Close">✕</button>
-
-            <div className="arena-sheet-head">
-              <span className="arena-sheet-icon" aria-hidden="true">{detailData.icon}</span>
-              <div>
-                <h2 className="arena-sheet-name">{detailData.name}</h2>
-                <span className="arena-sheet-meta">
-                  {detailData.meta}{!detailEnabled ? ' ' : null}
-                  {!detailEnabled && <em className="arena-sheet-soon">· Coming soon</em>}
-                </span>
-              </div>
-            </div>
-
-            <p className="arena-sheet-tag">{detailData.shortDesc}</p>
-            <p className="arena-sheet-desc">{detailData.longDescription}</p>
-
-            {detailData.facts && (
-              <ul className="arena-facts arena-sheet-facts">
-                {detailData.facts.map(f => <li key={f}>{f}</li>)}
-              </ul>
-            )}
-
-            {detailEnabled ? (
-              <>
-                <p className="arena-sheet-ask">Fancy it?</p>
-                <div className="arena-sheet-actions">
-                  <button type="button" className="arena-sheet-go" onClick={createFromSheet}>
-                    ⚔️ Play — create a lobby
-                  </button>
-                  <button type="button" className="arena-sheet-pick" onClick={playThisMode}>
-                    Choose it, deploy later
-                  </button>
-                  <button type="button" className="arena-sheet-no" onClick={() => setDetailMode(null)}>
-                    Not now
-                  </button>
-                </div>
-              </>
-            ) : (
-              <>
-                <p className="arena-sheet-ask arena-sheet-ask--soon">
-                  This one is not open yet — it will appear here the moment it is.
-                </p>
-                <div className="arena-sheet-actions">
-                  <button type="button" className="arena-sheet-no arena-sheet-no--wide" onClick={() => setDetailMode(null)}>
-                    Back to the arena
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* ── PVP MATCHMAKING OVERLAY ────────────────────────────────────────
           Replaces the lobby panel for a PvP Arenas quick join: the duel
@@ -591,8 +422,6 @@ export default function PlayPage({
 
             {/* Header */}
             <div className="lobby-panel-header">
-              {/* The lobby's OWN mode, not whatever is selected on the page
-                  behind it: joining by code puts you in someone else's room. */}
               <div className="lobby-panel-title">
                 <span>{lobbyModeData?.icon || '⚔️'}</span>
                 <h2>{lobbyModeData?.name || 'LOBBY'}</h2>
