@@ -97,6 +97,7 @@ export default function MedathonGame({
   muted,
   onToggleMute,
   onQuit,
+  introDone = true,
 }) {
   const med = question?.medathon || null;
   const total = setup?.total || med?.total || 0;
@@ -114,6 +115,22 @@ export default function MedathonGame({
       window.removeEventListener('orientationchange', check);
     };
   }, []);
+
+  // GET READY, 3, 2, 1. Starts the moment the opening hands over and runs
+  // into the first question — the server holds that question back long
+  // enough for the whole thing (MEDATHON_OPENING_MS), so this is never
+  // racing a live clock. A question arriving early ends it regardless.
+  const [ready, setReady] = useState(null);   // null | 'ready' | 3 | 2 | 1 | 'go'
+  const readyRan = useRef(false);
+  useEffect(() => {
+    if (!introDone || readyRan.current) return undefined;
+    readyRan.current = true;
+    const steps = [['ready', 0], [3, 650], [2, 1300], [1, 1950], ['go', 2600], [null, 2980]];
+    const timers = steps.map(([v, at]) => setTimeout(() => setReady(v), at));
+    return () => timers.forEach(clearTimeout);
+  }, [introDone]);
+  // Whatever the countdown is doing, a question on screen outranks it.
+  useEffect(() => { if (question) setReady(null); }, [question]);
 
   // The system curtain. Raised whenever a question opens a new stage, and on
   // the very first question, then dropped on a timer.
@@ -294,6 +311,20 @@ export default function MedathonGame({
         <div className="mdt-pop" key={pop.key}>
           +{pop.points}
           {pop.bonus > 0 && <small>{pop.bonus} speed bonus</small>}
+        </div>
+      )}
+
+      {ready !== null && !question && (
+        <div className={`mdt-ready${ready === 'go' ? ' is-go' : ''}`}>
+          <div className="mdt-ready-inner">
+            <span className="mdt-ready-kicker">Medathon</span>
+            <span className="mdt-ready-title">Get Ready</span>
+            <span className="mdt-ready-num" key={String(ready)}>
+              {ready === 'ready' ? '' : ready === 'go' ? 'GO' : ready}
+            </span>
+            <span className="mdt-ready-sub">Fifteen systems · fastest correct wins</span>
+          </div>
+          <span className="mdt-ready-ring" key={`r${String(ready)}`} aria-hidden="true" />
         </div>
       )}
 

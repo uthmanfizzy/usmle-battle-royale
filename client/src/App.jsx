@@ -1198,6 +1198,7 @@ export default function App() {
           muted={muted}
           onToggleMute={toggleMute}
           onQuit={handleReturnHome}
+          introDone={!medathonIntro}
         />
         </RouteErrorBoundary>
       )}

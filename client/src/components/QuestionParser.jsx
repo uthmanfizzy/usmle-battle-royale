@@ -164,6 +164,48 @@ export default function QuestionParser({ activeFolder, selectedTopic, selectedDi
   );
   const [copied, setCopied] = useState(false);
 
+  // The element has to be taken BEFORE the await: React has cleared
+  // currentTarget off the event by the time the clipboard answers.
+  const [pasteNote, setPasteNote] = useState('');
+  const noteTimer = useRef(null);
+  const flashNote = (msg) => {
+    setPasteNote(msg);
+    clearTimeout(noteTimer.current);
+    noteTimer.current = setTimeout(() => setPasteNote(''), 3200);
+  };
+  useEffect(() => () => clearTimeout(noteTimer.current), []);
+
+  async function pasteFromClipboard(e) {
+    e.preventDefault();
+    const el = e.currentTarget;
+    let text = '';
+    try {
+      text = await navigator.clipboard.readText();
+    } catch {
+      // Permission refused, or a browser that will not read the clipboard
+      // without its own menu. Ctrl+V still works and always will.
+      flashNote('Clipboard blocked — use Ctrl+V');
+      return;
+    }
+    if (!text) { flashNote('Nothing on the clipboard'); return; }
+    // Windows hands back CRLF. A typed or Ctrl+V paste never reaches state
+    // that way — the textarea normalises first — and blank-line splitting
+    // looks for two consecutive newlines, which CRLF pairs do not contain.
+    // Writing it to state unnormalised would quietly stop question blocks
+    // being detected.
+    text = text.replace(/\r\n?/g, '\n');
+    const start = el.selectionStart ?? el.value.length;
+    const end = el.selectionEnd ?? el.value.length;
+    const next = el.value.slice(0, start) + text + el.value.slice(end);
+    setRawText(next);
+    // Put the caret after what was just pasted, as a paste does.
+    const caret = start + text.length;
+    requestAnimationFrame(() => {
+      try { el.focus(); el.setSelectionRange(caret, caret); } catch { /* unmounted */ }
+    });
+    flashNote(`Pasted ${text.length.toLocaleString()} characters`);
+  }
+
   const parseQuestions = () => {
     const questions = [];
     const errs = [];
@@ -653,6 +695,7 @@ export default function QuestionParser({ activeFolder, selectedTopic, selectedDi
             <div className="qp-right-col">
               <div className="qp-paste-header">
                 <span className="qp-paste-label">📄 Paste Your Questions</span>
+                {pasteNote && <span className="qp-paste-note">{pasteNote}</span>}
                 {rawText && (
                   <button className="qp-clear-btn" onClick={() => setRawText('')}>✕ Clear</button>
                 )}
@@ -671,6 +714,13 @@ export default function QuestionParser({ activeFolder, selectedTopic, selectedDi
                   e.preventDefault();
                   if (rawText.trim()) parseQuestions();
                 }}
+                // Right-click pastes. This box only ever receives text from
+                // somewhere else, so the context menu is worth less here than
+                // one less trip to the keyboard. It behaves like a real paste
+                // — at the caret, over any selection — so it still works when
+                // there is already something in the box.
+                onContextMenu={pasteFromClipboard}
+                title="Right-click to paste"
                 autoFocus
               />
               {rawText && (

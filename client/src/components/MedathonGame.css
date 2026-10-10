@@ -511,13 +511,108 @@
   100% { opacity: 0; transform: translateY(-34px) scale(0.95); }
 }
 
+/* ── Get ready ────────────────────────────────────────────────────────
+   Between the opening and the first question. Fully opaque, because the
+   fall is still going on behind it and a countdown you have to pick out of
+   moving scenery is not a countdown. */
+.mdt-ready {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(62% 56% at 50% 46%, rgba(232, 176, 75, 0.14) 0%, rgba(0, 0, 0, 0) 68%),
+    #040507;
+  animation: mdt-ready-in 260ms ease both;
+}
+@keyframes mdt-ready-in { from { opacity: 0; } to { opacity: 1; } }
+.mdt-ready.is-go {
+  background:
+    radial-gradient(62% 56% at 50% 46%, rgba(232, 176, 75, 0.3) 0%, rgba(0, 0, 0, 0) 72%),
+    #040507;
+}
+.mdt-ready-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  text-align: center;
+}
+.mdt-ready-kicker {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.42em;
+  text-transform: uppercase;
+  color: rgba(232, 176, 75, 0.75);
+}
+.mdt-ready-title {
+  font-family: var(--mv-font-display, 'Cinzel', serif);
+  font-size: clamp(26px, 5vw, 56px);
+  letter-spacing: 0.06em;
+  color: #f7f2e9;
+  text-shadow: 0 0 40px rgba(232, 176, 75, 0.35);
+}
+/* The count. Keyed on its value in the JSX, so every number is a fresh
+   element and replays the punch instead of cross-fading. */
+.mdt-ready-num {
+  display: block;
+  min-height: 1.1em;
+  font-family: var(--mv-font-display, 'Cinzel', serif);
+  font-size: clamp(64px, 16vw, 168px);
+  font-weight: 700;
+  line-height: 1.1;
+  color: #ffd98a;
+  text-shadow:
+    0 0 10px rgba(255, 186, 90, 0.6),
+    0 0 60px rgba(255, 150, 60, 0.45);
+  animation: mdt-count 620ms cubic-bezier(0.16, 1.2, 0.3, 1) both;
+}
+@keyframes mdt-count {
+  0%   { opacity: 0; transform: scale(1.7); filter: blur(6px); }
+  28%  { opacity: 1; transform: scale(1); filter: blur(0); }
+  78%  { opacity: 1; transform: scale(1); }
+  100% { opacity: 0.25; transform: scale(0.94); }
+}
+.mdt-ready-sub {
+  margin-top: 2px;
+  font-size: 11.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(243, 241, 238, 0.45);
+}
+/* A ring thrown off each beat. */
+.mdt-ready-ring {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 26vmin;
+  height: 26vmin;
+  margin: -13vmin;
+  border-radius: 50%;
+  border: 2px solid rgba(232, 176, 75, 0.5);
+  animation: mdt-ready-ring 620ms ease-out both;
+  pointer-events: none;
+}
+@keyframes mdt-ready-ring {
+  0%   { opacity: 0.8; transform: scale(0.5); }
+  100% { opacity: 0; transform: scale(2.1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mdt-ready-num { animation: none; }
+  .mdt-ready-ring { display: none; }
+}
+
 .mdt-curtain {
   position: absolute;
   inset: 0;
   z-index: 9;
   display: grid;
   place-items: center;
-  background: radial-gradient(70% 70% at 50% 50%, rgba(8, 10, 14, 0.9) 0%, rgba(5, 6, 9, 0.97) 100%);
+  background:
+    radial-gradient(70% 70% at 50% 50%, rgba(20, 13, 6, 0.55) 0%, rgba(0, 0, 0, 0) 70%),
+    #040507;
   animation: mdt-curtain-fade 1.5s ease both;
 }
 @keyframes mdt-curtain-fade {

@@ -194,6 +194,7 @@ export default function MedathonIntro({ onDone, muted = false, players = [], use
               <span className="mi-pan-wash" />
               {/* The hit as the panel lands. */}
               <span className="mi-pan-flash" />
+              <span className="mi-pan-no">{String(i + 1).padStart(2, '0')}</span>
               <span className="mi-pan-name">{p.name}</span>
               {p.mine && <span className="mi-pan-you">YOU</span>}
             </div>
