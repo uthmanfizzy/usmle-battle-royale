@@ -58,8 +58,26 @@
 /* ── One storey of the shaft ──────────────────────────────────────────
    Four walls around an open middle. The middle has to stay open: it is how
    you see every storey below this one, and how their lit inner edges stack
-   into the lines that run down to the vanishing point. A filled plane would
-   be a passing sheet of sparks instead of a building. */
+   into the lines that run down to the vanishing point.
+
+   WHAT A WALL IS. Each one is a building face seen edge-on, and all of its
+   detail runs in bands PARALLEL to the edge that faces the shaft, graded
+   outward from it:
+
+       balcony nosing  — a hot line, the brightest thing on the storey
+       railing         — fine uprights over a half-lit deck
+       recess          — the walkway, in shadow
+       building face   — a lattice of lit windows behind it
+       depth           — falling away to timber and black
+
+   One gradient stack does that for all four walls, because each wall says
+   which way is "towards the shaft" (--edge) and which way is "across the
+   wall" (--perp), and the gradients are written in terms of those. Change
+   the profile once and every face in the shaft changes with it.
+
+   The four sides are also deliberately NOT the same thickness on any given
+   storey: a tube of equal rings reads as a pipe, and setbacks are what make
+   it read as buildings. */
 .fs-layer {
   position: absolute;
   left: 50%;
@@ -67,7 +85,10 @@
   width: 150vmin;
   height: 150vmin;
   margin: -75vmin;
-  --fs-wall: 26vmin;
+  --wt: 26vmin;
+  --wb: 26vmin;
+  --wl: 26vmin;
+  --wr: 26vmin;
   opacity: 0;
   will-change: transform, opacity;
   animation-name: fs-fall;
@@ -81,43 +102,109 @@
   100% { transform: translateZ(430px) translate(var(--fs-dx, 0), var(--fs-dy, 0)) rotate(var(--fs-rot, 0deg)); opacity: 0; }
 }
 
-/* A wall: dark mass, windows, and a lit lip along the edge that faces into
-   the shaft — that lip is the line your eye follows down. */
 .fs-w {
   position: absolute;
+  --edge: 0deg;    /* towards the shaft */
+  --perp: 90deg;   /* across the face */
   background-image:
-    radial-gradient(circle, rgba(255, 198, 124, 0.95) 0 0.22vmin, rgba(0, 0, 0, 0) 0.36vmin),
-    radial-gradient(circle, rgba(255, 146, 54, 0.8) 0 0.18vmin, rgba(0, 0, 0, 0) 0.3vmin),
-    radial-gradient(circle, rgba(255, 232, 196, 0.55) 0 0.11vmin, rgba(0, 0, 0, 0) 0.22vmin),
-    repeating-linear-gradient(90deg,
-      rgba(0, 0, 0, 0.42) 0 0.5vmin,
-      rgba(0, 0, 0, 0) 0.5vmin 7vmin),
-    linear-gradient(180deg, #24120a 0%, #120904 55%, #0b0502 100%);
-  background-size:
-    6.1vmin 4.3vmin,
-    9.7vmin 7.1vmin,
-    3.7vmin 5.9vmin,
-    100% 100%,
-    100% 100%;
-  background-position: 0 0, 2.2vmin 1.3vmin, 1.1vmin 3.4vmin, 0 0, 0 0;
+    /* The profile, from the shaft outwards. Opaque where it is structure,
+       part-open over the railing so the uprights below show through, and
+       clear from there on so the windows do. */
+    linear-gradient(var(--edge),
+      rgba(255, 196, 120, 0.95) 0 0.4vmin,
+      rgba(255, 150, 60, 0.35) 0.4vmin 0.8vmin,
+      rgba(22, 11, 5, 0.97) 0.8vmin 1.5vmin,
+      rgba(16, 8, 4, 0.55) 1.5vmin 4.1vmin,
+      rgba(8, 4, 2, 0.93) 4.1vmin 6.2vmin,
+      rgba(8, 4, 2, 0.35) 6.2vmin 7.4vmin,
+      /* The lit band: the windows only read in the stretch nearest the
+         shaft. Beyond it the face goes back to dark, which is both what the
+         light actually does and what keeps the near walls from turning into
+         a bolt of corduroy. */
+      rgba(0, 0, 0, 0) 7.4vmin 17vmin,
+      rgba(5, 2, 1, 0.62) 26vmin,
+      rgba(3, 1, 0, 0.93) 40vmin,
+      rgba(2, 1, 0, 0.97) 100%),
+    /* The gaps between buildings. Uneven on purpose: a regular pitch here
+       and the whole face reads as one enormous block of flats. */
+    repeating-linear-gradient(var(--perp),
+      rgba(0, 0, 0, 0) 0 9.3vmin,
+      rgba(3, 1, 0, 0.94) 9.3vmin 11.8vmin,
+      rgba(0, 0, 0, 0) 11.8vmin 23.4vmin,
+      rgba(3, 1, 0, 0.8) 23.4vmin 24.9vmin,
+      rgba(0, 0, 0, 0) 24.9vmin 31.6vmin),
+    /* Uprights: a railing near the edge, mullions once you are past it. */
+    repeating-linear-gradient(var(--perp),
+      rgba(255, 178, 96, 0.5) 0 0.16vmin,
+      rgba(0, 0, 0, 0) 0.16vmin 1.15vmin),
+    /* The window lattice, and the panes behind it. */
+    repeating-linear-gradient(var(--perp),
+      rgba(16, 8, 4, 0.96) 0 0.32vmin,
+      rgba(0, 0, 0, 0) 0.32vmin 3.4vmin),
+    repeating-linear-gradient(var(--edge),
+      rgba(16, 8, 4, 0.96) 0 0.32vmin,
+      rgba(0, 0, 0, 0) 0.32vmin 2.6vmin),
+    repeating-linear-gradient(var(--perp),
+      rgba(255, 200, 124, 0.66) 0 1.7vmin,
+      rgba(255, 146, 54, 0.14) 1.7vmin 3.4vmin),
+    /* Strings of lanterns down the face. */
+    radial-gradient(circle, rgba(255, 232, 186, 0.95) 0 0.15vmin, rgba(0, 0, 0, 0) 0.26vmin),
+    /* Timber, falling away into the dark. */
+    linear-gradient(var(--edge), #2a1409 0%, #120802 46%, #050201 100%);
+  background-size: auto, auto, auto, auto, auto, auto, 5.6vmin 2.3vmin, auto;
 }
-.fs-w--t { left: 0; right: 0; top: 0; height: var(--fs-wall); box-shadow: inset 0 -0.34vmin 0 rgba(255, 150, 62, 0.65), 0 1vmin 5vmin rgba(255, 110, 36, 0.16); }
-.fs-w--b { left: 0; right: 0; bottom: 0; height: var(--fs-wall); box-shadow: inset 0 0.34vmin 0 rgba(255, 150, 62, 0.65), 0 -1vmin 5vmin rgba(255, 110, 36, 0.16); }
-.fs-w--l { top: var(--fs-wall); bottom: var(--fs-wall); left: 0; width: var(--fs-wall); box-shadow: inset -0.34vmin 0 0 rgba(255, 150, 62, 0.65), 1vmin 0 5vmin rgba(255, 110, 36, 0.16); }
-.fs-w--r { top: var(--fs-wall); bottom: var(--fs-wall); right: 0; width: var(--fs-wall); box-shadow: inset 0.34vmin 0 0 rgba(255, 150, 62, 0.65), -1vmin 0 5vmin rgba(255, 110, 36, 0.16); }
+/* The nosing proper: a slab projecting over the drop, throwing its light
+   down into the shaft. This is the line your eye follows to the bottom. */
+.fs-w::after {
+  content: "";
+  position: absolute;
+  background: linear-gradient(var(--edge), rgba(255, 206, 140, 0.95), rgba(255, 150, 60, 0.1) 70%, rgba(0, 0, 0, 0) 100%);
+}
 
-/* Four faces, so no two storeys passing in succession are the same. The
-   rotations stay under two degrees: any more and the inner edges stop
-   stacking into lines and the shaft loses its depth. */
-/* Offset as well as turned: perfectly concentric storeys read as a tunnel
-   of rings, and the places these are built from are not tidy. */
-.fs-layer--0 { --fs-rot: 0deg; --fs-wall: 26vmin; --fs-dx: 0; --fs-dy: 0; }
-.fs-layer--1 { --fs-rot: 0.8deg; --fs-wall: 33vmin; --fs-dx: -5vmin; --fs-dy: 3.5vmin; }
-.fs-layer--2 { --fs-rot: -1.3deg; --fs-wall: 21vmin; --fs-dx: 4.5vmin; --fs-dy: -4vmin; }
-.fs-layer--3 { --fs-rot: 1.6deg; --fs-wall: 38vmin; --fs-dx: 2.5vmin; --fs-dy: 5vmin; }
-.fs-layer--1 .fs-w { background-position: 1.4vmin 0.7vmin, 0 2.6vmin, 2.8vmin 0, 0 0, 0 0; }
-.fs-layer--2 .fs-w { background-size: 4.7vmin 6.2vmin, 11.3vmin 5.4vmin, 5.1vmin 3.8vmin, 100% 100%, 100% 100%; }
-.fs-layer--3 .fs-w { background-position: 0 2.1vmin, 3.3vmin 0, 0 1.2vmin, 0 0, 0 0; }
+.fs-w--t {
+  left: 0; right: 0; top: 0; height: var(--wt);
+  --edge: 0deg; --perp: 90deg;
+  box-shadow: 0 1.4vmin 6vmin rgba(255, 112, 36, 0.2);
+}
+.fs-w--t::after { left: 0; right: 0; bottom: 0; height: 1.2vmin; }
+
+.fs-w--b {
+  left: 0; right: 0; bottom: 0; height: var(--wb);
+  --edge: 180deg; --perp: 90deg;
+  box-shadow: 0 -1.4vmin 6vmin rgba(255, 112, 36, 0.2);
+}
+.fs-w--b::after { left: 0; right: 0; top: 0; height: 1.2vmin; }
+
+.fs-w--l {
+  top: var(--wt); bottom: var(--wb); left: 0; width: var(--wl);
+  --edge: 270deg; --perp: 0deg;
+  box-shadow: 1.4vmin 0 6vmin rgba(255, 112, 36, 0.2);
+}
+.fs-w--l::after { top: 0; bottom: 0; right: 0; width: 1.2vmin; }
+
+.fs-w--r {
+  top: var(--wt); bottom: var(--wb); right: 0; width: var(--wr);
+  --edge: 90deg; --perp: 0deg;
+  box-shadow: -1.4vmin 0 6vmin rgba(255, 112, 36, 0.2);
+}
+.fs-w--r::after { top: 0; bottom: 0; left: 0; width: 1.2vmin; }
+
+/* Four storeys, each a different shape. Setbacks on every side, and the
+   turn kept under two degrees — any more and the inner edges stop stacking
+   into lines and the shaft loses its depth. */
+.fs-layer--0 { --fs-rot: 0deg;    --fs-dx: 0;       --fs-dy: 0;
+               --wt: 22vmin; --wb: 30vmin; --wl: 26vmin; --wr: 19vmin; }
+.fs-layer--1 { --fs-rot: 0.8deg;  --fs-dx: -5vmin;  --fs-dy: 3.5vmin;
+               --wt: 34vmin; --wb: 20vmin; --wl: 17vmin; --wr: 31vmin; }
+.fs-layer--2 { --fs-rot: -1.3deg; --fs-dx: 4.5vmin; --fs-dy: -4vmin;
+               --wt: 18vmin; --wb: 24vmin; --wl: 33vmin; --wr: 25vmin; }
+.fs-layer--3 { --fs-rot: 1.6deg;  --fs-dx: 2.5vmin; --fs-dy: 5vmin;
+               --wt: 28vmin; --wb: 37vmin; --wl: 22vmin; --wr: 35vmin; }
+/* Different window pitches too, so no two faces tile the same way. */
+.fs-layer--1 .fs-w { background-position: 0.8vmin 0.4vmin, 5vmin 0, 0 1.2vmin, 1.4vmin 0, 0 0.9vmin, 0 0, 1.2vmin 0.6vmin, 0 0; }
+.fs-layer--2 .fs-w { background-size: auto, auto, auto, auto, auto, auto, 4.2vmin 3.1vmin, auto; }
+.fs-layer--2 .fs-w { background-position: 0 0, 13vmin 0, 0 0, 0 0, 0 0, 0 0, 0 0, 0 0; }
+.fs-layer--3 .fs-w { background-position: 0 1.1vmin, 19vmin 0, 0.6vmin 0, 0 0.7vmin, 1.1vmin 0, 0 0, 2.6vmin 1.1vmin, 0 0; }
 
 /* ── Girders crossing the shaft ───────────────────────────────────────── */
 .fs-beam {
@@ -162,20 +249,22 @@
   margin: -130vmax;
   pointer-events: none;
   mix-blend-mode: screen;
-  opacity: 0.5;
+  opacity: 0.22;
   background:
     repeating-conic-gradient(from 0deg at 50% 50%,
-      rgba(255, 190, 120, 0) 0deg 1.1deg,
-      rgba(255, 186, 112, 0.5) 1.1deg 1.5deg,
-      rgba(255, 190, 120, 0) 1.5deg 3.6deg);
-  -webkit-mask-image: radial-gradient(circle, rgba(0, 0, 0, 0) 2.5%, #000 11%, #000 20%, rgba(0, 0, 0, 0) 34%);
-  mask-image: radial-gradient(circle, rgba(0, 0, 0, 0) 2.5%, #000 11%, #000 20%, rgba(0, 0, 0, 0) 34%);
+      rgba(255, 190, 120, 0) 0deg 1.2deg,
+      rgba(255, 196, 130, 0.55) 1.2deg 1.45deg,
+      rgba(255, 190, 120, 0) 1.45deg 3.9deg);
+  /* Tight to the vanishing point: the burst of light at the bottom of the
+     drop, not a wireframe over the buildings. */
+  -webkit-mask-image: radial-gradient(circle, rgba(0, 0, 0, 0) 1.6%, #000 4.5%, #000 8%, rgba(0, 0, 0, 0) 15%);
+  mask-image: radial-gradient(circle, rgba(0, 0, 0, 0) 1.6%, #000 4.5%, #000 8%, rgba(0, 0, 0, 0) 15%);
   animation: fs-spin 120s linear infinite, fs-pulse 2.4s ease-in-out infinite;
 }
 @keyframes fs-spin { to { transform: rotate(360deg); } }
 @keyframes fs-pulse {
-  0%, 100% { opacity: 0.34; }
-  50%      { opacity: 0.6; }
+  0%, 100% { opacity: 0.5; }
+  50%      { opacity: 0.85; }
 }
 
 /* ── Air ──────────────────────────────────────────────────────────────── */
@@ -204,7 +293,7 @@
 
 /* Behind a question, the streaks are the first thing to go: they are the
    loudest part of the fall and the least load-bearing. */
-.fs--bg .fs-streaks { opacity: 0.22; animation-name: fs-spin; }
+.fs--bg .fs-streaks { opacity: 0.12; animation-name: fs-spin; }
 
 /* Behind a screen that has to be read: the same shaft, held still and pushed
    well back, so the fall never competes with a question. */

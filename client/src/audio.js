@@ -490,6 +490,57 @@ function roomImpulse(c, seconds = 1.9) {
   return buf;
 }
 
+/**
+ * The stamp as a racer's panel lands.
+ *
+ * Three things struck at once, which is what a hit is: a noise transient for
+ * the slap of paper, a short band-passed body for the wood underneath it,
+ * and a low sine dropping in pitch for the weight. Each panel is pitched a
+ * little lower than the last, so four of them in a row read as a sequence
+ * building rather than the same sample four times, and the final one — the
+ * page settling — lands heavier and lower still.
+ *
+ * Restrained on purpose. A Medathon has no music, so these play into silence
+ * and do not need to fight anything.
+ */
+export function playRosterStamp(index = 0, heavy = false) {
+  if (muted) return;
+  const c = getCtx();
+  const t = c.currentTime;
+  const step = Math.min(index, 5);
+  const level = heavy ? 0.38 : 0.2;
+
+  // The slap: filtered noise, over almost before it starts.
+  const n = Math.floor(c.sampleRate * 0.1);
+  const buf = c.createBuffer(1, n, c.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 7);
+  const noise = c.createBufferSource();
+  noise.buffer = buf;
+  const nf = c.createBiquadFilter();
+  nf.type = 'bandpass';
+  nf.frequency.value = heavy ? 900 : 1500 - step * 130;
+  nf.Q.value = 0.8;
+  const ng = c.createGain();
+  ng.gain.setValueAtTime(level * 0.8, t);
+  ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.09);
+  noise.connect(nf); nf.connect(ng); ng.connect(c.destination);
+
+  // The weight: a sine dropping away under it.
+  const body = heavy ? 74 : 132 - step * 11;
+  const osc = c.createOscillator();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(body * 2.4, t);
+  osc.frequency.exponentialRampToValueAtTime(body, t + 0.07);
+  const og = c.createGain();
+  og.gain.setValueAtTime(level, t);
+  og.gain.exponentialRampToValueAtTime(0.0001, t + (heavy ? 0.42 : 0.26));
+  osc.connect(og); og.connect(c.destination);
+
+  noise.start(t); noise.stop(t + 0.11);
+  osc.start(t); osc.stop(t + (heavy ? 0.45 : 0.3));
+}
+
 export function playShojiPluck() {
   if (muted) return null;
   const c = getCtx();

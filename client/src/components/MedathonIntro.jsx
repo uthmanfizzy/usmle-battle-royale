@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { playShojiPluck } from '../audio';
+import { playRosterStamp, playShojiPluck } from '../audio';
 import FallingShaft from './FallingShaft';
 import './MedathonIntro.css';
 
@@ -36,16 +36,20 @@ import './MedathonIntro.css';
 const T = {
   panel:    150,   // how far apart the roster panels land
   panelMs:  460,   // how long one takes to arrive
-  line:    2400,   // the page is a sliver; the bright line takes over
-  point:   2580,   // the line draws into a point
-  dark:    2760,   // nothing at all
-  note:    2880,   // the string is struck — and the door is there
-  slide:   4300,   // the leaves begin to part
+  // The spread is on screen for a full five seconds. The panels are all in
+  // within the first second and a half of that, so the rest is a held shot —
+  // and a held shot has to keep moving or it reads as a freeze, which is why
+  // the page pushes in slowly and the light crosses it (see the CSS).
+  line:    5000,   // the page is a sliver; the bright line takes over
+  point:   5180,   // the line draws into a point
+  dark:    5360,   // nothing at all
+  note:    5480,   // the string is struck — and the door is there
+  slide:   6900,   // the leaves begin to part
   slideMs: 2300,
-  fall:    6100,   // open enough to go over the edge
+  fall:    8700,   // open enough to go over the edge
   fallMs:  2500,
-  out:     8600,   // the race underneath is revealed, still falling
-  done:    8950,
+  out:    11200,   // the race underneath is revealed, still falling
+  done:   11550,
 };
 
 export const MEDATHON_INTRO_MS = T.done;
@@ -95,6 +99,22 @@ export default function MedathonIntro({ onDone, muted = false, players = [], use
       onDone?.();
     };
 
+    // One stamp per panel as it lands, and a heavier one as the page
+    // settles. The flash is at panelMs - 130, so the sound goes with the hit
+    // rather than after it.
+    if (!muted) {
+      roster.forEach((_, i) => {
+        timers.push(setTimeout(
+          () => { try { playRosterStamp(i); } catch { /* no audio, no matter */ } },
+          i * T.panel + T.panelMs - 130,
+        ));
+      });
+      timers.push(setTimeout(
+        () => { try { playRosterStamp(roster.length, true); } catch { /* no audio, no matter */ } },
+        (roster.length - 1) * T.panel + T.panelMs + 40,
+      ));
+    }
+
     timers.push(setTimeout(() => {
       setLit(true);
       if (!muted) {
@@ -117,7 +137,8 @@ export default function MedathonIntro({ onDone, muted = false, players = [], use
       html.classList.remove('mv-shoji');
       html.style.removeProperty('--mi-t-line');
     };
-    // Mount-only: the sequence owns its own clock from the moment it appears.
+    // Mount-only: the sequence owns its own clock from the moment it
+    // appears, and the field cannot change once the race has started.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

@@ -79,7 +79,12 @@
   display: flex;
   gap: clamp(9px, 1.1vw, 18px);
   transform: skewX(-9deg);
-  animation: mi-page-kick 420ms var(--t-settle) cubic-bezier(0.2, 0.9, 0.3, 1) both;
+  /* The shiver as the last panel lands, and then a slow push in that runs
+     until the television switches off. A still frame held for five seconds
+     reads as a crash; this one is never quite still. */
+  animation:
+    mi-page-kick 420ms var(--t-settle) cubic-bezier(0.2, 0.9, 0.3, 1) both,
+    mi-page-push calc(var(--t-line) - var(--t-settle)) var(--t-settle) linear both;
 }
 /* One shiver as the last panel lands. */
 @keyframes mi-page-kick {
@@ -87,6 +92,11 @@
   18%  { transform: skewX(-9deg) scale(1.04) translateY(-0.8%); }
   46%  { transform: skewX(-9deg) scale(0.994) translateY(0.4%); }
   100% { transform: skewX(-9deg) scale(1); }
+}
+/* Runs after the kick, so it wins on order and takes over cleanly. */
+@keyframes mi-page-push {
+  from { transform: skewX(-9deg) scale(1); }
+  to   { transform: skewX(-9deg) scale(1.055); }
 }
 
 .mi-pan {
@@ -169,8 +179,9 @@
    has, a hard shadow up from the bottom and a light down from the top. */
 .mi-pan-ink {
   position: absolute;
-  inset: 0;
+  inset: -10% -4%;
   pointer-events: none;
+  animation: mi-rain 2.6s linear infinite;
   background-image:
     repeating-linear-gradient(92deg, rgba(255, 255, 255, 0.11) 0 1px, rgba(0, 0, 0, 0) 1px 7px),
     repeating-linear-gradient(92deg, rgba(0, 0, 0, 0.26) 0 1px, rgba(0, 0, 0, 0) 1px 29px),
@@ -182,17 +193,30 @@
       rgba(0, 0, 0, 0.82) 100%);
   background-size: auto, auto, 5px 5px, 100% 100%;
 }
+/* The scratch rain falls. Short loop, and it only has to move a little:
+   this is texture, not weather. */
+@keyframes mi-rain {
+  from { background-position: 0 0, 0 0, 0 0, 0 0; }
+  to   { background-position: 0 0, 0 0, 0 -5px, 0 0; }
+}
 
 /* A sweep of light across the plate, the way a printed page catches it. */
 .mi-pan-wash {
   position: absolute;
-  inset: 0;
+  inset: -20% -60%;
   pointer-events: none;
   background: linear-gradient(104deg,
-    rgba(255, 255, 255, 0) 30%,
-    rgba(255, 255, 255, 0.22) 47%,
-    rgba(255, 255, 255, 0) 60%);
+    rgba(255, 255, 255, 0) 38%,
+    rgba(255, 255, 255, 0.28) 50%,
+    rgba(255, 255, 255, 0) 62%);
   mix-blend-mode: screen;
+  /* One sweep across the page while it is held, late enough that it reads
+     as the page catching the light rather than part of the arrival. */
+  animation: mi-sheen 1700ms calc(var(--t-settle) + 500ms) ease-in-out both;
+}
+@keyframes mi-sheen {
+  from { transform: translateX(-46%); }
+  to   { transform: translateX(46%); }
 }
 /* The cut edge of the paper. */
 .mi-pan::before {
