@@ -13,11 +13,13 @@
    the world rather than a 2D mask, it flies past the edges on its own as the
    camera crosses the threshold.
 
-   The room therefore has to stay wider than that hole for the whole move. At
-   the end of the dolly the hole has grown 3.6x while the room has grown
-   1.9x, so the room is built at 310% of the doorway to stay ahead of it. If
+   The room therefore has to stay bigger than that hole for the whole move,
+   in BOTH axes. It is sized in viewport units rather than as a share of the
+   doorway for exactly that reason: the doorway is nearly square, a phone is
+   not, and a square room runs out vertically long before the fall ends. If
    you change the perspective, the room depth, the room size or how far the
-   dolly travels, check that sum again or black corners appear mid-move. */
+   dolly travels, check it again at 9:19.5 as well as at 16:9, or the screen
+   goes black below the shaft. */
 
 .mi {
   position: fixed;
@@ -28,7 +30,7 @@
      behind is already black, so there is no seam when this takes over. */
   background: transparent;
 
-  --door-h: min(78vh, 46vw);
+  --door-h: min(80vh, 92vw);
   --door-w: calc(var(--door-h) * 0.92);
   --bar: 3px;
   --wood: #4a2a1d;
@@ -173,7 +175,7 @@
 .mi-pan-initial {
   position: relative;
   font-family: var(--mv-font-display, 'Cinzel', serif);
-  font-size: clamp(90px, 26vh, 300px);
+  font-size: min(22vh, calc(74vw / var(--count, 3)));
   font-weight: 700;
   line-height: 0.9;
   color: #fff;
@@ -268,9 +270,10 @@
 .mi-pan-no {
   position: absolute;
   top: clamp(12px, 3.5vh, 34px);
-  left: 50%;
+  left: 0;
+  right: 0;
   z-index: 5;
-  transform: translateX(-50%);
+  text-align: center;
   font-family: var(--mv-font-display, 'Cinzel', serif);
   font-size: clamp(11px, 1.1vw, 16px);
   font-weight: 700;
@@ -306,10 +309,12 @@
 }
 .mi-pan-you {
   position: absolute;
-  left: 50%;
+  left: 0;
+  right: 0;
+  width: max-content;
+  margin-inline: auto;
   bottom: calc(clamp(16px, 5vh, 52px) + clamp(22px, 2.6vw, 36px));
   z-index: 5;
-  transform: translateX(-50%);
   padding: 2px 11px;
   border-radius: 999px;
   background: #fff;
@@ -433,8 +438,8 @@ html.mv-shoji #root {
    down to look where you are going (rotateX). */
 @keyframes mi-fall {
   0%   { transform: translateZ(0) translateY(0) rotateX(0deg) rotate(0deg); }
-  30%  { transform: translateZ(140px) translateY(-1.5vh) rotateX(-2.5deg) rotate(0.5deg); }
-  100% { transform: translateZ(760px) translateY(-17vh) rotateX(-9deg) rotate(-2.2deg); }
+  30%  { transform: translateZ(140px) translateY(-1.5vmin) rotateX(-2.5deg) rotate(0.5deg); }
+  100% { transform: translateZ(760px) translateY(-17vmin) rotateX(-9deg) rotate(-2.2deg); }
 }
 
 /* ── Beyond the doorway ──────────────────────────────────────────────────
@@ -444,11 +449,14 @@ html.mv-shoji #root {
    the wall's hole for the whole fall. */
 .mi-room {
   position: absolute;
-  left: -105%;
-  top: -105%;
-  width: 310%;
-  height: 310%;
-  transform: translateZ(-520px);
+  left: 50%;
+  top: 50%;
+  /* Viewport units, not a share of the doorway: the doorway is nearly
+     square and a phone is not, so a square room runs out vertically
+     part-way down the fall and the screen goes black below it. */
+  width: 230vw;
+  height: 230vh;
+  transform: translate(-50%, -50%) translateZ(-520px);
   overflow: hidden;
 }
 
@@ -622,4 +630,83 @@ html.mv-shoji #root {
   .mi-line { animation: mi-line-on 1ms var(--t-line) linear forwards, mi-line-off calc(var(--t-dark) - var(--t-point)) var(--t-point) linear forwards; }
   .mi-world { animation: none; transform: translateZ(90px); }
   .mi-rays span { filter: blur(26px); }
+}
+
+/* ── A phone held upright ─────────────────────────────────────────────────
+   Four slivers side by side is not a spread, it is a barcode. On a tall
+   screen the panels become rows and the slant turns with them, which is the
+   same page read the other way round. Everything that was horizontal —
+   where they fly in from, where the name sits — turns with it. */
+@media (orientation: portrait) {
+  .mi-roster-inner {
+    flex-direction: column;
+    transform: skewY(-6deg);
+    animation:
+      mi-page-kick-v 420ms var(--t-settle) cubic-bezier(0.2, 0.9, 0.3, 1) both,
+      mi-page-push-v calc(var(--t-line) - var(--t-settle)) var(--t-settle) linear both;
+  }
+  @keyframes mi-page-kick-v {
+    0%   { transform: skewY(-6deg) scale(1); }
+    18%  { transform: skewY(-6deg) scale(1.04) translateX(-0.8%); }
+    46%  { transform: skewY(-6deg) scale(0.994) translateX(0.4%); }
+    100% { transform: skewY(-6deg) scale(1); }
+  }
+  @keyframes mi-page-push-v {
+    from { transform: skewY(-6deg) scale(1); }
+    to   { transform: skewY(-6deg) scale(1.055); }
+  }
+
+  .mi-pan {
+    transform: translateX(var(--from, -112%));
+    animation-name: mi-pan-in-v;
+  }
+  @keyframes mi-pan-in-v {
+    0%   { transform: translateX(var(--from, -112%)) scale(1.09); }
+    100% { transform: translateX(0) scale(1); }
+  }
+
+  .mi-pan-art { transform: skewY(6deg) scale(1.14); }
+  .mi-pan-art::before {
+    -webkit-mask-image: radial-gradient(circle at 50% 50%, rgba(0, 0, 0, 0) 14%, #000 38%, rgba(0, 0, 0, 0) 74%);
+    mask-image: radial-gradient(circle at 50% 50%, rgba(0, 0, 0, 0) 14%, #000 38%, rgba(0, 0, 0, 0) 74%);
+  }
+  .mi-pan-initial {
+    font-size: min(27vw, calc(62vh / var(--count, 3)));
+    transform: none;
+  }
+
+  /* A row is wide and short: the name goes beside the face, not under it.
+     No transforms here — the arrival animation ends on transform:none and
+     would throw any positioning transform away with it. */
+  .mi-pan-name {
+    top: 50%;
+    bottom: auto;
+    left: clamp(12px, 4vw, 26px);
+    right: auto;
+    width: auto;
+    max-width: 54%;
+    margin-top: -0.2em;
+    text-align: left;
+    font-size: clamp(14px, 4.4vw, 26px);
+  }
+  .mi-pan-you {
+    top: 50%;
+    bottom: auto;
+    left: clamp(12px, 4vw, 26px);
+    right: auto;
+    margin-inline: 0;
+    margin-top: -3.1em;
+  }
+  .mi-pan-no {
+    top: 50%;
+    left: auto;
+    right: clamp(12px, 4vw, 26px);
+    text-align: right;
+    margin-top: -0.6em;
+  }
+  /* The ink rain falls down the page, so across a row it reads as drift. */
+  @keyframes mi-rain {
+    from { transform: translateX(0); }
+    to   { transform: translateX(1.6%); }
+  }
 }
