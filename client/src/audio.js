@@ -507,11 +507,14 @@ export function playShojiPluck() {
   tone.frequency.exponentialRampToValueAtTime(1300, t + 2.6);
   tone.Q.value = 0.4;
 
+  // Deliberately well under the game's other sounds: it plays alone in a
+  // dark room, where quiet carries, and it is the only thing a Medathon
+  // makes a noise with.
   const dry = c.createGain();
-  dry.gain.value = 0.5;
+  dry.gain.value = 0.22;
 
   const wet = c.createGain();
-  wet.gain.value = 0.22;
+  wet.gain.value = 0.1;
   let verb = null;
   try {
     verb = c.createConvolver();

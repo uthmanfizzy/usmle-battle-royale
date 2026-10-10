@@ -26,7 +26,7 @@ import './FallingShaft.css';
  * Nothing here paints per frame: transform and opacity only, which is the
  * whole budget a twenty-minute match can afford.
  */
-export default function FallingShaft({ layers = 9, seconds = 7.5, className = '' }) {
+export default function FallingShaft({ layers = 12, seconds = 3.4, className = '' }) {
   const ref = useRef(null);
 
   // A race runs for a long time, and nobody needs a shaft animating in a tab
@@ -78,6 +78,11 @@ export default function FallingShaft({ layers = 9, seconds = 7.5, className = ''
           />
         ))}
       </div>
+
+      {/* Speed: the light smeared into lines by how fast it is going past.
+          Drawn once, around the vanishing point, rather than one streak per
+          light — which at this rate is what you would see anyway. */}
+      <span className="fs-streaks" />
 
       {/* Warm air, and the dark the lights have to read against. */}
       <span className="fs-haze" />

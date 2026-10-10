@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { playShojiPluck } from '../audio';
 import FallingShaft from './FallingShaft';
@@ -7,21 +7,23 @@ import './MedathonIntro.css';
 /**
  * The threshold into a Medathon.
  *
- * Four beats, about five seconds:
- *   1. The site switches off like an old television — the picture squeezes
+ * Five beats, about nine seconds:
+ *   0. The field, as a manga spread: one slanted panel per racer, each
+ *      slammed into place in its own colour, inked and screentoned.
+ *   1. That page switches off like an old television — the picture squeezes
  *      into a bright horizontal line, the line draws into a point, gone.
  *   2. One plucked string. The shoji door is THERE on the attack, not faded
  *      in, lit from behind in amber and alone in the dark.
- *   3. The two leaves slide apart, slowly. Light spills through the
- *      widening gap, and what is behind them is a drop.
+ *   3. The two leaves slide apart. Light spills through the widening gap,
+ *      and what is behind them is a drop.
  *   4. The camera tips over the threshold and falls — the frame passing
  *      either side of you, the shaft opening up below. It hands over to the
  *      race still falling, because the race is played over the same shaft.
  *
- * WHY A PORTAL: scene 1 collapses the real interface, not a picture of it —
- * `#root` itself is what folds away (see the .mv-shoji rules). That only
- * works if this overlay sits OUTSIDE #root, so it is mounted straight onto
- * the body and the page's own black shows behind the collapsing UI.
+ * WHY A PORTAL: the shut-off collapses the real interface, not a picture of
+ * it — `#root` itself folds away alongside the roster (see the .mv-shoji
+ * rules). That only works if this overlay sits OUTSIDE #root, so it is
+ * mounted straight onto the body.
  *
  * TIMING IS SHARED WITH THE SERVER: the Medathon engine holds question one
  * back by MEDATHON_INTRO_MS (server/index.js) so none of this eats into that
@@ -32,24 +34,49 @@ import './MedathonIntro.css';
 // Milliseconds from mount. These drive BOTH the JavaScript cues and the CSS
 // (handed over as custom properties below), so there is one clock, not two.
 const T = {
-  line:     220,   // the picture is a sliver; the bright line takes over
-  point:    380,   // the line draws into a point
-  dark:     560,   // nothing at all
-  note:     680,   // the string is struck — and the door is there
-  slide:   2200,   // the leaves begin to part
-  slideMs: 2500,
-  fall:    4100,   // open enough to go over the edge
-  fallMs:  3500,
-  out:     7600,   // the race underneath is revealed, still falling
-  done:    7950,
+  panel:    150,   // how far apart the roster panels land
+  panelMs:  460,   // how long one takes to arrive
+  line:    2400,   // the page is a sliver; the bright line takes over
+  point:   2580,   // the line draws into a point
+  dark:    2760,   // nothing at all
+  note:    2880,   // the string is struck — and the door is there
+  slide:   4300,   // the leaves begin to part
+  slideMs: 2300,
+  fall:    6100,   // open enough to go over the edge
+  fallMs:  2500,
+  out:     8600,   // the race underneath is revealed, still falling
+  done:    8950,
 };
 
 export const MEDATHON_INTRO_MS = T.done;
 
-export default function MedathonIntro({ onDone, muted = false }) {
+// One per racer, in order. Six is plenty — a seventh would be a sliver.
+const PANEL_COLOURS = 6;
+
+export default function MedathonIntro({ onDone, muted = false, players = [], user = null, socketId = null }) {
   // 'off' is the television dying; 'lit' is everything from the note onward.
   const [lit, setLit] = useState(false);
   const doneRef = useRef(false);
+
+  // The field. Only the local player's avatar is in hand — the lobby payload
+  // carries no picture for anyone else — so everybody else gets their initial
+  // drawn as the artwork rather than a borrowed stock face.
+  const roster = useMemo(() => {
+    const list = (Array.isArray(players) && players.length)
+      ? players
+      : [{ id: socketId, username: user?.username || 'You' }];
+    return list.slice(0, PANEL_COLOURS).map((p, i) => {
+      const mine = (socketId && p.id === socketId) || (!socketId && i === 0);
+      const name = p.username || 'Racer';
+      return {
+        key: p.id ?? `p${i}`,
+        name,
+        initial: name.trim()[0]?.toUpperCase() || '?',
+        avatar: mine ? (user?.avatar_url || null) : null,
+        mine,
+      };
+    });
+  }, [players, user, socketId]);
 
   useEffect(() => {
     const html = document.documentElement;
@@ -97,13 +124,16 @@ export default function MedathonIntro({ onDone, muted = false }) {
   // The door scene is display:none until the note, and a hidden element's
   // animations do not tick — they begin the moment it is shown. So every cue
   // inside it is handed over as an offset FROM the note, not from mount.
-  // Scene one's cues are measured from mount, because the line is never
-  // hidden. Get this wrong and the doors open a second and a half late.
+  // The roster and the shut-off are measured from mount, because neither is
+  // ever hidden. Get this wrong and the doors open seconds late.
   const since = (ms) => `${ms - T.note}ms`;
+  const settled = T.panel * Math.max(0, roster.length - 1) + T.panelMs;
   const vars = {
     '--t-line': `${T.line}ms`,
     '--t-point': `${T.point}ms`,
     '--t-dark': `${T.dark}ms`,
+    '--t-settle': `${settled}ms`,
+    '--d-panel': `${T.panelMs}ms`,
     '--t-slide': since(T.slide),
     '--d-slide': `${T.slideMs}ms`,
     '--t-dolly': since(T.fall),
@@ -114,7 +144,43 @@ export default function MedathonIntro({ onDone, muted = false }) {
 
   return createPortal(
     <div className={`mi${lit ? ' is-lit' : ''}`} style={vars} aria-hidden="true">
-      {/* Scene 1 lives on top of the collapsing page. */}
+      {/* ── The field ────────────────────────────────────────────────────
+          A manga spread: slanted panels with black between them, each racer
+          inked in their own colour. It collapses with the page when the
+          television goes off. */}
+      <div className="mi-roster" style={{ '--count': roster.length }}>
+        <div className="mi-roster-inner">
+          {roster.map((p, i) => (
+            <div
+              key={p.key}
+              className={`mi-pan mi-pan--${i % PANEL_COLOURS}${p.mine ? ' is-you' : ''}`}
+              style={{ '--d': `${i * T.panel}ms`, '--from': i % 2 ? '112%' : '-112%' }}
+            >
+              <span className="mi-pan-art">
+                <span className="mi-pan-initial">{p.initial}</span>
+                {p.avatar && (
+                  <img
+                    src={p.avatar}
+                    alt=""
+                    referrerPolicy="no-referrer"
+                    onError={e => { e.target.style.display = 'none'; }}
+                  />
+                )}
+              </span>
+              {/* Ink, screentone and the rain of scratch lines. */}
+              <span className="mi-pan-ink" />
+              {/* The racer's colour, laid over the artwork as a duotone. */}
+              <span className="mi-pan-wash" />
+              {/* The hit as the panel lands. */}
+              <span className="mi-pan-flash" />
+              <span className="mi-pan-name">{p.name}</span>
+              {p.mine && <span className="mi-pan-you">YOU</span>}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* The bright line the page collapses into. */}
       <span className="mi-line" />
 
       {/* Everything from the note onward. Held at display:none until then so
@@ -126,7 +192,7 @@ export default function MedathonIntro({ onDone, muted = false }) {
               mounts behind itself, so going over the edge and landing in the
               match is one continuous fall. */}
           <div className="mi-room">
-            <FallingShaft layers={8} seconds={8} />
+            <FallingShaft layers={12} seconds={3.2} />
           </div>
 
           {/* The light that gets out as the gap widens. */}
@@ -151,6 +217,9 @@ export default function MedathonIntro({ onDone, muted = false }) {
           <div className="mi-wall" />
         </div>
       </div>
+
+      {/* Air tearing past once the fall is on. */}
+      <span className="mi-wind" />
     </div>,
     document.body,
   );

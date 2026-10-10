@@ -1172,7 +1172,13 @@ export default function App() {
       {/* Portalled onto the body, so where it sits in this tree decides only
           when it mounts, not what it covers. */}
       {medathonIntro && phase === 'game' && gameMode === 'medathon' && (
-        <MedathonIntro muted={muted} onDone={endMedathonIntro} />
+        <MedathonIntro
+          muted={muted}
+          players={players}
+          user={user}
+          socketId={socket.id}
+          onDone={endMedathonIntro}
+        />
       )}
 
       {phase === 'game' && gameMode === 'medathon' && (

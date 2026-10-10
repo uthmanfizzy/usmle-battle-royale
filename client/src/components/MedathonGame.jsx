@@ -170,7 +170,7 @@ export default function MedathonGame({
       {/* The race happens on the way down. Same shaft the opening falls into,
           held well back behind its own scrim so a timed question is never
           competing with it. */}
-      <FallingShaft className="fs--bg" layers={8} seconds={9} />
+      <FallingShaft className="fs--bg" layers={12} seconds={4.2} />
 
       {/* ── Top bar: where you are, how long you have, how you are doing ── */}
       <header className="mdt-top">

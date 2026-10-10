@@ -149,6 +149,35 @@
 .fs-beam--1 { --fs-brot: -8deg; --fs-by: 26vmin; }
 .fs-beam--2 { --fs-brot: 78deg; --fs-by: 10vmin; }
 
+/* ── Speed ────────────────────────────────────────────────────────────
+   At this rate every light is a line. A ring of radial streaks around the
+   vanishing point does the whole screen's worth in one element, and spinning
+   it very slowly keeps it from reading as a printed star. */
+.fs-streaks {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 260vmax;
+  height: 260vmax;
+  margin: -130vmax;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  opacity: 0.5;
+  background:
+    repeating-conic-gradient(from 0deg at 50% 50%,
+      rgba(255, 190, 120, 0) 0deg 1.1deg,
+      rgba(255, 186, 112, 0.5) 1.1deg 1.5deg,
+      rgba(255, 190, 120, 0) 1.5deg 3.6deg);
+  -webkit-mask-image: radial-gradient(circle, rgba(0, 0, 0, 0) 2.5%, #000 11%, #000 20%, rgba(0, 0, 0, 0) 34%);
+  mask-image: radial-gradient(circle, rgba(0, 0, 0, 0) 2.5%, #000 11%, #000 20%, rgba(0, 0, 0, 0) 34%);
+  animation: fs-spin 120s linear infinite, fs-pulse 2.4s ease-in-out infinite;
+}
+@keyframes fs-spin { to { transform: rotate(360deg); } }
+@keyframes fs-pulse {
+  0%, 100% { opacity: 0.34; }
+  50%      { opacity: 0.6; }
+}
+
 /* ── Air ──────────────────────────────────────────────────────────────── */
 .fs-haze {
   position: absolute;
@@ -173,6 +202,10 @@
 /* Nothing animates in a tab nobody is looking at. */
 .fs.is-held * { animation-play-state: paused !important; }
 
+/* Behind a question, the streaks are the first thing to go: they are the
+   loudest part of the fall and the least load-bearing. */
+.fs--bg .fs-streaks { opacity: 0.22; animation-name: fs-spin; }
+
 /* Behind a screen that has to be read: the same shaft, held still and pushed
    well back, so the fall never competes with a question. */
 .fs--bg { position: fixed; z-index: 0; }
@@ -187,5 +220,6 @@
   .fs-layer,
   .fs-beam,
   .fs-core,
-  .fs-haze { animation-play-state: paused; }
+  .fs-haze,
+  .fs-streaks { animation-play-state: paused; }
 }
