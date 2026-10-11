@@ -52,11 +52,10 @@ const T = {
   done:   11550,
 };
 
-// The theme does not wait for the handover: it comes in four seconds before
-// it, which puts it just ahead of the drop, with the doors open and the
-// shaft already showing. The race it belongs to is already under way by the
-// time you land in it.
-const MUSIC_LEAD = 4000;
+// The theme does not wait for the handover: it comes in five seconds before
+// it, which puts it under the doors as they part, well ahead of the drop.
+// The race it belongs to is already under way by the time you land in it.
+const MUSIC_LEAD = 5000;
 
 export const MEDATHON_INTRO_MS = T.done;
 
