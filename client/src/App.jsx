@@ -1185,6 +1185,7 @@ export default function App() {
           players={players}
           user={user}
           socketId={socket.id}
+          onMusic={() => audio.startMedathonMusic()}
           onDone={endMedathonIntro}
         />
       )}

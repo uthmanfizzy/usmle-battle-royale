@@ -52,12 +52,18 @@ const T = {
   done:   11550,
 };
 
+// The theme does not wait for the handover: it comes in four seconds before
+// it, which puts it just ahead of the drop, with the doors open and the
+// shaft already showing. The race it belongs to is already under way by the
+// time you land in it.
+const MUSIC_LEAD = 4000;
+
 export const MEDATHON_INTRO_MS = T.done;
 
 // One per racer, in order. Six is plenty — a seventh would be a sliver.
 const PANEL_COLOURS = 6;
 
-export default function MedathonIntro({ onDone, muted = false, players = [], user = null, socketId = null }) {
+export default function MedathonIntro({ onDone, onMusic, muted = false, players = [], user = null, socketId = null }) {
   // 'off' is the television dying; 'lit' is everything from the note onward.
   const [lit, setLit] = useState(false);
   const doneRef = useRef(false);
@@ -121,6 +127,8 @@ export default function MedathonIntro({ onDone, muted = false, players = [], use
         try { note = playShojiPluck(); } catch { /* no audio, no matter */ }
       }
     }, T.note));
+
+    timers.push(setTimeout(() => onMusic?.(), Math.max(0, T.done - MUSIC_LEAD)));
 
     // The interface comes back under the last fade, so the cut into the
     // tournament lands on the bright frame rather than on black.

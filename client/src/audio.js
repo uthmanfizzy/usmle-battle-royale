@@ -396,7 +396,11 @@ export function startGameMusic() {
 // a link and has touched nothing would otherwise get silence for the whole
 // race, so a refusal arms the first tap instead of being swallowed.
 export function startMedathonMusic() {
-  stopMedathonMusic();
+  // Already running, or already waiting for a tap to start it. Two things
+  // ask for the theme — the opening's own cue, four seconds before it hands
+  // over, and the handover itself as a fallback for a skipped opening — and
+  // the second must not cut the first back to the beginning.
+  if (medathonEl) return;
   if (muted) return;
 
   const el = new Audio(MEDATHON_TRACK);
