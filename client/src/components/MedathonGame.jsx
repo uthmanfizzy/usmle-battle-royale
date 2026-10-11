@@ -98,6 +98,7 @@ export default function MedathonGame({
   onToggleMute,
   onQuit,
   introDone = true,
+  onResend,
 }) {
   const med = question?.medathon || null;
   const total = setup?.total || med?.total || 0;
@@ -116,21 +117,58 @@ export default function MedathonGame({
     };
   }, []);
 
-  // GET READY, 3, 2, 1. Starts the moment the opening hands over and runs
-  // into the first question — the server holds that question back long
-  // enough for the whole thing (MEDATHON_OPENING_MS), so this is never
-  // racing a live clock. A question arriving early ends it regardless.
+  // When question one is due, by this machine's clock alone: the server
+  // said how long it was holding it for and App stamped when that arrived.
+  // Null means an older server that does not say, and everything below
+  // falls back to the fixed count it used to run.
+  const dueAt = useMemo(
+    () => (setup?.startsIn && setup?.receivedAt ? setup.receivedAt + setup.startsIn : null),
+    [setup],
+  );
+
+  // GET READY, 3, 2, 1. It holds on GET READY for as long as the server is
+  // still holding the question, then runs the numbers so GO lands ON it.
+  // Before this the count ran on a fixed clock of its own and finished
+  // early, which left a spinner on screen for the rest of the wait — and
+  // longer still for anyone who skipped the opening.
+  const COUNT_MS = 2980;
   const [ready, setReady] = useState(null);   // null | 'ready' | 3 | 2 | 1 | 'go'
   const readyRan = useRef(false);
   useEffect(() => {
     if (!introDone || readyRan.current) return undefined;
     readyRan.current = true;
-    const steps = [['ready', 0], [3, 650], [2, 1300], [1, 1950], ['go', 2600], [null, 2980]];
-    const timers = steps.map(([v, at]) => setTimeout(() => setReady(v), at));
+    const lead = dueAt ? dueAt - Date.now() : COUNT_MS;
+    // Capped: a nonsense lead must not park the count for a minute.
+    const hold = Math.max(0, Math.min(lead - COUNT_MS, 25000));
+    setReady('ready');
+    const steps = [[3, 650], [2, 1300], [1, 1950], ['go', 2600], [null, 2980]];
+    const timers = steps.map(([v, at]) => setTimeout(() => setReady(v), hold + at));
     return () => timers.forEach(clearTimeout);
-  }, [introDone]);
+  }, [introDone, dueAt]);
   // Whatever the countdown is doing, a question on screen outranks it.
   useEffect(() => { if (question) setReady(null); }, [question]);
+
+  // If question one is late, ask for it. A socket that reconnected during
+  // the opening, a dropped frame, a tab that was asleep — any of them leave
+  // the player watching a spinner for ever while the server times them out
+  // of question after question. Two quiet attempts, then say so plainly.
+  const [lost, setLost] = useState(false);
+  const asks = useRef(0);
+  useEffect(() => {
+    if (question) { setLost(false); asks.current = 0; return undefined; }
+    if (!introDone) return undefined;
+    const due = dueAt || Date.now() + COUNT_MS;
+    const id = setInterval(() => {
+      const over = Date.now() - due;
+      if (over > 4000 && asks.current < 2) {
+        asks.current += 1;
+        onResend?.();
+      } else if (over > 13000) {
+        setLost(true);
+      }
+    }, 2000);
+    return () => clearInterval(id);
+  }, [question, introDone, dueAt, onResend]);
 
   // The system curtain. Raised whenever a question opens a new stage, and on
   // the very first question, then dropped on a timer.
@@ -239,7 +277,20 @@ export default function MedathonGame({
           {waiting ? (
             <div className="mdt-waiting">
               <div className="mdt-waiting-pulse" aria-hidden="true" />
-              <p>Lining up the field…</p>
+              {lost ? (
+                <>
+                  <p>Your first question hasn&apos;t arrived.</p>
+                  <button
+                    type="button"
+                    className="mdt-waiting-retry"
+                    onClick={() => { asks.current = 0; setLost(false); onResend?.(); }}
+                  >
+                    Ask the server again
+                  </button>
+                </>
+              ) : (
+                <p>Lining up the field…</p>
+              )}
             </div>
           ) : (
             <>

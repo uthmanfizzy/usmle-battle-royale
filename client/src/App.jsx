@@ -342,7 +342,10 @@ export default function App() {
     });
 
     socket.on('medathon_setup', (data) => {
-      setMedathonSetup(data);
+      // Stamped on arrival. The server says how long it is holding question
+      // one for; when that is, by THIS machine's clock, is arrival plus the
+      // hold — which needs no clock to agree with any other.
+      setMedathonSetup({ ...data, receivedAt: Date.now() });
       setMedathonProgress([]);
     });
 
@@ -1208,6 +1211,7 @@ export default function App() {
           onToggleMute={toggleMute}
           onQuit={handleReturnHome}
           introDone={!medathonIntro}
+          onResend={() => socket.emit('medathon_resend')}
         />
         </RouteErrorBoundary>
       )}

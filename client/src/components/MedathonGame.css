@@ -756,3 +756,20 @@
   .mdt-rotate-phone { animation: none; }
   .mdt-lane-fill, .mdt-lane-puck { transition: none; }
 }
+
+/* The waiting screen when the first question never came: an honest line
+   and a way to ask again, rather than a spinner for ever. */
+.mdt-waiting-retry {
+  margin-top: 10px;
+  padding: 9px 18px;
+  border-radius: 999px;
+  border: 1px solid rgba(232, 176, 75, 0.55);
+  background: rgba(232, 176, 75, 0.14);
+  color: #f0dba6;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+}
+.mdt-waiting-retry:hover { background: rgba(232, 176, 75, 0.26); }

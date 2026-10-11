@@ -2249,12 +2249,16 @@ function startMedathon(lobby) {
   }
 
   io.to(lobby.id).emit('game_start', { gameMode: 'medathon' });
+  lobby.medathonOpensAt = Date.now() + MEDATHON_OPENING_MS;
   io.to(lobby.id).emit('medathon_setup', {
     stages,
     total: queue.length,
     timeLimit: medathonTimeLimit(),
     basePoints: MEDATHON_BASE_POINTS,
     maxSpeedBonus: MEDATHON_SPEED_BONUS,
+    // How long question one is being held for, so the client can run its
+    // count down to land on it instead of guessing.
+    startsIn: MEDATHON_OPENING_MS,
   });
 
   lobby.medathonTimer = setTimeout(() => {
@@ -2275,6 +2279,59 @@ function startMedathon(lobby) {
   }, MEDATHON_OPENING_MS);
 }
 
+// What a Medathon question looks like on the wire. Shared by the first
+// send and by a resend, so a recovered question is the same question.
+function medathonQuestionPayload(lobby, playerId, timeLimit) {
+  const state = lobby.medathonPlayers.get(playerId);
+  const entry = lobby.medathonQueue[state.idx];
+  const stage = lobby.medathonStages[entry.stage];
+  const posInStage = state.idx - stage.from + 1;
+  return {
+    ...toPublicQuestion(state.currentQ),
+    round: state.idx + 1,
+    timeLimit,
+    alivePlayers: lobby.players.size,
+    medathon: {
+      index: state.idx + 1,
+      total: lobby.medathonQueue.length,
+      stageIndex: entry.stage + 1,
+      stageTotal: lobby.medathonStages.length,
+      stagePos: posInStage,
+      stageCount: stage.count,
+      newStage: posInStage === 1,
+      system: stage.name,
+      systemShort: stage.short,
+      systemIcon: stage.icon,
+      systemId: stage.id,
+      score: state.score,
+      correct: state.correct,
+    },
+  };
+}
+
+// Send the question this player is already on, again. For the case where the
+// first one never arrived — a socket that reconnected, a dropped frame, a
+// tab that was asleep — which otherwise leaves them watching a spinner while
+// the server times them out of question after question.
+//
+// The clock is NOT restarted: what goes out is what is LEFT of it. A resend
+// that handed back time would be worth points, because a Medathon pays a
+// bonus for answering fast.
+function resendMedathonQuestion(lobby, playerId) {
+  const player = lobby.players.get(playerId);
+  const state  = lobby.medathonPlayers?.get(playerId);
+  if (!player || player.isBot || !state || state.finished || !state.currentQ) return false;
+  if (!lobby.medathonQueue[state.idx]) return false;
+  const sock = io.sockets.sockets.get(playerId);
+  if (!sock) return false;
+  const left = Math.max(
+    1,
+    Math.ceil(medathonTimeLimit() - (Date.now() - state.askedAt) / 1000),
+  );
+  sock.emit('new_question', medathonQuestionPayload(lobby, playerId, left));
+  return true;
+}
+
 function sendMedathonQuestion(lobby, playerId) {
   if (lobby.status !== 'medathon') return;
   const player = lobby.players.get(playerId);
@@ -2291,34 +2348,10 @@ function sendMedathonQuestion(lobby, playerId) {
   state.currentQ = q;
   state.askedAt  = Date.now();
   const timeLimit = medathonTimeLimit();
-  const stage     = lobby.medathonStages[entry.stage];
-  const posInStage = state.idx - stage.from + 1;
 
   if (!player.isBot) {
     const sock = io.sockets.sockets.get(playerId);
-    if (sock) {
-      sock.emit('new_question', {
-        ...toPublicQuestion(q),
-        round: state.idx + 1,
-        timeLimit,
-        alivePlayers: lobby.players.size,
-        medathon: {
-          index: state.idx + 1,
-          total: lobby.medathonQueue.length,
-          stageIndex: entry.stage + 1,
-          stageTotal: lobby.medathonStages.length,
-          stagePos: posInStage,
-          stageCount: stage.count,
-          newStage: posInStage === 1,
-          system: stage.name,
-          systemShort: stage.short,
-          systemIcon: stage.icon,
-          systemId: stage.id,
-          score: state.score,
-          correct: state.correct,
-        },
-      });
-    }
+    if (sock) sock.emit('new_question', medathonQuestionPayload(lobby, playerId, timeLimit));
   }
 
   clearTimeout(state.timer);
@@ -3084,6 +3117,23 @@ io.on('connection', (socket) => {
     if (lobby.status !== 'waiting') return socket.emit('error', { message: 'Game already started.' });
     if (lobby.players.size < 2)     return socket.emit('error', { message: 'Need at least 2 players to start.' });
     startGame(lobby);
+  });
+
+  // "I am still on the waiting screen and my question never came." Sent by
+  // the client when question one is overdue. Either the race has not opened
+  // yet — in which case say so, so a spinner can tell waiting apart from
+  // broken — or send them what they are already on, again.
+  socket.on('medathon_resend', () => {
+    const lobby = lobbies.get(socket.lobbyId);
+    if (!lobby || lobby.status !== 'medathon') return;
+    const state = lobby.medathonPlayers?.get(socket.id);
+    if (!state || state.finished) return;
+    if (!state.currentQ) {
+      return socket.emit('medathon_pending', {
+        startsIn: Math.max(0, (lobby.medathonOpensAt || 0) - Date.now()),
+      });
+    }
+    resendMedathonQuestion(lobby, socket.id);
   });
 
   socket.on('submit_answer', ({ answer }) => {
