@@ -96,6 +96,9 @@ export default function App() {
     if (!medathonIntroRef.current) return;
     medathonIntroRef.current = false;
     setMedathonIntro(false);
+    // The opening is one plucked string and nothing else; the theme starts
+    // when the race does.
+    audio.startMedathonMusic();
   }, []);
   const [openToQuickJoin, setOpenToQuickJoin] = useState(true);
   const [streaks, setStreaks] = useState({});
@@ -284,8 +287,10 @@ export default function App() {
       setHiddenOptions([]);
       setExtraTimeBonus(0);
       setShowPowerupIntro(false);
-      // A Medathon runs without music: one plucked string at the door, and
-      // then the fall. Anything the lobby had going stops here.
+      // A Medathon has its own theme, and it waits for the opening to
+      // finish (see endMedathonIntro). Anything else the lobby had going
+      // stops here either way.
+      audio.stopMedathonMusic();
       if (gm === 'medathon') { audio.stopBgMusic(); audio.stopGameMusic(); }
       else audio.startGameMusic();
     });
@@ -441,6 +446,7 @@ export default function App() {
       setGameResult(result);
       setPhase('game_over');
       audio.stopGameMusic();
+      audio.stopMedathonMusic();
       if (result.winner) audio.playVictory();
       else audio.playEliminated();
 
@@ -541,6 +547,7 @@ export default function App() {
     socket.disconnect();
     audio.stopBgMusic();
     audio.stopGameMusic();
+    audio.stopMedathonMusic();
     setPhase('entry');
   }
 
@@ -850,6 +857,7 @@ export default function App() {
   function handleReturnHome() {
     audio.stopBgMusic();
     audio.stopGameMusic();
+    audio.stopMedathonMusic();
     socket.disconnect();
 
     if (user) {

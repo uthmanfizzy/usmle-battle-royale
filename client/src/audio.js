@@ -4,6 +4,13 @@ let bgGain = null;
 let bgNodes = [];
 let gameGain = null;
 let gameNodes = [];
+// The Medathon's theme is a recording, not a synth patch, so it is an
+// element rather than a graph of nodes. Declared up here because setMuted
+// has to be able to reach it.
+let medathonEl = null;
+let medathonUnlock = null;
+const MEDATHON_TRACK = '/assets/medathon-theme.mp3';
+const MEDATHON_VOL = 0.34;
 
 function getCtx() {
   if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -18,6 +25,10 @@ export function setMuted(val) {
   if (bgGain) bgGain.gain.value = val ? 0 : 0.07;
   if (gameGain) gameGain.gain.value = val ? 0 : 0.09625;
   if (studyGain) studyGain.gain.value = val ? 0 : STUDY_VOL;
+  // The theme is an <audio> element, so it is outside the gain graph above
+  // and has to be muted on its own. Without this the mute button in the
+  // Medathon HUD would silence everything except the music.
+  if (medathonEl) medathonEl.volume = val ? 0 : MEDATHON_VOL;
 }
 
 // ── HY Flashcards study music — "Quest Log" ─────────────────────────────────
@@ -367,6 +378,77 @@ export function startGameMusic() {
   gameGain.gain.value = 0.09625; // full energy (+40%)
   gameGain.connect(c.destination);
   gameNodes = [{ interval: startSequencer(gameGain, 132, true) }];
+}
+
+// ── The Medathon theme ────────────────────────────────────────────────────
+// The one piece of audio in the app that is a recording rather than
+// something built out of oscillators: client/public/assets/medathon-theme.mp3,
+// served from the site root.
+//
+// An <audio> element rather than an AudioContext buffer, because a buffer
+// source cannot start until the whole file has been downloaded AND decoded —
+// eight minutes of it — whereas the element starts as soon as it has enough
+// to play and streams the rest.
+//
+// Autoplay: a browser will refuse to start audio on a page the person has
+// not interacted with. The leader pressing Start is an interaction and so is
+// clicking into a lobby, so this usually just plays — but someone who opened
+// a link and has touched nothing would otherwise get silence for the whole
+// race, so a refusal arms the first tap instead of being swallowed.
+export function startMedathonMusic() {
+  stopMedathonMusic();
+  if (muted) return;
+
+  const el = new Audio(MEDATHON_TRACK);
+  el.loop = true;
+  el.preload = 'auto';
+  el.volume = 0;
+  medathonEl = el;
+
+  // Up over a second, so it arrives under the race rather than on top of it.
+  const fadeIn = () => {
+    const steps = 24;
+    let i = 0;
+    const id = setInterval(() => {
+      if (medathonEl !== el) return clearInterval(id);
+      i += 1;
+      el.volume = muted ? 0 : MEDATHON_VOL * (i / steps);
+      if (i >= steps) clearInterval(id);
+    }, 50);
+  };
+
+  const start = () => el.play().then(fadeIn);
+
+  start().catch(() => {
+    if (medathonUnlock) return;
+    medathonUnlock = () => {
+      const fn = medathonUnlock;
+      medathonUnlock = null;
+      document.removeEventListener('pointerdown', fn);
+      document.removeEventListener('keydown', fn);
+      if (medathonEl === el && !muted) start().catch(() => { /* nothing more to try */ });
+    };
+    document.addEventListener('pointerdown', medathonUnlock);
+    document.addEventListener('keydown', medathonUnlock);
+  });
+}
+
+export function stopMedathonMusic() {
+  if (medathonUnlock) {
+    document.removeEventListener('pointerdown', medathonUnlock);
+    document.removeEventListener('keydown', medathonUnlock);
+    medathonUnlock = null;
+  }
+  const el = medathonEl;
+  medathonEl = null;
+  if (!el) return;
+  try {
+    el.pause();
+    // Drop the source as well as pausing, or the browser carries on
+    // buffering a track nobody is listening to.
+    el.removeAttribute('src');
+    el.load();
+  } catch { /* already gone */ }
 }
 
 export function stopGameMusic() {
