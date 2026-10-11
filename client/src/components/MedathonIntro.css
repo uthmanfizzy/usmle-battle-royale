@@ -109,7 +109,7 @@
 /* Runs after the kick, so it wins on order and takes over cleanly. */
 @keyframes mi-page-push {
   from { transform: skewX(-9deg) scale(1); }
-  to   { transform: skewX(-9deg) scale(1.055); }
+  to   { transform: skewX(-9deg) scale(1.03); }
 }
 
 .mi-pan {
@@ -159,23 +159,29 @@
   mix-blend-mode: screen;
 }
 .mi-pan-art img {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+  position: relative;
+  /* Never blown up past its own pixels. An avatar is a few hundred pixels
+     square and a panel is eight hundred by twelve: covering it turned the
+     picture into a blurred crop with most of the face outside the frame.
+     Drawn at its own size, centred on the colour plate, instead. */
+  width: min(86%, 380px);
+  max-height: 62%;
+  object-fit: contain;
+  border-radius: 8px;
   /* Luminosity over the colour plate: the photo keeps its light and dark and
      takes the hue from underneath. That is the duotone. */
   mix-blend-mode: luminosity;
-  filter: contrast(1.5) brightness(1.08);
+  filter: contrast(1.42) brightness(1.06);
 }
 /* Nobody but you has a picture in the lobby payload, so an initial is the
    artwork for everyone else — inked at a size that makes it artwork rather
    than a placeholder. */
+.mi-pan.has-art .mi-pan-initial { display: none; }
+
 .mi-pan-initial {
   position: relative;
   font-family: var(--mv-font-display, 'Cinzel', serif);
-  font-size: min(22vh, calc(74vw / var(--count, 3)));
+  font-size: min(15vh, calc(52vw / var(--count, 3)));
   font-weight: 700;
   line-height: 0.9;
   color: #fff;
@@ -653,7 +659,7 @@ html.mv-shoji #root {
   }
   @keyframes mi-page-push-v {
     from { transform: skewY(-6deg) scale(1); }
-    to   { transform: skewY(-6deg) scale(1.055); }
+    to   { transform: skewY(-6deg) scale(1.03); }
   }
 
   .mi-pan {
@@ -671,7 +677,7 @@ html.mv-shoji #root {
     mask-image: radial-gradient(circle at 50% 50%, rgba(0, 0, 0, 0) 14%, #000 38%, rgba(0, 0, 0, 0) 74%);
   }
   .mi-pan-initial {
-    font-size: min(27vw, calc(62vh / var(--count, 3)));
+    font-size: min(19vw, calc(44vh / var(--count, 3)));
     transform: none;
   }
 

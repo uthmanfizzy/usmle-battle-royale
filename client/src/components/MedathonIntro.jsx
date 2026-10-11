@@ -181,7 +181,7 @@ export default function MedathonIntro({ onDone, onMusic, muted = false, players 
           {roster.map((p, i) => (
             <div
               key={p.key}
-              className={`mi-pan mi-pan--${i % PANEL_COLOURS}${p.mine ? ' is-you' : ''}`}
+              className={`mi-pan mi-pan--${i % PANEL_COLOURS}${p.mine ? ' is-you' : ''}${p.avatar ? ' has-art' : ''}`}
               style={{ '--d': `${i * T.panel}ms`, '--from': i % 2 ? '112%' : '-112%' }}
             >
               <span className="mi-pan-art">
