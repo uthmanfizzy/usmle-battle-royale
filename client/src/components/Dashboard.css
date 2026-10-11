@@ -5084,8 +5084,10 @@ button.settings-btn img,
   .dashboard-screen.dash-home .dashboard-header,
   .dashboard-screen.dash-home .dash-main,
   .dashboard-screen.dash-home .dash-dock { max-width: 1100px !important; }
-  .dashboard-screen.dash-home .dash-nav-col { flex-basis: 620px; max-width: 620px; }
-  .dashboard-screen.dash-home .dash-content-col { flex-basis: 390px; width: 390px !important; max-width: 390px; }
+  /* The mockup gives the play card and its three tiles close to twice the
+     right column, not one and a half times. */
+  .dashboard-screen.dash-home .dash-nav-col { flex-basis: 690px; max-width: 690px; }
+  .dashboard-screen.dash-home .dash-content-col { flex-basis: 370px; width: 370px !important; max-width: 370px; }
 }
 
 @media (max-width: 400px) {
@@ -5178,3 +5180,67 @@ button.settings-btn img,
   text-transform: uppercase;
 }
 .dash-underdev-sub { margin: 0; font-size: 17px; color: rgba(241, 237, 228, 0.7); }
+
+/* ── The Quick Access heading and the strapline ───────────────────────────
+   Two pieces of mockup chrome the dashboard never had: a label over the dock
+   band, and the strapline opposite the header's icon bubbles. Both are
+   decoration — aria-hidden, no focus stops — and both stand down on a phone,
+   where the header is already two rows and the dock is a scroller. */
+.dash-dock-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 2px 10px;
+}
+.dash-dock-head-text {
+  font-family: var(--mv-font-display, 'Cinzel', serif);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: rgba(232, 176, 75, 0.78);
+}
+.dash-dock-rule {
+  flex: 0 0 56px;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(232, 176, 75, 0), rgba(232, 176, 75, 0.55));
+}
+.dash-dock-rule--r {
+  flex: 1 1 auto;
+  background: linear-gradient(90deg, rgba(232, 176, 75, 0.55), rgba(232, 176, 75, 0));
+}
+
+.dash-strap {
+  display: none;
+  align-items: center;
+  gap: 10px;
+  padding-left: 18px;
+  margin-left: 4px;
+  border-left: 1px solid rgba(255, 255, 255, 0.14);
+  color: rgba(232, 176, 75, 0.72);
+}
+.dash-strap-pulse { width: 54px; height: 14px; flex-shrink: 0; }
+.dash-strap-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  font-family: var(--mv-font-display, 'Cinzel', serif);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  line-height: 1.35;
+  text-transform: uppercase;
+  text-align: right;
+  color: rgba(243, 241, 238, 0.82);
+}
+.dash-strap-text em { font-style: normal; color: rgba(232, 176, 75, 0.85); }
+
+@media (min-width: 1024px) {
+  .dash-strap { display: flex; }
+}
+@media (max-width: 600px) {
+  .dash-dock-head { margin-bottom: 8px; }
+  .dash-dock-rule { flex-basis: 24px; }
+  .dash-dock-head-text { font-size: 9.5px; letter-spacing: 0.24em; }
+}

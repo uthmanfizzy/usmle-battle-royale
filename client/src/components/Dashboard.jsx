@@ -1257,6 +1257,24 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
                 </div>
               )}
               </div>
+
+              {/* The strapline, opposite the icon bubbles. Desktop only: on a
+                  phone the header is already two rows of chrome. */}
+              <div className="dash-strap" aria-hidden="true">
+                <svg className="dash-strap-pulse" viewBox="0 0 64 16" fill="none">
+                  <path
+                    d="M0 8h14l4-6 5 12 5-9 4 3h32"
+                    stroke="currentColor"
+                    strokeWidth="1.6"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                <span className="dash-strap-text">
+                  Better doctors.
+                  <em>A brighter future.</em>
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -1359,6 +1377,14 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
                 and Shop route to their standalone pages; the Daily Reward
                 button claims the daily chest directly. */}
             <div className="dash-dock">
+              {/* The band is labelled in the mockup — a rule, the words, a
+                  rule — so the row of icons reads as a section rather than
+                  as loose furniture at the bottom of the page. */}
+              <div className="dash-dock-head" aria-hidden="true">
+                <span className="dash-dock-rule" />
+                <span className="dash-dock-head-text">Quick Access</span>
+                <span className="dash-dock-rule dash-dock-rule--r" />
+              </div>
               <div className="dash-dock-items">
                 <div className="dash-dock-item dash-dock-item--soon" aria-disabled="true">
                   <span className="dash-dock-tile"><span className="dash-dock-ribbon">SOON</span>🎒</span>
