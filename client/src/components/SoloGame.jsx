@@ -349,7 +349,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   // top of whatever is configured for the difficulty. Bonuses rather than
   // overrides, so admin-configured timings still move them.
   const JOURNEY_QUESTION_BONUS_S    = 10;
-  const JOURNEY_EXPLANATION_BONUS_S = 15;
+  const JOURNEY_EXPLANATION_BONUS_S = 20;
   // UWorld Adventure gets 10s more on both phases than the exam skin's base.
   const UWA_BONUS_S = (uworldSkin && (!examTheme || examTheme.id === 'uworld_adventure')) ? 10 : 0;
   const defaultTimer = (uworldSkin
