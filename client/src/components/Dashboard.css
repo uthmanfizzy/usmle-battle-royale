@@ -5025,14 +5025,19 @@ button.settings-btn img,
    applies, which is why this block is short.
    ─────────────────────────────────────────────────────────────────────────── */
 @media (min-width: 1024px) {
-  /* The bands run to the edges of the window, with the page padding as
-     the only inset. 2000px is the base cap every band already shares — it
-     is there to stop the middle gap ballooning on an ultrawide, and it does
-     not bite until the window passes it. */
+  /* The bands run to the edges of the window, with the page padding as the
+     only inset — no cap at all. The 2000px cap the base rules carry was
+     there to stop the middle gap ballooning on an ultrawide, back when both
+     columns were fixed-width and every extra pixel piled into the gap
+     between them. That cannot happen now: the right column is pinned to the
+     mockup's width and the left takes all the slack, so the extra pixels go
+     into the play card. What the cap did instead was centre all three bands
+     on anything wider than 2000px, which left a 2560 display with ~280px of
+     dead screen down each side — the thing this block exists to remove. */
   .dashboard-screen.dash-home .dashboard-header,
   .dashboard-screen.dash-home .dash-main,
   .dashboard-screen.dash-home .dash-dock {
-    max-width: 2000px !important;
+    max-width: none !important;
   }
   .dashboard-screen.dash-home .dashboard-header { padding: 26px 28px 8px !important; }
 
