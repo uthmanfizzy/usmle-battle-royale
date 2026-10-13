@@ -31,7 +31,11 @@
   background: transparent;
 
   --door-h: min(80vh, 92vw);
-  --door-w: calc(var(--door-h) * 0.92);
+  /* Wider than it is tall. A shoji pair reads as a doorway rather than a
+     window at this ratio, and the room behind it gets the width to show the
+     shaft falling away. Capped against the viewport as well, or a phone
+     held upright gets a doorway wider than its screen. */
+  --door-w: min(calc(var(--door-h) * 1.18), 94vw);
   --bar: 3px;
   --wood: #4a2a1d;
   --wood-lit: #6d4029;
@@ -453,16 +457,37 @@ html.mv-shoji #root {
    It is held at the room's old depth and size so the doorway frames it, and
    the sum in the header still has to hold — the shaft has to stay wider than
    the wall's hole for the whole fall. */
+/* The opening itself, and the only place the room is allowed to paint.
+   The room used to sit in the world as a plane 520px further back, relying
+   on the wall in front of it to hide everything but the doorway. A wall is
+   a finite plane, and the world it lives in tilts and rushes at the camera:
+   part way down the fall its outer edge came into frame, and the shaft
+   showed past it in a band across the top of the screen — the dark not
+   covering the edges. Clipping here cannot fail that way. Everything
+   outside the doorway is now .mi's own black, which is flat, not a plane,
+   and so has no edge to come round.
+
+   It is a child of the world, so it still rushes at the camera with it and
+   the opening grows until it is wider than the screen — which is how the
+   race underneath is revealed at the end of the fall, as before. */
+.mi-port {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
 .mi-room {
   position: absolute;
   left: 50%;
   top: 50%;
   /* Viewport units, not a share of the doorway: the doorway is nearly
      square and a phone is not, so a square room runs out vertically
-     part-way down the fall and the screen goes black below it. */
-  width: 230vw;
-  height: 230vh;
-  transform: translate(-50%, -50%) translateZ(-520px);
+     part-way down the fall and the screen goes black below it. Sized to
+     what the old plane projected to from 520px back, so the doorway frames
+     the same amount of shaft as it did; the clip above flattens its depth,
+     which is what the old size was compensating for. */
+  width: 150vw;
+  height: 150vh;
+  transform: translate(-50%, -50%);
   overflow: hidden;
 }
 

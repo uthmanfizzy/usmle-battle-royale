@@ -222,8 +222,10 @@ export default function MedathonIntro({ onDone, onMusic, muted = false, players 
               played over, seen from its top. The same component the game
               mounts behind itself, so going over the edge and landing in the
               match is one continuous fall. */}
-          <div className="mi-room">
-            <FallingShaft layers={12} seconds={3.2} />
+          <div className="mi-port">
+            <div className="mi-room">
+              <FallingShaft layers={12} seconds={3.2} />
+            </div>
           </div>
 
           {/* The light that gets out as the gap widens. */}
