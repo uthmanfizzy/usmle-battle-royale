@@ -5044,9 +5044,9 @@ button.settings-btn img,
   .dashboard-screen.dash-home .dash-main {
     flex-direction: row;
     align-items: flex-start;
-    /* The left column absorbs the slack, so there is nothing to centre —
-       the columns start at the left padding and run to the right one. */
-    justify-content: flex-start;
+    /* The left column is shorter than the band now, so the slack sits
+       between the two columns: one keeps the left edge, one the right. */
+    justify-content: space-between;
     flex-wrap: nowrap;
     padding: 18px 28px 30px !important;
     gap: 24px !important;
@@ -5062,7 +5062,12 @@ button.settings-btn img,
      1920 one did not: only the 1360px block below lifted the cap, so any
      window between 1024 and 1360 never reached the edge. */
   .dashboard-screen.dash-home .dash-nav-col {
-    flex: 1 1 0;
+    /* Six tenths of the run the column would otherwise take — the whole band
+       less the right column and the gap between them. Written as a share of
+       that rather than a fixed width so it holds at every window size, and
+       the three tiles below stretch to the column, so shortening it here
+       shortens them by exactly as much. */
+    flex: 0 0 calc((100% - 384px) * 0.6);
     min-width: 0;
     width: auto !important;
     max-width: none;
@@ -5104,7 +5109,8 @@ button.settings-btn img,
    card and its tiles rather than the gap between the columns. */
 @media (min-width: 1360px) {
   .dashboard-screen.dash-home .dash-nav-col {
-    flex: 1 1 0 !important;
+    /* As above, against this breakpoint's wider right column. */
+    flex: 0 0 calc((100% - 414px) * 0.6) !important;
     width: auto !important;
     max-width: none !important;
   }
