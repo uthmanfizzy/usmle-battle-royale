@@ -12,6 +12,7 @@ import Calculator from './Calculator';
 import LabValues from './LabValues';
 import { shuffleQuestionOptions } from '../utils/shuffleOptions';
 import { normalizeExplanationImages, MAX_EXPLANATION_IMAGES } from '../utils/explanationImages';
+import { runKeyFor, loadRun, saveRun, clearRun, restoreOrder } from '../utils/runSave';
 import { useScrollToTopOnChange } from '../utils/useScrollToTopOnChange';
 import { toVisibleText, resolveHighlights, normalizeHighlightRow, captureContext } from '../utils/explanationHighlights';
 import { getToken } from '../auth';
@@ -391,6 +392,14 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   // Exam skin only: items flagged for review. Session-scoped — surfaced on the
   // results screen rather than persisted, since there is no review pass yet.
   const [marked, setMarked] = useState(() => new Set());
+  // Walking away mid-level used to cost you the level. The position is kept
+  // so Home is a pause rather than a loss — see utils/runSave.js for what is
+  // stored and why UWorld Adventure is left out of it.
+  const runKey = useMemo(
+    () => runKeyFor({ uworldSkin, questionsUrl, subject, topicId, difficulty }),
+    [uworldSkin, questionsUrl, subject, topicId, difficulty],
+  );
+  const [resumed, setResumed] = useState(false);
   // Exam skin only: "End Block" asks for confirmation first — a stray tap used
   // to lose the rest of the block instantly, with no way back.
   const [showEndBlockConfirm, setShowEndBlockConfirm] = useState(false);
@@ -1337,6 +1346,32 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
     // fetch entirely. The caller owns the selection — which questions, in which
     // order — so nothing here re-derives it.
     //
+    // One door for every fetched set: if there is a run to come back to,
+    // the questions are put back in the order they were served and the
+    // player lands on the one they left. Anything that no longer lines up
+    // starts clean rather than dropping them on the wrong question.
+    const startRun = (fetched) => {
+      const saved = runKey ? loadRun(runKey) : null;
+      if (saved) {
+        const { questions: ordered, idx, ok } = restoreOrder(fetched, saved);
+        if (ok) {
+          setQuestions(ordered);
+          setQIdx(idx);
+          setScore(saved.score || 0);
+          setLives(typeof saved.lives === 'number' ? saved.lives : defaultLives);
+          setBestStreak(saved.bestStreak || 0);
+          // No state behind these two, so they are set directly; the rest
+          // are mirrored into their refs on the next render.
+          answeredCountRef.current = saved.answered || 0;
+          correctCountRef.current  = saved.correct || 0;
+          setResumed(true);
+          return;
+        }
+        clearRun(runKey);
+      }
+      setQuestions(fetched);
+    };
+
     // The array reference MUST be stable across renders (UWorldAdventure holds it
     // in state, set once per session start); a freshly-built array every render
     // would re-fire this effect and reset the run mid-question.
@@ -1347,7 +1382,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
         setLoading(false);
         return;
       }
-      setQuestions(providedQuestions);
+      startRun(providedQuestions);
       setLoading(false);
       return;
     }
@@ -1388,14 +1423,46 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
           return;
         }
 
-        setQuestions(questions);
+        startRun(questions);
         setLoading(false);
       })
       .catch(() => {
         setFetchError('Failed to load questions. Check your connection.');
         setLoading(false);
       });
+    // runKey is derived from the same four inputs, so it cannot change on
+    // its own; listing it would only re-run this effect on its own identity.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [subject, topicId, difficulty, questionsUrl, providedQuestions]);
+
+  // The position, written each time the run reaches a new question — which
+  // is also the only honest moment to write it. The counters at that point
+  // cover everything BEFORE this question, so coming back re-asks it whole
+  // rather than resuming half way through one and counting it twice.
+  //
+  // Nothing is written on the way out. Home does not need to save: the last
+  // write already describes exactly the question being left.
+  useEffect(() => {
+    if (!runKey) return;
+    if (gameOver) { clearRun(runKey); return; }
+    if (loading || !questions.length) return;
+    saveRun(runKey, {
+      ids: questions.map(q => q.id),
+      idx: qIdx,
+      score: scoreRef.current,
+      lives,
+      bestStreak: bestStreakRef.current,
+      answered: answeredCountRef.current,
+      correct: correctCountRef.current,
+    });
+  }, [runKey, qIdx, lives, questions, loading, gameOver]);
+
+  // Said once, then out of the way.
+  useEffect(() => {
+    if (!resumed) return undefined;
+    const id = setTimeout(() => setResumed(false), 4200);
+    return () => clearTimeout(id);
+  }, [resumed]);
 
   const processAnswerRef = useRef(null);
 
@@ -2046,6 +2113,11 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
 
   return (
     <div className={`${screenClass}${timeUpLock ? ' uw-timeup' : ''}`} ref={screenRef}>
+      {resumed && (
+        <div className="sg-resumed" role="status">
+          Picked up where you left off — question {qIdx + 1}
+        </div>
+      )}
       {ratingErrorBanner}
 
       {/* Developer-mode unlock: only when ?dev=1 is in the URL and not yet unlocked.

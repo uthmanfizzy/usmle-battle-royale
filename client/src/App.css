@@ -4204,3 +4204,29 @@ html[data-study="on"] .solo-body .pause-overlay {
 @media (prefers-reduced-motion: reduce) {
   .sg-zoom, .sg-zoom-img { animation: none; }
 }
+
+/* Coming back to a run you walked away from. Said once, near the top of
+   the screen, then gone — it is a reassurance, not a control. */
+.sg-resumed {
+  position: fixed;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 60;
+  padding: 8px 18px;
+  border-radius: 999px;
+  border: 1px solid rgba(232, 176, 75, 0.5);
+  background: rgba(18, 13, 8, 0.92);
+  color: #f0dba6;
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55);
+  animation: sg-resumed-in 0.3s ease both;
+  pointer-events: none;
+}
+@keyframes sg-resumed-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(-8px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) { .sg-resumed { animation: none; } }
