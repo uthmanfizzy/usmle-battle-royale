@@ -5062,12 +5062,12 @@ button.settings-btn img,
      1920 one did not: only the 1360px block below lifted the cap, so any
      window between 1024 and 1360 never reached the edge. */
   .dashboard-screen.dash-home .dash-nav-col {
-    /* Six tenths of the run the column would otherwise take — the whole band
+    /* Two thirds of the run the column would otherwise take — the whole band
        less the right column and the gap between them. Written as a share of
        that rather than a fixed width so it holds at every window size, and
-       the three tiles below stretch to the column, so shortening it here
-       shortens them by exactly as much. */
-    flex: 0 0 calc((100% - 384px) * 0.6);
+       the three tiles below stretch to the column, so changing it here
+       changes them by exactly as much. */
+    flex: 0 0 calc((100% - 384px) * 0.66);
     min-width: 0;
     width: auto !important;
     max-width: none;
@@ -5110,7 +5110,7 @@ button.settings-btn img,
 @media (min-width: 1360px) {
   .dashboard-screen.dash-home .dash-nav-col {
     /* As above, against this breakpoint's wider right column. */
-    flex: 0 0 calc((100% - 414px) * 0.6) !important;
+    flex: 0 0 calc((100% - 414px) * 0.66) !important;
     width: auto !important;
     max-width: none !important;
   }
