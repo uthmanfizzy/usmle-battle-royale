@@ -5044,7 +5044,9 @@ button.settings-btn img,
   .dashboard-screen.dash-home .dash-main {
     flex-direction: row;
     align-items: flex-start;
-    justify-content: center;
+    /* The left column absorbs the slack, so there is nothing to centre —
+       the columns start at the left padding and run to the right one. */
+    justify-content: flex-start;
     flex-wrap: nowrap;
     padding: 18px 28px 30px !important;
     gap: 24px !important;
@@ -5052,13 +5054,18 @@ button.settings-btn img,
 
   /* Left: the nav cards keep their three-up grid, so PLAY still spans the
      row and the three tiles sit under it — just inside a column now.
-     Capped: given the whole band the PLAY card ran past 800px and the tiles
-     past 260, which is a wall rather than a card. */
+
+     It grows into whatever the right column leaves. The 580px cap that used
+     to sit here held the column still and let justify-content: center push
+     every spare pixel out to the sides as gutter, which is why a ~1230px
+     window still showed the cards inset by well over 100px a side while a
+     1920 one did not: only the 1360px block below lifted the cap, so any
+     window between 1024 and 1360 never reached the edge. */
   .dashboard-screen.dash-home .dash-nav-col {
-    flex: 0 1 580px;
+    flex: 1 1 0;
     min-width: 0;
     width: auto !important;
-    max-width: 580px;
+    max-width: none;
     gap: 12px !important;
   }
   .dashboard-screen.dash-home .dash-nav-card--play { min-height: 150px; }
@@ -5067,7 +5074,7 @@ button.settings-btn img,
 
   /* Right: the event card and the News Feed, at the width they were. */
   .dashboard-screen.dash-home .dash-content-col {
-    flex: 0 1 360px;
+    flex: 0 0 360px;
     width: 360px !important;
     max-width: 360px;
   }
