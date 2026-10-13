@@ -170,14 +170,21 @@ export default function MedathonGame({
     return () => clearInterval(id);
   }, [question, introDone, dueAt, onResend]);
 
-  // The system curtain. Raised whenever a question opens a new stage, and on
-  // the very first question, then dropped on a timer.
+  // The first system to be sat is named on the GET READY screen, so the
+  // player has read it before the race starts.
+  const firstStage = setup?.stages?.[0] || null;
+
+  // The system curtain. Raised whenever a question opens a NEW stage — but
+  // not on the first, which GET READY has just announced; a second black
+  // screen saying the same thing only delays question one.
   const [curtain, setCurtain] = useState(null);
   const lastStage = useRef(null);
   useEffect(() => {
     if (!med) return undefined;
     if (!med.newStage || lastStage.current === med.stageIndex) return undefined;
+    const opening = lastStage.current === null;
     lastStage.current = med.stageIndex;
+    if (opening) return undefined;
     setCurtain({ name: med.system, icon: med.systemIcon, index: med.stageIndex, of: med.stageTotal, count: med.stageCount });
     const t = setTimeout(() => setCurtain(null), 1500);
     return () => clearTimeout(t);
@@ -374,6 +381,18 @@ export default function MedathonGame({
               {ready === 'ready' ? '' : ready === 'go' ? 'GO' : ready}
             </span>
             <span className="mdt-ready-sub">Fifteen systems · fastest correct wins</span>
+            {firstStage && (
+              <span className="mdt-ready-first">
+                <span className="mdt-ready-first-label">First system</span>
+                <span className="mdt-ready-first-name">
+                  <span aria-hidden="true">{firstStage.icon}</span>
+                  {firstStage.name}
+                </span>
+                <span className="mdt-ready-first-count">
+                  {firstStage.count} question{firstStage.count === 1 ? '' : 's'}
+                </span>
+              </span>
+            )}
           </div>
           <span className="mdt-ready-ring" key={`r${String(ready)}`} aria-hidden="true" />
         </div>

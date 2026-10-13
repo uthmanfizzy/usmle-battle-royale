@@ -52,10 +52,12 @@ const T = {
   done:   11550,
 };
 
-// The theme does not wait for the handover: it comes in five seconds before
-// it, which puts it under the doors as they part, well ahead of the drop.
-// The race it belongs to is already under way by the time you land in it.
-const MUSIC_LEAD = 5000;
+// The theme does not wait for the handover: it comes in not quite five
+// seconds before it, which puts it under the doors as they part, well ahead
+// of the drop. The race it belongs to is already under way by the time you
+// land in it. The three tenths off the lead are there so the first beat
+// clears the plucked string rather than landing on top of it.
+const MUSIC_LEAD = 4700;
 
 export const MEDATHON_INTRO_MS = T.done;
 

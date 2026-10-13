@@ -773,3 +773,51 @@
   cursor: pointer;
 }
 .mdt-waiting-retry:hover { background: rgba(232, 176, 75, 0.26); }
+
+/* ── The first system, on the GET READY screen ────────────────────────────
+   It used to get a black screen of its own straight after the count, which
+   said the same thing twice and held question one back while it played. The
+   count carries it instead: a bordered plate under the strapline, gold like
+   the curtain's kicker so it reads as the same announcement. */
+.mdt-ready-first {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  margin-top: 14px;
+  padding: 10px 22px;
+  border: 1px solid rgba(232, 176, 75, 0.38);
+  border-radius: 10px;
+  background: rgba(20, 13, 6, 0.55);
+  box-shadow: 0 0 26px rgba(232, 176, 75, 0.12);
+  animation: mdt-ready-in 420ms ease both;
+}
+.mdt-ready-first-label {
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: rgba(232, 176, 75, 0.8);
+}
+.mdt-ready-first-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--mv-font-display, 'Cinzel', serif);
+  font-size: clamp(18px, 2.6vw, 28px);
+  font-weight: 700;
+  color: #f7f2e9;
+}
+.mdt-ready-first-count {
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(243, 241, 238, 0.45);
+}
+/* Landscape on a phone has very little height to give: the plate stays, but
+   it stops competing with the count for it. */
+@media (max-height: 460px) {
+  .mdt-ready-first { margin-top: 8px; padding: 6px 14px; }
+  .mdt-ready-first-name { font-size: 16px; }
+  .mdt-ready-first-count { display: none; }
+}
