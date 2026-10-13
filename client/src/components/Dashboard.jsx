@@ -1308,7 +1308,7 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
                       <span className="dash-nav-card-sub">ENTER THE WARZONE<Chevron /></span>
                     </span>
                   </button>
-                  <button type="button" className="dash-nav-card dash-nav-card--tile" onClick={() => setDashTab('leaderboard')}>
+                  <button type="button" className="dash-nav-card dash-nav-card--tile dash-nav-card--lb" onClick={() => setDashTab('leaderboard')}>
                     <CardArt src={homeImages.home_leaderboards_art} />
                     <span className="dash-nav-card-icon">
                       {homeImages.icon_leaderboards
@@ -1321,7 +1321,7 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
                       <Chevron />
                     </span>
                   </button>
-                  <button type="button" className="dash-nav-card dash-nav-card--tile dash-nav-card--locked" disabled title="Clans is under development">
+                  <button type="button" className="dash-nav-card dash-nav-card--tile dash-nav-card--locked dash-nav-card--clans" disabled title="Clans is under development">
                     <CardArt src={homeImages.home_clans_art} />
                     <span className="dash-nav-card-icon">
                       {homeImages.icon_clans
@@ -1352,7 +1352,7 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
                       is a standalone route rather than a dash tab: ShortsFeed is a
                       full-viewport scroll-snap feed, and .dash-tab-wrap's header
                       clearance would crop every slide. */}
-                  <button type="button" className="dash-nav-card dash-nav-card--tile" onClick={() => { window.location.href = '/reels'; }}>
+                  <button type="button" className="dash-nav-card dash-nav-card--tile dash-nav-card--reels" onClick={() => { window.location.href = '/reels'; }}>
                     <CardArt src={homeImages.home_reels_art} />
                     <span className="dash-nav-card-icon">
                       {homeImages.icon_reels

@@ -5025,10 +5025,14 @@ button.settings-btn img,
    applies, which is why this block is short.
    ─────────────────────────────────────────────────────────────────────────── */
 @media (min-width: 1024px) {
+  /* The bands run to the edges of the window, with the page padding as
+     the only inset. 2000px is the base cap every band already shares — it
+     is there to stop the middle gap ballooning on an ultrawide, and it does
+     not bite until the window passes it. */
   .dashboard-screen.dash-home .dashboard-header,
   .dashboard-screen.dash-home .dash-main,
   .dashboard-screen.dash-home .dash-dock {
-    max-width: 1020px !important;
+    max-width: 2000px !important;
   }
   .dashboard-screen.dash-home .dashboard-header { padding: 26px 28px 8px !important; }
 
@@ -5078,16 +5082,25 @@ button.settings-btn img,
   .dashboard-screen.dash-home .dash-dock-reward-wrap .dash-dock-reward { flex: 0 0 auto; }
 }
 
-/* A very wide screen gets a little more, not all of it: past this the band
-   would stop being a layout and start being a horizon. */
+/* A wide screen runs to the edges. The 1100px cap that used to sit here
+   centred all three bands and left a quarter of a 1920 display empty down
+   each side; the base 2000px cap takes over, which the note at .dash-main
+   explains is edge-to-edge at 1920 with only the page padding inset.
+
+   The right column stays the width the mockup gives it and the left column
+   takes every pixel of the slack, so widening the window grows the play
+   card and its tiles rather than the gap between the columns. */
 @media (min-width: 1360px) {
-  .dashboard-screen.dash-home .dashboard-header,
-  .dashboard-screen.dash-home .dash-main,
-  .dashboard-screen.dash-home .dash-dock { max-width: 1100px !important; }
-  /* The mockup gives the play card and its three tiles close to twice the
-     right column, not one and a half times. */
-  .dashboard-screen.dash-home .dash-nav-col { flex-basis: 690px; max-width: 690px; }
-  .dashboard-screen.dash-home .dash-content-col { flex-basis: 370px; width: 370px !important; max-width: 370px; }
+  .dashboard-screen.dash-home .dash-nav-col {
+    flex: 1 1 0 !important;
+    width: auto !important;
+    max-width: none !important;
+  }
+  .dashboard-screen.dash-home .dash-content-col {
+    flex: 0 0 390px !important;
+    width: 390px !important;
+    max-width: 390px;
+  }
 }
 
 @media (max-width: 400px) {
@@ -5243,4 +5256,48 @@ button.settings-btn img,
   .dash-dock-head { margin-bottom: 8px; }
   .dash-dock-rule { flex-basis: 24px; }
   .dash-dock-head-text { font-size: 9.5px; letter-spacing: 0.24em; }
+}
+
+/* ── A colour per card ────────────────────────────────────────────────────
+   The mockup gives every card on the home page its own edge rather than one
+   shared hairline: the play card was already red, and these are the rest of
+   the set. Each is a 1.5px border in the card's colour plus a soft bloom of
+   the same, so the colour reads at a glance without the card turning into a
+   neon sign. Static rgba throughout — color-mix() ships broken to older
+   browsers (see the design-tokens note). */
+.dashboard-screen.dash-home .dash-nav-card--lb,
+.dashboard-screen.dash-home .dash-nav-card--clans,
+.dashboard-screen.dash-home .dash-nav-card--reels {
+  border-width: 1.5px;
+  border-style: solid;
+}
+.dashboard-screen.dash-home .dash-nav-card--lb {
+  border-color: rgba(232, 176, 75, 0.75);
+  box-shadow: 0 0 0 1px rgba(232, 176, 75, 0.12), 0 8px 26px rgba(0, 0, 0, 0.45), 0 0 22px rgba(232, 176, 75, 0.16);
+}
+.dashboard-screen.dash-home .dash-nav-card--clans {
+  border-color: rgba(79, 143, 208, 0.75);
+  box-shadow: 0 0 0 1px rgba(79, 143, 208, 0.12), 0 8px 26px rgba(0, 0, 0, 0.45), 0 0 22px rgba(79, 143, 208, 0.16);
+}
+.dashboard-screen.dash-home .dash-nav-card--reels {
+  border-color: rgba(230, 126, 34, 0.75);
+  box-shadow: 0 0 0 1px rgba(230, 126, 34, 0.12), 0 8px 26px rgba(0, 0, 0, 0.45), 0 0 22px rgba(230, 126, 34, 0.16);
+}
+/* Hover lifts the colour rather than changing it. */
+.dashboard-screen.dash-home .dash-nav-card--lb:hover:not(:disabled) {
+  border-color: rgba(232, 176, 75, 1);
+  box-shadow: 0 0 0 1px rgba(232, 176, 75, 0.25), 0 12px 30px rgba(0, 0, 0, 0.5), 0 0 32px rgba(232, 176, 75, 0.3);
+}
+.dashboard-screen.dash-home .dash-nav-card--reels:hover:not(:disabled) {
+  border-color: rgba(230, 126, 34, 1);
+  box-shadow: 0 0 0 1px rgba(230, 126, 34, 0.25), 0 12px 30px rgba(0, 0, 0, 0.5), 0 0 32px rgba(230, 126, 34, 0.3);
+}
+
+.dashboard-screen.dash-home .dash-event-card {
+  border: 1.5px solid rgba(193, 41, 30, 0.7);
+  box-shadow: 0 0 0 1px rgba(193, 41, 30, 0.12), 0 8px 26px rgba(0, 0, 0, 0.45), 0 0 24px rgba(193, 41, 30, 0.16);
+}
+.dashboard-screen.dash-home .dash-news-panel {
+  border: 1.5px solid rgba(61, 220, 132, 0.55);
+  box-shadow: 0 0 0 1px rgba(61, 220, 132, 0.1), 0 8px 26px rgba(0, 0, 0, 0.45), 0 0 22px rgba(61, 220, 132, 0.12);
 }
