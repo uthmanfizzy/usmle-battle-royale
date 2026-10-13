@@ -2156,7 +2156,15 @@ async function saveMedathonReview(review) {
 }
 
 /**
- * Pick the run: up to five real questions per system, in system order.
+ * Pick the run: up to five real questions per system, the systems in a
+ * different order every race.
+ *
+ * The order used to be the order of the list, so every Medathon opened on
+ * the same system and closed on the same one, and a player who had sat a
+ * few knew what was coming before the count finished. Shuffling the systems
+ * as well as the questions inside them means the stage list is new each
+ * time; shuffle() copies, so the list itself is untouched and the preview
+ * built from it further down still reads in its own order.
  *
  * A system the bank cannot fill is SHORTENED rather than padded with
  * something else — a question shown under "Cardio" is a cardiology question
@@ -2172,7 +2180,7 @@ function buildMedathonRun() {
   const queue  = [];
   const stages = [];
 
-  for (const sys of MEDATHON_SYSTEMS) {
+  for (const sys of shuffle(MEDATHON_SYSTEMS)) {
     const aliases = sys.subjects;
     const picked  = shuffle(
       pool.filter(q => !used.has(q.id) && aliases.includes(medathonSubjectKey(q.subject))),
