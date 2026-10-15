@@ -70,6 +70,24 @@ function formatDuration(totalSeconds) {
   return rem === 0 ? `${m}m` : `${m}m ${rem}s`;
 }
 
+// "1 hour and 10 minutes" / "45 minutes" / "30 seconds", for the day's total.
+// formatDuration above stays as it is: it labels each session on its own card,
+// where there is room for a badge and not for a sentence. A whole day runs to
+// hours, and "70m" makes the reader do the division.
+const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+
+function formatLongDuration(totalSeconds) {
+  const s = Math.max(0, Math.round(Number(totalSeconds) || 0));
+  if (s < 60) return plural(s, 'second');
+  const mins = Math.floor(s / 60);
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  if (h === 0) return plural(m, 'minute');
+  // A whole number of hours says so, rather than trailing "and 0 minutes".
+  if (m === 0) return plural(h, 'hour');
+  return `${plural(h, 'hour')} and ${plural(m, 'minute')}`;
+}
+
 const todayUTC = () => new Date().toISOString().slice(0, 10);
 
 // Shift a YYYY-MM-DD string by whole days without tripping over local timezones.
@@ -506,7 +524,7 @@ export default function ActivityPage() {
               </span>
               <span className="da-summary-divider" aria-hidden="true" />
               <span className="da-summary-item">
-                <strong>{formatDuration(totalSeconds)}</strong> active
+                <strong>{formatLongDuration(totalSeconds)}</strong> active
               </span>
               {/* Only on a day the Journey was actually played — on every
                   other day a "0 levels" reading would say nothing. */}
