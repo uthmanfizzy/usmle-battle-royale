@@ -628,6 +628,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   const correctCountRef    = useRef(0);
   const completionFiredRef = useRef(false);
   const onCompleteRef      = useRef(onComplete);
+  const runKeyRef          = useRef(null);  // kept current below, for the end of the run
   const activeSecondsRef   = useRef(0);     // sum of per-question active time (s): answering + explanation
   const revealedAtRef      = useRef(0);     // Date.now() when the explanation was shown, for the line below
   const answeredCountRef   = useRef(0);     // questions answered or timed out this run
@@ -676,6 +677,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   qIdxRef.current = qIdx;
   questionsRef.current = questions;
   onCompleteRef.current = onComplete;
+  runKeyRef.current = runKey;
 
   // Bank whatever active study seconds have accrued since the last post. Called
   // after EVERY question completes, plus on early exit / unmount / pagehide —
@@ -1595,6 +1597,15 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
         setFinalBestStreak(newBest);
         setIsNewHi(newHi);
         setGameOver(true);
+        // Cleared HERE rather than in the save effect below, which is keyed
+        // on gameOver. For Journey and Training the completion handler
+        // changes the parent's phase, and that update lands in this same
+        // batch — so the parent re-renders without this component and it
+        // unmounts before any effect of its own could run. The save of the
+        // finished run survived, and the next attempt at that level resumed
+        // into it, ended on the first answer, and saved itself again: the
+        // same level repeating until the fortnight's expiry ran out.
+        clearRun(runKeyRef.current);
         if (!completionFiredRef.current) {
           completionFiredRef.current = true;
           const total = questionsRef.current.length;

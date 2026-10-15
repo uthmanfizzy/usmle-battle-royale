@@ -22,7 +22,28 @@
  * storage blocked simply never saves, and nothing above has to care.
  */
 
-const PREFIX = 'mr_run_v1:';
+// v2: every v1 entry is discarded on sight. A run that finished before the
+// clear below was fixed left its save behind, and those saves are exactly the
+// ones that resume into a finished level and end again on the first answer.
+// They cannot be told apart from good ones, so none of them are trusted.
+const PREFIX = 'mr_run_v2:';
+const LEGACY_PREFIX = 'mr_run_v1:';
+
+let swept = false;
+function sweepLegacy() {
+  if (swept) return;
+  swept = true;
+  try {
+    const doomed = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith(LEGACY_PREFIX)) doomed.push(k);
+    }
+    for (const k of doomed) localStorage.removeItem(k);
+  } catch {
+    /* storage blocked — there is nothing to sweep anyway */
+  }
+}
 
 // A fortnight. Long enough to come back to a level after a week off, short
 // enough that a run you have genuinely forgotten does not ambush you.
@@ -48,6 +69,7 @@ export function runKeyFor({ uworldSkin, questionsUrl, subject, topicId, difficul
 
 export function loadRun(key) {
   if (!key) return null;
+  sweepLegacy();
   try {
     const raw = localStorage.getItem(PREFIX + key);
     if (!raw) return null;
