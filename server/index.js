@@ -12775,21 +12775,34 @@ async function buildJourneyPath(userId, subject) {
     const levelKey      = `boss:${ch.id}`;
     const qCount        = bossCounts[bossKey] || 0;
     const completed     = isDone(levelKey);
-    const autoSkipped   = qCount === 0 && allLevelsDone;
-    const satisfied     = autoSkipped || completed;
+
+    // A chapter has a boss when boss questions have been written for it, and
+    // not otherwise. It used to have one always: with nothing behind it the
+    // node still sat at the end of the map, locked until every level was
+    // done and then marked BYPASSED, which is a wall and a shrug where there
+    // should have been nothing at all. A chapter that wants one gets one by
+    // having questions added under its boss key.
+    const hasBoss = qCount > 0;
+
+    // Nothing to clear is the same as cleared, for the ultimate's gate below:
+    // a chapter with no boss must not hold it shut, but its levels still have
+    // to be finished.
+    const satisfied = hasBoss ? completed : allLevelsDone;
 
     chapters.push({
       chapter: { id: ch.id, name: ch.name },
       levels,
-      boss: {
+      boss: hasBoss ? {
         boss_key: bossKey,
         level_key: levelKey,
         question_count: qCount,
         completed,
         best_score_pct: best(levelKey),
         unlocked: allLevelsDone,
-        auto_skipped: autoSkipped,
-      },
+        // Kept, and always false: a boss that is here has questions. The
+        // field stays so anything reading it keeps working.
+        auto_skipped: false,
+      } : null,
     });
 
     // Chapter-boss satisfaction still feeds the ULTIMATE boss gate (cross-chapter),
@@ -12802,15 +12815,19 @@ async function buildJourneyPath(userId, subject) {
   const ultUnlocked    = chapters.length > 0 && allBossesSatisfied;
   const ultAutoSkipped = ultQCount === 0 && ultUnlocked;
 
-  const ultimate = {
+  // The same rule at the end of the subject: no ultimate questions, no
+  // ultimate. Leaving a bypassed crown behind after removing every chapter
+  // boss would be the same wall in a different hat. Mastery is unchanged —
+  // it already counted an ultimate with nothing behind it as satisfied.
+  const ultimate = ultQCount > 0 ? {
     boss_key: 'ultimate',
     level_key: 'boss:ultimate',
     question_count: ultQCount,
     completed: ultCompleted,
     best_score_pct: best('boss:ultimate'),
     unlocked: ultUnlocked,
-    auto_skipped: ultAutoSkipped,
-  };
+    auto_skipped: false,
+  } : null;
 
   return {
     subject,

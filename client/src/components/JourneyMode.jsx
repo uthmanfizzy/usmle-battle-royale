@@ -565,12 +565,12 @@ export default function JourneyMode({
     const chapterIndexForKey = (pathData, levelKey) => {
       if (!levelKey || levelKey === 'boss:ultimate') return -1;
       return (pathData?.chapters || []).findIndex(c =>
-        c.boss.level_key === levelKey || c.levels.some(l => l.level_key === levelKey));
+        c.boss?.level_key === levelKey || c.levels.some(l => l.level_key === levelKey));
     };
     // Does this chapter still have something to play?
     const chapterHasNext = (c) => Boolean(c) && (
       c.levels.some(l => l.unlocked && !l.completed && l.question_count > 0)
-      || (c.boss.unlocked && !c.boss.completed && !c.boss.auto_skipped)
+      || (c.boss?.unlocked && !c.boss.completed && !c.boss.auto_skipped)
     );
 
     const landOn = (pathData) => {
@@ -829,7 +829,7 @@ export default function JourneyMode({
   for (const c of chapters) {
     totalNodes += c.levels.length;
     doneNodes  += c.levels.filter(l => l.completed).length;
-    if (!c.boss.auto_skipped) { totalNodes += 1; if (c.boss.completed) doneNodes += 1; }
+    if (c.boss && !c.boss.auto_skipped) { totalNodes += 1; if (c.boss.completed) doneNodes += 1; }
   }
   if (ultimate && !ultimate.auto_skipped) { totalNodes += 1; if (ultimate.completed) doneNodes += 1; }
 
@@ -839,7 +839,7 @@ export default function JourneyMode({
       for (const l of c.levels) {
         if (l.unlocked && !l.completed && l.question_count > 0) return l.level_key;
       }
-      if (c.boss.unlocked && !c.boss.completed && !c.boss.auto_skipped) return c.boss.level_key;
+      if (c.boss?.unlocked && !c.boss.completed && !c.boss.auto_skipped) return c.boss.level_key;
     }
     if (ultimate?.unlocked && !ultimate.completed && !ultimate.auto_skipped) return ultimate.level_key;
     return null;
@@ -855,8 +855,8 @@ export default function JourneyMode({
     for (const l of c.levels) {
       if (l.unlocked && !l.completed && l.question_count > 0) return l.level_key;
     }
-    if (c.boss.unlocked && !c.boss.completed && !c.boss.auto_skipped) return c.boss.level_key;
-    if (c.boss.completed) return c.boss.level_key;
+    if (c.boss?.unlocked && !c.boss.completed && !c.boss.auto_skipped) return c.boss.level_key;
+    if (c.boss?.completed) return c.boss.level_key;
     const done = c.levels.filter(l => l.completed);
     return done.length ? done[done.length - 1].level_key : null;
   })();
@@ -993,6 +993,9 @@ export default function JourneyMode({
     const side       = big ? 'center' : takeSide();
     const showSeg    = nodeCount > 0;
     nodeCount += 1;
+    // A chapter without a boss renders nothing here, rather than a node
+    // standing in for one that does not exist.
+    if (!boss) return null;
     const isFrontier = boss.level_key === frontierKey;
     const isTarget   = boss.level_key === chapterTargetKey;
     const tappable   = boss.unlocked && !boss.auto_skipped && boss.question_count > 0;
@@ -1042,9 +1045,10 @@ export default function JourneyMode({
 
   // Per-chapter progress stats (same computation the old inline banner used)
   const chapterStats = (c) => {
-    const chTotal = c.levels.length + (c.boss.auto_skipped ? 0 : 1);
+    const countsBoss = !!c.boss && !c.boss.auto_skipped;
+    const chTotal = c.levels.length + (countsBoss ? 1 : 0);
     const chDone  = c.levels.filter(l => l.completed).length
-                  + (!c.boss.auto_skipped && c.boss.completed ? 1 : 0);
+                  + (countsBoss && c.boss.completed ? 1 : 0);
     return { chTotal, chDone, chComplete: chTotal > 0 && chDone === chTotal };
   };
 
