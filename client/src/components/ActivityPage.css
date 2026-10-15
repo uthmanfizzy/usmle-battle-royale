@@ -581,3 +581,80 @@
   .da-item { grid-template-columns: 18px minmax(0, 1fr); gap: 10px; }
   .da-summary { flex-wrap: wrap; row-gap: 6px; }
 }
+
+/* ── How the day's breaks sat against the work ────────────────────────────
+   One line under the totals. The colour carries the verdict and the sentence
+   carries the reason, with the day's clearest example named so the reading
+   can be checked against the timeline below rather than taken on trust.
+   Static rgba throughout — color-mix() ships broken to older browsers. */
+.da-balance {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  margin: 0 0 14px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+}
+.da-balance-chip {
+  flex: 0 0 auto;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.da-balance-text {
+  flex: 1 1 260px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: rgba(243, 241, 238, 0.72);
+}
+
+.da-balance--good {
+  border-color: rgba(61, 220, 132, 0.35);
+  background: rgba(61, 220, 132, 0.07);
+}
+.da-balance--good .da-balance-chip {
+  background: rgba(61, 220, 132, 0.16);
+  color: rgb(126, 232, 173);
+}
+.da-balance--moderate {
+  border-color: rgba(232, 176, 75, 0.35);
+  background: rgba(232, 176, 75, 0.07);
+}
+.da-balance--moderate .da-balance-chip {
+  background: rgba(232, 176, 75, 0.16);
+  color: rgb(240, 200, 126);
+}
+.da-balance--poor {
+  border-color: rgba(255, 118, 117, 0.35);
+  background: rgba(255, 118, 117, 0.07);
+}
+.da-balance--poor .da-balance-chip {
+  background: rgba(255, 118, 117, 0.16);
+  color: rgb(255, 160, 159);
+}
+
+/* On the break itself: what it followed. Quiet by default — only a break
+   that is out of proportion to the work before it takes a colour. */
+.da-gap-grade {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(243, 241, 238, 0.5);
+}
+.da-gap-grade--long {
+  background: rgba(232, 176, 75, 0.14);
+  color: rgb(240, 200, 126);
+}
+.da-gap-grade--over {
+  background: rgba(255, 118, 117, 0.14);
+  color: rgb(255, 160, 159);
+}

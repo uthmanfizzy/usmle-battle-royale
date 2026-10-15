@@ -170,6 +170,70 @@ function buildTimeline(sessions) {
   return items;
 }
 
+/**
+ * How the day's breaks sat against the work around them.
+ *
+ * Each break is judged against the study immediately BEFORE it, not against
+ * the day's total: ten minutes of work followed by an hour off is the thing
+ * worth noticing, and a day-wide average would bury it under a good morning.
+ * The study block is active seconds — the time actually spent answering —
+ * while the break is wall-clock, which is the honest pairing: what was
+ * earned against what was taken.
+ *
+ * The thresholds are a rule of thumb, not a finding. A break up to three
+ * times the block before it is treated as earned; up to five is long; past
+ * that the rest outweighs the work by enough to be worth saying out loud.
+ * They are named rather than buried in the comparisons, so changing one's
+ * mind about them is a one-line job.
+ */
+const BREAK_EARNED_RATIO    = 3;  // a break up to 3x the study before it
+const BREAK_STRETCHED_RATIO = 5;  // ... and past this it is out of proportion
+
+function breakGrade(breakSeconds, studyBefore) {
+  // A break with no study in front of it cannot be judged against anything.
+  if (!(studyBefore > 0)) return null;
+  const ratio = breakSeconds / studyBefore;
+  if (ratio <= BREAK_EARNED_RATIO) return 'earned';
+  if (ratio <= BREAK_STRETCHED_RATIO) return 'long';
+  return 'over';
+}
+
+function analyseBalance(timeline) {
+  const breaks = [];
+  let block = 0;  // active seconds studied since the last break
+  for (const it of timeline) {
+    if (it.type === 'session') {
+      block += Number(it.s.duration_seconds) || 0;
+    } else {
+      breaks.push({
+        key: it.key,
+        seconds: it.seconds,
+        studyBefore: block,
+        grade: breakGrade(it.seconds, block),
+      });
+      block = 0;
+    }
+  }
+
+  const judged = breaks.filter(b => b.grade);
+  if (judged.length === 0) return { verdict: null, breaks };
+
+  const over = judged.filter(b => b.grade === 'over').length;
+  const long = judged.filter(b => b.grade === 'long').length;
+
+  // One break out of proportion among several is worth a nudge, not a
+  // verdict; most of them being so is the pattern.
+  const verdict = (over === 0 && long === 0) ? 'good'
+    : (over / judged.length > 0.5) ? 'poor'
+    : 'moderate';
+
+  // The clearest single example, so the reading can be checked against the
+  // timeline rather than merely asserted.
+  const worst = [...judged].sort(
+    (a, b) => (b.seconds / b.studyBefore) - (a.seconds / a.studyBefore))[0];
+
+  return { verdict, breaks, judged: judged.length, over, long, worst };
+}
 // Score colouring reuses the shared mastery gold-ramp so a 78% here reads the
 // same tier as a 78% on Progress. Journey/Training scores are percentages of the
 // same kind, so the ramp transfers directly.
@@ -238,7 +302,7 @@ function SessionRow({ item }) {
  * point of surfacing gaps rather than just closing them up. On someone else's
  * timeline it renders as a plain gap: notes are private to their author.
  */
-function GapRow({ item, editable, note, onSave }) {
+function GapRow({ item, editable, note, onSave, grade }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft]     = useState(note || '');
   const [saving, setSaving]   = useState(false);
@@ -271,6 +335,13 @@ function GapRow({ item, editable, note, onSave }) {
           <div className="da-gap-head">
             <span className="da-gap-icon" aria-hidden="true">☕</span>
             <span className="da-gap-len">{formatGap(item.seconds)} break</span>
+            {/* What this particular break followed. The verdict at the top of
+                the day is made of these, so each one says its own working. */}
+            {grade && (
+              <span className={`da-gap-grade da-gap-grade--${grade.grade}`}>
+                after {formatDuration(grade.studyBefore)} of study
+              </span>
+            )}
           </div>
 
           {editing ? (
@@ -448,6 +519,8 @@ export default function ActivityPage() {
   ).size;
   const timeline = buildTimeline(sessions);
   const breaks = timeline.filter(i => i.type === 'gap');
+  const balance = analyseBalance(timeline);
+  const gradeByGap = new Map(balance.breaks.map(b => [b.key, b]));
   const breakSeconds = breaks.reduce((a, g) => a + g.seconds, 0);
 
   return (
@@ -546,6 +619,21 @@ export default function ActivityPage() {
               )}
             </div>
 
+            {balance.verdict && (
+              <div className={`da-balance da-balance--${balance.verdict}`}>
+                <span className="da-balance-chip">
+                  {balance.verdict === 'good' ? 'Good balance'
+                    : balance.verdict === 'moderate' ? 'Moderate balance'
+                    : 'Off balance'}
+                </span>
+                <span className="da-balance-text">
+                  {balance.verdict === 'good'
+                    ? 'Every break was in proportion to the study before it.'
+                    : `${balance.over + balance.long} of ${balance.judged} break${balance.judged === 1 ? '' : 's'} ran long for the work before ${balance.judged === 1 ? 'it' : 'them'} — after ${formatDuration(balance.worst.studyBefore)} of study you took ${formatGap(balance.worst.seconds)} off.`}
+                </span>
+              </div>
+            )}
+
             <ul className="da-timeline">
               {timeline.map(item =>
                 item.type === 'gap' ? (
@@ -555,6 +643,7 @@ export default function ActivityPage() {
                     editable={isOwn}
                     note={notes[item.gapStart] || ''}
                     onSave={saveNote}
+                    grade={gradeByGap.get(item.key) || null}
                   />
                 ) : (
                   <SessionRow key={item.key} item={item} />
