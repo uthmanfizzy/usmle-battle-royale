@@ -51,6 +51,32 @@ function CompassRose() {
   );
 }
 
+// Last known per-subject progress, so the picker never opens blank. This is
+// a copy of something the server owns, never the source of truth: it is shown
+// for the moment before the request lands and overwritten by it. Everything is
+// wrapped — a browser with storage blocked simply opens blank, as before.
+const PROGRESS_CACHE = 'mr_journey_progress_v1:';
+
+function readCachedProgress(username) {
+  if (!username) return {};
+  try {
+    const raw = localStorage.getItem(PROGRESS_CACHE + username);
+    const parsed = raw ? JSON.parse(raw) : null;
+    return (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeCachedProgress(username, subjects) {
+  if (!username) return;
+  try {
+    localStorage.setItem(PROGRESS_CACHE + username, JSON.stringify(subjects));
+  } catch {
+    /* storage full or blocked — the next visit just opens blank */
+  }
+}
+
 export default function JourneyMode({
   username, onBack, onPlayLevel, journeyReentry, onReentryConsumed, onHome,
   editorMode = false,
@@ -72,7 +98,12 @@ export default function JourneyMode({
   const [interstitial, setInterstitial] = useState(null); // null | { status: 'saving'|'complete'|'tryagain'|'save_failed', pct, threshold?, retryPayload? }
   const [bgUrl,       setBgUrl]       = useState(() => cachedImageMap('landing').journey_bg || null);       // admin-set backdrop (landing-images slot 'journey_bg')
   const [activeIds,   setActiveIds]   = useState(null);       // Set of active subject ids; null = not loaded → show all
-  const [subjectProgress, setSubjectProgress] = useState({}); // { subjectId: { done, total } } for the picker's bars
+  // { subjectId: { done, total } } for the picker's bars. Seeded from the
+  // last visit so the cards open with the player's real figures instead of
+  // appearing blank and filling in a moment later; the request below then
+  // replaces it, usually before anyone notices. Keyed by username, so two
+  // accounts sharing a browser never see each other's numbers.
+  const [subjectProgress, setSubjectProgress] = useState(() => readCachedProgress(username));
 
   // Question order for a run: 'random' (the long-standing behaviour, kept as the
   // default) or 'sequential' — exactly as the level was authored. Stored per-user
@@ -154,10 +185,14 @@ export default function JourneyMode({
     let cancelled = false;
     fetch(`${SERVER}/api/journey/progress-summary`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json())
-      .then(d => { if (!cancelled && d && typeof d.subjects === 'object') setSubjectProgress(d.subjects); })
+      .then(d => {
+        if (cancelled || !d || typeof d.subjects !== 'object') return;
+        setSubjectProgress(d.subjects);
+        writeCachedProgress(username, d.subjects);
+      })
       .catch(() => {});
     return () => { cancelled = true; };
-  }, []);
+  }, [username]);
 
   // The chapter list and level map take the SUBJECT's colour (the same rgb the
   // subject card uses), so Renal is water-blue, Cardiovascular red, and so on.
