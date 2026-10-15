@@ -4160,9 +4160,25 @@ html[data-study="on"] .solo-body .pause-overlay {
   from { opacity: 0; }
   to { opacity: 1; }
 }
+/* An <img> never draws itself bigger than the file it came from, so
+   max-width/max-height alone could only ever SHRINK a picture: clicking a
+   320x240 figure opened it at 320x240, the size it already was on the card,
+   and a small one stayed small on a screen with room for four of it. Giving
+   the element the whole area and letting object-fit scale the picture inside
+   means it grows as well as shrinks, and still keeps its proportions.
+
+   The cap is the picture's own size times three, from the --sg-nat-* pair the
+   viewer sets as the file loads. Past that there is no more detail to reveal,
+   only a bigger blur — and a thumbnail would otherwise be stretched across
+   the whole screen. A picture larger than the screen never reaches the cap
+   and is simply fitted, as before. Without the pair — an image that failed to
+   load, or has not loaded yet — the fallbacks leave the cap inactive and the
+   old behaviour stands. */
 .sg-zoom-img {
-  max-width: 100%;
-  max-height: calc(100vh - 110px);
+  width: 100%;
+  height: calc(100vh - 110px);
+  max-width: calc(var(--sg-nat-w, 100%) * 3);
+  max-height: calc(var(--sg-nat-h, 100vh) * 3);
   object-fit: contain;
   border-radius: 10px;
   box-shadow: 0 24px 70px rgba(0, 0, 0, 0.7);

@@ -2212,7 +2212,20 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
           aria-label={zoomImg.label}
           onClick={() => setZoomImg(null)}
         >
-          <img className="sg-zoom-img" src={zoomImg.url} alt={zoomImg.label} />
+          {/* The picture's own pixel size, handed to the stylesheet so it
+              can grow a small figure without blowing it up past the point
+              where there is any detail left to see. */}
+          <img
+            className="sg-zoom-img"
+            src={zoomImg.url}
+            alt={zoomImg.label}
+            onLoad={e => {
+              const el = e.currentTarget;
+              if (!el.naturalWidth || !el.naturalHeight) return;
+              el.style.setProperty('--sg-nat-w', `${el.naturalWidth}px`);
+              el.style.setProperty('--sg-nat-h', `${el.naturalHeight}px`);
+            }}
+          />
           <div className="sg-zoom-bar">
             <span>{zoomImg.label}</span>
             <button type="button" className="sg-zoom-close" onClick={() => setZoomImg(null)}>Close ✕</button>
