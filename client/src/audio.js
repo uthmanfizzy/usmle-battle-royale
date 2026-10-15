@@ -12,10 +12,57 @@ let medathonUnlock = null;
 const MEDATHON_TRACK = '/assets/medathon-theme.mp3';
 const MEDATHON_VOL = 0.34;
 
+// How loud, as a fraction of the mix this file already balances: 1 is the
+// level every sound in here was tuned against, 0 is silence. Mute is kept
+// separate on purpose — turning the volume down to nothing and muting are
+// different intentions, and coming back from one should not undo the other.
+// Per device, like any volume control.
+const VOLUME_KEY = 'mr_volume_v1';
+const clampVol = (v) => Math.max(0, Math.min(1, Number(v)));
+
+let volume = (() => {
+  try {
+    const raw = localStorage.getItem(VOLUME_KEY);
+    if (raw === null) return 1;
+    const v = clampVol(raw);
+    return Number.isFinite(v) ? v : 1;
+  } catch {
+    return 1;
+  }
+})();
+
+// Every oscillator, buffer and filter in this file ends at this node rather
+// than at the speakers, so one number moves all of them together. The theme
+// is the exception: it is an <audio> element outside the graph and carries
+// the same number on its own, below.
+let masterGain = null;
+
 function getCtx() {
   if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
   if (ctx.state === 'suspended') ctx.resume();
   return ctx;
+}
+
+// The output everything connects to. Rebuilt if the context is ever replaced,
+// so a node from an old context is never handed back.
+function out() {
+  const c = getCtx();
+  if (!masterGain || masterGain.context !== c) {
+    masterGain = c.createGain();
+    masterGain.gain.value = muted ? 0 : volume;
+    masterGain.connect(c.destination);
+  }
+  return masterGain;
+}
+
+export function getVolume() { return volume; }
+
+export function setVolume(v) {
+  volume = clampVol(v);
+  if (!Number.isFinite(volume)) volume = 1;
+  try { localStorage.setItem(VOLUME_KEY, String(volume)); } catch { /* not persisted */ }
+  if (masterGain) masterGain.gain.value = muted ? 0 : volume;
+  if (medathonEl) medathonEl.volume = muted ? 0 : MEDATHON_VOL * volume;
 }
 
 export function isMuted() { return muted; }
@@ -28,7 +75,10 @@ export function setMuted(val) {
   // The theme is an <audio> element, so it is outside the gain graph above
   // and has to be muted on its own. Without this the mute button in the
   // Medathon HUD would silence everything except the music.
-  if (medathonEl) medathonEl.volume = val ? 0 : MEDATHON_VOL;
+  if (medathonEl) medathonEl.volume = val ? 0 : MEDATHON_VOL * volume;
+  // The graph's own output. Set last so it holds whatever the lines above
+  // decided, at the level the player asked for.
+  if (masterGain) masterGain.gain.value = val ? 0 : volume;
 }
 
 // ── HY Flashcards study music — "Quest Log" ─────────────────────────────────
@@ -127,7 +177,7 @@ export function startStudyMusic() {
   // a soft dotted-8th echo for space.
   studyGain = c.createGain();
   studyGain.gain.value = STUDY_VOL;
-  studyGain.connect(c.destination);
+  studyGain.connect(out());
   const tone = c.createBiquadFilter();
   tone.type = 'lowpass';
   tone.frequency.value = 3200;
@@ -244,7 +294,7 @@ export function playClick() {
   gn.gain.setValueAtTime(0.15, c.currentTime);
   gn.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.02);
   osc.connect(gn);
-  gn.connect(c.destination);
+  gn.connect(out());
   osc.start();
   osc.stop(c.currentTime + 0.02);
 }
@@ -355,7 +405,7 @@ export function startBgMusic() {
   const c = getCtx();
   bgGain = c.createGain();
   bgGain.gain.value = 0.07; // quieter for lobby (+40%)
-  bgGain.connect(c.destination);
+  bgGain.connect(out());
   bgInterval = startSequencer(bgGain, 98, false); // slow, no drums
 }
 
@@ -376,7 +426,7 @@ export function startGameMusic() {
   const c = getCtx();
   gameGain = c.createGain();
   gameGain.gain.value = 0.09625; // full energy (+40%)
-  gameGain.connect(c.destination);
+  gameGain.connect(out());
   gameNodes = [{ interval: startSequencer(gameGain, 132, true) }];
 }
 
@@ -416,7 +466,7 @@ export function startMedathonMusic() {
     const id = setInterval(() => {
       if (medathonEl !== el) return clearInterval(id);
       i += 1;
-      el.volume = muted ? 0 : MEDATHON_VOL * (i / steps);
+      el.volume = muted ? 0 : MEDATHON_VOL * volume * (i / steps);
       if (i >= steps) clearInterval(id);
     }, 50);
   };
@@ -477,7 +527,7 @@ export function playCorrect() {
     gn.gain.setValueAtTime(0.25, t);
     gn.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
     osc.connect(gn);
-    gn.connect(c.destination);
+    gn.connect(out());
     osc.start(t);
     osc.stop(t + 0.35);
   });
@@ -494,7 +544,7 @@ export function playWrong() {
   gn.gain.setValueAtTime(0.3, c.currentTime);
   gn.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.5);
   osc.connect(gn);
-  gn.connect(c.destination);
+  gn.connect(out());
   osc.start();
   osc.stop(c.currentTime + 0.5);
 }
@@ -509,7 +559,7 @@ export function playTick() {
   gn.gain.setValueAtTime(0.12, c.currentTime);
   gn.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.06);
   osc.connect(gn);
-  gn.connect(c.destination);
+  gn.connect(out());
   osc.start();
   osc.stop(c.currentTime + 0.06);
 }
@@ -610,7 +660,7 @@ export function playRosterStamp(index = 0, heavy = false) {
   const ng = c.createGain();
   ng.gain.setValueAtTime(level * 0.8, t);
   ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.09);
-  noise.connect(nf); nf.connect(ng); ng.connect(c.destination);
+  noise.connect(nf); nf.connect(ng); ng.connect(out());
 
   // The weight: a sine dropping away under it.
   const body = heavy ? 74 : 132 - step * 11;
@@ -621,7 +671,7 @@ export function playRosterStamp(index = 0, heavy = false) {
   const og = c.createGain();
   og.gain.setValueAtTime(level, t);
   og.gain.exponentialRampToValueAtTime(0.0001, t + (heavy ? 0.42 : 0.26));
-  osc.connect(og); og.connect(c.destination);
+  osc.connect(og); og.connect(out());
 
   noise.start(t); noise.stop(t + 0.11);
   osc.start(t); osc.stop(t + (heavy ? 0.45 : 0.3));
@@ -660,11 +710,11 @@ export function playShojiPluck() {
 
   src.connect(tone);
   tone.connect(dry);
-  dry.connect(c.destination);
+  dry.connect(out());
   if (verb) {
     tone.connect(verb);
     verb.connect(wet);
-    wet.connect(c.destination);
+    wet.connect(out());
   }
 
   src.start(t);
@@ -686,7 +736,7 @@ export function playVictory() {
     gn.gain.setValueAtTime(0.3, t);
     gn.gain.exponentialRampToValueAtTime(0.001, t + durs[i]);
     osc.connect(gn);
-    gn.connect(c.destination);
+    gn.connect(out());
     osc.start(t);
     osc.stop(t + durs[i]);
     t += durs[i];
@@ -706,7 +756,7 @@ export function playEliminated() {
     gn.gain.setValueAtTime(0.22, t);
     gn.gain.exponentialRampToValueAtTime(0.001, t + 0.38);
     osc.connect(gn);
-    gn.connect(c.destination);
+    gn.connect(out());
     osc.start(t);
     osc.stop(t + 0.38);
     t += 0.32;

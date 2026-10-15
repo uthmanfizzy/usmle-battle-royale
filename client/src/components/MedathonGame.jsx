@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
+import * as audio from '../audio';
 import FallingShaft from './FallingShaft';
 import './MedathonGame.css';
 
@@ -153,6 +154,8 @@ export default function MedathonGame({
   // the player watching a spinner for ever while the server times them out
   // of question after question. Two quiet attempts, then say so plainly.
   const [lost, setLost] = useState(false);
+  // The saved level, read once — the slider owns it from then on.
+  const [vol, setVol] = useState(() => audio.getVolume());
   const asks = useRef(0);
   useEffect(() => {
     if (question) { setLost(false); asks.current = 0; return undefined; }
@@ -269,6 +272,28 @@ export default function MedathonGame({
               <span className="mdt-place-label">{myPlace === 1 ? 'LEAD' : 'PLACE'}</span>
             </div>
           )}
+          {/* How loud, separate from the mute beside it: turning the race
+              down to nothing and silencing it are different intentions, and
+              coming back from one should not undo the other. The level is a
+              device setting kept by the audio module, not match state, so it
+              is read and written there rather than threaded through the
+              lobby. */}
+          <label className="mdt-vol" title="How loud the race is">
+            <span className="mdt-vol-icon" aria-hidden="true">🔈</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.05"
+              value={vol}
+              aria-label="Volume"
+              onChange={(e) => {
+                const v = Number(e.target.value);
+                setVol(v);
+                audio.setVolume(v);
+              }}
+            />
+          </label>
           <button type="button" className="mdt-icon-btn" onClick={onToggleMute} title={muted ? 'Unmute' : 'Mute'}>
             {muted ? '\u{1F507}' : '\u{1F50A}'}
           </button>

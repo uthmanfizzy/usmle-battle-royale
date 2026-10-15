@@ -821,3 +821,60 @@
   .mdt-ready-first-name { font-size: 16px; }
   .mdt-ready-first-count { display: none; }
 }
+
+/* ── Volume ───────────────────────────────────────────────────────────────
+   Beside the mute button in the HUD. A real range input rather than a set of
+   steps, because "somewhere between these two" is the whole point, and the
+   browser gives keyboard and touch handling for free. Sized so it survives
+   next to the score and the place on a phone held sideways, which is the
+   only way this mode is played. */
+.mdt-vol {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 1;
+  min-width: 0;
+}
+.mdt-vol-icon {
+  font-size: 13px;
+  opacity: 0.7;
+  flex-shrink: 0;
+}
+.mdt-vol input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 92px;
+  min-width: 52px;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+  cursor: pointer;
+}
+/* The two thumbs have to be declared separately — a browser drops the whole
+   rule if it does not recognise the selector, so they cannot be combined. */
+.mdt-vol input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  border: none;
+  background: var(--mdt-gold, #e8b04b);
+  cursor: pointer;
+}
+.mdt-vol input[type="range"]::-moz-range-thumb {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  border: none;
+  background: var(--mdt-gold, #e8b04b);
+  cursor: pointer;
+}
+.mdt-vol input[type="range"]:focus-visible {
+  outline: 2px solid rgba(232, 176, 75, 0.7);
+  outline-offset: 3px;
+}
+@media (max-width: 760px) {
+  .mdt-vol input[type="range"] { width: 58px; }
+  .mdt-vol-icon { display: none; }
+}
