@@ -4108,6 +4108,35 @@ html[data-study="on"] .solo-body .pause-overlay {
 }
 .rr-expl-img-del:hover { background: #ff7675; color: #fff; }
 
+/* The same button on the question's own picture. The stem image sits in a
+   plain div that was never a positioning context, so the button would
+   otherwise hang off whichever ancestor happened to be one. Only while
+   someone can actually write images — for everyone else the wrapper is
+   untouched. */
+.game-question-image.is-editable { position: relative; }
+.sg-stem-img-del { top: 18px; }
+
+/* A stem picture that will not load, shown only to someone who can edit it.
+   Without this the <img> collapses to nothing, the wrapper with it, and the
+   remove button is left floating over the controls beneath — on the one
+   picture an author most wants to be able to remove. */
+.game-question-image.is-broken {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 56px;
+  margin: 12px 0;
+  border: 1px dashed rgba(255, 118, 117, 0.45);
+  border-radius: 8px;
+}
+.sg-stem-img-gone {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: rgba(255, 118, 117, 0.9);
+}
+.game-question-image.is-broken .sg-stem-img-del { top: 50%; transform: translateY(-50%); }
+
 /* Only while a picture is being dragged: where it can land. */
 .rr-expl-drop {
   display: block;

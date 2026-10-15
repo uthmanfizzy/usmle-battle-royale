@@ -950,6 +950,12 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   // Which picture is mid-drag (an index), or null. An index rather than a flag
   // because the drop zones have to move THAT picture, not "the" picture.
   const [dragImgIdx, setDragImgIdx] = useState(null);
+  // The stem picture's url, if it failed to load. A player never sees a broken
+  // picture — it is hidden, as it always was. Someone who can edit images is
+  // told instead, because a picture that will not load is the one most worth
+  // removing, and hiding it would hide the button that removes it. Held as the
+  // url rather than a flag so moving to another question clears it by itself.
+  const [stemImgFailed, setStemImgFailed] = useState(null);
   const explImagesRef = useRef(explImages);
   explImagesRef.current = explImages;
 
@@ -2531,16 +2537,38 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
             />
           )}
           {q?.image_url && (
-            <div className="game-question-image">
-              <img
-                src={q.image_url}
-                alt="Question"
-                className="sg-zoomable"
-                title="Click to enlarge"
-                style={{maxWidth:'100%', maxHeight:'300px', borderRadius:'8px', margin:'12px auto', display:'block'}}
-                onClick={() => setZoomImg({ url: q.image_url, label: 'Question figure' })}
-                onError={e => { e.target.style.display = 'none'; }}
-              />
+            <div className={`game-question-image${canWriteImages ? ' is-editable' : ''}${stemImgFailed === q.image_url ? ' is-broken' : ''}`}>
+              {stemImgFailed === q.image_url ? (
+                <span className="sg-stem-img-gone">This picture didn&apos;t load</span>
+              ) : (
+                <img
+                  src={q.image_url}
+                  alt="Question"
+                  className="sg-zoomable"
+                  title="Click to enlarge"
+                  style={{maxWidth:'100%', maxHeight:'300px', borderRadius:'8px', margin:'12px auto', display:'block'}}
+                  onClick={() => setZoomImg({ url: q.image_url, label: 'Question figure' })}
+                  onError={e => {
+                    if (canWriteImages) setStemImgFailed(q.image_url);
+                    else e.target.style.display = 'none';
+                  }}
+                />
+              )}
+              {/* The explanation's pictures have had a remove button all along;
+                  the stem's had no way off the question but to overwrite it
+                  with another one. Same control, same place, so there is one
+                  thing to learn. Clearing is a url of null, which the image
+                  endpoint already takes — nothing new is asked of the server. */}
+              {canWriteImages && (
+                <button
+                  type="button"
+                  className="rr-expl-img-del sg-stem-img-del"
+                  title="Take this picture off the question"
+                  onClick={(e) => { e.stopPropagation(); saveDevImage('image_url', null, q?.id); }}
+                >
+                  ✕
+                </button>
+              )}
             </div>
           )}
           {needsImageUnlock && imageUnlockNotice}
