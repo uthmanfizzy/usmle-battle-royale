@@ -6549,7 +6549,13 @@ app.get('/api/users/:userId/activity-sessions', async (req, res) => {
       console.warn('[/api/users/:userId/activity-sessions] query failed —', error.message);
       return res.json({ date, sessions: [] });
     }
-    res.json({ date, sessions: data || [] });
+    const threshold = Number(gameSettings.journeyThreshold) || 50;
+    const sessions = (data || []).map(s => (
+      s.game_mode === 'journey'
+        ? { ...s, journey_passed: Number(s.score_pct) >= threshold }
+        : s
+    ));
+    res.json({ date, sessions });
   } catch (err) {
     console.warn('[/api/users/:userId/activity-sessions] unavailable —', err.message);
     res.json({ date, sessions: [] });

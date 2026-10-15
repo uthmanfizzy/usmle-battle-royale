@@ -413,6 +413,21 @@ export default function ActivityPage() {
 
   const isToday = date === todayUTC();
   const totalSeconds = sessions.reduce((a, s) => a + (Number(s.duration_seconds) || 0), 0);
+
+  // Journey levels finished today. Counted by level, not by session: a level
+  // replayed after it was already passed is the same level, and the day's
+  // summary should not read as two. A row with no level name falls back to
+  // its own id so it still counts once rather than collapsing every unnamed
+  // level into one. journey_passed is the server's call, made against the
+  // configured pass threshold.
+  const journeySessions = sessions.filter(s => s.game_mode === 'journey');
+  const journeyLevelsDone = new Set(
+    journeySessions
+      .filter(s => s.journey_passed)
+      .map(s => s.journey_level_name
+        ? `${s.journey_chapter_name || ''}|${s.journey_level_name}`
+        : `id:${s.id}`),
+  ).size;
   const timeline = buildTimeline(sessions);
   const breaks = timeline.filter(i => i.type === 'gap');
   const breakSeconds = breaks.reduce((a, g) => a + g.seconds, 0);
@@ -493,6 +508,16 @@ export default function ActivityPage() {
               <span className="da-summary-item">
                 <strong>{formatDuration(totalSeconds)}</strong> active
               </span>
+              {/* Only on a day the Journey was actually played — on every
+                  other day a "0 levels" reading would say nothing. */}
+              {journeySessions.length > 0 && (
+                <>
+                  <span className="da-summary-divider" aria-hidden="true" />
+                  <span className="da-summary-item">
+                    <strong>{journeyLevelsDone}</strong> Journey level{journeyLevelsDone === 1 ? '' : 's'} completed
+                  </span>
+                </>
+              )}
               {breaks.length > 0 && (
                 <>
                   <span className="da-summary-divider" aria-hidden="true" />
