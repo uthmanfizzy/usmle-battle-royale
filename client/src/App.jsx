@@ -1297,6 +1297,7 @@ export default function App() {
         <JourneyMode
           username={username}
           onBack={() => setPhase('story_menu')}
+          onHome={() => { window.location.href = '/dashboard'; }}
           onPlayLevel={handlePlayJourneyLevel}
           journeyReentry={journeyReentry}
           onReentryConsumed={() => setJourneyReentry(null)}

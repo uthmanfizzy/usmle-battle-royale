@@ -2740,3 +2740,85 @@
   text-transform: uppercase;
   white-space: nowrap;
 }
+
+/* ── Leaving the Journey ──────────────────────────────────────────────────
+   Back and Dashboard sit in one row, so neither has to know how wide the
+   other's label is — "← Subjects" and "← Chapters" differ, and two pills
+   positioned independently would have had to be nudged per screen. The row
+   takes the place the back button used to hold on its own, which is why the
+   rules below put that button back to static inside it. */
+.jm-navbar {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  z-index: 5;
+}
+.jm-navbar .jm-back-btn {
+  position: static;
+  top: auto;
+  left: auto;
+  transform: none;
+}
+.jm-navbar .jm-back-btn:hover { transform: translateX(-2px); }
+
+/* In the chapter and level headers the row is centred on the bar instead of
+   being pinned below the top of the screen. */
+.jm-path-header .jm-navbar {
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+/* The same glassy pill as the back button, in the subject's colour on a
+   themed screen. */
+.jm-home-btn {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  box-shadow: 0 4px 14px rgba(8, 4, 24, 0.35);
+  color: var(--text);
+  font-family: 'Baloo 2', 'Nunito', sans-serif;
+  font-weight: 700;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  transition: all 0.2s ease;
+  /* Size and radius come from the site-wide compact back-button rule in
+     App.css, which this button is listed in so that it matches the one next
+     to it exactly. */
+}
+.jm-home-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
+}
+.jm-themed .jm-home-btn { border-color: rgba(var(--jm-subject-rgb), 0.45); }
+
+/* On a narrow screen the header already pushes its title right to make room
+   for the back button; a second full-width pill would push it off. The house
+   alone still reads, and the button keeps its label to a screen reader. */
+@media (max-width: 560px) {
+  .jm-navbar { gap: 7px; }
+  .jm-home-label { display: none; }
+  /* The nav row is absolutely positioned so the header can centre its title
+     on the whole bar rather than on what is left over. There is room to
+     spare for that on a wide screen; on a phone the title ran underneath the
+     pills. Reserving a fixed amount of padding for them would only work for
+     as long as the back button's label stayed the width it is today, so on a
+     narrow screen the row goes into the flow instead and the title simply
+     follows it. The header already stops centring at this width, so nothing
+     about the arrangement is lost. */
+  .jm-path-header {
+    justify-content: flex-start;
+    padding-left: 14px;
+  }
+  .jm-path-header .jm-navbar {
+    position: static;
+    transform: none;
+    flex-shrink: 0;
+  }
+  /* Keeps the progress pill against the right edge once the row above is
+     no longer holding the left. */
+  .jm-path-progress { margin-left: auto; }
+}

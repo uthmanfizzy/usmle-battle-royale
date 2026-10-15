@@ -52,7 +52,7 @@ function CompassRose() {
 }
 
 export default function JourneyMode({
-  username, onBack, onPlayLevel, journeyReentry, onReentryConsumed,
+  username, onBack, onPlayLevel, journeyReentry, onReentryConsumed, onHome,
   editorMode = false,
   // Visual builder (editor only): draft panels + drag/edit/delete callbacks.
   editorElements = null, onElementMove, onElementText, onElementDelete,
@@ -628,6 +628,24 @@ export default function JourneyMode({
       });
   };
 
+  // Out of the Journey in one press. The back button on each screen steps
+  // up one level — level map to chapters to subjects to the story menu — so
+  // leaving from the map took four presses to get somewhere that is one tap
+  // from anywhere else in the app. Not shown in the admin's visual builder,
+  // where navigating the site out from under the editor would lose the draft.
+  const homeBtn = (onHome && !editorMode) ? (
+    <button
+      type="button"
+      className="jm-home-btn"
+      onClick={onHome}
+      aria-label={t('nav.home', 'Dashboard')}
+      title={t('nav.home', 'Dashboard')}
+    >
+      <span aria-hidden="true">⌂</span>
+      <span className="jm-home-label">{t('nav.home', 'Dashboard')}</span>
+    </button>
+  ) : null;
+
   // ----- Guest gate: journey progress is per-account (editor mode bypasses it) -----
   if (!editorMode && (!getToken() || authExpired)) {
     return (
@@ -672,7 +690,10 @@ export default function JourneyMode({
     return (
       <div className={`screen jm-screen${bgClass}${editorMode ? ' jm-editor' : ''}`} {...editorRootProps}>
         {bgLayer}
-        <button className="jm-back-btn" onClick={onBack} {...ek('subjects.back')}>{t('subjects.back', '← Back')}</button>
+        <div className="jm-navbar">
+          <button className="jm-back-btn" onClick={onBack} {...ek('subjects.back')}>{t('subjects.back', '← Back')}</button>
+          {homeBtn}
+        </div>
         <div className="jm-banner">
           <span className="jm-banner-flourish">⚕ ─────── ⚕</span>
           <h1 className="jm-title" {...ek('subjects.title')}>{t('subjects.title', 'First Aid Journey')}</h1>
@@ -1263,9 +1284,12 @@ export default function JourneyMode({
       <div className={`screen jm-screen jm-screen--chapters jm-themed${bgClass}${editorMode ? ' jm-editor' : ''}`} style={themeStyle} {...editorRootProps}>
         {bgLayer}
         <div className="jm-path-header">
-          <button className="jm-back-btn" onClick={() => { setView('subjects'); setPath(null); setConfirmNode(null); }} {...ek('path.back')}>
-            {t('path.back', '← Subjects')}
-          </button>
+          <div className="jm-navbar">
+            <button className="jm-back-btn" onClick={() => { setView('subjects'); setPath(null); setConfirmNode(null); }} {...ek('path.back')}>
+              {t('path.back', '← Subjects')}
+            </button>
+            {homeBtn}
+          </div>
           <span className="jm-path-subject"><span className="jm-path-icon" aria-hidden="true">{subject?.icon}</span>{subject?.label}</span>
           <span className="jm-path-progress">
             <span className="jm-progress-track" aria-hidden="true">
@@ -1364,9 +1388,12 @@ export default function JourneyMode({
     <div className={`screen jm-screen jm-screen--path jm-themed${bgClass}${editorMode ? ' jm-editor' : ''}`} style={themeStyle} {...editorRootProps}>
       {bgLayer}
       <div className="jm-path-header">
-        <button className="jm-back-btn" onClick={() => { setView('chapters'); setConfirmNode(null); }} {...ek('levels.back')}>
-          {t('levels.back', '← Chapters')}
-        </button>
+        <div className="jm-navbar">
+          <button className="jm-back-btn" onClick={() => { setView('chapters'); setConfirmNode(null); }} {...ek('levels.back')}>
+            {t('levels.back', '← Chapters')}
+          </button>
+          {homeBtn}
+        </div>
         <span className="jm-path-subject"><span className="jm-path-icon" aria-hidden="true">{subject?.icon}</span>Chapter {curIdx + 1} · {current.chapter.name}</span>
         <span className="jm-path-progress">
           <span className="jm-progress-track" aria-hidden="true">
