@@ -1056,6 +1056,10 @@
 }
 
 /* Floating emblem on the card corner */
+/* The card's corner badge, which closes it. Same disc as before — the tilt
+   has gone, because a cross sitting at ten degrees reads as a mistake rather
+   than as a flourish, and a control should look square to the thing it
+   shuts. Sized well past the 44px a fingertip needs. */
 .jm-confirm-seal {
   position: absolute;
   top: -18px;
@@ -1065,13 +1069,27 @@
   justify-content: center;
   width: 46px;
   height: 46px;
+  padding: 0;
   border-radius: 50%;
-  font-size: 22px;
+  font-family: inherit;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1;
   color: #fff;
   background: linear-gradient(180deg, var(--cyan), var(--blue));
   border: 2px solid rgba(255, 255, 255, 0.55);
   box-shadow: 0 6px 14px rgba(8, 4, 24, 0.5), 0 0 18px rgba(34, 211, 238, 0.5);
-  transform: rotate(10deg);
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.jm-confirm-seal:hover {
+  transform: scale(1.08);
+  box-shadow: 0 8px 18px rgba(8, 4, 24, 0.55), 0 0 24px rgba(34, 211, 238, 0.7);
+}
+.jm-confirm-seal:active { transform: scale(0.96); }
+.jm-confirm-seal:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 3px;
 }
 
 .jm-confirm-kind {

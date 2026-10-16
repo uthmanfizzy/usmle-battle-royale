@@ -1166,7 +1166,18 @@ export default function JourneyMode({
         return (
         <div className="jm-confirm-overlay" onClick={closeConfirm}>
           <div className="jm-confirm-card" onClick={e => e.stopPropagation()}>
-            <span className="jm-confirm-seal" aria-hidden="true">⚕</span>
+            {/* The seal was decoration in the corner of the card. It is the
+                one thing up there, in the place a close button goes, so it is
+                the close button — tapping outside the card and the Cancel
+                button at the bottom both still work, this just means the
+                obvious target does the obvious thing. */}
+            <button
+              type="button"
+              className="jm-confirm-seal"
+              onClick={closeConfirm}
+              aria-label="Close and go back to the levels"
+              title="Back to the levels"
+            >✕</button>
             <span className="jm-confirm-kind">
               {confirmNode.kind === 'ultimate' ? '👑 Ultimate Boss' : confirmNode.kind === 'boss' ? '💀 Chapter Boss' : '🎯 Level'}
             </span>
