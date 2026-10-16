@@ -86,6 +86,11 @@ export default function JourneyMode({
 }) {
   const [view,        setView]        = useState('subjects'); // 'subjects' | 'chapters' | 'levels'
   const [chapterIdx,  setChapterIdx]  = useState(0);          // which chapter the 'levels' view shows
+  // The level just finished, so the map can open on IT rather than on
+  // whatever comes next. Cleared the moment the player navigates by hand —
+  // from then on the map goes back to opening where there is something to
+  // play, which is the right answer to "I came here to study".
+  const [justPlayed,  setJustPlayed]  = useState(null);
   const [subject,     setSubject]     = useState(null);       // entry from JOURNEY_SUBJECTS
   useStudyActivity(editorMode ? null : 'First Aid Journey', subject?.name || null, 'journey');
   const [path,        setPath]        = useState(null);       // GET /api/journey/:subject response
@@ -539,7 +544,7 @@ export default function JourneyMode({
     for (let el = scroller.parentElement; el; el = el.parentElement) {
       if (el.scrollTop) el.scrollTop = 0;
     }
-  }, [view, path, chapterIdx]);
+  }, [view, path, chapterIdx, justPlayed]);
 
   // Editor: jump straight to the requested subject's map so panels can be placed on it.
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -580,6 +585,7 @@ export default function JourneyMode({
       questionOrder: reentry.questionOrder,
     };
     onReentryConsumedRef.current();
+    setJustPlayed(reentry.levelKey);
 
     // Which chapter does the just-played node live in? (-1 = ultimate boss /
     // unknown → land on the chapter list, which is where the ultimate lives)
@@ -588,21 +594,14 @@ export default function JourneyMode({
       return (pathData?.chapters || []).findIndex(c =>
         c.boss?.level_key === levelKey || c.levels.some(l => l.level_key === levelKey));
     };
-    // Does this chapter still have something to play?
-    const chapterHasNext = (c) => Boolean(c) && (
-      c.levels.some(l => l.unlocked && !l.completed && l.question_count > 0)
-      || (c.boss?.unlocked && !c.boss.completed && !c.boss.auto_skipped)
-    );
-
     const landOn = (pathData) => {
-      let idx = chapterIndexForKey(pathData, reentry.levelKey);
-      // Finishing the last node of a chapter should show the next level, not
-      // the top of a chapter with nothing left in it — so step forward to
-      // wherever the next playable node is.
-      if (idx >= 0 && !chapterHasNext(pathData?.chapters?.[idx])) {
-        const nextIdx = (pathData?.chapters || []).findIndex((c, i) => i > idx && chapterHasNext(c));
-        if (nextIdx >= 0) idx = nextIdx;
-      }
+      // The chapter the level just played lives in, and no other. This used
+      // to step forward to the next chapter when the one just finished had
+      // nothing playable left, which meant the last level of a chapter was
+      // the one level you never got to see yourself finish. The map opens on
+      // the node that was just cleared instead; the chapter list is one press
+      // away for anyone who wants to move on.
+      const idx = chapterIndexForKey(pathData, reentry.levelKey);
       if (idx >= 0) { setChapterIdx(idx); setView('levels'); }
       else { setView('chapters'); }
     };
@@ -873,6 +872,14 @@ export default function JourneyMode({
   const chapterTargetKey = (() => {
     const c = chapters[chapterIdx];
     if (!c) return null;
+    // Straight back from playing something in this chapter: that node, so the
+    // map opens on the level that was just finished rather than on the next
+    // one along. Only while it belongs to the chapter on screen — after that
+    // the usual answer below is the right one.
+    if (justPlayed && (c.boss?.level_key === justPlayed
+        || c.levels.some(l => l.level_key === justPlayed))) {
+      return justPlayed;
+    }
     for (const l of c.levels) {
       if (l.unlocked && !l.completed && l.question_count > 0) return l.level_key;
     }
@@ -1487,7 +1494,7 @@ export default function JourneyMode({
         {bgLayer}
         <div className="jm-path-header">
           <div className="jm-navbar">
-            <button className="jm-back-btn" onClick={() => { setView('subjects'); setPath(null); setConfirmNode(null); }} {...ek('path.back')}>
+            <button className="jm-back-btn" onClick={() => { setJustPlayed(null); setView('subjects'); setPath(null); setConfirmNode(null); }} {...ek('path.back')}>
               {t('path.back', '← Subjects')}
             </button>
             {homeBtn}
@@ -1519,6 +1526,7 @@ export default function JourneyMode({
                     // editor: clicking the chapter NAME opens the inline
                     // name editor (root handler) instead of navigating
                     if (editorMode && e.target.closest('[data-edit-name]')) return;
+                    setJustPlayed(null);
                     setChapterIdx(ci);
                     setView('levels');
                   }}
@@ -1591,7 +1599,7 @@ export default function JourneyMode({
       {bgLayer}
       <div className="jm-path-header">
         <div className="jm-navbar">
-          <button className="jm-back-btn" onClick={() => { setView('chapters'); setConfirmNode(null); }} {...ek('levels.back')}>
+          <button className="jm-back-btn" onClick={() => { setJustPlayed(null); setView('chapters'); setConfirmNode(null); }} {...ek('levels.back')}>
             {t('levels.back', '← Chapters')}
           </button>
           {homeBtn}
