@@ -94,6 +94,27 @@ export default function JourneyMode({
   const [authExpired, setAuthExpired] = useState(false);
   const [confirmNode,  setConfirmNode]  = useState(null); // { kind, name, questionCount, bestPct, completed, levelKey, questionsUrl }
   const [confError,    setConfError]    = useState('');   // why a confidence rating failed to save
+  // ── Attaching a link to a level from the map itself ───────────────────
+  // Who may: the owner, by the password /admin stored in this browser, or a
+  // signed-in moderator. The same pair the in-game picture authoring uses,
+  // so holding admin permissions is enough either way.
+  const [adminSession] = useState(() => {
+    try { return localStorage.getItem('usmle_admin_session'); } catch { return null; }
+  });
+  const [isModerator, setIsModerator] = useState(false);
+  const [linkDraft, setLinkDraft] = useState({ url: '', title: '' });
+  const [linkBusy, setLinkBusy]   = useState(false);
+  const [linkError, setLinkError] = useState('');
+  useEffect(() => {
+    const token = getToken();
+    if (!token) { setIsModerator(false); return undefined; }
+    let alive = true;
+    fetch(`${SERVER}/api/me/permissions`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => { if (alive) setIsModerator(!!d?.moderator); })
+      .catch(() => {});   // fail closed: no flag, no controls
+    return () => { alive = false; };
+  }, []);
   const [videoModalOpen, setVideoModalOpen] = useState(false); // recommended-videos list, opened from the confirm card
   const [interstitial, setInterstitial] = useState(null); // null | { status: 'saving'|'complete'|'tryagain'|'save_failed', pct, threshold?, retryPayload? }
   const [bgUrl,       setBgUrl]       = useState(() => cachedImageMap('landing').journey_bg || null);       // admin-set backdrop (landing-images slot 'journey_bg')
@@ -872,7 +893,76 @@ export default function JourneyMode({
     <div className={`jm-trail-seg jm-trail-seg--${toSide} jm-trail-seg--${state}`} aria-hidden="true" />
   );
 
-  const openConfirm = (node) => { setVideoModalOpen(false); setConfirmNode(node); };
+  const authorHeaders = () => {
+    if (adminSession) return { 'x-admin-password': adminSession };
+    const token = getToken();
+    if (token && isModerator) return { Authorization: `Bearer ${token}` };
+    return null;
+  };
+  const canEditLinks = !editorMode && !!authorHeaders();
+
+
+  // One list, written to the open card and to the map behind it, so the
+  // node's own video count agrees with what the card is showing.
+  const applyLevelVideos = (levelKey, videos) => {
+    setConfirmNode(n => (n && n.levelKey === levelKey ? { ...n, videos } : n));
+    setPath(p => p && ({
+      ...p,
+      chapters: (p.chapters || []).map(c => ({
+        ...c,
+        levels: c.levels.map(l => (l.level_key === levelKey ? { ...l, videos } : l)),
+      })),
+    }));
+  };
+
+  async function addLevelLink() {
+    const url = linkDraft.url.trim();
+    if (!url || !confirmNode) return;
+    const headers = authorHeaders();
+    if (!headers) { setLinkError('Admin permissions required'); return; }
+    setLinkBusy(true); setLinkError('');
+    try {
+      const res = await fetch(`${SERVER}/admin/journey-level-videos`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...headers },
+        body: JSON.stringify({
+          level_id: confirmNode.levelKey,
+          url,
+          title: linkDraft.title.trim() || null,
+          sort_order: (confirmNode.videos?.length || 0),
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `Could not save (${res.status})`);
+      applyLevelVideos(confirmNode.levelKey, [
+        ...(confirmNode.videos || []),
+        { id: data.id, url: data.url, title: data.title },
+      ]);
+      setLinkDraft({ url: '', title: '' });
+    } catch (e) {
+      setLinkError(e.message || 'Could not save');
+    }
+    setLinkBusy(false);
+  }
+
+  async function removeLevelLink(id) {
+    const headers = authorHeaders();
+    if (!headers || !confirmNode) return;
+    setLinkBusy(true); setLinkError('');
+    try {
+      const res = await fetch(`${SERVER}/admin/journey-level-videos/${id}`, {
+        method: 'DELETE', headers,
+      });
+      if (!res.ok) throw new Error(`Could not remove (${res.status})`);
+      applyLevelVideos(confirmNode.levelKey,
+        (confirmNode.videos || []).filter(v => v.id !== id));
+    } catch (e) {
+      setLinkError(e.message || 'Could not remove');
+    }
+    setLinkBusy(false);
+  }
+
+  const openConfirm = (node) => { setVideoModalOpen(false); setLinkError(''); setLinkDraft({ url: '', title: '' }); setConfirmNode(node); };
   const closeConfirm = () => { setVideoModalOpen(false); setConfirmNode(null); setConfError(''); };
 
   // Save the student's self-rated confidence for a completed level. Optimistic:
@@ -931,7 +1021,12 @@ export default function JourneyMode({
     const empty      = l.question_count === 0;
     const isFrontier = l.level_key === frontierKey;
     const isTarget   = l.level_key === chapterTargetKey;
-    const tappable   = l.unlocked && !empty;
+    // A locked level opens too. It cannot be played — the card hides the
+    // play controls and says why — but "what is in here, and is there
+    // anything to watch first" is a fair question to ask before you have
+    // earned it. A level with no questions at all still has nothing to
+    // show, so it stays shut.
+    const tappable   = !empty;
     const stars      = l.completed ? getStarCount(l.best_score_pct) : 0;
     const cls = [
       'jm-node', 'jm-node--level',
@@ -963,6 +1058,7 @@ export default function JourneyMode({
               kind: 'level', name: l.name, questionCount: l.question_count,
               bestPct: l.best_score_pct, completed: l.completed,
               levelKey: l.level_key,
+              unlocked: l.unlocked,
               videos: l.videos || [],
               questionsUrl: `${SERVER}/api/journey-questions?level_id=${l.level_key}`,
               bonusQuestionCount: l.bonus_question_count || 0,
@@ -1057,7 +1153,10 @@ export default function JourneyMode({
   const overlays = (
     <>
 
-      {confirmNode && (
+      {confirmNode && (() => {
+        // eslint-disable-next-line no-unused-vars
+        const nodeLocked = confirmNode.unlocked === false;
+        return (
         <div className="jm-confirm-overlay" onClick={closeConfirm}>
           <div className="jm-confirm-card" onClick={e => e.stopPropagation()}>
             <span className="jm-confirm-seal" aria-hidden="true">⚕</span>
@@ -1069,7 +1168,13 @@ export default function JourneyMode({
               <span>{confirmNode.questionCount} question{confirmNode.questionCount === 1 ? '' : 's'}</span>
               {confirmNode.bestPct > 0 && <span>Best: {confirmNode.bestPct}%</span>}
             </div>
-            <p className="jm-confirm-threshold">Pass with ≥{threshold}% to unlock the next {confirmNode.kind === 'level' ? 'level' : 'stage'}</p>
+            {nodeLocked ? (
+              <p className="jm-confirm-locked">
+                🔒 Locked — clear an earlier level in this chapter to open it.
+              </p>
+            ) : (
+              <p className="jm-confirm-threshold">Pass with ≥{threshold}% to unlock the next {confirmNode.kind === 'level' ? 'level' : 'stage'}</p>
+            )}
 
             {/* Self-rated confidence, on completed levels only — before you've
                 played it you have nothing to rate. Purely descriptive: it
@@ -1098,6 +1203,7 @@ export default function JourneyMode({
 
             {/* Question order — read at PLAY time, so switching here applies to
                 this run without reopening the card. */}
+            {!nodeLocked && (
             <div className="jm-confirm-order">
               <span className="jm-confirm-order-label" {...ek('confirm.orderLabel')}>
                 {t('confirm.orderLabel', 'Question order')}
@@ -1119,6 +1225,7 @@ export default function JourneyMode({
                 >{t('confirm.orderRandom', '🎲 Random')}</button>
               </div>
             </div>
+            )}
             {confirmNode.videos?.length > 0 && (
               <button
                 type="button"
@@ -1127,6 +1234,7 @@ export default function JourneyMode({
                 {...ek('confirm.watchVideos')}
               >{t('confirm.watchVideos', `📺 Watch Recommended Video${confirmNode.videos.length === 1 ? '' : 's'}`)}</button>
             )}
+            {!nodeLocked && (
             <button
               className="btn-start jm-confirm-play"
               onClick={() => {
@@ -1145,10 +1253,11 @@ export default function JourneyMode({
               }}
               {...ek('confirm.play')}
             >{t('confirm.play', '▶ PLAY')}</button>
+            )}
 
             {/* Bonus is level-only (kind check) and only worth showing once
                 the admin has actually authored some. */}
-            {confirmNode.kind === 'level' && confirmNode.bonusQuestionCount > 0 && (
+            {!nodeLocked && confirmNode.kind === 'level' && confirmNode.bonusQuestionCount > 0 && (
               confirmNode.bonusUnlocked ? (
                 <button
                   type="button"
@@ -1175,10 +1284,64 @@ export default function JourneyMode({
               )
             )}
 
+            {/* Attaching a link without leaving the map. Shown only to
+                someone who can write one, and on levels — a boss card has no
+                level id to hang a video on. It works on a locked level too,
+                which is often exactly when the reading gets added. */}
+            {canEditLinks && confirmNode.kind === 'level' && (
+              <div className="jm-linkbox">
+                <span className="jm-linkbox-head">Links on this level</span>
+                {(confirmNode.videos || []).length > 0 && (
+                  <ul className="jm-linkbox-list">
+                    {confirmNode.videos.map(v => (
+                      <li key={v.id || v.url}>
+                        <span className="jm-linkbox-url" title={v.url}>{v.title || v.url}</span>
+                        {v.id && (
+                          <button
+                            type="button"
+                            className="jm-linkbox-del"
+                            disabled={linkBusy}
+                            onClick={() => removeLevelLink(v.id)}
+                            title="Take this link off the level"
+                          >✕</button>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <input
+                  className="jm-linkbox-input"
+                  type="url"
+                  placeholder="Paste a YouTube, Shorts, TikTok or Reels link"
+                  value={linkDraft.url}
+                  disabled={linkBusy}
+                  onChange={e => setLinkDraft(d => ({ ...d, url: e.target.value }))}
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addLevelLink(); } }}
+                />
+                <input
+                  className="jm-linkbox-input"
+                  type="text"
+                  placeholder="Title (optional)"
+                  value={linkDraft.title}
+                  disabled={linkBusy}
+                  onChange={e => setLinkDraft(d => ({ ...d, title: e.target.value }))}
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addLevelLink(); } }}
+                />
+                <button
+                  type="button"
+                  className="btn-secondary jm-linkbox-add"
+                  disabled={linkBusy || !linkDraft.url.trim()}
+                  onClick={addLevelLink}
+                >{linkBusy ? 'Saving…' : '+ Add link'}</button>
+                {linkError && <span className="jm-linkbox-error">{linkError}</span>}
+              </div>
+            )}
+
             <button className="btn-secondary" onClick={closeConfirm} {...ek('confirm.cancel')}>{t('confirm.cancel', 'Cancel')}</button>
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {videoModalOpen && confirmNode?.videos?.length > 0 && (
         <div className="jm-video-modal-overlay" onClick={() => setVideoModalOpen(false)}>

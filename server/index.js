@@ -11818,7 +11818,7 @@ app.get('/admin/journey-level-videos', adminAuth, async (req, res) => {
   }
 });
 
-app.post('/admin/journey-level-videos', adminAuth, async (req, res) => {
+app.post('/admin/journey-level-videos', moderatorAuth, async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
   const { level_id, url, title, sort_order } = req.body;
   if (!level_id || !url?.trim()) return res.status(400).json({ error: 'level_id and url required' });
@@ -11863,7 +11863,7 @@ app.put('/admin/journey-level-videos/:id', adminAuth, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-app.delete('/admin/journey-level-videos/:id', adminAuth, async (req, res) => {
+app.delete('/admin/journey-level-videos/:id', moderatorAuth, async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
   try {
     const { error } = await supabase.from('journey_level_videos').delete().eq('id', req.params.id);

@@ -2823,3 +2823,96 @@
   .jm-path-progress { margin-left: auto; }
 }
 
+
+/* ── A level you have opened but not yet earned ───────────────────────────
+   The card is the same card; what it cannot do is start the level, so the
+   order toggle and the play buttons are absent and this says why. */
+.jm-confirm-locked {
+  margin: 6px 0 2px;
+  padding: 9px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.04);
+  font-size: 13px;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.68);
+  text-align: center;
+}
+
+/* ── Putting a link on a level from the map ───────────────────────────────
+   Only drawn for someone who can write one. Deliberately plain: it is an
+   author's tool sitting inside a player's card, and dressing it up would
+   make it compete with the play button it sits under. */
+.jm-linkbox {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  width: 100%;
+  margin: 10px 0 4px;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px dashed rgba(253, 203, 110, 0.45);
+  background: rgba(253, 203, 110, 0.06);
+  box-sizing: border-box;
+}
+.jm-linkbox-head {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(253, 203, 110, 0.9);
+}
+.jm-linkbox-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.jm-linkbox-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.78);
+}
+.jm-linkbox-url {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.jm-linkbox-del {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 118, 117, 0.55);
+  background: rgba(0, 0, 0, 0.35);
+  color: #ff7675;
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+}
+.jm-linkbox-del:hover:not(:disabled) { background: #ff7675; color: #fff; }
+.jm-linkbox-input {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(0, 0, 0, 0.3);
+  color: #fff;
+  font: inherit;
+  font-size: 13px;
+  box-sizing: border-box;
+}
+.jm-linkbox-input::placeholder { color: rgba(255, 255, 255, 0.38); }
+.jm-linkbox-add { align-self: flex-start; }
+.jm-linkbox-error {
+  font-size: 12px;
+  font-weight: 600;
+  color: #ff7675;
+}
