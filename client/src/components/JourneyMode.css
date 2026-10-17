@@ -2934,3 +2934,49 @@
   font-weight: 600;
   color: #ff7675;
 }
+
+/* ── The Pathway Navigator's way in ───────────────────────────────────────
+   On Biochemistry's chapter list only. Deliberately not shaped like a
+   chapter row: it is a different kind of thing, and looking like a chapter
+   would make it feel like one more of them to work through. */
+.jm-pathway-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  margin-bottom: 14px;
+  padding: 16px 18px;
+  border-radius: 14px;
+  border: 1px solid rgba(124, 179, 66, 0.55);
+  background: linear-gradient(135deg, rgba(124, 179, 66, 0.16), rgba(124, 179, 66, 0.05));
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  box-sizing: border-box;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+.jm-pathway-card:hover {
+  border-color: rgba(124, 179, 66, 0.95);
+  transform: translateY(-1px);
+}
+.jm-pathway-icon { font-size: 30px; flex-shrink: 0; line-height: 1; }
+.jm-pathway-body { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.jm-pathway-name {
+  font-family: var(--mv-font-display, 'Cinzel', serif);
+  font-size: 17px;
+  font-weight: 700;
+  color: #cfe8a8;
+}
+.jm-pathway-blurb {
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.62);
+}
+.jm-pathway-go { margin-left: auto; font-size: 20px; color: rgba(124, 179, 66, 0.9); flex-shrink: 0; }
+
+@media (max-width: 560px) {
+  .jm-pathway-card { padding: 13px 14px; gap: 11px; }
+  .jm-pathway-icon { font-size: 24px; }
+  .jm-pathway-name { font-size: 15px; }
+}

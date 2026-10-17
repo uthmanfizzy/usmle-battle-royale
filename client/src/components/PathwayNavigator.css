@@ -1,0 +1,427 @@
+/* ── Metabolic Pathway Navigator ──────────────────────────────────────────
+   Two screens: a card to set the run up, and the map itself. The map is the
+   whole window — a pathway you are walking should be the only thing on
+   screen — so the score sits in a bar above it and the question slides in
+   over the bottom rather than taking a column of its own. */
+
+.pn {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background:
+    radial-gradient(ellipse 80% 50% at 50% 0%, rgba(124, 179, 66, 0.08), transparent 60%),
+    linear-gradient(170deg, #0d140f 0%, #080c09 55%, #050706 100%);
+  color: #f3f1ee;
+  font-family: 'Inter', system-ui, sans-serif;
+  overflow: hidden;
+}
+
+/* ── The set-up card ───────────────────────────────────────────────────── */
+.pn--intro {
+  display: block;
+  overflow: auto;
+  padding: 28px 16px 48px;
+  box-sizing: border-box;
+}
+.pn-intro-card {
+  max-width: 620px;
+  margin: 0 auto;
+  padding: 28px 30px 32px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+  box-sizing: border-box;
+}
+.pn-title {
+  margin: 0 0 6px;
+  font-family: var(--mv-font-display, 'Cinzel', serif);
+  font-size: clamp(24px, 4.4vw, 34px);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-align: center;
+}
+.pn-sub {
+  margin: 0 0 22px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: rgba(243, 241, 238, 0.6);
+  text-align: center;
+}
+.pn-rules {
+  margin: 0 0 24px;
+  padding-left: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: rgba(243, 241, 238, 0.82);
+}
+.pn-rules li::marker { color: #e8b04b; font-weight: 800; }
+
+.pn-choose {
+  display: block;
+  margin: 0 0 10px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(243, 241, 238, 0.5);
+}
+.pn-mode-row,
+.pn-start-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 22px;
+}
+.pn-pick {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 13px 15px;
+  border-radius: 11px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.03);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.pn-pick:hover { border-color: rgba(232, 176, 75, 0.5); }
+.pn-pick.is-on {
+  border-color: rgba(232, 176, 75, 0.85);
+  background: rgba(232, 176, 75, 0.1);
+}
+.pn-pick-name {
+  font-family: var(--mv-font-display, 'Cinzel', serif);
+  font-size: 16px;
+  font-weight: 700;
+}
+.pn-pick.is-on .pn-pick-name { color: #f0c87e; }
+.pn-pick-blurb { font-size: 12.5px; color: rgba(243, 241, 238, 0.55); }
+
+.pn-begin {
+  width: 100%;
+  padding: 15px;
+  border-radius: 11px;
+  border: none;
+  background: linear-gradient(180deg, #c1291e, #96180f);
+  color: #fff;
+  font-family: var(--mv-font-display, 'Cinzel', serif);
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.pn-begin:hover { filter: brightness(1.08); }
+.pn-quit-link {
+  display: block;
+  margin: 12px auto 0;
+  padding: 6px 14px;
+  border: none;
+  background: none;
+  color: rgba(243, 241, 238, 0.5);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.pn-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 4px 0 24px;
+}
+.pn-summary > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px;
+  border-radius: 11px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+}
+.pn-summary strong {
+  font-family: var(--mv-font-display, 'Cinzel', serif);
+  font-size: 26px;
+  color: #f0c87e;
+}
+.pn-summary span { font-size: 12px; color: rgba(243, 241, 238, 0.55); }
+
+/* ── The bar above the map ─────────────────────────────────────────────── */
+.pn-bar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(6, 10, 7, 0.86);
+  flex-shrink: 0;
+  z-index: 3;
+}
+.pn-bar-btn {
+  padding: 7px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.06);
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.pn-bar-btn:hover { background: rgba(255, 255, 255, 0.14); }
+.pn-where {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.pn-where-label {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(243, 241, 238, 0.4);
+}
+.pn-where-name {
+  font-family: var(--mv-font-display, 'Cinzel', serif);
+  font-size: 17px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pn-where-region { font-size: 11.5px; color: rgba(232, 176, 75, 0.8); }
+.pn-stats {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-shrink: 0;
+  font-size: 12px;
+  color: rgba(243, 241, 238, 0.6);
+}
+.pn-stats strong {
+  font-family: var(--mv-font-display, 'Cinzel', serif);
+  font-size: 18px;
+  color: #f3f1ee;
+  margin-right: 3px;
+}
+.pn-stats .is-hot strong { color: #f0c87e; }
+.pn-stats-mode {
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(232, 176, 75, 0.4);
+  color: rgba(232, 176, 75, 0.9);
+  font-weight: 700;
+}
+
+/* ── The map ───────────────────────────────────────────────────────────── */
+.pn-frame {
+  position: relative;
+  flex: 1 1 auto;
+  overflow: hidden;
+  cursor: grab;
+  touch-action: none;
+}
+.pn-frame:active { cursor: grabbing; }
+.pn-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+}
+
+.pn-edge {
+  stroke: rgba(255, 255, 255, 0.16);
+  stroke-width: 1.6;
+}
+.pn-edge.is-solved { stroke: rgba(124, 179, 66, 0.55); }
+.pn-edge.is-live   { stroke: rgba(232, 176, 75, 0.8); stroke-width: 2.4; }
+
+.pn-node { cursor: default; }
+.pn-node-box {
+  /* Opaque: reactions are drawn centre to centre and would otherwise be
+     struck through the name. */
+  fill: #121a14;
+  stroke: rgba(255, 255, 255, 0.18);
+  stroke-width: 1.2;
+}
+.pn-node-text {
+  fill: rgba(243, 241, 238, 0.9);
+  font-size: 11px;
+  font-weight: 600;
+  text-anchor: middle;
+  pointer-events: none;
+  font-family: 'Inter', system-ui, sans-serif;
+}
+/* Shrunk to fit the box, so the full name is always readable. */
+.pn-node-text.is-long { font-size: 9.2px; }
+.pn-node-text.is-very-long { font-size: 7.8px; }
+.pn-node.is-hidden .pn-node-box { fill: #0e1410; stroke-dasharray: 4 3; }
+.pn-node.is-hidden .pn-node-text { fill: rgba(243, 241, 238, 0.35); font-size: 14px; }
+
+/* Where you are standing. */
+.pn-node.is-here .pn-node-box {
+  fill: #3a2d14;
+  stroke: #e8b04b;
+  stroke-width: 2.2;
+}
+.pn-node.is-here .pn-node-text { fill: #fff; font-weight: 800; }
+
+/* A door: connected, and there is something to ask about it. */
+.pn-node.is-open { cursor: pointer; }
+.pn-node.is-open .pn-node-box {
+  fill: #1b2a16;
+  stroke: rgba(124, 179, 66, 0.9);
+  stroke-width: 2;
+}
+.pn-node.is-open:hover .pn-node-box { fill: #263b1f; }
+
+/* Connected, but this mode has no question for it. */
+.pn-node.is-shut .pn-node-box { stroke: rgba(255, 255, 255, 0.3); stroke-dasharray: 3 3; }
+
+.pn-zoom {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  z-index: 2;
+}
+.pn-zoom button {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(6, 10, 7, 0.8);
+  color: #f3f1ee;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+.pn-zoom button:hover { background: rgba(255, 255, 255, 0.16); }
+
+.pn-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
+  max-width: min(520px, 92%);
+  padding: 9px 16px;
+  border-radius: 999px;
+  background: rgba(6, 10, 7, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  font-size: 12.5px;
+  color: rgba(243, 241, 238, 0.7);
+  text-align: center;
+  pointer-events: none;
+}
+
+/* ── The question ──────────────────────────────────────────────────────── */
+.pn-ask {
+  position: absolute;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  width: min(520px, calc(100% - 28px));
+  padding: 16px 18px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(232, 176, 75, 0.45);
+  background: rgba(10, 16, 12, 0.97);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.6);
+  box-sizing: border-box;
+  z-index: 4;
+}
+.pn-ask-head {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 8px;
+  font-size: 13px;
+  color: rgba(243, 241, 238, 0.7);
+}
+.pn-ask-from { font-weight: 700; }
+.pn-ask-arrow { color: rgba(232, 176, 75, 0.9); }
+.pn-ask-to {
+  padding: 3px 10px;
+  border-radius: 7px;
+  border: 1px dashed rgba(232, 176, 75, 0.55);
+  font-weight: 700;
+  color: #f0c87e;
+}
+.pn-ask-q {
+  margin: 0 0 4px;
+  font-size: 15px;
+  font-weight: 700;
+  text-align: center;
+}
+.pn-ask-note {
+  margin: 0 0 10px;
+  font-size: 11.5px;
+  text-align: center;
+  color: rgba(232, 176, 75, 0.75);
+}
+.pn-ask-form { display: flex; gap: 8px; margin-top: 10px; }
+.pn-ask-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 11px 13px;
+  border-radius: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(0, 0, 0, 0.35);
+  color: #fff;
+  font: inherit;
+  font-size: 15px;
+}
+.pn-ask-input::placeholder { color: rgba(255, 255, 255, 0.35); }
+.pn-ask-go {
+  flex: 0 0 auto;
+  padding: 11px 18px;
+  border-radius: 9px;
+  border: none;
+  background: linear-gradient(180deg, #7cb342, #558b2f);
+  color: #fff;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+.pn-ask-go:disabled { opacity: 0.45; cursor: default; }
+.pn-ask-feedback {
+  margin: 10px 0 0;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+}
+.pn-ask-feedback--ok   { color: #7ee8ad; }
+.pn-ask-feedback--no   { color: #ff9f9e; }
+.pn-ask-feedback--told { color: #f0c87e; }
+.pn-ask-foot { display: flex; justify-content: center; margin-top: 10px; }
+.pn-ask-secondary {
+  padding: 7px 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(243, 241, 238, 0.85);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.pn-ask-secondary:hover { background: rgba(255, 255, 255, 0.13); }
+
+@media (max-width: 560px) {
+  .pn-mode-row, .pn-start-grid, .pn-summary { grid-template-columns: minmax(0, 1fr); }
+  .pn-intro-card { padding: 22px 18px 26px; }
+  .pn-stats { gap: 10px; }
+  .pn-stats-mode { display: none; }
+  .pn-where-region { display: none; }
+}

@@ -27,6 +27,7 @@ const UWorldAdventure   = lazy(() => import('./components/UWorldAdventure'));
 import { questionBankMode } from './questionBankModes';
 const HYFlashcards      = lazy(() => import('./components/HYFlashcards'));
 const ReelsPage         = lazy(() => import('./components/ReelsPage'));
+const PathwayNavigator  = lazy(() => import('./components/PathwayNavigator'));
 const UsernameSetupPage = lazy(() => import('./components/UsernameSetupPage'));
 
 function PageSpinner() {
@@ -140,6 +141,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
                 <Route path="/ore-lds" element={<RouteErrorBoundary name="OreLds"><UWorldAdventure mode={questionBankMode('ore_lds')} /></RouteErrorBoundary>} />
                 <Route path="/hy-flashcards" element={<RouteErrorBoundary name="HYFlashcards"><HYFlashcards /></RouteErrorBoundary>} />
                 <Route path="/reels"          element={<RouteErrorBoundary name="ReelsPage"><ReelsPage /></RouteErrorBoundary>} />
+                <Route path="/pathway-navigator" element={<RouteErrorBoundary name="PathwayNavigator"><PathwayNavigator onExit={() => { window.location.href = '/journey'; }} /></RouteErrorBoundary>} />
                 <Route path="/username-setup" element={<UsernameSetupPage />} />
                 <Route path="/*"              element={<App />} />
               </Routes>
