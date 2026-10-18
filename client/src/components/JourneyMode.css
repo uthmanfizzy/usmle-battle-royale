@@ -2980,3 +2980,85 @@
   .jm-pathway-icon { font-size: 24px; }
   .jm-pathway-name { font-size: 15px; }
 }
+
+/* ── How to remember this ─────────────────────────────────────────────────
+   The mnemonic on a level's card. A student sees it as a note; someone who
+   can write to the bank sees the same note with an Edit under it. Set apart
+   from the card's own voice — this is the author talking, not the game. */
+.jm-aid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  margin: 10px 0 4px;
+  padding: 13px 15px;
+  border-radius: 11px;
+  border: 1px solid rgba(116, 185, 255, 0.4);
+  background: rgba(116, 185, 255, 0.08);
+  box-sizing: border-box;
+  text-align: left;
+}
+.jm-aid-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(116, 185, 255, 0.95);
+}
+.jm-aid-text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.9);
+  /* Authors write these in lines — a mnemonic and then what it stands for —
+     and those lines are the point. */
+  white-space: pre-wrap;
+}
+.jm-aid-empty {
+  margin: 0;
+  font-size: 13px;
+  font-style: italic;
+  color: rgba(255, 255, 255, 0.45);
+}
+.jm-aid-edit {
+  align-self: flex-start;
+  padding: 5px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(116, 185, 255, 0.45);
+  background: rgba(116, 185, 255, 0.12);
+  color: #a8d4ff;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.jm-aid-edit:hover { background: rgba(116, 185, 255, 0.24); }
+.jm-aid-input {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(0, 0, 0, 0.32);
+  color: #fff;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  resize: vertical;
+  box-sizing: border-box;
+}
+.jm-aid-input::placeholder { color: rgba(255, 255, 255, 0.35); }
+.jm-aid-actions { display: flex; align-items: center; gap: 10px; }
+.jm-aid-save { margin: 0 !important; }
+.jm-aid-cancel {
+  border: none;
+  background: none;
+  color: rgba(255, 255, 255, 0.55);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+  text-decoration: underline;
+}
+.jm-aid-error { font-size: 12px; font-weight: 600; color: #ff7675; }

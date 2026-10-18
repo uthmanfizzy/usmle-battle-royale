@@ -108,6 +108,12 @@ export default function JourneyMode({
     try { return localStorage.getItem('usmle_admin_session'); } catch { return null; }
   });
   const [isModerator, setIsModerator] = useState(false);
+  // The level's memory aid, while it is being edited. Null when the box is
+  // closed; a string the moment it opens, so an author can clear one by
+  // emptying it and saving.
+  const [aidDraft, setAidDraft] = useState(null);
+  const [aidBusy, setAidBusy]   = useState(false);
+  const [aidError, setAidError] = useState('');
   const [linkDraft, setLinkDraft] = useState({ url: '', title: '' });
   const [linkBusy, setLinkBusy]   = useState(false);
   const [linkError, setLinkError] = useState('');
@@ -953,6 +959,40 @@ export default function JourneyMode({
     }));
   };
 
+  const applyLevelAid = (levelKey, text) => {
+    setConfirmNode(n => (n && n.levelKey === levelKey ? { ...n, memoryAid: text } : n));
+    setPath(p => p && ({
+      ...p,
+      chapters: (p.chapters || []).map(c => ({
+        ...c,
+        levels: c.levels.map(l => (l.level_key === levelKey ? { ...l, memory_aid: text } : l)),
+      })),
+    }));
+  };
+
+  async function saveLevelAid() {
+    if (!confirmNode || aidDraft === null) return;
+    setAidBusy(true); setAidError('');
+    try {
+      const res = await authedFetch(`${SERVER}/api/journey-level-note/${confirmNode.levelKey}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: aidDraft }),
+      });
+      if (!res) { setAidError('Admin permissions required'); setAidBusy(false); return; }
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(res.status === 401
+          ? 'Your saved admin password was not accepted — sign in again at /admin.'
+          : (data.error || `Could not save (${res.status})`));
+      }
+      applyLevelAid(confirmNode.levelKey, data.memory_aid ?? null);
+      setAidDraft(null);
+    } catch (e) {
+      setAidError(e.message || 'Could not save');
+    }
+    setAidBusy(false);
+  }
   async function addLevelLink() {
     const url = linkDraft.url.trim();
     if (!url || !confirmNode) return;
@@ -1008,7 +1048,12 @@ export default function JourneyMode({
     setLinkBusy(false);
   }
 
-  const openConfirm = (node) => { setVideoModalOpen(false); setLinkError(''); setLinkDraft({ url: '', title: '' }); setConfirmNode(node); };
+  const openConfirm = (node) => {
+    setVideoModalOpen(false);
+    setLinkError(''); setLinkDraft({ url: '', title: '' });
+    setAidDraft(null); setAidError('');
+    setConfirmNode(node);
+  };
   const closeConfirm = () => { setVideoModalOpen(false); setConfirmNode(null); setConfError(''); };
 
   // Save the student's self-rated confidence for a completed level. Optimistic:
@@ -1105,6 +1150,7 @@ export default function JourneyMode({
               bestPct: l.best_score_pct, completed: l.completed,
               levelKey: l.level_key,
               unlocked: l.unlocked,
+              memoryAid: l.memory_aid || null,
               videos: l.videos || [],
               questionsUrl: `${SERVER}/api/journey-questions?level_id=${l.level_key}`,
               bonusQuestionCount: l.bonus_question_count || 0,
@@ -1255,6 +1301,60 @@ export default function JourneyMode({
                   ))}
                 </div>
                 {confError && <span className="jm-conf-error">{confError}</span>}
+              </div>
+            )}
+
+            {/* How to remember it. Shown to everybody when there is one —
+                it is the reason the box exists — and editable in place by
+                anyone who can write to the bank. Above the play button on
+                purpose: it is meant to be read before the level, not found
+                afterwards. */}
+            {(confirmNode.memoryAid || (canEditLinks && confirmNode.kind === 'level')) && (
+              <div className="jm-aid">
+                <span className="jm-aid-head">
+                  <span aria-hidden="true">🧠</span> How to remember this
+                </span>
+
+                {aidDraft === null ? (
+                  <>
+                    {confirmNode.memoryAid
+                      ? <p className="jm-aid-text">{confirmNode.memoryAid}</p>
+                      : <p className="jm-aid-empty">Nothing here yet.</p>}
+                    {canEditLinks && confirmNode.kind === 'level' && (
+                      <button
+                        type="button"
+                        className="jm-aid-edit"
+                        onClick={() => { setAidError(''); setAidDraft(confirmNode.memoryAid || ''); }}
+                      >{confirmNode.memoryAid ? 'Edit' : '+ Add one'}</button>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <textarea
+                      className="jm-aid-input"
+                      value={aidDraft}
+                      disabled={aidBusy}
+                      rows={4}
+                      placeholder="A mnemonic, a rule of thumb, the thing that makes it stick…"
+                      onChange={e => setAidDraft(e.target.value)}
+                    />
+                    <div className="jm-aid-actions">
+                      <button
+                        type="button"
+                        className="btn-secondary jm-aid-save"
+                        disabled={aidBusy}
+                        onClick={saveLevelAid}
+                      >{aidBusy ? 'Saving…' : 'Save'}</button>
+                      <button
+                        type="button"
+                        className="jm-aid-cancel"
+                        disabled={aidBusy}
+                        onClick={() => { setAidDraft(null); setAidError(''); }}
+                      >Cancel</button>
+                    </div>
+                  </>
+                )}
+                {aidError && <span className="jm-aid-error">{aidError}</span>}
               </div>
             )}
 

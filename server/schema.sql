@@ -221,6 +221,12 @@ CREATE POLICY "server_full_access_journey_levels"
 -- journey_levels also carries a `video_url TEXT` column (added directly in
 -- Supabase, not tracked here) — superseded by journey_level_videos below.
 
+-- ── journey_levels.memory_aid ─────────────────────────────────────────────────
+-- The mnemonic / rule of thumb shown on a level's card before it is played.
+-- One per level and nothing but text, so a column rather than a table.
+
+ALTER TABLE journey_levels ADD COLUMN IF NOT EXISTS memory_aid TEXT;
+
 -- ── journey_level_videos ──────────────────────────────────────────────────────
 -- Recommended videos shown on a level's confirm screen before the player starts
 -- it — multiple per level. Platform (YouTube / YouTube Shorts / TikTok /

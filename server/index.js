@@ -8747,6 +8747,49 @@ app.put('/api/question-image/:id', moderatorAuth, async (req, res) => {
   }
 });
 
+// ── A level's memory aid ────────────────────────────────────────────────────
+// The mnemonic or rule of thumb shown on a level's card before it is played.
+// Lives in a column on journey_levels rather than a table of its own: there is
+// at most one per level and it has no shape beyond text, so a table would be a
+// migration and a join for nothing.
+//
+// Either credential, like the level's links — an author adding a mnemonic is
+// doing the same job in the same place. Capped at a length that fits a card;
+// anything longer wants to be the explanation, not the aid.
+const MEMORY_AID_MAX = 2000;
+
+app.put('/api/journey-level-note/:levelId', moderatorAuth, async (req, res) => {
+  if (typeof req.body?.text !== 'string') {
+    return res.status(400).json({ error: 'text must be a string' });
+  }
+  const text = req.body.text.trim();
+  if (text.length > MEMORY_AID_MAX) {
+    return res.status(400).json({ error: `Keep it under ${MEMORY_AID_MAX} characters` });
+  }
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured' });
+  try {
+    // Cleared rather than stored empty, so "has an aid" is one check.
+    const { error } = await supabase
+      .from('journey_levels')
+      .update({ memory_aid: text === '' ? null : text })
+      .eq('id', req.params.levelId);
+    if (error) throw error;
+    res.json({ ok: true, memory_aid: text === '' ? null : text });
+  } catch (err) {
+    // The column is added by hand in Supabase like the rest of this schema.
+    // Until it is, say so — a raw Postgres string tells an author nothing
+    // they can act on.
+    if (isMissingColumn(err)) {
+      return res.status(503).json({
+        error: 'journey_levels has no memory_aid column yet — run: ALTER TABLE journey_levels ADD COLUMN IF NOT EXISTS memory_aid TEXT;',
+        reason: 'missing_column',
+      });
+    }
+    console.warn('[/api/journey-level-note] failed —', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── In-game text editing ────────────────────────────────────────────────────
 // Cutting a word or a sentence out of a question while playing it. Its own
 // capability for the same reason the image routes are: PUT /admin/questions/:id
@@ -12825,6 +12868,11 @@ async function buildJourneyPath(userId, subject) {
         best_score_pct: bestPct,
         unlocked,
         videos: levelVideos[l.id] || [],   // recommended videos for the confirm screen
+        // How to remember this level's content — a mnemonic, a rule of
+        // thumb, whatever the author found works. Read with the rest of the
+        // row (select('*')), so it appears the moment the column exists and
+        // is simply null until then.
+        memory_aid: l.memory_aid || null,
         // Bonus is earned on THIS level's own best score, independent of the
         // unlock chain above — a level can be bonus-eligible before or after
         // it gates the next one.
