@@ -382,3 +382,169 @@ export function captureContext(visibleString, start, end, ctx = 30) {
     suffix: visibleString.slice(end, Math.min(visibleString.length, end + ctx)),
   };
 }
+
+// ── Cutting text out of the stored string ───────────────────────────────────
+//
+// A selection is measured in VISIBLE offsets — the text with its markup
+// stripped, which is what the DOM shows and what highlights are stored
+// against. The stored string is not that: it still carries **bold**,
+// __underline__ and [color] wrappers, and its newlines contribute no visible
+// characters at all. Splicing a visible range straight into the raw string
+// would therefore cut in the wrong place the moment a question contains any
+// formatting, and silently corrupt it.
+//
+// visibleSpans walks the raw string with the SAME rules the tokenizers above
+// use and reports, for every run, the raw slice it came from and the visible
+// range it occupies. A run's text is always one contiguous slice of the raw
+// string, so within a span the two line up one for one and a visible range
+// can be translated exactly.
+//
+// The test beside this file asserts that the spans' own text, concatenated,
+// is byte-identical to toVisibleText for a batch of awkward strings — if the
+// tokenizers above ever change and this walker does not, that fails rather
+// than questions quietly losing the wrong words.
+
+function pushRun(out, raw, rawStart, rawEnd, vis) {
+  if (rawEnd <= rawStart) return vis;
+  out.push({ rawStart, rawEnd, visStart: vis, visEnd: vis + (rawEnd - rawStart) });
+  return vis + (rawEnd - rawStart);
+}
+
+// Mirrors parseInlineRuns: bold/italic/plain, inside a [color] span.
+function inlineSpans(out, raw, from, to, vis) {
+  let i = from;
+  while (i < to) {
+    const rest = raw.slice(i, to);
+    const bold = rest.match(/^\*\*([\s\S]*?)\*\*/);
+    if (bold) {
+      vis = pushRun(out, raw, i + 2, i + 2 + bold[1].length, vis);
+      i += bold[0].length;
+      continue;
+    }
+    const italic = rest.match(/^\*([\s\S]*?)\*/);
+    if (italic) {
+      vis = pushRun(out, raw, i + 1, i + 1 + italic[1].length, vis);
+      i += italic[0].length;
+      continue;
+    }
+    let plain = 0;
+    while (plain < rest.length) {
+      const next = rest.slice(plain);
+      if (next.match(/^\*\*/) || next.match(/^\*[^*]/)) break;
+      plain++;
+    }
+    if (plain === 0) plain = 1;
+    vis = pushRun(out, raw, i, i + plain, vis);
+    i += plain;
+  }
+  return vis;
+}
+
+/**
+ * Every visible run of `raw`, with the raw slice it came from.
+ * Markup delimiters and newlines appear in no span, which is exactly what
+ * makes them survive a cut.
+ */
+export function visibleSpans(raw) {
+  const text = String(raw || '');
+  const out = [];
+  let vis = 0;
+  let lineStart = 0;
+  for (const line of text.split('\n')) {
+    const to = lineStart + line.length;
+    let i = lineStart;
+    while (i < to) {
+      const rest = text.slice(i, to);
+      const color = rest.match(/^\[(\w+)\]([\s\S]*?)\[\/\1\]/);
+      if (color && COLORS[color[1]]) {
+        const innerFrom = i + color[1].length + 2;
+        vis = inlineSpans(out, text, innerFrom, innerFrom + color[2].length, vis);
+        i += color[0].length;
+        continue;
+      }
+      const bold = rest.match(/^\*\*([\s\S]*?)\*\*/);
+      if (bold) {
+        vis = pushRun(out, text, i + 2, i + 2 + bold[1].length, vis);
+        i += bold[0].length;
+        continue;
+      }
+      const italic = rest.match(/^\*([\s\S]*?)\*/);
+      if (italic) {
+        vis = pushRun(out, text, i + 1, i + 1 + italic[1].length, vis);
+        i += italic[0].length;
+        continue;
+      }
+      const underline = rest.match(/^__([\s\S]*?)__/);
+      if (underline) {
+        vis = pushRun(out, text, i + 2, i + 2 + underline[1].length, vis);
+        i += underline[0].length;
+        continue;
+      }
+      let plain = 0;
+      while (plain < rest.length) {
+        const next = rest.slice(plain);
+        if (
+          next.match(/^\*\*/) ||
+          next.match(/^\*[^*]/) ||
+          next.match(/^__/) ||
+          next.match(/^\[\w+\]/)
+        ) break;
+        plain++;
+      }
+      if (plain === 0) plain = 1;
+      vis = pushRun(out, text, i, i + plain, vis);
+      i += plain;
+    }
+    lineStart = to + 1;   // step over the newline, which is never visible
+  }
+  return out;
+}
+
+// A wrapper whose whole content has gone leaves its delimiters behind —
+// "****" where a bold phrase was. Those are swept, and only those: an empty
+// pair means something was removed from between them, while a lone "*" might
+// be a multiplication sign somebody typed.
+function sweepEmptyMarkup(text) {
+  let out = text;
+  let before;
+  do {
+    before = out;
+    out = out
+      .replace(/\*\*\*\*/g, '')
+      .replace(/____/g, '')
+      .replace(/\[(\w+)\]\[\/\1\]/g, '');
+  } while (out !== before);
+  return out;
+}
+
+/**
+ * Remove the visible range [start, end) from `raw`, keeping every piece of
+ * markup whose text survives.
+ *
+ * Returns null when the range is empty, reversed, or reaches past the end of
+ * the visible text — a caller handed a stale offset should write nothing at
+ * all rather than cut somewhere arbitrary.
+ */
+export function cutVisibleRange(raw, start, end) {
+  const text = String(raw || '');
+  const a = Number(start), b = Number(end);
+  if (!Number.isInteger(a) || !Number.isInteger(b) || a < 0 || b <= a) return null;
+  const spans = visibleSpans(text);
+  const visibleLength = spans.length ? spans[spans.length - 1].visEnd : 0;
+  if (b > visibleLength) return null;
+
+  // Raw indices to drop, gathered span by span.
+  const drop = new Array(text.length).fill(false);
+  for (const sp of spans) {
+    const from = Math.max(a, sp.visStart);
+    const to   = Math.min(b, sp.visEnd);
+    if (to <= from) continue;
+    const rawFrom = sp.rawStart + (from - sp.visStart);
+    const rawTo   = sp.rawStart + (to - sp.visStart);
+    for (let i = rawFrom; i < rawTo; i++) drop[i] = true;
+  }
+
+  let out = '';
+  for (let i = 0; i < text.length; i++) if (!drop[i]) out += text[i];
+  return sweepEmptyMarkup(out);
+}

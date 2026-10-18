@@ -34,8 +34,13 @@ const pillOwners = [];
  * visible-text offsets + drift context and calls onCreate. If the selection
  * overlaps an existing highlight, a remove (✕) action is also shown.
  */
-export default function ExplanationHighlightToolbar({ containerRef, highlights, onCreate, onRemoveRange, allowFormat = false, rejectSelector = null }) {
+export default function ExplanationHighlightToolbar({ containerRef, highlights, onCreate, onRemoveRange, onDeleteText = null, allowFormat = false, rejectSelector = null }) {
   const [popup, setPopup] = useState(null);
+  // Cutting text out of the question is the one action here that cannot be
+  // undone from the bar, so it asks twice: the first press arms it and says
+  // so, the second does it. Reset whenever the bar closes, so an armed bin
+  // never carries over to the next selection.
+  const [cutArmed, setCutArmed] = useState(false);
   const pointerDownRef = useRef(false);
   const settleRef = useRef(null);
   const rafRef = useRef(0);
@@ -58,6 +63,10 @@ export default function ExplanationHighlightToolbar({ containerRef, highlights, 
       stickyListeners.forEach(fn => fn());
     };
   }, []);
+
+  // An armed bin must not survive the bar it was armed in: the next
+  // selection would be one press from being deleted.
+  useEffect(() => { if (!popup) setCutArmed(false); }, [popup]);
 
   // Latest callbacks for the document listeners below, which bind once.
   const onCreateRef = useRef(onCreate);
@@ -227,6 +236,21 @@ export default function ExplanationHighlightToolbar({ containerRef, highlights, 
     )
     : null;
 
+  const deleteText = () => {
+    const sel = liveSelection();
+    if (!sel || !onDeleteText) return;
+    if (!cutArmed) { setCutArmed(true); return; }
+    setCutArmed(false);
+    // The visible text goes with the offsets. They were measured against it,
+    // and the handler needs it to work out how this region's renderer relates
+    // to the stored string — the stem shows markup literally, the explanation
+    // parses it, and a cut that guesses wrong removes the wrong words.
+    const container = containerRef?.current;
+    onDeleteText(sel.start, sel.end, container?.textContent || '');
+    window.getSelection()?.removeAllRanges();
+    setPopup(null);
+  };
+
   const removeOverlap = () => {
     const sel = liveSelection();
     if (!sel) return;
@@ -314,6 +338,25 @@ export default function ExplanationHighlightToolbar({ containerRef, highlights, 
         <button type="button" className="expl-hl-remove" title="Remove highlight" onClick={removeOverlap}>
           ✕
         </button>
+      )}
+      {/* Deleting the selected words from the question itself — not a
+          highlight on it. Only for someone who can write to the bank, and it
+          takes two presses. */}
+      {onDeleteText && (
+        <>
+          <span className="expl-hl-divider" />
+          <button
+            type="button"
+            className={`expl-hl-cut${cutArmed ? ' is-armed' : ''}`}
+            aria-pressed={cutArmed}
+            title={cutArmed
+              ? 'Press again to delete the selected text from this question for everyone'
+              : 'Delete the selected text from this question (saved for everyone)'}
+            onClick={deleteText}
+          >
+            🗑{cutArmed && <span className="expl-hl-cut-text">delete?</span>}
+          </button>
+        </>
       )}
       <span className="expl-hl-divider" />
       <button

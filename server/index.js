@@ -8747,6 +8747,61 @@ app.put('/api/question-image/:id', moderatorAuth, async (req, res) => {
   }
 });
 
+// ── In-game text editing ────────────────────────────────────────────────────
+// Cutting a word or a sentence out of a question while playing it. Its own
+// capability for the same reason the image routes are: PUT /admin/questions/:id
+// rewrites the whole record, and opening that to every moderator to let them
+// strike out a stray line would hand them the answer key along with it. This
+// one touches the stem or the explanation and nothing else.
+//
+// The text arrives already cut. The client owns that step because only the
+// client knows which characters the student actually selected, and because
+// the mapping from a visible selection back through **bold** and [color]
+// markup lives in the renderer's own parser (cutVisibleRange in
+// client/src/utils/explanationHighlights.js), which is tested against it.
+const QUESTION_TEXT_FIELDS = ['question', 'explanation'];
+// Longer than any real stem and short enough that a runaway client cannot
+// write a novel into the bank.
+const QUESTION_TEXT_MAX = 20000;
+
+app.put('/api/question-text/:id', moderatorAuth, async (req, res) => {
+  const table = questionImageTable(req.query.table || req.body?.table);
+  const field = (req.body?.field || '').toString();
+  if (!table) return res.status(400).json({ error: 'unknown table' });
+  if (!QUESTION_TEXT_FIELDS.includes(field)) {
+    return res.status(400).json({ error: 'field must be question or explanation' });
+  }
+  if (typeof req.body?.text !== 'string') {
+    return res.status(400).json({ error: 'text must be a string' });
+  }
+  const text = req.body.text;
+  if (text.length > QUESTION_TEXT_MAX) {
+    return res.status(400).json({ error: `text must be under ${QUESTION_TEXT_MAX} characters` });
+  }
+  // A stem emptied completely is a question nobody can answer. An explanation
+  // may legitimately be cleared, so only the stem is defended.
+  if (field === 'question' && text.trim() === '') {
+    return res.status(400).json({ error: 'a question cannot be left with no text' });
+  }
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured' });
+  try {
+    const key = questionImageKey(table, req.params.id);
+    const { error } = await questionWrite({ [field]: text }, r =>
+      supabase.from(table).update(r).eq(key, req.params.id));
+    if (error) throw error;
+    // The in-memory bank is what Solo and Training actually serve from, so it
+    // is patched too — without this the cut reappears on the next question.
+    if (table === 'questions') {
+      const q = questionBank.find(x => x._supabase_id === req.params.id || x.id === req.params.id);
+      if (q) q[field] = text;
+    }
+    res.json({ ok: true, field, text });
+  } catch (err) {
+    console.warn('[/api/question-text] failed —', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Current image URLs for one question. Two columns and nothing else, so the
 // authoring client can poll it cheaply to pick up a picture added from the
 // admin panel in another tab without reloading the game.

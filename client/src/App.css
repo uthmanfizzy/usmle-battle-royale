@@ -4276,3 +4276,63 @@ html[data-study="on"] .solo-body .pause-overlay {
   to   { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
 @media (prefers-reduced-motion: reduce) { .sg-resumed { animation: none; } }
+
+/* ── Deleting text from a question, from the highlight bar ────────────────
+   The one control in that bar that changes the question rather than marking
+   it up, so it is red and it arms before it fires. Shaped like the pin
+   beside it, which is the bar's other two-step control. */
+.expl-hl-cut {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 8px;
+  height: 26px;
+  border-radius: 7px;
+  border: 1px solid rgba(255, 118, 117, 0.45);
+  background: rgba(255, 118, 117, 0.1);
+  color: #ff9f9e;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+.expl-hl-cut:hover { background: rgba(255, 118, 117, 0.22); }
+.expl-hl-cut.is-armed {
+  background: #ff7675;
+  border-color: #ff7675;
+  color: #fff;
+  font-weight: 800;
+}
+.expl-hl-cut-text {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+/* What became of the cut. Said near the top of the screen, like the resumed
+   notice, and gone on its own. */
+.sg-textcut {
+  position: fixed;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 620;
+  padding: 9px 18px;
+  border-radius: 999px;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+}
+.sg-textcut--ok {
+  background: rgba(10, 30, 18, 0.96);
+  border: 1px solid rgba(85, 239, 196, 0.5);
+  color: #7ee8ad;
+}
+.sg-textcut--err {
+  background: rgba(32, 12, 12, 0.96);
+  border: 1px solid rgba(255, 118, 117, 0.55);
+  color: #ff9f9e;
+}

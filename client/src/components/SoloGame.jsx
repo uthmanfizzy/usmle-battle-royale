@@ -14,7 +14,7 @@ import { shuffleQuestionOptions } from '../utils/shuffleOptions';
 import { normalizeExplanationImages, MAX_EXPLANATION_IMAGES } from '../utils/explanationImages';
 import { runKeyFor, loadRun, saveRun, clearRun, restoreOrder } from '../utils/runSave';
 import { useScrollToTopOnChange } from '../utils/useScrollToTopOnChange';
-import { toVisibleText, resolveHighlights, normalizeHighlightRow, captureContext } from '../utils/explanationHighlights';
+import { toVisibleText, resolveHighlights, normalizeHighlightRow, captureContext, cutVisibleRange } from '../utils/explanationHighlights';
 import { getToken } from '../auth';
 import './SoloGameJourney.css';
 import { JOURNEY_THEMES, loadJourneyTheme, saveJourneyTheme } from '../journeyThemes';
@@ -1019,6 +1019,76 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
       explanation_image_pos: list[0]?.pos ?? null,
     }, qid);
   }, [applyDevFields]);
+
+  // ── Cutting text out of a question, mid-game ──────────────────────────
+  // The selection arrives in VISIBLE offsets, the same ones highlights use.
+  // cutVisibleRange maps them back through the stored string's markup, so a
+  // word taken out of a **bold** phrase leaves the phrase bold and a span
+  // emptied completely takes its tags with it. It returns null rather than
+  // guess if the offsets do not fit the text — a stale selection writes
+  // nothing at all.
+  //
+  // Highlights are NOT rewritten here. Their own stored offsets would all
+  // shift, and silently moving another author's highlights to approximately
+  // the right place is worse than leaving them to be re-made; the resolver
+  // already drops a highlight whose context no longer matches.
+  const [textCutMsg, setTextCutMsg] = useState(null);   // { kind, text }
+  const cutQuestionText = useCallback(async (region, start, end, visible) => {
+    const target = questionsRef.current[qIdxRef.current];
+    const headers = imageAuthHeaders();
+    if (!target?.id || !headers) return;
+    const field = region === 'question' ? 'question' : 'explanation';
+    const raw = String(target[field] ?? '');
+
+    // How this region's renderer relates to the stored string, worked out
+    // from what is actually on screen rather than assumed. The explanation is
+    // drawn through the markup parser, so "**bold**" is four characters the
+    // student never sees; the stem is drawn literally, so they are four
+    // characters the student DOES see. Reading the offsets the wrong way
+    // round moves the cut by exactly the width of the markup before it, which
+    // is how a sentence gets removed four characters off.
+    //
+    // Nothing is guessed: if the text on screen is neither the stored string
+    // nor its parsed form — a stem with a lab box or a table drawn into it,
+    // say — the cut is refused.
+    let next = null;
+    if (visible === raw) {
+      next = raw.slice(0, start) + raw.slice(end);
+    } else if (visible === toVisibleText(raw)) {
+      next = cutVisibleRange(raw, start, end);
+    }
+    if (next === null) {
+      setTextCutMsg({ kind: 'err', text: "That selection doesn't line up with the stored text — nothing removed." });
+      setTimeout(() => setTextCutMsg(null), 3600);
+      return;
+    }
+    if (field === 'question' && next.trim() === '') {
+      setTextCutMsg({ kind: 'err', text: 'A question cannot be left with no text.' });
+      setTimeout(() => setTextCutMsg(null), 3200);
+      return;
+    }
+    // On screen first, saved after: a failed write puts it back, which is
+    // visible, rather than leaving the player reading text the bank no longer
+    // has.
+    const before = raw;
+    applyDevFields({ [field]: next }, target.id);
+    try {
+      const res = await fetch(
+        `${SERVER_URL}/api/question-text/${encodeURIComponent(target.id)}?table=${imageTable}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', ...headers },
+        body: JSON.stringify({ field, text: next }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `Save failed (${res.status})`);
+      setTextCutMsg({ kind: 'ok', text: 'Removed' });
+      setTimeout(() => setTextCutMsg(null), 1800);
+    } catch (err) {
+      applyDevFields({ [field]: before }, target.id);
+      setTextCutMsg({ kind: 'err', text: err.message || 'Could not save' });
+      setTimeout(() => setTextCutMsg(null), 3600);
+    }
+  }, [imageAuthHeaders, imageTable, applyDevFields]);
 
   const devImgFail = useCallback((field, text) => {
     setDevImgBusy(null);
@@ -2130,6 +2200,14 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
 
   return (
     <div className={`${screenClass}${timeUpLock ? ' uw-timeup' : ''}`} ref={screenRef}>
+      {/* A cut is a write to the question bank, so it says so — and says
+          when it did not land, rather than leaving the author to guess from
+          text that reappears on the next question. */}
+      {textCutMsg && (
+        <div className={`sg-textcut sg-textcut--${textCutMsg.kind}`} role="status">
+          {textCutMsg.text}
+        </div>
+      )}
       {resumed && (
         <div className="sg-resumed" role="status">
           Picked up where you left off — question {qIdx + 1}
@@ -2532,6 +2610,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
               highlights={stemDisplayHighlights}
               onCreate={(p) => handleCreateHighlight('question', p)}
               onRemoveRange={(s, e) => handleRemoveRange('question', s, e)}
+              onDeleteText={canWriteImages ? ((s, e, v) => cutQuestionText('question', s, e, v)) : null}
               allowFormat={true}
               rejectSelector=".lab-values-box, .stem-table"
             />
@@ -2820,6 +2899,9 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
                   highlights={displayHighlights}
                   onCreate={(p) => handleCreateHighlight('explanation', p)}
                   onRemoveRange={(s, e) => handleRemoveRange('explanation', s, e)}
+                  onDeleteText={(authoringOfficial && canWriteImages)
+                    ? ((s, e, v) => cutQuestionText('explanation', s, e, v))
+                    : null}
                   allowFormat={authoringOfficial}
                 />
               )}
