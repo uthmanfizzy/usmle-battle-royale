@@ -3,6 +3,7 @@ import { getToken } from '../auth';
 import { useStudyActivity } from '../studyPresence';
 import { JOURNEY_SUBJECTS, JOURNEY_SECTIONS } from '../journeySubjects';
 import { parseShortUrl, embedUrlStatic } from '../utils/shortEmbeds';
+import ShortPlayer from './ShortPlayer';
 import { getStarCount } from '../utils/journeyStars';
 import './JourneyMode.css';
 import { cachedImageMap, rememberImageMap } from '../utils/cachedImages';
@@ -1417,12 +1418,22 @@ export default function JourneyMode({
             <div className="jm-video-modal-list">
               {confirmNode.videos.map(v => {
                 const parsed = parseShortUrl(v.url);
+                // A Short, a TikTok and a Reel are all 9:16; a normal YouTube
+                // video is not. The url is the only thing that says which,
+                // which is why the parser now carries it.
+                const vertical = !!parsed.vertical;
                 const src = parsed.error ? null : embedUrlStatic(parsed.platform, parsed.video_id);
-                const vertical = parsed.platform === 'tiktok' || parsed.platform === 'instagram';
                 return (
                   <div className="jm-video-modal-item" key={v.id}>
                     {v.title && <p className="jm-video-modal-item-title">{v.title}</p>}
-                    {src ? (
+                    {parsed.platform === 'youtube' && !parsed.error ? (
+                      // Our controls instead of YouTube's — see ShortPlayer.
+                      <ShortPlayer
+                        videoId={parsed.video_id}
+                        vertical={vertical}
+                        title={v.title || 'Recommended video'}
+                      />
+                    ) : src ? (
                       <div className={`jm-confirm-video-frame${vertical ? ' jm-confirm-video-frame--vertical' : ''}`}>
                         <iframe
                           src={src}

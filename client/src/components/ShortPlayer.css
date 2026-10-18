@@ -1,0 +1,138 @@
+/* ── A YouTube video wearing our controls ─────────────────────────────────
+   The frame is the shape of the video, which is the whole trick: a 9:16 Short
+   in a 16:9 box becomes a column down the middle with the player's own
+   buttons spread over the empty sides. Given its own shape there is nothing
+   spare for anything to sit on. */
+
+.sp-frame {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #000;
+}
+
+/* A Short, a TikTok, a Reel. Capped by height as well as width so a tall
+   video cannot grow past the window on a laptop — 9:16 of a wide card is
+   taller than the screen. */
+.sp-frame--vertical {
+  aspect-ratio: 9 / 16;
+  width: auto;
+  height: min(68vh, 560px);
+  max-width: 100%;
+  margin: 0 auto;
+}
+
+.sp-frame iframe,
+.sp-frame .sp-stage,
+.sp-frame .sp-stage iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+}
+
+/* The picture is the play/pause target. Transparent — it is a hit area, not
+   a thing to look at — and it sits under the bar so the bar's own buttons
+   win. */
+.sp-tap {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 54px;
+  z-index: 2;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.sp-tap:not(.is-playing) { background: rgba(0, 0, 0, 0.3); }
+
+.sp-big {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  padding-left: 5px;          /* a triangle looks off-centre when it is centred */
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.62);
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  color: #fff;
+  font-size: 24px;
+  line-height: 1;
+  pointer-events: none;
+}
+
+/* Ours, where theirs used to be. */
+.sp-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 12px;
+  background: linear-gradient(0deg, rgba(0, 0, 0, 0.88) 0%, rgba(0, 0, 0, 0.55) 60%, rgba(0, 0, 0, 0) 100%);
+  font-family: 'Inter', system-ui, sans-serif;
+}
+.sp-btn {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+}
+.sp-btn:hover { background: rgba(255, 255, 255, 0.22); }
+.sp-time {
+  flex: 0 0 auto;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255, 255, 255, 0.82);
+}
+.sp-track {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.26);
+  cursor: pointer;
+  overflow: hidden;
+}
+.sp-track:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+.sp-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: #e8b04b;
+}
+
+/* Until the player answers. Black on black — it is covering a blank iframe,
+   not announcing itself. */
+.sp-loading {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: #000;
+}
+
+@media (max-width: 560px) {
+  .sp-frame--vertical { height: min(62vh, 440px); }
+  .sp-bar { gap: 7px; padding: 8px 9px; }
+  .sp-time { font-size: 10px; }
+}

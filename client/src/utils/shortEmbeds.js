@@ -30,16 +30,24 @@ export function parseShortUrl(url) {
   }
 
   // YouTube: watch?v=ID, youtu.be/ID, /shorts/ID, /embed/ID — 11-char ids
-  let m = s.match(/(?:youtube\.com\/watch\?(?:.*&)?v=|youtube\.com\/shorts\/|youtube\.com\/embed\/|youtu\.be\/)([\w-]{11})/i);
-  if (m) return { platform: 'youtube', video_id: m[1] };
+  //
+  // `vertical` matters at render: a Short is a 9:16 video, and playing one in
+  // a 16:9 frame letterboxes it into a column down the middle with the
+  // player's own furniture — title, channel, buttons — sitting over the
+  // picture on either side. The only place that says which kind of video an
+  // id belongs to is the url it came in on, so it is read here and carried.
+  let m = s.match(/youtube\.com\/shorts\/([\w-]{11})/i);
+  if (m) return { platform: 'youtube', video_id: m[1], vertical: true };
+  m = s.match(/(?:youtube\.com\/watch\?(?:.*&)?v=|youtube\.com\/embed\/|youtu\.be\/)([\w-]{11})/i);
+  if (m) return { platform: 'youtube', video_id: m[1], vertical: false };
 
   // TikTok: tiktok.com/@user/video/DIGITS
   m = s.match(/tiktok\.com\/@[\w.-]+\/video\/(\d+)/i);
-  if (m) return { platform: 'tiktok', video_id: m[1] };
+  if (m) return { platform: 'tiktok', video_id: m[1], vertical: true };
 
   // Instagram: instagram.com/(reel|reels|p)/CODE
   m = s.match(/instagram\.com\/(?:reel|reels|p)\/([\w-]+)/i);
-  if (m) return { platform: 'instagram', video_id: m[1] };
+  if (m) return { platform: 'instagram', video_id: m[1], vertical: true };
 
   return { error: 'Unrecognized link — paste a YouTube Shorts, TikTok video, or Instagram Reel URL.' };
 }
@@ -67,9 +75,20 @@ export function embedUrl(platform, videoId) {
 // Play-on-demand embed URL (no autoplay) — for places where a video is *offered*
 // and the user presses play themselves, e.g. the Journey level confirm screen.
 // Same endpoints as embedUrl minus the autoplay/mute flags. null when not inline.
-export function embedUrlStatic(platform, videoId) {
+//
+// WHAT THESE PARAMETERS CAN AND CANNOT DO. controls=0 takes away YouTube's own
+// control bar, iv_load_policy=3 the annotations, rel=0 keeps the end screen to
+// the same channel, fs=0 and disablekb=1 the fullscreen button and the
+// shortcuts. What NO parameter removes is the title and channel strip that
+// appears across the top on hover and when paused, or the watermark: YouTube
+// requires its own player for its own video, and those are part of it. A
+// player of ours wrapped around theirs (ShortPlayer) is as close as this gets,
+// and it is close — with the bar gone and the frame the right shape, the
+// furniture only returns if you pause by tapping the video itself.
+export function embedUrlStatic(platform, videoId, { bare = false } = {}) {
   if (platform === 'youtube') {
-    return `https://www.youtube-nocookie.com/embed/${videoId}?playsinline=1&rel=0`;
+    const base = `https://www.youtube-nocookie.com/embed/${videoId}?playsinline=1&rel=0&iv_load_policy=3&modestbranding=1`;
+    return bare ? `${base}&controls=0&disablekb=1&fs=0&enablejsapi=1` : base;
   }
   if (platform === 'tiktok') {
     return `https://www.tiktok.com/embed/v2/${videoId}`;
