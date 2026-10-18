@@ -103,7 +103,7 @@ export default function JourneyMode({
   // Who may: the owner, by the password /admin stored in this browser, or a
   // signed-in moderator. The same pair the in-game picture authoring uses,
   // so holding admin permissions is enough either way.
-  const [adminSession] = useState(() => {
+  const [adminSession, setAdminSession] = useState(() => {
     try { return localStorage.getItem('usmle_admin_session'); } catch { return null; }
   });
   const [isModerator, setIsModerator] = useState(false);
@@ -900,13 +900,43 @@ export default function JourneyMode({
     <div className={`jm-trail-seg jm-trail-seg--${toSide} jm-trail-seg--${state}`} aria-hidden="true" />
   );
 
+  // Either credential is accepted by the routes these calls reach. The
+  // password is tried first because an owner who typed it is unambiguous,
+  // but it is a value left in this browser by a past /admin login and the
+  // server's password may well have changed since: when that happens every
+  // write from here failed with 401 while the admin page, where the password
+  // is typed afresh, kept working. So a rejected password is not the end of
+  // it — the moderator token is tried next, and the stale password is thrown
+  // away so it stops being offered.
+  const tokenHeaders = () => {
+    const token = getToken();
+    return (token && isModerator) ? { Authorization: `Bearer ${token}` } : null;
+  };
   const authorHeaders = () => {
     if (adminSession) return { 'x-admin-password': adminSession };
-    const token = getToken();
-    if (token && isModerator) return { Authorization: `Bearer ${token}` };
-    return null;
+    return tokenHeaders();
   };
-  const canEditLinks = !editorMode && !!authorHeaders();
+  const canEditLinks = !editorMode && (!!adminSession || !!tokenHeaders());
+
+  // One request, with a second attempt on the other credential if the first
+  // is refused.
+  const authedFetch = async (url, options = {}) => {
+    const first = authorHeaders();
+    if (!first) return null;
+    let res = await fetch(url, { ...options, headers: { ...(options.headers || {}), ...first } });
+    if (res.status === 401 && adminSession) {
+      const fallback = tokenHeaders();
+      if (fallback) {
+        res = await fetch(url, { ...options, headers: { ...(options.headers || {}), ...fallback } });
+        if (res.ok) {
+          // It was the password that was wrong, not the person.
+          try { localStorage.removeItem('usmle_admin_session'); } catch { /* nothing to do */ }
+          setAdminSession(null);
+        }
+      }
+    }
+    return res;
+  };
 
 
   // One list, written to the open card and to the map behind it, so the
@@ -925,13 +955,11 @@ export default function JourneyMode({
   async function addLevelLink() {
     const url = linkDraft.url.trim();
     if (!url || !confirmNode) return;
-    const headers = authorHeaders();
-    if (!headers) { setLinkError('Admin permissions required'); return; }
     setLinkBusy(true); setLinkError('');
     try {
-      const res = await fetch(`${SERVER}/admin/journey-level-videos`, {
+      const res = await authedFetch(`${SERVER}/admin/journey-level-videos`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...headers },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           level_id: confirmNode.levelKey,
           url,
@@ -939,8 +967,13 @@ export default function JourneyMode({
           sort_order: (confirmNode.videos?.length || 0),
         }),
       });
+      if (!res) { setLinkError('Admin permissions required'); setLinkBusy(false); return; }
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || `Could not save (${res.status})`);
+      if (!res.ok) {
+        throw new Error(res.status === 401
+          ? 'Your saved admin password was not accepted — sign in again at /admin.'
+          : (data.error || `Could not save (${res.status})`));
+      }
       applyLevelVideos(confirmNode.levelKey, [
         ...(confirmNode.videos || []),
         { id: data.id, url: data.url, title: data.title },
@@ -953,14 +986,19 @@ export default function JourneyMode({
   }
 
   async function removeLevelLink(id) {
-    const headers = authorHeaders();
-    if (!headers || !confirmNode) return;
+    if (!confirmNode) return;
     setLinkBusy(true); setLinkError('');
     try {
-      const res = await fetch(`${SERVER}/admin/journey-level-videos/${id}`, {
-        method: 'DELETE', headers,
+      const res = await authedFetch(`${SERVER}/admin/journey-level-videos/${id}`, {
+        method: 'DELETE',
       });
-      if (!res.ok) throw new Error(`Could not remove (${res.status})`);
+      if (!res) { setLinkError('Admin permissions required'); setLinkBusy(false); return; }
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(res.status === 401
+          ? 'Your saved admin password was not accepted — sign in again at /admin.'
+          : (data.error || `Could not remove (${res.status})`));
+      }
       applyLevelVideos(confirmNode.levelKey,
         (confirmNode.videos || []).filter(v => v.id !== id));
     } catch (e) {

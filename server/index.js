@@ -11890,7 +11890,17 @@ app.post('/admin/journey-level-videos', moderatorAuth, async (req, res) => {
       .single();
     if (error) throw error;
     res.json(data);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) {
+    // A table that was never created reads as a server error, which tells
+    // whoever is trying to attach a link nothing they can act on. Name it.
+    if (isMissingTable(err, 'journey_level_videos')) {
+      return res.status(503).json({
+        error: 'The journey_level_videos table does not exist yet — run the block for it at the end of server/schema.sql in Supabase.',
+        reason: 'missing_table',
+      });
+    }
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.put('/admin/journey-level-videos/:id', adminAuth, async (req, res) => {
