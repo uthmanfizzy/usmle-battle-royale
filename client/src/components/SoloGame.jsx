@@ -14,7 +14,7 @@ import { shuffleQuestionOptions } from '../utils/shuffleOptions';
 import { normalizeExplanationImages, MAX_EXPLANATION_IMAGES } from '../utils/explanationImages';
 import { runKeyFor, loadRun, saveRun, clearRun, restoreOrder } from '../utils/runSave';
 import { useScrollToTopOnChange } from '../utils/useScrollToTopOnChange';
-import { toVisibleText, resolveHighlights, normalizeHighlightRow, captureContext, cutVisibleRange } from '../utils/explanationHighlights';
+import { toVisibleText, resolveHighlights, normalizeHighlightRow, captureContext, cutVisibleRange, cutByQuote } from '../utils/explanationHighlights';
 import { getToken } from '../auth';
 import './SoloGameJourney.css';
 import { JOURNEY_THEMES, loadJourneyTheme, saveJourneyTheme } from '../journeyThemes';
@@ -1041,25 +1041,48 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
     const raw = String(target[field] ?? '');
 
     // How this region's renderer relates to the stored string, worked out
-    // from what is actually on screen rather than assumed. The explanation is
-    // drawn through the markup parser, so "**bold**" is four characters the
-    // student never sees; the stem is drawn literally, so they are four
-    // characters the student DOES see. Reading the offsets the wrong way
-    // round moves the cut by exactly the width of the markup before it, which
-    // is how a sentence gets removed four characters off.
+    // from what is actually on screen rather than assumed. Reading it the
+    // wrong way round moves the cut by the width of whatever the renderer
+    // added or removed before it, which is how a sentence gets taken out
+    // four characters off.
     //
-    // Nothing is guessed: if the text on screen is neither the stored string
-    // nor its parsed form — a stem with a lab box or a table drawn into it,
-    // say — the cut is refused.
+    // Three forms, tried in order of how exactly they can be mapped:
+    //
+    //   the stored string itself     a stem of plain prose on one line, where
+    //                                what is stored is what is shown
+    //   the markup-parsed form       an explanation, where "**bold**" is four
+    //                                characters the student never sees
+    //   neither                      a stem with more than one line, a lab
+    //                                box or a table in it. Its renderer joins
+    //                                lines with <br>, trims lab rows apart and
+    //                                drops table separators, and rebuilds its
+    //                                text as it goes without keeping the
+    //                                positions it came from — so there is no
+    //                                offset arithmetic left to do. The words
+    //                                themselves are looked for instead.
+    //
+    // The last of those is why this used to refuse: nearly every real stem
+    // runs to more than one line, and a multi-line stem is in none of the two
+    // forms that were being checked.
     let next = null;
     if (visible === raw) {
       next = raw.slice(0, start) + raw.slice(end);
     } else if (visible === toVisibleText(raw)) {
       next = cutVisibleRange(raw, start, end);
+    } else {
+      next = cutByQuote(
+        raw,
+        visible.slice(start, end),
+        visible.slice(Math.max(0, start - 60), start),
+        visible.slice(end, end + 60),
+      );
     }
     if (next === null) {
-      setTextCutMsg({ kind: 'err', text: "That selection doesn't line up with the stored text — nothing removed." });
-      setTimeout(() => setTextCutMsg(null), 3600);
+      setTextCutMsg({
+        kind: 'err',
+        text: 'Could not find that exactly once in the question — select a little more and try again.',
+      });
+      setTimeout(() => setTextCutMsg(null), 4200);
       return;
     }
     if (field === 'question' && next.trim() === '') {

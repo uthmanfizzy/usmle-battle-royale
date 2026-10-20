@@ -548,3 +548,68 @@ export function cutVisibleRange(raw, start, end) {
   for (let i = 0; i < text.length; i++) if (!drop[i]) out += text[i];
   return sweepEmptyMarkup(out);
 }
+
+// ── Cutting by what was selected, when offsets cannot be mapped ─────────────
+//
+// cutVisibleRange above needs the stored string and the text on screen to be
+// related by markup alone. For the EXPLANATION they are. For the STEM they are
+// not: its renderer joins prose lines with <br> (so a newline in the stored
+// string is no characters on screen), pulls lab rows apart into "Name:" and
+// value with the whitespace trimmed off, and drops table separator rows
+// altogether. There is no offset arithmetic that survives all of that, and
+// renderStem's own model does not carry the raw positions to do it with —
+// segmentStem rebuilds its text as it goes.
+//
+// So this does not use offsets at all. It takes the words that were selected
+// and finds them in the stored string. One occurrence is unambiguous. Several
+// are decided by what sits either side, compared loosely enough to see past
+// the markup and whitespace that differ between the two forms. Anything still
+// undecided returns null, because removing the wrong sentence is far worse
+// than refusing to remove this one.
+
+// Comparable across the two forms: markup, punctuation spacing and every kind
+// of whitespace stop counting, so "**pain**.\nHe" and "pain. He" line up.
+function loosely(text) {
+  return String(text || '')
+    .toLowerCase()
+    .replace(/\[\/?\w+\]/g, ' ')     // [red] [/red]
+    .replace(/[*_~`]/g, ' ')         // bold / italic / underline marks
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+const TAIL = 28;
+
+/**
+ * Remove `quote` from `raw`, using the text either side of it to choose
+ * between repeats. Returns the new string, or null when it cannot be sure.
+ */
+export function cutByQuote(raw, quote, prefix = '', suffix = '') {
+  const text = String(raw || '');
+  const needle = String(quote || '');
+  if (!needle) return null;
+
+  const at = [];
+  for (let i = text.indexOf(needle); i !== -1; i = text.indexOf(needle, i + 1)) at.push(i);
+  if (at.length === 0) return null;
+
+  let pick = at[0];
+  if (at.length > 1) {
+    const wantBefore = loosely(prefix).slice(-TAIL);
+    const wantAfter  = loosely(suffix).slice(0, TAIL);
+    // Score each occurrence by how much of its own surroundings agrees.
+    const scored = at.map((i) => {
+      const before = loosely(text.slice(0, i)).slice(-TAIL);
+      const after  = loosely(text.slice(i + needle.length)).slice(0, TAIL);
+      let score = 0;
+      if (wantBefore && before.endsWith(wantBefore)) score += wantBefore.length;
+      if (wantAfter && after.startsWith(wantAfter)) score += wantAfter.length;
+      return { i, score };
+    }).sort((a, b) => b.score - a.score);
+    // A tie is not a decision.
+    if (scored[0].score === 0 || scored[0].score === scored[1].score) return null;
+    pick = scored[0].i;
+  }
+
+  return text.slice(0, pick) + text.slice(pick + needle.length);
+}
