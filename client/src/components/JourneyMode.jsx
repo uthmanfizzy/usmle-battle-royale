@@ -114,6 +114,16 @@ export default function JourneyMode({
   const [aidDraft, setAidDraft] = useState(null);
   const [aidBusy, setAidBusy]   = useState(false);
   const [aidError, setAidError] = useState('');
+  // The author's link box, folded away until asked for. It is two inputs and
+  // a button on a card that already carries the level's name, its score, a
+  // confidence row, a memory aid, the order toggle and Play — open by default
+  // it was the difference between a card that fits the screen and one that
+  // does not.
+  const [linksOpen, setLinksOpen] = useState(false);
+  // A long mnemonic is shown three lines at a time. It is the content a
+  // student came for, so it is not cut off for good — but at full length it
+  // was the single tallest thing on the card.
+  const [aidOpen, setAidOpen] = useState(false);
   const [linkDraft, setLinkDraft] = useState({ url: '', title: '' });
   const [linkBusy, setLinkBusy]   = useState(false);
   const [linkError, setLinkError] = useState('');
@@ -1051,6 +1061,8 @@ export default function JourneyMode({
   const openConfirm = (node) => {
     setVideoModalOpen(false);
     setLinkError(''); setLinkDraft({ url: '', title: '' });
+    setLinksOpen(false);
+    setAidOpen(false);
     setAidDraft(null); setAidError('');
     setConfirmNode(node);
   };
@@ -1317,9 +1329,21 @@ export default function JourneyMode({
 
                 {aidDraft === null ? (
                   <>
-                    {confirmNode.memoryAid
-                      ? <p className="jm-aid-text">{confirmNode.memoryAid}</p>
-                      : <p className="jm-aid-empty">Nothing here yet.</p>}
+                    {confirmNode.memoryAid ? (
+                      <>
+                        <p className={`jm-aid-text${aidOpen ? ' is-open' : ''}`}>
+                          {confirmNode.memoryAid}
+                        </p>
+                        {/* Only worth offering when there is more to see. */}
+                        {confirmNode.memoryAid.length > 110 && (
+                          <button
+                            type="button"
+                            className="jm-aid-more"
+                            onClick={() => setAidOpen(o => !o)}
+                          >{aidOpen ? 'Show less' : 'Show more'}</button>
+                        )}
+                      </>
+                    ) : <p className="jm-aid-empty">Nothing here yet.</p>}
                     {canEditLinks && confirmNode.kind === 'level' && (
                       <button
                         type="button"
@@ -1445,9 +1469,27 @@ export default function JourneyMode({
                 someone who can write one, and on levels — a boss card has no
                 level id to hang a video on. It works on a locked level too,
                 which is often exactly when the reading gets added. */}
-            {canEditLinks && confirmNode.kind === 'level' && (
+            {canEditLinks && confirmNode.kind === 'level' && !linksOpen && (
+              <button
+                type="button"
+                className="jm-linkbox-open"
+                onClick={() => setLinksOpen(true)}
+              >
+                🔗 Links on this level
+                {confirmNode.videos?.length > 0 && ` (${confirmNode.videos.length})`}
+              </button>
+            )}
+            {canEditLinks && confirmNode.kind === 'level' && linksOpen && (
               <div className="jm-linkbox">
-                <span className="jm-linkbox-head">Links on this level</span>
+                <span className="jm-linkbox-head">
+                  Links on this level
+                  <button
+                    type="button"
+                    className="jm-linkbox-close"
+                    onClick={() => setLinksOpen(false)}
+                    aria-label="Close the link box"
+                  >✕</button>
+                </span>
                 {(confirmNode.videos || []).length > 0 && (
                   <ul className="jm-linkbox-list">
                     {confirmNode.videos.map(v => (
@@ -1494,7 +1536,6 @@ export default function JourneyMode({
               </div>
             )}
 
-            <button className="btn-secondary" onClick={closeConfirm} {...ek('confirm.cancel')}>{t('confirm.cancel', 'Cancel')}</button>
           </div>
         </div>
         );

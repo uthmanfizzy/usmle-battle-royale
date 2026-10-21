@@ -1022,13 +1022,22 @@
 
 /* ── Confirm card: the pre-battle briefing ─────────────────────────────────── */
 
+/* A card taller than the window scrolls instead of hanging off both ends of
+   it. The scrolling is on the OVERLAY rather than the card so the corner
+   close button, which sits outside the card's own box, is never clipped —
+   and align-items: flex-start with margin: auto on the card keeps a short
+   card centred while leaving a tall one reachable from its top. Centring a
+   flex child that overflows puts its top above the scroll origin, where
+   nothing can reach it. */
 .jm-confirm-overlay {
   position: fixed;
   inset: 0;
   z-index: 1100;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 20px;
   background: rgba(8, 4, 24, 0.66);
   backdrop-filter: blur(4px);
@@ -1043,7 +1052,14 @@
   gap: 10px;
   width: 350px;
   max-width: 92vw;
-  padding: 36px 28px 28px;
+  gap: 8px;
+  /* Centres it while it fits, and lets it scroll once it does not. */
+  margin: auto;
+  flex-shrink: 0;
+  /* Tightened: this card carries a name, a score, a confidence row, a memory
+     aid, an order toggle and two or three buttons, and at the old spacing it
+     ran past the bottom of a laptop screen before anything was even opened. */
+  padding: 26px 24px 22px;
   border-radius: 24px;
   text-align: center;
   color: var(--text);
@@ -3062,3 +3078,124 @@
   text-decoration: underline;
 }
 .jm-aid-error { font-size: 12px; font-weight: 600; color: #ff7675; }
+
+/* ── The author's link box, folded ────────────────────────────────────────
+   One line until it is wanted. The count comes with it, so an author can see
+   there are links on the level without opening anything. */
+.jm-linkbox-open {
+  width: 100%;
+  padding: 9px 14px;
+  border-radius: 10px;
+  border: 1px dashed rgba(253, 203, 110, 0.45);
+  background: rgba(253, 203, 110, 0.06);
+  color: rgba(253, 203, 110, 0.9);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+.jm-linkbox-open:hover { background: rgba(253, 203, 110, 0.14); }
+
+.jm-linkbox-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.jm-linkbox-close {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 10px;
+  line-height: 1;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.jm-linkbox-close:hover { background: rgba(255, 255, 255, 0.2); }
+
+/* ── Fitting the card on a screen ─────────────────────────────────────────
+   Measured against the heaviest card the app can draw — a completed level
+   with a confidence row, a memory aid, recommended videos, bonus questions
+   and an author's link box. */
+
+/* Three choices on one line rather than two. */
+.jm-conf-row { gap: 6px; }
+.jm-conf-btn {
+  padding: 6px 11px;
+  font-size: 11.5px;
+  gap: 5px;
+}
+
+/* The mnemonic, three lines at a time until asked for the rest. */
+.jm-aid-text {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.jm-aid-text.is-open {
+  display: block;
+  overflow: visible;
+}
+.jm-aid-more {
+  align-self: flex-start;
+  padding: 2px 0;
+  border: none;
+  background: none;
+  color: rgba(116, 185, 255, 0.95);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: underline;
+}
+.jm-aid { gap: 6px; padding: 11px 13px; }
+
+/* The buttons under it, a little less tall. */
+.jm-confirm-play { padding-top: 13px; padding-bottom: 13px; }
+.jm-confirm-order { gap: 6px; }
+
+/* The three confidence choices would not sit on one line at 350px however
+   small the buttons got — "Getting There" is simply wide. A slightly wider
+   card buys the line, and costs nothing on a phone, where 92vw was already
+   the binding limit. */
+.jm-confirm-card { width: 384px; }
+.jm-conf-row {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 5px;
+  width: 100%;
+}
+.jm-conf-btn {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 6px 6px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+/* A short window spends less of itself on the gap around the card. */
+@media (max-height: 820px) {
+  .jm-confirm-overlay { padding: 10px; }
+  .jm-confirm-card { padding: 20px 22px 18px; }
+}
+
+/* The close button hangs off the card's corner, which is fine when there is
+   room above the card and not when there is not: on a short window the card
+   starts at the top of the scroll and its corner badge sits above the
+   viewport, clipped. There, it comes inside. */
+@media (max-height: 820px) {
+  .jm-confirm-seal {
+    top: 8px;
+    right: 8px;
+    width: 38px;
+    height: 38px;
+    font-size: 17px;
+  }
+  .jm-confirm-card { padding-top: 26px; }
+}
