@@ -149,22 +149,24 @@ export default function LabValues({ onClose, questionText = '' }) {
         {grouped.map(([category, rows]) => (
           <div key={category} className="lab-group">
             <div className="lab-group-title">{category}</div>
-            <table className={`lab-table${effectiveScope === 'question' ? ' lab-table--q' : ''}`}>
-              {effectiveScope === 'question' && (
-                <thead>
-                  <tr className="lab-head-row">
-                    <th>Test</th>
-                    <th>In this question</th>
-                    <th>Normal</th>
-                  </tr>
-                </thead>
-              )}
-              <tbody>
-                {rows.map((r, i) => (
-                  <tr key={i} className={r.verdict ? `lab-row lab-row--${r.verdict}` : 'lab-row'}>
-                    <td className="lab-name">{r.name}</td>
+            {/* A list, not a table. Three columns in a 360px panel gave the
+                test name about half of it, so "Urea nitrogen (BUN)" wrapped
+                onto three lines while its range sat alone in a column of its
+                own — and the question's own figure, the thing being looked
+                up, had the least room of the three. Each value is one block
+                now: the name across the top, and under it what the question
+                said on the left against what is normal on the right, which
+                is the comparison being made. */}
+            <ul className="lab-list">
+              {rows.map((r, i) => (
+                <li
+                  key={i}
+                  className={`lab-item${r.verdict ? ` lab-item--${r.verdict}` : ''}`}
+                >
+                  <span className="lab-item-name">{r.name}</span>
+                  <span className="lab-item-line">
                     {effectiveScope === 'question' && (
-                      <td className="lab-given">
+                      <span className="lab-item-given">
                         {r.patient ? (
                           <>
                             <span className="lab-given-num">{r.patient.raw}</span>
@@ -182,18 +184,19 @@ export default function LabValues({ onClose, questionText = '' }) {
                             )}
                           </>
                         ) : (
-                          <span className="lab-given-none">—</span>
+                          <span className="lab-given-none">not given</span>
                         )}
-                      </td>
+                      </span>
                     )}
-                    <td className="lab-val">
-                      {r.value}
+                    <span className="lab-item-norm">
+                      <span className="lab-norm-label">Normal</span>
+                      <span className="lab-norm-val">{r.value}</span>
                       {r.units && <span className="lab-units">{r.units}</span>}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    </span>
+                  </span>
+                </li>
+              ))}
+            </ul>
           </div>
         ))}
       </div>
