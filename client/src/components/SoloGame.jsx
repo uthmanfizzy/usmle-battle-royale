@@ -2369,7 +2369,11 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
         </div>
       )}
 
-      <div className="solo-body" data-expl-layout={study ? (uworldSkin ? 'below' : explLayout) : undefined}>
+      {/* The question bank follows the same preference as everything else
+          now. It used to be pinned to "below" — the menu offered the choice,
+          because the menu is the study header's and the exam skin renders
+          that header, but picking "right" did nothing. */}
+      <div className="solo-body" data-expl-layout={study ? explLayout : undefined}>
         {study && (
           <div className="study-header">
             <div className="shd-left">
