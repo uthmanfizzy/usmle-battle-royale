@@ -8740,6 +8740,12 @@ app.put('/api/question-image/:id', moderatorAuth, async (req, res) => {
       explanation_image_pos: updates.explanation_image_pos ?? pos,
       explanation_images: updates.explanation_images ?? undefined,
       explanation_image_url: 'explanation_image_url' in updates ? updates.explanation_image_url : undefined,
+      // Whether the LIST actually went into the database. Without the column,
+      // questionWrite quietly keeps picture #1 and drops the rest — which is
+      // the right thing to do with one picture and silent data loss with two,
+      // because the next poll reads the row back and takes the others off the
+      // screen. The caller is told so it can say so.
+      list_saved: hasExplanationImages,
     });
   } catch (err) {
     console.warn('[/api/question-image] failed —', err.message);

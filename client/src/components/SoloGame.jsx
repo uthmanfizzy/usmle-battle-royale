@@ -1138,12 +1138,29 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
     setExplImages(list);
     applyExplImages(list, target.id);
     try {
-      await fetch(`${SERVER_URL}/api/question-image/${encodeURIComponent(target.id)}?table=${imageTable}`, {
+      const res = await fetch(`${SERVER_URL}/api/question-image/${encodeURIComponent(target.id)}?table=${imageTable}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', ...headers },
         body: JSON.stringify({ explanation_images: list }),
       });
-    } catch { /* already on screen; the next load re-reads it */ }
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `Save failed (${res.status})`);
+      // The server kept only picture #1 because the column it needs is not
+      // there. With one picture nothing is lost; with more, the rest are
+      // about to vanish from the screen when the poll reads the row back —
+      // which is exactly the "I moved it and it disappeared" report. Said
+      // plainly, with the migration to run.
+      if (data.list_saved === false && list.length > 1) {
+        setTextCutMsg({
+          kind: 'err',
+          text: 'Only the first picture could be saved — the explanation_images column is missing in Supabase.',
+        });
+        setTimeout(() => setTextCutMsg(null), 6000);
+      }
+    } catch (err) {
+      setTextCutMsg({ kind: 'err', text: err.message || 'Could not save the pictures' });
+      setTimeout(() => setTextCutMsg(null), 5000);
+    }
   }, [imageAuthHeaders, imageTable, applyExplImages]);
 
   const saveDevImage = useCallback(async (field, url, qid) => {
@@ -1380,7 +1397,15 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
         }
         if (Array.isArray(data.explanation_images)) {
           const incoming = normalizeExplanationImages(data);
-          if (JSON.stringify(incoming) !== JSON.stringify(explImagesRef.current)) {
+          // A poll that comes back with FEWER pictures than are on screen is
+          // not news, it is a loss — the row was read before a save landed,
+          // or the save could not keep them. Either way, deleting an author's
+          // picture from under them on a timer is the worst possible answer,
+          // so the poll only ever adds or amends, never shortens. A genuine
+          // removal still shows: it goes through the list the author edited.
+          if (incoming.length < explImagesRef.current.length) {
+            // nothing to do — keep what is on screen
+          } else if (JSON.stringify(incoming) !== JSON.stringify(explImagesRef.current)) {
             setExplImages(incoming);
             patch.explanation_images = incoming;
             patch.explanation_image_url = incoming[0]?.url ?? null;
