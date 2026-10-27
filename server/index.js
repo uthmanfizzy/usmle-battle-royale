@@ -6186,22 +6186,24 @@ app.post('/api/question-bank-session', requireAuth, async (req, res) => {
     // Training Grounds and Journey use — there is no real session-start stamp).
     const endedAt   = new Date();
     const startedAt = new Date(endedAt.getTime() - seconds * 1000);
-    const err = await logWrite('activity_sessions.question_bank', supabase
-      .from('activity_sessions')
-      .insert({
-        user_id:              req.userId,   // requireAuth guarantees a real user
-        game_mode:            activityGameMode,
-        subject,
-        journey_chapter_name: null,
-        journey_level_name:   null,
-        outcome_type:         'score_pct',
-        score_pct:            pct,
-        is_win:               null,
-        duration_seconds:     seconds,
-        started_at:           startedAt.toISOString(),
-        ended_at:             endedAt.toISOString(),
-      }));
-    res.json({ ok: !err });
+    const row = {
+      user_id:              req.userId,   // requireAuth guarantees a real user
+      game_mode:            activityGameMode,
+      subject,
+      journey_chapter_name: null,
+      journey_level_name:   null,
+      outcome_type:         'score_pct',
+      score_pct:            pct,
+      is_win:               null,
+      duration_seconds:     seconds,
+      started_at:           startedAt.toISOString(),
+      ended_at:             endedAt.toISOString(),
+      questions_answered:   sanitizeQuestionCount(req.body?.questions),
+    };
+    const { error: err } = await sessionWrite(row, r => supabase
+      .from('activity_sessions').insert(r));
+    if (err) console.error('[activity_sessions.question_bank] insert failed —', err.message);
+    res.json({ ok: !err, counted: hasSessionQuestionCount });
   } catch (e) {
     console.error('[/api/question-bank-session] threw —', e.message);
     res.json({ ok: false });
@@ -6224,6 +6226,47 @@ app.post('/api/question-bank-session', requireAuth, async (req, res) => {
  * Study time is NOT written here — SoloGame posts its own active seconds to
  * /api/study-time as it goes, so doing it again would double-count.
  */
+// activity_sessions.questions_answered — how many questions a session got
+// through. Added by hand in Supabase like the rest of this schema, so the
+// same deploy-order safety as explanation_images: optimistic until a write
+// proves otherwise, then dropped from the record so the ROW still lands.
+// Losing the count is a shame; losing the whole timeline entry because of it
+// would be worse.
+let hasSessionQuestionCount = true;
+
+function withoutQuestionCount(row) {
+  if (hasSessionQuestionCount || !row || !('questions_answered' in row)) return row;
+  const rest = { ...row };
+  delete rest.questions_answered;
+  return rest;
+}
+
+function isMissingQuestionCount(error) {
+  if (!error) return false;
+  const msg = `${error.message || ''} ${error.details || ''}`.toLowerCase();
+  return msg.includes('questions_answered');
+}
+
+// Run an activity_sessions write, dropping the count and retrying once if the
+// column has not been migrated yet.
+async function sessionWrite(row, run) {
+  let res = await run(withoutQuestionCount(row));
+  if (res && res.error && isMissingQuestionCount(res.error)) {
+    hasSessionQuestionCount = false;
+    console.warn('[activity_sessions] questions_answered column missing — the row is written without it. Run: ALTER TABLE activity_sessions ADD COLUMN IF NOT EXISTS questions_answered INT;');
+    res = await run(withoutQuestionCount(row));
+  }
+  return res;
+}
+
+// How many questions a session reports getting through. Absent is null — a
+// row from before this existed says nothing rather than claiming zero.
+function sanitizeQuestionCount(v) {
+  const n = Number.parseInt(v, 10);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return Math.min(10000, n);
+}
+
 const STUDY_SESSION_MODES = new Set([
   'solo', 'training_grounds', 'journey', 'question_bank_practice', 'saudi_mle_practice',
   'ore_lds_practice',
@@ -6268,6 +6311,7 @@ app.post('/api/study-session', requireAuth, async (req, res) => {
       duration_seconds:     seconds,
       started_at:           startedAt.toISOString(),
       ended_at:             endedAt.toISOString(),
+      questions_answered:   sanitizeQuestionCount(req.body?.questions),
     };
 
     if (runId) {
@@ -6540,7 +6584,7 @@ app.get('/api/users/:userId/activity-sessions', async (req, res) => {
     const dayEnd   = new Date(Date.parse(dayStart) + 86400000).toISOString();
     const { data, error } = await supabase
       .from('activity_sessions')
-      .select('id, game_mode, subject, journey_chapter_name, journey_level_name, outcome_type, score_pct, is_win, duration_seconds, started_at, ended_at')
+      .select('id, game_mode, subject, journey_chapter_name, journey_level_name, outcome_type, score_pct, is_win, duration_seconds, started_at, ended_at, questions_answered')
       .eq('user_id', userId)
       .gte('ended_at', dayStart)
       .lt('ended_at', dayEnd)

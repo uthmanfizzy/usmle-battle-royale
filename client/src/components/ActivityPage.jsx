@@ -288,7 +288,17 @@ function SessionRow({ item }) {
           </div>
           <div className="da-card-meta">
             <SessionOutcome s={s} />
-            <span className="da-card-duration">{formatDuration(s.duration_seconds)}</span>
+            {/* How much work the session actually was. A run that was left
+              early says what it got through, which a percentage alone does
+              not — 80% of five questions and 80% of forty are not the same
+              afternoon. Absent on rows written before the count existed,
+              which say nothing rather than claiming zero. */}
+          {s.questions_answered > 0 && (
+            <span className="da-card-questions">
+              {s.questions_answered} question{s.questions_answered === 1 ? '' : 's'}
+            </span>
+          )}
+          <span className="da-card-duration">{formatDuration(s.duration_seconds)}</span>
           </div>
         </div>
       </div>

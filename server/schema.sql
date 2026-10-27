@@ -517,6 +517,14 @@ CREATE POLICY IF NOT EXISTS "server_full_access_game_settings"
 -- game_history (multiplayer only, no duration) nor study_time_daily (one bare
 -- integer per user per day) can express.
 --
+-- ── activity_sessions.questions_answered ──────────────────────────────────
+-- How many questions a session got through, so the Daily Activity timeline
+-- can say what a run was worth rather than only how long it took. Written by
+-- the question bank's own completion and by /api/study-session; until this
+-- runs, the row is still written, just without the count.
+
+ALTER TABLE activity_sessions ADD COLUMN IF NOT EXISTS questions_answered INT;
+
 -- CREATE TABLE IF NOT EXISTS activity_sessions (
 --   id                   UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
 --   user_id              UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,

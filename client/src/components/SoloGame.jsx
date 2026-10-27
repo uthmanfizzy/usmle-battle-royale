@@ -804,6 +804,9 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
         subject,
         pct,
         seconds,
+        // Answered, not served: a block of forty left after six is six
+        // questions of work, and that is what the day should show.
+        questions: answeredCountRef.current,
         level_label: levelLabel || null,
         // Repeat posts for the same run replace each other rather than piling
         // up, which is what makes saving mid-run safe.

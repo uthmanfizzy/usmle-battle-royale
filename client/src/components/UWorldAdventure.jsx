@@ -516,10 +516,15 @@ export default function UWorldAdventure({ mode = DEFAULT_QUESTION_BANK_MODE }) {
   // the player's results screen never waits on it. Fires for review sessions
   // too (still worth an activity_sessions row so a review shows up in Daily
   // Activity) — it's only the SEEN-tracking that a review skips.
-  function handleComplete({ pct, activeSeconds }) {
+  function handleComplete({ pct, activeSeconds, total }) {
     authFetch('/api/question-bank-session', {
       method: 'POST',
-      body: JSON.stringify({ subject: selected, pct, seconds: activeSeconds, mode: MODE }),
+      // `total` is how many were ANSWERED, not how many the block held — a
+      // block of forty ended after six is six questions of work, and that is
+      // what the day should show.
+      body: JSON.stringify({
+        subject: selected, pct, seconds: activeSeconds, mode: MODE, questions: total,
+      }),
     }).catch(() => {});
   }
 
