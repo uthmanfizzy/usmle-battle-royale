@@ -6322,16 +6322,18 @@ app.post('/api/study-session', requireAuth, async (req, res) => {
         .eq('client_run_id', runId)
         .maybeSingle();
       if (existing?.id) {
-        const err = await logWrite('activity_sessions.study_session_update', supabase
-          .from('activity_sessions').update(row).eq('id', existing.id));
-        return res.json({ ok: !err, updated: true });
+        const { error: upErr } = await sessionWrite(row, r => supabase
+          .from('activity_sessions').update(r).eq('id', existing.id));
+        if (upErr) console.error('[activity_sessions.study_session_update] failed —', upErr.message);
+        return res.json({ ok: !upErr, updated: true, counted: hasSessionQuestionCount });
       }
       row.client_run_id = runId;
     }
 
-    const err = await logWrite('activity_sessions.study_session', supabase
-      .from('activity_sessions').insert(row));
-    res.json({ ok: !err });
+    const { error: insErr } = await sessionWrite(row, r => supabase
+      .from('activity_sessions').insert(r));
+    if (insErr) console.error('[activity_sessions.study_session] failed —', insErr.message);
+    res.json({ ok: !insErr, counted: hasSessionQuestionCount });
   } catch (e) {
     console.error('[/api/study-session] threw —', e.message);
     res.json({ ok: false });
@@ -6582,13 +6584,28 @@ app.get('/api/users/:userId/activity-sessions', async (req, res) => {
   try {
     const dayStart = `${date}T00:00:00.000Z`;
     const dayEnd   = new Date(Date.parse(dayStart) + 86400000).toISOString();
-    const { data, error } = await supabase
+    // Selecting a column that is not there fails the WHOLE query, and this
+    // endpoint answers a failure with an empty list — so naming
+    // questions_answered before its migration has run would not cost the
+    // count, it would blank the entire day's timeline for everyone. The
+    // column is asked for optimistically and dropped for good on the first
+    // query that proves it missing.
+    const BASE_COLS = 'id, game_mode, subject, journey_chapter_name, journey_level_name, outcome_type, score_pct, is_win, duration_seconds, started_at, ended_at';
+    const read = (cols) => supabase
       .from('activity_sessions')
-      .select('id, game_mode, subject, journey_chapter_name, journey_level_name, outcome_type, score_pct, is_win, duration_seconds, started_at, ended_at, questions_answered')
+      .select(cols)
       .eq('user_id', userId)
       .gte('ended_at', dayStart)
       .lt('ended_at', dayEnd)
       .order('ended_at', { ascending: true });
+
+    let { data, error } = await read(
+      hasSessionQuestionCount ? `${BASE_COLS}, questions_answered` : BASE_COLS);
+    if (error && isMissingQuestionCount(error)) {
+      hasSessionQuestionCount = false;
+      console.warn('[activity_sessions] questions_answered column missing — the timeline is served without it. Run: ALTER TABLE activity_sessions ADD COLUMN IF NOT EXISTS questions_answered INT;');
+      ({ data, error } = await read(BASE_COLS));
+    }
     if (error) {
       console.warn('[/api/users/:userId/activity-sessions] query failed —', error.message);
       return res.json({ date, sessions: [] });
