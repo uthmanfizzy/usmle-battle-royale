@@ -4336,3 +4336,57 @@ html[data-study="on"] .solo-body .pause-overlay {
   border: 1px solid rgba(255, 118, 117, 0.55);
   color: #ff9f9e;
 }
+
+
+/* ── Picture options ────────────────────────────────────────────────────────
+   Questions where the ANSWERS are images — four slides, four ECGs — and the
+   student picks the right picture rather than the right sentence.
+
+   The option keeps its row shape: letter on the left, body on the right. The
+   body just becomes a column when it holds a picture, so the text that goes
+   with it (what a screen reader reads, and what the explanation refers to)
+   stays with the picture rather than being replaced by it. */
+.sg-optwrap { display: block; }
+.options .sg-optwrap + .sg-optwrap { margin-top: 10px; }
+/* .options is a flex column with its own gap; the wrapper takes the row's
+   place in it, so the gap above is only for anywhere that isn't that. */
+.options { gap: 10px; }
+
+.opt-text--img {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+.opt-img {
+  display: block;
+  max-width: 100%;
+  /* Tall enough to tell two slides apart, short enough that four of them fit
+     on one screen without scrolling past the question. */
+  max-height: 190px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: #fff;
+  cursor: zoom-in;
+}
+.opt-imgtext { line-height: 1.45; }
+
+/* On a phone the pictures are what the finger is aiming at, so they get the
+   width and the stack gets taller. */
+@media (max-width: 640px) {
+  .opt-img { max-height: 150px; }
+}
+
+/* The author's controls under an option. Dev mode only — nobody playing the
+   game ever sees this row. */
+.sg-optimg-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0 0 38px;
+}
+.sg-optimg-tools .dev-imgslot-wrap { flex: 1 1 auto; min-width: 0; }
+.sg-optimg-del {
+  position: static;
+  flex: 0 0 auto;
+}

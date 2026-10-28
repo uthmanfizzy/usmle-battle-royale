@@ -11,6 +11,7 @@ import { buildOptionTable, extractColumns } from '../utils/optionTable';
 import Calculator from './Calculator';
 import LabValues from './LabValues';
 import { shuffleQuestionOptions } from '../utils/shuffleOptions';
+import { normalizeOptionImages, withOptionImage } from '../utils/optionImages';
 import { normalizeExplanationImages, MAX_EXPLANATION_IMAGES } from '../utils/explanationImages';
 import { runKeyFor, loadRun, saveRun, clearRun, restoreOrder } from '../utils/runSave';
 import { useScrollToTopOnChange } from '../utils/useScrollToTopOnChange';
@@ -27,6 +28,16 @@ const LABELS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
 // sees this string — it is just how the armed-slot machinery (which is keyed by
 // field) tells "replace picture #1" apart from "append one".
 const EXPL_IMAGE_ADD = 'explanation_image_add';
+// A picture option's slot carries which option it is for. The index in the
+// field name is the DISPLAY position; saveDevImage turns it back into the
+// author index through the shuffle's permutation, because that is the only
+// thing the database row knows about.
+const OPTION_IMAGE_PREFIX = 'option_image:';
+const optionImageField = (displayIdx) => `${OPTION_IMAGE_PREFIX}${displayIdx}`;
+const optionImageIndex = (field) => {
+  const m = new RegExp(`^${OPTION_IMAGE_PREFIX}(\\d+)$`).exec(field || '');
+  return m ? Number.parseInt(m[1], 10) : null;
+};
 const SERVER_URL = 'https://usmle-battle-royale-production.up.railway.app';
 
 // Self-assessment buckets shown below the explanation on every UWorld
@@ -1196,6 +1207,44 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
       return;
     }
 
+    // A picture for ONE option. The whole list is written, because the column
+    // is one array — so it is rebuilt from the row as it stands rather than
+    // from anything held on screen, and a second author's picture on another
+    // option is not wiped by this save.
+    const optDisplayIdx = optionImageIndex(field);
+    if (optDisplayIdx !== null) {
+      const order = shuffledQRef.current.order || [];
+      const authorIdx = order[optDisplayIdx];
+      if (authorIdx === undefined) return devImgFail(field, 'That option is gone');
+      setDevImgMsg(null);
+      setDevImgBusy(field);
+      try {
+        const next = withOptionImage(normalizeOptionImages(target), authorIdx, url);
+        const res = await fetch(
+          `${SERVER_URL}/api/question-image/${encodeURIComponent(target.id)}?table=${imageTable}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', ...imageAuthHeaders() },
+          body: JSON.stringify({ option_images: next }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(data.reason === 'missing_column'
+            ? 'Picture options need the option_images column — run the migration in server/schema.sql'
+            : (data.error || `Save failed (${res.status})`));
+        }
+        // What the row actually holds now, not what we hoped it would.
+        const saved = Array.isArray(data.option_images) ? data.option_images : next;
+        applyDevFields({ option_images: saved }, target.id);
+        setDevImgBusy(null);
+        setImgArmHold(false);
+        setDevImgMsg({ field, kind: 'ok', text: url ? 'Saved' : 'Removed' });
+        setTimeout(() => setDevImgMsg(null), 2000);
+      } catch (err) {
+        devImgFail(field, err.message || 'Failed');
+      }
+      return;
+    }
+
     setDevImgMsg(null);
     setDevImgBusy(field);
     try {
@@ -1228,7 +1277,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
     } catch (err) {
       devImgFail(field, err.message || 'Failed');
     }
-  }, [imageAuthHeaders, imageTable, applyDevImage, applyExplImages, saveExplImages, devImgFail]);
+  }, [imageAuthHeaders, imageTable, applyDevImage, applyDevFields, applyExplImages, saveExplImages, devImgFail]);
 
   const uploadDevImage = useCallback(async (field, file, qid) => {
     if (!file || !file.type?.startsWith('image/')) return devImgFail(field, 'Images only');
@@ -1279,6 +1328,9 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
       // picture is just as reusable as its first.
       const urls = [
         ...normalizeExplanationImages(item).map(img => img.url),
+        // A picture already used as an option is as reusable as any other —
+        // often more so, since a set of four slides tends to recur.
+        ...normalizeOptionImages(item),
         item?.image_url,
       ];
       for (const url of urls) {
@@ -1425,6 +1477,16 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
             });
             patch.explanation_images = list;
             setExplImages(list);
+          }
+        }
+        // Only when the server could actually read the column. Without it
+        // the answer is "I cannot see any", which must not be mistaken for
+        // "there are none" and used to clear what was just attached.
+        if (data.option_images_readable !== false && Array.isArray(data.option_images)) {
+          const incoming = normalizeOptionImages(data);
+          const held = normalizeOptionImages(local);
+          if (JSON.stringify(incoming) !== JSON.stringify(held)) {
+            patch.option_images = incoming;
           }
         }
         if (Object.keys(patch).length) applyDevFields(patch, currentQid);
@@ -2053,12 +2115,22 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   // order"). The ref is still populated the same way so processAnswer and the
   // render keep reading one identical object — only the ordering differs.
   if (shuffledQRef.current.qIdx !== qIdx || shuffledQRef.current.base !== baseQ) {
-    const { options, correct } = shuffleOptions
+    const identity = (baseQ.options || []).map((_, i) => i);
+    const { options, correct, order } = shuffleOptions
       ? shuffleQuestionOptions(baseQ.options || [], baseQ.correct)
-      : { options: baseQ.options || [], correct: baseQ.correct };
-    shuffledQRef.current = { qIdx, base: baseQ, q: { ...baseQ, options, correct } };
+      : { options: baseQ.options || [], correct: baseQ.correct, order: identity };
+    // `order` is kept because picture options are stored per AUTHOR index.
+    // Reading them by display position would hand the student picture A under
+    // option C the moment the shuffle moved anything.
+    shuffledQRef.current = { qIdx, base: baseQ, q: { ...baseQ, options, correct }, order: order || identity };
   }
   const q = shuffledQRef.current.q;
+  // Picture options stay on the BASE question in author order; what is on
+  // screen is derived. That way the 8-second poll, which patches the base, can
+  // never disagree with what is rendered.
+  const optionOrder = shuffledQRef.current.order || [];
+  const baseOptionImages = normalizeOptionImages(shuffledQRef.current.base);
+  const optionImageAt = (displayIdx) => baseOptionImages[optionOrder[displayIdx]] ?? null;
 
   // ── Explanation highlighting (per-user + official) ──────────────────────────
   const loggedIn = !!getToken();
@@ -2770,9 +2842,13 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
               const isWrong = revealed && isMine && label !== q.correct;
               const cells = optionTable?.rows[i];
               const isCrossed = crossed.has(label);
+              // A picture option. Null for the ordinary kind, which is all of
+              // them until an author attaches one.
+              const optImg = optionImageAt(i);
+              const optText = stripLetterPrefix(opt);
               return (
+                <div className={`sg-optwrap${optImg ? ' has-img' : ''}`} key={i}>
                 <button
-                  key={i}
                   className={['option-btn', isMine ? 'selected' : '', isRight ? 'correct' : '', isWrong ? 'wrong' : '', isCrossed ? 'is-crossed' : ''].join(' ')}
                   // A struck-out option cannot be answered by accident: the
                   // first click on one takes the line off again.
@@ -2792,8 +2868,27 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
                         <span className="sr-only">{c.text}</span>
                       </span>
                     ))
+                  ) : optImg ? (
+                    // The text is KEPT beside the picture: it is what a screen
+                    // reader reads out and what the explanation refers to. An
+                    // option with no text shows the picture alone.
+                    <span className="opt-text opt-text--img">
+                      <img
+                        className="opt-img sg-zoomable"
+                        src={optImg}
+                        alt={optText ? `Option ${label}: ${optText}` : `Option ${label}`}
+                        title="Click to enlarge"
+                        onClick={(e) => {
+                          // Enlarging must not answer the question.
+                          e.stopPropagation();
+                          setZoomImg({ url: optImg, label: `Option ${label}` });
+                        }}
+                        onError={(e) => { e.target.style.display = 'none'; }}
+                      />
+                      {optText && <span className="opt-imgtext">{optText}</span>}
+                    </span>
                   ) : (
-                    <span className="opt-text">{stripLetterPrefix(opt)}</span>
+                    <span className="opt-text">{optText}</span>
                   )}
                   {/* The control, for anyone not reaching for right-click —
                       and the only way to do it on a phone. */}
@@ -2818,6 +2913,42 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
                     </span>
                   )}
                 </button>
+                {/* The author's controls sit OUTSIDE the option button — a
+                    button inside a button is invalid, and more to the point a
+                    click meant for the picture slot would answer the question.
+                    Only an admin/moderator in dev mode sees any of this. */}
+                {canWriteImages && (
+                  <div className="sg-optimg-tools">
+                    {optImg && (
+                      <button
+                        type="button"
+                        className="rr-expl-img-del sg-optimg-del"
+                        title={`Take the picture off option ${label}`}
+                        onClick={() => saveDevImage(optionImageField(i), null, q?.id)}
+                      >
+                        ✕
+                      </button>
+                    )}
+                    <DevImageSlot
+                      field={optionImageField(i)}
+                      label={`Option ${label}`}
+                      qid={q?.id}
+                      armed={devImgArmed.field === optionImageField(i)}
+                      busy={devImgBusy === optionImageField(i)}
+                      message={devImgMsg?.field === optionImageField(i) ? devImgMsg : null}
+                      currentUrl={optImg}
+                      onArm={() => { setDevImgArmed({ field: optionImageField(i), qid: q?.id ?? null }); setImgArmHold(true); }}
+                      onFile={uploadDevImage}
+                      reusable={reusableDevImages}
+                      onReuse={saveDevImage}
+                      libraryName={uworldSkin ? 'subject' : 'chapter'}
+                      onPickingChange={onImgPickingChange}
+                      holding={devImgHolding}
+                      onResume={() => { setImgArmHold(false); setImgPicking({}); }}
+                    />
+                  </div>
+                )}
+                </div>
               );
             })}
           </div>

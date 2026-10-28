@@ -7,7 +7,12 @@
  * mutates the input array.
  *
  *   shuffleQuestionOptions(['a','b','c','d'], 'B')
- *     -> { options: ['c','b','a','d'], correct: 'B' }   // 'B' still indexes 'b'
+ *     -> { options: ['c','b','a','d'], correct: 'B', order: [2,1,0,3] }
+ *        'B' still indexes 'b'; order[newIndex] = oldIndex.
+ *
+ * `order` is what anything stored PER OPTION has to be read through — picture
+ * options, today. Matching by text instead breaks the moment two options read
+ * the same.
  *
  * SCORING CONTRACT: the returned `correct` letter ALWAYS indexes the same option
  * text that `correctLetter` indexed in the input. Check answers against the
@@ -16,7 +21,7 @@
 export function shuffleQuestionOptions(options, correctLetter) {
   const opts = Array.isArray(options) ? options : [];
   // Fewer than 2 options: nothing meaningful to shuffle; return a copy unchanged.
-  if (opts.length < 2) return { options: [...opts], correct: correctLetter };
+  if (opts.length < 2) return { options: [...opts], correct: correctLetter, order: opts.map((_, i) => i) };
 
   const correctIdx = String(correctLetter || 'A').trim().toUpperCase().charCodeAt(0) - 65;
 
@@ -32,5 +37,5 @@ export function shuffleQuestionOptions(options, correctLetter) {
   // Out-of-range original index falls back to 'A'; never emit a letter past the
   // options length.
   const correct = String.fromCharCode(65 + (newCorrectPos >= 0 ? newCorrectPos : 0));
-  return { options: newOptions, correct };
+  return { options: newOptions, correct, order };
 }

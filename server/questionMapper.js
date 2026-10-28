@@ -42,6 +42,57 @@
 // bad payload can't push an unbounded array into a JSONB column.
 const MAX_EXPLANATION_IMAGES = 8;
 
+/**
+ * Picture options — when the ANSWERS are images and the student picks the
+ * right picture, not the right sentence.
+ *
+ * STORAGE SHAPE: `option_images` is a JSONB array positionally aligned to
+ * `choices`: entry i is option i's picture, or null where that option has
+ * none. A question may mix the two — three words and one histology slide is a
+ * perfectly ordinary question — so a null is a real value here, not an
+ * absence, and the array keeps its holes.
+ *
+ * Trailing nulls ARE dropped: they say nothing that the array's end does not,
+ * and keeping them would store a four-null array for every question that has
+ * no pictures at all.
+ *
+ * THE OPTION TEXT IS NOT REPLACED. A picture option still carries its text,
+ * which is what a screen reader reads out and what the explanation refers to;
+ * the picture sits with it. An option whose text is empty shows the picture
+ * alone.
+ *
+ * ORDER IS NOT STABLE. Options are shuffled per appearance, so this array has
+ * to be shuffled with them — see shuffleQuestionOptions, which returns the
+ * permutation for exactly this reason. Anything that reorders options and
+ * forgets this hands the student picture A under option C.
+ */
+// Options are labelled A–H elsewhere in this file; ten is past any real
+// question and still bounds the column.
+const MAX_OPTION_IMAGES = 10;
+
+/**
+ * Row (or anything row-shaped) -> [url|null, ...]. Accepts { url } objects as
+ * well as bare strings, since that is the shape explanation pictures use and
+ * a hand-written payload tends to copy it. Anything that is not an http(s)
+ * url becomes null rather than being dropped: dropping would shift every
+ * later picture onto the wrong option.
+ */
+function normalizeOptionImages(row) {
+  const raw = row && row.option_images;
+  if (!Array.isArray(raw)) return [];
+  const out = raw.slice(0, MAX_OPTION_IMAGES).map((item) => {
+    const url = typeof item === 'string' ? item : (item && item.url);
+    return url && /^https?:\/\//i.test(String(url)) ? String(url) : null;
+  });
+  while (out.length && out[out.length - 1] === null) out.pop();
+  return out;
+}
+
+/** The update record for a picture-option list. An empty list clears it. */
+function optionImagesToDb(list) {
+  return { option_images: list && list.length ? list : null };
+}
+
 function clampImagePos(v) {
   const n = Number.parseInt(v, 10);
   if (!Number.isFinite(n)) return 0;
@@ -138,6 +189,9 @@ function fromDb(row) {
     explanation_image_url: row.explanation_image_url || undefined,
     explanation_images: normalizeExplanationImages(row),
     explanation_image_pos: row.explanation_image_pos ?? undefined,
+    // Omitted rather than sent as [] when there are none, so the overwhelming
+    // majority of questions carry no extra bytes for this.
+    option_images: normalizeOptionImages(row).length ? normalizeOptionImages(row) : undefined,
     game_modes: row.game_modes || ['battle_royale', 'speed_race', 'trivia_pursuit'],
     image_url: row.image_url || undefined,
     tower_floor: row.tower_floor || undefined,
@@ -194,7 +248,14 @@ function toDb(question) {
  * pre-answer through this function.
  */
 function toPublicQuestion(q) {
-  return { id: q.id, question: q.question, options: q.options, image_url: q.image_url || null };
+  return {
+    id: q.id, question: q.question, options: q.options, image_url: q.image_url || null,
+    // Pre-answer and safe: which picture goes with which option says nothing
+    // about which one is right. Without it the live modes would show a
+    // picture-option question as four blank-looking choices.
+    ...(Array.isArray(q.option_images) && q.option_images.length
+      ? { option_images: q.option_images } : {}),
+  };
 }
 
 /**
@@ -299,7 +360,7 @@ function normalizeImport(raw, { defaultCategory, defaultDifficulty } = {}) {
 function shuffleQuestionOptions(options, correctLetter) {
   const opts = Array.isArray(options) ? options : [];
   // Fewer than 2 options: nothing meaningful to shuffle; return a copy unchanged.
-  if (opts.length < 2) return { options: [...opts], correct: correctLetter };
+  if (opts.length < 2) return { options: [...opts], correct: correctLetter, order: opts.map((_, i) => i) };
 
   const correctIdx = String(correctLetter || 'A').trim().toUpperCase().charCodeAt(0) - 65;
 
@@ -315,7 +376,11 @@ function shuffleQuestionOptions(options, correctLetter) {
   // Out-of-range original index falls back to 'A' (matches normalizeImport's
   // default-to-A behavior); never emit a letter past the options length.
   const correct = String.fromCharCode(65 + (newCorrectPos >= 0 ? newCorrectPos : 0));
-  return { options: newOptions, correct };
+  // `order` is the permutation itself: order[newIndex] = oldIndex. Anything
+  // else stored per option — a picture, today — has to be moved through it,
+  // and the only alternative is every caller re-deriving it by matching text,
+  // which breaks the moment two options read the same.
+  return { options: newOptions, correct, order };
 }
 
 /**
@@ -326,11 +391,21 @@ function shuffleQuestionOptions(options, correctLetter) {
  */
 function withShuffledOptions(q) {
   if (!q) return q;
-  const { options, correct } = shuffleQuestionOptions(q.options || [], q.correct);
-  return { ...q, options, correct };
+  const { options, correct, order } = shuffleQuestionOptions(q.options || [], q.correct);
+  const out = { ...q, options, correct };
+  // Picture options travel with their option. Read through `order` so a hole
+  // stays a hole; the list is re-normalized so trailing nulls do not build up
+  // across appearances.
+  if (Array.isArray(q.option_images) && q.option_images.length) {
+    out.option_images = normalizeOptionImages({
+      option_images: (order || options.map((_, i) => i)).map(i => q.option_images[i] ?? null),
+    });
+  }
+  return out;
 }
 
 module.exports = {
   MAX_EXPLANATION_IMAGES, clampImagePos, normalizeExplanationImages,
   explanationImagesToDb, mergeExplanationImages,
+  MAX_OPTION_IMAGES, normalizeOptionImages, optionImagesToDb,
   fromDb, toDb, toPublicQuestion, answerResultPayload, normalizeImport, shuffleQuestionOptions, withShuffledOptions };

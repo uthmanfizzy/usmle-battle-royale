@@ -1355,3 +1355,27 @@ ALTER TABLE journey_questions ADD COLUMN IF NOT EXISTS explanation_images JSONB;
 ALTER TABLE boss_questions    ADD COLUMN IF NOT EXISTS explanation_images JSONB;
 
 NOTIFY pgrst, 'reload schema';
+
+-- ──────────────────────────────────────────────────────────────────────────────
+-- option_images — when the ANSWERS are pictures
+--
+-- Some questions ask which picture is right rather than which sentence: four
+-- slides, four ECGs, four rashes. This is a JSONB array positionally aligned
+-- to `choices` — entry i is option i's picture, or null where that option has
+-- none, so a question can mix words and pictures. Trailing nulls are dropped,
+-- and a question with no picture options stores NULL rather than [null,null,
+-- null,null].
+--
+-- The option TEXT is not replaced: it still carries what a screen reader reads
+-- and what the explanation refers to. An option whose text is empty shows its
+-- picture alone.
+--
+-- Unlike explanation_images there is NO legacy column to fall back on, so
+-- until this runs the server refuses a picture-option save outright and says
+-- why. It will not pretend to have saved one.
+-- ──────────────────────────────────────────────────────────────────────────────
+ALTER TABLE questions         ADD COLUMN IF NOT EXISTS option_images JSONB;
+ALTER TABLE journey_questions ADD COLUMN IF NOT EXISTS option_images JSONB;
+ALTER TABLE boss_questions    ADD COLUMN IF NOT EXISTS option_images JSONB;
+
+NOTIFY pgrst, 'reload schema';

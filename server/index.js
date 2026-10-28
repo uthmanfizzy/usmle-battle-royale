@@ -15,6 +15,7 @@ const multer     = require('multer');
 const AdmZip     = require('adm-zip');
 const os         = require('os');
 const { fromDb, toDb, toPublicQuestion, answerResultPayload, normalizeImport, withShuffledOptions,
+  MAX_OPTION_IMAGES, normalizeOptionImages, optionImagesToDb,
         normalizeExplanationImages, explanationImagesToDb, mergeExplanationImages,
         MAX_EXPLANATION_IMAGES } = require('./questionMapper');
 const ankingScheduler = require('./ankingScheduler');
@@ -224,6 +225,20 @@ function withoutExplImages(record) {
   const rest = { ...record };
   delete rest.explanation_images;
   return rest;
+}
+
+// option_images: the pictures that ARE the answers. Same deploy-order
+// safety, with one difference that matters — the explanation list has a legacy
+// single-url column to fall back on, and this has nothing. Until the migration
+// runs there is NOWHERE to put a picture option, so a write is reported as
+// refused rather than quietly dropped: silently accepting it would show the
+// author a saved picture that vanishes on the next poll.
+let hasOptionImages = true;
+
+function isMissingOptionImages(error) {
+  if (!error) return false;
+  const msg = `${error.message || ''} ${error.details || ''}`.toLowerCase();
+  return msg.includes('option_images');
 }
 
 // Run a question write, dropping explanation_images and retrying once if the
@@ -8730,8 +8745,25 @@ app.put('/api/question-image/:id', moderatorAuth, async (req, res) => {
     return res.status(400).json({ error: 'every explanation image url must be http(s)' });
   }
 
+  // The picture-option list: positional, so a null entry is meaningful and
+  // the array is taken as sent rather than compacted.
+  const hasOptList = Object.prototype.hasOwnProperty.call(req.body || {}, 'option_images');
+  if (hasOptList && !Array.isArray(req.body.option_images)) {
+    return res.status(400).json({ error: 'option_images must be an array' });
+  }
+  if (hasOptList && req.body.option_images.length > MAX_OPTION_IMAGES) {
+    return res.status(400).json({ error: `at most ${MAX_OPTION_IMAGES} option images` });
+  }
+  if (hasOptList && req.body.option_images.some((it) => {
+    if (it === null || it === undefined || it === '') return false;   // "this option has none"
+    const u = typeof it === 'string' ? it : (it && it.url);
+    return !u || !/^https?:\/\//i.test(String(u));
+  })) {
+    return res.status(400).json({ error: 'every option image url must be http(s)' });
+  }
+
   const hasField = QUESTION_IMAGE_FIELDS.includes(field);
-  if (!hasField && !hasPos && !hasList) {
+  if (!hasField && !hasPos && !hasList && !hasOptList) {
     return res.status(400).json({ error: 'field must be image_url or explanation_image_url' });
   }
   // null/'' clears the image; anything else must look like a URL we served.
@@ -8745,6 +8777,16 @@ app.put('/api/question-image/:id', moderatorAuth, async (req, res) => {
     const key = questionImageKey(table, req.params.id);
     const updates = {};
     if (hasField && field !== 'explanation_image_url') updates[field] = url;
+    if (hasOptList) {
+      if (!hasOptionImages) {
+        return res.status(503).json({
+          error: 'option_images column is missing — run the migration at the end of server/schema.sql',
+          reason: 'missing_column',
+        });
+      }
+      Object.assign(updates, optionImagesToDb(
+        normalizeOptionImages({ option_images: req.body.option_images })));
+    }
 
     // Anything touching the explanation's pictures is resolved against the row
     // as it stands, so replacing picture #1 — or moving it — leaves the others
@@ -8778,6 +8820,16 @@ app.put('/api/question-image/:id', moderatorAuth, async (req, res) => {
 
     let { error } = await questionWrite(updates, r =>
       supabase.from(table).update(r).eq(key, req.params.id));
+    // Nowhere to put a picture option yet. Said plainly, with the fix, rather
+    // than dropped — see hasOptionImages.
+    if (error && isMissingOptionImages(error)) {
+      hasOptionImages = false;
+      console.warn('[option_images] column missing — picture options cannot be saved. Run the migration at the end of server/schema.sql.');
+      return res.status(503).json({
+        error: 'option_images column is missing — run the migration at the end of server/schema.sql',
+        reason: 'missing_column',
+      });
+    }
     if (error && /explanation_image_pos/.test(error.message || '')) {
       delete updates.explanation_image_pos;
       if (Object.keys(updates).length === 0) {
@@ -8808,6 +8860,7 @@ app.put('/api/question-image/:id', moderatorAuth, async (req, res) => {
       // because the next poll reads the row back and takes the others off the
       // screen. The caller is told so it can say so.
       list_saved: hasExplanationImages,
+      option_images: 'option_images' in updates ? (updates.option_images || []) : undefined,
     });
   } catch (err) {
     console.warn('[/api/question-image] failed —', err.message);
@@ -8922,11 +8975,23 @@ app.get('/api/question-image/:id', async (req, res) => {
   if (!table) return res.status(400).json({ error: 'unknown table' });
   try {
     const key = questionImageKey(table, req.params.id);
-    const cols = hasExplanationImages
-      ? 'image_url, explanation_image_url, explanation_image_pos, explanation_images'
-      : 'image_url, explanation_image_url, explanation_image_pos';
+    // Each optional column is asked for only while it might be there. The
+    // poll's answer REPLACES what the game is holding, so a column missing
+    // from this select is a picture taken off the screen.
+    const cols = ['image_url', 'explanation_image_url', 'explanation_image_pos']
+      .concat(hasExplanationImages ? ['explanation_images'] : [])
+      .concat(hasOptionImages ? ['option_images'] : [])
+      .join(', ');
     let { data, error } = await supabase
       .from(table).select(cols).eq(key, req.params.id).maybeSingle();
+    if (error && isMissingOptionImages(error)) {
+      hasOptionImages = false;
+      ({ data, error } = await supabase
+        .from(table).select(hasExplanationImages
+          ? 'image_url, explanation_image_url, explanation_image_pos, explanation_images'
+          : 'image_url, explanation_image_url, explanation_image_pos')
+        .eq(key, req.params.id).maybeSingle());
+    }
     if (error && isMissingExplanationImages(error)) {
       hasExplanationImages = false;
       ({ data, error } = await supabase
@@ -8944,6 +9009,11 @@ app.get('/api/question-image/:id', async (req, res) => {
       explanation_image_url: data?.explanation_image_url ?? null,
       explanation_image_pos: data?.explanation_image_pos ?? null,
       explanation_images: normalizeExplanationImages(data),
+      option_images: normalizeOptionImages(data),
+      // Whether the game may trust the list above. Without the column the poll
+      // cannot tell "no picture options" from "cannot see them", and the game
+      // must not clear what the author just put on screen.
+      option_images_readable: hasOptionImages,
     });
   } catch (err) {
     console.warn('[/api/question-image GET] failed —', err.message);
@@ -13298,6 +13368,11 @@ app.get('/api/journey-questions', async (req, res) => {
       image_url: q.image_url || null,
       explanation_image_url: q.explanation_image_url || null,
       explanation_images: normalizeExplanationImages(q),
+      // Journey and boss questions get picture options too: the column is on
+      // all three tables and the image endpoint writes to whichever table the
+      // run is reading from, so leaving it out here would save a picture that
+      // never comes back.
+      option_images: normalizeOptionImages(q),
     }));
     if (questions.length === 0) {
       return res.json({
@@ -13342,6 +13417,11 @@ app.get('/api/boss-questions', async (req, res) => {
       image_url: q.image_url || null,
       explanation_image_url: q.explanation_image_url || null,
       explanation_images: normalizeExplanationImages(q),
+      // Journey and boss questions get picture options too: the column is on
+      // all three tables and the image endpoint writes to whichever table the
+      // run is reading from, so leaving it out here would save a picture that
+      // never comes back.
+      option_images: normalizeOptionImages(q),
     }));
     if (questions.length === 0) {
       return res.json({ questions: [], empty: true, message: 'No boss questions authored yet.' });
