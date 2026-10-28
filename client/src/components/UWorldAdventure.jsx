@@ -1088,6 +1088,44 @@ export default function UWorldAdventure({ mode = DEFAULT_QUESTION_BANK_MODE }) {
               </span>
             </button>
 
+            {/* The Read Later shelf, on its own and ABOVE the rating piles.
+                It is not one of them: those sort by what you decided you knew,
+                this is the pile of explanations you never got to. Mixing it in
+                would bury the one list a student actually comes back for. */}
+            {(() => {
+              const savedCount = ratingCounts?.saved_explanations ?? 0;
+              const unavailable = !!ratingCounts?.saved_explanations_unavailable;
+              // Hidden entirely while empty: an always-present empty row reads
+              // as a broken feature rather than an invitation.
+              if (!unavailable && (!ratingCounts || savedCount === 0)) return null;
+              if (unavailable) {
+                return (
+                  <p className="uwa-modal-warn" role="alert">
+                    ⚠ Read Later is not saving — the <code>uworld_saved_explanations</code> table
+                    is missing from the database.
+                  </p>
+                );
+              }
+              const loadingThis = reviewLoading === 'saved';
+              return (
+                <div className="uwa-shelf">
+                  <p className="uwa-shelf-head">🔖 Read Later</p>
+                  <button
+                    type="button"
+                    className="uwa-pile uwa-pile--saved"
+                    disabled={!!reviewLoading}
+                    onClick={() => startReview('saved', 'Read Later')}
+                  >
+                    <span className="uwa-pile-name">Explanations you kept</span>
+                    <span className="uwa-pile-sub">
+                      {loadingThis ? 'Loading…'
+                        : `${savedCount} question${savedCount === 1 ? '' : 's'} · oldest first`}
+                    </span>
+                  </button>
+                </div>
+              );
+            })()}
+
             <p className="uwa-modal-sub">
               Or revisit — none of these count toward the plan or today&apos;s pace:
             </p>

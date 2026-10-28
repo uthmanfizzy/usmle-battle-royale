@@ -2162,3 +2162,36 @@
 .uwa--mehlman_rapid_fire .uwa-section-title::after {
   background: linear-gradient(90deg, #e6dcc4, transparent);
 }
+
+
+/* ── Read Later shelf ───────────────────────────────────────────────────────
+   Questions whose explanation was put aside mid-block. It sits apart from the
+   rating piles on purpose — those are sorted by what the student decided they
+   knew, this is the one list of things they have not read yet — so it gets its
+   own heading and its own colour rather than another row in that list. */
+.uwa-shelf {
+  margin: 14px 0 4px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(226, 170, 32, 0.4);
+  background: rgba(226, 170, 32, 0.08);
+}
+.uwa-shelf-head {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  /* The system menu is a DARK panel, unlike the page behind it, so the
+     heading takes the light end of the gold rather than the deep amber the
+     white page needs. */
+  color: #e8c069;
+}
+.uwa-pile--saved {
+  border-color: rgba(226, 170, 32, 0.55);
+  background: #fff;
+}
+.uwa-pile--saved:hover:not(:disabled) {
+  border-color: #c98c08;
+  box-shadow: 0 0 20px rgba(226, 170, 32, 0.3);
+}

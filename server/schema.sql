@@ -1379,3 +1379,40 @@ ALTER TABLE journey_questions ADD COLUMN IF NOT EXISTS option_images JSONB;
 ALTER TABLE boss_questions    ADD COLUMN IF NOT EXISTS option_images JSONB;
 
 NOTIFY pgrst, 'reload schema';
+
+-- ──────────────────────────────────────────────────────────────────────────────
+-- uworld_saved_explanations — "I'll read that one later"
+--
+-- A shelf for questions whose explanation the student could not face reading
+-- in the moment. Its own table rather than a sixth rating value: a rating is
+-- a judgement about what you know, this is a note about what you have not
+-- read yet, and a question is very often BOTH — you rate it to move on
+-- precisely because you skipped the explanation.
+--
+-- One row per (user, question), upserted, no history: taking a question off
+-- the shelf deletes the row. Oldest first when the shelf is played back, on
+-- the grounds that what you put aside longest ago is what you have most
+-- thoroughly forgotten about.
+--
+-- Until this runs, the Save button reports that it could not save rather than
+-- going quiet, and the shelf on the system menu says the table is missing.
+-- ──────────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS uworld_saved_explanations (
+  id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id     UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  question_id UUID        NOT NULL REFERENCES questions(id) ON DELETE CASCADE,
+  saved_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- ON CONFLICT needs this; without it every upsert fails with 42P10.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_uworld_saved_expl_user_q ON uworld_saved_explanations(user_id, question_id);
+-- The shelf is read oldest-first per user.
+CREATE INDEX IF NOT EXISTS idx_uworld_saved_expl_user_at ON uworld_saved_explanations(user_id, saved_at);
+
+ALTER TABLE uworld_saved_explanations ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "server_full_access_uworld_saved_explanations" ON uworld_saved_explanations;
+CREATE POLICY "server_full_access_uworld_saved_explanations"
+  ON uworld_saved_explanations FOR ALL USING (true) WITH CHECK (true);
+
+NOTIFY pgrst, 'reload schema';

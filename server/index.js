@@ -3594,6 +3594,14 @@ const QUESTION_BANK_ACTIVITY_MODE = {
   mehlman_rapid_fire: 'mehlman_rapid_fire_practice',
 };
 
+// Questions whose explanation the student put aside to read later. A table of
+// its own rather than a sixth rating: a rating is a judgement about what you
+// know, this is a note about what you have not read yet, and the two answer
+// different questions. Keeping them apart also means a question can be rated
+// AND shelved, which is the common case — you rate to move on, precisely
+// because you have not read the thing.
+const SAVED_EXPL_TABLE = 'uworld_saved_explanations';
+
 // Self-assessment buckets a UWorld Adventure question can be rated into after
 // answering — same five categories (and exact value strings) HY Flashcards
 // already uses for its own rating pile picker, kept identical for a familiar
@@ -3832,6 +3840,70 @@ app.post('/api/uworld-questions/:questionId/rate', requireAuth, async (req, res)
 });
 
 /**
+ * POST /api/uworld-questions/:questionId/save-explanation   { saved }
+ *
+ * Put a question's explanation aside to read later, or take it back off the
+ * shelf. One row per (user, question); saving twice is not an error and does
+ * not duplicate.
+ *
+ * :questionId is questions.id (the UUID), the same shape the rating route
+ * takes — the client sends q._supabase_id, never the TEXT business key.
+ *
+ * Reports WHY a save failed rather than answering ok:false and leaving the
+ * student to find out later that their shelf is empty — the same lesson the
+ * ratings route already learned.
+ */
+app.post('/api/uworld-questions/:questionId/save-explanation', requireAuth, async (req, res) => {
+  const saved = req.body?.saved !== false;   // default true: the button's usual direction
+  if (!supabase) return res.json({ ok: false, reason: 'no_supabase' });
+  try {
+    if (!saved) {
+      const { error } = await supabase
+        .from(SAVED_EXPL_TABLE)
+        .delete()
+        .eq('user_id', req.userId)
+        .eq('question_id', req.params.questionId);
+      if (error) throw error;
+      return res.json({ ok: true, saved: false });
+    }
+    const { error } = await supabase
+      .from(SAVED_EXPL_TABLE)
+      .upsert({
+        user_id: req.userId,
+        question_id: req.params.questionId,
+        saved_at: new Date().toISOString(),
+      }, { onConflict: 'user_id,question_id' });
+    if (!error) return res.json({ ok: true, saved: true });
+
+    // Same two failures the ratings table has: no table at all, or a table
+    // without the unique index ON CONFLICT needs. Neither is the student's
+    // doing, so neither is reported as a shrug.
+    if (isMissingTable(error, SAVED_EXPL_TABLE)) {
+      console.warn('[save-explanation] table missing — run the migration at the end of server/schema.sql');
+      return res.json({ ok: false, reason: 'missing_table' });
+    }
+    if (isMissingUniqueIndex(error)) {
+      // Do by hand what ON CONFLICT cannot, so the shelf still works.
+      const { data: existing } = await supabase
+        .from(SAVED_EXPL_TABLE).select('question_id')
+        .eq('user_id', req.userId).eq('question_id', req.params.questionId).maybeSingle();
+      if (existing) return res.json({ ok: true, saved: true });
+      const { error: insErr } = await supabase.from(SAVED_EXPL_TABLE).insert({
+        user_id: req.userId, question_id: req.params.questionId, saved_at: new Date().toISOString(),
+      });
+      if (!insErr) return res.json({ ok: true, saved: true });
+      console.error('[save-explanation] insert failed —', insErr.code, insErr.message);
+      return res.json({ ok: false, reason: 'missing_unique_index' });
+    }
+    console.error('[save-explanation] failed —', error.code, error.message);
+    res.json({ ok: false, reason: 'unknown_question' });
+  } catch (err) {
+    console.warn('[save-explanation] failed —', err.message);
+    res.json({ ok: false, reason: 'network' });
+  }
+});
+
+/**
  * GET /api/uworld-questions/rating-counts
  *
  * How many UWorld Adventure questions this user has rated into each bucket,
@@ -3854,7 +3926,7 @@ app.post('/api/uworld-questions/:questionId/rate', requireAuth, async (req, res)
 app.get('/api/uworld-questions/rating-counts', requireAuth, async (req, res) => {
   // Which bank this request is about — UWorld Adventure or Saudi MLE.
   const modeJsonTag = modeJson(modeTagFrom(req));
-  const zeros = { total: 0, unrated: 0, knowledge_gap: 0, careless_miss: 0, lucky_guess: 0, somewhat_know: 0, fully_understood: 0, system_total: 0 };
+  const zeros = { total: 0, unrated: 0, knowledge_gap: 0, careless_miss: 0, lucky_guess: 0, somewhat_know: 0, fully_understood: 0, system_total: 0, saved_explanations: 0 };
   if (!supabase) return res.json(zeros);
   // Optional subject scope. Reviewing is per SYSTEM: a pile that mixes
   // biochemistry with pulmonology is not a revision session anyone wants.
@@ -3895,14 +3967,32 @@ app.get('/api/uworld-questions/rating-counts', requireAuth, async (req, res) => 
       if (hasRetirement) systemQ = systemQ.is('retired_at', null);
     }
 
-    const [totalRes, systemRes, ...bucketRes] = await Promise.all([
+    // The shelf, counted the same head+exact way and from its own table.
+    let savedQ = scoped(supabase
+      .from(SAVED_EXPL_TABLE)
+      .select('question_id, questions!inner(game_modes, category)', { count: 'exact', head: true })
+      .eq('user_id', req.userId)
+      .contains('questions.game_modes', modeJsonTag));
+    if (hasRetirement) savedQ = savedQ.is('questions.retired_at', null);
+
+    const [totalRes, systemRes, savedRes, ...bucketRes] = await Promise.all([
       totalQ,
       systemQ || Promise.resolve({ count: 0, error: null }),
+      savedQ,
       ...bucketQueries,
     ]);
     if (totalRes.error) throw totalRes.error;
     const total = totalRes.count || 0;
     const counts = { total, system_total: systemRes?.error ? 0 : (systemRes?.count || 0) };
+    // A missing shelf table must not take the rest of the picker down with it,
+    // exactly as a missing ratings table must not.
+    if (savedRes?.error) {
+      if (!isMissingTable(savedRes.error, SAVED_EXPL_TABLE)) throw savedRes.error;
+      counts.saved_explanations = 0;
+      counts.saved_explanations_unavailable = true;
+    } else {
+      counts.saved_explanations = savedRes?.count || 0;
+    }
     let ratedSum = 0;
     let ratingsUnavailable = false;
     UWORLD_RATINGS.forEach((r, i) => {
@@ -3962,7 +4052,9 @@ app.get('/api/uworld-questions/by-rating', requireAuth, async (req, res) => {
   const rating = (req.query.rating || '').toString();
   // 'system' is a third synthetic pile: every UWorld question in the subject,
   // seen or not — "redo this system" rather than "revisit what I've done".
-  const validKeys = ['all', 'unrated', 'system', ...UWORLD_RATINGS];
+  // 'saved' is the shelf — questions whose explanation was put aside to read
+  // later. Synthetic like the other three: it is not a rating value.
+  const validKeys = ['all', 'unrated', 'system', 'saved', ...UWORLD_RATINGS];
   if (!validKeys.includes(rating)) return res.status(400).json({ error: 'invalid rating', questions: [] });
   const parsed = parseInt(req.query.limit, 10);
   const limit  = Math.min(UNSEEN_MAX_LIMIT, Math.max(1, Number.isFinite(parsed) ? parsed : UNSEEN_DEFAULT_LIMIT));
@@ -3988,6 +4080,29 @@ app.get('/api/uworld-questions/by-rating', requireAuth, async (req, res) => {
       const { data, error } = await q;
       if (error) throw error;
       return res.json({ questions: (data || []).map(fromDb) });
+    }
+
+    // The shelf, oldest first: what you put aside longest ago is what you are
+    // most likely to have forgotten you put aside.
+    if (rating === 'saved') {
+      let q = scoped(supabase
+        .from(SAVED_EXPL_TABLE)
+        .select('question_id, saved_at, questions!inner(*)')
+        .eq('user_id', req.userId)
+        .contains('questions.game_modes', modeJsonTag))
+        .order('saved_at', { ascending: true })
+        .range(0, limit - 1);
+      if (hasRetirement) q = q.is('questions.retired_at', null);
+      const { data, error } = await q;
+      if (error) {
+        if (isMissingTable(error, SAVED_EXPL_TABLE)) return res.json({ questions: [], saved_unavailable: true });
+        throw error;
+      }
+      // Marked so the game can show these as already shelved — otherwise the
+      // button would offer to save what is plainly already saved.
+      return res.json({
+        questions: (data || []).map((r) => ({ ...fromDb(r.questions), _saved_explanation: true })),
+      });
     }
 
     if (rating === 'all' || rating === 'unrated') {

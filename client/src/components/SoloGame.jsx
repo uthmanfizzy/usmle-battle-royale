@@ -103,6 +103,36 @@ function postQuestionRating(q, rating) {
     .catch(() => ({ ok: false, reason: 'network' }));
 }
 
+// UWorld Adventure only: put this question's explanation aside to read later,
+// or take it back off the shelf. Deliberately NOT a rating — see
+// uworld_saved_explanations in schema.sql — and deliberately not fire-and-
+// forget either: unlike a rating, this button does not advance the question,
+// so there is nothing to lose by waiting for the answer and everything to
+// gain from telling the student it did not save.
+function postSaveExplanation(q, saved) {
+  const questionId = q?._supabase_id;
+  if (!questionId) return Promise.resolve({ ok: false, reason: 'no_question_id' });
+  const token = getToken();
+  if (!token) return Promise.resolve({ ok: false, reason: 'not_signed_in' });
+  return fetch(`${SERVER_URL}/api/uworld-questions/${questionId}/save-explanation`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ saved }),
+  })
+    .then(r => r.json())
+    .catch(() => ({ ok: false, reason: 'network' }));
+}
+
+const SAVE_EXPL_ERROR_TEXT = {
+  missing_table:        'Not saved — the uworld_saved_explanations table is missing from the database.',
+  missing_unique_index: 'Not saved — uworld_saved_explanations is missing its (user_id, question_id) unique index.',
+  not_signed_in:        'Sign in to keep a question for later.',
+  no_question_id:       'This question has no bank id, so it cannot be kept.',
+  network:              'Could not reach the server — that one was not kept.',
+};
+const saveExplErrorText = reason =>
+  SAVE_EXPL_ERROR_TEXT[reason] || 'That one was not kept, so it will not be on your shelf.';
+
 // A rating that does not save is worse than one that fails loudly: the student
 // keeps rating, the review piles stay empty, and nothing ever says why. Every
 // reason here used to present as silence.
@@ -431,6 +461,12 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   // failure is visible during the run instead of only showing up later as
   // review piles that are inexplicably empty.
   const [ratingSaveError, setRatingSaveError] = useState('');
+  // The shelf: whether THIS question's explanation is kept for later, and
+  // what went wrong if the last attempt did not stick. Per question — reset
+  // below whenever the question changes.
+  const [savedExpl, setSavedExpl] = useState(false);
+  const [savedExplBusy, setSavedExplBusy] = useState(false);
+  const [savedExplError, setSavedExplError] = useState('');
   // Exam skin only: is the explanation countdown currently held? explPausedLeft
   // is the remaining seconds frozen at the moment it was held — it cannot tick
   // down while held, so there is nothing to keep updating.
@@ -1406,6 +1442,16 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
     setDragImgIdx(null);
   }, [qIdx, currentQid]);
 
+  // The shelf state belongs to the question, not the screen. Questions pulled
+  // from the shelf itself arrive already marked, so the button offers to take
+  // them off rather than to save what is plainly already saved.
+  useEffect(() => {
+    const row = questionsRef.current[qIdxRef.current];
+    setSavedExpl(!!row?._saved_explanation);
+    setSavedExplBusy(false);
+    setSavedExplError('');
+  }, [qIdx, currentQid]);
+
   // Fetch this question's highlights on question LOAD (not gated behind reveal) so
   // the stem's official bold/italic format spans (region='question') — the hints —
   // are available DURING the question and toggle live with "Show hints". Explanation
@@ -1971,6 +2017,35 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
     });
     if (skipTimerRef.current) { clearTimeout(skipTimerRef.current); skipTimerRef.current = null; }
     doAdvanceRef.current?.();
+  }
+
+  // Keep this explanation for later, or stop keeping it. Does NOT advance the
+  // question and does not touch the rating — the two are independent on
+  // purpose, since the usual reason to shelve something is that you are about
+  // to rate it and move on without having read it.
+  async function toggleSavedExpl() {
+    if (savedExplBusy) return;
+    const q = (shuffledQRef.current && shuffledQRef.current.qIdx === qIdxRef.current && shuffledQRef.current.q)
+      ? shuffledQRef.current.q
+      : questionsRef.current[qIdxRef.current];
+    const next = !savedExpl;
+    setSavedExplBusy(true);
+    setSavedExplError('');
+    // Shown as done straight away; put back if the server disagrees. The
+    // alternative is a button that sits there doing nothing over a slow
+    // connection, which reads as broken.
+    setSavedExpl(next);
+    const r = await postSaveExplanation(q, next);
+    setSavedExplBusy(false);
+    if (r && r.ok === false) {
+      setSavedExpl(!next);
+      setSavedExplError(saveExplErrorText(r.reason));
+      return;
+    }
+    // Remembered on the question so coming back to it mid-block (the look-back,
+    // a Previous) shows what was actually done.
+    const row = questionsRef.current[qIdxRef.current];
+    if (row) row._saved_explanation = next;
   }
 
   // Exam skin, explanation time up: the explanation just vanished and the page
@@ -3205,6 +3280,24 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
                       running out mid-read, and the deadline closes the question.
                       Pointless once it has fired or the question is rated, so it
                       goes away then rather than sitting there inert. */}
+                  {/* Keep it for later. Deliberately up here with Pause and
+                      NOT among the rating buttons below: it is not a judgement
+                      about what you know, it does not advance the question, and
+                      putting it in that row would make it look like a sixth
+                      way to answer. Stays available after the timer has run
+                      out, which is exactly when it is most wanted. */}
+                  <button
+                    type="button"
+                    className={`uw-savelater${savedExpl ? ' is-on' : ''}`}
+                    onClick={toggleSavedExpl}
+                    disabled={savedExplBusy}
+                    aria-pressed={savedExpl}
+                    title={savedExpl
+                      ? 'Take this off your Read Later shelf'
+                      : "Keep this explanation to read later — it'll be waiting on the system menu"}
+                  >
+                    {savedExplBusy ? '…' : savedExpl ? '🔖 Kept for later' : '🔖 Read later'}
+                  </button>
                   {!rated && !explanationExpired && (
                     <button
                       type="button"
@@ -3217,6 +3310,9 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
                     </button>
                   )}
                 </div>
+                {savedExplError && (
+                  <p className="uw-savelater-err" role="alert">{savedExplError}</p>
+                )}
                 <div className="uw-rate-buttons">
                   {UWORLD_RATINGS.map(r => (
                     <button

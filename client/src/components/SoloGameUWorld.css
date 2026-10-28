@@ -931,3 +931,35 @@ html[data-study="on"] .screen.solo-screen.uw-exam .pause-resume-btn:hover {
   max-width: 100%;
   overflow-x: auto;
 }
+
+
+/* ── Read Later, in the rating row's head ───────────────────────────────────
+   Sits beside Pause, not among the five rating buttons: it is not a judgement
+   about recall and it does not advance the question, and a sixth button down
+   there would read as a sixth way to answer. Shaped like Pause for that
+   reason — same size, same place, plainly a tool rather than a choice. */
+.uw-savelater {
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--uwq-ring, #c2cfc8);
+  background: transparent;
+  color: var(--uwq-ink, #16241d);
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.uw-savelater:hover:not(:disabled) { background: rgba(226, 170, 32, 0.12); }
+.uw-savelater:disabled { opacity: 0.6; cursor: default; }
+/* Kept: filled, so "already on the shelf" is readable at a glance from across
+   the row rather than needing the label to be read. */
+.uw-savelater.is-on {
+  border-color: #c98c08;
+  background: rgba(226, 170, 32, 0.2);
+  color: #7a5806;
+}
+.uw-savelater-err {
+  margin: 6px 0 0;
+  font-size: 12.5px;
+  color: #c0392b;
+}
