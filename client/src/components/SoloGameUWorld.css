@@ -802,6 +802,31 @@ html[data-study="on"] .screen.solo-screen.uw-exam.uw-theme-saudi_mle .uw-mark.is
   color: #ffd479;
 }
 
+/* Mehlman Rapid Fire — amber. Deliberately a darker amber than the mode's
+   card and hero wear: this is ink and button fill on a white exam sheet, and
+   the bright #e2aa20 would be illegible there. */
+html[data-study="on"] .screen.solo-screen.uw-exam.uw-theme-mehlman_rapid_fire {
+  --uwq-navy-top: #5a4206;
+  --uwq-navy-bot: #412f04;
+  --uwq-page:     #f4f1ea;
+  --uwq-ink:      #26200f;
+  --uwq-rule:     #e8e2d4;
+  --uwq-blue:     #a5760a;
+  --uwq-blue-lt:  #c08c0f;
+  --uwq-ring:     #cfc7b4;
+  --uwq-sel-bg:   #f6eed9;
+}
+
+html[data-study="on"] .screen.solo-screen.uw-exam.uw-theme-mehlman_rapid_fire .option-btn:hover:not(:disabled) {
+  background: #faf5e8;
+}
+html[data-study="on"] .screen.solo-screen.uw-exam.uw-theme-mehlman_rapid_fire .uw-mark.is-marked .uw-mark-flag {
+  color: #e2aa20;
+}
+html[data-study="on"] .screen.solo-screen.uw-exam.uw-theme-mehlman_rapid_fire .rr-explanation {
+  background: #f8f3e6;
+}
+
 /* The explanation panel's fill comes from study.css (#f3f5fc, a cool blue-grey
    shared by every study-mode screen), not from this file's tokens — so the
    token swap above cannot reach it and a Saudi MLE block would end on a blue

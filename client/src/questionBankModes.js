@@ -57,6 +57,19 @@ export const QUESTION_BANK_MODES = [
     // questions are added, the way Saudi MLE started.
     targetTotal: null,
   },
+  {
+    id: 'mehlman_rapid_fire',
+    label: 'Mehlman Rapid Fire',
+    icon: '⚡',
+    route: '/mehlman-rapid-fire',
+    tagline: 'Mehlman\u2019s high-yield facts, fired at you one after another.',
+    paceScope: '__mehlman_rapid_fire__',
+    accentRgb: '226, 170, 32',   // rapid-fire yellow
+    activityMode: 'mehlman_rapid_fire_practice',
+    // No published total: the plan tracks the live count and grows as questions
+    // are added, the way Saudi MLE and ORE / LDS started.
+    targetTotal: null,
+  },
 ];
 
 export const DEFAULT_QUESTION_BANK_MODE = QUESTION_BANK_MODES[0];

@@ -740,12 +740,19 @@
 
 /* Ambient backdrop blobs pick up the mode's hue, which is what makes the two
    pages feel different the moment they open rather than only in the details. */
-.uwa--saudi_mle .uwa-blob--1 { background: radial-gradient(circle, rgba(var(--uwa-accent-rgb), 0.30), transparent 70%); }
+.uwa--saudi_mle .uwa-blob--1,
+.uwa--mehlman_rapid_fire .uwa-blob--1 { background: radial-gradient(circle, rgba(var(--uwa-accent-rgb), 0.30), transparent 70%); }
 .uwa--saudi_mle .uwa-blob--2 { background: radial-gradient(circle, rgba(31, 158, 106, 0.24), transparent 70%); }
 .uwa--saudi_mle .uwa-blob--3 { background: radial-gradient(circle, rgba(12, 90, 58, 0.26), transparent 70%); }
 
+/* Rapid Fire's own two: amber into a deep ember rather than the Saudi greens. */
+.uwa--mehlman_rapid_fire .uwa-blob--2 { background: radial-gradient(circle, rgba(214, 143, 26, 0.24), transparent 70%); }
+.uwa--mehlman_rapid_fire .uwa-blob--3 { background: radial-gradient(circle, rgba(140, 86, 10, 0.26), transparent 70%); }
+
 .uwa--saudi_mle .uwa-start,
-.uwa--saudi_mle .uwa-pile--redo {
+.uwa--saudi_mle .uwa-pile--redo,
+.uwa--mehlman_rapid_fire .uwa-start,
+.uwa--mehlman_rapid_fire .uwa-pile--redo {
   background: linear-gradient(135deg,
     rgba(var(--uwa-accent-rgb), 0.9),
     rgba(var(--uwa-accent-rgb), 0.65));
@@ -951,6 +958,16 @@
   background-color: #0b1730;
 }
 .uwa-ridge { width: 100%; height: 100%; display: block; }
+/* The ridge's own palette. These are the colours the SVG carried in its fill
+   attributes; they live here so a mode can repaint the sky without a second
+   copy of the artwork. */
+.uwa-ridge-sky-top { stop-color: #12284f; }
+.uwa-ridge-sky-bot { stop-color: #0a1730; }
+.uwa-ridge-halo    { fill: #4d8bf0; }
+.uwa-ridge-moon    { fill: #9cc4ff; }
+.uwa-ridge-far     { fill: #16305c; }
+.uwa-ridge-mid     { fill: #1d3f74; }
+.uwa-ridge-near    { fill: #274e8c; }
 /* Fades the artwork into the page so the panel has no hard bottom edge. */
 .uwa-hero::after {
   content: "";
@@ -2056,3 +2073,92 @@
   color: #ffffff;
 }
 .uwa .uwa-intro, .uwa .uwa-empty { color: #76839a; }
+
+
+/* ══ Mehlman Rapid Fire — yellow ═══════════════════════════════════════════
+   Last in the file on purpose. Everything above it is the LIGHT pass: a white
+   page with #2f6fd0 written into the chips, the pace buttons and the summary
+   links directly rather than read from a token, so setting --uwa-acc alone
+   would leave the page blue with a yellow edge glow — which is exactly what
+   the first attempt did.
+
+   Two yellows, not one. The bright #e2aa20 belongs on the dark hero, where it
+   has the contrast for display type; anything sitting on the white page takes
+   the deep amber #a5760a instead (about 4.9:1 on white — #e2aa20 is 1.9:1 and
+   would be unreadable as text or a button fill). Static rgba throughout, as
+   everywhere else in this file. */
+.uwa--mehlman_rapid_fire {
+  --uwa-acc: #a5760a;
+  --uwa-acc-lo: #a5760a;
+  --uwa-rim: #e4d8ba;
+  --uwa-rim-soft: #efe7d2;
+
+  /* A warm page rather than the cool grey, so the mode reads yellow before a
+     single control is looked at. */
+  background: #f5f1e7;
+}
+
+/* Top bar */
+.uwa--mehlman_rapid_fire .uwa-nav { border-color: #ece4d2; }
+.uwa--mehlman_rapid_fire .uwa-levelchip { border-color: #ece4d2; background: #faf7ef; }
+.uwa--mehlman_rapid_fire .uwa-levelchip:hover { background: #f6efdd; }
+.uwa--mehlman_rapid_fire .uwa-levelchip-text b { color: #a5760a; }
+.uwa--mehlman_rapid_fire .uwa-xpbar { background: #ece5d6; }
+
+/* Hero: the one place the bright hue belongs — light type on a dark ground. */
+.uwa--mehlman_rapid_fire .uwa-hero { border-color: #e8dfc9; }
+.uwa--mehlman_rapid_fire .uwa-hero-art { background-color: #4a3a10; }
+
+/* A dusk sky over ember ridges, with the moon turned up to a low sun. Still
+   dark enough for white display type — the hero is the only place the bright
+   hue appears, and it has to stay a backdrop. */
+.uwa--mehlman_rapid_fire .uwa-ridge-sky-top { stop-color: #4a3608; }
+.uwa--mehlman_rapid_fire .uwa-ridge-sky-bot { stop-color: #2a1f05; }
+.uwa--mehlman_rapid_fire .uwa-ridge-halo    { fill: #e2aa20; }
+.uwa--mehlman_rapid_fire .uwa-ridge-moon    { fill: #ffd98a; }
+.uwa--mehlman_rapid_fire .uwa-ridge-far     { fill: #5c4209; }
+.uwa--mehlman_rapid_fire .uwa-ridge-mid     { fill: #7a580c; }
+.uwa--mehlman_rapid_fire .uwa-ridge-near    { fill: #9a6f10; }
+.uwa--mehlman_rapid_fire .uwa-hero::after {
+  background: linear-gradient(180deg, rgba(48, 35, 6, 0.28) 0%, rgba(48, 35, 6, 0.22) 45%, rgba(48, 35, 6, 0.6) 100%);
+}
+.uwa--mehlman_rapid_fire .uwa-hero-title-accent {
+  background: linear-gradient(120deg, #ffe9b0, #e2aa20 55%, #ffd36a);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.uwa--mehlman_rapid_fire .uwa-hero-eyebrow {
+  border-color: rgba(226, 170, 32, 0.45);
+  background: rgba(226, 170, 32, 0.18);
+  color: #ffdf9b;
+}
+.uwa--mehlman_rapid_fire .uwa-hero-back { background: rgba(48, 35, 6, 0.55); border-color: rgba(226, 170, 32, 0.4); color: #ffdf9b; }
+.uwa--mehlman_rapid_fire .uwa-hero-back:hover { background: rgba(226, 170, 32, 0.26); color: #fff; }
+.uwa--mehlman_rapid_fire .uwa-hero-bar > span { box-shadow: 0 0 14px rgba(226, 170, 32, 0.7); }
+
+/* Pace card */
+.uwa--mehlman_rapid_fire .uwa-pace { border-color: #ece4d2; }
+.uwa--mehlman_rapid_fire .uwa-pace-icon { border-color: #ecd9a6; background: #fdf4dd; }
+.uwa--mehlman_rapid_fire .uwa-pace-pick { border-color: #e7decb; background: #faf7ef; color: #4a4030; }
+.uwa--mehlman_rapid_fire .uwa-pace-pick:hover { background: #f7eed6; }
+.uwa--mehlman_rapid_fire .uwa-pace-pick.is-on {
+  background: linear-gradient(140deg, #c98c08, #a5760a);
+  border-color: #a5760a;
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(165, 118, 10, 0.3);
+}
+.uwa--mehlman_rapid_fire .uwa-pace-right { border-left-color: #efe8d8; }
+.uwa--mehlman_rapid_fire .uwa-pace-note { border-top-color: #f2ecdd; }
+
+/* Fine-tune your plan */
+.uwa--mehlman_rapid_fire .uwa-more { border-color: #ece4d2; }
+.uwa--mehlman_rapid_fire .uwa-more > summary { color: #a5760a; }
+.uwa--mehlman_rapid_fire .uwa-more > summary:hover { background: #fbf6e9; }
+.uwa--mehlman_rapid_fire .uwa-more[open] > summary { border-bottom-color: #f2ecdd; }
+
+/* Subjects: the grid keeps each subject's own colour — that is the point of
+   it — so only the section rule above it is warmed. */
+.uwa--mehlman_rapid_fire .uwa-section-title::after {
+  background: linear-gradient(90deg, #e6dcc4, transparent);
+}

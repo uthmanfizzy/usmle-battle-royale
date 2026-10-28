@@ -3547,7 +3547,7 @@ const UWORLD_MODE_JSON = JSON.stringify([UWORLD_MODE]);
 // Whitelisted, never passed through: this string goes straight into a
 // game_modes containment filter, so an arbitrary one from the query would let a
 // caller scope these endpoints to any tag they liked.
-const QUESTION_BANK_MODE_IDS = ['uworld_adventure', 'saudi_mle', 'ore_lds'];
+const QUESTION_BANK_MODE_IDS = ['uworld_adventure', 'saudi_mle', 'ore_lds', 'mehlman_rapid_fire'];
 
 function modeTagFrom(req) {
   const m = (req.query.mode || '').toString();
@@ -3576,6 +3576,7 @@ const QUESTION_BANK_ACTIVITY_MODE = {
   uworld_adventure: 'question_bank_practice',
   saudi_mle:        'saudi_mle_practice',
   ore_lds:          'ore_lds_practice',
+  mehlman_rapid_fire: 'mehlman_rapid_fire_practice',
 };
 
 // Self-assessment buckets a UWorld Adventure question can be rated into after
@@ -6269,7 +6270,7 @@ function sanitizeQuestionCount(v) {
 
 const STUDY_SESSION_MODES = new Set([
   'solo', 'training_grounds', 'journey', 'question_bank_practice', 'saudi_mle_practice',
-  'ore_lds_practice',
+  'ore_lds_practice', 'mehlman_rapid_fire_practice',
 ]);
 
 app.post('/api/study-session', requireAuth, async (req, res) => {

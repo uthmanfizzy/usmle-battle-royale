@@ -111,7 +111,7 @@ export default function ModeSplit({ onStory, onOnline, onTraining, onBack }) {
 // card). The Tower campaign was removed from this list — TowerMode.jsx and its
 // App.jsx phase/route are untouched (unreachable, not deleted) in case it
 // comes back.
-export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld, onSaudiMLE, course }) {
+export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld, onSaudiMLE, onMehlman, course }) {
   // Dentistry students get the ORE/LDS bank in place of the medical licensing
   // ones; everything else (First Aid, flashcards) is shared, so their menu is
   // the same list with the board-exam campaign swapped. Medicine — and anyone
@@ -282,6 +282,23 @@ export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld, onSaudiMLE, c
 
         {/* The same question-bank machine pointed at the Saudi MLE pool — its
             own route, pace and colours, sharing one component. */}
+        {/* Mehlman Rapid Fire — the same question-bank machine on its own
+            tag and its own yellow. Named for the Mehlman HY material it
+            carries; the questions are short, so the block moves quickly. */}
+        {!isDentistry && (
+        <button className="ms-journey-card ms-journey-card--yellow" onClick={onMehlman}>
+          <div className="ms-journey-art" aria-hidden="true">
+            <span className="ms-journey-art-icon">⚡</span>
+          </div>
+          <div className="ms-journey-body">
+            <span className="ms-journey-name">MEHLMAN RAPID FIRE</span>
+            <span className="ms-journey-sub">
+              Mehlman&apos;s high-yield facts, fired at you one after another.
+            </span>
+          </div>
+        </button>
+        )}
+
         {!isDentistry && (
         <button className="ms-journey-card ms-journey-card--green" onClick={onSaudiMLE}>
           <div className="ms-journey-art" aria-hidden="true">

@@ -659,18 +659,21 @@ export default function UWorldAdventure({ mode = DEFAULT_QUESTION_BANK_MODE }) {
         <div className="uwa-hero-art" aria-hidden="true" style={heroUrl ? { backgroundImage: `url(${heroUrl})` } : undefined}>
           {!heroUrl && (
             <svg className="uwa-ridge" viewBox="0 0 1200 320" preserveAspectRatio="none">
+              {/* The fills are classed rather than hardcoded so a mode can
+                  wear its own sky — each class defaults to the exact navy it
+                  has always had, in UWorldAdventure.css. */}
               <defs>
                 <linearGradient id="uwaSky" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#12284f" />
-                  <stop offset="100%" stopColor="#0a1730" />
+                  <stop className="uwa-ridge-sky-top" offset="0%" />
+                  <stop className="uwa-ridge-sky-bot" offset="100%" />
                 </linearGradient>
               </defs>
               <rect width="1200" height="320" fill="url(#uwaSky)" />
-              <circle cx="960" cy="86" r="42" fill="#4d8bf0" opacity="0.18" />
-              <circle cx="960" cy="86" r="22" fill="#9cc4ff" opacity="0.5" />
-              <path d="M0 232 L170 150 L280 206 L420 116 L560 232 L700 168 L840 236 L1000 150 L1200 226 L1200 320 L0 320 Z" fill="#16305c" opacity="0.85" />
-              <path d="M0 268 L150 210 L300 262 L470 190 L620 268 L780 216 L940 274 L1100 214 L1200 262 L1200 320 L0 320 Z" fill="#1d3f74" opacity="0.75" />
-              <path d="M0 300 L200 262 L380 300 L560 258 L760 302 L960 262 L1200 298 L1200 320 L0 320 Z" fill="#274e8c" opacity="0.6" />
+              <circle className="uwa-ridge-halo" cx="960" cy="86" r="42" opacity="0.18" />
+              <circle className="uwa-ridge-moon" cx="960" cy="86" r="22" opacity="0.5" />
+              <path className="uwa-ridge-far" d="M0 232 L170 150 L280 206 L420 116 L560 232 L700 168 L840 236 L1000 150 L1200 226 L1200 320 L0 320 Z" opacity="0.85" />
+              <path className="uwa-ridge-mid" d="M0 268 L150 210 L300 262 L470 190 L620 268 L780 216 L940 274 L1100 214 L1200 262 L1200 320 L0 320 Z" opacity="0.75" />
+              <path className="uwa-ridge-near" d="M0 300 L200 262 L380 300 L560 258 L760 302 L960 262 L1200 298 L1200 320 L0 320 Z" opacity="0.6" />
             </svg>
           )}
         </div>

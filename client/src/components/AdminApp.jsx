@@ -50,6 +50,7 @@ const GAME_MODES = [
   // UWORLD_MODE below and the game_modes filter on GET /api/questions/unseen.
   { id: 'uworld_adventure', label: 'UWorld Adventure', icon: '🌍', color: '#3f7fd6' },
   { id: 'saudi_mle',        label: 'Saudi MLE',        icon: '🇸🇦', color: '#16895a' },
+  { id: 'mehlman_rapid_fire', label: 'Mehlman Rapid Fire', icon: '⚡', color: '#e2aa20' },
 ];
 
 // The game_modes tag and its matching special folder id are the SAME string;
@@ -57,10 +58,11 @@ const GAME_MODES = [
 const UWORLD_MODE = 'uworld_adventure';
 const ORE_LDS_MODE = 'ore_lds';
 const SAUDI_MLE_MODE = 'saudi_mle';
+const MEHLMAN_MODE = 'mehlman_rapid_fire';
 // Folders that scope by game_modes TAG rather than by subject/category.
 // Anything true of one is true of the other, so they are listed once here
 // instead of being special-cased separately at each site below.
-const QUESTION_BANK_FOLDERS = [UWORLD_MODE, SAUDI_MLE_MODE];
+const QUESTION_BANK_FOLDERS = [UWORLD_MODE, SAUDI_MLE_MODE, MEHLMAN_MODE];
 
 const TOWER_ZONE_LABELS = [
   'Zone 1 — Biochemistry',
@@ -88,6 +90,7 @@ const FOLDERS = [
   { id: 'scan_master',      label: 'Scan Master',                  icon: '🔬', prefix: 'SM',  special: true  },
   { id: 'uworld_adventure', label: 'UWorld Adventure',             icon: '🌍', prefix: null,  special: true  },
   { id: 'saudi_mle',        label: 'Saudi MLE',                    icon: '🇸🇦', prefix: null,  special: true  },
+  { id: 'mehlman_rapid_fire', label: 'Mehlman Rapid Fire',         icon: '⚡', prefix: null,  special: true  },
   { id: 'medathon',         label: 'Medathon',                     icon: '🏁', prefix: null,  special: true  },
   { id: 'cardiology',       label: 'Cardiology',                   icon: '❤️',  prefix: 'CA',  special: false },
   { id: 'neurology',        label: 'Neurology',                    icon: '🧠', prefix: 'NE',  special: false },
@@ -10982,6 +10985,7 @@ const ADMIN_GAMES = [
   { id: 'anking',       icon: '🃏', label: 'AnKing' },
   { id: 'tower',        icon: '🏰', label: 'Tower' },
   { id: 'ore_lds',      icon: '🦷', label: 'ORE / LDS' },
+  { id: 'mehlman',      icon: '⚡', label: 'Mehlman Rapid Fire' },
 ];
 const ADMIN_GAME_KEY = 'mr_admin_game';
 
@@ -11190,6 +11194,15 @@ function GamesPanel({ subjects }) {
             <QuestionBankSubjectsPanel modeId={ORE_LDS_MODE} modeLabel="ORE / LDS" subjects={subjects} />
             <QuestionBankImagesPanel modeId={ORE_LDS_MODE} modeLabel="ORE / LDS" subjects={subjects} />
             <QuestionsPanel subjects={subjects} scopeTag={ORE_LDS_MODE} />
+          </ErrorBoundary>
+        )}
+        {/* Mehlman Rapid Fire: the same three panels as the other banks,
+            pointed at its own tag. */}
+        {game === 'mehlman'      && (
+          <ErrorBoundary>
+            <QuestionBankSubjectsPanel modeId={MEHLMAN_MODE} modeLabel="Mehlman Rapid Fire" subjects={subjects} />
+            <QuestionBankImagesPanel modeId={MEHLMAN_MODE} modeLabel="Mehlman Rapid Fire" subjects={subjects} />
+            <QuestionsPanel subjects={subjects} scopeTag={MEHLMAN_MODE} />
           </ErrorBoundary>
         )}
         {game === 'anking'       && <AnKingAdmin />}

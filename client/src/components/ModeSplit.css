@@ -701,6 +701,22 @@
   color: #74d3a6;
 }
 
+/* Yellow variant — Mehlman Rapid Fire. The title sits on the dark card, so
+   it takes a light wash of the hue rather than the hue itself; the border and
+   glow carry the full colour. */
+.ms-journey-card--yellow {
+  border-color: #e2aa20;
+  box-shadow: 0 0 18px rgba(226, 170, 32, 0.22);
+}
+
+.ms-journey-card--yellow:hover {
+  box-shadow: 0 0 28px rgba(226, 170, 32, 0.48);
+}
+
+.ms-journey-card--yellow .ms-journey-name {
+  color: #f6d375;
+}
+
 
 
 /* ══ Story Mode campaigns ═════════════════════════════════════════════════════
@@ -720,6 +736,7 @@
 .ms-journey-card--orange         { --ms-accent-rgb: 240, 168, 96; }  /* amber — Flashcards */
 .ms-journey-card--blue           { --ms-accent-rgb: 63, 127, 214; }  /* blue — UWorld Adventure */
 .ms-journey-card--green          { --ms-accent-rgb: 31, 158, 106; }  /* green — Saudi MLE */
+.ms-journey-card--yellow         { --ms-accent-rgb: 226, 170, 32; }  /* yellow — Mehlman Rapid Fire */
 
 /* ── Art panel ──────────────────────────────────────────────────────────────
    Was a flat 45° stripe placeholder in near-black, identical on every card bar

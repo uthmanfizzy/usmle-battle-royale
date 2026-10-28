@@ -35,6 +35,8 @@ const MODE_META = {
   hy_flashcards:          { icon: '⭐', label: 'HY Flashcards'     },
   question_bank_practice: { icon: '📚', label: 'UWorld Adventure'  },
   saudi_mle_practice:     { icon: '📗', label: 'Saudi MLE'         },
+  ore_lds_practice:       { icon: '🦷', label: 'ORE / LDS'         },
+  mehlman_rapid_fire_practice: { icon: '⚡', label: 'Mehlman Rapid Fire' },
   solo:                   { icon: '🧠', label: 'Solo Practice'     },
 };
 const modeMeta = (m) =>
