@@ -464,6 +464,10 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   // The shelf: whether THIS question's explanation is kept for later, and
   // what went wrong if the last attempt did not stick. Per question — reset
   // below whenever the question changes.
+  // Which option's picture slot is expanded, by display index. The slot is
+  // a full-width bar and four of them buried the options themselves, so it
+  // collapses to a button on the right of the option and opens on demand.
+  const [optImgOpen, setOptImgOpen] = useState(null);
   const [savedExpl, setSavedExpl] = useState(false);
   const [savedExplBusy, setSavedExplBusy] = useState(false);
   const [savedExplError, setSavedExplError] = useState('');
@@ -1441,6 +1445,8 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
     setExplImages(normalizeExplanationImages(row));
     setDragImgIdx(null);
   }, [qIdx, currentQid]);
+
+  useEffect(() => { setOptImgOpen(null); }, [qIdx, currentQid]);
 
   // The shelf state belongs to the question, not the screen. Questions pulled
   // from the shelf itself arrive already marked, so the button offers to take
@@ -2922,7 +2928,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
               const optImg = optionImageAt(i);
               const optText = stripLetterPrefix(opt);
               return (
-                <div className={`sg-optwrap${optImg ? ' has-img' : ''}`} key={i}>
+                <div className={`sg-optwrap${optImg ? ' has-img' : ''}${optImgOpen === i ? ' is-imgopen' : ''}`} key={i}>
                 <button
                   className={['option-btn', isMine ? 'selected' : '', isRight ? 'correct' : '', isWrong ? 'wrong' : '', isCrossed ? 'is-crossed' : ''].join(' ')}
                   // A struck-out option cannot be answered by accident: the
@@ -2992,7 +2998,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
                     button inside a button is invalid, and more to the point a
                     click meant for the picture slot would answer the question.
                     Only an admin/moderator in dev mode sees any of this. */}
-                {canWriteImages && (
+                {canWriteImages && (optImgOpen === i ? (
                   <div className="sg-optimg-tools">
                     {optImg && (
                       <button
@@ -3021,8 +3027,37 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
                       holding={devImgHolding}
                       onResume={() => { setImgArmHold(false); setImgPicking({}); }}
                     />
+                    <button
+                      type="button"
+                      className="sg-optimg-close"
+                      title="Close the picture slot"
+                      onClick={() => { setOptImgOpen(null); setImgArmHold(false); setImgPicking({}); }}
+                    >
+                      ✕
+                    </button>
                   </div>
-                )}
+                ) : (
+                  // Collapsed: one small button at the end of the option row.
+                  // Opening it also ARMS it, so Ctrl+V works the moment it is
+                  // open rather than needing a second click on the bar.
+                  <button
+                    type="button"
+                    className={`sg-optimg-btn${optImg ? ' has-img' : ''}`}
+                    title={optImg
+                      ? `Option ${label} has a picture — click to change or remove it`
+                      : `Add a picture to option ${label}`}
+                    aria-label={optImg
+                      ? `Change the picture on option ${label}`
+                      : `Add a picture to option ${label}`}
+                    onClick={() => {
+                      setOptImgOpen(i);
+                      setDevImgArmed({ field: optionImageField(i), qid: q?.id ?? null });
+                      setImgArmHold(true);
+                    }}
+                  >
+                    {optImg ? '🖼' : '📷'}
+                  </button>
+                ))}
                 </div>
               );
             })}

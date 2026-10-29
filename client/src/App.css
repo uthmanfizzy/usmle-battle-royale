@@ -4346,7 +4346,6 @@ html[data-study="on"] .solo-body .pause-overlay {
    body just becomes a column when it holds a picture, so the text that goes
    with it (what a screen reader reads, and what the explanation refers to)
    stays with the picture rather than being replaced by it. */
-.sg-optwrap { display: block; }
 .options .sg-optwrap + .sg-optwrap { margin-top: 10px; }
 /* .options is a flex column with its own gap; the wrapper takes the row's
    place in it, so the gap above is only for anywhere that isn't that. */
@@ -4377,8 +4376,50 @@ html[data-study="on"] .solo-body .pause-overlay {
   .opt-img { max-height: 150px; }
 }
 
-/* The author's controls under an option. Dev mode only — nobody playing the
-   game ever sees this row. */
+/* The author's controls for an option's picture. Dev mode only — nobody
+   playing the game ever sees any of this.
+
+   Collapsed by default to a single small button at the END of the option row:
+   the slot is a full-width bar, and four of them stacked under four options
+   pushed the options themselves off the screen. Clicking it opens the real
+   slot underneath, with everything it has always had. */
+.sg-optwrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+/* Open: the bar needs the width, so the row becomes a column. */
+.sg-optwrap.is-imgopen {
+  flex-direction: column;
+  align-items: stretch;
+}
+.sg-optwrap > .option-btn { flex: 1 1 auto; min-width: 0; }
+
+.sg-optimg-btn {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px dashed var(--border);
+  background: transparent;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.55;
+  transition: opacity 0.12s ease, border-color 0.12s ease, background 0.12s ease;
+}
+.sg-optimg-btn:hover { opacity: 1; border-color: var(--gold); background: rgba(245, 197, 24, 0.1); }
+/* An option that already HAS a picture keeps its button visible rather than
+   faded — it is a state worth seeing without hovering. */
+.sg-optimg-btn.has-img {
+  opacity: 1;
+  border-style: solid;
+  border-color: rgba(245, 197, 24, 0.6);
+}
+
 .sg-optimg-tools {
   display: flex;
   align-items: center;
@@ -4386,7 +4427,20 @@ html[data-study="on"] .solo-body .pause-overlay {
   margin: 4px 0 0 38px;
 }
 .sg-optimg-tools .dev-imgslot-wrap { flex: 1 1 auto; min-width: 0; }
-.sg-optimg-del {
+.sg-optimg-del,
+.sg-optimg-close {
   position: static;
   flex: 0 0 auto;
 }
+.sg-optimg-close {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+}
+.sg-optimg-close:hover { border-color: var(--gold); }
