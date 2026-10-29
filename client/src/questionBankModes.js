@@ -65,6 +65,11 @@ export const QUESTION_BANK_MODES = [
     tagline: 'Mehlman\u2019s high-yield facts, fired at you one after another.',
     paceScope: '__mehlman_rapid_fire__',
     accentRgb: '226, 170, 32',   // rapid-fire yellow
+    // Rapid fire means rapid: 30 seconds a question instead of the exam skin's
+    // 70. The name is a promise about the pace, and Mehlman's facts are short
+    // enough to answer in that — a minute and a half would make it the same
+    // mode in a different colour.
+    questionSeconds: 30,
     activityMode: 'mehlman_rapid_fire_practice',
     // No published total: the plan tracks the live count and grows as questions
     // are added, the way Saudi MLE and ORE / LDS started.

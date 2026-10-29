@@ -394,8 +394,14 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   const JOURNEY_EXPLANATION_BONUS_S = 20;
   // UWorld Adventure gets 10s more on both phases than the exam skin's base.
   const UWA_BONUS_S = (uworldSkin && (!examTheme || examTheme.id === 'uworld_adventure')) ? 10 : 0;
+  // A bank may set its own question clock — Mehlman Rapid Fire does. Only
+  // the QUESTION is shortened: the explanation keeps the skin's own time,
+  // because reading an explanation at speed is not what rapid fire means.
+  const bankQuestionSeconds = (uworldSkin && Number(examTheme?.questionSeconds) > 0)
+    ? Number(examTheme.questionSeconds)
+    : null;
   const defaultTimer = (uworldSkin
-    ? 70 + UWA_BONUS_S
+    ? (bankQuestionSeconds ?? (70 + UWA_BONUS_S))
     : isHardMode
       ? (settings.hardModeTimer || 30)
       : (settings.easyModeTimer || settings.timerDefault || 20)

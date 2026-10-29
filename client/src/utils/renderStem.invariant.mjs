@@ -65,6 +65,22 @@ const SAMPLES = [
   '| Option | Type 1 | Type 2 | Basement membrane | Fibroblasts |\n| A | Decreased | Decreased | Intact | Increased |\n| B | Decreased | Increased | Abnormal | Increased |',
   // FLATTENED table (run-on recovery) — prompt + table on one line
   'Which option is correct? | Option | T1 | T2 | | A | Decreased | Intact | | B | Increased | Abnormal |',
+  // ── Inline markup ─────────────────────────────────────────────────────────
+  // The markers must vanish from BOTH sides together, or every highlight
+  // anchored to a marked-up stem silently moves.
+  'A patient is diagnosed with **aortic dissection**. Most likely underlying cause?',
+  '**Bold at the very start** and a tail of prose.',
+  'Ends with the emphasis **right here**',
+  'Mixed **bold** and *italic* and __underline__ in one line.',
+  'Two **separate** bold **runs** in a line.',
+  '**Bold across\na line break** continues.',
+  // Not markup: arithmetic and a bare star must survive untouched.
+  'Calculate 5*5 and 3*3 for the dose.',
+  'A lone * asterisk and an unclosed **pair.',
+  'Snake_case_identifier stays as written.',
+  // Markup inside the other block types.
+  'Labs follow:\nHemoglobin: **7.8**\nPlatelets: **50**\nWhat is the diagnosis?',
+  'Compare:\n| Drug | **Effect** |\n| A | **Increases** cAMP |\n| B | Blocks Na |\nWhich is first-line?',
 ];
 
 let pass = 0, fail = 0;

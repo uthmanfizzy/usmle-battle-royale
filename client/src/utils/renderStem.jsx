@@ -247,6 +247,58 @@ export function segmentStem(text) {
   return out;
 }
 
+// ── Inline markup (**bold**, *italic*, __underline__) ───────────────────────
+//
+// The explanation has parsed these since it was written; the stem never did, so
+// an author who typed **aortic dissection** got the asterisks on screen.
+//
+// Parsed HERE, inside the offset model, rather than at render time — that is
+// what keeps the stem's one hard invariant true. toStemVisibleText and
+// renderStem both read token.text, so stripping the markers in mk() changes
+// BOTH together and the rendered textContent still equals the claimed visible
+// string. Parsing in the renderer alone would have silently broken every
+// highlight anchor in the app.
+//
+// The markers stop being visible characters, so a highlight stored against a
+// marked-up stem before this shifts by the width of its markers. The resolver
+// already drops a highlight whose context no longer matches, which is the
+// right outcome: approximately-placed highlights are worse than absent ones.
+//
+// Colour tags ([red]…[/red]) are deliberately NOT handled here. Colour in a
+// stem is the highlighter's, and a second source of colour would fight the
+// hl-* marks for the same characters.
+//
+// No lookbehind anywhere: Safari only learned it in 16.4, and an unsupported
+// regex throws when the module is PARSED, which would take the whole game down
+// rather than degrade.
+const INLINE_RE = /(\*\*)([\s\S]+?)\*\*|(__)([\s\S]+?)__|(^|[^\w*])\*([^*\n]+?)\*(?![\w*])/g;
+
+// Raw string -> { text: what the student sees, marks: local-offset spans }.
+// The italic form needs its opening * to sit at a word boundary, so "5*5 and
+// 3*3" stays arithmetic instead of turning into one italic run.
+export function parseStemInline(raw) {
+  const s = String(raw ?? '');
+  if (!s || (s.indexOf('*') < 0 && s.indexOf('_') < 0)) return { text: s, marks: [] };
+  let text = '';
+  const marks = [];
+  let last = 0;
+  let m;
+  INLINE_RE.lastIndex = 0;
+  while ((m = INLINE_RE.exec(s)) !== null) {
+    text += s.slice(last, m.index);
+    let inner, kind;
+    if (m[2] !== undefined) { inner = m[2]; kind = 'bold'; }
+    else if (m[4] !== undefined) { inner = m[4]; kind = 'underline'; }
+    else { text += m[5] || ''; inner = m[6]; kind = 'italic'; }
+    const start = text.length;
+    text += inner;
+    marks.push({ start, end: text.length, [kind]: true });
+    last = m.index + m[0].length;
+  }
+  text += s.slice(last);
+  return { text, marks };
+}
+
 // ── Offset model (the SINGLE SOURCE shared by toStemVisibleText + renderStem) ──
 //
 // buildStemModel walks segmentStem and assigns GLOBAL VISIBLE OFFSETS to every text
@@ -260,7 +312,15 @@ export function segmentStem(text) {
 export function buildStemModel(text) {
   const segs = segmentStem(text);
   let offset = 0;
-  const mk = (s) => { const tok = { text: s, start: offset, end: offset + s.length }; offset += s.length; return tok; };
+  // Markers are stripped HERE, so every offset downstream — visible text,
+  // highlight anchors, the admin text-cut — counts the same characters the
+  // student actually sees.
+  const mk = (s) => {
+    const { text: vis, marks } = parseStemInline(s);
+    const tok = { text: vis, start: offset, end: offset + vis.length, marks };
+    offset += vis.length;
+    return tok;
+  };
   const blocks = [];
   for (const seg of segs) {
     if (seg.type === 'prose') {
@@ -297,38 +357,65 @@ export function toStemVisibleText(text) {
   return s;
 }
 
-// Slice a single text token by the (sorted, non-overlapping, multi-attribute)
-// segments, yielding pieces { text, color, bold, italic }.
-function sliceToken(tok, segments) {
-  const pieces = [];
-  let pos = tok.start;
-  for (const seg of segments) {
-    if (seg.end <= tok.start || seg.start >= tok.end) continue;
-    const s = Math.max(seg.start, tok.start);
-    const e = Math.min(seg.end, tok.end);
-    if (s > pos) pieces.push({ text: tok.text.slice(pos - tok.start, s - tok.start) });
-    pieces.push({ text: tok.text.slice(s - tok.start, e - tok.start), color: seg.color, bold: seg.bold, italic: seg.italic });
-    pos = e;
-  }
-  if (pos < tok.end) pieces.push({ text: tok.text.slice(pos - tok.start) });
-  return pieces;
-}
-
 function renderPiece(p, key) {
   let node = p.text;
+  if (p.underline) node = <u>{node}</u>;
   if (p.italic) node = <em>{node}</em>;
   if (p.bold) node = <strong style={{ fontWeight: 700 }}>{node}</strong>;
   if (p.color) return <mark key={key} className={`hl hl-${p.color}`}>{node}</mark>;
-  if (p.bold || p.italic) return <React.Fragment key={key}>{node}</React.Fragment>;
+  if (p.bold || p.italic || p.underline) return <React.Fragment key={key}>{node}</React.Fragment>;
   return node;
 }
 
-// Render a token's text. With no covering segments returns the BARE string, so the
-// no-highlight path is byte-identical to the original renderer.
+// Render a token's text, with the author's own markup and the reader's
+// highlights laid over the same characters.
+//
+// Per character rather than by slicing ranges: a highlight and a bold run can
+// start and end anywhere relative to each other, and two overlapping range
+// lists cannot be walked in one pass without inventing a rule for which one
+// wins. Each character simply collects every attribute covering it, and equal
+// neighbours are then joined back up. Tokens are one line long, so this is
+// cheap.
+//
+// With nothing covering it the BARE string comes back, so the common path is
+// byte-identical to the original renderer.
 function renderTokenText(tok, segments, keyBase) {
-  if (!segments || !segments.length) return tok.text;
-  const pieces = sliceToken(tok, segments);
-  if (pieces.length === 1 && !pieces[0].color && !pieces[0].bold && !pieces[0].italic) return tok.text;
+  const marks = tok.marks || [];
+  const covering = (segments || []).filter(seg => seg.end > tok.start && seg.start < tok.end);
+  if (!covering.length && !marks.length) return tok.text;
+
+  const n = tok.text.length;
+  const attr = [];
+  for (let i = 0; i < n; i++) attr.push({ color: undefined, bold: false, italic: false, underline: false });
+  // Highlights carry global offsets; the author's marks are local to the token.
+  for (const seg of covering) {
+    const from = Math.max(0, seg.start - tok.start);
+    const to   = Math.min(n, seg.end - tok.start);
+    for (let i = from; i < to; i++) {
+      if (seg.color) attr[i].color = seg.color;
+      if (seg.bold) attr[i].bold = true;
+      if (seg.italic) attr[i].italic = true;
+    }
+  }
+  for (const mk of marks) {
+    for (let i = Math.max(0, mk.start); i < Math.min(n, mk.end); i++) {
+      if (mk.bold) attr[i].bold = true;
+      if (mk.italic) attr[i].italic = true;
+      if (mk.underline) attr[i].underline = true;
+    }
+  }
+
+  const same = (a, b) => a.color === b.color && a.bold === b.bold
+    && a.italic === b.italic && a.underline === b.underline;
+  const pieces = [];
+  for (let i = 0; i < n; ) {
+    let j = i + 1;
+    while (j < n && same(attr[i], attr[j])) j++;
+    pieces.push({ ...attr[i], text: tok.text.slice(i, j) });
+    i = j;
+  }
+  if (pieces.length === 1 && !pieces[0].color && !pieces[0].bold
+      && !pieces[0].italic && !pieces[0].underline) return tok.text;
   return pieces.map((p, i) => renderPiece(p, `${keyBase}-${i}`));
 }
 
