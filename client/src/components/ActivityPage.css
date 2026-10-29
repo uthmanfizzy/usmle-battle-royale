@@ -668,3 +668,51 @@
   color: rgba(243, 241, 238, 0.5);
   white-space: nowrap;
 }
+
+
+/* ── Per-bank summary ────────────────────────────────────────────────────
+   One line per question bank played that day — how long went into it and how
+   many questions came out. Separate from the summary strip above, which is
+   the whole day: a question count sitting up there would be read as the
+   day's total rather than one bank's. */
+.da-banks {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.da-bank {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  padding: 10px 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  font-size: 13px;
+  color: var(--mv-text-dim-45);
+}
+
+.da-bank-name {
+  font-weight: 700;
+  color: var(--mv-text);
+  /* Pushes the figures to the right on a wide screen; harmless once the row
+     wraps on a narrow one. */
+  margin-right: auto;
+}
+
+.da-bank-stat strong { color: var(--mv-text); font-size: 15px; }
+
+/* The caveat, when some sessions predate the question count and cannot be
+   added up. Quiet on purpose — it qualifies the number, it is not news. */
+.da-bank-note {
+  font-size: 11.5px;
+  opacity: 0.75;
+}
+
+@media (max-width: 640px) {
+  .da-bank { gap: 4px 14px; }
+  .da-bank-name { flex: 1 1 100%; margin-right: 0; }
+}

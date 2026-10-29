@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { getToken, fetchMe, getCachedUser } from '../auth';
 import { getMasteryColor } from '../utils/masteryColors';
+import { QUESTION_BANK_MODES } from '../questionBankModes';
 import './ActivityPage.css';
 
 const SERVER_URL = 'https://usmle-battle-royale-production.up.railway.app';
@@ -89,6 +90,13 @@ function formatLongDuration(totalSeconds) {
   if (m === 0) return plural(h, 'hour');
   return `${plural(h, 'hour')} and ${plural(m, 'minute')}`;
 }
+
+// Which question banks exist, and what each one logs its sessions under.
+// Read from the modes config rather than listed here, so a new bank gets its
+// own line on this page for free — the way Mehlman Rapid Fire just did.
+const BANK_SUMMARY_MODES = QUESTION_BANK_MODES.map(m => ({
+  mode: m.activityMode, label: m.label, icon: m.icon,
+}));
 
 const todayUTC = () => new Date().toISOString().slice(0, 10);
 
@@ -529,6 +537,28 @@ export default function ActivityPage() {
         ? `${s.journey_chapter_name || ''}|${s.journey_level_name}`
         : `id:${s.id}`),
   ).size;
+  // Each question bank played today, with its own time and its own question
+  // count. UWorld Adventure is the one that prompted this, but the banks are
+  // one family running on one machine, so a day that mixed two of them gets a
+  // line for each rather than one figure that silently merges them.
+  //
+  // questions_answered is NULL on every session recorded before the column
+  // existed, and summing those as zero would quietly understate the day. So
+  // only sessions that actually carry a count are added up, and the line says
+  // how many it could see when that is not all of them.
+  const bankSummaries = BANK_SUMMARY_MODES.map(({ mode, label, icon }) => {
+    const rows = sessions.filter(s => s.game_mode === mode);
+    if (!rows.length) return null;
+    const counted = rows.filter(s => Number(s.questions_answered) > 0);
+    return {
+      mode, label, icon,
+      seconds: rows.reduce((a, s) => a + (Number(s.duration_seconds) || 0), 0),
+      questions: counted.reduce((a, s) => a + Number(s.questions_answered), 0),
+      counted: counted.length,
+      total: rows.length,
+    };
+  }).filter(Boolean);
+
   const timeline = buildTimeline(sessions);
   const breaks = timeline.filter(i => i.type === 'gap');
   const balance = analyseBalance(timeline);
@@ -630,6 +660,38 @@ export default function ActivityPage() {
                 </>
               )}
             </div>
+
+            {/* A line per question bank played today. Its own band rather
+                than more chips in the strip above: those are the whole day's
+                totals, and "42 questions" sitting beside them would read as
+                the day's, not the bank's. */}
+            {bankSummaries.length > 0 && (
+              <div className="da-banks">
+                {bankSummaries.map(b => (
+                  <div className="da-bank" key={b.mode}>
+                    <span className="da-bank-name">
+                      <span aria-hidden="true">{b.icon}</span> {b.label}
+                    </span>
+                    <span className="da-bank-stat">
+                      <strong>{formatLongDuration(b.seconds)}</strong> active
+                    </span>
+                    {/* Omitted entirely when nothing could be counted — a
+                        "0 questions" reading on a day plainly spent in the
+                        bank is worse than saying nothing. */}
+                    {b.counted > 0 && (
+                      <span className="da-bank-stat">
+                        <strong>{b.questions}</strong> question{b.questions === 1 ? '' : 's'}
+                        {b.counted < b.total && (
+                          <span className="da-bank-note">
+                            {' '}· counted from {b.counted} of {b.total} session{b.total === 1 ? '' : 's'}
+                          </span>
+                        )}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
 
             {balance.verdict && (
               <div className={`da-balance da-balance--${balance.verdict}`}>
