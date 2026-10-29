@@ -5242,34 +5242,9 @@ button.settings-btn img,
   background: linear-gradient(90deg, rgba(232, 176, 75, 0.55), rgba(232, 176, 75, 0));
 }
 
-.dash-strap {
-  display: none;
-  align-items: center;
-  gap: 10px;
-  padding-left: 18px;
-  margin-left: 4px;
-  border-left: 1px solid rgba(255, 255, 255, 0.14);
-  color: rgba(232, 176, 75, 0.72);
-}
-.dash-strap-pulse { width: 54px; height: 14px; flex-shrink: 0; }
-.dash-strap-text {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  font-family: var(--mv-font-display, 'Cinzel', serif);
-  font-size: 10.5px;
-  font-weight: 700;
-  letter-spacing: 0.2em;
-  line-height: 1.35;
-  text-transform: uppercase;
-  text-align: right;
-  color: rgba(243, 241, 238, 0.82);
-}
-.dash-strap-text em { font-style: normal; color: rgba(232, 176, 75, 0.85); }
-
-@media (min-width: 1024px) {
-  .dash-strap { display: flex; }
-}
+/* The strapline that used to sit here ("Better doctors. A brighter future.")
+   was the last thing between the icon bubbles and the right edge; with it gone
+   the group's own justify-self: end puts them there, so nothing replaces it. */
 @media (max-width: 600px) {
   .dash-dock-head { margin-bottom: 8px; }
   .dash-dock-rule { flex-basis: 24px; }

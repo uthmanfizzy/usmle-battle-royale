@@ -1258,23 +1258,6 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
               )}
               </div>
 
-              {/* The strapline, opposite the icon bubbles. Desktop only: on a
-                  phone the header is already two rows of chrome. */}
-              <div className="dash-strap" aria-hidden="true">
-                <svg className="dash-strap-pulse" viewBox="0 0 64 16" fill="none">
-                  <path
-                    d="M0 8h14l4-6 5 12 5-9 4 3h32"
-                    stroke="currentColor"
-                    strokeWidth="1.6"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-                <span className="dash-strap-text">
-                  Better doctors.
-                  <em>A brighter future.</em>
-                </span>
-              </div>
             </div>
           </div>
         </div>
