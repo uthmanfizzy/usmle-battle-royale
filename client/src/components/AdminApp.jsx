@@ -8,6 +8,7 @@ import { parseRichText } from '../utils/parseRichText';
 import { parseShortUrl, thumbnailUrl as shortThumbnailUrl, PLATFORM_LABELS, PLATFORM_ICONS } from '../utils/shortEmbeds';
 import { JOURNEY_SUBJECTS, JOURNEY_SECTIONS } from '../journeySubjects';
 import { normalizeExplanationImages, MAX_EXPLANATION_IMAGES } from '../utils/explanationImages';
+import { QUESTION_BANK_MODES } from '../questionBankModes';
 
 const API = 'https://usmle-battle-royale-production.up.railway.app';
 const AUTH_KEY = 'usmle_admin_session';
@@ -9615,40 +9616,14 @@ function SettingsPanel() {
             value={settings.suddenDeathTimer}
             onChange={v => upd('suddenDeathTimer', v)} />
 
-          <SliderRow label="Tower Floor Lives"
-            desc="Lives per floor in The Tower mode (normal and challenge floors)"
-            min={1} max={5} step={1} unit="lives"
-            value={settings.towerFloorLives}
-            onChange={v => upd('towerFloorLives', v)} />
-
-          <div className="ap-srow">
-            <div className="ap-srow-info">
-              <div className="ap-srow-label">Boss Floor Tolerance</div>
-              <div className="ap-srow-desc">How many wrong answers are allowed before failing a boss floor</div>
-            </div>
-            <div className="ap-srow-ctrl">
-              <div className="ap-chip-group">
-                <button
-                  className={`ap-chip ${settings.bossTolerance === 0 ? 'active' : ''}`}
-                  onClick={() => upd('bossTolerance', 0)}
-                >
-                  Zero mistakes
-                </button>
-                <button
-                  className={`ap-chip ${settings.bossTolerance === 1 ? 'active' : ''}`}
-                  onClick={() => upd('bossTolerance', 1)}
-                >
-                  Allow 1 mistake
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <SliderRow label="Journey Unlock Threshold"
-            desc="First Aid Journey: % score needed to complete a level and unlock the next"
-            min={50} max={100} step={5} unit="%"
-            value={settings.journeyThreshold}
-            onChange={v => upd('journeyThreshold', v)} />
+          {/* The Tower's lives and boss tolerance and the Journey's pass mark
+              have moved to those modes' own tabs under Games. They were in
+              this section AND in "Tower / Story Mode" below, so whichever was
+              saved last silently won. */}
+          <p className="ap-srow-desc" style={{ padding: '6px 2px 0' }}>
+            The Tower&apos;s lives and boss tolerance, and the Journey&apos;s pass mark,
+            are now under Games → that mode.
+          </p>
         </div>
 
         <SectionSaveBtn saving={saving.lives} saved={saved.lives} error={saveErr.lives} onSave={() => saveSection('lives')} />
@@ -10177,58 +10152,14 @@ function SettingsPanel() {
             onChange={v => upd('modesTower', v)} />
 
           <div className="ap-srow-divider">Floor Structure</div>
-          <SliderRow label="Questions per Normal Floor"
-            desc="How many correct answers are required to clear a standard floor"
-            min={1} max={10} step={1} unit="questions"
-            value={settings.towerQuestionsNormal}
-            onChange={v => upd('towerQuestionsNormal', v)} />
-
-          <SliderRow label="Questions per Challenge Floor"
-            desc="Correct answers required on every 5th floor (challenge)"
-            min={3} max={15} step={1} unit="questions"
-            value={settings.towerQuestionsChallenge}
-            onChange={v => upd('towerQuestionsChallenge', v)} />
-
-          <SliderRow label="Questions per Boss Floor"
-            desc="Correct answers required on every 10th floor (boss) — all must be correct"
-            min={5} max={20} step={1} unit="questions"
-            value={settings.towerQuestionsBoss}
-            onChange={v => upd('towerQuestionsBoss', v)} />
-
-          <SliderRow label="Lives per Floor"
-            desc="How many lives players start with on each normal and challenge floor"
-            min={1} max={5} step={1} unit="lives"
-            value={settings.towerFloorLives}
-            onChange={v => upd('towerFloorLives', v)} />
-
-          <div className="ap-srow">
-            <div className="ap-srow-info">
-              <div className="ap-srow-label">Boss Floor Tolerance</div>
-              <div className="ap-srow-desc">How many wrong answers are allowed before failing a boss floor</div>
-            </div>
-            <div className="ap-srow-ctrl">
-              <div className="ap-chip-group">
-                <button
-                  className={`ap-chip ${settings.bossTolerance === 0 ? 'active' : ''}`}
-                  onClick={() => upd('bossTolerance', 0)}
-                >
-                  Zero mistakes
-                </button>
-                <button
-                  className={`ap-chip ${settings.bossTolerance === 1 ? 'active' : ''}`}
-                  onClick={() => upd('bossTolerance', 1)}
-                >
-                  Allow 1 mistake
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <SliderRow label="Question Timer per Floor"
-            desc="Seconds allowed per question inside The Tower"
-            min={10} max={60} step={5} unit="sec"
-            value={settings.towerQuestionTimer}
-            onChange={v => upd('towerQuestionTimer', v)} />
+          {/* Floors, lives, tolerance and the clock are set in Games → Tower,
+              beside the floor editor they are always edited with. What is left
+              here is the Tower's XP, its floor count, its intervals and its
+              zones, which nothing else carries yet. */}
+          <p className="ap-srow-desc" style={{ padding: '6px 2px 0' }}>
+            Questions per floor, lives, boss tolerance and the question timer are
+            under Games → Tower.
+          </p>
 
           <div className="ap-srow">
             <div className="ap-srow-info">
@@ -11006,6 +10937,284 @@ function JourneyPageEditor() {
   );
 }
 
+/**
+ * A game mode's OWN settings, shown in its own tab under Games.
+ *
+ * The general ones — default timers, lobby sizes, XP, maintenance — stay in
+ * Game Settings. What moves here is anything that only means something for
+ * one mode: the Journey's pass mark, the Tower's floors, a question bank's
+ * clocks. Several of these were in Game Settings twice over (the Tower's
+ * lives and the Journey's threshold appeared in both "Lives & Difficulty" and
+ * "Tower / Story Mode"), which is its own argument for one home each.
+ *
+ * Loads and saves /admin/settings like the Settings tab does, but POSTs ONLY
+ * the keys it owns. The endpoint merges per key, so two admins on two tabs
+ * cannot overwrite each other's unrelated changes — which a whole-object POST
+ * from a stale load would do.
+ */
+// What a bank's clocks are when nobody has overridden them, so the control can
+// show the real number rather than an empty slider. Read from the modes config
+// itself; the +10 is UWorld Adventure's own bonus in SoloGame, mirrored here.
+const QUESTION_BANK_FALLBACK = Object.fromEntries(QUESTION_BANK_MODES.map(m => {
+  const bonus = m.id === 'uworld_adventure' ? 10 : 0;
+  return [m.id, {
+    question: m.questionSeconds ?? (70 + bonus),
+    explanation: m.explanationSeconds ?? (75 + bonus),
+  }];
+}));
+
+const GAME_MODE_SETTINGS = {
+  journey: {
+    title: 'First Aid Journey',
+    icon: '\u{1f6d1}',
+    subtitle: 'How a level is passed. Chapter and level content is below.',
+    fields: [
+      { key: 'journeyThreshold', label: 'Level Pass Mark',
+        desc: 'Percentage a player must score to complete a level (>= passes)',
+        min: 0, max: 100, step: 5, unit: '%' },
+    ],
+  },
+  medathon: {
+    title: 'Medathon',
+    icon: '\u{1f3c1}',
+    subtitle: 'The marathon\u2019s own clock.',
+    fields: [
+      { key: 'timerMedathon', label: 'Question Timer',
+        desc: 'Seconds per question in the Medathon',
+        min: 5, max: 60, step: 1, unit: 'sec' },
+    ],
+  },
+  tower: {
+    title: 'The Tower',
+    icon: '\u{1f3f0}',
+    subtitle: 'Floors, lives and the clock. These used to live in two places in Game Settings.',
+    fields: [
+      { key: 'towerQuestionsNormal', label: 'Questions per Normal Floor',
+        desc: 'Correct answers required to clear a standard floor',
+        min: 1, max: 10, step: 1, unit: 'questions' },
+      { key: 'towerQuestionsChallenge', label: 'Questions per Challenge Floor',
+        desc: 'Correct answers required on every 5th floor',
+        min: 3, max: 15, step: 1, unit: 'questions' },
+      { key: 'towerQuestionsBoss', label: 'Questions per Boss Floor',
+        desc: 'Correct answers required on every 10th floor',
+        min: 5, max: 20, step: 1, unit: 'questions' },
+      { key: 'towerFloorLives', label: 'Lives per Floor',
+        desc: 'Lives a player starts each normal and challenge floor with',
+        min: 1, max: 5, step: 1, unit: 'lives' },
+      { key: 'towerQuestionTimer', label: 'Question Timer',
+        desc: 'Seconds allowed per question inside the Tower',
+        min: 10, max: 60, step: 5, unit: 'sec' },
+      { key: 'bossTolerance', label: 'Boss Floor Tolerance',
+        desc: 'How many wrong answers are allowed before failing a boss floor',
+        type: 'choice',
+        options: [{ value: 0, label: 'Zero mistakes' }, { value: 1, label: 'Allow 1 mistake' }] },
+    ],
+  },
+  hyflashcards: {
+    title: 'HY Flashcards',
+    icon: '\u{1f3b4}',
+    subtitle: 'Nothing to configure yet \u2014 the deck is its content, below.',
+    fields: [],
+  },
+  anking: {
+    title: 'AnKing',
+    icon: '\u{1f0cf}',
+    subtitle: 'Nothing to configure yet \u2014 the deck is its content, below.',
+    fields: [],
+  },
+};
+
+// A slider for a value that may simply not be set, where "not set" is a real
+// state rather than a number. Shows what the player actually gets while no
+// override exists, and gives it back when Default is clicked.
+function OverrideSliderRow({ label, desc, min, max, step, unit, fallback, value, onChange, onClear }) {
+  const isSet = Number.isFinite(value) && value > 0;
+  const shown = isSet ? value : fallback;
+  return (
+    <div className="ap-srow">
+      <div className="ap-srow-info">
+        <div className="ap-srow-label">{label}</div>
+        <div className="ap-srow-desc">
+          {desc}
+          {!isSet && <span className="ap-srow-note"> · using the default ({fallback}s)</span>}
+        </div>
+      </div>
+      <div className="ap-srow-ctrl">
+        <div className="ap-slider-ctrl">
+          <input
+            type="range"
+            min={min} max={max} step={step} value={shown}
+            onChange={e => onChange(Number(e.target.value))}
+            className="ap-range"
+          />
+          <div className="ap-range-val">
+            <input
+              type="number"
+              min={min} max={max} value={shown}
+              onChange={e => {
+                const v = Math.max(min, Math.min(max, Number(e.target.value)));
+                if (!isNaN(v)) onChange(v);
+              }}
+              className="ap-range-num"
+            />
+            <span className="ap-range-unit">{unit}</span>
+          </div>
+          <button
+            type="button"
+            className={`ap-chip${isSet ? '' : ' active'}`}
+            onClick={onClear}
+            title="Go back to this bank's built-in timing"
+          >
+            Default
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function GameModeSettingsPanel({ gameId, bankModeId, bankLabel }) {
+  const spec = GAME_MODE_SETTINGS[gameId];
+  const [settings, setSettings] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [err, setErr] = useState('');
+
+  useEffect(() => {
+    let alive = true;
+    apiCall('/admin/settings')
+      .then(r => r.json())
+      .then(raw => { if (alive) setSettings(raw || {}); })
+      .catch(() => { if (alive) setErr('Could not load settings.'); });
+    return () => { alive = false; };
+  }, []);
+
+  if (!spec && !bankModeId) return null;
+
+  const upd = (k, v) => setSettings(s => ({ ...s, [k]: v }));
+
+  // The bank's two clocks live inside one object, keyed by mode.
+  const timers = (settings && settings.questionBankTimers) || {};
+  const bankRow = (bankModeId && timers[bankModeId]) || {};
+  const setBank = (field, v) => setSettings(s => {
+    const next = { ...((s && s.questionBankTimers) || {}) };
+    const row = { ...(next[bankModeId] || {}) };
+    if (v === null) delete row[field];
+    else row[field] = v;
+    if (Object.keys(row).length) next[bankModeId] = row;
+    else delete next[bankModeId];
+    return { ...s, questionBankTimers: next };
+  });
+
+  async function save() {
+    setSaving(true); setErr(''); setSaved(false);
+    try {
+      // ONLY this panel's keys — see the note above GAME_MODE_SETTINGS.
+      const body = {};
+      for (const f of (spec?.fields || [])) body[f.key] = settings[f.key];
+      if (bankModeId) body.questionBankTimers = settings.questionBankTimers || {};
+      const res = await apiCall('/admin/settings', { method: 'POST', body: JSON.stringify(body) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Save failed');
+      setSettings(data);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch (e) {
+      setErr(e.message || 'Save failed');
+      setTimeout(() => setErr(''), 5000);
+    }
+    setSaving(false);
+  }
+
+  const title = spec?.title || bankLabel;
+  const icon = spec?.icon || '\u23f1\ufe0f';
+  const subtitle = spec?.subtitle
+    || 'This bank\u2019s own clocks. Leave either on Default and it uses the built-in timing.';
+
+  return (
+    <div className="ap-settings-section">
+      <div className="ap-section-hd">
+        <div className="ap-section-icon">{icon}</div>
+        <div>
+          <h2 className="ap-section-title-lg">{title} Settings</h2>
+          <p className="ap-section-subtitle">{subtitle}</p>
+        </div>
+      </div>
+
+      {!settings ? (
+        <p className="ap-section-subtitle" style={{ padding: '8px 0' }}>
+          {err || 'Loading…'}
+        </p>
+      ) : (
+        <>
+          <div className="ap-settings-rows">
+            {(spec?.fields || []).map(f => (
+              f.type === 'choice' ? (
+                <div className="ap-srow" key={f.key}>
+                  <div className="ap-srow-info">
+                    <div className="ap-srow-label">{f.label}</div>
+                    <div className="ap-srow-desc">{f.desc}</div>
+                  </div>
+                  <div className="ap-srow-ctrl">
+                    <div className="ap-chip-group">
+                      {f.options.map(o => (
+                        <button
+                          key={o.value}
+                          type="button"
+                          className={`ap-chip ${settings[f.key] === o.value ? 'active' : ''}`}
+                          onClick={() => upd(f.key, o.value)}
+                        >
+                          {o.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <SliderRow key={f.key} label={f.label} desc={f.desc}
+                  min={f.min} max={f.max} step={f.step} unit={f.unit}
+                  value={settings[f.key] ?? f.min}
+                  onChange={v => upd(f.key, v)} />
+              )
+            ))}
+
+            {bankModeId && (
+              <>
+                <OverrideSliderRow
+                  label="Question Timer"
+                  desc={`Seconds per question in ${bankLabel}`}
+                  min={5} max={300} step={5} unit="sec"
+                  fallback={QUESTION_BANK_FALLBACK[bankModeId]?.question ?? 70}
+                  value={bankRow.questionSeconds}
+                  onChange={v => setBank('questionSeconds', v)}
+                  onClear={() => setBank('questionSeconds', null)} />
+                <OverrideSliderRow
+                  label="Explanation Timer"
+                  desc={`Seconds on the explanation before the question closes`}
+                  min={5} max={300} step={5} unit="sec"
+                  fallback={QUESTION_BANK_FALLBACK[bankModeId]?.explanation ?? 75}
+                  value={bankRow.explanationSeconds}
+                  onChange={v => setBank('explanationSeconds', v)}
+                  onClear={() => setBank('explanationSeconds', null)} />
+              </>
+            )}
+
+            {!bankModeId && !(spec?.fields || []).length && (
+              <p className="ap-section-subtitle" style={{ padding: '4px 0' }}>
+                This mode has no settings of its own yet.
+              </p>
+            )}
+          </div>
+
+          {(bankModeId || (spec?.fields || []).length > 0) && (
+            <SectionSaveBtn saving={saving} saved={saved} error={err} onSave={save} />
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 // ── Games ─────────────────────────────────────────────────────────────────────
 // One nav entry for every game mode's admin. Each option renders the same panel
 // its old top-level tab did — nothing about the panels themselves changed. The
@@ -11193,54 +11402,115 @@ function GamesPanel({ subjects }) {
       </div>
 
       <div className="ap-games-body">
-        {game === 'journey'      && <JourneyPanel />}
+        {game === 'journey'      && (
+          <>
+            <ErrorBoundary>
+              <GameModeSettingsPanel gameId="journey" />
+            </ErrorBoundary>
+            <ErrorBoundary>
+            <JourneyPanel />
+          </ErrorBoundary>
+          </>
+        )}
         {/* Medathon: the systems summary over the same scoped Question
             Manager the other banks use, so adding and editing questions is
             the one surface everywhere. */}
         {game === 'medathon'     && (
-          <ErrorBoundary>
+          <>
+            <ErrorBoundary>
+              <GameModeSettingsPanel gameId="medathon" />
+            </ErrorBoundary>
+            <ErrorBoundary>
             <MedathonSystemsPanel />
             <QuestionsPanel subjects={subjects} scopeTag="medathon" />
           </ErrorBoundary>
+          </>
         )}
         {/* Same panel as Question Manager, scoped to the bank's tag: its sidebar
             becomes one folder per SUBJECT holding that subject's tagged
             questions, so the whole question CRUD surface comes along. */}
         {game === 'saudi_mle'    && (
-          <ErrorBoundary>
+          <>
+            <ErrorBoundary>
+              <GameModeSettingsPanel bankModeId={SAUDI_MLE_MODE} bankLabel="Saudi MLE" />
+            </ErrorBoundary>
+            <ErrorBoundary>
             <QuestionBankSubjectsPanel modeId={SAUDI_MLE_MODE} modeLabel="Saudi MLE" subjects={subjects} />
             <QuestionBankImagesPanel modeId={SAUDI_MLE_MODE} modeLabel="Saudi MLE" subjects={subjects} />
             <QuestionsPanel subjects={subjects} scopeTag={SAUDI_MLE_MODE} />
           </ErrorBoundary>
+          </>
         )}
-        {game === 'hyflashcards' && <HYFlashcardsAdmin subjects={subjects} />}
+        {game === 'hyflashcards' && (
+          <>
+            <ErrorBoundary>
+              <GameModeSettingsPanel gameId="hyflashcards" />
+            </ErrorBoundary>
+            <ErrorBoundary>
+            <HYFlashcardsAdmin subjects={subjects} />
+          </ErrorBoundary>
+          </>
+        )}
         {game === 'uworld'       && (
-          <ErrorBoundary>
+          <>
+            <ErrorBoundary>
+              <GameModeSettingsPanel bankModeId={UWORLD_MODE} bankLabel="UWorld Adventure" />
+            </ErrorBoundary>
+            <ErrorBoundary>
             <QuestionBankSubjectsPanel modeId={UWORLD_MODE} modeLabel="UWorld Adventure" subjects={subjects} />
             <QuestionBankImagesPanel modeId={UWORLD_MODE} modeLabel="UWorld Adventure" subjects={subjects} />
             <QuestionsPanel subjects={subjects} scopeTag={UWORLD_MODE} />
           </ErrorBoundary>
+          </>
         )}
         {/* The dental bank: the same question-bank machine as UWorld and SMLE,
             pointed at its own tag. Shown to students whose course is Dentistry. */}
         {game === 'ore_lds'      && (
-          <ErrorBoundary>
+          <>
+            <ErrorBoundary>
+              <GameModeSettingsPanel bankModeId={ORE_LDS_MODE} bankLabel="ORE / LDS" />
+            </ErrorBoundary>
+            <ErrorBoundary>
             <QuestionBankSubjectsPanel modeId={ORE_LDS_MODE} modeLabel="ORE / LDS" subjects={subjects} />
             <QuestionBankImagesPanel modeId={ORE_LDS_MODE} modeLabel="ORE / LDS" subjects={subjects} />
             <QuestionsPanel subjects={subjects} scopeTag={ORE_LDS_MODE} />
           </ErrorBoundary>
+          </>
         )}
         {/* Mehlman Rapid Fire: the same three panels as the other banks,
             pointed at its own tag. */}
         {game === 'mehlman'      && (
-          <ErrorBoundary>
+          <>
+            <ErrorBoundary>
+              <GameModeSettingsPanel bankModeId={MEHLMAN_MODE} bankLabel="Mehlman Rapid Fire" />
+            </ErrorBoundary>
+            <ErrorBoundary>
             <QuestionBankSubjectsPanel modeId={MEHLMAN_MODE} modeLabel="Mehlman Rapid Fire" subjects={subjects} />
             <QuestionBankImagesPanel modeId={MEHLMAN_MODE} modeLabel="Mehlman Rapid Fire" subjects={subjects} />
             <QuestionsPanel subjects={subjects} scopeTag={MEHLMAN_MODE} />
           </ErrorBoundary>
+          </>
         )}
-        {game === 'anking'       && <AnKingAdmin />}
-        {game === 'tower'        && <TowerEditorPanel />}
+        {game === 'anking'       && (
+          <>
+            <ErrorBoundary>
+              <GameModeSettingsPanel gameId="anking" />
+            </ErrorBoundary>
+            <ErrorBoundary>
+            <AnKingAdmin />
+          </ErrorBoundary>
+          </>
+        )}
+        {game === 'tower'        && (
+          <>
+            <ErrorBoundary>
+              <GameModeSettingsPanel gameId="tower" />
+            </ErrorBoundary>
+            <ErrorBoundary>
+            <TowerEditorPanel />
+          </ErrorBoundary>
+          </>
+        )}
       </div>
     </div>
   );

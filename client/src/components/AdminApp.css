@@ -6275,3 +6275,8 @@
   background: rgba(61, 220, 132, 0.18);
   color: #7ff0ab;
 }
+
+/* The qualifier on a setting that has not been overridden — "using the
+   default (30s)". Quieter than the description it follows: it states what is
+   true right now, it is not more of the explanation. */
+.ap-srow-note { opacity: 0.72; font-style: italic; }

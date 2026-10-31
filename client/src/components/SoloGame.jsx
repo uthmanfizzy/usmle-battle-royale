@@ -394,11 +394,26 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   const JOURNEY_EXPLANATION_BONUS_S = 20;
   // UWorld Adventure gets 10s more on both phases than the exam skin's base.
   const UWA_BONUS_S = (uworldSkin && (!examTheme || examTheme.id === 'uworld_adventure')) ? 10 : 0;
-  // A bank may set its own question clock — Mehlman Rapid Fire does. Only
-  // the QUESTION is shortened: the explanation keeps the skin's own time,
-  // because reading an explanation at speed is not what rapid fire means.
-  const bankQuestionSeconds = (uworldSkin && Number(examTheme?.questionSeconds) > 0)
-    ? Number(examTheme.questionSeconds)
+  // A bank's own clocks, in order of who gets the last word:
+  //   1. the admin's override for this bank (Games tab), if set
+  //   2. the bank's own default in questionBankModes.js
+  //   3. the exam skin's, which is what every bank had before any of this
+  // An override of 0 or nonsense is not an override — it falls through rather
+  // than handing someone a zero-second question.
+  const bankOverride = (uworldSkin && examTheme?.id)
+    ? (settings.questionBankTimers || {})[examTheme.id] || {}
+    : {};
+  const pickSeconds = (over, own) => {
+    const o = Number(over);
+    if (Number.isFinite(o) && o > 0) return o;
+    const d = Number(own);
+    return Number.isFinite(d) && d > 0 ? d : null;
+  };
+  const bankQuestionSeconds = uworldSkin
+    ? pickSeconds(bankOverride.questionSeconds, examTheme?.questionSeconds)
+    : null;
+  const bankExplanationSeconds = uworldSkin
+    ? pickSeconds(bankOverride.explanationSeconds, examTheme?.explanationSeconds)
     : null;
   const defaultTimer = (uworldSkin
     ? (bankQuestionSeconds ?? (70 + UWA_BONUS_S))
@@ -409,7 +424,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   const defaultLives = isJourney ? 5 : (settings.battleRoyaleLives || 3);
   const maxLives = defaultLives;   // heart slots shown = max lives for this mode (5 in journey)
   const explanationTime = (uworldSkin
-    ? 75 + UWA_BONUS_S
+    ? (bankExplanationSeconds ?? (75 + UWA_BONUS_S))
     : isHardMode
       ? (settings.hardModeExplanationTime || 20)
       : (settings.easyModeExplanationTime || settings.explanationTime || 5)

@@ -537,6 +537,12 @@ let gameSettings = {
     'cardiovascular', 'endocrine', 'gastrointestinal', 'heme_onc', 'msk_skin', 'neuro_special',
     'psychiatry', 'renal', 'reproductive', 'respiratory',
   ],
+  // Per-bank clocks, keyed by mode id:
+  //   { mehlman_rapid_fire: { questionSeconds: 30, explanationSeconds: 30 } }
+  // A bank ABSENT here, or a field absent from its entry, keeps the default
+  // in client/src/questionBankModes.js — so this starts empty and nothing
+  // changes until an admin actually sets one.
+  questionBankTimers: {},
   // Which subjects each question-bank mode shows, keyed by mode id:
   // { uworld_adventure: ['cardiology', ...], saudi_mle: [...] }.
   // A mode ABSENT here falls back to the global subjects.active flag, so
@@ -8371,6 +8377,27 @@ app.post('/admin/settings', adminAuth, async (req, res) => {
   ];
   for (const k of numFields)  { if (b[k] !== undefined) gameSettings[k] = Number(b[k]); }
   for (const k of boolFields) { if (b[k] !== undefined) gameSettings[k] = Boolean(b[k]); }
+
+  // Per-bank clocks. Keys are whitelisted against the known bank ids and the
+  // two field names, and every value is clamped — this object is written
+  // wholesale by the admin page, and an unbounded one would be stored and
+  // served to every player as-is.
+  if (b.questionBankTimers !== undefined && b.questionBankTimers && typeof b.questionBankTimers === 'object') {
+    const clean = {};
+    for (const modeId of QUESTION_BANK_MODE_IDS) {
+      const row = b.questionBankTimers[modeId];
+      if (!row || typeof row !== 'object') continue;
+      const entry = {};
+      for (const field of ['questionSeconds', 'explanationSeconds']) {
+        const n = Number.parseInt(row[field], 10);
+        // 0 or absent means "no override" and is simply left out, so the
+        // bank's own default keeps applying.
+        if (Number.isFinite(n) && n > 0) entry[field] = Math.max(5, Math.min(600, n));
+      }
+      if (Object.keys(entry).length) clean[modeId] = entry;
+    }
+    gameSettings.questionBankTimers = clean;
+  }
 
   // The Minigames skin. Whitelisted, never passed through: this string goes
   // straight into a data attribute the page styles itself from, and an

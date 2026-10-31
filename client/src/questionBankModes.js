@@ -10,6 +10,12 @@
 // `accentRgb` is an "r, g, b" triple rather than a hex because the exam skin
 // builds both solid colours and tinted washes from it — rgba(var(--x), .14)
 // works everywhere, while color-mix() ships broken to older browsers.
+//
+// `questionSeconds` / `explanationSeconds` are this bank's own clocks. Absent
+// means "whatever the exam skin gives everyone" (70 and 75, plus UWorld's own
+// +10). These are the DEFAULTS: an admin can override either per bank from
+// the Games tab, and that override wins — see questionBankTimers in
+// server/index.js.
 
 export const QUESTION_BANK_MODES = [
   {
@@ -66,10 +72,11 @@ export const QUESTION_BANK_MODES = [
     paceScope: '__mehlman_rapid_fire__',
     accentRgb: '226, 170, 32',   // rapid-fire yellow
     // Rapid fire means rapid: 30 seconds a question instead of the exam skin's
-    // 70. The name is a promise about the pace, and Mehlman's facts are short
-    // enough to answer in that — a minute and a half would make it the same
-    // mode in a different colour.
+    // 70, and 30 on the explanation instead of 75. The name is a promise about
+    // the pace, and Mehlman's facts are short enough both ways — a minute and
+    // a half either side would make it the same mode in a different colour.
     questionSeconds: 30,
+    explanationSeconds: 30,
     activityMode: 'mehlman_rapid_fire_practice',
     // No published total: the plan tracks the live count and grows as questions
     // are added, the way Saudi MLE and ORE / LDS started.
