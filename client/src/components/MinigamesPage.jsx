@@ -97,6 +97,29 @@ const MINIGAMES = [
          + 'the patient.',
     drills: 'Mechanisms, classes and side effects',
   },
+  {
+    id: 'lesion-localiser',
+    name: 'Lesion Localiser',
+    subject: 'Neuroanatomy',
+    icon: '🧠',
+    accent: '211, 83, 158',          // neuroanatomy magenta
+    soon: true,
+    blurb: 'A deficit is described, or a lesion is marked on a section — say '
+         + 'where it is: which tract or nucleus, which side, which level. Then '
+         + 'what else that lesion would have taken out.',
+    drills: 'Tracts, nuclei and levels',
+  },
+  {
+    id: 'muscle-mapper',
+    name: 'Muscle Mapper',
+    subject: 'Musculoskeletal',
+    icon: '🦴',
+    accent: '150, 190, 58',          // MSK lime
+    soon: true,
+    blurb: 'A movement is lost or a nerve is cut — name the muscle behind it, '
+         + 'the nerve and root that drive it, and the test that shows it up.',
+    drills: 'Muscles, nerves and the moves they own',
+  },
 ];
 
 export default function MinigamesPage() {
