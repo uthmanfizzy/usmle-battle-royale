@@ -1715,27 +1715,11 @@ export default function JourneyMode({
         <div className="jm-chapters-scroll">
           <div className="jm-chapter-list">
             <p className="jm-chapters-tagline" {...ek('chapters.tagline')}>{t('chapters.tagline', 'Choose a chapter to begin.')}</p>
-            {/* Biochemistry's own mode: the First Aid summary map, walked a
-                metabolite at a time. It sits above the chapters because it
-                spans all of them — it is the one thing here that is not a
-                chapter, and burying it under the list would hide it. */}
-            {!editorMode && subject?.id === 'biochemistry' && (
-              <button
-                type="button"
-                className="jm-pathway-card"
-                onClick={() => { window.location.href = '/pathway-navigator'; }}
-              >
-                <span className="jm-pathway-icon" aria-hidden="true">🧬</span>
-                <span className="jm-pathway-body">
-                  <span className="jm-pathway-name">Metabolic Pathway Navigator</span>
-                  <span className="jm-pathway-blurb">
-                    Walk the whole map one metabolite at a time — name the molecules,
-                    or the enzymes and the diseases behind them.
-                  </span>
-                </span>
-                <span className="jm-pathway-go" aria-hidden="true">→</span>
-              </button>
-            )}
+            {/* The Metabolic Pathway Navigator used to sit here, above
+                Biochemistry's chapters. It has moved to Story Mode →
+                Minigames, where it reads as what it is: its own small game
+                rather than part of this campaign. The route it opens
+                (/pathway-navigator) is unchanged. */}
             {chapters.map((c, ci) => {
               const { chTotal, chDone, chComplete } = chapterStats(c);
               return (

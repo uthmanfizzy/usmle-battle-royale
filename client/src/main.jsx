@@ -28,6 +28,7 @@ import { questionBankMode } from './questionBankModes';
 const HYFlashcards      = lazy(() => import('./components/HYFlashcards'));
 const ReelsPage         = lazy(() => import('./components/ReelsPage'));
 const PathwayNavigator  = lazy(() => import('./components/PathwayNavigator'));
+const MinigamesPage     = lazy(() => import('./components/MinigamesPage'));
 const UsernameSetupPage = lazy(() => import('./components/UsernameSetupPage'));
 
 function PageSpinner() {
@@ -142,7 +143,10 @@ ReactDOM.createRoot(document.getElementById('root')).render(
                 <Route path="/mehlman-rapid-fire" element={<RouteErrorBoundary name="MehlmanRapidFire"><UWorldAdventure mode={questionBankMode('mehlman_rapid_fire')} /></RouteErrorBoundary>} />
                 <Route path="/hy-flashcards" element={<RouteErrorBoundary name="HYFlashcards"><HYFlashcards /></RouteErrorBoundary>} />
                 <Route path="/reels"          element={<RouteErrorBoundary name="ReelsPage"><ReelsPage /></RouteErrorBoundary>} />
-                <Route path="/pathway-navigator" element={<RouteErrorBoundary name="PathwayNavigator"><PathwayNavigator onExit={() => { window.location.href = '/journey'; }} /></RouteErrorBoundary>} />
+                <Route path="/minigames" element={<RouteErrorBoundary name="MinigamesPage"><MinigamesPage /></RouteErrorBoundary>} />
+                {/* Leaving the navigator now goes back to the shelf it was
+                    launched from, not to the Journey it used to live in. */}
+                <Route path="/pathway-navigator" element={<RouteErrorBoundary name="PathwayNavigator"><PathwayNavigator onExit={() => { window.location.href = '/minigames'; }} /></RouteErrorBoundary>} />
                 <Route path="/username-setup" element={<UsernameSetupPage />} />
                 <Route path="/*"              element={<App />} />
               </Routes>

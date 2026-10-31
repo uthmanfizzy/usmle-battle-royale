@@ -111,7 +111,7 @@ export default function ModeSplit({ onStory, onOnline, onTraining, onBack }) {
 // card). The Tower campaign was removed from this list — TowerMode.jsx and its
 // App.jsx phase/route are untouched (unreachable, not deleted) in case it
 // comes back.
-export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld, onSaudiMLE, onMehlman, course }) {
+export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld, onSaudiMLE, onMehlman, onMinigames, course }) {
   // Dentistry students get the ORE/LDS bank in place of the medical licensing
   // ones; everything else (First Aid, flashcards) is shared, so their menu is
   // the same list with the board-exam campaign swapped. Medicine — and anyone
@@ -279,6 +279,23 @@ export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld, onSaudiMLE, o
         </button>
 
         )}
+
+        {/* Minigames — the short, skill-shaped things that are neither a
+            question bank nor a campaign. A shelf rather than a mode: each one
+            has its own rules, and they sit together because you play one for
+            five minutes to drill one skill. Shown to everyone; nothing on it
+            is course-specific. */}
+        <button className="ms-journey-card ms-journey-card--violet" onClick={onMinigames}>
+          <div className="ms-journey-art" aria-hidden="true">
+            <span className="ms-journey-art-icon">🎮</span>
+          </div>
+          <div className="ms-journey-body">
+            <span className="ms-journey-name">MINIGAMES</span>
+            <span className="ms-journey-sub">
+              Short games that drill one skill at a time — pathways, gases, strips.
+            </span>
+          </div>
+        </button>
 
         {/* The same question-bank machine pointed at the Saudi MLE pool — its
             own route, pace and colours, sharing one component. */}

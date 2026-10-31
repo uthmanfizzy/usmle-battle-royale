@@ -717,6 +717,22 @@
   color: #f6d375;
 }
 
+/* Violet variant — Minigames. The one hue Story Mode was not already
+   wearing: red, amber, blue, green, teal and yellow are all spoken for, and
+   the shelf is easiest to find if its colour belongs to nothing else. */
+.ms-journey-card--violet {
+  border-color: #966ae8;
+  box-shadow: 0 0 18px rgba(150, 106, 232, 0.22);
+}
+
+.ms-journey-card--violet:hover {
+  box-shadow: 0 0 28px rgba(150, 106, 232, 0.48);
+}
+
+.ms-journey-card--violet .ms-journey-name {
+  color: #c3a9ff;
+}
+
 
 
 /* ══ Story Mode campaigns ═════════════════════════════════════════════════════
@@ -737,6 +753,7 @@
 .ms-journey-card--blue           { --ms-accent-rgb: 63, 127, 214; }  /* blue — UWorld Adventure */
 .ms-journey-card--green          { --ms-accent-rgb: 31, 158, 106; }  /* green — Saudi MLE */
 .ms-journey-card--yellow         { --ms-accent-rgb: 226, 170, 32; }  /* yellow — Mehlman Rapid Fire */
+.ms-journey-card--violet         { --ms-accent-rgb: 150, 106, 232; } /* violet — Minigames */
 
 /* ── Art panel ──────────────────────────────────────────────────────────────
    Was a flat 45° stripe placeholder in near-black, identical on every card bar
