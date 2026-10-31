@@ -12,3 +12,10 @@ dist/
 
 # Local Claude Code permissions (contained a secret; never commit)
 .claude/settings.local.json
+
+# Local env files. The repo is PUBLIC: these must never be committed, even
+# when they only hold dummy values today.
+.env.local
+.env.*.local
+client/.env.local
+client/.env.*.local

@@ -238,3 +238,167 @@
   .mg-tile-art { height: 74px; }
   .mg-tile-icon { font-size: 28px; }
 }
+
+/* ══ Arcade skin ═════════════════════════════════════════════════════════════
+   Admin-switchable (UI Settings → Minigames Theme). A SKIN, not a layout: the
+   grid, the tiles and every game's own subject colour are untouched, so
+   flipping it cannot move a game or hide one. Everything below only changes
+   the surface.
+
+   The arcade look is four things, and no more than four — a cabinet is built
+   out of repetition, not variety:
+     hard edges      nothing is rounded; a CRT had no border radius
+     chunky rules    2px borders and offset hard shadows instead of soft ones
+     neon            the colour glows rather than tints
+     scanlines       a fixed overlay over the whole page, not per tile
+
+   The violet stays: this is the same shelf wearing a different cabinet, and
+   arriving from the violet Story Mode card should still land somewhere that
+   looks like where you clicked. */
+.mg[data-mg-theme="arcade"] {
+  background:
+    radial-gradient(70% 45% at 50% -10%, rgba(150, 106, 232, 0.3), transparent 62%),
+    linear-gradient(180deg, #120a22 0%, #0c0718 55%, #07040f 100%);
+  /* The cabinet's own grid, faint enough to read as texture. */
+  background-image:
+    radial-gradient(70% 45% at 50% -10%, rgba(150, 106, 232, 0.3), transparent 62%),
+    repeating-linear-gradient(0deg, rgba(150, 106, 232, 0.05) 0 1px, rgba(0, 0, 0, 0) 1px 44px),
+    repeating-linear-gradient(90deg, rgba(150, 106, 232, 0.05) 0 1px, rgba(0, 0, 0, 0) 1px 44px),
+    linear-gradient(180deg, #120a22 0%, #0c0718 55%, #07040f 100%);
+}
+
+/* Scanlines over everything. position: fixed so they sit still while the page
+   scrolls — lines that scroll with the content read as stripes on the
+   content, not as a screen it is being shown on. */
+.mg[data-mg-theme="arcade"] .mg-glow {
+  position: fixed;
+  z-index: 3;
+  background:
+    repeating-linear-gradient(180deg,
+      rgba(0, 0, 0, 0.26) 0 1px, rgba(0, 0, 0, 0) 1px 3px),
+    radial-gradient(120% 80% at 50% 50%, rgba(0, 0, 0, 0) 55%, rgba(0, 0, 0, 0.55) 100%);
+}
+
+.mg[data-mg-theme="arcade"] .mg-title {
+  font-family: 'Courier New', ui-monospace, monospace;
+  font-size: clamp(26px, 4.4vw, 40px);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  /* A background-clipped gradient cannot also glow — the glow would be cast by
+     transparent text. Solid neon instead, which is what a marquee is anyway. */
+  background: none;
+  -webkit-background-clip: border-box;
+  background-clip: border-box;
+  color: #f0e4ff;
+  text-shadow:
+    0 0 6px rgba(150, 106, 232, 0.9),
+    0 0 18px rgba(150, 106, 232, 0.65),
+    0 0 38px rgba(150, 106, 232, 0.4);
+}
+
+.mg[data-mg-theme="arcade"] .mg-sub,
+.mg[data-mg-theme="arcade"] .mg-foot {
+  font-family: 'Courier New', ui-monospace, monospace;
+  letter-spacing: 0.04em;
+}
+
+.mg[data-mg-theme="arcade"] .mg-back {
+  border-radius: 0;
+  border-width: 2px;
+  font-family: 'Courier New', ui-monospace, monospace;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  box-shadow: 3px 3px 0 rgba(150, 106, 232, 0.45);
+}
+
+/* ── The cabinets ─────────────────────────────────────────────────────────── */
+.mg[data-mg-theme="arcade"] .mg-tile {
+  border-radius: 0;
+  border-width: 2px;
+  border-color: rgb(var(--mg-accent));
+  background:
+    linear-gradient(180deg, rgba(var(--mg-accent), 0.14), rgba(var(--mg-accent), 0.03) 55%),
+    rgba(10, 6, 20, 0.94);
+  /* A hard offset block rather than a blur: the drop shadow of a sticker, not
+     of a card floating above a page. */
+  box-shadow: 5px 5px 0 rgba(var(--mg-accent), 0.32);
+}
+.mg[data-mg-theme="arcade"] .mg-tile:hover:not(.is-soon) {
+  transform: translate(-2px, -2px);
+  box-shadow: 8px 8px 0 rgba(var(--mg-accent), 0.5), 0 0 26px rgba(var(--mg-accent), 0.35);
+}
+.mg[data-mg-theme="arcade"] .mg-tile.is-soon {
+  border-style: solid;
+  border-color: rgba(var(--mg-accent), 0.45);
+  box-shadow: 5px 5px 0 rgba(var(--mg-accent), 0.14);
+}
+
+/* The marquee: the lit strip across the top of a cabinet. */
+.mg[data-mg-theme="arcade"] .mg-tile-art {
+  height: 84px;
+  border-bottom-width: 2px;
+  background:
+    radial-gradient(circle at 50% 120%, rgba(var(--mg-accent), 0.55), rgba(0, 0, 0, 0) 70%),
+    repeating-linear-gradient(90deg,
+      rgba(var(--mg-accent), 0.16) 0 3px, rgba(0, 0, 0, 0) 3px 10px),
+    linear-gradient(180deg, rgba(10, 6, 20, 0.5), rgba(10, 6, 20, 0.9));
+}
+.mg[data-mg-theme="arcade"] .mg-tile-icon {
+  filter: drop-shadow(0 0 10px rgba(var(--mg-accent), 0.85));
+}
+
+.mg[data-mg-theme="arcade"] .mg-tile-subject,
+.mg[data-mg-theme="arcade"] .mg-tile-drills,
+.mg[data-mg-theme="arcade"] .mg-tile-chip,
+.mg[data-mg-theme="arcade"] .mg-tile-go {
+  font-family: 'Courier New', ui-monospace, monospace;
+}
+
+.mg[data-mg-theme="arcade"] .mg-tile-subject {
+  text-shadow: 0 0 10px rgba(var(--mg-accent), 0.7);
+}
+
+.mg[data-mg-theme="arcade"] .mg-tile-name {
+  font-family: 'Courier New', ui-monospace, monospace;
+  font-size: 15.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #f2eaff;
+  text-shadow: 0 0 12px rgba(var(--mg-accent), 0.45);
+}
+
+.mg[data-mg-theme="arcade"] .mg-tile-chip,
+.mg[data-mg-theme="arcade"] .mg-tile-go {
+  border-radius: 0;
+  letter-spacing: 0.12em;
+}
+.mg[data-mg-theme="arcade"] .mg-tile-chip {
+  border-width: 2px;
+  background: rgba(8, 5, 16, 0.86);
+}
+.mg[data-mg-theme="arcade"] .mg-tile-go {
+  border: 2px solid rgb(var(--mg-accent));
+  background: transparent;
+  color: rgb(var(--mg-accent));
+  text-shadow: 0 0 10px rgba(var(--mg-accent), 0.7);
+}
+.mg[data-mg-theme="arcade"] .mg-tile:hover:not(.is-soon) .mg-tile-go {
+  background: rgb(var(--mg-accent));
+  color: #0a0614;
+  text-shadow: none;
+}
+
+/* The one piece of motion: the playable cabinet's PLAY pulses the way an
+   attract screen does. Nothing else moves, and this stops entirely for anyone
+   who has asked for less motion — a blinking element is exactly what that
+   setting exists for. */
+@keyframes mg-attract {
+  0%, 62%  { opacity: 1; }
+  63%, 78% { opacity: 0.45; }
+  79%,100% { opacity: 1; }
+}
+.mg[data-mg-theme="arcade"] .mg-tile-go { animation: mg-attract 2.6s steps(1, end) infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .mg[data-mg-theme="arcade"] .mg-tile-go { animation: none; }
+  .mg[data-mg-theme="arcade"] .mg-tile:hover:not(.is-soon) { transform: none; }
+}

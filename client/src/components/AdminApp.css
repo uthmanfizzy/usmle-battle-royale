@@ -6248,3 +6248,30 @@
   .ap-explimg-thumb { width: 64px; height: 44px; }
   .ap-explimg-meta { flex-basis: 100%; order: 3; }
 }
+
+/* ── Choice row ──────────────────────────────────────────────────────────────
+   For a setting that is one of a few named options rather than a yes/no.
+   Sits in the same slot a toggle does, so the settings rows still line up. */
+.ap-choice {
+  display: inline-flex;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.ap-choice-btn {
+  padding: 7px 14px;
+  border: 0;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.ap-choice-btn + .ap-choice-btn { border-left: 1px solid rgba(255, 255, 255, 0.14); }
+.ap-choice-btn:hover { background: rgba(255, 255, 255, 0.06); color: rgba(255, 255, 255, 0.85); }
+.ap-choice-btn.is-on {
+  background: rgba(61, 220, 132, 0.18);
+  color: #7ff0ab;
+}

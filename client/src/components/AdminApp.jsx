@@ -8908,6 +8908,7 @@ function withDefaults(raw) {
     maxConcurrentLobbies:     raw.maxConcurrentLobbies    ?? 0,
     // Section 7: UI
     useNewDashboard:          raw.useNewDashboard         ?? false,
+    minigamesTheme:           raw.minigamesTheme          ?? 'default',
     showStreakCounter:         raw.showStreakCounter        ?? true,
     showPlayerCount:          raw.showPlayerCount         ?? true,
     showCorrectAnswer:        raw.showCorrectAnswer       ?? true,
@@ -8963,6 +8964,34 @@ function SliderRow({ label, desc, min, max, step, unit, value, onChange }) {
             />
             <span className="ap-range-unit">{unit}</span>
           </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// A row that picks one of a few named options, for settings that are not a
+// yes/no. Same shape as ToggleRow so the rows still line up.
+function ChoiceRow({ label, desc, value, options, onChange }) {
+  return (
+    <div className="ap-srow">
+      <div className="ap-srow-info">
+        <div className="ap-srow-label">{label}</div>
+        <div className="ap-srow-desc">{desc}</div>
+      </div>
+      <div className="ap-srow-ctrl">
+        <div className="ap-choice">
+          {options.map(o => (
+            <button
+              key={o.value}
+              type="button"
+              className={`ap-choice-btn${value === o.value ? ' is-on' : ''}`}
+              aria-pressed={value === o.value}
+              onClick={() => onChange(o.value)}
+            >
+              {o.label}
+            </button>
+          ))}
         </div>
       </div>
     </div>
@@ -10092,6 +10121,11 @@ function SettingsPanel() {
         </div>
 
         <div className="ap-settings-rows">
+          <ChoiceRow label="Minigames Theme"
+            desc="How the Minigames shelf looks. Default is the plain violet page; Arcade is the same shelf dressed as a cabinet — scanlines, neon and hard edges. Each minigame keeps its own subject colour either way."
+            value={settings.minigamesTheme}
+            options={[{ value: 'default', label: 'Default' }, { value: 'arcade', label: 'Arcade' }]}
+            onChange={v => upd('minigamesTheme', v)} />
           <ToggleRow label="New Dashboard UI (Beta)"
             desc="Switch players to the new dashboard shell: bottom nav Home / Stats / Shorts / Play, with Leaderboards, Clans and News inside Home. Off = current dashboard. Flip back anytime."
             checked={settings.useNewDashboard}

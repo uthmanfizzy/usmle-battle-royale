@@ -484,6 +484,10 @@ async function nextFreeQuestionIdFromDb(subject) {
 
 // ── Game settings ──────────────────────────────────────────────────────────────
 
+// The skins the Minigames shelf can wear. Mirrors MINIGAMES_THEMES in
+// client/src/components/MinigamesPage.jsx.
+const MINIGAMES_THEMES = ['default', 'arcade'];
+
 let gameSettings = {
   // legacy compat
   hardModeEnabled: false,
@@ -522,6 +526,10 @@ let gameSettings = {
   // Dashboard UI shell: false = current dashboard (default), true = new
   // bottom-nav shell (Home · Stats · Shorts · Play). Admin-toggleable.
   useNewDashboard: false,
+  // Which skin the Minigames shelf wears: 'default' or 'arcade'. A string
+  // rather than a boolean because a third skin is the likely next ask, and
+  // 'arcadeEnabled: false' would then have to be read as "some other one".
+  minigamesTheme: 'default',
   // First Aid Journey: which of the 16 hardcoded journey subjects players see
   // (ids mirror client/src/journeySubjects.js; default = all active)
   journeyActiveSubjects: [
@@ -8363,6 +8371,14 @@ app.post('/admin/settings', adminAuth, async (req, res) => {
   ];
   for (const k of numFields)  { if (b[k] !== undefined) gameSettings[k] = Number(b[k]); }
   for (const k of boolFields) { if (b[k] !== undefined) gameSettings[k] = Boolean(b[k]); }
+
+  // The Minigames skin. Whitelisted, never passed through: this string goes
+  // straight into a data attribute the page styles itself from, and an
+  // unknown one would leave the shelf wearing nothing.
+  if (b.minigamesTheme !== undefined) {
+    const t = String(b.minigamesTheme);
+    gameSettings.minigamesTheme = MINIGAMES_THEMES.includes(t) ? t : 'default';
+  }
 
   // Hero background dimming
   if (b.hero_bg_dim_enabled !== undefined) gameSettings.hero_bg_dim_enabled = Boolean(b.hero_bg_dim_enabled);

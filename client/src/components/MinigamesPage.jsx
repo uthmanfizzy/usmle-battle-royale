@@ -1,4 +1,13 @@
+import { useGameSettings } from '../contexts/GameSettingsContext';
 import './MinigamesPage.css';
+
+// The skins this page can wear, set from the admin page (UI Settings →
+// Minigames Theme). Mirrors MINIGAMES_THEMES in server/index.js.
+//
+// A skin, not a layout: the grid, the tiles and every game's own subject
+// colour are the same in both. Arcade changes the surface — hard edges,
+// scanlines, neon — so switching cannot move anything around or hide a game.
+export const MINIGAMES_THEMES = ['default', 'arcade'];
 
 /**
  * Minigames — the short, skill-shaped things that are not a question bank and
@@ -123,8 +132,16 @@ const MINIGAMES = [
 ];
 
 export default function MinigamesPage() {
+  // useGameSettings returns { settings, loading } — not the settings object.
+  // Reading minigamesTheme off the wrapper silently gave undefined, which the
+  // fallback below then turned into "default" forever.
+  const { settings } = useGameSettings();
+  const theme = MINIGAMES_THEMES.includes(settings?.minigamesTheme)
+    ? settings.minigamesTheme
+    : 'default';
+
   return (
-    <div className="mg">
+    <div className="mg" data-mg-theme={theme}>
       <div className="mg-glow" aria-hidden="true" />
 
       <header className="mg-head">
@@ -172,7 +189,9 @@ export default function MinigamesPage() {
         })}
       </div>
 
-      <p className="mg-foot">More on the way.</p>
+      <p className="mg-foot">
+        {theme === 'arcade' ? 'More cabinets on the way.' : 'More on the way.'}
+      </p>
     </div>
   );
 }
