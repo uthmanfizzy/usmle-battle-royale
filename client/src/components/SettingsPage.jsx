@@ -3,6 +3,7 @@ import { getToken, clearToken, fetchMe, getCachedUser, setCachedUser } from '../
 import UsernameChangeModal from './UsernameChangeModal';
 import { useTheme, PALETTE } from '../theme';
 import { DefaultPreview, PixelPreview } from './AppearanceSection';
+import { useScreenComfort } from '../screenComfort';
 import './SettingsPage.css';
 
 // Mockup-style toggle switch: red track when on, white knob, knob-right
@@ -33,6 +34,7 @@ export default function SettingsPage() {
   const [user, setUser] = useState(getCachedUser);
   const [showUsername, setShowUsername] = useState(false);
   const { theme, color, study, applyTheme } = useTheme();
+  const { dim, warm, setDim, setWarm } = useScreenComfort();
   const [soundEnabled, setSoundEnabled] = useState(() => localStorage.getItem('medvale_sound') !== 'false');
   const [musicEnabled, setMusicEnabled] = useState(() => localStorage.getItem('medvale_music') !== 'false');
 
@@ -207,9 +209,45 @@ export default function SettingsPage() {
             ))}
           </div>
 
-          <div className="stg-row stg-row--last">
+          <div className="stg-row">
             <span className="stg-row-label">Study Mode (light answers)</span>
             <Toggle on={study} onChange={() => applyTheme(theme, color, !study)} label="Study Mode" />
+          </div>
+
+          {/* Night-time comfort. Kept on THIS device rather than the account:
+              how dark a screen should be is a fact about the room you are in,
+              and a phone in bed and a laptop at a desk want different
+              answers. */}
+          <div className="stg-row stg-row--slider">
+            <span className="stg-row-label">
+              Dim screen
+              <small className="stg-row-sub">For studying in the dark</small>
+            </span>
+            <span className="stg-slider-ctrl">
+              <input
+                type="range" className="stg-range"
+                min={0} max={100} step={5} value={dim}
+                onChange={e => setDim(e.target.value)}
+                aria-label="Dim the screen"
+              />
+              <span className="stg-slider-val">{dim ? `${dim}%` : 'Off'}</span>
+            </span>
+          </div>
+
+          <div className="stg-row stg-row--slider stg-row--last">
+            <span className="stg-row-label">
+              Blue light filter
+              <small className="stg-row-sub">Warms the screen for late nights</small>
+            </span>
+            <span className="stg-slider-ctrl">
+              <input
+                type="range" className="stg-range"
+                min={0} max={100} step={5} value={warm}
+                onChange={e => setWarm(e.target.value)}
+                aria-label="Blue light filter strength"
+              />
+              <span className="stg-slider-val">{warm ? `${warm}%` : 'Off'}</span>
+            </span>
           </div>
         </div>
 

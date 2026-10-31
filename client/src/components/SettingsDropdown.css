@@ -99,3 +99,71 @@
 @media (prefers-reduced-motion: reduce) {
   .sd-switch, .sd-switch > span { transition: none; }
 }
+
+/* ── Screen comfort sliders ──────────────────────────────────────────────────
+   The dimmer and the blue-light filter, in the panel rather than only on the
+   settings page: they are wanted at 1am mid-question, and a trip to another
+   page is a trip most people do not make. */
+.sd-slider-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 12px;
+  text-align: left;
+}
+
+.sd-slider-body {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.sd-slider-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.sd-slider-val {
+  font-size: 11.5px;
+  font-weight: 700;
+  opacity: 0.7;
+  font-variant-numeric: tabular-nums;
+}
+
+.sd-range {
+  width: 100%;
+  height: 4px;
+  margin: 0;
+  -webkit-appearance: none;
+  appearance: none;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.18);
+  cursor: pointer;
+}
+.sd-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  border: 0;
+  background: var(--mv-gold, #e8b04b);
+  cursor: pointer;
+}
+.sd-range::-moz-range-thumb {
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  border: 0;
+  background: var(--mv-gold, #e8b04b);
+  cursor: pointer;
+}
+
+/* Shown only while something is actually dimmed or warmed, so the way back is
+   never more than one tap away from the thing that did it. */
+.sd-row--reset .sd-label { opacity: 0.85; }

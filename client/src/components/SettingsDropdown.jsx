@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { clearToken, getCachedUser } from '../auth';
 import * as audio from '../audio';
+import { useScreenComfort } from '../screenComfort';
 import './SettingsDropdown.css';
 
 /**
@@ -22,6 +23,10 @@ export default function SettingsDropdown({ onClose }) {
   const [musicOn, setMusicOn] = useState(() => {
     try { return localStorage.getItem('medvale_music') !== 'false'; } catch { return true; }
   });
+  // Screen comfort lives here as well as on the full settings page: it is
+  // wanted at 1am, mid-question, and sending someone to another page to turn
+  // the brightness down means they do not.
+  const { dim, warm, setDim, setWarm } = useScreenComfort();
 
   // Same caret placement as the notifications panel: pointed at whichever
   // button opened it, wherever that button sits at this width.
@@ -91,6 +96,53 @@ export default function SettingsDropdown({ onClose }) {
           <span className="sd-label">Background music</span>
           <span className={`sd-switch${musicOn ? ' is-on' : ''}`} aria-hidden="true"><span /></span>
         </button>
+      </div>
+
+      <div className="sd-group">
+        <div className="sd-slider-row">
+          <span className="sd-ico" aria-hidden="true">🌙</span>
+          <span className="sd-slider-body">
+            <span className="sd-slider-head">
+              <span className="sd-label">Dim screen</span>
+              <span className="sd-slider-val">{dim ? `${dim}%` : 'Off'}</span>
+            </span>
+            <input
+              type="range"
+              className="sd-range"
+              min={0} max={100} step={5}
+              value={dim}
+              onChange={e => setDim(e.target.value)}
+              aria-label="Dim the screen"
+            />
+          </span>
+        </div>
+        <div className="sd-slider-row">
+          <span className="sd-ico" aria-hidden="true">🕶️</span>
+          <span className="sd-slider-body">
+            <span className="sd-slider-head">
+              <span className="sd-label">Blue light filter</span>
+              <span className="sd-slider-val">{warm ? `${warm}%` : 'Off'}</span>
+            </span>
+            <input
+              type="range"
+              className="sd-range"
+              min={0} max={100} step={5}
+              value={warm}
+              onChange={e => setWarm(e.target.value)}
+              aria-label="Blue light filter strength"
+            />
+          </span>
+        </div>
+        {(dim > 0 || warm > 0) && (
+          <button
+            type="button"
+            className="sd-row sd-row--reset"
+            onClick={() => { setDim(0); setWarm(0); }}
+          >
+            <span className="sd-ico" aria-hidden="true">☀️</span>
+            <span className="sd-label">Back to normal</span>
+          </button>
+        )}
       </div>
 
       <div className="sd-group">

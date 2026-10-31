@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import App from './App';
 import { ThemeProvider } from './theme';
 import { GameSettingsProvider } from './contexts/GameSettingsContext';
+import ScreenComfortOverlay from './screenComfort';
 import RouteErrorBoundary from './components/RouteErrorBoundary';
 import DevModeBanner from './components/DevModeBanner';
 import { startPresenceHeartbeat } from './studyPresence';
@@ -123,6 +124,10 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           <BrowserRouter>
             <DevModeBanner />
             <PresenceHeartbeat />
+            {/* The night-time dimmer and blue-light filter. One layer over
+                everything, so it covers modals and the exam skin's own fixed
+                bars too; renders nothing at all while both are off. */}
+            <ScreenComfortOverlay />
             <Suspense fallback={<PageSpinner />}>
               <Routes>
                 <Route path="/admin/*"        element={<AdminApp />} />
