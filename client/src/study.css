@@ -793,3 +793,55 @@ html[data-study="on"] .solo-gameover .sgo-level-label {
   /* ── Explanation pane: a touch less inner padding on a phone ── */
   html[data-study="on"] .solo-body .round-result { padding: 50px 14px 16px; }
 }
+
+
+/* ── Answers beside the stem ─────────────────────────────────────────────────
+   Opt-in from the study menu (Answers: Right of question). Default stays
+   "below", so nobody's screen rearranges itself.
+
+   The question card holds the stem, its picture, the calculator and lab
+   buttons and — for an author — the picture slots, all as siblings in the
+   flow. Rather than name an area for each (and have to name one again for
+   every control added later), EVERY child is pinned to the left column and
+   only .options is moved out of it. A new control lands on the left by
+   default, which is where a control about the question belongs.
+
+   Only above 900px. Below that there is no room for two columns, and a phone
+   stacks whatever this is set to — the setting is remembered, it just does
+   not apply until the window can carry it. */
+@media (min-width: 900px) {
+  html[data-study="on"] .solo-body[data-opt-layout="right"] .question-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 0.92fr);
+    column-gap: 22px;
+    align-items: start;
+  }
+  /* .stem-text is display:contents, so ITS children are the grid items, not
+     it — a direct-child selector alone would leave the stem auto-placed and
+     free to land in the answers column. */
+  html[data-study="on"] .solo-body[data-opt-layout="right"] .question-card > *,
+  html[data-study="on"] .solo-body[data-opt-layout="right"] .question-card > .stem-text > * {
+    grid-column: 1;
+    min-width: 0;
+  }
+  /* span 99 rather than 1 / -1: the rows here are implicit, and -1 resolves to
+     the last EXPLICIT line, which would leave the options one row tall. */
+  html[data-study="on"] .solo-body[data-opt-layout="right"] .question-card > .options {
+    grid-column: 2;
+    grid-row: 1 / span 99;
+    align-self: start;
+    margin-top: 0;
+  }
+
+  /* Two columns inside the question pane need the page to be wider, or the
+     stem ends up a 270px ribbon. Both layouts get their own width, and the top
+     bar is widened to match it the way the existing rules do. */
+  html[data-study="on"] .solo-body[data-opt-layout="right"][data-expl-layout="below"],
+  html[data-study="on"] .solo-screen:has(.solo-body[data-opt-layout="right"][data-expl-layout="below"]) .solo-topbar {
+    max-width: 1100px;
+  }
+  html[data-study="on"] .solo-body[data-opt-layout="right"][data-expl-layout="right"],
+  html[data-study="on"] .solo-screen:has(.solo-body[data-opt-layout="right"][data-expl-layout="right"]) .solo-topbar {
+    max-width: 1480px;
+  }
+}

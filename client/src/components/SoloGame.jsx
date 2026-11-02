@@ -663,12 +663,21 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
 
   // Layer 1/2 (study mode only): explanation pane layout, time-spent, burger menu
   const [explLayout, setExplLayout] = useState(() => localStorage.getItem('mr_solo_expl_layout') || 'right');
+  // Where the answer options sit: under the stem (how it has always been) or
+  // beside it. Defaults to 'below' so nobody's screen rearranges itself —
+  // this is an option, not a redesign.
+  const [optLayout, setOptLayout] = useState(() => localStorage.getItem('mr_solo_opt_layout') || 'below');
   const [timeSpent, setTimeSpent] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
   function setLayout(value) {
     setExplLayout(value);
     localStorage.setItem('mr_solo_expl_layout', value);
+    setMenuOpen(false);
+  }
+  function setOptionLayout(value) {
+    setOptLayout(value);
+    localStorage.setItem('mr_solo_opt_layout', value);
     setMenuOpen(false);
   }
   // Close the burger dropdown on outside click (no-op unless menu is open → study only)
@@ -2575,7 +2584,11 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
           now. It used to be pinned to "below" — the menu offered the choice,
           because the menu is the study header's and the exam skin renders
           that header, but picking "right" did nothing. */}
-      <div className="solo-body" data-expl-layout={study ? explLayout : undefined}>
+      <div
+        className="solo-body"
+        data-expl-layout={study ? explLayout : undefined}
+        data-opt-layout={study ? optLayout : undefined}
+      >
         {study && (
           <div className="study-header">
             <div className="shd-left">
@@ -2602,6 +2615,19 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
                       onClick={() => setLayout('below')}
                     >
                       Explanation: Below
+                    </button>
+                    <div className="smp-title">Answers</div>
+                    <button
+                      className={`smp-opt ${optLayout === 'right' ? 'smp-active' : ''}`}
+                      onClick={() => setOptionLayout('right')}
+                    >
+                      Answers: Right of question
+                    </button>
+                    <button
+                      className={`smp-opt ${optLayout === 'below' ? 'smp-active' : ''}`}
+                      onClick={() => setOptionLayout('below')}
+                    >
+                      Answers: Below question
                     </button>
                     <div className="smp-title">Highlights</div>
                     <button
