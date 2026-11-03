@@ -487,3 +487,89 @@ export function renderStem(text, opts = {}) {
 }
 
 export default renderStem;
+
+// ── Summary: the stem reduced to what was emphasised ───────────────────────
+//
+// A long vignette with the key facts in bold already contains its own
+// summary; this just reads it out. Two things make text bold in a stem and
+// BOTH count, because an author uses whichever is to hand:
+//   • **markers** typed into the question (token.marks, from parseStemInline)
+//   • official bold spans authored over it (format: 'bold', region 'question')
+//
+// Fragments come back in document order and are joined with "·", which is what
+// a list of key points reads as. Adjacent fragments are merged first, so
+// "**aortic** **dissection**" is one fragment and not two.
+//
+// Returns '' when nothing is bold — the caller shows that as "nothing marked
+// yet" rather than an empty panel, since an empty summary and a summary of an
+// unmarked question are different things.
+export function stemSummaryFragments(text, highlights = []) {
+  if (!text) return [];
+  const blocks = buildStemModel(text);
+
+  // Official bold spans live in GLOBAL visible offsets.
+  const boldSpans = [];
+  if (highlights.length) {
+    let visibleLen = 0;
+    for (const b of blocks) {
+      if (b.type === 'prose') for (const t of b.lines) visibleLen = Math.max(visibleLen, t.end);
+      else if (b.type === 'labs') for (const r of b.rows) {
+        visibleLen = Math.max(visibleLen, r.nameTok.end);
+        if (r.valTok) visibleLen = Math.max(visibleLen, r.valTok.end);
+      } else if (b.type === 'table') for (const row of b.rows) for (const t of row) visibleLen = Math.max(visibleLen, t.end);
+    }
+    for (const seg of offsetsToSegments({ length: visibleLen }, highlights)) {
+      if (seg.bold) boldSpans.push([seg.start, seg.end]);
+    }
+  }
+
+  // Every token, in the order the renderer emits them.
+  const tokens = [];
+  for (const b of blocks) {
+    if (b.type === 'prose') tokens.push(...b.lines);
+    else if (b.type === 'labs') for (const r of b.rows) { tokens.push(r.nameTok); if (r.valTok) tokens.push(r.valTok); }
+    else if (b.type === 'table') for (const row of b.rows) tokens.push(...row);
+  }
+
+  // Collect bold ranges in GLOBAL coordinates, from both sources.
+  const ranges = [];
+  for (const tok of tokens) {
+    for (const m of (tok.marks || [])) {
+      if (m.bold) ranges.push([tok.start + m.start, tok.start + Math.min(m.end, tok.text.length)]);
+    }
+    for (const [s, e] of boldSpans) {
+      const from = Math.max(s, tok.start);
+      const to = Math.min(e, tok.end);
+      if (to > from) ranges.push([from, to]);
+    }
+  }
+  if (!ranges.length) return [];
+
+  // Merge overlapping and touching ranges so one phrase is one fragment.
+  ranges.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  const merged = [ranges[0].slice()];
+  for (const [s, e] of ranges.slice(1)) {
+    const last = merged[merged.length - 1];
+    if (s <= last[1] + 1) last[1] = Math.max(last[1], e);
+    else merged.push([s, e]);
+  }
+
+  // Cut each range out of whichever token holds it.
+  const out = [];
+  for (const [s, e] of merged) {
+    let piece = '';
+    for (const tok of tokens) {
+      const from = Math.max(s, tok.start);
+      const to = Math.min(e, tok.end);
+      if (to > from) piece += tok.text.slice(from - tok.start, to - tok.start);
+    }
+    const trimmed = piece.trim();
+    if (trimmed) out.push(trimmed);
+  }
+  return out;
+}
+
+/** The fragments as one line. '' when nothing is marked. */
+export function stemSummary(text, highlights = []) {
+  return stemSummaryFragments(text, highlights).join(' · ');
+}

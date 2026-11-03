@@ -6,7 +6,7 @@ import * as audio from '../audio';
 import ExplanationText from './ExplanationText';
 import ExplanationHighlightToolbar from './ExplanationHighlightToolbar';
 import { parseRichText } from '../utils/parseRichText';
-import { renderStem, toStemVisibleText } from '../utils/renderStem';
+import { renderStem, toStemVisibleText, stemSummaryFragments } from '../utils/renderStem';
 import { buildOptionTable, extractColumns } from '../utils/optionTable';
 import Calculator from './Calculator';
 import LabValues from './LabValues';
@@ -711,6 +711,15 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   // beside it. Defaults to 'below' so nobody's screen rearranges itself —
   // this is an option, not a redesign.
   const [optLayout, setOptLayout] = useState(() => localStorage.getItem('mr_solo_opt_layout') || 'below');
+  // The summarised question: 'off', 'replace' (instead of the stem) or
+  // 'beside' (a third pane, for a wide monitor). Off by default — a summary of
+  // a question nobody has bolded is an empty box.
+  const [summaryLayout, setSummaryLayout] = useState(
+    () => localStorage.getItem('mr_solo_summary') || 'off');
+  // Escape hatch for 'replace': the full stem, this question only. Without it,
+  // a summary that turns out to be missing the one detail you needed is a
+  // dead end.
+  const [showFullStem, setShowFullStem] = useState(false);
   const [timeSpent, setTimeSpent] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
@@ -722,6 +731,12 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   function setOptionLayout(value) {
     setOptLayout(value);
     localStorage.setItem('mr_solo_opt_layout', value);
+    setMenuOpen(false);
+  }
+  function setSummaryMode(value) {
+    setSummaryLayout(value);
+    localStorage.setItem('mr_solo_summary', value);
+    setShowFullStem(false);
     setMenuOpen(false);
   }
   // Close the burger dropdown on outside click (no-op unless menu is open → study only)
@@ -1657,7 +1672,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
     setDragImgIdx(null);
   }, [qIdx, currentQid]);
 
-  useEffect(() => { setOptImgOpen(null); }, [qIdx, currentQid]);
+  useEffect(() => { setOptImgOpen(null); setShowFullStem(false); }, [qIdx, currentQid]);
 
   useEffect(() => {
     const row = questionsRef.current[qIdxRef.current];
@@ -2499,6 +2514,14 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
     return true; // 'both'
   });
 
+  // The summarised question: the stem reduced to what was emphasised, from
+  // BOTH sources of bold — **markers** typed in, and official bold spans
+  // authored over it. Derived rather than stored, so it cannot go stale
+  // against a question that was edited.
+  const summaryFragments = (study && summaryLayout !== 'off')
+    ? stemSummaryFragments(q?.question || '', questionRows)
+    : [];
+
   // Stem hints: official region='question'. Hidden unless "Show hints" is ON; the
   // dev-mode author always sees them (so they can author/verify).
   const resolvedStem = resolveHighlights(stemVisibleText, questionRows);
@@ -2797,6 +2820,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
         className="solo-body"
         data-expl-layout={study ? explLayout : undefined}
         data-opt-layout={study ? optLayout : undefined}
+        data-summary-layout={study && summaryLayout !== 'off' ? summaryLayout : undefined}
       >
         {study && (
           <div className="study-header">
@@ -2824,6 +2848,25 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
                       onClick={() => setLayout('below')}
                     >
                       Explanation: Below
+                    </button>
+                    <div className="smp-title">Summary</div>
+                    <button
+                      className={`smp-opt ${summaryLayout === 'off' ? 'smp-active' : ''}`}
+                      onClick={() => setSummaryMode('off')}
+                    >
+                      Summary: Off
+                    </button>
+                    <button
+                      className={`smp-opt ${summaryLayout === 'replace' ? 'smp-active' : ''}`}
+                      onClick={() => setSummaryMode('replace')}
+                    >
+                      Summary: Instead of the question
+                    </button>
+                    <button
+                      className={`smp-opt ${summaryLayout === 'beside' ? 'smp-active' : ''}`}
+                      onClick={() => setSummaryMode('beside')}
+                    >
+                      Summary: Beside the explanation
                     </button>
                     <div className="smp-title">Answers</div>
                     <button
@@ -3063,9 +3106,54 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
               </div>
             </div>
           )}
-          <div className="stem-text" ref={stemContainerRef}>
-            {renderStem(stemText, { highlights: stemDisplayHighlights })}
-          </div>
+          {/* 'replace' swaps the stem for its summary. The full question is
+              one tap away and comes back by itself on the next question — a
+              summary that turns out to be missing the one detail you needed
+              must not be a dead end. */}
+          {study && summaryLayout === 'replace' && !showFullStem ? (
+            <div className="sg-summary sg-summary--inline">
+              <div className="sg-summary-head">
+                <span className="sg-summary-label">Summary</span>
+                <button
+                  type="button"
+                  className="sg-summary-toggle"
+                  onClick={() => setShowFullStem(true)}
+                >
+                  Show the full question
+                </button>
+              </div>
+              {summaryFragments.length ? (
+                <ul className="sg-summary-list">
+                  {summaryFragments.map((f, i) => <li key={i}>{f}</li>)}
+                </ul>
+              ) : (
+                <>
+                  <p className="sg-summary-empty">
+                    Nothing is marked in bold on this question, so there is nothing to
+                    summarise. Showing the full question instead.
+                  </p>
+                  <div className="stem-text" ref={stemContainerRef}>
+                    {renderStem(stemText, { highlights: stemDisplayHighlights })}
+                  </div>
+                </>
+              )}
+            </div>
+          ) : (
+            <>
+              {study && summaryLayout === 'replace' && showFullStem && (
+                <button
+                  type="button"
+                  className="sg-summary-toggle sg-summary-toggle--back"
+                  onClick={() => setShowFullStem(false)}
+                >
+                  ← Back to the summary
+                </button>
+              )}
+              <div className="stem-text" ref={stemContainerRef}>
+                {renderStem(stemText, { highlights: stemDisplayHighlights })}
+              </div>
+            </>
+          )}
           {/* Stem hint authoring toolbar — admin + dev mode only; official region='question'.
               v1 rejects selections that touch a lab box or table (prose-only authoring). */}
           {authoringOfficial && (
@@ -3424,6 +3512,27 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
 
         {study && !revealed && (
           <div className="study-expl-placeholder">Answer to reveal the explanation</div>
+        )}
+
+        {/* The summary as its own pane. Placed by the grid in study.css, which
+            only gives it a column when the window is wide enough to carry one
+            — this is the long-monitor layout, and on anything narrower it
+            falls in under the explanation rather than squeezing both. */}
+        {study && summaryLayout === 'beside' && (
+          <aside className="sg-summary sg-summary--pane" aria-label="Question summary">
+            <div className="sg-summary-head">
+              <span className="sg-summary-label">Summary</span>
+            </div>
+            {summaryFragments.length ? (
+              <ul className="sg-summary-list">
+                {summaryFragments.map((f, i) => <li key={i}>{f}</li>)}
+              </ul>
+            ) : (
+              <p className="sg-summary-empty">
+                Nothing is marked in bold on this question yet.
+              </p>
+            )}
+          </aside>
         )}
 
         {revealed && (
