@@ -3333,8 +3333,10 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
             style={optionTable ? { '--opt-cols': optionTable.rows[0].length } : undefined}
           >
             {/* Column headers, once, above the rows. Written by the author as
-                "Columns: RPF | GFR | FF", or read from the stem's own
-                "listed as …" phrase when it has one. */}
+                "Columns: RPF | GFR | FF", or read out of the stem itself —
+                either "listed as A, B, then C" or "…A, B and C, in that
+                order". A table is only built when these are known: a row of
+                bare arrows under no headings cannot be read at all. */}
             {optionTable?.headers && (
               <div className="opt-thead" aria-hidden="true">
                 <span className="opt-label" />
@@ -3371,10 +3373,18 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
                     // The arrow is what the eye compares down a column; the
                     // words it came from stay readable to screen readers and
                     // on hover, so nothing is lost by the shorthand.
+                    // The arrow is what the eye compares down a column; the
+                    // word underneath is the answer itself. Both are shown —
+                    // the exams print the words, and an arrow alone asks the
+                    // reader to hold a key in their head. The word is dropped
+                    // only when the author wrote an arrow in the first place,
+                    // where repeating it would be noise.
                     cells.map((c, ci) => (
                       <span className="opt-col" key={ci} title={c.text}>
-                        <span aria-hidden="true">{c.arrow}</span>
-                        <span className="sr-only">{c.text}</span>
+                        <span className="opt-arrow" aria-hidden="true">{c.arrow}</span>
+                        {c.text && c.text !== c.arrow
+                          ? <span className="opt-word">{c.text}</span>
+                          : <span className="sr-only">{c.text}</span>}
                       </span>
                     ))
                   ) : optImg ? (
