@@ -28,6 +28,7 @@ const UWORLD_RATING_PILES = [
   { key: 'lucky_guess',       label: 'Lucky Guess',      icon: '🍀' },
   { key: 'somewhat_know',     label: 'Somewhat Know',    icon: '🤔' },
   { key: 'fully_understood',  label: 'Fully Understood', icon: '✅' },
+  { key: 'long_term_memory',  label: 'Long-term Memory', icon: '🗄️' },
   { key: 'unrated',           label: 'Not Yet Rated',    icon: '⬜' },
 ];
 // A review pull is capped the same as any other session request — see

@@ -4444,3 +4444,48 @@ html[data-study="on"] .solo-body .pause-overlay {
   cursor: pointer;
 }
 .sg-optimg-close:hover { border-color: var(--gold); }
+
+
+/* Why official highlighting is unavailable, for someone who was told they
+   have admin. Quiet, one line, and only ever rendered when the server has
+   actually reported a reason. */
+.dev-hl-why {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 193, 7, 0.35);
+  background: rgba(255, 193, 7, 0.08);
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: #e5c37a;
+}
+
+/* ── "Needs an update" ───────────────────────────────────────────────────────
+   Sits beside the retire button and reads as the lighter of the two on
+   purpose: amber rather than red, because this one leaves the question in
+   play. */
+.mod-needsup-btn {
+  padding: 7px 13px;
+  border-radius: 8px;
+  border: 1px solid rgba(232, 176, 75, 0.5);
+  background: rgba(232, 176, 75, 0.12);
+  color: #e8b04b;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.mod-needsup-btn:hover:not(:disabled) { background: rgba(232, 176, 75, 0.22); }
+.mod-needsup-btn:disabled { opacity: 0.6; cursor: default; }
+
+.mod-needsup-done {
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: #e8b04b;
+}
+
+.mod-needsup-already {
+  font-size: 11.5px;
+  font-weight: 700;
+  opacity: 0.75;
+  color: #e8b04b;
+}

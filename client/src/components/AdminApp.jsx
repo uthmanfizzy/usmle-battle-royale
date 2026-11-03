@@ -87,6 +87,7 @@ function getTowerZone(floor) {
 const FOLDERS = [
   { id: 'all',              label: 'All Questions',                icon: '🏥', prefix: null,  special: false },
   { id: '__images__',       label: 'Image Questions',              icon: '🖼️', prefix: null,  special: true  },
+  { id: '__needs_update__', label: 'Needs an update',              icon: '✏️', prefix: null,  special: true  },
   { id: 'buzz_fun',         label: 'Buzz Fun',                     icon: '⚡', prefix: 'BF',  special: true  },
   { id: 'scan_master',      label: 'Scan Master',                  icon: '🔬', prefix: 'SM',  special: true  },
   { id: 'uworld_adventure', label: 'UWorld Adventure',             icon: '🌍', prefix: null,  special: true  },
@@ -1021,7 +1022,7 @@ function QuestionModal({ question, defaultSubject = 'cardiology', onSave, onClos
   // save-time guard) would store it verbatim as `category` — an orphaned row no
   // view can find. Resolve every special folder to a real subject, not just the
   // two that were handled before.
-  const SPECIAL_NOT_A_SUBJECT = ['all', '__images__', 'buzz_fun', 'scan_master', ...QUESTION_BANK_FOLDERS];
+  const SPECIAL_NOT_A_SUBJECT = ['all', '__images__', '__needs_update__', 'buzz_fun', 'scan_master', ...QUESTION_BANK_FOLDERS];
   const defaultSubjectResolved = SPECIAL_NOT_A_SUBJECT.includes(defaultSubject) ? 'cardiology' : defaultSubject;
 
   // Adding from a mode's own surface pre-ticks that mode's tag — either its
@@ -2698,6 +2699,10 @@ function QuestionsPanel({ subjects = [], scopeTag = null }) {
   // Step 1 — category filter. 'all' always passes through every question.
   const catQuestions = activeFolder === 'all'        ? scoped
     : activeFolder === '__images__'                  ? scoped.filter(q => q.image_url)
+    // Flagged in game by a moderator. Newest first: the one just flagged is
+    // the one being looked for.
+    : activeFolder === '__needs_update__'            ? scoped.filter(q => q.needs_update_at)
+        .sort((a, b) => String(b.needs_update_at).localeCompare(String(a.needs_update_at)))
     : activeFolder === 'buzz_fun'                    ? scoped.filter(q => (q.game_modes || []).includes('buzz_fun'))
     : QUESTION_BANK_FOLDERS.includes(activeFolder)   ? scoped.filter(q => (q.game_modes || []).includes(activeFolder))
     : scoped.filter(q => {

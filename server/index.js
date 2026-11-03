@@ -825,10 +825,21 @@ async function moderatorFrom(req) {
       .from('users').select('is_admin').eq('id', decoded.userId).maybeSingle();
     // Column missing (migration not run yet) or lookup failed → not a moderator.
     // Fail CLOSED: never widen permission because a check errored.
-    if (error || !data?.is_admin) return { ok: false, userId: decoded.userId };
+    //
+    // The REASON is carried out now. Failing closed is right, but it made
+    // "the column was never created" and "you simply were not granted it"
+    // identical from the outside — and the first is a database job while the
+    // second is a two-click one. Nothing here changes who passes.
+    if (error) {
+      const missing = /is_admin/i.test(`${error.message || ''} ${error.details || ''}`)
+        || error.code === '42703';
+      return { ok: false, userId: decoded.userId, reason: missing ? 'missing_column' : 'lookup_failed' };
+    }
+    if (!data) return { ok: false, userId: decoded.userId, reason: 'no_user_row' };
+    if (!data.is_admin) return { ok: false, userId: decoded.userId, reason: 'not_granted' };
     return { ok: true, userId: decoded.userId, via: 'moderator' };
-  } catch {
-    return { ok: false, userId: decoded.userId };
+  } catch (err) {
+    return { ok: false, userId: decoded.userId, reason: 'lookup_failed' };
   }
 }
 
@@ -3620,7 +3631,12 @@ const SAVED_EXPL_TABLE = 'uworld_saved_explanations';
 // answering — same five categories (and exact value strings) HY Flashcards
 // already uses for its own rating pile picker, kept identical for a familiar
 // UX and because the client renders both from the same icon/label list.
-const UWORLD_RATINGS = ['knowledge_gap', 'careless_miss', 'lucky_guess', 'somewhat_know', 'fully_understood'];
+// 'long_term_memory' is where a question goes once it is simply KNOWN — the
+// end of the line rather than another shade of "nearly". The database has a
+// CHECK constraint on this column, so adding it here alone is not enough: the
+// constraint block at the end of server/schema.sql has to be run or every
+// rating into it is rejected.
+const UWORLD_RATINGS = ['knowledge_gap', 'careless_miss', 'lucky_guess', 'somewhat_know', 'fully_understood', 'long_term_memory'];
 
 // ON CONFLICT needs a unique index on (user_id, question_id). A part-run
 // migration can leave the table there but the index absent, and Postgres then
@@ -3940,7 +3956,7 @@ app.post('/api/uworld-questions/:questionId/save-explanation', requireAuth, asyn
 app.get('/api/uworld-questions/rating-counts', requireAuth, async (req, res) => {
   // Which bank this request is about — UWorld Adventure or Saudi MLE.
   const modeJsonTag = modeJson(modeTagFrom(req));
-  const zeros = { total: 0, unrated: 0, knowledge_gap: 0, careless_miss: 0, lucky_guess: 0, somewhat_know: 0, fully_understood: 0, system_total: 0, saved_explanations: 0 };
+  const zeros = { total: 0, unrated: 0, knowledge_gap: 0, careless_miss: 0, lucky_guess: 0, somewhat_know: 0, fully_understood: 0, long_term_memory: 0, system_total: 0, saved_explanations: 0 };
   if (!supabase) return res.json(zeros);
   // Optional subject scope. Reviewing is per SYSTEM: a pile that mixes
   // biochemistry with pulmonology is not a revision session anyone wants.
@@ -4247,13 +4263,98 @@ function makeSideTableRetire(table) {
     }
   };
 }
+/**
+ * POST /api/:table/:id/needs-update   { note?, clear? }
+ *
+ * Mark a question as wanting an edit — WITHOUT taking it out of circulation.
+ * Deliberately not retirement: a question with a stale reference or a typo is
+ * still worth answering, and pulling it would cost students the question to
+ * save an author a scroll. Retiring stays for questions that are actually
+ * wrong.
+ *
+ * Moderators may flag; clearing it is the same power, since whoever fixed the
+ * question is the one who knows it is fixed.
+ *
+ * Degrades the way every other hand-run column here does: until the migration
+ * is run, the write is refused with the SQL to run rather than accepted and
+ * dropped.
+ */
+let hasNeedsUpdate = true;
+
+function isMissingNeedsUpdate(error) {
+  if (!error) return false;
+  const msg = `${error.message || ''} ${error.details || ''}`.toLowerCase();
+  return msg.includes('needs_update');
+}
+
+const NEEDS_UPDATE_TABLES = ['questions', 'journey-questions', 'boss-questions'];
+const needsUpdateTable = (slug) => ({
+  'questions': 'questions',
+  'journey-questions': 'journey_questions',
+  'boss-questions': 'boss_questions',
+}[slug] || null);
+
+app.post('/api/:slug/:id/needs-update', async (req, res) => {
+  const { slug, id } = req.params;
+  if (!NEEDS_UPDATE_TABLES.includes(slug)) return res.status(404).json({ error: 'Unknown table' });
+  const table = needsUpdateTable(slug);
+  const mod = await moderatorFrom(req);
+  if (!mod.ok) return res.status(403).json({ error: 'Moderator permissions required' });
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured' });
+  if (!hasNeedsUpdate) {
+    return res.status(503).json({
+      error: 'needs_update columns are missing — run the block at the end of server/schema.sql',
+      reason: 'missing_column',
+    });
+  }
+
+  const clear = req.body?.clear === true;
+  const note = (req.body?.note ?? '').toString().trim().slice(0, 500) || null;
+  const key = table === 'questions' ? 'question_id' : 'id';
+  const row = clear
+    ? { needs_update_at: null, needs_update_by: null, needs_update_note: null }
+    : { needs_update_at: new Date().toISOString(), needs_update_by: mod.userId || null, needs_update_note: note };
+
+  try {
+    let { data, error } = await supabase
+      .from(table).update(row).eq(key, id).select('id').maybeSingle();
+    // questions is keyed by the TEXT business id in game, by UUID elsewhere —
+    // try the other one before giving up rather than reporting "not found" for
+    // a question that is plainly there.
+    if (!error && !data && table === 'questions') {
+      ({ data, error } = await supabase
+        .from(table).update(row).eq('id', id).select('id').maybeSingle());
+    }
+    if (error && isMissingNeedsUpdate(error)) {
+      hasNeedsUpdate = false;
+      console.warn('[needs-update] columns missing — run the block at the end of server/schema.sql');
+      return res.status(503).json({
+        error: 'needs_update columns are missing — run the block at the end of server/schema.sql',
+        reason: 'missing_column',
+      });
+    }
+    if (error) throw error;
+    if (!data) return res.status(404).json({ error: 'Question not found' });
+    // The in-memory bank is what Solo and Training actually serve.
+    const q = questionBank.find(x => x._supabase_id === id || x.id === id);
+    if (q) Object.assign(q, row);
+    res.json({ ok: true, flagged: !clear });
+  } catch (err) {
+    console.warn('[needs-update] failed —', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post('/api/journey-questions/:id/retire', makeSideTableRetire('journey_questions'));
 app.post('/api/boss-questions/:id/retire', makeSideTableRetire('boss_questions'));
 
 /** Does the caller hold the moderator flag? Drives whether the in-game control renders. */
 app.get('/api/me/permissions', async (req, res) => {
   const mod = await moderatorFrom(req);
-  res.json({ moderator: mod.ok, via: mod.via || null });
+  // `reason` is diagnostic only — it grants nothing, and the client shows it
+  // to signed-in users so a missing migration announces itself rather than
+  // presenting as "the highlighter just does not work for me".
+  res.json({ moderator: mod.ok, via: mod.via || null, reason: mod.reason || null });
 });
 
 // ── Review queue + role management (OWNER ONLY — the admin password) ──────────

@@ -198,6 +198,10 @@ function fromDb(row) {
     topic_id: row.topic_id || undefined,
     buzz_type: row.buzz_type || undefined,
     question_type: row.question_type || 'mcq',
+    // Flagged for an edit — shown to a moderator in game so they can see at a
+    // glance which questions are already on someone's list.
+    needs_update_at: row.needs_update_at || undefined,
+    needs_update_note: row.needs_update_note || undefined,
     _supabase_id: row.id, // Keep Supabase UUID for updates
   };
 }

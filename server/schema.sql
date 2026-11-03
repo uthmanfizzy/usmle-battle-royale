@@ -1416,3 +1416,66 @@ CREATE POLICY "server_full_access_uworld_saved_explanations"
   ON uworld_saved_explanations FOR ALL USING (true) WITH CHECK (true);
 
 NOTIFY pgrst, 'reload schema';
+
+
+-- ──────────────────────────────────────────────────────────────────────────────
+-- uworld_question_ratings: a sixth bucket, Long-term Memory
+--
+-- Where a question goes once it is simply KNOWN, rather than another shade of
+-- "nearly". The column carries a CHECK constraint listing the allowed values,
+-- so the app cannot introduce one on its own — without this block every rating
+-- into the new bucket is rejected by the database and the pile stays empty.
+--
+-- The constraint is dropped and recreated rather than altered: Postgres has no
+-- ALTER CONSTRAINT for a CHECK, and the name is the one the original CREATE
+-- TABLE gave it.
+-- ──────────────────────────────────────────────────────────────────────────────
+ALTER TABLE uworld_question_ratings DROP CONSTRAINT IF EXISTS uworld_question_ratings_rating_check;
+ALTER TABLE uworld_question_ratings ADD CONSTRAINT uworld_question_ratings_rating_check
+  CHECK (rating IN ('knowledge_gap', 'careless_miss', 'lucky_guess',
+                    'somewhat_know', 'fully_understood', 'long_term_memory'));
+
+NOTIFY pgrst, 'reload schema';
+
+-- ── ONE-TIME: move everything already in Fully Understood ────────────────────
+-- Run this ONCE, after the constraint above. It empties Fully Understood into
+-- Long-term Memory for every user — which is what those ratings already meant.
+--
+-- Deliberately separate, and deliberately not IF NOT EXISTS-shaped: running it
+-- again later would sweep up whatever has since been rated Fully Understood,
+-- which is NOT the same thing. Check the count first, run it, check it is zero.
+--
+--   SELECT count(*) FROM uworld_question_ratings WHERE rating = 'fully_understood';
+--
+--   UPDATE uworld_question_ratings
+--      SET rating = 'long_term_memory', updated_at = NOW()
+--    WHERE rating = 'fully_understood';
+--
+--   SELECT rating, count(*) FROM uworld_question_ratings GROUP BY rating ORDER BY 2 DESC;
+
+
+-- ──────────────────────────────────────────────────────────────────────────────
+-- needs_update — "this question wants an edit", without pulling it
+--
+-- Deliberately NOT retirement. A question with a stale reference or a typo is
+-- still worth answering; retiring it costs every student the question in order
+-- to save an author a scroll. retired_at remains for questions that are
+-- actually wrong.
+--
+-- Flagged from inside a game by a moderator, cleared by whoever fixes it.
+-- Until this runs, the flag button reports that it cannot save rather than
+-- going quiet.
+-- ──────────────────────────────────────────────────────────────────────────────
+ALTER TABLE questions         ADD COLUMN IF NOT EXISTS needs_update_at   TIMESTAMPTZ;
+ALTER TABLE questions         ADD COLUMN IF NOT EXISTS needs_update_by   UUID REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE questions         ADD COLUMN IF NOT EXISTS needs_update_note TEXT;
+ALTER TABLE journey_questions ADD COLUMN IF NOT EXISTS needs_update_at   TIMESTAMPTZ;
+ALTER TABLE journey_questions ADD COLUMN IF NOT EXISTS needs_update_by   UUID REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE journey_questions ADD COLUMN IF NOT EXISTS needs_update_note TEXT;
+ALTER TABLE boss_questions    ADD COLUMN IF NOT EXISTS needs_update_at   TIMESTAMPTZ;
+ALTER TABLE boss_questions    ADD COLUMN IF NOT EXISTS needs_update_by   UUID REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE boss_questions    ADD COLUMN IF NOT EXISTS needs_update_note TEXT;
+
+CREATE INDEX IF NOT EXISTS idx_questions_needs_update ON questions(needs_update_at);
+
+NOTIFY pgrst, 'reload schema';

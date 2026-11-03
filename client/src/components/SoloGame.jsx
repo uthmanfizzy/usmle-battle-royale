@@ -50,6 +50,7 @@ const UWORLD_RATINGS = [
   { key: 'lucky_guess',      label: 'Lucky Guess',      icon: '🍀' },
   { key: 'somewhat_know',    label: 'Somewhat Know',    icon: '🤔' },
   { key: 'fully_understood', label: 'Fully Understood', icon: '✅' },
+  { key: 'long_term_memory',  label: 'Long-term Memory', icon: '🗄️' },
 ];
 
 // Strip a single baked-in letter prefix ("A. ", "B) ", "C: " …) from stored
@@ -592,6 +593,9 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   // out of circulation mid-game. The server re-checks both — this only decides
   // whether the controls render.
   const [isModerator, setIsModerator] = useState(false);
+  // Why the server says no, when it does. Only ever shown to someone who is
+  // signed in and finds official authoring missing.
+  const [modReason, setModReason] = useState(null);
   // Transient reason a highlight failed to save. Without this the optimistic
   // row is simply removed again and the highlight appears to flicker away.
   const [hlError, setHlError] = useState('');
@@ -601,10 +605,19 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
     let alive = true;
     fetch(`${SERVER_URL}/api/me/permissions`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => (r.ok ? r.json() : null))
-      .then(d => { if (alive) setIsModerator(!!d?.moderator); })
+      .then(d => {
+        if (!alive) return;
+        setIsModerator(!!d?.moderator);
+        setModReason(d?.reason || null);
+      })
       .catch(() => {});   // fail closed: no flag, no controls
     return () => { alive = false; };
   }, []);
+
+  // Flagging a question as wanting an edit. Separate from retiring on
+  // purpose: this one leaves the question in play.
+  const [needsUpdateState, setNeedsUpdateState] = useState(null); // null | 'saving' | 'done'
+  const [needsUpdateError, setNeedsUpdateError] = useState('');
 
   // Retiring a question mid-game.
   const [retireState, setRetireState] = useState(null);   // null | 'saving' | 'done'
@@ -658,8 +671,34 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
         setRetireState(null);
       });
   }
+  function flagNeedsUpdate(questionId) {
+    if (!questionId || needsUpdateState === 'saving') return;
+    setNeedsUpdateState('saving');
+    setNeedsUpdateError('');
+    const token = getToken();
+    const headers = { 'Content-Type': 'application/json' };
+    if (adminSession) headers['x-admin-password'] = adminSession;
+    if (token)        headers['Authorization'] = `Bearer ${token}`;
+    fetch(`${SERVER_URL}/api/${retireEndpoint}/${encodeURIComponent(questionId)}/needs-update`, {
+      method: 'POST', headers, body: JSON.stringify({}),
+    })
+      .then(async (r) => {
+        if (r.ok) return r.json();
+        let detail = `HTTP ${r.status}`;
+        try { const e = await r.json(); detail = e.error || detail; } catch {}
+        throw new Error(detail);
+      })
+      .then(() => setNeedsUpdateState('done'))
+      .catch(err => {
+        console.error('[needs-update] failed:', err.message);
+        setNeedsUpdateError(err.message);
+        setNeedsUpdateState(null);
+      });
+  }
+
   // Reset the banner when the question changes.
   useEffect(() => { setRetireState(null); setRetireError(''); }, [qIdx]);
+  useEffect(() => { setNeedsUpdateState(null); setNeedsUpdateError(''); }, [qIdx]);
 
   // Layer 1/2 (study mode only): explanation pane layout, time-spent, burger menu
   const [explLayout, setExplLayout] = useState(() => localStorage.getItem('mr_solo_expl_layout') || 'right');
@@ -3248,6 +3287,17 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
                   allowFormat={authoringOfficial}
                 />
               )}
+              {/* A signed-in user who was told they have admin, but whom the
+                  server does not see as a moderator, gets the actual reason.
+                  Highlights still work for them — privately — which is what
+                  made this so hard to tell apart from being broken. */}
+              {!hideExplanations && !isAdminSession && loggedIn && modReason && modReason !== 'not_granted' && (
+                <p className="dev-hl-why" role="status">
+                  {modReason === 'missing_column'
+                    ? 'Your highlights are saving as private ones. Official highlights need the users.is_admin column, which is missing from the database — run the moderator block in server/schema.sql.'
+                    : 'Your highlights are saving as private ones. The server could not read your permissions just now.'}
+                </p>
+              )}
               {!hideExplanations && isAdminSession && (
                 <div className="dev-hl-bar">
                   <span className="dev-hl-bar-label">🛠️ Developer Mode</span>
@@ -3282,6 +3332,35 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
                         {retireState === 'saving' ? 'Removing…' : '🚫 Flag as a bad question'}
                       </button>
                       {retireError && <span className="mod-retire-err">Couldn&apos;t remove it — {retireError}</span>}
+                    </>
+                  )}
+
+                  {/* The softer flag: this question is worth answering, it just
+                      wants an edit. Keeping it in play is the whole point —
+                      retiring a question over a typo costs students the
+                      question to save an author a scroll. */}
+                  {needsUpdateState === 'done' ? (
+                    <span className="mod-needsup-done">
+                      ✏️ Flagged for an update — it stays in play, and shows up in the
+                      admin Question Manager under “Needs an update”.
+                    </span>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        className="mod-needsup-btn"
+                        disabled={needsUpdateState === 'saving'}
+                        onClick={() => flagNeedsUpdate(q.id)}
+                        title="Mark this question as wanting an edit, without taking it out of circulation"
+                      >
+                        {needsUpdateState === 'saving' ? 'Flagging…' : '✏️ Needs an update'}
+                      </button>
+                      {q?.needs_update_at && needsUpdateState !== 'done' && (
+                        <span className="mod-needsup-already">Already flagged</span>
+                      )}
+                      {needsUpdateError && (
+                        <span className="mod-retire-err">Couldn&apos;t flag it — {needsUpdateError}</span>
+                      )}
                     </>
                   )}
                 </div>
