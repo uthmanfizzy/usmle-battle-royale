@@ -19,6 +19,7 @@ const GameRoom = lazy(() => import('./components/GameRoom'));
 const SpeedRaceGame = lazy(() => import('./components/SpeedRaceGame'));
 const TriviaGame = lazy(() => import('./components/TriviaGame'));
 const Leaderboard = lazy(() => import('./components/Leaderboard'));
+const PvpDuelResults = lazy(() => import('./components/PvpDuelResults'));
 const SoloGame = lazy(() => import('./components/SoloGame'));
 const TowerMode = lazy(() => import('./components/TowerMode'));
 const BuzzFunGame = lazy(() => import('./components/BuzzFunGame'));
@@ -1240,7 +1241,25 @@ export default function App() {
         </RouteErrorBoundary>
       )}
 
-      {phase === 'game_over' && (
+      {/* A duel is two players, so it ends on a Match Results card rather
+          than a podium. The shared leaderboard RANKS A FIELD — with exactly
+          two entrants that says almost nothing, and the numbers a duel
+          actually generates (damage dealt, HP left) were not on it at all.
+          Every other mode still finishes on the board. */}
+      {phase === 'game_over' && gameMode === 'pvp_duel' && (
+        <RouteErrorBoundary name="PvpDuelResults">
+        <PvpDuelResults
+          gameResult={gameResult}
+          username={username}
+          onPlayAgain={handlePlayAgain}
+          onHome={handleReturnHome}
+          isGuest={!user}
+          onSignIn={handleGoogleLogin}
+        />
+        </RouteErrorBoundary>
+      )}
+
+      {phase === 'game_over' && gameMode !== 'pvp_duel' && (
         <RouteErrorBoundary name="Leaderboard">
         <Leaderboard
           gameResult={gameResult}

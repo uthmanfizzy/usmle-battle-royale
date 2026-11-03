@@ -1,0 +1,233 @@
+/* PvpDuelResults — the 1v1 Match Results card.
+   Same chassis as the duel HUD it follows: dark gradient ground, Cinzel for
+   the verdict, --mv-red for damage and --mv-teal for the secondary. Static
+   rgba/hex tints only — no color-mix anywhere in this project. */
+
+.pdr {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  overflow-y: auto;
+  color: #fff;
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  background:
+    radial-gradient(ellipse 70% 50% at 50% 0%, rgba(79, 209, 197, 0.07), transparent 60%),
+    linear-gradient(165deg, var(--mv-bg-base, #101713) 0%, var(--mv-bg-void, #060a07) 60%, #04060a 100%);
+  z-index: 6;
+}
+
+/* The verdict's colour washes the ground, so the result is legible from
+   across the room before a word is read. */
+.pdr--win  { background-image: radial-gradient(ellipse 70% 50% at 50% 0%, rgba(232, 176, 75, 0.16), transparent 62%), linear-gradient(165deg, #141a12 0%, #080b07 60%, #04060a 100%); }
+.pdr--loss { background-image: radial-gradient(ellipse 70% 50% at 50% 0%, rgba(214, 54, 60, 0.14), transparent 62%),  linear-gradient(165deg, #1a1211 0%, #0b0707 60%, #060406 100%); }
+.pdr--draw { background-image: radial-gradient(ellipse 70% 50% at 50% 0%, rgba(126, 148, 178, 0.14), transparent 62%), linear-gradient(165deg, #121619 0%, #080a0c 60%, #05070a 100%); }
+
+.pdr-card {
+  width: 100%;
+  max-width: 760px;
+  margin: auto;
+  padding: 26px 24px 22px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(10, 14, 12, 0.72);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+}
+
+.pdr-head { text-align: center; margin-bottom: 22px; }
+
+.pdr-eyebrow {
+  margin: 0 0 6px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.pdr-verdict {
+  margin: 0;
+  font-family: var(--mv-font-display, 'Cinzel', serif);
+  font-size: clamp(32px, 6vw, 52px);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  line-height: 1.1;
+}
+.pdr--win  .pdr-verdict { color: var(--mv-gold, #e8b04b); text-shadow: 0 0 26px rgba(232, 176, 75, 0.35); }
+.pdr--loss .pdr-verdict { color: #e2676c; }
+.pdr--draw .pdr-verdict { color: #b9c6d6; }
+
+.pdr-reason {
+  margin: 8px 0 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.62);
+}
+
+/* ── The two of you ─────────────────────────────────────────────────────── */
+.pdr-sides {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: start;
+  gap: 14px;
+}
+
+.pdr-versus {
+  align-self: center;
+  font-family: var(--mv-font-display, 'Cinzel', serif);
+  font-size: 15px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.pdr-side {
+  padding: 16px 16px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+  min-width: 0;
+}
+/* Your own side is the one you look at first, so it carries the edge. */
+.pdr-side--me {
+  border-color: rgba(79, 209, 197, 0.4);
+  background: rgba(79, 209, 197, 0.07);
+}
+.pdr-side--empty { visibility: hidden; }
+
+.pdr-who {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  min-width: 0;
+}
+
+.pdr-avatar {
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(6, 10, 7, 0.7);
+  font-family: var(--mv-font-display, 'Cinzel', serif);
+  font-size: 15px;
+  text-transform: uppercase;
+}
+
+.pdr-name {
+  font-family: var(--mv-font-display, 'Cinzel', serif);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pdr-name em { font-style: normal; opacity: 0.55; font-size: 13px; }
+
+/* ── HP ─────────────────────────────────────────────────────────────────── */
+.pdr-hp { margin-bottom: 14px; }
+
+.pdr-hp-bar {
+  height: 8px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+
+.pdr-hp-fill {
+  height: 100%;
+  border-radius: 99px;
+  background: linear-gradient(90deg, var(--mv-red, #d6363c), #ef6b70);
+}
+/* Zero HP still reads as a bar, just an empty one — a bar that vanishes looks
+   like a rendering fault rather than a knockout. */
+.pdr-hp-fill.is-down { background: rgba(214, 54, 60, 0.35); }
+
+.pdr-hp-text {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+/* ── Numbers ────────────────────────────────────────────────────────────── */
+.pdr-stats { margin: 0; display: flex; flex-direction: column; gap: 8px; }
+
+.pdr-stat {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+.pdr-stat dt {
+  font-size: 12.5px;
+  color: rgba(255, 255, 255, 0.55);
+}
+.pdr-stat dd {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.pdr-guest {
+  margin: 18px 0 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(232, 176, 75, 0.3);
+  background: rgba(232, 176, 75, 0.08);
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: #e5c37a;
+}
+.pdr-signin {
+  border: 0;
+  background: none;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  font-weight: 800;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* ── Actions ────────────────────────────────────────────────────────────── */
+.pdr-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 22px;
+}
+
+.pdr-btn {
+  padding: 11px 22px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.05);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.pdr-btn:hover { background: rgba(255, 255, 255, 0.1); }
+
+.pdr-btn--primary {
+  border-color: var(--mv-gold, #e8b04b);
+  background: linear-gradient(140deg, rgba(232, 176, 75, 0.9), rgba(198, 142, 48, 0.9));
+  color: #14100a;
+}
+.pdr-btn--primary:hover { background: linear-gradient(140deg, #e8b04b, #c68e30); }
+
+/* A phone cannot carry two columns and a "vs" between them. */
+@media (max-width: 620px) {
+  .pdr-sides { grid-template-columns: 1fr; }
+  .pdr-versus { justify-self: center; }
+  .pdr-side--empty { display: none; }
+}
