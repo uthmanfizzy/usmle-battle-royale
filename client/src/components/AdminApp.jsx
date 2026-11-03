@@ -1907,10 +1907,15 @@ function QuestionBankSubjectsPanel({ modeId, modeLabel, subjects }) {
         const data = await res.json();
         if (!alive) return;
         const saved = data?.questionBankSubjects?.[modeId];
-        if (Array.isArray(saved) && saved.length) { setIds(new Set(saved)); setConfigured(true); }
-        // Not configured: seed the toggles from what this bank shows TODAY, so
-        // opening the panel and saving is a no-op rather than a surprise.
-        else setIds(new Set(rows.filter(r => r.active).map(r => r.id)));
+        // Whatever this bank hides comes off the ticks too, or the panel would
+        // show a subject as shown while players cannot see it.
+        const hiddenCfg = data?.questionBankHiddenSubjects?.[modeId];
+        const hidden = new Set(Array.isArray(hiddenCfg) ? hiddenCfg : []);
+        const base = (Array.isArray(saved) && saved.length)
+          ? saved
+          : rows.filter(r => r.active).map(r => r.id);
+        if (Array.isArray(saved) && saved.length) setConfigured(true);
+        setIds(new Set(base.filter(id => !hidden.has(id))));
       } catch {
         if (alive) setIds(new Set(rows.filter(r => r.active).map(r => r.id)));
       }
@@ -1930,9 +1935,17 @@ function QuestionBankSubjectsPanel({ modeId, modeLabel, subjects }) {
     try {
       const list = rows.filter(r => ids.has(r.id)).map(r => r.id);
       if (list.length === 0) throw new Error('Pick at least one subject — a bank with none would show players an empty page.');
+      // Both lists, as complements. The hidden one is what makes unticking
+      // survive a new subject being added later, and writing it here is what
+      // makes TICKING one work again — otherwise a subject hidden by default
+      // would stay hidden however many times it was ticked.
+      const hiddenList = rows.filter(r => !ids.has(r.id)).map(r => r.id);
       const res = await apiCall('/admin/settings', {
         method: 'POST',
-        body: JSON.stringify({ questionBankSubjects: { [modeId]: list } }),
+        body: JSON.stringify({
+          questionBankSubjects: { [modeId]: list },
+          questionBankHiddenSubjects: { [modeId]: hiddenList },
+        }),
       });
       if (!res.ok) throw new Error('Save failed');
       setConfigured(true);

@@ -562,6 +562,23 @@ let gameSettings = {
   // nothing changes until an admin configures that mode — and each bank can
   // then show a different set without a second copy of the subject list.
   questionBankSubjects: {},
+  // Subjects a bank does NOT show, keyed by mode id. The companion to the
+  // include list above, and the right primitive for "take this one out":
+  // an include list has to be rewritten every time a NEW subject is added or
+  // the new one silently never appears, while an exclude list keeps meaning
+  // what it says.
+  //
+  // Both apply — include first, then exclude — so the admin panel can write
+  // them as complements and ticking a subject back on actually brings it
+  // back.
+  //
+  // UWorld Adventure ships without Anatomy, Genetics & Embryology and
+  // Haematology. Haematology & Oncology is a DIFFERENT subject and stays.
+  // Only this bank: the same three are untouched in Saudi MLE, ORE/LDS,
+  // Mehlman and everywhere else.
+  questionBankHiddenSubjects: {
+    uworld_adventure: ['anatomy', 'genetics', 'haematology'],
+  },
   // Section 3: Lobby
   maxPlayersPerLobby: 10,
   minPlayersToStart: 2,
@@ -3625,6 +3642,23 @@ function bankSubjectAllowList(modeId) {
   return Array.isArray(list) && list.length ? new Set(list.map(String)) : null;
 }
 
+// Subjects this bank hides. Unlike the allow list, an EMPTY array here is
+// meaningful — it says "hide nothing" — so it is returned as an empty Set
+// rather than null, and only an absent entry falls through to the default.
+function bankSubjectHidden(modeId) {
+  const cfg = gameSettings.questionBankHiddenSubjects;
+  const list = cfg && cfg[modeId];
+  return Array.isArray(list) ? new Set(list.map(String)) : new Set();
+}
+
+// One rule, used everywhere a bank's subject list is built: the include list
+// wins where it is set, then the hidden list takes its subjects out.
+function bankShowsSubject(modeId, subject) {
+  const allow = bankSubjectAllowList(modeId);
+  if (bankSubjectHidden(modeId).has(subject.id)) return false;
+  return allow ? allow.has(subject.id) : !!subject.active;
+}
+
 const QUESTION_BANK_ACTIVITY_MODE = {
   uworld_adventure: 'question_bank_practice',
   saudi_mle:        'saudi_mle_practice',
@@ -6217,9 +6251,10 @@ app.get('/api/question-bank-progress/by-subject', requireAuth, async (req, res) 
     const { data: rows, error: aErr } = await supabase
       .from('subjects').select('id, active');
     if (aErr) throw aErr;
-    // Same rule as question-bank-progress above: the bank's list wins when set.
-    const allow = bankSubjectAllowList(modeTagFrom(req));
-    const ids = (rows || []).filter(s => (allow ? allow.has(s.id) : s.active)).map(s => s.id);
+    // Same rule as question-bank-progress above: the bank's list wins when
+    // set, and whatever it hides is then taken out.
+    const mode = modeTagFrom(req);
+    const ids = (rows || []).filter(s => bankShowsSubject(mode, s)).map(s => s.id);
     if (ids.length === 0) return res.json({ subjects: {} });
 
     const per = await Promise.all(ids.map(async (id) => {
@@ -6278,9 +6313,9 @@ app.get('/api/users/:userId/question-bank-progress', requireAuth, async (req, re
         .from('subjects')
         .select('id, active');
       if (aErr) throw aErr;
-      const allow = bankSubjectAllowList(modeTagFrom(req));
+      const mode = modeTagFrom(req);
       subjects = (rows || [])
-        .filter((s) => (allow ? allow.has(s.id) : s.active))
+        .filter((s) => bankShowsSubject(mode, s))
         .map((s) => s.id);
       if (subjects.length === 0) return res.json(zeros);
     }
@@ -8543,6 +8578,17 @@ app.post('/admin/settings', adminAuth, async (req, res) => {
   // Per-bank subject visibility: { modeId: [subjectId, ...] }. Mode keys are
   // whitelisted so a typo cannot create a phantom bank that silently governs
   // nothing.
+  if (b.questionBankHiddenSubjects && typeof b.questionBankHiddenSubjects === 'object'
+      && !Array.isArray(b.questionBankHiddenSubjects)) {
+    const next = { ...(gameSettings.questionBankHiddenSubjects || {}) };
+    for (const [modeId, ids] of Object.entries(b.questionBankHiddenSubjects)) {
+      if (!QUESTION_BANK_MODE_IDS.includes(modeId)) continue;
+      // An empty array is kept, not dropped: "hide nothing" is a real setting
+      // and has to be able to override the shipped default.
+      if (Array.isArray(ids)) next[modeId] = ids.map(String).slice(0, 100);
+    }
+    gameSettings.questionBankHiddenSubjects = next;
+  }
   if (b.questionBankSubjects && typeof b.questionBankSubjects === 'object' && !Array.isArray(b.questionBankSubjects)) {
     const next = { ...(gameSettings.questionBankSubjects || {}) };
     for (const [modeId, ids] of Object.entries(b.questionBankSubjects)) {

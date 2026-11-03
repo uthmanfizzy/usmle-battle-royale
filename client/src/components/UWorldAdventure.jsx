@@ -302,9 +302,20 @@ export default function UWorldAdventure({ mode = DEFAULT_QUESTION_BANK_MODE }) {
         if (cancelled) return;
         const configured = settings?.questionBankSubjects?.[MODE];
         const allow = Array.isArray(configured) && configured.length ? new Set(configured) : null;
-        const active = (data.subjects || []).filter(s => (allow ? allow.has(s.id) : s.active));
+        // Taken out of this bank specifically. Mirrors bankShowsSubject on the
+        // server, so the grid and the pacing counts agree about what exists —
+        // a subject shown here but filtered there would read as a system with
+        // no questions in it.
+        const hiddenCfg = settings?.questionBankHiddenSubjects?.[MODE];
+        const hidden = new Set(Array.isArray(hiddenCfg) ? hiddenCfg : []);
+        const shows = (s) => !hidden.has(s.id) && (allow ? allow.has(s.id) : s.active);
+        const active = (data.subjects || []).filter(shows);
         setSubjects(active);
-        setDevSubjects((data.subjects || []).filter(s => !(allow ? allow.has(s.id) : s.active)));
+        // "Under development" is for a subject this bank WOULD show once it is
+        // ready. One taken out of the bank is not coming, so it belongs in
+        // neither list — showing it greyed out would advertise a system that
+        // is never going to appear here.
+        setDevSubjects((data.subjects || []).filter(s => !hidden.has(s.id) && !shows(s)));
         // Open on the first subject so the pace card is populated on arrival,
         // the way the mockup shows it — an empty card above a subject grid
         // reads as broken. Picking another subject just re-points it.
