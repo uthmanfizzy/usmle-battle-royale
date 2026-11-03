@@ -1087,6 +1087,12 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   // Every figure on this question's stem, in order. Figure #1 is mirrored to
   // image_url server-side, so a one-figure question behaves exactly as before.
   const [stemImages, setStemImages] = useState([]);
+  // A sound the question is about — a murmur, a breath sound. One per
+  // question: a stem wanting two different sounds is two questions.
+  const [stemAudio, setStemAudio] = useState(null);
+  const [audioBusy, setAudioBusy] = useState(false);
+  const [audioMsg, setAudioMsg] = useState(null);   // { kind, text }
+  const audioInputRef = useRef(null);
   const stemImagesRef = useRef(stemImages);
   stemImagesRef.current = stemImages;
   const explImagesRef = useRef(explImages);
@@ -1324,6 +1330,79 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
       return { ok: false, error: err.message || 'Failed' };
     }
   }, [imageAuthHeaders, imageTable, applyStemImages]);
+
+  // Attaching (or clearing) the question's sound. Rides the same image
+  // endpoint and the same permission: it is the same job — put a piece of
+  // media on a question — and a second endpoint would be this code with a
+  // different noun.
+  const saveStemAudio = useCallback(async (url, qid) => {
+    const headers = imageAuthHeaders();
+    if (!qid || !headers) return;
+    setAudioBusy(true);
+    setAudioMsg(null);
+    try {
+      const res = await fetch(
+        `${SERVER_URL}/api/question-image/${encodeURIComponent(qid)}?table=${imageTable}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', ...headers },
+        body: JSON.stringify({ field: 'stem_audio_url', url }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.reason === 'missing_column'
+          ? 'Audio needs the stem_audio_url column — run the migration in server/schema.sql'
+          : (data.error || `Save failed (${res.status})`));
+      }
+      setStemAudio(url);
+      applyDevFields({ stem_audio_url: url }, qid);
+      setAudioMsg({ kind: 'ok', text: url ? 'Audio attached' : 'Audio removed' });
+      setTimeout(() => setAudioMsg(null), 2500);
+    } catch (err) {
+      setAudioMsg({ kind: 'err', text: err.message || 'Failed' });
+      setTimeout(() => setAudioMsg(null), 6000);
+    }
+    setAudioBusy(false);
+  }, [imageAuthHeaders, imageTable, applyDevFields]);
+
+  const uploadStemAudio = useCallback(async (file, qid) => {
+    if (!file) return;
+    if (!file.type?.startsWith('audio/')) {
+      setAudioMsg({ kind: 'err', text: 'Audio files only' });
+      setTimeout(() => setAudioMsg(null), 4000);
+      return;
+    }
+    const headers = imageAuthHeaders();
+    if (!headers) {
+      setAudioMsg({ kind: 'err', text: 'Admin permissions required' });
+      return;
+    }
+    setAudioBusy(true);
+    setAudioMsg(null);
+    try {
+      // 15MB, matching the server. Checked here too so a 40MB file is refused
+      // before it is read and base64'd rather than after.
+      if (file.size > 15 * 1024 * 1024) throw new Error('That file is too big (max 15MB)');
+      const base64 = await new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(r.result);
+        r.onerror = reject;
+        r.readAsDataURL(file);
+      });
+      const up = await fetch(`${SERVER_URL}/admin/upload-audio`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...headers },
+        body: JSON.stringify({ base64, filename: file.name || 'audio', mimeType: file.type }),
+      });
+      const upData = await up.json().catch(() => ({}));
+      if (!up.ok) throw new Error(upData.error || `Upload failed (${up.status})`);
+      setAudioBusy(false);
+      await saveStemAudio(upData.url, qid);
+    } catch (err) {
+      setAudioMsg({ kind: 'err', text: err.message || 'Failed' });
+      setTimeout(() => setAudioMsg(null), 6000);
+      setAudioBusy(false);
+    }
+  }, [imageAuthHeaders, saveStemAudio]);
 
   const saveDevImage = useCallback(async (field, url, qid) => {
     // Resolve the question the slot/paste was aimed at, NOT whatever happens to
@@ -1583,6 +1662,9 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   useEffect(() => {
     const row = questionsRef.current[qIdxRef.current];
     setStemImages(normalizeStemImages(row));
+    setStemAudio(row?.stem_audio_url || null);
+    setAudioMsg(null);
+    setAudioBusy(false);
   }, [qIdx, currentQid]);
 
   // The shelf state belongs to the question, not the screen. Questions pulled
@@ -1666,6 +1748,13 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
             });
             patch.explanation_images = list;
             setExplImages(list);
+          }
+        }
+        if (Object.prototype.hasOwnProperty.call(data, 'stem_audio_url')) {
+          const incoming = data.stem_audio_url ?? null;
+          if (incoming !== (local?.stem_audio_url ?? null)) {
+            patch.stem_audio_url = incoming;
+            setStemAudio(incoming);
           }
         }
         if (data.stem_images_readable !== false && Array.isArray(data.stem_images)) {
@@ -2990,6 +3079,56 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
               rejectSelector=".lab-values-box, .stem-table"
             />
           )}
+          {/* The question's sound. Above the figures and below the stem: it is
+              part of the question, and a player who has to hear it should not
+              have to go looking past the pictures for it. The browser's own
+              controls rather than ours — scrubbing a murmur back and forth is
+              exactly what they are for, and a custom bar would be a worse one. */}
+          {stemAudio && (
+            <div className="sg-stem-audio">
+              <span className="sg-stem-audio-label" aria-hidden="true">🔊 Listen</span>
+              {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+              <audio className="sg-stem-audio-el" src={stemAudio} controls preload="metadata" />
+              {canWriteImages && (
+                <button
+                  type="button"
+                  className="sg-stem-audio-del"
+                  title="Take the audio off this question"
+                  disabled={audioBusy}
+                  onClick={() => saveStemAudio(null, q?.id)}
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          )}
+          {canWriteImages && (
+            <div className="sg-audio-slot">
+              <input
+                ref={audioInputRef}
+                type="file"
+                accept="audio/*"
+                hidden
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = '';
+                  if (file) uploadStemAudio(file, q?.id);
+                }}
+              />
+              <button
+                type="button"
+                className="sg-audio-btn"
+                disabled={audioBusy}
+                onClick={() => { setImgArmHold(true); audioInputRef.current?.click(); }}
+              >
+                {audioBusy ? '⏳ Uploading…' : stemAudio ? '🔊 Replace audio' : '🔊 Attach audio'}
+              </button>
+              {audioMsg && (
+                <span className={`sg-audio-msg is-${audioMsg.kind}`}>{audioMsg.text}</span>
+              )}
+            </div>
+          )}
+
           {/* Every figure on the stem, not just the first. A question with one
               renders exactly as it always did; the list is what makes a second
               possible at all. */}

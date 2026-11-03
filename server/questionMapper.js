@@ -194,6 +194,8 @@ function fromDb(row) {
     option_images: normalizeOptionImages(row).length ? normalizeOptionImages(row) : undefined,
     game_modes: row.game_modes || ['battle_royale', 'speed_race', 'trivia_pursuit'],
     image_url: row.image_url || undefined,
+    // A sound the question is about — a murmur, a breath sound.
+    stem_audio_url: row.stem_audio_url || undefined,
     // Every figure on the stem, figure #1 included. Omitted when there is at
     // most one, so an ordinary question carries no extra bytes.
     stem_images: normalizeStemImages(row).length > 1 ? normalizeStemImages(row) : undefined,
@@ -257,6 +259,7 @@ function toDb(question) {
 function toPublicQuestion(q) {
   return {
     id: q.id, question: q.question, options: q.options, image_url: q.image_url || null,
+    ...(q.stem_audio_url ? { stem_audio_url: q.stem_audio_url } : {}),
     // Pre-answer and safe: a figure says nothing about which option is right.
     ...(Array.isArray(q.stem_images) && q.stem_images.length > 1
       ? { stem_images: q.stem_images } : {}),

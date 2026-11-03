@@ -1502,3 +1502,26 @@ ALTER TABLE journey_questions ADD COLUMN IF NOT EXISTS stem_images JSONB;
 ALTER TABLE boss_questions    ADD COLUMN IF NOT EXISTS stem_images JSONB;
 
 NOTIFY pgrst, 'reload schema';
+
+
+-- ──────────────────────────────────────────────────────────────────────────────
+-- stem_audio_url — questions you have to HEAR
+--
+-- A murmur, a breath sound, a recording the question is about. One per
+-- question: a stem can want a sound, but a stem wanting two different sounds
+-- is two questions.
+--
+-- The FILE lives in a Supabase Storage bucket called question-audio, which has
+-- to be created by hand and made PUBLIC — the same way question-images was.
+-- Supabase → Storage → New bucket → name "question-audio", public. Until it
+-- exists the upload reports which bucket is missing rather than failing raw.
+--
+-- Its own bucket rather than question-images: different size limits, different
+-- content types, and a bucket called "images" full of .mp3 files is fine right
+-- up until someone writes a cleanup script.
+-- ──────────────────────────────────────────────────────────────────────────────
+ALTER TABLE questions         ADD COLUMN IF NOT EXISTS stem_audio_url TEXT;
+ALTER TABLE journey_questions ADD COLUMN IF NOT EXISTS stem_audio_url TEXT;
+ALTER TABLE boss_questions    ADD COLUMN IF NOT EXISTS stem_audio_url TEXT;
+
+NOTIFY pgrst, 'reload schema';

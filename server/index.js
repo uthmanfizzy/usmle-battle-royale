@@ -8965,6 +8965,68 @@ app.post('/admin/upload-image', moderatorAuth, async (req, res) => {
   }
 });
 
+/**
+ * POST /admin/upload-audio   { base64, filename, mimeType }
+ *
+ * A heart sound, a murmur, a breath sound — questions you have to HEAR.
+ *
+ * Its own bucket rather than question-images: the two have different size
+ * limits and different content types, and a bucket called "images" full of
+ * .mp3 files is the kind of thing that is fine until someone writes a cleanup
+ * script. 15MB rather than the picture limit of 5 — a minute of audio is
+ * bigger than any slide.
+ *
+ * Same moderatorAuth as the picture upload: attaching media is one capability,
+ * and whoever can add a figure can add a sound.
+ */
+const AUDIO_TYPES = ['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/x-wav', 'audio/ogg', 'audio/webm', 'audio/mp4', 'audio/aac'];
+const AUDIO_EXT = {
+  'audio/mpeg': 'mp3', 'audio/mp3': 'mp3', 'audio/wav': 'wav', 'audio/x-wav': 'wav',
+  'audio/ogg': 'ogg', 'audio/webm': 'weba', 'audio/mp4': 'm4a', 'audio/aac': 'aac',
+};
+const AUDIO_MAX_BYTES = 15 * 1024 * 1024;
+
+app.post('/admin/upload-audio', moderatorAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured. Cannot upload audio.' });
+  const { base64, filename, mimeType } = req.body || {};
+  if (!base64 || !filename || !mimeType) {
+    return res.status(400).json({ error: 'base64, filename, and mimeType required.' });
+  }
+  if (!AUDIO_TYPES.includes(mimeType)) {
+    return res.status(400).json({ error: 'Only MP3, WAV, OGG, M4A, AAC or WEBM audio is allowed.' });
+  }
+  try {
+    const b64Data = base64.includes(',') ? base64.split(',')[1] : base64;
+    const buffer = Buffer.from(b64Data, 'base64');
+    if (buffer.length > AUDIO_MAX_BYTES) {
+      return res.status(400).json({ error: 'Audio must be under 15MB.' });
+    }
+    const ext = AUDIO_EXT[mimeType] || 'mp3';
+    const safeName = String(filename).replace(/[^a-zA-Z0-9._-]/g, '_').split('.')[0];
+    const uniqueName = `${Date.now()}-${safeName}.${ext}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('question-audio')
+      .upload(uniqueName, buffer, { contentType: mimeType, upsert: false, cacheControl: '31536000' });
+    if (uploadError) {
+      // The bucket is created by hand, like every other piece of storage here.
+      // Say which one is missing rather than reporting a raw storage error.
+      if (/bucket/i.test(uploadError.message || '')) {
+        return res.status(503).json({
+          error: 'The question-audio bucket does not exist yet — create it (public) in Supabase → Storage.',
+          reason: 'missing_bucket',
+        });
+      }
+      throw uploadError;
+    }
+    const { data: urlData } = supabase.storage.from('question-audio').getPublicUrl(uniqueName);
+    res.json({ ok: true, url: urlData.publicUrl });
+  } catch (err) {
+    console.warn('[upload-audio] failed —', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── In-game image authoring ─────────────────────────────────────────────────
 // Setting a question's picture is its own capability, deliberately NOT the
 // existing PUT /admin/questions/:id. That route rewrites the whole record, and
@@ -8972,7 +9034,17 @@ app.post('/admin/upload-image', moderatorAuth, async (req, res) => {
 // full question editing as a side effect. These two only ever touch the two
 // image columns.
 const QUESTION_IMAGE_TABLES = ['questions', 'journey_questions', 'boss_questions'];
-const QUESTION_IMAGE_FIELDS = ['image_url', 'explanation_image_url'];
+// stem_audio_url rides the same route as the pictures: it is the same job
+// (attach a piece of media to a question) with the same permission, and a
+// second endpoint would be the same code with a different noun.
+const QUESTION_IMAGE_FIELDS = ['image_url', 'explanation_image_url', 'stem_audio_url'];
+
+let hasStemAudio = true;
+function isMissingStemAudio(error) {
+  if (!error) return false;
+  const msg = `${error.message || ''} ${error.details || ''}`.toLowerCase();
+  return msg.includes('stem_audio');
+}
 
 const questionImageTable = (v) => {
   const t = (v || 'questions').toString();
@@ -9133,8 +9205,15 @@ app.put('/api/question-image/:id', moderatorAuth, async (req, res) => {
 
     let { error } = await questionWrite(updates, r =>
       supabase.from(table).update(r).eq(key, req.params.id));
-    // The stem list is the one thing here with somewhere to fall back to, so
-    // it drops the column and keeps figure #1 rather than refusing.
+    // No column for it: say so rather than accepting a sound that vanishes.
+    if (error && isMissingStemAudio(error)) {
+      hasStemAudio = false;
+      console.warn('[stem_audio_url] column missing — run the migration at the end of server/schema.sql');
+      return res.status(503).json({
+        error: 'stem_audio_url column is missing — run the migration at the end of server/schema.sql',
+        reason: 'missing_column',
+      });
+    }
     if (error && isMissingStemImages(error)) {
       hasStemImages = false;
       console.warn('[stem_images] column missing — saving figure #1 only. Run the migration at the end of server/schema.sql.');
@@ -9309,6 +9388,7 @@ app.get('/api/question-image/:id', async (req, res) => {
       .concat(hasExplanationImages ? ['explanation_images'] : [])
       .concat(hasOptionImages ? ['option_images'] : [])
       .concat(hasStemImages ? ['stem_images'] : [])
+      .concat(hasStemAudio ? ['stem_audio_url'] : [])
       .join(', ');
     let { data, error } = await supabase
       .from(table).select(cols).eq(key, req.params.id).maybeSingle();
@@ -9346,6 +9426,7 @@ app.get('/api/question-image/:id', async (req, res) => {
       explanation_image_url: data?.explanation_image_url ?? null,
       explanation_image_pos: data?.explanation_image_pos ?? null,
       explanation_images: normalizeExplanationImages(data),
+      stem_audio_url: data?.stem_audio_url ?? null,
       stem_images: normalizeStemImages(data),
       stem_images_readable: hasStemImages,
       option_images: normalizeOptionImages(data),
@@ -13712,6 +13793,8 @@ app.get('/api/journey-questions', async (req, res) => {
       // run is reading from, so leaving it out here would save a picture that
       // never comes back.
       option_images: normalizeOptionImages(q),
+      stem_images: normalizeStemImages(q),
+      stem_audio_url: q.stem_audio_url || null,
     }));
     if (questions.length === 0) {
       return res.json({
