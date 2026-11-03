@@ -194,6 +194,9 @@ function fromDb(row) {
     option_images: normalizeOptionImages(row).length ? normalizeOptionImages(row) : undefined,
     game_modes: row.game_modes || ['battle_royale', 'speed_race', 'trivia_pursuit'],
     image_url: row.image_url || undefined,
+    // Every figure on the stem, figure #1 included. Omitted when there is at
+    // most one, so an ordinary question carries no extra bytes.
+    stem_images: normalizeStemImages(row).length > 1 ? normalizeStemImages(row) : undefined,
     tower_floor: row.tower_floor || undefined,
     topic_id: row.topic_id || undefined,
     buzz_type: row.buzz_type || undefined,
@@ -254,6 +257,9 @@ function toDb(question) {
 function toPublicQuestion(q) {
   return {
     id: q.id, question: q.question, options: q.options, image_url: q.image_url || null,
+    // Pre-answer and safe: a figure says nothing about which option is right.
+    ...(Array.isArray(q.stem_images) && q.stem_images.length > 1
+      ? { stem_images: q.stem_images } : {}),
     // Pre-answer and safe: which picture goes with which option says nothing
     // about which one is right. Without it the live modes would show a
     // picture-option question as four blank-looking choices.
@@ -346,6 +352,64 @@ function normalizeImport(raw, { defaultCategory, defaultDifficulty } = {}) {
 }
 
 /**
+ * Question-stem pictures — one list, however many figures.
+ *
+ * A plain array of URL strings: an explanation has paragraphs for a picture to
+ * sit between, a stem is one block with its figures beneath it, so there is no
+ * position to store.
+ *
+ * image_url stays as a MIRROR of figure #1 so every reader written before this
+ * — the live multiplayer modes, the admin thumbnails, any cached payload —
+ * keeps showing the first figure rather than nothing. The list wins where it
+ * exists, so a write touching only image_url must go through mergeStemImages()
+ * or it would vanish behind a stale list.
+ *
+ * The client keeps an identical copy at client/src/utils/stemImages.js.
+ */
+const MAX_STEM_IMAGES = 8;
+
+const cleanStemUrl = (item) => {
+  const url = typeof item === 'string' ? item : (item && item.url);
+  if (!url || typeof url !== 'string') return null;
+  const trimmed = url.trim();
+  return /^https?:\/\//i.test(trimmed) ? trimmed : null;
+};
+
+function normalizeStemImages(row) {
+  const out = [];
+  const raw = row && row.stem_images;
+  if (Array.isArray(raw)) {
+    for (const item of raw) {
+      const url = cleanStemUrl(item);
+      if (url && !out.includes(url)) out.push(url);
+      if (out.length >= MAX_STEM_IMAGES) break;
+    }
+  }
+  if (!out.length) {
+    const legacy = cleanStemUrl(row && row.image_url);
+    if (legacy) out.push(legacy);
+  }
+  return out;
+}
+
+function stemImagesToDb(list) {
+  const urls = (list || []).map(cleanStemUrl).filter(Boolean).slice(0, MAX_STEM_IMAGES);
+  return { stem_images: urls.length ? urls : null, image_url: urls[0] || null };
+}
+
+function mergeStemImages(existing, body) {
+  const has = (k) => body && Object.prototype.hasOwnProperty.call(body, k);
+  if (has('stem_images')) return normalizeStemImages({ stem_images: body.stem_images });
+  const list = normalizeStemImages(existing);
+  if (!has('image_url')) return list;
+  const url = cleanStemUrl(body.image_url);
+  if (!url) return list.slice(1);
+  const next = [...list];
+  next[0] = url;
+  return normalizeStemImages({ stem_images: next });
+}
+
+/**
  * Anti-memorization option shuffle. PURE: returns a NEW options array in a fresh
  * random order plus the REMAPPED correct letter that points at the SAME option
  * which was correct before. Never mutates the input array.
@@ -412,4 +476,5 @@ module.exports = {
   MAX_EXPLANATION_IMAGES, clampImagePos, normalizeExplanationImages,
   explanationImagesToDb, mergeExplanationImages,
   MAX_OPTION_IMAGES, normalizeOptionImages, optionImagesToDb,
+  MAX_STEM_IMAGES, normalizeStemImages, stemImagesToDb, mergeStemImages,
   fromDb, toDb, toPublicQuestion, answerResultPayload, normalizeImport, shuffleQuestionOptions, withShuffledOptions };

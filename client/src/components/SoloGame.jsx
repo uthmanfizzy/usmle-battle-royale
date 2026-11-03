@@ -12,6 +12,7 @@ import Calculator from './Calculator';
 import LabValues from './LabValues';
 import { shuffleQuestionOptions } from '../utils/shuffleOptions';
 import { normalizeOptionImages, withOptionImage } from '../utils/optionImages';
+import { normalizeStemImages, MAX_STEM_IMAGES } from '../utils/stemImages';
 import { normalizeExplanationImages, MAX_EXPLANATION_IMAGES } from '../utils/explanationImages';
 import { runKeyFor, loadRun, saveRun, clearRun, restoreOrder } from '../utils/runSave';
 import { useScrollToTopOnChange } from '../utils/useScrollToTopOnChange';
@@ -32,6 +33,10 @@ const EXPL_IMAGE_ADD = 'explanation_image_add';
 // field name is the DISPLAY position; saveDevImage turns it back into the
 // author index through the shuffle's permutation, because that is the only
 // thing the database row knows about.
+// Appending a stem figure rather than replacing figure #1. Same trick as
+// EXPL_IMAGE_ADD: the armed-slot machinery is keyed by field name, so a second
+// name is all it takes to tell "replace" from "add one".
+const STEM_IMAGE_ADD = 'stem_image_add';
 const OPTION_IMAGE_PREFIX = 'option_image:';
 const optionImageField = (displayIdx) => `${OPTION_IMAGE_PREFIX}${displayIdx}`;
 const optionImageIndex = (field) => {
@@ -1079,6 +1084,11 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   // removing, and hiding it would hide the button that removes it. Held as the
   // url rather than a flag so moving to another question clears it by itself.
   const [stemImgFailed, setStemImgFailed] = useState(null);
+  // Every figure on this question's stem, in order. Figure #1 is mirrored to
+  // image_url server-side, so a one-figure question behaves exactly as before.
+  const [stemImages, setStemImages] = useState([]);
+  const stemImagesRef = useRef(stemImages);
+  stemImagesRef.current = stemImages;
   const explImagesRef = useRef(explImages);
   explImagesRef.current = explImages;
 
@@ -1132,6 +1142,10 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   const applyDevImage = useCallback(
     (field, url, qid) => applyDevFields({ [field]: url }, qid),
     [applyDevFields]);
+
+  const applyStemImages = useCallback((list, qid) => {
+    applyDevFields({ stem_images: list, image_url: list[0] ?? null }, qid);
+  }, [applyDevFields]);
 
   // The picture list, with picture #1 mirrored into the legacy single field so
   // anything still reading that one url agrees with the list.
@@ -1286,6 +1300,31 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
     }
   }, [imageAuthHeaders, imageTable, applyExplImages]);
 
+  const saveStemImages = useCallback(async (list, qid) => {
+    const headers = imageAuthHeaders();
+    if (!qid || !headers) return { ok: false };
+    setStemImages(list);
+    applyStemImages(list, qid);
+    try {
+      const res = await fetch(
+        `${SERVER_URL}/api/question-image/${encodeURIComponent(qid)}?table=${imageTable}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', ...headers },
+        body: JSON.stringify({ stem_images: list }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `Save failed (${res.status})`);
+      // Said plainly rather than discovered later: without the column only
+      // figure #1 is kept, and the next poll would quietly drop the rest.
+      if (data.stem_list_saved === false && list.length > 1) {
+        return { ok: true, partial: true };
+      }
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: err.message || 'Failed' };
+    }
+  }, [imageAuthHeaders, imageTable, applyStemImages]);
+
   const saveDevImage = useCallback(async (field, url, qid) => {
     // Resolve the question the slot/paste was aimed at, NOT whatever happens to
     // be on screen now — an explanation can auto-advance mid-flight.
@@ -1313,6 +1352,28 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
       setImgArmHold(false);
       setDevImgMsg({ field, kind: 'ok', text: 'Added' });
       setTimeout(() => setDevImgMsg(null), 2000);
+      return;
+    }
+
+    // Another figure for the stem.
+    if (field === STEM_IMAGE_ADD) {
+      const list = normalizeStemImages(target);
+      if (list.length >= MAX_STEM_IMAGES) {
+        return devImgFail(field, `That's the limit — ${MAX_STEM_IMAGES} figures`);
+      }
+      if (!url) return;
+      setDevImgMsg(null);
+      setDevImgBusy(field);
+      const r = await saveStemImages([...list, url], target.id);
+      setDevImgBusy(null);
+      setImgArmHold(false);
+      if (!r.ok) return devImgFail(field, r.error || 'Failed');
+      setDevImgMsg({
+        field,
+        kind: r.partial ? 'err' : 'ok',
+        text: r.partial ? 'Only figure #1 saved — stem_images column missing' : 'Added',
+      });
+      setTimeout(() => setDevImgMsg(null), r.partial ? 6000 : 2000);
       return;
     }
 
@@ -1386,7 +1447,9 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
     } catch (err) {
       devImgFail(field, err.message || 'Failed');
     }
-  }, [imageAuthHeaders, imageTable, applyDevImage, applyDevFields, applyExplImages, saveExplImages, devImgFail]);
+  }, [imageAuthHeaders, imageTable, applyDevImage, applyDevFields, applyExplImages,
+      saveExplImages, saveStemImages, devImgFail]);
+
 
   const uploadDevImage = useCallback(async (field, file, qid) => {
     if (!file || !file.type?.startsWith('image/')) return devImgFail(field, 'Images only');
@@ -1440,7 +1503,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
         // A picture already used as an option is as reusable as any other —
         // often more so, since a set of four slides tends to recur.
         ...normalizeOptionImages(item),
-        item?.image_url,
+        ...normalizeStemImages(item),
       ];
       for (const url of urls) {
         if (!url) continue;
@@ -1516,6 +1579,11 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   }, [qIdx, currentQid]);
 
   useEffect(() => { setOptImgOpen(null); }, [qIdx, currentQid]);
+
+  useEffect(() => {
+    const row = questionsRef.current[qIdxRef.current];
+    setStemImages(normalizeStemImages(row));
+  }, [qIdx, currentQid]);
 
   // The shelf state belongs to the question, not the screen. Questions pulled
   // from the shelf itself arrive already marked, so the button offers to take
@@ -1598,6 +1666,19 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
             });
             patch.explanation_images = list;
             setExplImages(list);
+          }
+        }
+        if (data.stem_images_readable !== false && Array.isArray(data.stem_images)) {
+          const incoming = normalizeStemImages(data);
+          // Never SHORTENS: a poll that comes back with fewer figures than are
+          // on screen read the row before a save landed, and deleting an
+          // author's figure on a timer is the worst possible answer. A real
+          // removal still shows — it goes through the list the author edited.
+          if (incoming.length >= stemImagesRef.current.length
+              && JSON.stringify(incoming) !== JSON.stringify(stemImagesRef.current)) {
+            setStemImages(incoming);
+            patch.stem_images = incoming;
+            patch.image_url = incoming[0] ?? null;
           }
         }
         // Only when the server could actually read the column. Without it
@@ -2909,41 +2990,53 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
               rejectSelector=".lab-values-box, .stem-table"
             />
           )}
-          {q?.image_url && (
-            <div className={`game-question-image${canWriteImages ? ' is-editable' : ''}${stemImgFailed === q.image_url ? ' is-broken' : ''}`}>
-              {stemImgFailed === q.image_url ? (
+          {/* Every figure on the stem, not just the first. A question with one
+              renders exactly as it always did; the list is what makes a second
+              possible at all. */}
+          {stemImages.map((src, i) => (
+            <div
+              key={src}
+              className={`game-question-image${canWriteImages ? ' is-editable' : ''}${stemImgFailed === src ? ' is-broken' : ''}`}
+            >
+              {stemImgFailed === src ? (
                 <span className="sg-stem-img-gone">This picture didn&apos;t load</span>
               ) : (
                 <img
-                  src={q.image_url}
-                  alt="Question"
+                  src={src}
+                  alt={stemImages.length > 1 ? `Question figure ${i + 1}` : 'Question'}
                   className="sg-zoomable"
                   title="Click to enlarge"
                   style={{maxWidth:'100%', maxHeight:'300px', borderRadius:'8px', margin:'12px auto', display:'block'}}
-                  onClick={() => setZoomImg({ url: q.image_url, label: 'Question figure' })}
+                  onClick={() => setZoomImg({
+                    url: src,
+                    label: stemImages.length > 1 ? `Question figure ${i + 1}` : 'Question figure',
+                  })}
                   onError={e => {
-                    if (canWriteImages) setStemImgFailed(q.image_url);
+                    if (canWriteImages) setStemImgFailed(src);
                     else e.target.style.display = 'none';
                   }}
                 />
               )}
-              {/* The explanation's pictures have had a remove button all along;
-                  the stem's had no way off the question but to overwrite it
-                  with another one. Same control, same place, so there is one
-                  thing to learn. Clearing is a url of null, which the image
-                  endpoint already takes — nothing new is asked of the server. */}
+              {stemImages.length > 1 && (
+                <span className="sg-stem-img-n" aria-hidden="true">{i + 1}</span>
+              )}
               {canWriteImages && (
                 <button
                   type="button"
                   className="rr-expl-img-del sg-stem-img-del"
-                  title="Take this picture off the question"
-                  onClick={(e) => { e.stopPropagation(); saveDevImage('image_url', null, q?.id); }}
+                  title={stemImages.length > 1
+                    ? `Take figure ${i + 1} off the question`
+                    : 'Take this picture off the question'}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    saveStemImages(stemImages.filter((_, n) => n !== i), q?.id);
+                  }}
                 >
                   ✕
                 </button>
               )}
             </div>
-          )}
+          ))}
           {needsImageUnlock && imageUnlockNotice}
           {canWriteImages && (
             <DevImageSlot
@@ -2955,6 +3048,28 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
               message={devImgMsg?.field === 'image_url' ? devImgMsg : null}
               currentUrl={q?.image_url}
               onArm={() => { setDevImgArmed({ field: 'image_url', qid: q?.id ?? null }); setImgArmHold(true); }}
+              onFile={uploadDevImage}
+              reusable={reusableDevImages}
+              onReuse={saveDevImage}
+              libraryName={uworldSkin ? 'subject' : 'chapter'}
+              onPickingChange={onImgPickingChange}
+              holding={devImgHolding}
+              onResume={() => { setImgArmHold(false); setImgPicking({}); }}
+            />
+          )}
+          {/* Add ANOTHER figure. Only once there is one to add to — on an empty
+              stem the slot above is the one to use, and two empty slots side
+              by side is a choice nobody wants to make. */}
+          {canWriteImages && stemImages.length > 0 && stemImages.length < MAX_STEM_IMAGES && (
+            <DevImageSlot
+              field={STEM_IMAGE_ADD}
+              label={`Stem · add figure ${stemImages.length + 1}`}
+              qid={q?.id}
+              armed={devImgArmed.field === STEM_IMAGE_ADD}
+              busy={devImgBusy === STEM_IMAGE_ADD}
+              message={devImgMsg?.field === STEM_IMAGE_ADD ? devImgMsg : null}
+              currentUrl={null}
+              onArm={() => { setDevImgArmed({ field: STEM_IMAGE_ADD, qid: q?.id ?? null }); setImgArmHold(true); }}
               onFile={uploadDevImage}
               reusable={reusableDevImages}
               onReuse={saveDevImage}

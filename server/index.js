@@ -16,6 +16,7 @@ const AdmZip     = require('adm-zip');
 const os         = require('os');
 const { fromDb, toDb, toPublicQuestion, answerResultPayload, normalizeImport, withShuffledOptions,
   MAX_OPTION_IMAGES, normalizeOptionImages, optionImagesToDb,
+  MAX_STEM_IMAGES, normalizeStemImages, stemImagesToDb, mergeStemImages,
         normalizeExplanationImages, explanationImagesToDb, mergeExplanationImages,
         MAX_EXPLANATION_IMAGES } = require('./questionMapper');
 const ankingScheduler = require('./ankingScheduler');
@@ -225,6 +226,18 @@ function withoutExplImages(record) {
   const rest = { ...record };
   delete rest.explanation_images;
   return rest;
+}
+
+// stem_images: several figures on one question. Same deploy-order safety as
+// the others, but with a legacy column to fall back on — image_url still
+// holds figure #1 — so until the migration runs a single figure saves exactly
+// as it always did and only the extra ones wait.
+let hasStemImages = true;
+
+function isMissingStemImages(error) {
+  if (!error) return false;
+  const msg = `${error.message || ''} ${error.details || ''}`.toLowerCase();
+  return msg.includes('stem_images');
 }
 
 // option_images: the pictures that ARE the answers. Same deploy-order
@@ -9004,6 +9017,21 @@ app.put('/api/question-image/:id', moderatorAuth, async (req, res) => {
     return res.status(400).json({ error: 'every explanation image url must be http(s)' });
   }
 
+  // The stem's figure list.
+  const hasStemList = Object.prototype.hasOwnProperty.call(req.body || {}, 'stem_images');
+  if (hasStemList && !Array.isArray(req.body.stem_images)) {
+    return res.status(400).json({ error: 'stem_images must be an array' });
+  }
+  if (hasStemList && req.body.stem_images.length > MAX_STEM_IMAGES) {
+    return res.status(400).json({ error: `at most ${MAX_STEM_IMAGES} stem images` });
+  }
+  if (hasStemList && req.body.stem_images.some((it) => {
+    const u = typeof it === 'string' ? it : (it && it.url);
+    return !u || !/^https?:\/\//i.test(String(u));
+  })) {
+    return res.status(400).json({ error: 'every stem image url must be http(s)' });
+  }
+
   // The picture-option list: positional, so a null entry is meaningful and
   // the array is taken as sent rather than compacted.
   const hasOptList = Object.prototype.hasOwnProperty.call(req.body || {}, 'option_images');
@@ -9022,7 +9050,7 @@ app.put('/api/question-image/:id', moderatorAuth, async (req, res) => {
   }
 
   const hasField = QUESTION_IMAGE_FIELDS.includes(field);
-  if (!hasField && !hasPos && !hasList && !hasOptList) {
+  if (!hasField && !hasPos && !hasList && !hasOptList && !hasStemList) {
     return res.status(400).json({ error: 'field must be image_url or explanation_image_url' });
   }
   // null/'' clears the image; anything else must look like a URL we served.
@@ -9035,7 +9063,33 @@ app.put('/api/question-image/:id', moderatorAuth, async (req, res) => {
   try {
     const key = questionImageKey(table, req.params.id);
     const updates = {};
-    if (hasField && field !== 'explanation_image_url') updates[field] = url;
+    // image_url is written through the stem-list merge below when the list is
+    // in play, so that replacing figure #1 cannot drop figures 2..n.
+    if (hasField && field !== 'explanation_image_url' && !(field === 'image_url' && hasStemImages)) {
+      updates[field] = url;
+    }
+
+    // Anything touching the stem's figures is resolved against the row as it
+    // stands — the same rule the explanation's list follows.
+    const touchesStem = hasStemList || (hasField && field === 'image_url' && hasStemImages);
+    if (touchesStem) {
+      let { data: row, error: readErr } = await supabase
+        .from(table).select('stem_images, image_url').eq(key, req.params.id).maybeSingle();
+      if (readErr && isMissingStemImages(readErr)) {
+        hasStemImages = false;
+        ({ data: row, error: readErr } = await supabase
+          .from(table).select('image_url').eq(key, req.params.id).maybeSingle());
+      }
+      if (readErr) throw readErr;
+      const body = hasStemList
+        ? { stem_images: req.body.stem_images }
+        : { image_url: url };
+      const merged = mergeStemImages(row, body);
+      if (hasStemImages) Object.assign(updates, stemImagesToDb(merged));
+      // Without the column there is nowhere to put the rest; figure #1 still
+      // saves through the legacy field, which is what it always did.
+      else updates.image_url = merged[0] || null;
+    }
     if (hasOptList) {
       if (!hasOptionImages) {
         return res.status(503).json({
@@ -9079,6 +9133,15 @@ app.put('/api/question-image/:id', moderatorAuth, async (req, res) => {
 
     let { error } = await questionWrite(updates, r =>
       supabase.from(table).update(r).eq(key, req.params.id));
+    // The stem list is the one thing here with somewhere to fall back to, so
+    // it drops the column and keeps figure #1 rather than refusing.
+    if (error && isMissingStemImages(error)) {
+      hasStemImages = false;
+      console.warn('[stem_images] column missing — saving figure #1 only. Run the migration at the end of server/schema.sql.');
+      delete updates.stem_images;
+      ({ error } = await questionWrite(updates, r =>
+        supabase.from(table).update(r).eq(key, req.params.id)));
+    }
     // Nowhere to put a picture option yet. Said plainly, with the fix, rather
     // than dropped — see hasOptionImages.
     if (error && isMissingOptionImages(error)) {
@@ -9119,6 +9182,11 @@ app.put('/api/question-image/:id', moderatorAuth, async (req, res) => {
       // because the next poll reads the row back and takes the others off the
       // screen. The caller is told so it can say so.
       list_saved: hasExplanationImages,
+      stem_images: 'stem_images' in updates ? (updates.stem_images || []) : undefined,
+      // Whether the stem LIST reached the database. Without the column only
+      // figure #1 is kept, and the caller is told so rather than finding out
+      // when the next poll takes the others off the screen.
+      stem_list_saved: hasStemImages,
       option_images: 'option_images' in updates ? (updates.option_images || []) : undefined,
     });
   } catch (err) {
@@ -9240,9 +9308,19 @@ app.get('/api/question-image/:id', async (req, res) => {
     const cols = ['image_url', 'explanation_image_url', 'explanation_image_pos']
       .concat(hasExplanationImages ? ['explanation_images'] : [])
       .concat(hasOptionImages ? ['option_images'] : [])
+      .concat(hasStemImages ? ['stem_images'] : [])
       .join(', ');
     let { data, error } = await supabase
       .from(table).select(cols).eq(key, req.params.id).maybeSingle();
+    if (error && isMissingStemImages(error)) {
+      hasStemImages = false;
+      ({ data, error } = await supabase
+        .from(table).select(['image_url', 'explanation_image_url', 'explanation_image_pos']
+          .concat(hasExplanationImages ? ['explanation_images'] : [])
+          .concat(hasOptionImages ? ['option_images'] : [])
+          .join(', '))
+        .eq(key, req.params.id).maybeSingle());
+    }
     if (error && isMissingOptionImages(error)) {
       hasOptionImages = false;
       ({ data, error } = await supabase
@@ -9268,6 +9346,8 @@ app.get('/api/question-image/:id', async (req, res) => {
       explanation_image_url: data?.explanation_image_url ?? null,
       explanation_image_pos: data?.explanation_image_pos ?? null,
       explanation_images: normalizeExplanationImages(data),
+      stem_images: normalizeStemImages(data),
+      stem_images_readable: hasStemImages,
       option_images: normalizeOptionImages(data),
       // Whether the game may trust the list above. Without the column the poll
       // cannot tell "no picture options" from "cannot see them", and the game

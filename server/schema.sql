@@ -1479,3 +1479,26 @@ ALTER TABLE boss_questions    ADD COLUMN IF NOT EXISTS needs_update_note TEXT;
 CREATE INDEX IF NOT EXISTS idx_questions_needs_update ON questions(needs_update_at);
 
 NOTIFY pgrst, 'reload schema';
+
+-- ──────────────────────────────────────────────────────────────────────────────
+-- stem_images — several figures on one question
+--
+-- A JSONB array of URL strings, in the order they appear beneath the stem. No
+-- position field, unlike explanation_images: an explanation has paragraphs for
+-- a picture to sit between, a stem is one block with its figures under it.
+--
+-- image_url STAYS, as a mirror of figure #1, so every reader written before
+-- this — the live multiplayer modes, the admin thumbnails, any cached payload
+-- — keeps showing the first figure rather than nothing. The list wins where it
+-- exists, so a write touching only image_url goes through mergeStemImages() or
+-- it would vanish behind a stale list.
+--
+-- Until this runs, figure #1 saves exactly as it always did through image_url
+-- and only the EXTRA figures wait — the one list here with somewhere to fall
+-- back to.
+-- ──────────────────────────────────────────────────────────────────────────────
+ALTER TABLE questions         ADD COLUMN IF NOT EXISTS stem_images JSONB;
+ALTER TABLE journey_questions ADD COLUMN IF NOT EXISTS stem_images JSONB;
+ALTER TABLE boss_questions    ADD COLUMN IF NOT EXISTS stem_images JSONB;
+
+NOTIFY pgrst, 'reload schema';
