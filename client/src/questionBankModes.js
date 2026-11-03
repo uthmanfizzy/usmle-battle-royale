@@ -31,6 +31,13 @@ export const QUESTION_BANK_MODES = [
     // The game_mode written to activity_sessions. Kept as the original value so
     // every row already logged keeps its label.
     activityMode: 'question_bank_practice',
+    // Subjects this bank does not carry. An admin's own list in
+    // questionBankHiddenSubjects overrides it (including an empty one, which
+    // means "show everything"); this is only what ships.
+    //
+    // Haematology & Oncology is a DIFFERENT subject and is deliberately NOT
+    // here — it stays in the bank.
+    hiddenSubjects: ['anatomy', 'genetics', 'haematology'],
     // The finished size of the bank, for PLANNING. The upload is still in
     // progress, so pacing against today's partial bank would promise a finish
     // in a week. null means "no known final size — plan against whatever is

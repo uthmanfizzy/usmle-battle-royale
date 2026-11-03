@@ -82,7 +82,6 @@ const GAME_MODES = [
     accent: '155, 89, 182',
     tagline: 'One on one',
     facts: ['100 HP', 'First answer strikes', 'Auto-start'],
-    comingSoon: true,
     longDescription: 'Face a single opponent in a duel of knowledge. Both of you see the same question — whoever answers correctly first strikes the other for 5 damage. Reduce your rival from 100 HP to zero to claim victory. The duel begins the moment your opponent arrives.',
     supportsSolo: false,
   },

@@ -306,8 +306,11 @@ export default function UWorldAdventure({ mode = DEFAULT_QUESTION_BANK_MODE }) {
         // server, so the grid and the pacing counts agree about what exists —
         // a subject shown here but filtered there would read as a system with
         // no questions in it.
+        // The admin's list wins where it exists — an EMPTY one included,
+        // since "hide nothing" is a real setting. Only an absent one falls
+        // through to what the mode ships with.
         const hiddenCfg = settings?.questionBankHiddenSubjects?.[MODE];
-        const hidden = new Set(Array.isArray(hiddenCfg) ? hiddenCfg : []);
+        const hidden = new Set(Array.isArray(hiddenCfg) ? hiddenCfg : (mode.hiddenSubjects || []));
         const shows = (s) => !hidden.has(s.id) && (allow ? allow.has(s.id) : s.active);
         const active = (data.subjects || []).filter(shows);
         setSubjects(active);
