@@ -109,6 +109,11 @@ export default function App() {
   // What the match actually ran with — the server reports the pool it used,
   // which differs from the one asked for when that bank was too thin.
   const [duelRun, setDuelRun] = useState({ source: null, totalRounds: null });
+  // Every round of the duel, kept so the results screen can show what the
+  // questions were. Recorded by PvpDuelGame as each round resolves — it has
+  // the question and the answer together in one render, which a socket
+  // handler registered once does not.
+  const [duelHistory, setDuelHistory] = useState([]);
   const [streaks, setStreaks] = useState({});
   const [suddenDeath, setSuddenDeath] = useState(false);
   const [showSuddenDeathScreen, setShowSuddenDeathScreen] = useState(false);
@@ -275,6 +280,7 @@ export default function App() {
 
     socket.on('game_start', ({ gameMode: gm, duelOptions: dOpts, duelSource, totalRounds }) => {
       if (dOpts) setDuelOptions(dOpts);
+      setDuelHistory([]);
       // What the pool actually was, which is not always what was asked for.
       setDuelRun({ source: duelSource ?? null, totalRounds: totalRounds ?? null });
       setGameMode(gm || 'battle_royale');
@@ -1201,7 +1207,18 @@ export default function App() {
           user={user}
           muted={muted}
           onToggleMute={toggleMute}
-          onForfeit={handleReturnHome}
+          duelHistory={duelHistory}
+          onRoundComplete={(entry) => setDuelHistory(h => (
+            // Keyed by round: a re-render must not record the same round
+            // twice, and the server may resend a result.
+            h.some(e => e.round === entry.round) ? h : [...h, entry]
+          ))}
+          onForfeit={() => {
+            // Not a disconnect any more. The server ends the duel for BOTH
+            // players and everyone lands on the results screen, which is
+            // where someone who just gave up most wants to be.
+            socket.emit('forfeit_duel');
+          }}
         />
         </RouteErrorBoundary>
       )}
@@ -1273,6 +1290,7 @@ export default function App() {
         <RouteErrorBoundary name="PvpDuelResults">
         <PvpDuelResults
           gameResult={gameResult}
+          history={duelHistory}
           username={username}
           onPlayAgain={handlePlayAgain}
           onHome={handleReturnHome}

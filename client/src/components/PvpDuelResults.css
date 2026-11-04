@@ -231,3 +231,183 @@
   .pdr-versus { justify-self: center; }
   .pdr-side--empty { display: none; }
 }
+
+/* ── The questions, afterwards ───────────────────────────────────────────────
+   A duel is over in minutes and the explanations go past at the speed of the
+   match. This is the only chance to read them — which is also why forfeiting
+   now lands here instead of throwing the player back to the front page. */
+.pdr-review {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.pdr-review-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0 0 12px;
+  font-family: var(--mv-font-display, 'Cinzel', serif);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.pdr-review-score {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.pdr-review-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pdr-review-item {
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+  overflow: hidden;
+}
+/* The verdict is carried on the edge, so the list can be scanned for the
+   wrong ones without reading a word. */
+.pdr-review-item.is-right { border-left: 3px solid rgba(61, 220, 132, 0.8); }
+.pdr-review-item.is-wrong { border-left: 3px solid rgba(214, 54, 60, 0.8); }
+
+.pdr-review-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 11px 13px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.pdr-review-toggle:hover { background: rgba(255, 255, 255, 0.04); }
+
+.pdr-review-n {
+  flex: 0 0 auto;
+  min-width: 20px;
+  font-size: 12px;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.4);
+  font-variant-numeric: tabular-nums;
+}
+
+.pdr-review-mark {
+  flex: 0 0 auto;
+  width: 20px;
+  text-align: center;
+  font-weight: 800;
+  color: #e2676c;
+}
+.pdr-review-mark.is-right { color: #3ddc84; }
+
+.pdr-review-q {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 13.5px;
+  line-height: 1.4;
+  /* One line in the list; the whole stem is in the body when it is opened. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.pdr-review-strike { flex: 0 0 auto; color: var(--mv-gold, #e8b04b); font-size: 13px; }
+.pdr-review-chev { flex: 0 0 auto; opacity: 0.5; font-size: 11px; }
+
+.pdr-review-body {
+  padding: 4px 14px 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.pdr-review-stem {
+  margin: 12px 0;
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.pdr-review-img {
+  display: block;
+  max-width: 100%;
+  max-height: 260px;
+  margin: 0 0 12px;
+  border-radius: 8px;
+}
+
+.pdr-review-options {
+  list-style: none;
+  margin: 0 0 14px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pdr-review-opt {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 13.5px;
+  line-height: 1.45;
+}
+.pdr-review-opt.is-right {
+  border-color: rgba(61, 220, 132, 0.5);
+  background: rgba(61, 220, 132, 0.1);
+}
+/* What you picked when it was wrong — marked separately from the right
+   answer, because "which was right" and "what did I do" are two questions. */
+.pdr-review-opt.is-mine-wrong {
+  border-color: rgba(214, 54, 60, 0.5);
+  background: rgba(214, 54, 60, 0.1);
+}
+
+.pdr-review-opt-letter { flex: 0 0 auto; font-weight: 800; opacity: 0.7; }
+.pdr-review-opt-text { flex: 1 1 auto; min-width: 0; }
+
+.pdr-review-tag {
+  flex: 0 0 auto;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(61, 220, 132, 0.2);
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #8df0b5;
+}
+.pdr-review-tag--mine { background: rgba(214, 54, 60, 0.22); color: #f0a0a3; }
+
+.pdr-review-expl {
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.pdr-review-note {
+  margin: 0 0 10px;
+  font-size: 12.5px;
+  font-style: italic;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* The card grows a lot with a review in it, so it scrolls rather than
+   overflowing the viewport. */
+.pdr-card { max-height: calc(100vh - 48px); overflow-y: auto; }

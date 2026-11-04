@@ -20,8 +20,40 @@ const DUEL_SOURCE_LABELS = {
   all: 'Whole bank',
 };
 const STARTING_HP = 100; // display default until the first server snapshot arrives
+// Fallback only. The server sends `damage` with every round result; this is
+// what gets shown against an older server that does not, and it mirrors
+// PVP_DUEL_DAMAGE_PER_HIT there. Nothing is calculated from it.
+const DAMAGE_PER_HIT = 5;
 
 const fmtClock = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+
+// The drifting embers. Fixed, hand-picked positions rather than Math.random()
+// at render: a random field would re-roll on every tick of the countdown and
+// the whole backdrop would twitch once a second.
+// The delays are NEGATIVE on purpose: a negative animation-delay starts the
+// ember partway through its climb, so the field is already burning on the
+// first frame. With positive delays the arena opened pitch black and took
+// the better part of a minute to fill, which is most of a short duel.
+const EMBERS = [
+  { left: '4%',  '--d': '14s', '--delay': '-2s',    '--s': '3px' },
+  { left: '9%',  '--d': '19s', '--delay': '-11.4s', '--s': '2px' },
+  { left: '15%', '--d': '12s', '--delay': '-5.5s',  '--s': '4px' },
+  { left: '21%', '--d': '17s', '--delay': '-9.1s',  '--s': '2px' },
+  { left: '27%', '--d': '11s', '--delay': '-1.2s',  '--s': '3px' },
+  { left: '33%', '--d': '21s', '--delay': '-16.7s', '--s': '2px' },
+  { left: '39%', '--d': '15s', '--delay': '-7.3s',  '--s': '4px' },
+  { left: '44%', '--d': '13s', '--delay': '-3.9s',  '--s': '3px' },
+  { left: '50%', '--d': '18s', '--delay': '-13.4s', '--s': '2px' },
+  { left: '55%', '--d': '12s', '--delay': '-8.2s',  '--s': '3px' },
+  { left: '61%', '--d': '20s', '--delay': '-4.1s',  '--s': '2px' },
+  { left: '67%', '--d': '14s', '--delay': '-10.8s', '--s': '4px' },
+  { left: '72%', '--d': '16s', '--delay': '-6.2s',  '--s': '3px' },
+  { left: '78%', '--d': '11s', '--delay': '-2.5s',  '--s': '2px' },
+  { left: '84%', '--d': '19s', '--delay': '-15.1s', '--s': '3px' },
+  { left: '89%', '--d': '13s', '--delay': '-0.6s',  '--s': '2px' },
+  { left: '94%', '--d': '17s', '--delay': '-12.9s', '--s': '4px' },
+  { left: '98%', '--d': '15s', '--delay': '-5.9s',  '--s': '2px' },
+];
 
 // Phase 4c: mockup PvP Match HUD treatment (minus the minimap). Visual pass
 // only — HP bars are real (existing pvp_duel socket data); the mana bar and
@@ -50,6 +82,11 @@ export default function PvpDuelGame({
   // is fought to zero HP instead) and which bank it drew from.
   totalRounds = null,
   duelSource = null,
+  // Called once per resolved round with everything the results screen needs
+  // to show it again. Recorded HERE rather than in a socket handler because
+  // this component has the question, the answer given and the result in one
+  // render; a handler registered once would close over a stale question.
+  onRoundComplete,
 }) {
   // ── Per-question countdown (drives BOTH the top-center clock and the
   //    modal header — one source, mockup shows the two readouts) ──
@@ -94,10 +131,14 @@ export default function PvpDuelGame({
   useEffect(() => {
     if (!roundResults || roundResults === lastFeedRef.current) return;
     lastFeedRef.current = roundResults;
+    // What the blow cost, from the server. These lines read "5 damage" in
+    // prose while the damage figure over the plate showed the real number —
+    // one place to change if the duel is ever rebalanced.
+    const dmg = roundResults.damage || DAMAGE_PER_HIT;
     const msg = roundResults.striker
       ? (roundResults.striker === username
-          ? { text: <>You struck <em>{oppName}</em> for 5 damage!</>, mine: true }
-          : { text: <><em>{oppName}</em> struck you for 5 damage!</>, mine: false })
+          ? { text: <>You struck <em>{oppName}</em> for {dmg} damage!</>, mine: true }
+          : { text: <><em>{oppName}</em> struck you for {dmg} damage!</>, mine: false })
       : { text: <>No strike — nobody was first with the right answer.</>, mine: false };
     setFeed(prev => [msg, ...prev].slice(0, 2));
   }, [roundResults, username, oppName]);
@@ -107,23 +148,56 @@ export default function PvpDuelGame({
   // blow came from and shakes the plate that took it. Driven by the same
   // roundResults the feed reads, so it cannot disagree with the damage.
   const [strike, setStrike] = useState(null);   // 'mine' | 'theirs' | null
+  const [hitMark, setHitMark] = useState(null); // the floating damage figure
   const lastStrikeRef = useRef(null);
   useEffect(() => {
     if (!roundResults || roundResults === lastStrikeRef.current) return;
     lastStrikeRef.current = roundResults;
     if (!roundResults.striker) return;
-    setStrike(roundResults.striker === username ? 'mine' : 'theirs');
+    const side = roundResults.striker === username ? 'mine' : 'theirs';
+    setStrike(side);
+    // A number flying off the plate that took it. This is the single thing
+    // that turns "the bar moved" into "I hit them for five" — the damage is
+    // the game's whole currency and it was never once shown as a figure.
+    setHitMark({
+      side,
+      // The server's own figure when it sends one; the local constant only as
+      // a fallback for a server that has not shipped this field yet.
+      amount: roundResults.damage || DAMAGE_PER_HIT,
+      key: Date.now(),
+    });
     const t = setTimeout(() => setStrike(null), 900);
-    return () => clearTimeout(t);
+    const t2 = setTimeout(() => setHitMark(null), 1200);
+    return () => { clearTimeout(t); clearTimeout(t2); };
   }, [roundResults, username]);
 
   // The last seconds of a question, for the clock's own urgency.
   const urgent = timerActive && left <= 5 && left > 0;
 
+  // One record per round, as it resolves.
+  const recordedRef = useRef(null);
+  useEffect(() => {
+    if (!roundResults || !question || roundResults === recordedRef.current) return;
+    recordedRef.current = roundResults;
+    onRoundComplete?.({
+      round: round || 0,
+      question: question.question,
+      options: question.options,
+      imageUrl: question.image_url || null,
+      correctAnswer: roundResults.correctAnswer,
+      explanation: roundResults.explanation || '',
+      myAnswer: myAnswer ?? null,
+      correct: myAnswer != null && myAnswer === roundResults.correctAnswer,
+      struck: roundResults.striker === username,
+    });
+  }, [roundResults, question, round, myAnswer, username, onRoundComplete]);
+
   const handleForfeit = () => {
-    // Same plain-confirm convention as the rest of the app; the actual quit
-    // is App's return-home path: socket.disconnect() → server forfeit.
-    if (window.confirm('Forfeit the match? Your opponent will claim victory.')) onForfeit?.();
+    // The match ends on the results screen for both players now, so this
+    // says what actually happens rather than implying you are dropped out.
+    if (window.confirm('Forfeit the match? Your opponent claims the win — you will still see the results and the explanations.')) {
+      onForfeit?.();
+    }
   };
 
   const avatarLetter = (name) => (name || '?')[0].toUpperCase();
@@ -131,10 +205,34 @@ export default function PvpDuelGame({
 
   return (
     <div className={`pvd${strike ? ` pvd--strike-${strike}` : ''}`}>
+      {/* ── The arena ───────────────────────────────────────────────────
+          A battlefield rather than a black page: a slow horizon glow, drifting
+          embers and a vignette, all behind everything and all inert. Pure CSS
+          — a canvas would cost a frame budget on a screen whose job is to
+          stay responsive to a five-second timer. */}
+      <div className="pvd-arena" aria-hidden="true">
+        <span className="pvd-arena-glow pvd-arena-glow--mine" />
+        <span className="pvd-arena-glow pvd-arena-glow--theirs" />
+        <span className="pvd-arena-floor" />
+        <span className="pvd-embers">
+          {EMBERS.map((e, i) => <i key={i} style={e} />)}
+        </span>
+      </div>
+
       {/* The blow itself: a wash from the side it came from. Pointer-events
           none, so it can never swallow the click that answers the next
           question. */}
       {strike && <div className={`pvd-flash pvd-flash--${strike}`} aria-hidden="true" />}
+      {strike && <div className={`pvd-slash pvd-slash--${strike}`} aria-hidden="true" />}
+      {hitMark && (
+        <div
+          key={hitMark.key}
+          className={`pvd-hitmark pvd-hitmark--${hitMark.side}`}
+          aria-hidden="true"
+        >
+          −{hitMark.amount}
+        </div>
+      )}
       {/* ── Top bar: self plate · timer · opponent plate ─────────────────── */}
       <div className="pvd-top">
         <div className={`pvd-plate${strike === 'theirs' ? ' pvd-plate--hit' : ''}`}>
@@ -294,8 +392,8 @@ export default function PvpDuelGame({
                   <span className="pvd-result-strike">
                     {roundResults.striker
                       ? (roundResults.striker === username
-                          ? `⚔ You strike ${oppName} for 5 damage!`
-                          : `🛡 ${oppName} strikes you for 5 damage!`)
+                          ? `⚔ You strike ${oppName} for ${roundResults.damage || DAMAGE_PER_HIT} damage!`
+                          : `🛡 ${oppName} strikes you for ${roundResults.damage || DAMAGE_PER_HIT} damage!`)
                       : 'No strike this round.'}
                   </span>
                 </div>

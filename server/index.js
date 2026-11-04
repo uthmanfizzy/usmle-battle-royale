@@ -1663,6 +1663,9 @@ function processPvpDuelAnswers(lobby) {
     })),
     correctAnswer: q.correct, explanation,
     striker: striker ? striker.username : null,
+    // What the strike cost, so the client can SHOW the figure rather than
+    // keeping its own copy of the constant and drifting away from this one.
+    damage: striker ? PVP_DUEL_DAMAGE_PER_HIT : 0,
     eliminated: [],
     players: snapshot,
   });
@@ -1692,10 +1695,17 @@ function endPvpDuel(lobby, reason) {
   let winner = null;
   let draw   = false;
 
-  if (ps.length === 1) {
+  // Somebody gave up. That settles it, whatever the HP bars say — and both
+  // players are still here to be told.
+  const forfeiter = lobby.duelForfeitedBy
+    ? ps.find(p => p.id === lobby.duelForfeitedBy)
+    : null;
+  if (forfeiter && ps.length === 2) {
+    winner = ps.find(p => p.id !== forfeiter.id);
+  } else if (ps.length === 1) {
     // Opponent left mid-duel — remaining player wins by forfeit
     winner = ps[0];
-  } else if (ps.length === 2) {
+  } else if (ps.length === 2 && !forfeiter) {
     const [a, b] = ps;
     const hpA = lobby.duelHp?.get(a.id) ?? 0;
     const hpB = lobby.duelHp?.get(b.id) ?? 0;
@@ -1743,6 +1753,10 @@ function endPvpDuel(lobby, reason) {
     gameMode: 'pvp_duel',
     winner: winner ? { username: winner.username, id: winner.id } : null,
     draw, reason, duelResults,
+    // WHICH of them forfeited. "Your opponent forfeited" and "you forfeited"
+    // are the same event seen from two chairs, and the screen should say the
+    // right one to each.
+    forfeitedBy: forfeiter ? { id: forfeiter.id, username: forfeiter.username } : null,
   });
 
   awardXP(lobby, sorted).catch(err => console.error('[awardXP]', err.message));
@@ -3040,6 +3054,27 @@ io.on('connection', (socket) => {
    * the source would mean a different duel than the one the other player
    * agreed to join.
    */
+  /**
+   * Forfeit a duel without leaving.
+   *
+   * Quitting used to be a socket disconnect: the opponent got a game_over and
+   * the player who quit got the front page. That is the wrong way round — the
+   * one who forfeits is exactly the one who wants to see what the questions
+   * were. Both stay in the room and both get the same game_over; leaving is
+   * then their own decision, from the results screen.
+   */
+  socket.on('forfeit_duel', () => {
+    const lobby = lobbies.get(socket.lobbyId);
+    if (!lobby || lobby.gameMode !== 'pvp_duel') return;
+    if (lobby.status === 'game_over' || lobby.status === 'waiting') return;
+    if (!lobby.players.has(socket.id)) return;
+    // Recorded BEFORE ending, so endPvpDuel can hand the win to the other
+    // player rather than reading the HP bars — a forfeit is a loss whatever
+    // the health says.
+    lobby.duelForfeitedBy = socket.id;
+    endPvpDuel(lobby, 'forfeit');
+  });
+
   socket.on('set_duel_options', ({ options } = {}, ack) => {
     const lobby = lobbies.get(socket.lobbyId);
     const reply = typeof ack === 'function' ? ack : () => {};

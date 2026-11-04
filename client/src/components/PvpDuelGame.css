@@ -549,10 +549,10 @@
 /* The wash comes from the side the blow came from: your strike sweeps out
    from your own plate, theirs sweeps in at you. */
 .pvd-flash--mine {
-  background: linear-gradient(90deg, rgba(79, 209, 197, 0.3), rgba(79, 209, 197, 0) 55%);
+  background: linear-gradient(90deg, rgba(79, 209, 197, 0.26), rgba(79, 209, 197, 0) 48%);
 }
 .pvd-flash--theirs {
-  background: linear-gradient(270deg, rgba(214, 54, 60, 0.34), rgba(214, 54, 60, 0) 55%);
+  background: linear-gradient(270deg, rgba(214, 54, 60, 0.3), rgba(214, 54, 60, 0) 48%);
 }
 
 /* The plate that took it flinches. */
@@ -687,4 +687,289 @@
 @media (max-width: 899px) {
   .pvd-modal { width: min(560px, 94vw); }
   .pvd-stem { font-size: 16px; }
+}
+
+
+/* ══ The arena ════════════════════════════════════════════════════════════
+   The duel was fought over a static gradient — correct, and completely
+   still. This is a battlefield behind the HUD: two horizon glows breathing
+   at the edges where the fighters stand, a hazed floor, and embers drifting
+   up through it.
+
+   All of it is pure CSS on four inert elements. A canvas would have been
+   easier to make lavish and would have cost frame budget on a screen whose
+   real job is to stay responsive to a five-second answer clock. Everything
+   here is composited (transform/opacity only) and nothing animates faster
+   than it needs to be noticed. */
+.pvd-arena {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* The vignette. Keeps the eye in the middle, where the question is.
+   ::before, not ::after, so it paints UNDER the glows and the embers: a
+   vignette over them would dim exactly the things worth seeing, since both
+   live at the edges where it is darkest. */
+.pvd-arena::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 85% 70% at 50% 45%, transparent 35%, rgba(2, 4, 3, 0.72) 100%);
+}
+
+/* Two corners of the field, lit in each fighter's colour — teal at your end,
+   red at theirs. They breathe out of phase so the arena never sits still. */
+@keyframes pvd-arena-breathe {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50%      { opacity: 0.95; transform: scale(1.12); }
+}
+
+.pvd-arena-glow {
+  position: absolute;
+  top: -18%;
+  bottom: -18%;
+  width: 46%;
+  filter: blur(34px);
+  animation: pvd-arena-breathe 9s ease-in-out infinite;
+  transition: filter 0.35s ease;
+}
+/* Columns down each edge rather than pools in the corners: the two fighters
+   are the left and right of this screen — their plates, their HP, their
+   colours — so the field is lit from the two ends they stand at. */
+.pvd-arena-glow--mine {
+  left: -16%;
+  background:
+    radial-gradient(ellipse 54% 42% at 30% 76%, rgba(79, 209, 197, 0.62), rgba(79, 209, 197, 0) 70%),
+    radial-gradient(ellipse 66% 52% at 16% 18%, rgba(79, 209, 197, 0.3), rgba(79, 209, 197, 0) 72%);
+}
+.pvd-arena-glow--theirs {
+  right: -16%;
+  background:
+    radial-gradient(ellipse 54% 42% at 70% 76%, rgba(214, 54, 60, 0.64), rgba(214, 54, 60, 0) 70%),
+    radial-gradient(ellipse 66% 52% at 84% 18%, rgba(214, 54, 60, 0.32), rgba(214, 54, 60, 0) 72%);
+  animation-delay: -4.5s;
+}
+
+/* Where the two of you meet. A pool of gold under the question, so the
+   middle of the screen is the hottest part of the field rather than the
+   emptiest. */
+@keyframes pvd-arena-clash {
+  0%, 100% { opacity: 0.55; transform: translate(-50%, -50%) scale(1); }
+  50%      { opacity: 0.9;  transform: translate(-50%, -50%) scale(1.08); }
+}
+.pvd-arena::after {
+  content: '';
+  position: absolute;
+  top: 48%;
+  left: 50%;
+  width: 72%;
+  height: 58%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(ellipse at center, rgba(232, 176, 75, 0.13), rgba(232, 176, 75, 0) 68%);
+  filter: blur(26px);
+  animation: pvd-arena-clash 7s ease-in-out infinite;
+}
+
+/* The arena answers the blow. Whoever's end the strike came from flares,
+   so the battlefield itself reacts instead of sitting behind the fight
+   ignoring it. Brightened with a filter, not opacity: the breathing
+   animation sets opacity on every frame and would win over any static
+   value declared here. */
+.pvd--strike-mine .pvd-arena-glow--mine,
+.pvd--strike-theirs .pvd-arena-glow--theirs {
+  filter: blur(34px) brightness(2.1) saturate(1.25);
+}
+
+/* The ground the two of you are standing on. A horizon line plus the haze
+   above it — enough to say "floor" without drawing one. */
+.pvd-arena-floor {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 30%;
+  background:
+    linear-gradient(0deg, rgba(232, 176, 75, 0.1), transparent 72%),
+    linear-gradient(0deg, rgba(4, 7, 5, 0.92), transparent 100%);
+}
+/* The horizon line itself, faded out at both ends. A full-width 1px border
+   read as a seam across the page — a straight rule from edge to edge is
+   furniture, not a landscape. */
+.pvd-arena-floor::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 8%;
+  right: 8%;
+  height: 1px;
+  background: linear-gradient(90deg,
+    rgba(232, 176, 75, 0) 0%,
+    rgba(232, 176, 75, 0.3) 28%,
+    rgba(255, 214, 138, 0.5) 50%,
+    rgba(232, 176, 75, 0.3) 72%,
+    rgba(232, 176, 75, 0) 100%);
+}
+
+/* ── Embers ───────────────────────────────────────────────────────────── */
+@keyframes pvd-ember-rise {
+  0%   { opacity: 0; transform: translate3d(0, 0, 0) scale(1); }
+  10%  { opacity: 1; }
+  65%  { opacity: 0.6; }
+  100% { opacity: 0; transform: translate3d(18px, -86vh, 0) scale(0.5); }
+}
+
+.pvd-embers {
+  position: absolute;
+  inset: 0;
+}
+.pvd-embers i {
+  position: absolute;
+  bottom: 2%;
+  width: var(--s, 3px);
+  height: var(--s, 3px);
+  border-radius: 50%;
+  background: #ffd98a;
+  box-shadow:
+    0 0 8px 2px rgba(232, 176, 75, 0.75),
+    0 0 22px 6px rgba(232, 176, 75, 0.28);
+  opacity: 0;
+  animation: pvd-ember-rise var(--d, 15s) linear var(--delay, 0s) infinite;
+  will-change: transform, opacity;
+}
+
+/* ══ The blow, landing ════════════════════════════════════════════════════
+   The strike used to be a wash of colour and a plate wobble. The hit now
+   has three parts, in the order a hit actually happens: something travels,
+   something bursts, and a number comes off the thing that got hit. */
+
+/* 1. Something travels. A skewed streak crossing the screen in the
+      direction of the blow — out from your plate, or in at it. */
+@keyframes pvd-slash-out {
+  0%   { opacity: 0; transform: translateX(-12vw) skewX(-16deg); }
+  12%  { opacity: 1; }
+  78%  { opacity: 0.85; }
+  100% { opacity: 0; transform: translateX(104vw) skewX(-16deg); }
+}
+@keyframes pvd-slash-in {
+  0%   { opacity: 0; transform: translateX(12vw) skewX(16deg); }
+  12%  { opacity: 1; }
+  78%  { opacity: 0.85; }
+  100% { opacity: 0; transform: translateX(-104vw) skewX(16deg); }
+}
+
+.pvd-slash {
+  position: fixed;
+  top: -10%;
+  bottom: -10%;
+  width: 9vw;
+  z-index: 41;
+  pointer-events: none;
+  /* The streak crosses the question on its way past, so it is deliberately
+     thin and mostly transparent: at 26vw and near-solid it read as a red
+     curtain dropped over the stem, and you could not finish reading the
+     question you were still being asked. Light screens over what is under
+     it instead of painting it out. */
+  mix-blend-mode: screen;
+  will-change: transform, opacity;
+}
+.pvd-slash--mine {
+  left: 0;
+  background: linear-gradient(90deg,
+    rgba(79, 209, 197, 0) 0%,
+    rgba(79, 209, 197, 0.22) 62%,
+    rgba(180, 255, 248, 0.7) 94%,
+    rgba(255, 255, 255, 0.8) 100%);
+  animation: pvd-slash-out 0.45s cubic-bezier(0.3, 0, 0.2, 1) forwards;
+}
+.pvd-slash--theirs {
+  right: 0;
+  background: linear-gradient(270deg,
+    rgba(214, 54, 60, 0) 0%,
+    rgba(214, 54, 60, 0.24) 62%,
+    rgba(255, 150, 150, 0.7) 94%,
+    rgba(255, 255, 255, 0.8) 100%);
+  animation: pvd-slash-in 0.45s cubic-bezier(0.3, 0, 0.2, 1) forwards;
+}
+
+/* 2 & 3. The burst and the figure, together, over the plate that took it.
+   The damage number is the single most important addition on this screen:
+   five HP was the game's whole currency and it had never once been shown
+   as a figure — the bar just quietly got shorter. */
+@keyframes pvd-hitmark-rise {
+  0%   { opacity: 0; transform: translateY(14px) scale(0.6); }
+  18%  { opacity: 1; transform: translateY(0) scale(1.25); }
+  34%  { transform: translateY(-2px) scale(1); }
+  70%  { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-46px) scale(0.95); }
+}
+@keyframes pvd-hitmark-burst {
+  0%   { opacity: 0.9; transform: scale(0.2); }
+  100% { opacity: 0; transform: scale(2.6); }
+}
+
+.pvd-hitmark {
+  position: fixed;
+  top: 62px;
+  z-index: 42;
+  pointer-events: none;
+  font-family: var(--mv-font-display, 'Cinzel', serif);
+  font-size: 44px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  animation: pvd-hitmark-rise 1.2s cubic-bezier(0.18, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+}
+.pvd-hitmark::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 90px;
+  height: 90px;
+  margin: -45px 0 0 -45px;
+  border-radius: 50%;
+  animation: pvd-hitmark-burst 0.5s ease-out forwards;
+}
+
+/* Your blow lands on THEM — the right-hand plate. Theirs lands on you. */
+.pvd-hitmark--mine {
+  right: 26px;
+  color: #b4fff8;
+  text-shadow: 0 0 18px rgba(79, 209, 197, 0.9), 0 2px 10px rgba(0, 0, 0, 0.85);
+}
+.pvd-hitmark--mine::before {
+  background: radial-gradient(circle, rgba(79, 209, 197, 0.55), rgba(79, 209, 197, 0) 70%);
+}
+.pvd-hitmark--theirs {
+  left: 26px;
+  color: #ffb3b3;
+  text-shadow: 0 0 18px rgba(214, 54, 60, 0.9), 0 2px 10px rgba(0, 0, 0, 0.85);
+}
+.pvd-hitmark--theirs::before {
+  background: radial-gradient(circle, rgba(214, 54, 60, 0.6), rgba(214, 54, 60, 0) 70%);
+}
+
+@media (max-width: 700px) {
+  .pvd-hitmark { font-size: 34px; top: 56px; }
+  .pvd-arena-glow { filter: blur(30px); }
+}
+
+/* ── Still nobody is forced to watch any of it ─────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .pvd-arena-glow,
+  .pvd-arena::after,
+  .pvd-embers i,
+  .pvd-hitmark,
+  .pvd-hitmark::before { animation: none; }
+  /* The embers and the travelling streak exist only as motion, so with
+     motion off they are nothing at all. The damage figure is information,
+     not decoration, so it stays — just still, and visible. */
+  .pvd-embers,
+  .pvd-slash { display: none; }
+  .pvd-hitmark { opacity: 1; }
+  .pvd-hitmark::before { opacity: 0; }
 }
