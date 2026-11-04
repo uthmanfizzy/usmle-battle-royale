@@ -10241,7 +10241,101 @@ app.get('/api/home-images', async (req, res) => {
   }
 });
 
-// ── Play Page Background ──────────────────────────────────────────────────────
+// ── Page backgrounds ──────────────────────────────────────────────────────────
+//
+// These were three routes hard-coded to one page. A second page wanting a
+// background of its own would have meant a third copy of the same upload,
+// replace-the-old-file and delete logic — so the slot is a parameter now and
+// the original /admin/play-page-bg routes are thin aliases that still work.
+//
+// A slot is whitelisted, never taken from the request: the name decides both
+// the game_settings key and the storage folder, and an open parameter would
+// let a caller write any setting in the table.
+const PAGE_BG_SLOTS = {
+  play:       { key: 'play_page_background',  folder: 'play-page',  prefix: 'play_page_bg' },
+  pvp_arena:  { key: 'pvp_arena_background',  folder: 'pvp-arena',  prefix: 'pvp_arena_bg' },
+};
+
+// The old file, removed so a re-upload does not leave the bucket growing.
+// The stored value is a public URL; the last two segments are the path
+// inside the bucket.
+async function removeStoredBg(slot) {
+  const { data: existing } = await supabase
+    .from('game_settings')
+    .select('value')
+    .eq('key', slot.key)
+    .single();
+  if (existing?.value) {
+    const parts = String(existing.value).split('/');
+    await supabase.storage.from('home-images').remove([parts.slice(-2).join('/')]);
+  }
+}
+
+app.get('/admin/page-bg/:slot', adminAuth, async (req, res) => {
+  const slot = PAGE_BG_SLOTS[req.params.slot];
+  if (!slot) return res.status(404).json({ error: 'Unknown page.' });
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  try {
+    const { data } = await supabase
+      .from('game_settings').select('value').eq('key', slot.key).single();
+    res.json({ background_url: data?.value || '' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/admin/page-bg/:slot', adminAuth, async (req, res) => {
+  const slot = PAGE_BG_SLOTS[req.params.slot];
+  if (!slot) return res.status(404).json({ error: 'Unknown page.' });
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  const { base64, filename, mimeType } = req.body;
+  if (!base64 || !filename) {
+    return res.status(400).json({ error: 'Missing required fields: base64, filename' });
+  }
+  try {
+    const base64Data = base64.replace(/^data:image\/\w+;base64,/, '');
+    const buffer = Buffer.from(base64Data, 'base64');
+    // The extension is taken from the name but not trusted as a path: a
+    // filename like "../x" must not be able to escape the folder.
+    const ext = (filename.split('.').pop() || 'png').replace(/[^a-z0-9]/gi, '').slice(0, 5) || 'png';
+    const filePath = `${slot.folder}/${slot.prefix}_${Date.now()}.${ext}`;
+
+    await removeStoredBg(slot);
+
+    // filePath embeds Date.now(), so keys are write-once: a 1-year cache is safe.
+    const { error: uploadError } = await supabase.storage
+      .from('home-images')
+      .upload(filePath, buffer, { contentType: mimeType, upsert: true, cacheControl: '31536000' });
+    if (uploadError) throw uploadError;
+
+    const { data: urlData } = supabase.storage.from('home-images').getPublicUrl(filePath);
+    const background_url = urlData.publicUrl;
+
+    const { error: dbError } = await supabase.from('game_settings').upsert({
+      key: slot.key, value: background_url, updated_at: new Date().toISOString(),
+    }, { onConflict: 'key' });
+    if (dbError) throw dbError;
+
+    res.json({ ok: true, background_url });
+  } catch (err) {
+    console.error(`[/admin/page-bg/${req.params.slot} POST]`, err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/admin/page-bg/:slot', adminAuth, async (req, res) => {
+  const slot = PAGE_BG_SLOTS[req.params.slot];
+  if (!slot) return res.status(404).json({ error: 'Unknown page.' });
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  try {
+    await removeStoredBg(slot);
+    const { error } = await supabase.from('game_settings').delete().eq('key', slot.key);
+    if (error) throw error;
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // Get play page background
 app.get('/admin/play-page-bg', adminAuth, async (req, res) => {

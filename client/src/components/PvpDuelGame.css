@@ -1020,3 +1020,256 @@
   letter-spacing: 0.04em;
   color: rgba(255, 255, 255, 0.52);
 }
+
+
+/* ══ A chosen backdrop ═════════════════════════════════════════════════════
+   An admin-set picture behind the arena. It sits under everything the arena
+   paints — the glows, the horizon, the embers and the vignette all still go
+   over it — so the HUD stays readable whatever picture is chosen, and a page
+   with no picture set looks exactly as it did.
+
+   Slightly dimmed and desaturated on purpose: this is scenery behind a
+   five-second timer, and a backdrop that competes with the question is a
+   backdrop that costs somebody the round. */
+.pvd-arena-photo {
+  position: absolute;
+  inset: 0;
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+  filter: brightness(0.62) saturate(0.88);
+}
+/* Its own shading, so a light photo cannot wash the plates out. */
+.pvd-arena-photo::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(4, 7, 10, 0.72) 0%, rgba(4, 7, 10, 0.18) 34%, rgba(4, 7, 10, 0.3) 66%, rgba(4, 7, 10, 0.78) 100%);
+}
+
+/* ══ How much of it moves ══════════════════════════════════════════════════
+   The player's own choice, cycled from the HUD. Written on the root so whole
+   families of animation can go without any component knowing about them.
+
+   "particles" keeps the embers and the strike feedback, and stills the
+   ambient swelling behind them. "off" keeps only what carries information —
+   the damage figure and the HP bar's slide — which is the same line
+   prefers-reduced-motion draws. */
+.pvd--motion-particles .pvd-arena-glow,
+.pvd--motion-particles .pvd-arena::after {
+  animation: none;
+}
+
+.pvd--motion-off .pvd-arena-glow,
+.pvd--motion-off .pvd-arena::after,
+.pvd--motion-off .pvd-embers i,
+.pvd--motion-off .pvd-flash,
+.pvd--motion-off .pvd-plate--hit,
+.pvd--motion-off.pvd--strike-theirs,
+.pvd--motion-off .pvd-center-timer--urgent,
+.pvd--motion-off .pvd-modal,
+.pvd--motion-off .pvd-option--right,
+.pvd--motion-off .pvd-option--wrong,
+.pvd--motion-off .pvd-hitmark,
+.pvd--motion-off .pvd-hitmark::before {
+  animation: none;
+}
+.pvd--motion-off .pvd-embers,
+.pvd--motion-off .pvd-flash,
+.pvd--motion-off .pvd-slash {
+  display: none;
+}
+/* The figure is information, not decoration: it stays, just still. */
+.pvd--motion-off .pvd-hitmark { opacity: 1; }
+.pvd--motion-off .pvd-hitmark::before { opacity: 0; }
+
+/* The control itself, matching the Sound toggle beside it. */
+.pvd-motion {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(10, 14, 10, 0.6);
+  color: rgba(255, 255, 255, 0.78);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.pvd-motion:hover {
+  border-color: rgba(232, 176, 75, 0.5);
+  background: rgba(232, 176, 75, 0.12);
+}
+.pvd-motion-value {
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: rgba(232, 176, 75, 0.18);
+  color: #ffd98a;
+  font-size: 11px;
+}
+
+
+/* ══ The arena, dressed ════════════════════════════════════════════════════
+   The HUD was accurate and plain: flat bars, a bare number for the clock,
+   a letter in a box for each option. Everything below is the same
+   information given the weight the screen is asking for — gold trim, framed
+   portraits, a clock that reads as a badge rather than a label.
+
+   Nothing here changes what is shown or shifts anything out of place; it is
+   paint on elements that were already in the right positions. */
+
+/* ── Portraits ─────────────────────────────────────────────────────────── */
+.pvd-avatar {
+  position: relative;
+  border: 2px solid rgba(232, 176, 75, 0.75);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.6),
+    0 0 18px rgba(232, 176, 75, 0.28),
+    inset 0 0 14px rgba(0, 0, 0, 0.55);
+  background:
+    radial-gradient(circle at 50% 20%, rgba(255, 255, 255, 0.1), transparent 60%),
+    rgba(6, 10, 7, 0.85);
+  overflow: hidden;
+}
+.pvd-avatar img { border-radius: 50%; }
+/* Yours is lit teal, theirs red: the same two colours the HP bars, the
+   strike wash and the ends of the field already use, so the whole screen
+   says the same thing about who is who. */
+.pvd-avatar--self {
+  border-color: rgba(79, 209, 197, 0.8);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.6),
+    0 0 20px rgba(79, 209, 197, 0.35),
+    inset 0 0 14px rgba(0, 0, 0, 0.55);
+}
+.pvd-avatar--opp {
+  border-color: rgba(214, 54, 60, 0.8);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.6),
+    0 0 20px rgba(214, 54, 60, 0.35),
+    inset 0 0 14px rgba(0, 0, 0, 0.55);
+}
+
+/* ── Plates ────────────────────────────────────────────────────────────── */
+.pvd-plate-info {
+  padding: 7px 12px 8px;
+  border-radius: 10px;
+  border: 1px solid rgba(232, 176, 75, 0.22);
+  background: linear-gradient(180deg, rgba(12, 16, 22, 0.82), rgba(6, 9, 13, 0.72));
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+}
+
+.pvd-bar {
+  border-radius: 4px;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.7);
+}
+.pvd-bar--hp { border-color: rgba(232, 176, 75, 0.35); }
+/* A bar with a lit edge reads as a gauge rather than a coloured rectangle. */
+.pvd-bar-fill--hp {
+  background: linear-gradient(180deg, #e8574e 0%, var(--mv-red, #c1291e) 55%, #8e1a12 100%);
+  box-shadow: 0 0 10px rgba(214, 54, 60, 0.45);
+}
+.pvd-bar-fill--mana {
+  background: linear-gradient(180deg, #7ff0e4 0%, var(--mv-teal, #4fd1c5) 60%, #2a9d93 100%);
+}
+
+/* ── The clock ─────────────────────────────────────────────────────────── */
+.pvd-center-timer {
+  display: inline-block;
+  min-width: 128px;
+  padding: 5px 20px 6px;
+  border-radius: 8px;
+  border: 1px solid rgba(232, 176, 75, 0.55);
+  background: linear-gradient(180deg, rgba(14, 18, 26, 0.94), rgba(6, 9, 14, 0.9));
+  box-shadow:
+    0 0 20px rgba(232, 176, 75, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  letter-spacing: 0.04em;
+}
+/* The question number sits under it as a second, smaller badge — the shape
+   the two of them make together is what reads as a scoreboard. */
+.pvd-center-label {
+  margin-top: 5px;
+  padding: 3px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(232, 176, 75, 0.3);
+  background: rgba(10, 13, 18, 0.8);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: rgba(255, 216, 150, 0.9);
+}
+
+/* ── The question panel ────────────────────────────────────────────────── */
+.pvd-modal {
+  border-radius: 14px;
+  box-shadow:
+    0 28px 70px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(232, 176, 75, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+/* ── Options ───────────────────────────────────────────────────────────── */
+.pvd-option {
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(20, 27, 38, 0.9), rgba(11, 15, 22, 0.9));
+}
+/* The letter as a gold diamond, the way the rest of the screen's trim reads.
+   The glyph is counter-rotated so it stays upright inside it. */
+.pvd-option-letter {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  transform: rotate(45deg);
+  border: 1.5px solid rgba(232, 176, 75, 0.8);
+  border-radius: 5px;
+  background: linear-gradient(135deg, rgba(232, 176, 75, 0.22), rgba(232, 176, 75, 0.06));
+  color: #ffd98a;
+  font-size: 12.5px;
+  font-weight: 800;
+  line-height: 1;
+}
+.pvd-option-letter > * { display: block; transform: rotate(-45deg); }
+
+/* A diamond cannot be re-coloured by the state classes that target the text,
+   so the three states restate it here. */
+.pvd-option--mine .pvd-option-letter {
+  border-color: rgba(79, 209, 197, 0.9);
+  background: linear-gradient(135deg, rgba(79, 209, 197, 0.26), rgba(79, 209, 197, 0.06));
+}
+.pvd-option--right .pvd-option-letter {
+  border-color: rgba(79, 209, 197, 0.95);
+  background: linear-gradient(135deg, rgba(79, 209, 197, 0.34), rgba(79, 209, 197, 0.1));
+}
+.pvd-option--wrong .pvd-option-letter {
+  border-color: rgba(214, 54, 60, 0.9);
+  background: linear-gradient(135deg, rgba(214, 54, 60, 0.3), rgba(214, 54, 60, 0.08));
+}
+
+/* ── Ability keys ──────────────────────────────────────────────────────── */
+/* Depth, not a new silhouette. An octagonal clip-path was tried here and
+   taken out: clip-path cuts the border away with the shape, and on these
+   keys the border colour is the only thing that tells them apart — teal for
+   the two that are ready, grey for the one on cooldown, red for the ult. */
+.pvd-ability {
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(22, 29, 40, 0.95), rgba(10, 14, 20, 0.95));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 4px 12px rgba(0, 0, 0, 0.45);
+}
+
+@media (max-width: 700px) {
+  .pvd-center-timer { min-width: 104px; padding: 4px 14px 5px; }
+  .pvd-center-label { letter-spacing: 0.08em; }
+  .pvd-option-letter { width: 23px; height: 23px; font-size: 11.5px; }
+}

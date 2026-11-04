@@ -94,7 +94,20 @@ export default function PlayPageAdmin() {
       </nav>
 
       <div className="pp-content">
-        {activeTab === 'background' && <BackgroundTab />}
+        {activeTab === 'background' && (
+          <>
+            <BackgroundTab
+              slot="play"
+              title="Play Page Background Image"
+              desc="Upload a background image for the Play page."
+            />
+            <BackgroundTab
+              slot="pvp_arena"
+              title="PvP Arena Background Image"
+              desc="The backdrop behind the 1v1 duel. The HUD is drawn over it with its own shading, so a busy picture still reads — but something dark and wide works best."
+            />
+          </>
+        )}
         {activeTab === 'challenges' && <ChallengesTab />}
         {activeTab === 'gamemodes' && <GameModesTab />}
         {activeTab === 'examboards' && <ExamBoardsTab />}
@@ -105,7 +118,10 @@ export default function PlayPageAdmin() {
 
 // ─── Background Tab ──────────────────────────────────────────────────────────
 
-function BackgroundTab() {
+// `slot` is the page this panel manages. The endpoints are slot-based on the
+// server, so adding another page here is a title and a name — not a third
+// copy of the upload, replace and delete logic.
+function BackgroundTab({ slot, title, desc }) {
   const [backgroundUrl, setBackgroundUrl] = useState('');
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -113,11 +129,12 @@ function BackgroundTab() {
 
   useEffect(() => {
     loadBackground();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slot]);
 
   async function loadBackground() {
     try {
-      const res = await apiCall('/admin/play-page-bg');
+      const res = await apiCall(`/admin/page-bg/${slot}`);
       if (res.ok) {
         const data = await res.json();
         setBackgroundUrl(data.background_url || '');
@@ -146,7 +163,7 @@ function BackgroundTab() {
         reader.readAsDataURL(file);
       });
 
-      const res = await apiCall('/admin/play-page-bg', {
+      const res = await apiCall(`/admin/page-bg/${slot}`, {
         method: 'POST',
         body: JSON.stringify({
           base64,
@@ -174,7 +191,7 @@ function BackgroundTab() {
     setUploading(true);
 
     try {
-      const res = await apiCall('/admin/play-page-bg', { method: 'DELETE' });
+      const res = await apiCall(`/admin/page-bg/${slot}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Delete failed');
 
       setBackgroundUrl('');
@@ -191,8 +208,8 @@ function BackgroundTab() {
 
   return (
     <div className="pp-section">
-      <h3 className="pp-section-title">Play Page Background Image</h3>
-      <p className="pp-section-desc">Upload a background image for the Play page.</p>
+      <h3 className="pp-section-title">{title}</h3>
+      <p className="pp-section-desc">{desc}</p>
 
       <div className="pp-bg-slot">
         <div className="pp-bg-preview">

@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import ExplanationText from './ExplanationText';
+import { useGameSettings } from '../contexts/GameSettingsContext';
+import { cachedImageMap, rememberImageMap } from '../utils/cachedImages';
 import { renderStem } from '../utils/renderStem';
 import { useScrollToTopOnChange } from '../utils/useScrollToTopOnChange';
 import './PvpDuelGame.css';
@@ -34,6 +36,34 @@ const fmtClock = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')
 // ember partway through its climb, so the field is already burning on the
 // first frame. With positive delays the arena opened pitch black and took
 // the better part of a minute to fill, which is most of a short duel.
+// How much of the arena moves. The player's own choice, not the host's: one
+// person finding drifting embers distracting is no reason for both of them to
+// lose the backdrop, and it has to be changeable mid-duel without asking
+// anyone. Kept per browser.
+//
+//   full       the lot — breathing glows, embers, the clash pulse
+//   particles  the embers only; the ambient swelling behind them holds still
+//   off        nothing ambient and no travelling strike. The damage figure
+//              stays, because it is information rather than decoration — the
+//              same line prefers-reduced-motion draws.
+// A CSS url() value that survives whatever the URL contains. Unquoted, a
+// single parenthesis — ordinary in an uploaded filename, and present in any
+// data: URL carrying an SVG — ends the value early and the whole declaration
+// is dropped, so the backdrop simply does not appear. Quoting fixes that;
+// escaping the quote and the backslash stops a crafted name from closing the
+// string and injecting further CSS.
+const cssUrl = (u) => `url("${String(u).replace(/[\\"]/g, m => '\\' + m)}")`;
+
+const MOTION_MODES = ['full', 'particles', 'off'];
+const MOTION_LABELS = { full: 'Full', particles: 'Particles', off: 'Off' };
+const MOTION_KEY = 'mv_pvd_motion';
+const loadMotion = () => {
+  try {
+    const v = localStorage.getItem(MOTION_KEY);
+    return MOTION_MODES.includes(v) ? v : 'full';
+  } catch { return 'full'; }
+};
+
 const EMBERS = [
   { left: '4%',  '--d': '14s', '--delay': '-2s',    '--s': '3px' },
   { left: '9%',  '--d': '19s', '--delay': '-11.4s', '--s': '2px' },
@@ -78,6 +108,8 @@ export default function PvpDuelGame({
   muted = false,
   onToggleMute,
   onForfeit,
+  // An admin-set picture behind the arena, or '' for the painted one.
+  background = '',
   // Whether the host left the ability dock and mana bar on. They are
   // display-only, which is the point: a row of buttons that cannot be
   // pressed is worse than no row at all if you did not want it there.
@@ -163,6 +195,29 @@ export default function PvpDuelGame({
   // Held locally as well as counted on the server so the button can settle
   // the instant it is pressed, and reset per round rather than per render.
   const [mySkipVote, setMySkipVote] = useState(false);
+  const [motion, setMotion] = useState(loadMotion);
+
+  // The backdrop. Read here rather than threaded down through App: it is a
+  // setting about this one screen, and nothing above cares about it.
+  // The cached copy paints on the first frame, so the arena does not open
+  // bare and then jump when the settings request lands.
+  const { settings: gameSettings } = useGameSettings();
+  const [bgCached, setBgCached] = useState(
+    () => cachedImageMap('pvp').pvp_arena_background || '');
+  const serverBg = gameSettings?.pvp_arena_background || '';
+  useEffect(() => {
+    if (!serverBg || serverBg === bgCached) return;
+    rememberImageMap('pvp', { pvp_arena_background: serverBg });
+    setBgCached(serverBg);
+  }, [serverBg, bgCached]);
+  // The prop wins where it is given, which is how a test or a preview can
+  // show a backdrop without one being configured.
+  const backdrop = background || serverBg || bgCached;
+  const cycleMotion = () => {
+    const next = MOTION_MODES[(MOTION_MODES.indexOf(motion) + 1) % MOTION_MODES.length];
+    setMotion(next);
+    try { localStorage.setItem(MOTION_KEY, next); } catch { /* private mode */ }
+  };
   const castSkip = () => {
     if (mySkipVote) return;
     setMySkipVote(true);
@@ -226,13 +281,22 @@ export default function PvpDuelGame({
   const barPct = (hp) => `${Math.max(0, Math.min(100, (hp / STARTING_HP) * 100))}%`;
 
   return (
-    <div className={`pvd${strike ? ` pvd--strike-${strike}` : ''}`}>
+    <div className={`pvd pvd--motion-${motion}${strike ? ` pvd--strike-${strike}` : ''}`}>
       {/* ── The arena ───────────────────────────────────────────────────
           A battlefield rather than a black page: a slow horizon glow, drifting
           embers and a vignette, all behind everything and all inert. Pure CSS
           — a canvas would cost a frame budget on a screen whose job is to
           stay responsive to a five-second timer. */}
       <div className="pvd-arena" aria-hidden="true">
+        {/* An admin-set backdrop, behind everything the arena draws. The
+            glows, floor and vignette still paint over it, so the HUD stays
+            readable whatever picture is chosen. */}
+        {backdrop && (
+          <span
+            className="pvd-arena-photo"
+            style={{ backgroundImage: cssUrl(backdrop) }}
+          />
+        )}
         <span className="pvd-arena-glow pvd-arena-glow--mine" />
         <span className="pvd-arena-glow pvd-arena-glow--theirs" />
         <span className="pvd-arena-floor" />
@@ -323,6 +387,17 @@ export default function PvpDuelGame({
             {DUEL_SOURCE_LABELS[duelSource] || duelSource}
           </span>
         )}
+        {/* How much of the arena moves. Cycles rather than opening a menu:
+            three states, and the one you are in is written on it. */}
+        <button
+          type="button"
+          className="pvd-motion"
+          onClick={cycleMotion}
+          title="How much of the arena moves — full, particles only, or off"
+        >
+          <span>Motion</span>
+          <span className="pvd-motion-value">{MOTION_LABELS[motion]}</span>
+        </button>
         <button
           type="button"
           className="pvd-sound"
@@ -394,7 +469,9 @@ export default function PvpDuelGame({
                     onClick={() => onAnswer(label)}
                     disabled={hasAnswered || showingRoundResult}
                   >
-                    <span className="pvd-option-letter">{label}</span>
+                    {/* Wrapped so the glyph can be counter-rotated inside the
+                        diamond the stylesheet turns this into. */}
+                    <span className="pvd-option-letter"><span>{label}</span></span>
                     <span className="pvd-option-text">{opt}</span>
                   </button>
                 );
