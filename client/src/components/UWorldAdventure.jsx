@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { getToken, fetchMe, getCachedUser, authFetch } from '../auth';
 import SoloGame from './SoloGame';
@@ -448,6 +448,37 @@ export default function UWorldAdventure({ mode = DEFAULT_QUESTION_BANK_MODE }) {
   // the day's goal is met, a block reverts to serving a full `pace` again
   // rather than refusing to start — the goal is a target, not a lockout.
   const doneToday      = overall?.done_today ?? 0;
+  // ── What order the systems sit in ────────────────────────────────────────
+  //
+  // Alphabetical put the one system with questions left behind nine finished
+  // ones: the grid opened on a wall of "✓ Complete" and the only card worth
+  // pressing was at the bottom. Anything still unanswered comes first now.
+  //
+  // Four tiers rather than two, because "no questions left" and "no questions
+  // at all" are not the same thing, and neither is "we don't know yet":
+  //
+  //   0  questions still unanswered — what you came here to do
+  //   1  counts not in yet — held in the middle, so a slow or failed count
+  //      request never exiles a system to the bottom of the page
+  //   2  finished
+  //   3  nothing in the bank for it at all
+  //
+  // Sorted stably, so within a tier the server's own (alphabetical) order
+  // stands. Counts arrive in one request, so this re-orders once rather than
+  // shuffling card by card as they land.
+  const orderedSubjects = useMemo(() => {
+    const tier = (s) => {
+      const c = subjectCounts[s.id];
+      if (!c) return 1;
+      if ((c.unseen ?? 0) > 0) return 0;
+      return (c.total ?? 0) > 0 ? 2 : 3;
+    };
+    return subjects
+      .map((s, i) => ({ s, i, t: tier(s) }))
+      .sort((a, b) => a.t - b.t || a.i - b.i)
+      .map(x => x.s);
+  }, [subjects, subjectCounts]);
+
   const remainingToday = Math.max(0, pace - doneToday);
   const blockSize      = remainingToday > 0 ? remainingToday : pace;
 
@@ -987,7 +1018,7 @@ export default function UWorldAdventure({ mode = DEFAULT_QUESTION_BANK_MODE }) {
         {subjectsError && <p className="uwa-empty">Couldn&apos;t load subjects — check your connection.</p>}
         {!subjectsError && subjects.length === 0 && <p className="uwa-empty">Loading subjects…</p>}
         <div className="uwa-subjects">
-          {subjects.map(s => {
+          {orderedSubjects.map(s => {
             const c = subjectCounts[s.id];
             // Done is answered-so-far: the bar reads the same way Journey's
             // does, as "how much of this is behind me".
