@@ -733,6 +733,21 @@
   color: #c3a9ff;
 }
 
+/* Magenta variant — OET. The last hue Story Mode was not wearing: red,
+   amber, blue, green, teal, yellow and violet are all spoken for. */
+.ms-journey-card--magenta {
+  border-color: #d6488e;
+  box-shadow: 0 0 18px rgba(214, 72, 142, 0.22);
+}
+
+.ms-journey-card--magenta:hover {
+  box-shadow: 0 0 28px rgba(214, 72, 142, 0.48);
+}
+
+.ms-journey-card--magenta .ms-journey-name {
+  color: #f0a3c8;
+}
+
 
 
 /* ══ Story Mode campaigns ═════════════════════════════════════════════════════
@@ -754,6 +769,7 @@
 .ms-journey-card--green          { --ms-accent-rgb: 31, 158, 106; }  /* green — Saudi MLE */
 .ms-journey-card--yellow         { --ms-accent-rgb: 226, 170, 32; }  /* yellow — Mehlman Rapid Fire */
 .ms-journey-card--violet         { --ms-accent-rgb: 150, 106, 232; } /* violet — Minigames */
+.ms-journey-card--magenta        { --ms-accent-rgb: 214, 72, 142; }  /* magenta — OET */
 
 /* ── Art panel ──────────────────────────────────────────────────────────────
    Was a flat 45° stripe placeholder in near-black, identical on every card bar

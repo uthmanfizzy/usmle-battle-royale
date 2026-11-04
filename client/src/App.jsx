@@ -987,6 +987,7 @@ export default function App() {
           onSaudiMLE={() => { window.location.href = '/saudi-mle'; }}
           onMehlman={() => { window.location.href = '/mehlman-rapid-fire'; }}
           onMinigames={() => { window.location.href = '/minigames'; }}
+          onOET={() => { window.location.href = '/oet'; }}
           course={user?.course}
         />
         </RouteErrorBoundary>

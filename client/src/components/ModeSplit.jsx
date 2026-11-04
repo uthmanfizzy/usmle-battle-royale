@@ -111,7 +111,7 @@ export default function ModeSplit({ onStory, onOnline, onTraining, onBack }) {
 // card). The Tower campaign was removed from this list — TowerMode.jsx and its
 // App.jsx phase/route are untouched (unreachable, not deleted) in case it
 // comes back.
-export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld, onSaudiMLE, onMehlman, onMinigames, course }) {
+export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld, onSaudiMLE, onMehlman, onMinigames, onOET, course }) {
   // Dentistry students get the ORE/LDS bank in place of the medical licensing
   // ones; everything else (First Aid, flashcards) is shared, so their menu is
   // the same list with the board-exam campaign swapped. Medicine — and anyone
@@ -279,6 +279,23 @@ export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld, onSaudiMLE, o
         </button>
 
         )}
+
+        {/* OET — the Occupational English Test. Not a medical-knowledge
+            bank at all: it is the English exam a doctor sits to practise
+            here, which is why it reads as its own campaign rather than
+            another system inside one. Shown to everyone; the test is the same
+            whichever course you are on. */}
+        <button className="ms-journey-card ms-journey-card--magenta" onClick={onOET}>
+          <div className="ms-journey-art" aria-hidden="true">
+            <span className="ms-journey-art-icon">🇬🇧</span>
+          </div>
+          <div className="ms-journey-body">
+            <span className="ms-journey-name">OET</span>
+            <span className="ms-journey-sub">
+              The Occupational English Test, worked through at your own pace.
+            </span>
+          </div>
+        </button>
 
         {/* Minigames — the short, skill-shaped things that are neither a
             question bank nor a campaign. A shelf rather than a mode: each one

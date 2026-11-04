@@ -52,6 +52,11 @@ const GAME_MODES = [
   { id: 'uworld_adventure', label: 'UWorld Adventure', icon: '🌍', color: '#3f7fd6' },
   { id: 'saudi_mle',        label: 'Saudi MLE',        icon: '🇸🇦', color: '#16895a' },
   { id: 'mehlman_rapid_fire', label: 'Mehlman Rapid Fire', icon: '⚡', color: '#e2aa20' },
+  // The duel pool is built from questions carrying this tag (startPvpDuel in
+  // server/index.js). It was missing here, so there was no way to put a
+  // question into PvP Arenas at all.
+  { id: 'pvp_duel',       label: 'PvP Arenas',     icon: '🤺', color: '#9b59b6' },
+  { id: 'oet',            label: 'OET',            icon: '🇬🇧', color: '#d6488e' },
 ];
 
 // The game_modes tag and its matching special folder id are the SAME string;
@@ -59,11 +64,12 @@ const GAME_MODES = [
 const UWORLD_MODE = 'uworld_adventure';
 const ORE_LDS_MODE = 'ore_lds';
 const SAUDI_MLE_MODE = 'saudi_mle';
+const OET_MODE = 'oet';
 const MEHLMAN_MODE = 'mehlman_rapid_fire';
 // Folders that scope by game_modes TAG rather than by subject/category.
 // Anything true of one is true of the other, so they are listed once here
 // instead of being special-cased separately at each site below.
-const QUESTION_BANK_FOLDERS = [UWORLD_MODE, SAUDI_MLE_MODE, MEHLMAN_MODE];
+const QUESTION_BANK_FOLDERS = [UWORLD_MODE, SAUDI_MLE_MODE, MEHLMAN_MODE, OET_MODE];
 
 const TOWER_ZONE_LABELS = [
   'Zone 1 — Biochemistry',
@@ -93,6 +99,7 @@ const FOLDERS = [
   { id: 'uworld_adventure', label: 'UWorld Adventure',             icon: '🌍', prefix: null,  special: true  },
   { id: 'saudi_mle',        label: 'Saudi MLE',                    icon: '🇸🇦', prefix: null,  special: true  },
   { id: 'mehlman_rapid_fire', label: 'Mehlman Rapid Fire',         icon: '⚡', prefix: null,  special: true  },
+  { id: 'oet',              label: 'OET',                          icon: '🇬🇧', prefix: null,  special: true  },
   { id: 'medathon',         label: 'Medathon',                     icon: '🏁', prefix: null,  special: true  },
   { id: 'cardiology',       label: 'Cardiology',                   icon: '❤️',  prefix: 'CA',  special: false },
   { id: 'neurology',        label: 'Neurology',                    icon: '🧠', prefix: 'NE',  special: false },
@@ -2676,7 +2683,12 @@ function QuestionsPanel({ subjects = [], scopeTag = null }) {
   // filename — the panel is shared, so hardcoding one bank's name here would
   // mislabel the other.
   const scopeFolder = scopeTag ? FOLDERS.find(f => f.id === scopeTag) : null;
-  const scopeLabel = scopeFolder?.label || scopeTag;
+  // The online modes have no FOLDERS entry — they are tags, not sidebar
+  // folders — so fall back to the taggable list's own label rather than
+  // printing the raw tag ("battle_royale") at the reader.
+  const scopeLabel = scopeFolder?.label
+    || GAME_MODES.find(g => g.id === scopeTag)?.label
+    || scopeTag;
 
   const scoped = scopeTag
     ? questions.filter(q => (q.game_modes || []).includes(scopeTag))
@@ -11237,6 +11249,10 @@ function GameModeSettingsPanel({ gameId, bankModeId, bankLabel }) {
 // One nav entry for every game mode's admin. Each option renders the same panel
 // its old top-level tab did — nothing about the panels themselves changed. The
 // last game opened is remembered on this browser.
+// Grouped: the solo campaigns and banks first, then the live multiplayer
+// modes. They are the same surface either way — a Question Manager scoped to
+// that mode's tag, where tagging an existing question is "show this one here"
+// and the Add button is "write a new one".
 const ADMIN_GAMES = [
   { id: 'journey',      icon: '🚑', label: 'First Aid Journey' },
   { id: 'saudi_mle',    icon: '📗', label: 'SMLE' },
@@ -11247,8 +11263,24 @@ const ADMIN_GAMES = [
   { id: 'tower',        icon: '🏰', label: 'Tower' },
   { id: 'ore_lds',      icon: '🦷', label: 'ORE / LDS' },
   { id: 'mehlman',      icon: '⚡', label: 'Mehlman Rapid Fire' },
+  { id: 'oet',          icon: '🇬🇧', label: 'OET' },
+  // ── Online ──
+  { id: 'battle_royale',  icon: '⚔️', label: 'Battle Royale',  online: true },
+  { id: 'speed_race',     icon: '⚡', label: 'Speed Race',     online: true },
+  { id: 'trivia_pursuit', icon: '🎯', label: 'Trivia Pursuit', online: true },
+  { id: 'scan_master',    icon: '🔬', label: 'Scan Master',    online: true },
+  { id: 'buzz_fun',       icon: '🎉', label: 'Buzz Fun',       online: true },
+  { id: 'pvp_duel',       icon: '🤺', label: 'PvP Arenas',     online: true },
 ];
 const ADMIN_GAME_KEY = 'mr_admin_game';
+
+// The online tabs whose whole content is a tag-scoped Question Manager. The
+// key is the tab id and the value is the game_modes tag — they happen to be
+// the same string for every one of these, but the two are different things
+// and a mode whose tab id ever differs should not silently break.
+const ONLINE_GAME_TAGS = Object.fromEntries(
+  ADMIN_GAMES.filter(g => g.online).map(g => [g.id, g.id]),
+);
 
 /**
  * Question bank picture libraries: one per subject/system, not tied to any
@@ -11507,6 +11539,29 @@ function GamesPanel({ subjects }) {
             <QuestionBankImagesPanel modeId={MEHLMAN_MODE} modeLabel="Mehlman Rapid Fire" subjects={subjects} />
             <QuestionsPanel subjects={subjects} scopeTag={MEHLMAN_MODE} />
           </ErrorBoundary>
+          </>
+        )}
+        {/* The live multiplayer modes. Each one is the Question Manager
+            scoped to its own game_modes tag: the list shows exactly what that
+            mode will serve, tagging an existing question adds it, untagging
+            takes it out, and Add writes a new one straight into the mode.
+            Nothing mode-specific is needed beyond the tag. */}
+        {ONLINE_GAME_TAGS[game] && (
+          <ErrorBoundary>
+            <QuestionsPanel subjects={subjects} scopeTag={ONLINE_GAME_TAGS[game]} />
+          </ErrorBoundary>
+        )}
+        {/* OET: the same bank machinery as the others, on its own tag. */}
+        {game === 'oet'          && (
+          <>
+            <ErrorBoundary>
+              <GameModeSettingsPanel bankModeId={OET_MODE} bankLabel="OET" />
+            </ErrorBoundary>
+            <ErrorBoundary>
+              <QuestionBankSubjectsPanel modeId={OET_MODE} modeLabel="OET" subjects={subjects} />
+              <QuestionBankImagesPanel modeId={OET_MODE} modeLabel="OET" subjects={subjects} />
+              <QuestionsPanel subjects={subjects} scopeTag={OET_MODE} />
+            </ErrorBoundary>
           </>
         )}
         {game === 'anking'       && (

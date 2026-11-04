@@ -89,6 +89,19 @@ export const QUESTION_BANK_MODES = [
     // are added, the way Saudi MLE and ORE / LDS started.
     targetTotal: null,
   },
+  {
+    id: 'oet',
+    label: 'OET',
+    icon: '\u{1f1ec}\u{1f1e7}',
+    route: '/oet',
+    tagline: 'The Occupational English Test, worked through at your own pace.',
+    paceScope: '__oet__',
+    accentRgb: '214, 72, 142',    // OET magenta
+    activityMode: 'oet_practice',
+    // No published total: the plan tracks the live count and grows as
+    // questions are added, the way every bank after UWorld started.
+    targetTotal: null,
+  },
 ];
 
 export const DEFAULT_QUESTION_BANK_MODE = QUESTION_BANK_MODES[0];

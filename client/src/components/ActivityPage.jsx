@@ -38,6 +38,7 @@ const MODE_META = {
   saudi_mle_practice:     { icon: '📗', label: 'Saudi MLE'         },
   ore_lds_practice:       { icon: '🦷', label: 'ORE / LDS'         },
   mehlman_rapid_fire_practice: { icon: '⚡', label: 'Mehlman Rapid Fire' },
+  oet_practice:           { icon: '🇬🇧', label: 'OET'               },
   solo:                   { icon: '🧠', label: 'Solo Practice'     },
 };
 const modeMeta = (m) =>
