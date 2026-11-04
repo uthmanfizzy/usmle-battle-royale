@@ -49,14 +49,34 @@ const SERVER_URL = 'https://usmle-battle-royale-production.up.railway.app';
 // Adventure question — same five categories and exact value strings as HY
 // Flashcards' own rating picker, kept identical for a familiar UX. Order
 // here is the order the buttons render in.
-const UWORLD_RATINGS = [
-  { key: 'knowledge_gap',    label: 'Knowledge Gap',    icon: '🧠' },
-  { key: 'careless_miss',    label: 'Careless Miss',    icon: '😅' },
-  { key: 'lucky_guess',      label: 'Lucky Guess',      icon: '🍀' },
-  { key: 'somewhat_know',    label: 'Somewhat Know',    icon: '🤔' },
-  { key: 'fully_understood', label: 'Fully Understood', icon: '✅' },
-  { key: 'long_term_memory',  label: 'Long-term Memory', icon: '🗄️' },
+// Two rows of three, and they are not an arbitrary six: the top row is the
+// ways a question can go wrong, the bottom row the ways it can go right, and
+// each row runs left to right from least to most confident. Laid out as a
+// grid in that order, the row you want is the row you are already in.
+const UWORLD_RATING_GROUPS = [
+  {
+    id: 'missed',
+    label: 'Didn’t have it',
+    items: [
+      { key: 'knowledge_gap',    label: 'Knowledge Gap', icon: '🧠' },
+      { key: 'careless_miss',    label: 'Careless Miss', icon: '😅' },
+      { key: 'lucky_guess',      label: 'Lucky Guess',   icon: '🍀' },
+    ],
+  },
+  {
+    id: 'knew',
+    label: 'Had it',
+    items: [
+      { key: 'somewhat_know',    label: 'Somewhat Know',    icon: '🤔' },
+      { key: 'fully_understood', label: 'Fully Understood', icon: '✅' },
+      { key: 'long_term_memory', label: 'Long-term Memory', icon: '🗄️' },
+    ],
+  },
 ];
+
+// The flat list the rest of the file still works from, built from the groups
+// so the two can never disagree about which ratings exist.
+const UWORLD_RATINGS = UWORLD_RATING_GROUPS.flatMap(g => g.items);
 
 // Strip a single baked-in letter prefix ("A. ", "B) ", "C: " …) from stored
 // option text so the DISPLAY letter we prepend doesn't produce "B. C. text".
@@ -3917,44 +3937,57 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
                       putting it in that row would make it look like a sixth
                       way to answer. Stays available after the timer has run
                       out, which is exactly when it is most wanted. */}
-                  <button
-                    type="button"
-                    className={`uw-savelater${savedExpl ? ' is-on' : ''}`}
-                    onClick={toggleSavedExpl}
-                    disabled={savedExplBusy}
-                    aria-pressed={savedExpl}
-                    title={savedExpl
-                      ? 'Take this off your Read Later shelf'
-                      : "Keep this explanation to read later — it'll be waiting on the system menu"}
-                  >
-                    {savedExplBusy ? '…' : savedExpl ? '🔖 Kept for later' : '🔖 Read later'}
-                  </button>
-                  {!rated && !explanationExpired && (
+                  {/* Neither of these is a rating, so they are kept together
+                      on their own side of the row rather than drifting about
+                      between the prompt and the edge. */}
+                  <div className="uw-rate-tools">
                     <button
                       type="button"
-                      className={`uw-expl-pause${explPaused ? ' is-held' : ''}`}
-                      onClick={toggleExplPause}
-                      aria-pressed={explPaused}
-                      title={explPaused ? 'Resume the explanation timer' : 'Pause the explanation timer'}
+                      className={`uw-savelater${savedExpl ? ' is-on' : ''}`}
+                      onClick={toggleSavedExpl}
+                      disabled={savedExplBusy}
+                      aria-pressed={savedExpl}
+                      title={savedExpl
+                        ? 'Take this off your Read Later shelf'
+                        : "Keep this explanation to read later — it'll be waiting on the system menu"}
                     >
-                      {explPaused ? `▶ Resume · ${explPausedLeft}s left` : '⏸ Pause timer'}
+                      {savedExplBusy ? '…' : savedExpl ? '🔖 Kept for later' : '🔖 Read later'}
                     </button>
-                  )}
+                    {!rated && !explanationExpired && (
+                      <button
+                        type="button"
+                        className={`uw-expl-pause${explPaused ? ' is-held' : ''}`}
+                        onClick={toggleExplPause}
+                        aria-pressed={explPaused}
+                        title={explPaused ? 'Resume the explanation timer' : 'Pause the explanation timer'}
+                      >
+                        {explPaused ? `▶ Resume · ${explPausedLeft}s left` : '⏸ Pause timer'}
+                      </button>
+                    )}
+                  </div>
                 </div>
                 {savedExplError && (
                   <p className="uw-savelater-err" role="alert">{savedExplError}</p>
                 )}
-                <div className="uw-rate-buttons">
-                  {UWORLD_RATINGS.map(r => (
-                    <button
-                      key={r.key}
-                      type="button"
-                      className={`uw-rate-btn uw-rate-btn--${r.key}`}
-                      disabled={rated}
-                      onClick={() => rate(r.key)}
-                    >
-                      <span aria-hidden="true">{r.icon}</span> {r.label}
-                    </button>
+                <div className="uw-rate-groups">
+                  {UWORLD_RATING_GROUPS.map(g => (
+                    <div className={`uw-rate-group uw-rate-group--${g.id}`} key={g.id}>
+                      <span className="uw-rate-group-label" aria-hidden="true">{g.label}</span>
+                      <div className="uw-rate-buttons" role="group" aria-label={g.label}>
+                        {g.items.map(r => (
+                          <button
+                            key={r.key}
+                            type="button"
+                            className={`uw-rate-btn uw-rate-btn--${r.key}`}
+                            disabled={rated}
+                            onClick={() => rate(r.key)}
+                          >
+                            <span className="uw-rate-btn-icon" aria-hidden="true">{r.icon}</span>
+                            <span className="uw-rate-btn-label">{r.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   ))}
                 </div>
               </div>

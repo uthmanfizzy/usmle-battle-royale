@@ -435,8 +435,26 @@ html[data-study="on"] .screen.solo-screen.uw-exam .study-result-strip.is-wrong  
   border-top: 1px solid var(--uwq-rule);
 }
 
+/* Prompt on one side, the two buttons that are NOT ratings on the other.
+   They used to sit loose in the same row and drift with the prompt's length,
+   which is how "Read later" ended up floating in the middle of nothing. */
+.uw-rate-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.uw-rate-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
 .uw-rate-prompt {
-  margin: 0 0 10px;
+  margin: 0;
   font-size: 13px;
   font-weight: 700;
   color: var(--uwq-ink);
@@ -488,15 +506,45 @@ html[data-study="on"] .screen.solo-screen.uw-exam.uw-timeup .uw-rate-row {
   .uw-rate-row--due { animation: none; }
 }
 
-.uw-rate-buttons {
+/* ── The six, as two rows of three ──────────────────────────────────────
+   They used to be one wrapping flex row, which put four on the first line
+   and stretched the remaining two across the whole of the second — so the
+   two most-used buttons were the odd ones out, and the set read as six
+   unrelated choices rather than a scale.
+
+   A fixed three-column grid per group puts every button the same size, and
+   the two groups land as the two rows they always were: the ways a question
+   can go wrong on top, the ways it can go right underneath, each running
+   left to right from least to most confident. */
+.uw-rate-groups {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.uw-rate-group-label {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--uwq-ink-soft, #6b7684);
+}
+
+.uw-rate-buttons {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
   gap: 8px;
 }
 
 .uw-rate-btn {
-  flex: 1 1 130px;
-  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 44px;
+  padding: 9px 10px;
   border-radius: 8px;
   border: 1px solid var(--uwq-ring);
   background: #fff;
@@ -504,9 +552,16 @@ html[data-study="on"] .screen.solo-screen.uw-exam.uw-timeup .uw-rate-row {
   font-family: inherit;
   font-size: 13px;
   font-weight: 700;
+  line-height: 1.25;
+  text-align: center;
   cursor: pointer;
   transition: border-color 0.14s ease, background 0.14s ease, opacity 0.14s ease;
 }
+
+.uw-rate-btn-icon { flex-shrink: 0; }
+/* The label wraps rather than widening the column, so one long name cannot
+   push the other two out of shape. */
+.uw-rate-btn-label { min-width: 0; }
 
 .uw-rate-btn:disabled { opacity: 0.5; cursor: default; }
 
@@ -536,6 +591,23 @@ html[data-study="on"] .screen.solo-screen.uw-exam.uw-timeup .uw-rate-row {
 .uw-rate-btn--fully_understood:disabled {
   border-color: rgba(46, 125, 67, 0.55);
   background: rgba(46, 125, 67, 0.1);
+}
+/* Long-term Memory was added to the list but never to this ramp, so it was
+   the one button that stayed blank when picked. */
+.uw-rate-btn--long_term_memory:hover:not(:disabled),
+.uw-rate-btn--long_term_memory:disabled {
+  border-color: rgba(91, 76, 175, 0.55);
+  background: rgba(91, 76, 175, 0.1);
+}
+
+/* Two across where three will not fit, one across on a phone — never the
+   ragged last row the flex version produced at every width. */
+@media (max-width: 760px) {
+  .uw-rate-buttons { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 420px) {
+  .uw-rate-buttons { grid-template-columns: 1fr; }
+  .uw-rate-tools { margin-left: 0; width: 100%; }
 }
 
 /* ── Mobile ──────────────────────────────────────────────────────────────── */
