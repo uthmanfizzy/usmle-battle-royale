@@ -197,6 +197,12 @@ function buildTimeline(sessions) {
  * They are named rather than buried in the comparisons, so changing one's
  * mind about them is a one-line job.
  */
+// Below this a gap is just a gap between sessions — offering to call twenty
+// minutes "sleep" would be clutter on every row of the day. Four hours is
+// comfortably shorter than a night and comfortably longer than a nap at a
+// desk, so the button appears where it is plausibly wanted and nowhere else.
+const SLEEP_OFFER_SECONDS = 4 * 3600;
+
 const BREAK_EARNED_RATIO    = 3;  // a break up to 3x the study before it
 const BREAK_STRETCHED_RATIO = 5;  // ... and past this it is out of proportion
 
@@ -209,13 +215,22 @@ function breakGrade(breakSeconds, studyBefore) {
   return 'over';
 }
 
-function analyseBalance(timeline) {
+/**
+ * `sleptKeys` holds the gaps marked as sleep. They are still gaps — the
+ * study block before them ends, as it plainly did — but they are NOT breaks
+ * and are never graded. The page used to announce a ten-hour break taken
+ * after ten minutes of study, which is a fair description of a night and a
+ * useless thing to be told.
+ */
+function analyseBalance(timeline, sleptKeys = new Set()) {
   const breaks = [];
   let block = 0;  // active seconds studied since the last break
   for (const it of timeline) {
     if (it.type === 'session') {
       block += Number(it.s.duration_seconds) || 0;
     } else {
+      // Sleeping ends the block without being judged against it.
+      if (sleptKeys.has(it.key)) { block = 0; continue; }
       breaks.push({
         key: it.key,
         seconds: it.seconds,
@@ -323,11 +338,22 @@ function SessionRow({ item }) {
  * point of surfacing gaps rather than just closing them up. On someone else's
  * timeline it renders as a plain gap: notes are private to their author.
  */
-function GapRow({ item, editable, note, onSave, grade }) {
+function GapRow({ item, editable, note, kind, onSave, onSetKind, grade }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft]     = useState(note || '');
   const [saving, setSaving]   = useState(false);
   const [error,  setError]    = useState(false);
+  const [kindBusy, setKindBusy] = useState(false);
+  const [kindError, setKindError] = useState(false);
+  const asleep = kind === 'sleep';
+
+  async function toggleSleep() {
+    setKindBusy(true);
+    setKindError(false);
+    const ok = await onSetKind(item.gapStart, asleep ? null : 'sleep');
+    setKindBusy(false);
+    if (!ok) setKindError(true);
+  }
 
   // A note arriving from the server after mount (the notes fetch resolves
   // independently of the sessions fetch) must not clobber an open draft.
@@ -346,24 +372,50 @@ function GapRow({ item, editable, note, onSave, grade }) {
   }
 
   return (
-    <li className="da-item da-item--gap">
+    <li className={`da-item da-item--gap${asleep ? ' da-item--slept' : ''}`}>
       <div className="da-rail" aria-hidden="true">
         <span className="da-rail-gap" />
       </div>
       <div className="da-item-body">
         <span className="da-when da-when--gap">{clockMs(item.start)} – {clockMs(item.end)}</span>
-        <div className="da-gap">
+        <div className={`da-gap${asleep ? ' da-gap--slept' : ''}`}>
           <div className="da-gap-head">
-            <span className="da-gap-icon" aria-hidden="true">☕</span>
-            <span className="da-gap-len">{formatGap(item.seconds)} break</span>
+            <span className="da-gap-icon" aria-hidden="true">{asleep ? '🌙' : '☕'}</span>
+            <span className="da-gap-len">
+              {formatGap(item.seconds)} {asleep ? 'asleep' : 'break'}
+            </span>
             {/* What this particular break followed. The verdict at the top of
-                the day is made of these, so each one says its own working. */}
-            {grade && (
+                the day is made of these, so each one says its own working.
+                Absent on a night: "after 9m of study" is a reproach, and
+                nobody is going to answer questions instead of sleeping. */}
+            {grade && !asleep && (
               <span className={`da-gap-grade da-gap-grade--${grade.grade}`}>
                 after {formatDuration(grade.studyBefore)} of study
               </span>
             )}
+            {/* The one-press way out of being told off for a night. Only on
+                your own timeline, and only worth offering on a gap long
+                enough to have been one. */}
+            {editable && (asleep || item.seconds >= SLEEP_OFFER_SECONDS) && (
+              <button
+                type="button"
+                className={`da-gap-sleep${asleep ? ' is-on' : ''}`}
+                aria-pressed={asleep}
+                disabled={kindBusy}
+                onClick={toggleSleep}
+                title={asleep
+                  ? 'Count this as a break again'
+                  : 'This was sleep — leave it out of the day\u2019s breaks'}
+              >
+                {kindBusy ? '…' : asleep ? '🌙 Sleep' : '🌙 This was sleep'}
+              </button>
+            )}
           </div>
+          {kindError && (
+            <p className="da-note-error">
+              Couldn&apos;t save that — the sleep column isn&apos;t in the database yet.
+            </p>
+          )}
 
           {editing ? (
             <div className="da-note-edit">
@@ -437,6 +489,7 @@ export default function ActivityPage() {
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading]   = useState(true);
   const [notes, setNotes]       = useState({});   // gap_start ISO -> note
+  const [kinds, setKinds]       = useState({});   // gap_start ISO -> 'sleep'
 
   const isOwn = !!viewedId && !!me?.id && viewedId === me.id;
 
@@ -477,16 +530,16 @@ export default function ActivityPage() {
   // Gap notes are owner-only on the server, so there's nothing to fetch when
   // viewing someone else — skipping the call keeps the page working for guests.
   useEffect(() => {
-    if (!isOwn) { setNotes({}); return; }
+    if (!isOwn) { setNotes({}); setKinds({}); return; }
     const token = getToken();
-    if (!token) { setNotes({}); return; }
+    if (!token) { setNotes({}); setKinds({}); return; }
     let cancelled = false;
     fetch(`${SERVER_URL}/api/activity/gap-notes?date=${date}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(r => (r.ok ? r.json() : null))
-      .then(d => { if (!cancelled) setNotes(d?.notes || {}); })
-      .catch(() => { if (!cancelled) setNotes({}); });
+      .then(d => { if (!cancelled) { setNotes(d?.notes || {}); setKinds(d?.kinds || {}); } })
+      .catch(() => { if (!cancelled) { setNotes({}); setKinds({}); } });
     return () => { cancelled = true; };
   }, [isOwn, date]);
 
@@ -505,13 +558,42 @@ export default function ActivityPage() {
       const res = await fetch(`${SERVER_URL}/api/activity/gap-notes`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ gap_start: gapStart, note: text }),
+        // The kind travels with every write: one row holds both, and sending
+        // only the note would clear a sleep mark that is still meant to be on.
+        body: JSON.stringify({ gap_start: gapStart, note: text, kind: kinds[gapStart] || null }),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok || !data?.ok) return false;
       setNotes(prev => {
         const next = { ...prev };
         if (text) next[gapStart] = text;
+        else delete next[gapStart];
+        return next;
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  // Marking a gap as sleep (or back again). Same confirm-then-reflect shape
+  // as saveNote: nothing changes on screen until the server says it stored
+  // it, because the column this needs may not exist yet and a mark that
+  // silently vanished on reload is the bug this page already had once.
+  async function setKind(gapStart, kind) {
+    const token = getToken();
+    if (!token) return false;
+    try {
+      const res = await fetch(`${SERVER_URL}/api/activity/gap-notes`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ gap_start: gapStart, note: notes[gapStart] || '', kind }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.ok) return false;
+      setKinds(prev => {
+        const next = { ...prev };
+        if (kind) next[gapStart] = kind;
         else delete next[gapStart];
         return next;
       });
@@ -561,10 +643,16 @@ export default function ActivityPage() {
   }).filter(Boolean);
 
   const timeline = buildTimeline(sessions);
-  const breaks = timeline.filter(i => i.type === 'gap');
-  const balance = analyseBalance(timeline);
+  const allGaps = timeline.filter(i => i.type === 'gap');
+  // A gap marked as sleep is counted as sleep everywhere: not in the break
+  // count, not in the break total, not in the verdict.
+  const sleptKeys = new Set(allGaps.filter(g => kinds[g.gapStart] === 'sleep').map(g => g.key));
+  const breaks = allGaps.filter(g => !sleptKeys.has(g.key));
+  const slept  = allGaps.filter(g => sleptKeys.has(g.key));
+  const balance = analyseBalance(timeline, sleptKeys);
   const gradeByGap = new Map(balance.breaks.map(b => [b.key, b]));
   const breakSeconds = breaks.reduce((a, g) => a + g.seconds, 0);
+  const sleptSeconds = slept.reduce((a, g) => a + g.seconds, 0);
 
   return (
     <div className="da">
@@ -660,6 +748,14 @@ export default function ActivityPage() {
                   </span>
                 </>
               )}
+              {slept.length > 0 && (
+                <>
+                  <span className="da-summary-divider" aria-hidden="true" />
+                  <span className="da-summary-item">
+                    <strong>{formatGap(sleptSeconds)}</strong> asleep
+                  </span>
+                </>
+              )}
             </div>
 
             {/* A line per question bank played today. Its own band rather
@@ -717,7 +813,9 @@ export default function ActivityPage() {
                     item={item}
                     editable={isOwn}
                     note={notes[item.gapStart] || ''}
+                    kind={kinds[item.gapStart] || null}
                     onSave={saveNote}
+                    onSetKind={setKind}
                     grade={gradeByGap.get(item.key) || null}
                   />
                 ) : (

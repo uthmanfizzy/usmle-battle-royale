@@ -195,10 +195,14 @@ let questionBank = [];
 // without needing a redeploy. Postgres 42703 = undefined_column; PostgREST also
 // reports unknown columns as PGRST204 / "does not exist".
 let hasRetirement = true;
-function isMissingColumn(error) {
+// `column`, when given, also matches a message naming that column — the two
+// code checks cover PostgREST and Postgres between them, and the retirement
+// clauses are this helper's original, narrower use.
+function isMissingColumn(error, column = null) {
   if (!error) return false;
   const msg = `${error.message || ''} ${error.details || ''}`.toLowerCase();
   return error.code === '42703' || error.code === 'PGRST204' ||
+         (!!column && msg.includes(column.toLowerCase()) && msg.includes('does not exist')) ||
          (msg.includes('retired_at') && msg.includes('does not exist')) ||
          (msg.includes('column') && msg.includes('retired'));
 }
@@ -7059,6 +7063,11 @@ app.get('/api/users/:userId/activity-sessions', async (req, res) => {
 // page, and "why I didn't study" is personal (illness, work, family). Notes are
 // never returned for anyone but the requesting user.
 let hasGapNotes = true;
+// Optimistic, like every other late-added column in this file: assume it is
+// there, and fall back for the rest of the process once a query proves it is
+// not. The note half of this feature keeps working either way.
+let hasGapKind = true;
+const GAP_KINDS = ['sleep'];
 // 42P01 = undefined_table; PostgREST reports an unknown table as PGRST205.
 // `table` narrows the message-text fallbacks to one table, for callers that
 // have several optional tables in play and must not confuse them.
@@ -7081,30 +7090,40 @@ app.get('/api/activity/gap-notes', requireAuth, async (req, res) => {
     && new Date(`${raw}T00:00:00Z`).toISOString().slice(0, 10) === raw;
   const date = valid ? raw : new Date().toISOString().slice(0, 10);
 
-  if (!supabase || !hasGapNotes) return res.json({ date, notes: {} });
+  if (!supabase || !hasGapNotes) return res.json({ date, notes: {}, kinds: {} });
   try {
     const dayStart = `${date}T00:00:00.000Z`;
     const dayEnd   = new Date(Date.parse(dayStart) + 86400000).toISOString();
-    const { data, error } = await supabase
+    const read = (withKind) => supabase
       .from('activity_gap_notes')
-      .select('gap_start, note')
+      .select(withKind ? 'gap_start, note, kind' : 'gap_start, note')
       .eq('user_id', req.userId)
       .gte('gap_start', dayStart)
       .lt('gap_start', dayEnd);
+
+    let { data, error } = await read(hasGapKind);
+    if (error && hasGapKind && isMissingColumn(error, 'kind')) {
+      hasGapKind = false;
+      console.warn('[gap-notes] no kind column — run the ALTER in schema.sql to mark gaps as sleep');
+      ({ data, error } = await read(false));
+    }
     if (error) {
       if (isMissingTable(error, 'activity_gap_notes')) {
         hasGapNotes = false;
         console.warn('[gap-notes] activity_gap_notes table missing — run the migration in schema.sql');
       }
-      return res.json({ date, notes: {} });
+      return res.json({ date, notes: {}, kinds: {} });
     }
     // Keyed by the gap's start instant, normalised to ISO so the client can
     // look a note up by the same key it computes for the gap.
     const notes = {};
+    const kinds = {};
     for (const row of data || []) {
-      notes[new Date(row.gap_start).toISOString()] = row.note;
+      const key = new Date(row.gap_start).toISOString();
+      if (row.note) notes[key] = row.note;
+      if (row.kind) kinds[key] = row.kind;
     }
-    res.json({ date, notes });
+    res.json({ date, notes, kinds });
   } catch (err) {
     console.warn('[gap-notes] unavailable —', err.message);
     res.json({ date, notes: {} });
@@ -7119,26 +7138,47 @@ app.put('/api/activity/gap-notes', requireAuth, async (req, res) => {
   if (Number.isNaN(ts)) return res.status(400).json({ error: 'gap_start must be an ISO timestamp' });
   const gapStart = new Date(ts).toISOString();
   const note = (req.body?.note ?? '').toString().trim().slice(0, GAP_NOTE_MAX);
+  // 'sleep', or nothing. An unknown value is dropped rather than stored, so a
+  // hand-made request cannot put a kind in the table the page cannot render.
+  const rawKind = (req.body?.kind ?? '').toString().trim().toLowerCase();
+  const kind = GAP_KINDS.includes(rawKind) ? rawKind : null;
 
   if (!supabase || !hasGapNotes) return res.json({ ok: false });
   try {
-    if (!note) {
+    // The row carries two independent things now, so it goes only when BOTH
+    // are gone — clearing the note on a gap marked as sleep must not quietly
+    // unmark it.
+    if (!note && !kind) {
       const { error } = await supabase
         .from('activity_gap_notes')
         .delete()
         .eq('user_id', req.userId)
         .eq('gap_start', gapStart);
       if (error) throw error;
-      return res.json({ ok: true, note: '' });
+      return res.json({ ok: true, note: '', kind: null });
     }
-    const { error } = await supabase.from('activity_gap_notes').upsert({
+    const base = {
       user_id: req.userId,
       gap_start: gapStart,
       note,
       updated_at: new Date().toISOString(),
-    }, { onConflict: 'user_id,gap_start' });
+    };
+    const write = (withKind) => supabase
+      .from('activity_gap_notes')
+      .upsert(withKind ? { ...base, kind } : base, { onConflict: 'user_id,gap_start' });
+
+    let { error } = await write(hasGapKind);
+    if (error && hasGapKind && isMissingColumn(error, 'kind')) {
+      hasGapKind = false;
+      console.warn('[gap-notes] no kind column — run the ALTER in schema.sql to mark gaps as sleep');
+      // Without the column a sleep mark cannot be stored at all. Say so
+      // rather than reporting a save that did not happen — this page has
+      // been bitten by exactly that before.
+      if (kind) return res.json({ ok: false, reason: 'missing_column' });
+      ({ error } = await write(false));
+    }
     if (error) throw error;
-    res.json({ ok: true, note });
+    res.json({ ok: true, note, kind });
   } catch (err) {
     if (isMissingTable(err, 'activity_gap_notes')) {
       hasGapNotes = false;

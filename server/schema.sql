@@ -1022,9 +1022,14 @@ CREATE POLICY "server_full_access_uworld_question_ratings"
 --   id         UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
 --   user_id    UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 --   gap_start  TIMESTAMPTZ NOT NULL,
---   note       TEXT        NOT NULL,
+--   note       TEXT        NOT NULL DEFAULT '',
+--   kind       TEXT,
 --   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 -- );
+-- -- Already created this table without the two below? Run these as well:
+-- ALTER TABLE activity_gap_notes ADD COLUMN IF NOT EXISTS kind TEXT;
+-- ALTER TABLE activity_gap_notes ALTER COLUMN note SET DEFAULT '';
+-- ALTER TABLE activity_gap_notes ALTER COLUMN note DROP NOT NULL;
 -- CREATE UNIQUE INDEX IF NOT EXISTS idx_activity_gap_notes_user_gap ON activity_gap_notes(user_id, gap_start);
 -- ALTER TABLE activity_gap_notes ENABLE ROW LEVEL SECURITY;
 -- DROP POLICY IF EXISTS "server_full_access_activity_gap_notes" ON activity_gap_notes;
@@ -1042,6 +1047,14 @@ CREATE POLICY "server_full_access_uworld_question_ratings"
 -- backfilled session lands earlier in the day, silently re-pointing every note.
 -- If a gap later SPLITS because a session lands inside it, the first half keeps
 -- the same start instant, so the note stays with it.
+--
+-- KIND: 'sleep' marks a gap as the night, which is not a break and must not
+-- be judged as one — the page was telling people they had taken a ten-hour
+-- break after ten minutes of study, which is simply what a night is. A gap
+-- marked this way is left out of the break count, the break total and the
+-- balance verdict. NULL means an ordinary break. The column is optional: the
+-- server drops it and retries if it is not there, so the note half keeps
+-- working on a table created before this existed.
 --
 -- PRIVACY: /activity/:userId is a public page, but "why I didn't study" is
 -- personal. Both endpoints are requireAuth and scoped to req.userId — notes are
