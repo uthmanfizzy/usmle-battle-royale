@@ -1,6 +1,11 @@
 import { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { rangeToOffsets, captureContext, HIGHLIGHT_COLORS } from '../utils/explanationHighlights';
+import { rangeToOffsets, captureContext, snapToWords, HIGHLIGHT_COLORS } from '../utils/explanationHighlights';
+
+// Formatting written into the question itself renders as one of these. Used
+// only to decide whether to OFFER the remove button — what actually comes off
+// is worked out from the stored string, not from the DOM.
+const FORMAT_TAGS = 'strong, b, em, i, u';
 
 // Swatch backgrounds (the 4 offered colours). Kept readable on both themes via CSS
 // (.hl marks force dark text on the bright highlight).
@@ -34,7 +39,7 @@ const pillOwners = [];
  * visible-text offsets + drift context and calls onCreate. If the selection
  * overlaps an existing highlight, a remove (✕) action is also shown.
  */
-export default function ExplanationHighlightToolbar({ containerRef, highlights, onCreate, onRemoveRange, onDeleteText = null, allowFormat = false, rejectSelector = null }) {
+export default function ExplanationHighlightToolbar({ containerRef, highlights, onCreate, onRemoveRange, onDeleteText = null, onUnformat = null, allowFormat = false, rejectSelector = null }) {
   const [popup, setPopup] = useState(null);
   // Cutting text out of the question is the one action here that cannot be
   // undone from the bar, so it asks twice: the first press arms it and says
@@ -77,7 +82,7 @@ export default function ExplanationHighlightToolbar({ containerRef, highlights, 
   // Measure the bar whenever it (re)appears or its contents change (the ✕
   // remove button comes and goes), so placement uses its real width/height.
   const hasPopup = !!popup;
-  const overlaps = !!popup?.overlaps;
+  const overlaps = !!popup?.overlaps || !!popup?.formatted;
   useLayoutEffect(() => {
     const el = barRef.current;
     if (!el) { if (size.w) setSize({ w: 0, h: 0 }); return; }
@@ -102,11 +107,29 @@ export default function ExplanationHighlightToolbar({ containerRef, highlights, 
     }
     const rect = range.getBoundingClientRect();
     if (!rect || (rect.width === 0 && rect.height === 0)) return null;
-    const overlaps = (highlights || []).some((h) => h.start < offsets.end && h.end > offsets.start);
+
+    // Whole words, always. Letting go of the mouse a letter early used to
+    // colour "ardiomyopath" and leave you to try again; the range is widened
+    // to the words it touches before it is used for anything — the colour,
+    // the overlap test, the cut and the unformat alike.
+    const snapped = snapToWords(container.textContent || '', offsets.start, offsets.end);
+
+    const overlaps = (highlights || []).some((h) => h.start < snapped.end && h.end > snapped.start);
+    // Is any of this bold/italic/underlined on screen? Formatting written
+    // into the question renders exactly like a saved format span, so this
+    // cannot tell them apart — and does not need to: the handler clears
+    // whichever of the two is actually there.
+    let formatted = false;
+    if (onUnformat) {
+      for (const el of container.querySelectorAll(FORMAT_TAGS)) {
+        if (range.intersectsNode(el)) { formatted = true; break; }
+      }
+    }
     return {
-      start: offsets.start,
-      end: offsets.end,
+      start: snapped.start,
+      end: snapped.end,
       overlaps,
+      formatted,
       x: rect.left + rect.width / 2,
       y: rect.top,
       yBottom: rect.bottom, // used when there is no room above (see render)
@@ -251,10 +274,17 @@ export default function ExplanationHighlightToolbar({ containerRef, highlights, 
     setPopup(null);
   };
 
+  // Clearing formatting off the selection, from both places it can come
+  // from: a saved highlight row, and markup in the question's own text. Both
+  // are tried because on screen they are indistinguishable — whichever is
+  // not there is a no-op.
   const removeOverlap = () => {
     const sel = liveSelection();
     if (!sel) return;
-    onRemoveRange(sel.start, sel.end);
+    if (sel.overlaps) onRemoveRange(sel.start, sel.end);
+    if (sel.formatted && onUnformat) {
+      onUnformat(sel.start, sel.end, containerRef?.current?.textContent || '');
+    }
     window.getSelection()?.removeAllRanges();
     setPopup(null);
   };
@@ -334,8 +364,15 @@ export default function ExplanationHighlightToolbar({ containerRef, highlights, 
           </button>
         </>
       )}
-      {popup.overlaps && (
-        <button type="button" className="expl-hl-remove" title="Remove highlight" onClick={removeOverlap}>
+      {(popup.overlaps || popup.formatted) && (
+        <button
+          type="button"
+          className="expl-hl-remove"
+          title={popup.overlaps
+            ? 'Remove the highlight here'
+            : 'Remove the bold / italic / underline here (saved for everyone)'}
+          onClick={removeOverlap}
+        >
           ✕
         </button>
       )}

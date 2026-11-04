@@ -16,7 +16,7 @@ import { normalizeStemImages, MAX_STEM_IMAGES } from '../utils/stemImages';
 import { normalizeExplanationImages, MAX_EXPLANATION_IMAGES } from '../utils/explanationImages';
 import { runKeyFor, loadRun, saveRun, clearRun, restoreOrder } from '../utils/runSave';
 import { useScrollToTopOnChange } from '../utils/useScrollToTopOnChange';
-import { toVisibleText, resolveHighlights, normalizeHighlightRow, captureContext, cutVisibleRange, cutByQuote } from '../utils/explanationHighlights';
+import { toVisibleText, resolveHighlights, normalizeHighlightRow, captureContext, cutVisibleRange, cutByQuote, unwrapVisibleRange, unwrapByQuote } from '../utils/explanationHighlights';
 import { getToken } from '../auth';
 import './SoloGameJourney.css';
 import { JOURNEY_THEMES, loadJourneyTheme, saveJourneyTheme } from '../journeyThemes';
@@ -1191,6 +1191,55 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   // the right place is worse than leaving them to be re-made; the resolver
   // already drops a highlight whose context no longer matches.
   const [textCutMsg, setTextCutMsg] = useState(null);   // { kind, text }
+  /**
+   * Take bold / italic / underline off part of the question's own text.
+   *
+   * The toolbar's ✕ used to remove saved highlight rows and nothing else, so
+   * a question that arrived with "**most likely**" written into it could not
+   * be unbolded at all — there was no row to remove, and so no button.
+   *
+   * This is the other half: it rewrites the stored string, with the same
+   * three-way mapping cutQuestionText uses, for the same reason. Finding no
+   * markup is not a failure — the selection was formatted by a highlight row
+   * the toolbar has already removed, and there is simply nothing to save.
+   */
+  const unformatQuestionText = useCallback(async (region, start, end, visible) => {
+    const target = questionsRef.current[qIdxRef.current];
+    const headers = imageAuthHeaders();
+    if (!target?.id || !headers) return;
+    const field = region === 'question' ? 'question' : 'explanation';
+    const raw = String(target[field] ?? '');
+
+    let next = null;
+    if (visible === raw) {
+      next = null;                       // no markup in it at all
+    } else if (visible === toVisibleText(raw)) {
+      next = unwrapVisibleRange(raw, start, end);
+    } else {
+      next = unwrapByQuote(raw, visible.slice(start, end));
+    }
+    if (next === null || next === raw) return;   // nothing of ours to take off
+
+    const before = raw;
+    applyDevFields({ [field]: next }, target.id);
+    try {
+      const res = await fetch(
+        `${SERVER_URL}/api/question-text/${encodeURIComponent(target.id)}?table=${imageTable}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', ...headers },
+        body: JSON.stringify({ field, text: next }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `Save failed (${res.status})`);
+      setTextCutMsg({ kind: 'ok', text: 'Formatting removed' });
+      setTimeout(() => setTextCutMsg(null), 1800);
+    } catch (err) {
+      applyDevFields({ [field]: before }, target.id);
+      setTextCutMsg({ kind: 'err', text: err.message || 'Could not save' });
+      setTimeout(() => setTextCutMsg(null), 4200);
+    }
+  }, [applyDevFields, imageAuthHeaders, imageTable]);
+
   const cutQuestionText = useCallback(async (region, start, end, visible) => {
     const target = questionsRef.current[qIdxRef.current];
     const headers = imageAuthHeaders();
@@ -3163,6 +3212,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
               onCreate={(p) => handleCreateHighlight('question', p)}
               onRemoveRange={(s, e) => handleRemoveRange('question', s, e)}
               onDeleteText={canWriteImages ? ((s, e, v) => cutQuestionText('question', s, e, v)) : null}
+              onUnformat={canWriteImages ? ((s, e, v) => unformatQuestionText('question', s, e, v)) : null}
               allowFormat={true}
               rejectSelector=".lab-values-box, .stem-table"
             />
@@ -3656,6 +3706,9 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
                   onRemoveRange={(s, e) => handleRemoveRange('explanation', s, e)}
                   onDeleteText={(authoringOfficial && canWriteImages)
                     ? ((s, e, v) => cutQuestionText('explanation', s, e, v))
+                    : null}
+                  onUnformat={(authoringOfficial && canWriteImages)
+                    ? ((s, e, v) => unformatQuestionText('explanation', s, e, v))
                     : null}
                   allowFormat={authoringOfficial}
                 />

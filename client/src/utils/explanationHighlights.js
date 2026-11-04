@@ -404,9 +404,13 @@ export function captureContext(visibleString, start, end, ctx = 30) {
 // tokenizers above ever change and this walker does not, that fails rather
 // than questions quietly losing the wrong words.
 
-function pushRun(out, raw, rawStart, rawEnd, vis) {
+// `mark`, when present, is the wrapper this run's text was written inside:
+// { kind, open, close, from, to } where [from, to) is the raw range of the
+// WHOLE construct, delimiters included. Only unwrapVisibleRange reads it; the
+// cut path ignores it, and its presence does not change a span's text.
+function pushRun(out, raw, rawStart, rawEnd, vis, mark) {
   if (rawEnd <= rawStart) return vis;
-  out.push({ rawStart, rawEnd, visStart: vis, visEnd: vis + (rawEnd - rawStart) });
+  out.push({ rawStart, rawEnd, visStart: vis, visEnd: vis + (rawEnd - rawStart), mark });
   return vis + (rawEnd - rawStart);
 }
 
@@ -417,13 +421,15 @@ function inlineSpans(out, raw, from, to, vis) {
     const rest = raw.slice(i, to);
     const bold = rest.match(/^\*\*([\s\S]*?)\*\*/);
     if (bold) {
-      vis = pushRun(out, raw, i + 2, i + 2 + bold[1].length, vis);
+      vis = pushRun(out, raw, i + 2, i + 2 + bold[1].length, vis,
+        { kind: 'bold', open: '**', close: '**', from: i, to: i + bold[0].length });
       i += bold[0].length;
       continue;
     }
     const italic = rest.match(/^\*([\s\S]*?)\*/);
     if (italic) {
-      vis = pushRun(out, raw, i + 1, i + 1 + italic[1].length, vis);
+      vis = pushRun(out, raw, i + 1, i + 1 + italic[1].length, vis,
+        { kind: 'italic', open: '*', close: '*', from: i, to: i + italic[0].length });
       i += italic[0].length;
       continue;
     }
@@ -464,19 +470,22 @@ export function visibleSpans(raw) {
       }
       const bold = rest.match(/^\*\*([\s\S]*?)\*\*/);
       if (bold) {
-        vis = pushRun(out, text, i + 2, i + 2 + bold[1].length, vis);
+        vis = pushRun(out, text, i + 2, i + 2 + bold[1].length, vis,
+          { kind: 'bold', open: '**', close: '**', from: i, to: i + bold[0].length });
         i += bold[0].length;
         continue;
       }
       const italic = rest.match(/^\*([\s\S]*?)\*/);
       if (italic) {
-        vis = pushRun(out, text, i + 1, i + 1 + italic[1].length, vis);
+        vis = pushRun(out, text, i + 1, i + 1 + italic[1].length, vis,
+          { kind: 'italic', open: '*', close: '*', from: i, to: i + italic[0].length });
         i += italic[0].length;
         continue;
       }
       const underline = rest.match(/^__([\s\S]*?)__/);
       if (underline) {
-        vis = pushRun(out, text, i + 2, i + 2 + underline[1].length, vis);
+        vis = pushRun(out, text, i + 2, i + 2 + underline[1].length, vis,
+          { kind: 'underline', open: '__', close: '__', from: i, to: i + underline[0].length });
         i += underline[0].length;
         continue;
       }
@@ -612,4 +621,156 @@ export function cutByQuote(raw, quote, prefix = '', suffix = '') {
   }
 
   return text.slice(0, pick) + text.slice(pick + needle.length);
+}
+
+// ── Snapping a selection to whole words ─────────────────────────────────────
+//
+// A drag across text almost never lands on a word boundary: you let go a
+// letter early, or a letter late, and the colour goes on "ardiomyopath".
+// Every selection made for highlighting is therefore widened to the words it
+// touches before anything is done with it.
+//
+// Whitespace at the ends is dropped FIRST. A sweep that overshoots into the
+// following space would otherwise swallow the next word whole, which is the
+// opposite of the problem being fixed.
+
+// What counts as inside a word. Letters and digits in any script, plus the
+// apostrophes and hyphens that live between them — "patient's", "beta-blocker".
+const WORD_CHAR = /[\p{L}\p{N}]/u;
+const WORD_JOIN = /['’‐-―-]/;
+
+function isWordChar(ch) {
+  return !!ch && (WORD_CHAR.test(ch) || WORD_JOIN.test(ch));
+}
+
+/**
+ * Widen [start, end) to cover whole words of `visible`.
+ *
+ * Returns the original range unchanged when it is empty, out of range, or
+ * holds nothing but whitespace and punctuation — snapping is a convenience,
+ * and it should never be the reason a selection stops working.
+ */
+export function snapToWords(visible, start, end) {
+  const text = String(visible || '');
+  let a = Number(start), b = Number(end);
+  if (!Number.isInteger(a) || !Number.isInteger(b)) return { start, end };
+  a = Math.max(0, Math.min(a, text.length));
+  b = Math.max(0, Math.min(b, text.length));
+  if (b <= a) return { start, end };
+
+  // Trim the sloppy ends of the drag.
+  let s = a, e = b;
+  while (s < e && /\s/.test(text[s])) s++;
+  while (e > s && /\s/.test(text[e - 1])) e--;
+  if (e <= s) return { start: a, end: b };
+
+  // Grow outwards over the rest of the words at each end.
+  while (s > 0 && isWordChar(text[s - 1]) && isWordChar(text[s])) s--;
+  while (e < text.length && isWordChar(text[e]) && isWordChar(text[e - 1])) e++;
+
+  // A hyphen or apostrophe picked up at an edge belongs to no word on this
+  // side of it — "beta-" reads as a mistake where "beta" does not.
+  while (s < e && WORD_JOIN.test(text[s])) s++;
+  while (e > s && WORD_JOIN.test(text[e - 1])) e--;
+
+  return e > s ? { start: s, end: e } : { start: a, end: b };
+}
+
+// ── Taking formatting back off ──────────────────────────────────────────────
+//
+// There are two kinds of bold on an explanation and they look identical. One
+// is a highlight row someone added, which the ✕ on the toolbar removes. The
+// other is written into the question itself — "**most likely**" in the stored
+// string — and until now nothing could touch it: the toolbar offered no
+// button at all, because it only ever looked for overlapping rows.
+//
+// This is the second kind. It rewrites the stored string, so it is for the
+// people who may write to the bank, and it is precise: unbolding three words
+// out of ten leaves the other seven bold, rather than stripping the phrase.
+
+function spliceAll(text, edits) {
+  // Last first, so earlier offsets are still valid as we go.
+  let out = text;
+  for (const ed of [...edits].sort((x, y) => y.from - x.from)) {
+    out = out.slice(0, ed.from) + ed.text + out.slice(ed.to);
+  }
+  return out;
+}
+
+/**
+ * Strip bold/italic/underline markup from `raw` across the visible range
+ * [start, end), keeping it on whatever the range does not cover.
+ *
+ * Returns null when the range covers no markup at all — there is nothing to
+ * save, and a caller should treat that as "already plain", not as an error.
+ */
+export function unwrapVisibleRange(raw, start, end, kinds = ['bold', 'italic', 'underline']) {
+  const text = String(raw || '');
+  const a = Number(start), b = Number(end);
+  if (!Number.isInteger(a) || !Number.isInteger(b) || a < 0 || b <= a) return null;
+
+  const edits = [];
+  for (const sp of visibleSpans(text)) {
+    if (!sp.mark || !kinds.includes(sp.mark.kind)) continue;
+    const from = Math.max(a, sp.visStart);
+    const to   = Math.min(b, sp.visEnd);
+    if (to <= from) continue;
+
+    // One run, one wrapper: these tokenizers never nest a second wrapper
+    // inside bold or italic, so the run's text IS the whole inner string.
+    const inner = text.slice(sp.rawStart, sp.rawEnd);
+    const head = inner.slice(0, from - sp.visStart);
+    const mid  = inner.slice(from - sp.visStart, to - sp.visStart);
+    const tail = inner.slice(to - sp.visStart);
+    const { open, close } = sp.mark;
+    edits.push({
+      from: sp.mark.from,
+      to: sp.mark.to,
+      text: (head ? open + head + close : '') + mid + (tail ? open + tail + close : ''),
+    });
+  }
+  if (!edits.length) return null;
+  return spliceAll(text, edits);
+}
+
+/**
+ * The same thing for text whose offsets cannot be mapped — a multi-line stem,
+ * where the renderer rebuilds its text as it goes (see cutByQuote above for
+ * the full reason). The words that were selected are looked for inside each
+ * wrapper instead.
+ *
+ * Returns null when no wrapper holds them, or when more than one does: taking
+ * the bold off the wrong sentence is worse than refusing this one.
+ */
+export function unwrapByQuote(raw, quote, kinds = ['bold', 'italic', 'underline']) {
+  const text = String(raw || '');
+  const needle = loosely(quote);
+  if (!needle) return null;
+
+  const hits = [];
+  for (const sp of visibleSpans(text)) {
+    if (!sp.mark || !kinds.includes(sp.mark.kind)) continue;
+    const inner = text.slice(sp.rawStart, sp.rawEnd);
+    // Compared loosely so the markup and whitespace the two forms disagree
+    // about stop counting; located exactly, so the split lands right.
+    if (!loosely(inner).includes(needle)) continue;
+    hits.push({ sp, inner });
+  }
+  if (hits.length !== 1) return null;
+
+  const { sp, inner } = hits[0];
+  const { open, close } = sp.mark;
+  // Where the words sit inside the wrapper, on the raw text this time. If the
+  // loose match cannot be pinned to an exact one, the whole wrapper comes off
+  // — the selection is somewhere inside it either way.
+  const exact = String(quote || '');
+  const at = inner.indexOf(exact);
+  if (at < 0) return spliceAll(text, [{ from: sp.mark.from, to: sp.mark.to, text: inner }]);
+  const head = inner.slice(0, at);
+  const tail = inner.slice(at + exact.length);
+  return spliceAll(text, [{
+    from: sp.mark.from,
+    to: sp.mark.to,
+    text: (head ? open + head + close : '') + exact + (tail ? open + tail + close : ''),
+  }]);
 }
