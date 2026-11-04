@@ -1502,7 +1502,29 @@ const DUEL_WIN_BY = ['hp', 'rounds'];
 const DUEL_ROUNDS_MIN = 3;
 const DUEL_ROUNDS_MAX = 30;
 
-const DEFAULT_DUEL_OPTIONS = { source: 'pvp_duel', winBy: 'hp', rounds: 10 };
+// A duel holds exactly two. Named once so the join, the quick-join and the
+// bot button cannot drift apart about it.
+const PVP_DUEL_MAX_PLAYERS = 2;
+
+// How many systems a host may mix. Generous — the point is "pick a few" —
+// but bounded, so a hand-made payload cannot hand the filter a huge list.
+const DUEL_MAX_SUBJECTS = 40;
+
+const DEFAULT_DUEL_OPTIONS = {
+  source: 'pvp_duel',
+  winBy: 'hp',
+  rounds: 10,
+  // [] means every system. Listing them is how a host narrows it, and a list
+  // of more than one is how they mix.
+  subjects: [],
+  // The ability dock and mana bar in the duel HUD. They are display-only
+  // today, which is exactly why being able to switch them off matters: an
+  // inert row of buttons is worse than no row at all if you do not want it.
+  powers: true,
+  // Whether the explanation is sent at all between rounds. Off makes the
+  // duel a rapid exchange; on, either player can call the wait short.
+  explanations: true,
+};
 
 function sanitizeDuelOptions(raw) {
   const o = raw && typeof raw === 'object' ? raw : {};
@@ -1512,7 +1534,19 @@ function sanitizeDuelOptions(raw) {
   const rounds = Number.isFinite(n)
     ? Math.max(DUEL_ROUNDS_MIN, Math.min(DUEL_ROUNDS_MAX, n))
     : DEFAULT_DUEL_OPTIONS.rounds;
-  return { source, winBy, rounds };
+  // Normalised the same way question subjects are stored, deduped, and
+  // capped. Anything that is not a string simply falls out.
+  const subjects = Array.isArray(o.subjects)
+    ? [...new Set(o.subjects
+        .filter(s => typeof s === 'string')
+        .map(s => s.trim().toLowerCase())
+        .filter(Boolean))].slice(0, DUEL_MAX_SUBJECTS)
+    : [];
+  // Explicitly false turns them off; anything else keeps the default on, so
+  // an older client that sends neither field behaves as it always did.
+  const powers = o.powers !== false;
+  const explanations = o.explanations !== false;
+  return { source, winBy, rounds, subjects, powers, explanations };
 }
 
 function startPvpDuel(lobby) {
@@ -1546,8 +1580,21 @@ function startPvpDuel(lobby) {
     usedSource = brPool.length >= 5 ? 'battle_royale' : 'all';
   }
 
-  const raw = lobby.subject === 'all' ? base : base.filter(q => q.subject === lobby.subject);
-  let queue = shuffle(raw.length >= 5 ? raw : base);
+  // Which systems. An empty list is every system — the host either did not
+  // narrow it or deliberately chose the lot. Several is a mix, which is the
+  // whole reason this is a list and not the single lobby.subject it replaces.
+  //
+  // Falling back is the same promise the source makes above: a duel that
+  // cannot find five questions in the chosen systems plays from the wider
+  // pool rather than refusing to start, and says which systems actually ran.
+  const wanted = new Set(opts.subjects);
+  const bySubject = wanted.size
+    ? base.filter(q => wanted.has(String(q.subject || '').toLowerCase()))
+    : (lobby.subject === 'all' ? base : base.filter(q => q.subject === lobby.subject));
+  const enough = bySubject.length >= 5;
+  lobby.duelUsedSubjects = enough ? [...wanted] : [];
+  const raw = bySubject;
+  let queue = shuffle(enough ? raw : base);
   // A fixed-length duel takes exactly that many questions. HP duels keep the
   // whole pool: they end when somebody falls, not when the pool runs dry.
   if (opts.winBy === 'rounds') queue = queue.slice(0, opts.rounds);
@@ -1564,6 +1611,11 @@ function startPvpDuel(lobby) {
     // the client says so rather than leaving the host to wonder why a UWorld
     // duel is serving Battle Royale questions.
     duelSource: usedSource,
+    // What the systems filter actually came to. Empty either because the host
+    // chose every system or because what they chose was too thin to play —
+    // the client says which, rather than leaving them to wonder.
+    duelSubjects: lobby.duelUsedSubjects,
+    duelSubjectsAsked: opts.subjects,
     totalRounds: lobby.duelTotalRounds,
   });
   setTimeout(() => nextPvpDuelQuestion(lobby), 1500);
@@ -1631,9 +1683,13 @@ function processPvpDuelAnswers(lobby) {
     lobby.duelDamage.set(striker.id, (lobby.duelDamage.get(striker.id) || 0) + PVP_DUEL_DAMAGE_PER_HIT);
   }
 
-  const explanation = (lobby.difficulty === 'hard' ? gameSettings.hardModeHideExplanations : gameSettings.easyModeHideExplanations)
-    ? ''
-    : (q.explanation || '');
+  // The host's choice first, then the difficulty's own setting. Either one
+  // saying "no explanation" means none is sent — the text never leaves the
+  // server, so turning it off is not merely a client-side hide.
+  const duelOpts = lobby.duelOptions || DEFAULT_DUEL_OPTIONS;
+  const hideExplanation = !duelOpts.explanations
+    || (lobby.difficulty === 'hard' ? gameSettings.hardModeHideExplanations : gameSettings.easyModeHideExplanations);
+  const explanation = hideExplanation ? '' : (q.explanation || '');
 
   for (const g of graded) {
     const sock = io.sockets.sockets.get(g.p.id);
@@ -1674,9 +1730,11 @@ function processPvpDuelAnswers(lobby) {
     players: snapshot,
   });
 
-  const explanationDelay = lobby.difficulty === 'hard'
-    ? (gameSettings.hardModeHideExplanations ? 2500 : 22000)
-    : (gameSettings.easyModeHideExplanations ? 2500 : ((gameSettings.easyModeExplanationTime || gameSettings.explanationTime || 5) * 1000 + 2000));
+  const explanationDelay = hideExplanation
+    ? 2500
+    : (lobby.difficulty === 'hard'
+        ? 22000
+        : ((gameSettings.easyModeExplanationTime || gameSettings.explanationTime || 5) * 1000 + 2000));
 
   // A fixed-length duel can still end early on a knockout: reaching zero is
   // decisive whatever the format, and playing out the remaining questions
@@ -1684,15 +1742,53 @@ function processPvpDuelAnswers(lobby) {
   const anyDead = ps.some(p => (lobby.duelHp.get(p.id) ?? 0) <= 0);
   const roundsDone = lobby.duelTotalRounds != null
     && lobby.questionIdx + 1 >= lobby.duelTotalRounds;
-  if (anyDead) setTimeout(() => endPvpDuel(lobby, 'hp_zero'), explanationDelay);
-  else if (roundsDone) setTimeout(() => endPvpDuel(lobby, 'rounds_complete'), explanationDelay);
-  else setTimeout(() => nextPvpDuelQuestion(lobby), explanationDelay);
+  const after = anyDead
+    ? () => endPvpDuel(lobby, 'hp_zero')
+    : roundsDone
+      ? () => endPvpDuel(lobby, 'rounds_complete')
+      : () => nextPvpDuelQuestion(lobby);
+  // Scheduled through a handle rather than a bare setTimeout, so both players
+  // agreeing can bring it forward — see skip_explanation.
+  scheduleDuelAdvance(lobby, after, explanationDelay, !hideExplanation);
+}
+
+// ── Moving on from the explanation ───────────────────────────────────────
+//
+// The wait between rounds used to be a fixed timeout nobody could shorten:
+// two players who had both finished reading sat looking at each other for
+// the rest of it. The timeout is still the backstop — it is what happens if
+// one of them is still reading — but when everyone still in the duel has
+// said they are done, it fires early.
+//
+// A vote, not a button: one player skipping would take the explanation away
+// from the other, which is the opposite of what it is for.
+function scheduleDuelAdvance(lobby, fn, delay, skippable) {
+  clearDuelAdvance(lobby);
+  lobby.duelAdvanceFn = fn;
+  lobby.duelSkipVotes = skippable ? new Set() : null;
+  lobby.duelAdvanceTimer = setTimeout(() => runDuelAdvance(lobby), delay);
+}
+
+function runDuelAdvance(lobby) {
+  const fn = lobby.duelAdvanceFn;
+  clearDuelAdvance(lobby);
+  if (fn) fn();
+}
+
+function clearDuelAdvance(lobby) {
+  if (lobby.duelAdvanceTimer) clearTimeout(lobby.duelAdvanceTimer);
+  lobby.duelAdvanceTimer = null;
+  lobby.duelAdvanceFn = null;
+  lobby.duelSkipVotes = null;
 }
 
 function endPvpDuel(lobby, reason) {
   if (lobby.status === 'game_over') return;
   lobby.status = 'game_over';
   clearTimer(lobby);
+  // Whatever was scheduled for the end of the explanation is moot now, and a
+  // forfeit can arrive while one is pending.
+  clearDuelAdvance(lobby);
   totalGamesPlayed++;
 
   const ps = [...lobby.players.values()];
@@ -3119,7 +3215,7 @@ io.on('connection', (socket) => {
     if (!lobby)                       return ack({ ok: false, error: 'Lobby not found. Check the code and try again.' });
     if (lobby.status !== 'waiting')   return ack({ ok: false, error: 'This game has already started.' });
     // 1v1 cap: a duel holds exactly 2 players (other modes stay uncapped)
-    if (lobby.gameMode === 'pvp_duel' && lobby.players.size >= 2)
+    if (lobby.gameMode === 'pvp_duel' && lobby.players.size >= PVP_DUEL_MAX_PLAYERS)
       return ack({ ok: false, error: 'This duel is full.' });
 
     const taken = [...lobby.players.values()].some(
@@ -3182,7 +3278,7 @@ io.on('connection', (socket) => {
         l.openToQuickJoin !== false &&
         l.gameMode === gameMode &&
         l.players.size >= 1 &&
-        !(l.gameMode === 'pvp_duel' && l.players.size >= 2) &&
+        !(l.gameMode === 'pvp_duel' && l.players.size >= PVP_DUEL_MAX_PLAYERS) &&
         ![...l.players.values()].some(p => p.username.toLowerCase() === name.toLowerCase())
       )
       .sort((a, b) => b.players.size - a.players.size);
@@ -3215,6 +3311,20 @@ io.on('connection', (socket) => {
     ack({ ok: true, lobbyId: lobby.id, subject: 'all', created: true });
     io.to(lobby.id).emit('lobby_update', lobbyPayload(lobby));
     console.log(`${name} quick-join: no open lobby, created ${lobby.id}`);
+  });
+
+  // "I have finished reading." Counted, not obeyed: the round moves on when
+  // everyone still in the duel has said it.
+  socket.on('skip_explanation', () => {
+    const lobby = lobbies.get(socket.lobbyId);
+    if (!lobby || lobby.gameMode !== 'pvp_duel') return;
+    if (!lobby.duelAdvanceFn || !lobby.duelSkipVotes) return;   // nothing pending, or not skippable
+    if (!lobby.players.has(socket.id)) return;
+    lobby.duelSkipVotes.add(socket.id);
+    const votes = lobby.duelSkipVotes.size;
+    const need  = lobby.players.size;
+    io.to(lobby.id).emit('duel_skip_votes', { votes, need });
+    if (votes >= need) runDuelAdvance(lobby);
   });
 
   socket.on('toggle_quick_join', ({ open }) => {
@@ -3447,6 +3557,12 @@ io.on('connection', (socket) => {
   socket.on('add_bot', ({ difficulty }) => {
     const lobby = lobbies.get(socket.lobbyId);
     if (!lobby || lobby.hostId !== socket.id || lobby.status !== 'waiting') return;
+    // A duel is two people. join_lobby and quick_join both enforced that; the
+    // bot button did not, so a host could fill a 1v1 with three bots — and a
+    // duel has no bot answering path at all, so each of them would have sat
+    // there as a dead opponent while real players were turned away at the
+    // door. Refused outright rather than capped at two: a bot cannot duel.
+    if (lobby.gameMode === 'pvp_duel') return;
     const bots = [...lobby.players.values()].filter(p => p.isBot);
     if (bots.length >= 3) return;
     if (!BOT_ACCURACY[difficulty]) return;

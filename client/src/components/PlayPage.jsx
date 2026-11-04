@@ -120,6 +120,9 @@ export default function PlayPage({
   const [selectedStep] = useState('step1');
   const [fillTeam] = useState(false);
   const [gameModesConfig, setGameModesConfig] = useState({});
+  // Every system a duel could be narrowed to. Fetched once and only when a
+  // duel lobby is actually open — the rest of this page has no use for it.
+  const [subjects, setSubjects] = useState([]);
   const [playBgImage, setPlayBgImage] = useState(() => cachedImageMap('play').play_page_background || '');
   const [lobbyCode, setLobbyCode] = useState('');
   const [joinError, setJoinError] = useState('');
@@ -179,6 +182,30 @@ export default function PlayPage({
       step: selectedStep,
     });
   }
+
+  useEffect(() => {
+    if (lobbyGameMode !== 'pvp_duel' || subjects.length) return undefined;
+    let cancelled = false;
+    authFetch('/api/subjects')
+      .then(r => r.json())
+      .then(d => {
+        if (cancelled) return;
+        const list = (d?.subjects || [])
+          .filter(x => x && x.id && x.active !== false)
+          .map(x => ({ id: String(x.id).toLowerCase(), name: x.name || x.id }));
+        setSubjects(list);
+      })
+      .catch(() => { /* the duel still plays, it just cannot be narrowed */ });
+    return () => { cancelled = true; };
+  }, [lobbyGameMode, subjects.length]);
+
+  // What the host has narrowed to, always an array so the chips below can
+  // treat "nothing chosen" and "field missing" the same way.
+  const duelSubjects = Array.isArray(duelOptions?.subjects) ? duelOptions.subjects : [];
+  // A system's name for the player who did NOT choose it. Falls back to the
+  // id, tidied, if the list has not arrived.
+  const subjectName = (id) => subjects.find(x => x.id === id)?.name
+    || String(id).replace(/[_-]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 
   // ── PvP Arenas matchmaking overlay ──────────────────────────────────────
   // Purely a render branch over state PlayPage already receives: `lobbyId` and
@@ -550,10 +577,122 @@ export default function PlayPage({
                   </div>
                 )}
 
+                {/* ── Which systems ──────────────────────────────────
+                    A duel used to take whatever the pool held. Picking one
+                    system makes it a cardiology duel; picking several mixes
+                    exactly those; picking none is everything, which is what
+                    it always was. Shown as chips rather than a multi-select
+                    because "which of these am I on" has to be readable at a
+                    glance by the player who did not choose it. */}
+                <div className="lobby-duel-row lobby-duel-row--stack">
+                  <span className="lobby-duel-label">Systems</span>
+                  {isHost ? (
+                    <div className="lobby-duel-subjects">
+                      <button
+                        type="button"
+                        className={`lobby-duel-chip${!duelSubjects.length ? ' is-on' : ''}`}
+                        onClick={() => onDuelOptions?.({ ...duelOptions, subjects: [] })}
+                      >
+                        Everything
+                      </button>
+                      {subjects.map(sub => {
+                        const on = duelSubjects.includes(sub.id);
+                        return (
+                          <button
+                            key={sub.id}
+                            type="button"
+                            className={`lobby-duel-chip${on ? ' is-on' : ''}`}
+                            aria-pressed={on}
+                            onClick={() => onDuelOptions?.({
+                              ...duelOptions,
+                              subjects: on
+                                ? duelSubjects.filter(x => x !== sub.id)
+                                : [...duelSubjects, sub.id],
+                            })}
+                          >
+                            {sub.name}
+                          </button>
+                        );
+                      })}
+                      {subjects.length === 0 && (
+                        <span className="lobby-duel-value">Loading systems…</span>
+                      )}
+                    </div>
+                  ) : (
+                    <span className="lobby-duel-value">
+                      {duelSubjects.length
+                        ? duelSubjects.map(id => subjectName(id)).join(', ')
+                        : 'Every system'}
+                    </span>
+                  )}
+                </div>
+
+                {/* ── Powers ────────────────────────────────────────────── */}
+                <div className="lobby-duel-row">
+                  <span className="lobby-duel-label">Powers</span>
+                  {isHost ? (
+                    <div className="lobby-duel-choice">
+                      <button
+                        type="button"
+                        className={`lobby-duel-chip${duelOptions?.powers !== false ? ' is-on' : ''}`}
+                        onClick={() => onDuelOptions?.({ ...duelOptions, powers: true })}
+                      >
+                        On
+                      </button>
+                      <button
+                        type="button"
+                        className={`lobby-duel-chip${duelOptions?.powers === false ? ' is-on' : ''}`}
+                        onClick={() => onDuelOptions?.({ ...duelOptions, powers: false })}
+                      >
+                        Off
+                      </button>
+                    </div>
+                  ) : (
+                    <span className="lobby-duel-value">
+                      {duelOptions?.powers === false ? 'Off' : 'On'}
+                    </span>
+                  )}
+                </div>
+
+                {/* ── Explanations ─────────────────────────────────────── */}
+                <div className="lobby-duel-row">
+                  <span className="lobby-duel-label">Explanations</span>
+                  {isHost ? (
+                    <div className="lobby-duel-choice">
+                      <button
+                        type="button"
+                        className={`lobby-duel-chip${duelOptions?.explanations !== false ? ' is-on' : ''}`}
+                        onClick={() => onDuelOptions?.({ ...duelOptions, explanations: true })}
+                      >
+                        Show them
+                      </button>
+                      <button
+                        type="button"
+                        className={`lobby-duel-chip${duelOptions?.explanations === false ? ' is-on' : ''}`}
+                        onClick={() => onDuelOptions?.({ ...duelOptions, explanations: false })}
+                      >
+                        Skip them
+                      </button>
+                    </div>
+                  ) : (
+                    <span className="lobby-duel-value">
+                      {duelOptions?.explanations === false ? 'Not shown' : 'Shown between rounds'}
+                    </span>
+                  )}
+                </div>
+
                 <p className="lobby-duel-note">
                   {(duelOptions?.winBy || 'hp') === 'hp'
                     ? 'Both start on 100 HP. The first correct answer each round strikes for 5 — the duel ends when someone hits zero.'
                     : `${duelOptions?.rounds || 10} questions, then most damage dealt wins. A knockout still ends it early.`}
+                </p>
+                <p className="lobby-duel-note">
+                  {duelOptions?.explanations === false
+                    ? 'No explanations — the next question comes straight away.'
+                    : 'Either of you can call the explanation short; it moves on when you both have.'}
+                  {duelOptions?.powers === false
+                    ? ' The ability dock is hidden.'
+                    : ' The ability dock is shown (display only for now).'}
                 </p>
               </div>
             )}

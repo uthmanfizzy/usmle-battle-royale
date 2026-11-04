@@ -105,7 +105,16 @@ export default function App() {
   // The duel's own settings: where its questions come from and how it is won.
   // Mirrors the server defaults so the lobby renders something sensible before
   // the first lobby_update lands.
-  const [duelOptions, setDuelOptions] = useState({ source: 'pvp_duel', winBy: 'hp', rounds: 10 });
+  const [duelOptions, setDuelOptions] = useState({
+    source: 'pvp_duel', winBy: 'hp', rounds: 10,
+    // [] is every system; several is a mix. Powers are the (display-only)
+    // ability dock; explanations are whether one is sent between rounds.
+    subjects: [], powers: true, explanations: true,
+  });
+  // How many players have said they are done reading this round's
+  // explanation, straight from the server. Cleared when the round changes so
+  // a stale "1 of 2" never sits under the next question.
+  const [duelSkipVotes, setDuelSkipVotes] = useState(null);
   // What the match actually ran with — the server reports the pool it used,
   // which differs from the one asked for when that bank was too thin.
   const [duelRun, setDuelRun] = useState({ source: null, totalRounds: null });
@@ -278,11 +287,14 @@ export default function App() {
       if (dOpts) setDuelOptions(dOpts);
     });
 
+    socket.on('duel_skip_votes', (v) => setDuelSkipVotes(v || null));
+
     socket.on('game_start', ({ gameMode: gm, duelOptions: dOpts, duelSource, totalRounds }) => {
       if (dOpts) setDuelOptions(dOpts);
       setDuelHistory([]);
       // What the pool actually was, which is not always what was asked for.
       setDuelRun({ source: duelSource ?? null, totalRounds: totalRounds ?? null });
+      setDuelSkipVotes(null);
       setGameMode(gm || 'battle_royale');
       medathonIntroRef.current = gm === 'medathon';
       setMedathonIntro(gm === 'medathon');
@@ -418,6 +430,9 @@ export default function App() {
       // frame — a question arriving ends it. Nobody watches a cutscene while
       // their own clock is running.
       endMedathonIntro();
+      // A new question is a new vote: a stale "1 of 2 ready" under it would
+      // be reporting the last round.
+      setDuelSkipVotes(null);
       setQuestion(data);
       setRound(data.round);
       setTimeLimit(data.timeLimit);
@@ -1190,6 +1205,10 @@ export default function App() {
         <PvpDuelGame
           totalRounds={duelRun.totalRounds}
           duelSource={duelRun.source}
+          powers={duelOptions?.powers !== false}
+          explanations={duelOptions?.explanations !== false}
+          skipVotes={duelSkipVotes}
+          onSkipExplanation={() => socket.emit('skip_explanation')}
           question={question}
           round={round}
           timeLimit={timeLimit}

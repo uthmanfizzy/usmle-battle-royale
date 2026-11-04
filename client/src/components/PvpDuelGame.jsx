@@ -78,6 +78,16 @@ export default function PvpDuelGame({
   muted = false,
   onToggleMute,
   onForfeit,
+  // Whether the host left the ability dock and mana bar on. They are
+  // display-only, which is the point: a row of buttons that cannot be
+  // pressed is worse than no row at all if you did not want it there.
+  powers = true,
+  // Whether explanations are shown between rounds at all. When they are,
+  // either player can say they have finished reading; the round moves on
+  // once both have, and `skipVotes` is how far along that is.
+  explanations = true,
+  skipVotes = null,          // { votes, need } | null
+  onSkipExplanation = null,
   // What the host set up: how many questions this duel runs for (null when it
   // is fought to zero HP instead) and which bank it drew from.
   totalRounds = null,
@@ -149,6 +159,15 @@ export default function PvpDuelGame({
   // roundResults the feed reads, so it cannot disagree with the damage.
   const [strike, setStrike] = useState(null);   // 'mine' | 'theirs' | null
   const [hitMark, setHitMark] = useState(null); // the floating damage figure
+  // Whether THIS player has said they are done with this round's explanation.
+  // Held locally as well as counted on the server so the button can settle
+  // the instant it is pressed, and reset per round rather than per render.
+  const [mySkipVote, setMySkipVote] = useState(false);
+  const castSkip = () => {
+    if (mySkipVote) return;
+    setMySkipVote(true);
+    onSkipExplanation?.();
+  };
   const lastStrikeRef = useRef(null);
   useEffect(() => {
     if (!roundResults || roundResults === lastStrikeRef.current) return;
@@ -170,6 +189,9 @@ export default function PvpDuelGame({
     const t2 = setTimeout(() => setHitMark(null), 1200);
     return () => { clearTimeout(t); clearTimeout(t2); };
   }, [roundResults, username]);
+
+  // A new round is a new vote.
+  useEffect(() => { setMySkipVote(false); }, [round]);
 
   // The last seconds of a question, for the clock's own urgency.
   const urgent = timerActive && left <= 5 && left > 0;
@@ -246,10 +268,14 @@ export default function PvpDuelGame({
             <div className="pvd-bar pvd-bar--hp">
               <div className="pvd-bar-fill pvd-bar-fill--hp" style={{ width: barPct(myHp) }} />
             </div>
-            {/* Mana bar: mockup styling, INERT — no mana system exists yet */}
-            <div className="pvd-bar pvd-bar--mana" title="Mana — coming soon" aria-hidden="true">
-              <div className="pvd-bar-fill pvd-bar-fill--mana" style={{ width: '100%' }} />
-            </div>
+            {/* Mana bar: mockup styling, INERT — no mana system exists yet.
+                Hidden with the rest of the powers when the host turns them
+                off, since it belongs to the same system. */}
+            {powers && (
+              <div className="pvd-bar pvd-bar--mana" title="Mana — coming soon" aria-hidden="true">
+                <div className="pvd-bar-fill pvd-bar-fill--mana" style={{ width: '100%' }} />
+              </div>
+            )}
           </div>
         </div>
 
@@ -280,9 +306,11 @@ export default function PvpDuelGame({
             <div className="pvd-bar pvd-bar--hp">
               <div className="pvd-bar-fill pvd-bar-fill--hp pvd-bar-fill--right" style={{ width: barPct(oppHp) }} />
             </div>
-            <div className="pvd-bar pvd-bar--mana" title="Mana — coming soon" aria-hidden="true">
-              <div className="pvd-bar-fill pvd-bar-fill--mana pvd-bar-fill--right" style={{ width: '100%' }} />
-            </div>
+            {powers && (
+              <div className="pvd-bar pvd-bar--mana" title="Mana — coming soon" aria-hidden="true">
+                <div className="pvd-bar-fill pvd-bar-fill--mana pvd-bar-fill--right" style={{ width: '100%' }} />
+              </div>
+            )}
           </div>
           <span className="pvd-avatar pvd-avatar--opp">{avatarLetter(oppName)}</span>
         </div>
@@ -406,6 +434,30 @@ export default function PvpDuelGame({
                   </strong>
                   <ExplanationText text={roundResults.explanation} />
                 </div>
+
+                {/* ── Both done reading ──────────────────────────────────
+                    A vote, not a button: one player skipping would take the
+                    explanation away from the other, which is the opposite of
+                    what it is for. The timer is still the backstop — this
+                    only brings it forward. */}
+                {explanations && onSkipExplanation && (
+                  <div className="pvd-skip">
+                    <button
+                      type="button"
+                      className={`pvd-skip-btn${mySkipVote ? ' is-cast' : ''}`}
+                      onClick={castSkip}
+                      disabled={mySkipVote}
+                      aria-pressed={mySkipVote}
+                    >
+                      {mySkipVote ? '✓ Waiting for ' + oppName : 'Skip explanation'}
+                    </button>
+                    {skipVotes && skipVotes.need > 1 && (
+                      <span className="pvd-skip-count">
+                        {skipVotes.votes} of {skipVotes.need} ready
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -420,6 +472,7 @@ export default function PvpDuelGame({
             a dead pixel-block in the corner of the arena. */}
         <span className="pvd-bottom-spacer" aria-hidden="true" />
 
+        {powers && (
         <div className="pvd-abilities" aria-label="Abilities — coming soon">
           <button type="button" className="pvd-ability pvd-ability--teal" disabled title="Abilities coming soon">
             <span className="pvd-ability-key">1</span>
@@ -438,6 +491,7 @@ export default function PvpDuelGame({
             <span className="pvd-ability-name">Ult</span>
           </button>
         </div>
+        )}
 
         {/* right slot intentionally empty: the mockup's minimap is excluded */}
         <span className="pvd-bottom-spacer" aria-hidden="true" />

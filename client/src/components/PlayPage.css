@@ -3058,3 +3058,21 @@
   line-height: 1.5;
   color: rgba(255, 255, 255, 0.5);
 }
+
+/* ── The systems a duel is narrowed to ────────────────────────────────────
+   Every other duel setting is a label and one short control, so they sit on
+   a line together. This one is a whole system list, which would squeeze the
+   label to nothing on that line — so it goes above, and the chips get the
+   full width to wrap in. */
+.lobby-duel-row--stack {
+  display: block;
+}
+.lobby-duel-row--stack .lobby-duel-label {
+  display: block;
+  margin-bottom: 7px;
+}
+.lobby-duel-subjects {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
