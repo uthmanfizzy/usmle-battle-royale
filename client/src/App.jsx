@@ -102,6 +102,13 @@ export default function App() {
     audio.startMedathonMusic();
   }, []);
   const [openToQuickJoin, setOpenToQuickJoin] = useState(true);
+  // The duel's own settings: where its questions come from and how it is won.
+  // Mirrors the server defaults so the lobby renders something sensible before
+  // the first lobby_update lands.
+  const [duelOptions, setDuelOptions] = useState({ source: 'pvp_duel', winBy: 'hp', rounds: 10 });
+  // What the match actually ran with — the server reports the pool it used,
+  // which differs from the one asked for when that bank was too thin.
+  const [duelRun, setDuelRun] = useState({ source: null, totalRounds: null });
   const [streaks, setStreaks] = useState({});
   const [suddenDeath, setSuddenDeath] = useState(false);
   const [showSuddenDeathScreen, setShowSuddenDeathScreen] = useState(false);
@@ -255,15 +262,21 @@ export default function App() {
   // ── Socket events (register once; connect later when entering game) ───────
 
   useEffect(() => {
-    socket.on('lobby_update', ({ players: ps, hostId, subject: s, gameMode: gm, openToQuickJoin: otqj }) => {
+    socket.on('lobby_update', ({ players: ps, hostId, subject: s, gameMode: gm, openToQuickJoin: otqj, duelOptions: dOpts }) => {
       setPlayers(ps);
       setIsHost(socket.id === hostId);
       if (s) setSubject(s);
       if (gm) setGameMode(gm);
       if (typeof otqj === 'boolean') setOpenToQuickJoin(otqj);
+      // Everyone in the lobby sees the duel's settings, not just the host who
+      // set them — the other player should know what they are joining.
+      if (dOpts) setDuelOptions(dOpts);
     });
 
-    socket.on('game_start', ({ gameMode: gm }) => {
+    socket.on('game_start', ({ gameMode: gm, duelOptions: dOpts, duelSource, totalRounds }) => {
+      if (dOpts) setDuelOptions(dOpts);
+      // What the pool actually was, which is not always what was asked for.
+      setDuelRun({ source: duelSource ?? null, totalRounds: totalRounds ?? null });
       setGameMode(gm || 'battle_royale');
       medathonIntroRef.current = gm === 'medathon';
       setMedathonIntro(gm === 'medathon');
@@ -1009,6 +1022,13 @@ export default function App() {
           lobbySubject={subject}
           lobbyGameMode={gameMode}
           openToQuickJoin={openToQuickJoin}
+          duelOptions={duelOptions}
+          onDuelOptions={(opts) => {
+            // Optimistic: the lobby reflects the choice at once, and the
+            // server's own lobby_update confirms it a moment later.
+            setDuelOptions(opts);
+            socket.emit('set_duel_options', { options: opts });
+          }}
           onStartGame={handleStartGame}
           onAddBot={handleAddBot}
           onRemoveBot={handleRemoveBot}
@@ -1162,6 +1182,8 @@ export default function App() {
       {phase === 'game' && gameMode === 'pvp_duel' && (
         <RouteErrorBoundary name="PvpDuelGame">
         <PvpDuelGame
+          totalRounds={duelRun.totalRounds}
+          duelSource={duelRun.source}
           question={question}
           round={round}
           timeLimit={timeLimit}

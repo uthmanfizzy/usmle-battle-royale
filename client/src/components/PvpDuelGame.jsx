@@ -5,6 +5,20 @@ import { useScrollToTopOnChange } from '../utils/useScrollToTopOnChange';
 import './PvpDuelGame.css';
 
 const LABELS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
+
+// Where the questions came from, for the chip in the utility row. Keys are
+// game_modes tags; the server reports which pool it actually used, which is
+// not always the one the host asked for.
+const DUEL_SOURCE_LABELS = {
+  pvp_duel: 'PvP Arenas pool',
+  uworld_adventure: 'UWorld Adventure',
+  mehlman_rapid_fire: 'Mehlman Rapid Fire',
+  saudi_mle: 'Saudi MLE',
+  ore_lds: 'ORE / LDS',
+  oet: 'OET',
+  battle_royale: 'Battle Royale pool',
+  all: 'Whole bank',
+};
 const STARTING_HP = 100; // display default until the first server snapshot arrives
 
 const fmtClock = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
@@ -32,6 +46,10 @@ export default function PvpDuelGame({
   muted = false,
   onToggleMute,
   onForfeit,
+  // What the host set up: how many questions this duel runs for (null when it
+  // is fought to zero HP instead) and which bank it drew from.
+  totalRounds = null,
+  duelSource = null,
 }) {
   // ── Per-question countdown (drives BOTH the top-center clock and the
   //    modal header — one source, mockup shows the two readouts) ──
@@ -84,6 +102,24 @@ export default function PvpDuelGame({
     setFeed(prev => [msg, ...prev].slice(0, 2));
   }, [roundResults, username, oppName]);
 
+  // A strike should be SEEN. The HP numbers already change, but a number
+  // changing is not a hit landing — this flashes the screen from the side the
+  // blow came from and shakes the plate that took it. Driven by the same
+  // roundResults the feed reads, so it cannot disagree with the damage.
+  const [strike, setStrike] = useState(null);   // 'mine' | 'theirs' | null
+  const lastStrikeRef = useRef(null);
+  useEffect(() => {
+    if (!roundResults || roundResults === lastStrikeRef.current) return;
+    lastStrikeRef.current = roundResults;
+    if (!roundResults.striker) return;
+    setStrike(roundResults.striker === username ? 'mine' : 'theirs');
+    const t = setTimeout(() => setStrike(null), 900);
+    return () => clearTimeout(t);
+  }, [roundResults, username]);
+
+  // The last seconds of a question, for the clock's own urgency.
+  const urgent = timerActive && left <= 5 && left > 0;
+
   const handleForfeit = () => {
     // Same plain-confirm convention as the rest of the app; the actual quit
     // is App's return-home path: socket.disconnect() → server forfeit.
@@ -94,10 +130,14 @@ export default function PvpDuelGame({
   const barPct = (hp) => `${Math.max(0, Math.min(100, (hp / STARTING_HP) * 100))}%`;
 
   return (
-    <div className="pvd">
+    <div className={`pvd${strike ? ` pvd--strike-${strike}` : ''}`}>
+      {/* The blow itself: a wash from the side it came from. Pointer-events
+          none, so it can never swallow the click that answers the next
+          question. */}
+      {strike && <div className={`pvd-flash pvd-flash--${strike}`} aria-hidden="true" />}
       {/* ── Top bar: self plate · timer · opponent plate ─────────────────── */}
       <div className="pvd-top">
-        <div className="pvd-plate">
+        <div className={`pvd-plate${strike === 'theirs' ? ' pvd-plate--hit' : ''}`}>
           <span className="pvd-avatar pvd-avatar--self">
             {user?.avatar_url
               ? <img src={user.avatar_url} alt="" referrerPolicy="no-referrer" />
@@ -118,13 +158,25 @@ export default function PvpDuelGame({
         {/* Honest top-center readout: real per-question countdown over the
             real question number (no round/score concept exists in 4a) */}
         <div className="pvd-center">
-          <div className="pvd-center-timer">{fmtClock(left)}</div>
-          <div className="pvd-center-label">QUESTION {round || 1}</div>
+          <div className={`pvd-center-timer${urgent ? ' pvd-center-timer--urgent' : ''}`}>
+            {fmtClock(left)}
+          </div>
+          {/* "Question 3 of 10" when the host set a length; just the number
+              when the duel runs until someone falls, because there is no
+              total to count towards. */}
+          <div className="pvd-center-label">
+            QUESTION {round || 1}{totalRounds ? ` OF ${totalRounds}` : ''}
+          </div>
+          {totalRounds > 0 && (
+            <div className="pvd-center-track" aria-hidden="true">
+              <span style={{ width: `${Math.min(100, ((round || 1) / totalRounds) * 100)}%` }} />
+            </div>
+          )}
         </div>
 
         {/* Opponent plate, mirrored. Level omitted — the server doesn't
             share opponent level, and we don't fabricate one. */}
-        <div className="pvd-plate pvd-plate--opp">
+        <div className={`pvd-plate pvd-plate--opp${strike === 'mine' ? ' pvd-plate--hit' : ''}`}>
           <div className="pvd-plate-info pvd-plate-info--right">
             <div className="pvd-plate-name">{oppName}</div>
             <div className="pvd-bar pvd-bar--hp">
@@ -140,6 +192,11 @@ export default function PvpDuelGame({
 
       {/* ── Utility row: REAL sound toggle + REAL forfeit ─────────────────── */}
       <div className="pvd-utility">
+        {duelSource && (
+          <span className="pvd-source" title="Where this duel's questions came from">
+            {DUEL_SOURCE_LABELS[duelSource] || duelSource}
+          </span>
+        )}
         <button
           type="button"
           className="pvd-sound"
@@ -260,11 +317,10 @@ export default function PvpDuelGame({
       {/* ── Bottom bar: self avatar (no status orbs — no buff system) +
              inert ability keys per the mockup. No minimap. ─────────────── */}
       <div className="pvd-bottom">
-        <span className="pvd-avatar pvd-avatar--self pvd-avatar--corner">
-          {user?.avatar_url
-            ? <img src={user.avatar_url} alt="" referrerPolicy="no-referrer" />
-            : avatarLetter(username)}
-        </span>
+        {/* The corner portrait has gone: your own face is already on the
+            plate at the top left, and a second copy of it bought nothing but
+            a dead pixel-block in the corner of the arena. */}
+        <span className="pvd-bottom-spacer" aria-hidden="true" />
 
         <div className="pvd-abilities" aria-label="Abilities — coming soon">
           <button type="button" className="pvd-ability pvd-ability--teal" disabled title="Abilities coming soon">

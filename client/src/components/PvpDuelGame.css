@@ -238,13 +238,18 @@
   justify-content: center;
   z-index: 10;
   pointer-events: none;
-  padding: 130px 16px 100px;
+  /* Less chrome above and below, so the box itself gets the room. */
+  padding: 104px 16px 86px;
   box-sizing: border-box;
 }
 
 .pvd-modal {
-  width: 520px;
-  max-width: 90vw;
+  /* Was a fixed 520px: on a wide monitor that left a narrow strip of question
+     marooned in a field of black, with the stem scrolling inside it while
+     most of the arena sat empty. It now takes the width it is given, up to a
+     comfortable reading measure. */
+  width: min(1060px, 92vw);
+  max-width: none;
   max-height: 100%;
   overflow-y: auto;
   background: rgba(10, 14, 10, 0.92);
@@ -516,4 +521,170 @@
   .pvd-modal-wrap { padding: 175px 10px 90px; }
   .pvd-ability { width: 46px; height: 46px; }
   .pvd-avatar--corner { width: 46px; height: 46px; }
+}
+
+
+/* ══ Duel feel ════════════════════════════════════════════════════════════
+   The HUD was accurate and inert: HP numbers changed and nothing happened.
+   Everything below is reaction — to a strike landing, to a clock running
+   down, to a question arriving. All of it is driven by data the duel already
+   had, so none of it can tell a story the match did not.
+
+   Every animation here stops under prefers-reduced-motion, at the end. */
+
+/* ── A strike, felt ────────────────────────────────────────────────────── */
+@keyframes pvd-flash-in {
+  0%   { opacity: 0; }
+  18%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.pvd-flash {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;          /* never swallows the next answer */
+  animation: pvd-flash-in 0.9s ease-out forwards;
+}
+/* The wash comes from the side the blow came from: your strike sweeps out
+   from your own plate, theirs sweeps in at you. */
+.pvd-flash--mine {
+  background: linear-gradient(90deg, rgba(79, 209, 197, 0.3), rgba(79, 209, 197, 0) 55%);
+}
+.pvd-flash--theirs {
+  background: linear-gradient(270deg, rgba(214, 54, 60, 0.34), rgba(214, 54, 60, 0) 55%);
+}
+
+/* The plate that took it flinches. */
+@keyframes pvd-hit-shake {
+  0%, 100% { transform: translateX(0); }
+  15% { transform: translateX(-6px); }
+  35% { transform: translateX(5px); }
+  55% { transform: translateX(-3px); }
+  75% { transform: translateX(2px); }
+}
+.pvd-plate--hit { animation: pvd-hit-shake 0.5s ease-in-out; }
+
+/* The whole arena takes a knock when YOU are hit — small, once, and only
+   then: a screen that shakes on every round would be unplayable. */
+@keyframes pvd-arena-knock {
+  0%, 100% { transform: translate(0, 0); }
+  25% { transform: translate(3px, -2px); }
+  60% { transform: translate(-2px, 1px); }
+}
+.pvd--strike-theirs { animation: pvd-arena-knock 0.38s ease-in-out; }
+
+/* ── The HP bar ────────────────────────────────────────────────────────── */
+.pvd-bar-fill--hp {
+  /* The bar used to jump to its new length. Sliding is what makes the damage
+     read as damage rather than as a redraw. */
+  transition: width 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ── The clock, in the last five seconds ───────────────────────────────── */
+@keyframes pvd-urgent {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.72; transform: scale(1.06); }
+}
+.pvd-center-timer--urgent {
+  color: var(--mv-red, #d6363c);
+  animation: pvd-urgent 1s ease-in-out infinite;
+}
+
+/* How far through a fixed-length duel you are. Absent entirely when the duel
+   is fought to zero HP, because then there is nothing to be "through". */
+.pvd-center-track {
+  width: 148px;
+  height: 3px;
+  margin: 6px auto 0;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.14);
+  overflow: hidden;
+}
+.pvd-center-track > span {
+  display: block;
+  height: 100%;
+  border-radius: 99px;
+  background: linear-gradient(90deg, var(--mv-gold, #e8b04b), #ffd98a);
+  transition: width 0.5s ease;
+}
+
+/* ── Where the questions came from ─────────────────────────────────────── */
+.pvd-source {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 11px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(10, 14, 10, 0.6);
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: rgba(255, 255, 255, 0.72);
+  white-space: nowrap;
+}
+
+/* ── The question itself ───────────────────────────────────────────────── */
+@keyframes pvd-modal-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.985); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.pvd-modal { animation: pvd-modal-in 0.28s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+.pvd-stem {
+  /* It is the thing being read; at 520px wide it was set smaller than the
+     chrome around it. */
+  font-size: 17.5px;
+  line-height: 1.62;
+}
+
+/* Two columns of answers once there is width for them — four options stacked
+   down a 1000px box is a lot of travel for the eye between the question and
+   the last choice. */
+@media (min-width: 900px) {
+  .pvd-options {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+}
+
+.pvd-option {
+  transition: transform 0.12s ease, border-color 0.12s ease, background 0.12s ease;
+}
+.pvd-option:hover:not(:disabled) { transform: translateY(-2px); }
+
+/* The right answer announces itself; the wrong one recoils. */
+@keyframes pvd-right-pop {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.03); }
+  100% { transform: scale(1); }
+}
+@keyframes pvd-wrong-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+.pvd-option--right { animation: pvd-right-pop 0.4s ease-out; }
+.pvd-option--wrong { animation: pvd-wrong-shake 0.3s ease-in-out; }
+
+/* ── Nobody is forced to watch any of it ───────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .pvd-flash,
+  .pvd-plate--hit,
+  .pvd--strike-theirs,
+  .pvd-center-timer--urgent,
+  .pvd-modal,
+  .pvd-option--right,
+  .pvd-option--wrong { animation: none; }
+  .pvd-bar-fill--hp,
+  .pvd-center-track > span,
+  .pvd-option { transition: none; }
+  .pvd-flash { display: none; }
+}
+
+/* A phone keeps the single column and the smaller box. */
+@media (max-width: 899px) {
+  .pvd-modal { width: min(560px, 94vw); }
+  .pvd-stem { font-size: 16px; }
 }

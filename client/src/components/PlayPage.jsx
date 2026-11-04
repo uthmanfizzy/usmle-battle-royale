@@ -5,6 +5,19 @@ import './PlayPageArena.css';
 import { cachedImageMap, rememberImageMap } from '../utils/cachedImages';
 import AnKingMode from './AnKingMode';
 
+// Where a duel can draw its questions from. The ids are game_modes tags and
+// are whitelisted server-side — this list is the menu, not the authority.
+const DUEL_SOURCES = [
+  { id: 'pvp_duel',           label: 'PvP Arenas pool' },
+  { id: 'uworld_adventure',   label: 'UWorld Adventure' },
+  { id: 'mehlman_rapid_fire', label: 'Mehlman Rapid Fire' },
+  { id: 'saudi_mle',          label: 'Saudi MLE' },
+  { id: 'ore_lds',            label: 'ORE / LDS' },
+  { id: 'oet',                label: 'OET' },
+  { id: 'battle_royale',      label: 'Battle Royale pool' },
+  { id: 'all',                label: 'Everything' },
+];
+
 const GAME_MODES = [
   {
     id: 'battle_royale',
@@ -90,6 +103,7 @@ const GAME_MODES = [
 export default function PlayPage({
   user, username, onModeSelect, onBack, error, onClearError,
   lobbyId, lobbyPlayers, isHost, lobbySubject, lobbyGameMode, openToQuickJoin,
+  duelOptions, onDuelOptions,
   onStartGame, onAddBot, onRemoveBot, onToggleQuickJoin, onLeaveLobby,
   initialMode
 }) {
@@ -458,6 +472,91 @@ export default function PlayPage({
                 ))}
               </div>
             </div>
+
+            {/* ── The duel's own settings ──────────────────────────────
+                Shown in every duel lobby, editable only by the host: the
+                player who JOINS needs to know what they are walking into as
+                much as the host needs to choose it. A duel is the one mode
+                where the pool is a real decision — the others draw from the
+                general bank by design. */}
+            {lobbyGameMode === 'pvp_duel' && (
+              <div className="lobby-duel-section">
+                <p className="lobby-duel-title">
+                  {isHost ? 'Duel settings' : 'The host has set'}
+                </p>
+
+                <div className="lobby-duel-row">
+                  <span className="lobby-duel-label">Questions from</span>
+                  {isHost ? (
+                    <select
+                      className="lobby-duel-select"
+                      value={duelOptions?.source || 'pvp_duel'}
+                      onChange={(e) => onDuelOptions?.({ ...duelOptions, source: e.target.value })}
+                    >
+                      {DUEL_SOURCES.map(s => (
+                        <option key={s.id} value={s.id}>{s.label}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <span className="lobby-duel-value">
+                      {DUEL_SOURCES.find(s => s.id === (duelOptions?.source || 'pvp_duel'))?.label}
+                    </span>
+                  )}
+                </div>
+
+                <div className="lobby-duel-row">
+                  <span className="lobby-duel-label">Won by</span>
+                  {isHost ? (
+                    <div className="lobby-duel-choice">
+                      <button
+                        type="button"
+                        className={`lobby-duel-chip${(duelOptions?.winBy || 'hp') === 'hp' ? ' is-on' : ''}`}
+                        onClick={() => onDuelOptions?.({ ...duelOptions, winBy: 'hp' })}
+                      >
+                        Last one standing
+                      </button>
+                      <button
+                        type="button"
+                        className={`lobby-duel-chip${duelOptions?.winBy === 'rounds' ? ' is-on' : ''}`}
+                        onClick={() => onDuelOptions?.({ ...duelOptions, winBy: 'rounds' })}
+                      >
+                        Set questions
+                      </button>
+                    </div>
+                  ) : (
+                    <span className="lobby-duel-value">
+                      {duelOptions?.winBy === 'rounds'
+                        ? `${duelOptions?.rounds || 10} questions`
+                        : 'Last one standing'}
+                    </span>
+                  )}
+                </div>
+
+                {duelOptions?.winBy === 'rounds' && isHost && (
+                  <div className="lobby-duel-row">
+                    <span className="lobby-duel-label">How many</span>
+                    <div className="lobby-duel-choice">
+                      {[5, 10, 15, 20].map(n => (
+                        <button
+                          key={n}
+                          type="button"
+                          className={`lobby-duel-chip${(duelOptions?.rounds || 10) === n ? ' is-on' : ''}`}
+                          onClick={() => onDuelOptions?.({ ...duelOptions, rounds: n })}
+                        >
+                          {n}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <p className="lobby-duel-note">
+                  {(duelOptions?.winBy || 'hp') === 'hp'
+                    ? 'Both start on 100 HP. The first correct answer each round strikes for 5 — the duel ends when someone hits zero.'
+                    : `${duelOptions?.rounds || 10} questions, then most damage dealt wins. A knockout still ends it early.`}
+                </p>
+              </div>
+            )}
 
             {/* Actions */}
             <div className="lobby-actions-section">

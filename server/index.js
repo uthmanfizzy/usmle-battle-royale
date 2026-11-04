@@ -995,6 +995,9 @@ function lobbyPayload(lobby) {
     subject:         lobby.subject,
     gameMode:        lobby.gameMode,
     openToQuickJoin: lobby.openToQuickJoin !== false,
+    // Only a duel has these. Carried in the lobby payload so the player who
+    // JOINS sees what they are walking into, not just the host who set it.
+    duelOptions:     lobby.gameMode === 'pvp_duel' ? (lobby.duelOptions || null) : undefined,
     players:         [...lobby.players.values()].map(p => ({
       id: p.id, username: p.username, clanTag: p.clanTag || null,
       lives: p.lives, score: p.score, alive: p.alive, isBot: p.isBot || false,
@@ -1469,6 +1472,37 @@ function endGame(lobby, reason) {
 const PVP_DUEL_STARTING_HP    = 100;
 const PVP_DUEL_DAMAGE_PER_HIT = 5;
 
+/**
+ * What the host gets to decide before a duel starts.
+ *
+ *   source  where the questions come from — any question-bank tag, the duel's
+ *           own pool, or 'all' for the whole bank. Whitelisted, never passed
+ *           through: it goes straight into a game_modes containment filter.
+ *   winBy   'hp'     — fight until somebody reaches zero (the original)
+ *           'rounds' — a fixed number of questions, most damage wins
+ *   rounds  how many, when winBy is 'rounds'
+ *
+ * Defaults reproduce the duel exactly as it behaved before any of this, so a
+ * lobby created by an older client plays the same game it always did.
+ */
+const DUEL_SOURCES = ['pvp_duel', 'battle_royale', 'all', ...QUESTION_BANK_MODE_IDS];
+const DUEL_WIN_BY = ['hp', 'rounds'];
+const DUEL_ROUNDS_MIN = 3;
+const DUEL_ROUNDS_MAX = 30;
+
+const DEFAULT_DUEL_OPTIONS = { source: 'pvp_duel', winBy: 'hp', rounds: 10 };
+
+function sanitizeDuelOptions(raw) {
+  const o = raw && typeof raw === 'object' ? raw : {};
+  const source = DUEL_SOURCES.includes(o.source) ? o.source : DEFAULT_DUEL_OPTIONS.source;
+  const winBy = DUEL_WIN_BY.includes(o.winBy) ? o.winBy : DEFAULT_DUEL_OPTIONS.winBy;
+  const n = Number.parseInt(o.rounds, 10);
+  const rounds = Number.isFinite(n)
+    ? Math.max(DUEL_ROUNDS_MIN, Math.min(DUEL_ROUNDS_MAX, n))
+    : DEFAULT_DUEL_OPTIONS.rounds;
+  return { source, winBy, rounds };
+}
+
 function startPvpDuel(lobby) {
   lobby.round           = 0;
   lobby.duelHp          = new Map();
@@ -1483,18 +1517,42 @@ function startPvpDuel(lobby) {
     p.alive = true; p.score = 0;
   }
 
-  // Pool: questions tagged for this mode; fall back to the Battle Royale pool
-  // when too few exist (same <5 threshold the BR subject fallback uses).
-  const duelPool = questionBank.filter(q => (q.game_modes || []).includes('pvp_duel'));
-  const brPool   = questionBank.filter(q => (q.game_modes || ['battle_royale']).includes('battle_royale'));
-  const base     = duelPool.length >= 5 ? duelPool : brPool;
-  const raw      = lobby.subject === 'all' ? base : base.filter(q => q.subject === lobby.subject);
-  lobby.questionQueue = shuffle(raw.length >= 5 ? raw : base);
+  // Pool: whichever bank the host picked. Falling back is deliberate and
+  // layered — a duel that cannot find five questions in the chosen source is
+  // still a duel, and refusing to start would be a worse answer than playing
+  // from the general pool. The fallback is REPORTED, not silent: the clients
+  // are told which source actually ran.
+  const opts = lobby.duelOptions = sanitizeDuelOptions(lobby.duelOptions);
+  const taggedWith = (tag) => questionBank.filter(q => (q.game_modes || []).includes(tag));
+  const brPool = questionBank.filter(q => (q.game_modes || ['battle_royale']).includes('battle_royale'));
+
+  const chosen = opts.source === 'all' ? questionBank.slice() : taggedWith(opts.source);
+  let usedSource = opts.source;
+  let base = chosen;
+  if (base.length < 5) {
+    base = brPool.length >= 5 ? brPool : questionBank.slice();
+    usedSource = brPool.length >= 5 ? 'battle_royale' : 'all';
+  }
+
+  const raw = lobby.subject === 'all' ? base : base.filter(q => q.subject === lobby.subject);
+  let queue = shuffle(raw.length >= 5 ? raw : base);
+  // A fixed-length duel takes exactly that many questions. HP duels keep the
+  // whole pool: they end when somebody falls, not when the pool runs dry.
+  if (opts.winBy === 'rounds') queue = queue.slice(0, opts.rounds);
+  lobby.questionQueue = queue;
   lobby.questionIdx   = -1;
+  lobby.duelUsedSource = usedSource;
+  lobby.duelTotalRounds = opts.winBy === 'rounds' ? queue.length : null;
 
   lobby.status = 'pvp_duel_question';
   io.to(lobby.id).emit('game_start', {
     gameMode: 'pvp_duel', message: 'Duel begins!', startingHp: PVP_DUEL_STARTING_HP,
+    duelOptions: opts,
+    // What the pool ACTUALLY was. When it differs from what was asked for,
+    // the client says so rather than leaving the host to wonder why a UWorld
+    // duel is serving Battle Royale questions.
+    duelSource: usedSource,
+    totalRounds: lobby.duelTotalRounds,
   });
   setTimeout(() => nextPvpDuelQuestion(lobby), 1500);
 }
@@ -1524,6 +1582,7 @@ function nextPvpDuelQuestion(lobby) {
     ...toPublicQuestion(q),
     round: lobby.round, timeLimit, alivePlayers: lobby.players.size,
     duelHp: duelHpSnapshot(lobby),
+    totalRounds: lobby.duelTotalRounds,
   });
 
   lobby.timerEnd = Date.now() + timeLimit * 1000;
@@ -1604,8 +1663,14 @@ function processPvpDuelAnswers(lobby) {
     ? (gameSettings.hardModeHideExplanations ? 2500 : 22000)
     : (gameSettings.easyModeHideExplanations ? 2500 : ((gameSettings.easyModeExplanationTime || gameSettings.explanationTime || 5) * 1000 + 2000));
 
+  // A fixed-length duel can still end early on a knockout: reaching zero is
+  // decisive whatever the format, and playing out the remaining questions
+  // against a corpse would be theatre.
   const anyDead = ps.some(p => (lobby.duelHp.get(p.id) ?? 0) <= 0);
+  const roundsDone = lobby.duelTotalRounds != null
+    && lobby.questionIdx + 1 >= lobby.duelTotalRounds;
   if (anyDead) setTimeout(() => endPvpDuel(lobby, 'hp_zero'), explanationDelay);
+  else if (roundsDone) setTimeout(() => endPvpDuel(lobby, 'rounds_complete'), explanationDelay);
   else setTimeout(() => nextPvpDuelQuestion(lobby), explanationDelay);
 }
 
@@ -2961,11 +3026,32 @@ io.on('connection', (socket) => {
     socket.broadcast.emit('user_status_change', { userId, online: true });
   });
 
-  socket.on('create_lobby', ({ username, subject = 'all', gameMode = 'battle_royale', difficulty = 'easy', clanTag = null, isGuest = false }, ack) => {
+  /**
+   * The host changes the duel's settings while the lobby is still waiting.
+   * Host-only and waiting-only: once the questions have been drawn, changing
+   * the source would mean a different duel than the one the other player
+   * agreed to join.
+   */
+  socket.on('set_duel_options', ({ options } = {}, ack) => {
+    const lobby = lobbies.get(socket.lobbyId);
+    const reply = typeof ack === 'function' ? ack : () => {};
+    if (!lobby) return reply({ ok: false, error: 'No lobby.' });
+    if (lobby.hostId !== socket.id) return reply({ ok: false, error: 'Only the host can change the duel.' });
+    if (lobby.status !== 'waiting') return reply({ ok: false, error: 'The duel has already started.' });
+    if (lobby.gameMode !== 'pvp_duel') return reply({ ok: false, error: 'Not a duel.' });
+    lobby.duelOptions = sanitizeDuelOptions(options);
+    io.to(lobby.id).emit('lobby_update', lobbyPayload(lobby));
+    reply({ ok: true, options: lobby.duelOptions });
+  });
+
+  socket.on('create_lobby', ({ username, subject = 'all', gameMode = 'battle_royale', difficulty = 'easy', clanTag = null, isGuest = false, duelOptions = null }, ack) => {
     const name = (username ?? '').trim().slice(0, 20);
     if (!name) return ack({ ok: false, error: 'Username required.' });
 
     const lobby = makeLobby(socket.id, subject, gameMode, difficulty);
+    // Only a duel carries these, and only the defaults until the host says
+    // otherwise.
+    if (gameMode === 'pvp_duel') lobby.duelOptions = sanitizeDuelOptions(duelOptions);
     lobby.players.set(socket.id, {
       id: socket.id, username: name, clanTag: clanTag || null, isGuest: Boolean(isGuest), lives: gameSettings.startingLives, score: 0, alive: true,
     });
