@@ -760,6 +760,10 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   const qIdxRef       = useRef(0);
   const questionsRef  = useRef([]);
   const skipTimerRef  = useRef(null);
+  // Set while a picture is holding the explanation countdown open. Lives up
+  // here with the other advance refs because the per-question cleanup below
+  // clears it, and that effect runs before the hold effect is declared.
+  const imgHeldExplRef = useRef(false);
   const skipActionRef = useRef(null);
   // Holds the shuffled clone of the current question. Computed once per appearance
   // (keyed by qIdx + base identity) during render; processAnswer reads the SAME
@@ -2091,10 +2095,37 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
     setStreak(newStreak);
     setBestStreak(newBest);
 
-    const nextIdx  = qIdxRef.current + 1;
+    const fromIdx  = qIdxRef.current;
+    const nextIdx  = fromIdx + 1;
     const exhausted = nextIdx >= questionsRef.current.length;
 
+    // Has this closure already moved the run on? `nextIdx` is fixed at the
+    // moment the answer was processed, so a second run of the SAME closure
+    // would set the index back to where it pointed then.
+    let spent = false;
+
     const doAdvance = () => {
+      // ── Whose advance is this? ───────────────────────────────────────────
+      //
+      // This closure belongs to one question and carries that question's
+      // nextIdx. Two paths re-arm a timer from doAdvanceRef, which is only
+      // reassigned when a question is ANSWERED — so between arriving at a
+      // question and answering it, doAdvanceRef still holds the previous
+      // question's closure:
+      //
+      //   • releasing a picture that was holding the explanation
+      //     (imgHeldExplRef survived the question change), and
+      //   • resuming a held explanation countdown.
+      //
+      // Either could fire while a later question was on screen and call
+      // setQIdx with a stale number — which is exactly the reported
+      // "it randomly brings me back to a previous question". Only the exam
+      // skin was spared, because its unrated guard returns before the jump.
+      //
+      // Guarding here rather than at each call site is deliberate: it covers
+      // every present path and any future one, and it is the only place that
+      // knows which question the closure was built for.
+      if (spent || qIdxRef.current !== fromIdx) return;
       // Exam skin only: an unrated question never advances on its own — the
       // explanation timer expiring just stops here rather than moving on, and
       // the rating row is the only way to actually leave. rate() calls
@@ -2113,6 +2144,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
         });
         return;
       }
+      spent = true;
       skipTimerRef.current  = null;
       skipActionRef.current = null;
       // Explanation phase: however long it was actually on screen, whether the
@@ -2217,7 +2249,6 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
     return () => document.removeEventListener('keydown', onKey);
   }, [zoomImg]);
 
-  const imgHeldExplRef = useRef(false);
   useEffect(() => {
     if (devImgHolding) {
       // Explanation on screen and its auto-advance armed: hold it.
@@ -2241,8 +2272,21 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
     }
   }, [devImgHolding, revealed]);
 
-  // A new question never inherits a hold from the last one.
-  useEffect(() => { setImgArmHold(false); }, [qIdx]);
+  // A new question never inherits a hold from the last one — nor the timer,
+  // nor the flag that says a picture is holding the explanation. The guard
+  // inside doAdvance already makes a stale fire harmless; this stops one
+  // being armed in the first place, so a question is never silently sitting
+  // on a countdown it did not start.
+  useEffect(() => {
+    setImgArmHold(false);
+    imgHeldExplRef.current = false;
+    return () => {
+      if (skipTimerRef.current) {
+        clearTimeout(skipTimerRef.current);
+        skipTimerRef.current = null;
+      }
+    };
+  }, [qIdx]);
 
   // ...nor anyone's crossings-out from it.
   useEffect(() => { setCrossed(new Set()); }, [qIdx]);
