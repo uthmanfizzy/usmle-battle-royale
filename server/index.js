@@ -1485,7 +1485,15 @@ const PVP_DUEL_DAMAGE_PER_HIT = 5;
  * Defaults reproduce the duel exactly as it behaved before any of this, so a
  * lobby created by an older client plays the same game it always did.
  */
-const DUEL_SOURCES = ['pvp_duel', 'battle_royale', 'all', ...QUESTION_BANK_MODE_IDS];
+// Computed WHEN USED, not at module load. QUESTION_BANK_MODE_IDS is a const
+// declared ~2,200 lines further down this file, so spreading it here at the
+// top level runs inside its temporal dead zone and throws
+// "Cannot access 'QUESTION_BANK_MODE_IDS' before initialization" — which takes
+// the whole server down on boot rather than failing at the one call site.
+//
+// A function call is the cheap fix; the alternative is moving one of two
+// unrelated blocks across the file to satisfy an ordering rule.
+const duelSources = () => ['pvp_duel', 'battle_royale', 'all', ...QUESTION_BANK_MODE_IDS];
 const DUEL_WIN_BY = ['hp', 'rounds'];
 const DUEL_ROUNDS_MIN = 3;
 const DUEL_ROUNDS_MAX = 30;
@@ -1494,7 +1502,7 @@ const DEFAULT_DUEL_OPTIONS = { source: 'pvp_duel', winBy: 'hp', rounds: 10 };
 
 function sanitizeDuelOptions(raw) {
   const o = raw && typeof raw === 'object' ? raw : {};
-  const source = DUEL_SOURCES.includes(o.source) ? o.source : DEFAULT_DUEL_OPTIONS.source;
+  const source = duelSources().includes(o.source) ? o.source : DEFAULT_DUEL_OPTIONS.source;
   const winBy = DUEL_WIN_BY.includes(o.winBy) ? o.winBy : DEFAULT_DUEL_OPTIONS.winBy;
   const n = Number.parseInt(o.rounds, 10);
   const rounds = Number.isFinite(n)
