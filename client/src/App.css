@@ -4615,3 +4615,36 @@ html[data-study="on"] .uw-exam .sg-stem-audio {
   border-color: var(--uwq-rule, #e0e8e4);
   background: #fff;
 }
+
+/* ── Ctrl+Z, said out loud ────────────────────────────────────────────────
+   Undo often changes something that is not on screen — a highlight further
+   up the explanation, or formatting in a part of the stem you have scrolled
+   past. Without a word the key looks broken. Sits ABOVE the highlight
+   error toast, which also lives at the bottom centre, so an undo during a
+   failed save does not bury the reason it failed. */
+.sg-undo-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 74px;
+  transform: translateX(-50%);
+  z-index: 620;
+  padding: 9px 18px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(16, 20, 26, 0.94);
+  color: #fff;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+  animation: sg-undo-in 0.16s ease both;
+}
+@keyframes sg-undo-in {
+  from { opacity: 0; transform: translate(-50%, 8px); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sg-undo-toast { animation: none; }
+}

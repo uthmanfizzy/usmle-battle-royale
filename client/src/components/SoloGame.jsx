@@ -1255,6 +1255,9 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || `Save failed (${res.status})`);
+      undoStackRef.current.push({
+        kind: 'text', field, before, label: 'Formatting put back',
+      });
       setTextCutMsg({ kind: 'ok', text: 'Formatting removed' });
       setTimeout(() => setTextCutMsg(null), 1800);
     } catch (err) {
@@ -1335,6 +1338,9 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || `Save failed (${res.status})`);
+      undoStackRef.current.push({
+        kind: 'text', field, before, label: 'Text put back',
+      });
       setTextCutMsg({ kind: 'ok', text: 'Removed' });
       setTimeout(() => setTextCutMsg(null), 1800);
     } catch (err) {
@@ -2431,6 +2437,107 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
     card?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, [timeUpNow]);
 
+  // ── Taking one back ────────────────────────────────────────────────────
+  //
+  // Highlighting is a hand-eye action and it goes wrong: the wrong colour,
+  // the wrong words, a bold you meant to put somewhere else. Until now the
+  // only way back was to select the same text again and find the ✕, which is
+  // fiddly precisely when you have just been imprecise.
+  //
+  // Each marking pushes a way to reverse itself. Two kinds:
+  //
+  //   'highlight'  a saved row — undone by deleting it. It may still be in
+  //                flight when Ctrl+Z arrives, so the entry is a live object
+  //                the POST fills in, and an undo that beats the response
+  //                marks it cancelled for the response to honour.
+  //   'text'       a change to the question's own stored string (taking bold
+  //                off, or cutting words out) — undone by writing back what
+  //                was there before.
+  //
+  // Per question: the stack is cleared when the run moves on, because the
+  // ids belong to the question that is gone and "undo" ought to mean
+  // something you can still see.
+  const undoStackRef = useRef([]);
+  const [undoMsg, setUndoMsg] = useState('');
+  useEffect(() => { undoStackRef.current = []; }, [qIdx]);
+
+  const sayUndone = useCallback((text) => {
+    setUndoMsg(text);
+    setTimeout(() => setUndoMsg(''), 2200);
+  }, []);
+
+  // Put the question's stored text back to what it was. Used only by undo —
+  // it deliberately does not push anything onto the stack of its own.
+  const restoreQuestionField = useCallback(async (field, text) => {
+    const target = questionsRef.current[qIdxRef.current];
+    const headers = imageAuthHeaders();
+    if (!target?.id || !headers) return false;
+    applyDevFields({ [field]: text }, target.id);
+    try {
+      const res = await fetch(
+        `${SERVER_URL}/api/question-text/${encodeURIComponent(target.id)}?table=${imageTable}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', ...headers },
+        body: JSON.stringify({ field, text }),
+      });
+      if (!res.ok) throw new Error(`Save failed (${res.status})`);
+      return true;
+    } catch {
+      return false;
+    }
+  }, [applyDevFields, imageAuthHeaders, imageTable]);
+
+  const undoLastMark = useCallback(() => {
+    const stack = undoStackRef.current;
+    const entry = stack.pop();
+    if (!entry) return false;
+
+    if (entry.kind === 'highlight') {
+      // Off the screen first, whatever happens to the request.
+      setHighlights(hs => hs.filter(h => h.id !== entry.id && h.id !== entry.tmpId));
+      if (entry.id) {
+        const token = getToken();
+        const headers = {};
+        if (entry.scope === 'official' && adminSession) headers['x-admin-password'] = adminSession;
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+        fetch(`${SERVER_URL}/api/questions/${encodeURIComponent(entry.qid)}/highlights/${encodeURIComponent(entry.id)}`, {
+          method: 'DELETE', headers,
+        }).catch(() => {});
+      } else {
+        // Still saving. The response handler checks this and deletes the row
+        // the moment it knows its id, so an undo can never lose a race with
+        // the network and leave the mark behind.
+        entry.cancelled = true;
+      }
+      sayUndone(entry.label || 'Highlight removed');
+      return true;
+    }
+
+    if (entry.kind === 'text') {
+      restoreQuestionField(entry.field, entry.before).then(okWrite => {
+        sayUndone(okWrite ? (entry.label || 'Undone') : 'Couldn’t undo — the save failed');
+      });
+      return true;
+    }
+    return false;
+  }, [adminSession, restoreQuestionField, sayUndone]);
+
+  useEffect(() => {
+    const onKey = (e) => {
+      const z = (e.key === 'z' || e.key === 'Z');
+      if (!z || !(e.ctrlKey || e.metaKey) || e.shiftKey || e.altKey) return;
+      // Never steal undo from somewhere text is actually being typed.
+      const el = e.target;
+      if (el && (el.isContentEditable
+        || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName || ''))) return;
+      if (!undoStackRef.current.length) return;
+      e.preventDefault();
+      undoLastMark();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [undoLastMark]);
+
   if (loading) {
     return (
       <div className={screenClass}>
@@ -2657,6 +2764,16 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
       created_at: new Date().toISOString(), scope: official ? 'official' : 'user',
     };
     setHighlights(hs => [...hs, optimistic]);
+    // A live entry: the POST below fills in the real id, and an undo that
+    // arrives first sets `cancelled` for it to honour.
+    const undoEntry = {
+      kind: 'highlight', region, tmpId, id: null, qid: q.id,
+      scope: official ? 'official' : 'user', cancelled: false,
+      label: isFormat
+        ? `${payload.format === 'bold' ? 'Bold' : 'Italic'} undone`
+        : 'Highlight undone',
+    };
+    undoStackRef.current.push(undoEntry);
     const headers = { 'Content-Type': 'application/json' };
     // Both when available — the server tries the password, then the JWT, so a
     // stale stored password can't lock out a genuine moderator.
@@ -2695,9 +2812,25 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
       })
       .then(data => {
         if (data?.highlight) {
+          undoEntry.id = data.highlight.id;
+          if (undoEntry.cancelled) {
+            // Undone while it was still saving. The row exists now, so it has
+            // to be deleted rather than merely forgotten.
+            setHighlights(hs => hs.filter(h => h.id !== tmpId && h.id !== undoEntry.id));
+            const token2 = getToken();
+            const h2 = {};
+            if (official && adminSession) h2['x-admin-password'] = adminSession;
+            if (token2) h2['Authorization'] = `Bearer ${token2}`;
+            fetch(`${SERVER_URL}/api/questions/${encodeURIComponent(q.id)}/highlights/${encodeURIComponent(undoEntry.id)}`, {
+              method: 'DELETE', headers: h2,
+            }).catch(() => {});
+            return;
+          }
           setHighlights(hs => hs.map(h => (h.id === tmpId ? normalizeHighlightRow(data.highlight) : h)));
         } else {
           setHighlights(hs => hs.filter(h => h.id !== tmpId)); // roll back on failure
+          // It never happened, so there is nothing to take back.
+          undoStackRef.current = undoStackRef.current.filter(x => x !== undoEntry);
         }
       })
       .catch((err) => {
@@ -2705,6 +2838,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
         setHlError('Couldn’t save highlight — network error.');
         setTimeout(() => setHlError(''), 6000);
         setHighlights(hs => hs.filter(h => h.id !== tmpId));
+        undoStackRef.current = undoStackRef.current.filter(x => x !== undoEntry);
       });
   }
 
@@ -2803,6 +2937,10 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
       )}
       {/* Fixed, so it is seen wherever on the page the selection was made. */}
       {hlError && <div className="hl-error-toast">{hlError}</div>}
+      {/* Ctrl+Z said out loud. An undo that changes something off-screen —
+          a highlight further up the explanation — would otherwise look like
+          the key did nothing at all. */}
+      {undoMsg && <div className="sg-undo-toast" role="status">↶ {undoMsg}</div>}
       {!study && (
         <div className="solo-topbar">
           {levelLabel && <span className="topbar-level-label">{levelLabel}</span>}
