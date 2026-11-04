@@ -4220,18 +4220,28 @@ html[data-study="on"] .solo-body .pause-overlay {
    the element the whole area and letting object-fit scale the picture inside
    means it grows as well as shrinks, and still keeps its proportions.
 
-   The cap is the picture's own size times three, from the --sg-nat-* pair the
-   viewer sets as the file loads. Past that there is no more detail to reveal,
-   only a bigger blur — and a thumbnail would otherwise be stretched across
-   the whole screen. A picture larger than the screen never reaches the cap
-   and is simply fitted, as before. Without the pair — an image that failed to
-   load, or has not loaded yet — the fallbacks leave the cap inactive and the
-   old behaviour stands. */
+   Two caps, because a picture can be too big in two different ways.
+
+   The first is the picture's own size times 1.75, from the --sg-nat-* pair
+   the viewer sets as the file loads. This used to be times THREE, which is
+   where "sometimes the picture becomes too big" came from: a 400px figure
+   was being stretched past a thousand pixels wide, and at that scale there
+   is no detail left to reveal — only a bigger blur. 1.75 still makes a small
+   figure comfortably readable without pretending it holds more than it does.
+
+   The second is the window. Even a genuinely large picture does not want the
+   entire screen: on a wide monitor it ran edge to edge and nearly to the
+   caption bar, so reading it meant moving your head. 92vw by 80vh leaves it
+   room to sit in.
+
+   A picture larger than both caps is simply fitted, as before. Without the
+   --sg-nat-* pair — an image that failed to load, or has not loaded yet —
+   the fallbacks leave the first cap inactive and only the window applies. */
 .sg-zoom-img {
   width: 100%;
   height: calc(100vh - 110px);
-  max-width: calc(var(--sg-nat-w, 100%) * 3);
-  max-height: calc(var(--sg-nat-h, 100vh) * 3);
+  max-width: min(calc(var(--sg-nat-w, 100%) * 1.75), 92vw);
+  max-height: min(calc(var(--sg-nat-h, 100vh) * 1.75), 80vh);
   object-fit: contain;
   border-radius: 10px;
   box-shadow: 0 24px 70px rgba(0, 0, 0, 0.7);
