@@ -646,11 +646,19 @@ function isWordChar(ch) {
 /**
  * Widen [start, end) to cover whole words of `visible`.
  *
+ * `boundaries` are offsets that growing must not cross: the points where one
+ * rendered block ends and the next begins. They matter because the visible
+ * string has NOTHING between blocks — a heading and the paragraph under it
+ * are two <p>s on screen but "…mimicry worksSome infectious…" in the string,
+ * so "worksSome" reads as a single word and highlighting "Some" used to drag
+ * the end of the heading in with it. Nothing in the string marks that seam;
+ * only the DOM knows, which is why the caller passes them in.
+ *
  * Returns the original range unchanged when it is empty, out of range, or
  * holds nothing but whitespace and punctuation — snapping is a convenience,
  * and it should never be the reason a selection stops working.
  */
-export function snapToWords(visible, start, end) {
+export function snapToWords(visible, start, end, boundaries = null) {
   const text = String(visible || '');
   let a = Number(start), b = Number(end);
   if (!Number.isInteger(a) || !Number.isInteger(b)) return { start, end };
@@ -664,9 +672,22 @@ export function snapToWords(visible, start, end) {
   while (e > s && /\s/.test(text[e - 1])) e--;
   if (e <= s) return { start: a, end: b };
 
+  // How far out each end may go: to the start of the block `s` is in, and
+  // the end of the block `e` is in. Without boundaries that is the whole
+  // string, which is what every caller got before this existed.
+  let lo = 0;
+  let hi = text.length;
+  if (Array.isArray(boundaries)) {
+    for (const b of boundaries) {
+      if (!Number.isInteger(b)) continue;
+      if (b <= s && b > lo) lo = b;
+      if (b >= e && b < hi) hi = b;
+    }
+  }
+
   // Grow outwards over the rest of the words at each end.
-  while (s > 0 && isWordChar(text[s - 1]) && isWordChar(text[s])) s--;
-  while (e < text.length && isWordChar(text[e]) && isWordChar(text[e - 1])) e++;
+  while (s > lo && isWordChar(text[s - 1]) && isWordChar(text[s])) s--;
+  while (e < hi && isWordChar(text[e]) && isWordChar(text[e - 1])) e++;
 
   // A hyphen or apostrophe picked up at an edge belongs to no word on this
   // side of it — "beta-" reads as a mistake where "beta" does not.
@@ -773,4 +794,59 @@ export function unwrapByQuote(raw, quote, kinds = ['bold', 'italic', 'underline'
     to: sp.mark.to,
     text: (head ? open + head + close : '') + exact + (tail ? open + tail + close : ''),
   }]);
+}
+
+
+/**
+ * The offsets at which one rendered block gives way to the next, for
+ * snapToWords above.
+ *
+ * Two kinds of seam, neither of which leaves a mark in the text:
+ *   - consecutive text nodes under different block-level ancestors (the
+ *     renderer puts every authored line in its own <p>), and
+ *   - a <br>, which the stem's renderer uses to join lines.
+ *
+ * Blocks are found by computed display rather than tag name, so this does
+ * not need to know what either renderer emits. `contents` is deliberately
+ * not a block: an element with it generates no box, and its children belong
+ * to whatever encloses it.
+ */
+export function blockBoundaries(container) {
+  if (!container || typeof document === 'undefined') return [0];
+  const bounds = new Set([0]);
+  const known = new Map();
+  const isBlock = (el) => {
+    if (known.has(el)) return known.get(el);
+    let v = false;
+    try {
+      const d = getComputedStyle(el).display;
+      v = !(d.startsWith('inline') || d === 'contents' || d === 'none');
+    } catch { v = false; }
+    known.set(el, v);
+    return v;
+  };
+  const ownerOf = (node) => {
+    let el = node.parentElement;
+    while (el && el !== container && !isBlock(el)) el = el.parentElement;
+    return el || container;
+  };
+
+  const walker = document.createTreeWalker(
+    container, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT, null);
+  let offset = 0;
+  let prev = null;
+  let n;
+  while ((n = walker.nextNode())) {
+    if (n.nodeType === 1) {
+      // A <br> is a seam with no character behind it.
+      if (n.tagName === 'BR') { bounds.add(offset); prev = null; }
+      continue;
+    }
+    const owner = ownerOf(n);
+    if (prev !== null && owner !== prev) bounds.add(offset);
+    prev = owner;
+    offset += n.data.length;
+  }
+  bounds.add(offset);
+  return [...bounds].sort((a, b) => a - b);
 }

@@ -1,6 +1,6 @@
 import { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { rangeToOffsets, captureContext, snapToWords, HIGHLIGHT_COLORS } from '../utils/explanationHighlights';
+import { rangeToOffsets, captureContext, snapToWords, blockBoundaries, HIGHLIGHT_COLORS } from '../utils/explanationHighlights';
 
 // Formatting written into the question itself renders as one of these. Used
 // only to decide whether to OFFER the remove button — what actually comes off
@@ -92,6 +92,18 @@ export default function ExplanationHighlightToolbar({ containerRef, highlights, 
     }
   }, [hasPopup, overlaps, allowFormat, size.w, size.h]);
 
+  // The seams cost a walk of the container and a computed style per element,
+  // and this runs on every selection change AND on scroll — so the answer is
+  // kept until the container or its text actually changes.
+  const boundsRef = useRef({ el: null, text: null, bounds: [0] });
+  const boundsFor = useCallback((container, text) => {
+    const cache = boundsRef.current;
+    if (cache.el === container && cache.text === text) return cache.bounds;
+    const bounds = blockBoundaries(container);
+    boundsRef.current = { el: container, text, bounds };
+    return bounds;
+  }, []);
+
   const computeFromSelection = useCallback(() => {
     const container = containerRef?.current;
     if (!container || typeof window === 'undefined') return null;
@@ -112,7 +124,13 @@ export default function ExplanationHighlightToolbar({ containerRef, highlights, 
     // colour "ardiomyopath" and leave you to try again; the range is widened
     // to the words it touches before it is used for anything — the colour,
     // the overlap test, the cut and the unformat alike.
-    const snapped = snapToWords(container.textContent || '', offsets.start, offsets.end);
+    //
+    // Bounded by the rendered blocks, because the visible string runs one
+    // straight into the next: a heading and its paragraph are two <p>s on
+    // screen but no separator at all in the text, so without this, widening
+    // "Some" reached back through the end of the heading above it.
+    const visible = container.textContent || '';
+    const snapped = snapToWords(visible, offsets.start, offsets.end, boundsFor(container, visible));
 
     const overlaps = (highlights || []).some((h) => h.start < snapped.end && h.end > snapped.start);
     // Is any of this bold/italic/underlined on screen? Formatting written
@@ -134,7 +152,7 @@ export default function ExplanationHighlightToolbar({ containerRef, highlights, 
       y: rect.top,
       yBottom: rect.bottom, // used when there is no room above (see render)
     };
-  }, [containerRef, highlights, rejectSelector]);
+  }, [containerRef, highlights, rejectSelector, boundsFor]);
 
   // Apply a colour/format to a computed selection.
   const applyTo = useCallback((sel, action) => {
