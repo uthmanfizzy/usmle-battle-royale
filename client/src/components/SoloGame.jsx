@@ -2042,6 +2042,110 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
 
   const processAnswerRef = useRef(null);
 
+  /**
+   * The end of a block, however it was reached: the last question answered,
+   * lives gone, or the last question skipped past.
+   *
+   * Pulled out of doAdvance so skipping can finish a block too. It was the
+   * only copy of this and inlining a second one would have meant two places
+   * to keep the XP, the high score and the completion handler in step.
+   */
+  const finishBlock = useCallback((score, bestStreak) => {
+    audio.stopGameMusic();
+    const hi    = getHi(subject);
+    const newHi = score > hi;
+    if (newHi) saveHi(subject, score);
+    setFinalScore(score);
+    setFinalBestStreak(bestStreak);
+    setIsNewHi(newHi);
+    setGameOver(true);
+    // Cleared HERE rather than in the save effect below, which is keyed
+    // on gameOver. For Journey and Training the completion handler
+    // changes the parent's phase, and that update lands in this same
+    // batch — so the parent re-renders without this component and it
+    // unmounts before any effect of its own could run. The save of the
+    // finished run survived, and the next attempt at that level resumed
+    // into it, ended on the first answer, and saved itself again: the
+    // same level repeating until the fortnight's expiry ran out.
+    clearRun(runKeyRef.current);
+    if (!completionFiredRef.current) {
+      completionFiredRef.current = true;
+      // Skipped questions are not graded. They were never answered and are
+      // deliberately not marked as met, so counting them against the score
+      // would be a verdict on facts you have not been asked yet — and the
+      // percentage would fall for using the feature as intended.
+      const asked  = questionsRef.current.length;
+      const graded = Math.max(0, asked - skippedCountRef.current);
+      const c = correctCountRef.current;
+      const pct = graded ? Math.round((c / graded) * 100) : 0;
+      if (onCompleteRef.current) {
+        // Journey / question bank / training all write their own row from
+        // their completion endpoint, so the in-progress one goes.
+        dropRunSessionRef.current();
+        onCompleteRef.current({
+          correct: c, total: graded, pct,
+          activeSeconds: activeSecondsRef.current,
+          skipped: skippedCountRef.current,
+        });
+      } else {
+        // Plain Solo has no completion handler, so nothing else would ever
+        // write its activity row — it was the one mode absent from the
+        // Daily Activity timeline even when finished properly.
+        logRunSessionRef.current(pct);
+      }
+    }
+  }, [subject]);
+  // doAdvance is built inside processAnswer's closure, which is memoised on
+  // its own deps; reaching finishBlock through a ref keeps that closure from
+  // going stale without widening those deps.
+  const finishBlockRef = useRef(finishBlock);
+  finishBlockRef.current = finishBlock;
+
+  /**
+   * Pass over a question without answering it.
+   *
+   * Offered only where the mode asks for it — rapid fire, where being stuck
+   * is the wrong outcome and the two ways out were both bad: guessing marks
+   * a fact you have never met as met and scores it wrong, and waiting costs
+   * thirty seconds of a mode whose whole promise is pace.
+   *
+   * A skip is deliberately NOT an answer. Nothing is graded, the streak is
+   * neither broken nor extended, and — the part that matters — the question
+   * is not reported as seen, so it is still in the bank and comes round in a
+   * later set. The seconds already spent looking at it are still banked as
+   * study time, because they were.
+   */
+  // Per mode, not per bank: the flag lives on the mode's own config, so
+  // turning it on elsewhere later is one line there rather than a condition
+  // here that names one bank.
+  const canSkip = uworldSkin && !!examTheme?.allowSkip;
+  const skippedCountRef = useRef(0);
+  const [skipNote, setSkipNote] = useState('');
+  const handleSkipQuestion = useCallback(() => {
+    // Only from the question itself. Once the explanation is up the question
+    // has been answered and there is nothing left to skip past.
+    if (revealedRef.current || gameOver) return;
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+
+    const spent = Math.max(0, defaultTimer - timeLeftRef.current);
+    activeSecondsRef.current += spent;
+    postStudyTimeRef.current();
+    skippedCountRef.current += 1;
+    setSkipNote('Skipped — it will come round again');
+    setTimeout(() => setSkipNote(''), 2000);
+
+    const nextIdx = qIdxRef.current + 1;
+    if (nextIdx >= questionsRef.current.length) {
+      finishBlockRef.current(scoreRef.current, bestStreakRef.current);
+      return;
+    }
+    revealedRef.current = false;
+    setRevealed(false);
+    setSelected(null);
+    setBonusPoints(0);
+    setQIdx(nextIdx);
+  }, [defaultTimer, gameOver]);
+
   const processAnswer = useCallback((label) => {
     if (revealedRef.current) return;
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
@@ -2191,40 +2295,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
       // keeps every question up to this point instead of losing all of them.
       postStudyTimeRef.current();
       if (newLives === 0 || exhausted) {
-        audio.stopGameMusic();
-        const hi    = getHi(subject);
-        const newHi = newScore > hi;
-        if (newHi) saveHi(subject, newScore);
-        setFinalScore(newScore);
-        setFinalBestStreak(newBest);
-        setIsNewHi(newHi);
-        setGameOver(true);
-        // Cleared HERE rather than in the save effect below, which is keyed
-        // on gameOver. For Journey and Training the completion handler
-        // changes the parent's phase, and that update lands in this same
-        // batch — so the parent re-renders without this component and it
-        // unmounts before any effect of its own could run. The save of the
-        // finished run survived, and the next attempt at that level resumed
-        // into it, ended on the first answer, and saved itself again: the
-        // same level repeating until the fortnight's expiry ran out.
-        clearRun(runKeyRef.current);
-        if (!completionFiredRef.current) {
-          completionFiredRef.current = true;
-          const total = questionsRef.current.length;
-          const c = correctCountRef.current;
-          const pct = total ? Math.round((c / total) * 100) : 0;
-          if (onCompleteRef.current) {
-            // Journey / question bank / training all write their own row from
-            // their completion endpoint, so the in-progress one goes.
-            dropRunSessionRef.current();
-            onCompleteRef.current({ correct: c, total, pct, activeSeconds: activeSecondsRef.current });
-          } else {
-            // Plain Solo has no completion handler, so nothing else would ever
-            // write its activity row — it was the one mode absent from the
-            // Daily Activity timeline even when finished properly.
-            logRunSessionRef.current(pct);
-          }
-        }
+        finishBlockRef.current(newScore, newBest);
       } else {
         revealedRef.current = false;
         setRevealed(false);
@@ -2941,6 +3012,10 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
           a highlight further up the explanation — would otherwise look like
           the key did nothing at all. */}
       {undoMsg && <div className="sg-undo-toast" role="status">↶ {undoMsg}</div>}
+      {/* Skipping moves the screen on, so without a word it is hard to tell
+          a skip from an accidental answer. Shares the undo toast's placement,
+          which is already clear of the error toast below it. */}
+      {skipNote && <div className="sg-undo-toast" role="status">⏭ {skipNote}</div>}
       {!study && (
         <div className="solo-topbar">
           {levelLabel && <span className="topbar-level-label">{levelLabel}</span>}
@@ -4172,14 +4247,28 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
                   {(isPaused || (revealed && explPaused)) ? '▶' : '⏸'}
                 </button>
               )}
-              <button
-                className="stb-arrow stb-next"
-                onClick={handleSkip}
-                disabled={!revealed}
-                title="Next question"
-              >
-                →
-              </button>
+              {/* One slot, two jobs. While the question is up and the mode
+                  allows it, this is Skip; once the explanation is showing it
+                  is Next, as it always was. Modes without skipping keep the
+                  arrow disabled until there is something to move on from. */}
+              {canSkip && !revealed ? (
+                <button
+                  className="stb-arrow stb-skip"
+                  onClick={handleSkipQuestion}
+                  title="Skip this one — it won't be scored, and you'll see it again"
+                >
+                  ⏭ <span className="stb-btn-label">Skip</span>
+                </button>
+              ) : (
+                <button
+                  className="stb-arrow stb-next"
+                  onClick={handleSkip}
+                  disabled={!revealed}
+                  title="Next question"
+                >
+                  →
+                </button>
+              )}
             </div>
             <div className="ssb-right">
               <button

@@ -84,6 +84,13 @@ export const QUESTION_BANK_MODES = [
     // a half either side would make it the same mode in a different colour.
     questionSeconds: 30,
     explanationSeconds: 30,
+    // Rapid fire is the one bank where being stuck on a question is the
+    // wrong outcome: the pace IS the exercise, and the alternatives were
+    // guessing — which marks a fact you have never met as seen and scores it
+    // wrong — or sitting out thirty seconds you came here not to spend.
+    // Skipping passes it over without answering, so it is neither scored nor
+    // counted as met and comes round again in a later set.
+    allowSkip: true,
     activityMode: 'mehlman_rapid_fire_practice',
     // No published total: the plan tracks the live count and grows as questions
     // are added, the way Saudi MLE and ORE / LDS started.

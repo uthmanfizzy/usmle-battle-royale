@@ -1035,3 +1035,34 @@ html[data-study="on"] .screen.solo-screen.uw-exam .pause-resume-btn:hover {
   font-size: 12.5px;
   color: #c0392b;
 }
+
+/* ── Skip ─────────────────────────────────────────────────────────────────
+   Rapid fire's way past a question you do not know. It occupies the Next
+   slot while the question is up, so it has to be unmistakably NOT Next:
+   the mode's own accent, and its own word on it.
+
+   Deliberately not loud. It is the right move often enough that it should
+   not feel like a failure, and not so often that it should out-shout the
+   options. */
+html[data-study="on"] .screen.solo-screen.uw-exam .stb-arrow.stb-skip {
+  border-color: rgba(240, 190, 90, 0.6);
+  background: rgba(240, 190, 90, 0.16);
+  color: #ffe3a6;
+}
+html[data-study="on"] .screen.solo-screen.uw-exam .stb-arrow.stb-skip:hover {
+  background: rgba(240, 190, 90, 0.3);
+  border-color: rgba(240, 190, 90, 0.9);
+  color: #fff;
+}
+/* The footer hides its labels on a phone (study.css), which would leave this
+   as a bare ⏭ next to a bare ⌂. The word is the whole point here, so it
+   stays. */
+@media (max-width: 640px) {
+  html[data-study="on"] .screen.solo-screen.uw-exam .stb-skip .stb-btn-label {
+    display: inline;
+  }
+  html[data-study="on"] .screen.solo-screen.uw-exam .stb-arrow.stb-skip {
+    padding: 7px 12px;
+    font-size: 13px;
+  }
+}
