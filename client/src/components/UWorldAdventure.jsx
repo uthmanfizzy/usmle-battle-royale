@@ -263,6 +263,19 @@ export default function UWorldAdventure({ mode = DEFAULT_QUESTION_BANK_MODE }) {
   const [reviewLabel,   setReviewLabel]   = useState('');
   const [reviewLoading, setReviewLoading] = useState(null); // pile key currently loading, or null
   const [reviewError,   setReviewError]   = useState('');
+  // Leave out anything already gone through today. A habit rather than a
+  // per-session decision — somebody who wants fresh questions on the second
+  // pass wants them on the third too — so it is remembered per browser.
+  const [freshOnly, setFreshOnly] = useState(() => {
+    try { return localStorage.getItem('mv_review_fresh_only') === '1'; } catch { return false; }
+  });
+  const toggleFreshOnly = () => {
+    setFreshOnly(v => {
+      const next = !v;
+      try { localStorage.setItem('mv_review_fresh_only', next ? '1' : '0'); } catch { /* private mode */ }
+      return next;
+    });
+  };
   // { total, unrated, knowledge_gap, careless_miss, lucky_guess, somewhat_know,
   // fully_understood } — counts for the "Review Rated Questions" pile list.
   const [ratingCounts, setRatingCounts] = useState(null);
@@ -537,14 +550,27 @@ export default function UWorldAdventure({ mode = DEFAULT_QUESTION_BANK_MODE }) {
     try {
       // Always subject-scoped — the piles are per system, so the questions
       // pulled for one must be too.
+      // "Today" is the player's own calendar day, not the server's — the
+      // same local_date / tz_offset pair the pace endpoints already use, so
+      // a late-night review is not cut in half by UTC rolling over.
+      const now = new Date();
+      const fresh = freshOnly && ratingKey !== 'system' && ratingKey !== 'saved'
+        ? `&exclude_today=1&local_date=${now.toLocaleDateString('en-CA')}` +
+          `&tz_offset=${now.getTimezoneOffset()}`
+        : '';
       const res = await authFetch(
         `/api/uworld-questions/by-rating?rating=${encodeURIComponent(ratingKey)}` +
-        `&subject=${encodeURIComponent(selected)}&limit=${UWORLD_REVIEW_LIMIT}&mode=${MODE}`
+        `&subject=${encodeURIComponent(selected)}&limit=${UWORLD_REVIEW_LIMIT}&mode=${MODE}${fresh}`
       );
       const data = await res.json();
       const qs = data.questions || [];
       if (qs.length === 0) {
-        setReviewError('No questions in this group yet.');
+        // Two very different empties, and they look identical from here
+        // without saying which: a pile with nothing in it, and a pile you
+        // have already been through today.
+        setReviewError(data.excluded_today
+          ? 'Nothing left here that you haven’t already been through today. Turn off “Skip today’s” to go again.'
+          : 'No questions in this group yet.');
         setReviewLoading(null);
         return;
       }
@@ -1186,6 +1212,25 @@ export default function UWorldAdventure({ mode = DEFAULT_QUESTION_BANK_MODE }) {
                 Redo Whole System and Study All still work.
               </p>
             )}
+
+            {/* Two passes at the same pile in one day otherwise re-serve the
+                same questions, and answering a fact you met an hour ago
+                measures the hour rather than the fact — the pile reads as
+                better known than it is. Does not apply to Redo Whole System
+                or the Read Later shelf, which are deliberate re-runs. */}
+            <label className="uwa-fresh">
+              <input
+                type="checkbox"
+                checked={freshOnly}
+                onChange={toggleFreshOnly}
+              />
+              <span className="uwa-fresh-text">
+                Skip today’s
+                <span className="uwa-fresh-hint">
+                  leave out questions you have already reviewed today
+                </span>
+              </span>
+            </label>
 
             <div className="uwa-pile-list">
               {/* Redo replays the ENTIRE system, seen or not, rather than

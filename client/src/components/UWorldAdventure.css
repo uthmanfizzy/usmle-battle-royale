@@ -2195,3 +2195,35 @@
   border-color: #c98c08;
   box-shadow: 0 0 20px rgba(226, 170, 32, 0.3);
 }
+
+
+/* ── "Skip today's" ───────────────────────────────────────────────────────
+   Sits above the rating piles because it changes what every one of them
+   will serve, and reads as a setting rather than another pile to press. */
+.uwa-fresh {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 4px 0 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px dashed rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.03);
+  cursor: pointer;
+}
+.uwa-fresh:hover { border-color: rgba(255, 255, 255, 0.28); }
+.uwa-fresh input { margin-top: 2px; flex-shrink: 0; cursor: pointer; }
+.uwa-fresh-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.86);
+}
+.uwa-fresh-hint {
+  font-size: 11.5px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.52);
+}

@@ -4513,6 +4513,22 @@ app.get('/api/uworld-questions/rating-counts', requireAuth, async (req, res) => 
  * Deliberately returns full question objects (fromDb shape), not ids — the
  * caller hands these straight to SoloGame as providedQuestions, exactly
  * like /api/questions/unseen already does for a fresh block.
+ *
+ * `exclude_today=1` (+ `local_date` / `tz_offset`) leaves out anything
+ * already gone through today. Two passes at the same pile in one day
+ * otherwise re-serve the same questions, and answering a fact you met an
+ * hour ago measures the hour, not the fact — the pile reads as better known
+ * than it is.
+ *
+ * "Gone through today" is read from uworld_question_ratings.updated_at,
+ * which needs no new table and no migration: in the exam skin a rating IS
+ * the advance, so every question a review actually serves gets its rating
+ * row touched. Two things it will not catch, both honest: a question
+ * SKIPPED rather than rated, and one re-rated into a different pile — which
+ * has left this pile anyway.
+ *
+ * Ignored for 'system' (an explicit redo of everything) and 'saved' (the
+ * shelf, which is ordered by when you put things on it).
  */
 app.get('/api/uworld-questions/by-rating', requireAuth, async (req, res) => {
   // Which bank this request is about — UWorld Adventure or Saudi MLE.
@@ -4531,6 +4547,11 @@ app.get('/api/uworld-questions/by-rating', requireAuth, async (req, res) => {
   const subject = (req.query.subject || '').toString().trim();
   // questions.category, not .subject — see rating-counts above.
   const scoped = (q) => (subject ? q.eq('questions.category', subject) : q);
+  // Leave out what has already been through a review today.
+  const freshOnly = req.query.exclude_today === '1';
+  const dayStart  = freshOnly
+    ? resolveDayStart(req.query.local_date, req.query.tz_offset)
+    : null;
   if (rating === 'system' && !subject) {
     return res.status(400).json({ error: 'subject required for a system redo', questions: [] });
   }
@@ -4591,23 +4612,29 @@ app.get('/api/uworld-questions/by-rating', requireAuth, async (req, res) => {
         if (!data.length) break;
 
         let ratedSet = new Set();
-        if (rating === 'unrated') {
-          const { data: ratedRows, error: rErr } = await supabase
+        let todaySet = new Set();
+        if (rating === 'unrated' || dayStart) {
+          let rq = supabase
             .from('uworld_question_ratings')
-            .select('question_id')
+            .select('question_id, updated_at')
             .eq('user_id', req.userId)
             .in('question_id', data.map((r) => r.question_id));
+          const { data: ratedRows, error: rErr } = await rq;
           if (rErr) throw rErr;
-          ratedSet = new Set((ratedRows || []).map((r) => r.question_id));
+          for (const r of ratedRows || []) {
+            ratedSet.add(r.question_id);
+            if (dayStart && r.updated_at && r.updated_at >= dayStart) todaySet.add(r.question_id);
+          }
         }
         for (const row of data) {
           if (rating === 'unrated' && ratedSet.has(row.question_id)) continue;
+          if (todaySet.has(row.question_id)) continue;
           out.push(fromDb(row.questions));
           if (out.length >= limit) break;
         }
         if (data.length < PAGE) break;
       }
-      return res.json({ questions: out });
+      return res.json({ questions: out, ...(freshOnly ? { excluded_today: true } : {}) });
     }
 
     let q = scoped(supabase
@@ -4615,13 +4642,19 @@ app.get('/api/uworld-questions/by-rating', requireAuth, async (req, res) => {
       .select('question_id, updated_at, questions!inner(*)')
       .eq('user_id', req.userId)
       .eq('rating', rating)
-      .contains('questions.game_modes', modeJsonTag))
-      .order('updated_at', { ascending: true })
-      .range(0, limit - 1);
+      .contains('questions.game_modes', modeJsonTag));
+    // Rated today means reviewed today, so it is held back for tomorrow.
+    if (dayStart) q = q.lt('updated_at', dayStart);
+    q = q.order('updated_at', { ascending: true }).range(0, limit - 1);
     if (hasRetirement) q = q.is('questions.retired_at', null);
     const { data, error } = await q;
     if (error) throw error;
-    res.json({ questions: (data || []).map((r) => fromDb(r.questions)) });
+    res.json({
+      questions: (data || []).map((r) => fromDb(r.questions)),
+      // So the picker can say "nothing left that you have not already done
+      // today" rather than the blanker "no questions".
+      ...(freshOnly ? { excluded_today: true } : {}),
+    });
   } catch (err) {
     console.error('[/api/uworld-questions/by-rating] failed —', err.message);
     res.json({ questions: [] });
