@@ -13,6 +13,7 @@ const LABELS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
 // not always the one the host asked for.
 const DUEL_SOURCE_LABELS = {
   pvp_duel: 'PvP Arenas pool',
+  first_aid_journey: 'First Aid Journey',
   uworld_adventure: 'UWorld Adventure',
   mehlman_rapid_fire: 'Mehlman Rapid Fire',
   saudi_mle: 'Saudi MLE',

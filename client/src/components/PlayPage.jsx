@@ -7,8 +7,11 @@ import AnKingMode from './AnKingMode';
 
 // Where a duel can draw its questions from. The ids are game_modes tags and
 // are whitelisted server-side — this list is the menu, not the authority.
+const DUEL_JOURNEY = 'first_aid_journey';
+
 const DUEL_SOURCES = [
   { id: 'pvp_duel',           label: 'PvP Arenas pool' },
+  { id: DUEL_JOURNEY,         label: 'First Aid Journey' },
   { id: 'uworld_adventure',   label: 'UWorld Adventure' },
   { id: 'mehlman_rapid_fire', label: 'Mehlman Rapid Fire' },
   { id: 'saudi_mle',          label: 'Saudi MLE' },
@@ -123,6 +126,10 @@ export default function PlayPage({
   // Every system a duel could be narrowed to. Fetched once and only when a
   // duel lobby is actually open — the rest of this page has no use for it.
   const [subjects, setSubjects] = useState([]);
+  // Chapters, for a duel drawn from the First Aid Journey. Fetched only when
+  // that source is actually chosen — it is one of several, and most duels
+  // never need the list.
+  const [chapters, setChapters] = useState([]);
   const [playBgImage, setPlayBgImage] = useState(() => cachedImageMap('play').play_page_background || '');
   const [lobbyCode, setLobbyCode] = useState('');
   const [joinError, setJoinError] = useState('');
@@ -190,14 +197,39 @@ export default function PlayPage({
       .then(r => r.json())
       .then(d => {
         if (cancelled) return;
+        // Only the ones that are switched on. /api/subjects returns the
+        // inactive ones too (sorted after the active ones), and the first
+        // version of this filter only dropped an explicit `false` — so a
+        // row with no value at all, which the rest of the app treats as off,
+        // was still being offered as something to duel over.
+        //
+        // Truthiness, to match how every other screen reads this column.
         const list = (d?.subjects || [])
-          .filter(x => x && x.id && x.active !== false)
+          .filter(x => x && x.id && x.active)
           .map(x => ({ id: String(x.id).toLowerCase(), name: x.name || x.id }));
         setSubjects(list);
       })
       .catch(() => { /* the duel still plays, it just cannot be narrowed */ });
     return () => { cancelled = true; };
   }, [lobbyGameMode, subjects.length]);
+
+  const duelSource = duelOptions?.source || 'pvp_duel';
+  const duelIsJourney = duelSource === DUEL_JOURNEY;
+
+  useEffect(() => {
+    if (!duelIsJourney || chapters.length) return undefined;
+    let cancelled = false;
+    authFetch('/api/journey-chapters')
+      .then(r => r.json())
+      .then(d => {
+        if (cancelled) return;
+        setChapters((d?.chapters || []).filter(c => c && c.id));
+      })
+      .catch(() => { /* the duel still plays; it just cannot be narrowed */ });
+    return () => { cancelled = true; };
+  }, [duelIsJourney, chapters.length]);
+
+  const chapterName = (id) => chapters.find(c => c.id === id)?.name || 'that chapter';
 
   // What the host has narrowed to, always an array so the chips below can
   // treat "nothing chosen" and "field missing" the same way.
@@ -577,6 +609,46 @@ export default function PlayPage({
                   </div>
                 )}
 
+                {/* ── Which chapter ──────────────────────────────────
+                    Only for a Journey duel. The Journey is organised by
+                    chapter rather than by system, so this replaces the
+                    systems row rather than sitting beside it — narrowing by
+                    both would filter every question out. */}
+                {duelIsJourney && (
+                  <div className="lobby-duel-row lobby-duel-row--stack">
+                    <span className="lobby-duel-label">Chapter</span>
+                    {isHost ? (
+                      <div className="lobby-duel-subjects">
+                        <button
+                          type="button"
+                          className={`lobby-duel-chip${!duelOptions?.chapterId ? ' is-on' : ''}`}
+                          onClick={() => onDuelOptions?.({ ...duelOptions, chapterId: null })}
+                        >
+                          Every chapter
+                        </button>
+                        {chapters.map(c => (
+                          <button
+                            key={c.id}
+                            type="button"
+                            className={`lobby-duel-chip${duelOptions?.chapterId === c.id ? ' is-on' : ''}`}
+                            aria-pressed={duelOptions?.chapterId === c.id}
+                            onClick={() => onDuelOptions?.({ ...duelOptions, chapterId: c.id })}
+                          >
+                            {c.name}
+                          </button>
+                        ))}
+                        {chapters.length === 0 && (
+                          <span className="lobby-duel-value">No chapters to choose from</span>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="lobby-duel-value">
+                        {duelOptions?.chapterId ? chapterName(duelOptions.chapterId) : 'Every chapter'}
+                      </span>
+                    )}
+                  </div>
+                )}
+
                 {/* ── Which systems ──────────────────────────────────
                     A duel used to take whatever the pool held. Picking one
                     system makes it a cardiology duel; picking several mixes
@@ -584,6 +656,7 @@ export default function PlayPage({
                     it always was. Shown as chips rather than a multi-select
                     because "which of these am I on" has to be readable at a
                     glance by the player who did not choose it. */}
+                {!duelIsJourney && (
                 <div className="lobby-duel-row lobby-duel-row--stack">
                   <span className="lobby-duel-label">Systems</span>
                   {isHost ? (
@@ -626,6 +699,7 @@ export default function PlayPage({
                     </span>
                   )}
                 </div>
+                )}
 
                 {/* ── Powers ────────────────────────────────────────────── */}
                 <div className="lobby-duel-row">

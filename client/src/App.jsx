@@ -109,7 +109,7 @@ export default function App() {
     source: 'pvp_duel', winBy: 'hp', rounds: 10,
     // [] is every system; several is a mix. Powers are the (display-only)
     // ability dock; explanations are whether one is sent between rounds.
-    subjects: [], powers: true, explanations: true,
+    subjects: [], chapterId: null, powers: true, explanations: true,
   });
   // How many players have said they are done reading this round's
   // explanation, straight from the server. Cleared when the round changes so

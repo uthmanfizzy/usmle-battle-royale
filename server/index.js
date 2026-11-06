@@ -1497,7 +1497,13 @@ const PVP_DUEL_DAMAGE_PER_HIT = 5;
 //
 // A function call is the cheap fix; the alternative is moving one of two
 // unrelated blocks across the file to satisfy an ordering rule.
-const duelSources = () => ['pvp_duel', 'battle_royale', 'all', ...QUESTION_BANK_MODE_IDS];
+// 'first_aid_journey' is not a tag on the main bank like the others — its
+// questions live in journey_questions, keyed by level, and are fetched when
+// the duel starts rather than filtered out of the in-memory bank.
+const DUEL_JOURNEY_SOURCE = 'first_aid_journey';
+const duelSources = () => [
+  'pvp_duel', 'battle_royale', 'all', DUEL_JOURNEY_SOURCE, ...QUESTION_BANK_MODE_IDS,
+];
 const DUEL_WIN_BY = ['hp', 'rounds'];
 const DUEL_ROUNDS_MIN = 3;
 const DUEL_ROUNDS_MAX = 30;
@@ -1517,6 +1523,9 @@ const DEFAULT_DUEL_OPTIONS = {
   // [] means every system. Listing them is how a host narrows it, and a list
   // of more than one is how they mix.
   subjects: [],
+  // Which First Aid Journey chapter to draw from; null is all of them. Only
+  // read when source is 'first_aid_journey'.
+  chapterId: null,
   // The ability dock and mana bar in the duel HUD. They are display-only
   // today, which is exactly why being able to switch them off matters: an
   // inert row of buttons is worse than no row at all if you do not want it.
@@ -1542,14 +1551,100 @@ function sanitizeDuelOptions(raw) {
         .map(s => s.trim().toLowerCase())
         .filter(Boolean))].slice(0, DUEL_MAX_SUBJECTS)
     : [];
+  // Which Journey chapter, when the source is the Journey. Null is every
+  // chapter. Only meaningful for that source; carried regardless so switching
+  // source and back does not silently lose the choice.
+  const chapterId = typeof o.chapterId === 'string' && o.chapterId.trim()
+    ? o.chapterId.trim().slice(0, 64)
+    : null;
   // Explicitly false turns them off; anything else keeps the default on, so
   // an older client that sends neither field behaves as it always did.
   const powers = o.powers !== false;
   const explanations = o.explanations !== false;
-  return { source, winBy, rounds, subjects, powers, explanations };
+  return { source, winBy, rounds, subjects, chapterId, powers, explanations };
+}
+
+/**
+ * Every playable question in a Journey chapter, shaped like a bank question.
+ *
+ * Two hops, because the Journey is chapters → levels → questions and there
+ * is no column joining a question straight to a chapter. With no chapter
+ * given it takes the lot.
+ *
+ * Returns [] for anything that goes wrong — a missing table, an empty
+ * chapter, no Supabase at all. The caller treats an empty pool the same way
+ * it treats a bank tag that is too thin to play: it falls back and says so,
+ * rather than refusing to start a duel two people are waiting on.
+ */
+async function journeyDuelPool(chapterId) {
+  if (!supabase) return [];
+  try {
+    let levelQuery = supabase.from('journey_levels').select('id');
+    if (chapterId) levelQuery = levelQuery.eq('chapter_id', chapterId);
+    const { data: levels, error: levelErr } = await levelQuery;
+    if (levelErr) throw levelErr;
+    const levelIds = (levels || []).map(l => l.id).filter(Boolean);
+    if (!levelIds.length) return [];
+
+    let qQuery = supabase
+      .from('journey_questions')
+      .select('id, level_id, question, options, correct, explanation, why_others_wrong, image_url')
+      .in('level_id', levelIds);
+    // Same deploy-order safety the rest of this file uses: an unknown column
+    // fails the whole select, so the retirement filter is applied only where
+    // it is known to exist and dropped on the one failure that proves it is
+    // not there.
+    if (hasJourneyRetirement) qQuery = qQuery.is('retired_at', null);
+    let { data, error } = await qQuery;
+    if (error && isMissingColumn(error)) {
+      hasJourneyRetirement = false;
+      ({ data, error } = await supabase
+        .from('journey_questions')
+        .select('id, level_id, question, options, correct, explanation, why_others_wrong, image_url')
+        .in('level_id', levelIds));
+    }
+    if (error) throw error;
+
+    return (data || [])
+      // A question with no options cannot be duelled over, and one bad row
+      // should not take the whole chapter down with it.
+      .filter(q => q && q.question && Array.isArray(q.options) && q.options.length >= 2 && q.correct)
+      .map(q => ({
+        id: q.id,
+        subject: 'first_aid_journey',
+        difficulty: 'easy',
+        question: q.question,
+        options: q.options,
+        correct: q.correct,
+        explanation: q.explanation || '',
+        why_others_wrong: q.why_others_wrong || undefined,
+        image_url: q.image_url || undefined,
+        game_modes: ['pvp_duel'],
+        _journey: true,
+      }));
+  } catch (err) {
+    console.warn('[duel] journey pool unavailable —', err.message);
+    return [];
+  }
 }
 
 function startPvpDuel(lobby) {
+  const opts = sanitizeDuelOptions(lobby.duelOptions);
+  // The Journey's questions are not in the in-memory bank, so this one source
+  // needs a round trip before the duel can be built. Everything else goes
+  // straight through, exactly as before.
+  if (opts.source === DUEL_JOURNEY_SOURCE) {
+    journeyDuelPool(opts.chapterId)
+      .then(pool => beginPvpDuel(lobby, pool))
+      .catch(() => beginPvpDuel(lobby, []));
+    return;
+  }
+  beginPvpDuel(lobby, null);
+}
+
+function beginPvpDuel(lobby, journeyPool) {
+  // The lobby may have emptied while the pool was being fetched.
+  if (lobby.players.size < 2) return;
   lobby.round           = 0;
   lobby.duelHp          = new Map();
   lobby.duelDamage      = new Map();
@@ -1572,7 +1667,11 @@ function startPvpDuel(lobby) {
   const taggedWith = (tag) => questionBank.filter(q => (q.game_modes || []).includes(tag));
   const brPool = questionBank.filter(q => (q.game_modes || ['battle_royale']).includes('battle_royale'));
 
-  const chosen = opts.source === 'all' ? questionBank.slice() : taggedWith(opts.source);
+  // A Journey duel's pool arrived with the call; every other source is a tag
+  // on the bank already in memory.
+  const chosen = journeyPool
+    ? journeyPool
+    : opts.source === 'all' ? questionBank.slice() : taggedWith(opts.source);
   let usedSource = opts.source;
   let base = chosen;
   if (base.length < 5) {
@@ -1587,7 +1686,10 @@ function startPvpDuel(lobby) {
   // Falling back is the same promise the source makes above: a duel that
   // cannot find five questions in the chosen systems plays from the wider
   // pool rather than refusing to start, and says which systems actually ran.
-  const wanted = new Set(opts.subjects);
+  // The Journey's questions have no system of their own — they are organised
+  // by chapter, which IS the choice for that source. Narrowing by system on
+  // top of it would filter every one of them out.
+  const wanted = new Set(journeyPool ? [] : opts.subjects);
   const bySubject = wanted.size
     ? base.filter(q => wanted.has(String(q.subject || '').toLowerCase()))
     : (lobby.subject === 'all' ? base : base.filter(q => q.subject === lobby.subject));
@@ -1651,6 +1753,43 @@ function nextPvpDuelQuestion(lobby) {
 
   lobby.timerEnd = Date.now() + timeLimit * 1000;
   lobby.timer    = setTimeout(() => processPvpDuelAnswers(lobby), timeLimit * 1000);
+  scheduleDuelBotAnswers(lobby, q, timeLimit);
+}
+
+/**
+ * The bot's turn at a duel question.
+ *
+ * A duel had no bot path at all, so the Add Bot button was refused outright
+ * — which left a mode you could not practise alone. This is the same shape
+ * Battle Royale's bots use: a reaction delay by difficulty, then an answer
+ * that is right with that difficulty's accuracy.
+ *
+ * The delay matters more here than anywhere else in the game. A duel's whole
+ * mechanic is who answers correctly FIRST, so a bot that replied instantly
+ * would win every round it knew and the human would never land a strike.
+ * botReactionDelay already spreads replies across most of the clock, and it
+ * is the same spread a human is being measured against in Battle Royale.
+ */
+function scheduleDuelBotAnswers(lobby, q, timeLimitSec) {
+  const bots = [...lobby.players.values()].filter(p => p.isBot);
+  for (const bot of bots) {
+    const roundAtSchedule = lobby.round;
+    setTimeout(() => {
+      // The round must still be the one this was scheduled for: a question
+      // answered early moves on, and a late timer would otherwise drop an
+      // answer into the NEXT question on the bot's behalf.
+      if (lobby.status !== 'pvp_duel_question' || lobby.round !== roundAtSchedule) return;
+      if (lobby.answers.has(bot.id)) return;
+      const correct = Math.random() < BOT_ACCURACY[bot.difficulty];
+      lobby.answers.set(bot.id, correct ? q.correct : randomWrongAnswer(q.correct));
+      lobby.duelAnswerTimes.set(bot.id, Date.now());
+      io.to(lobby.id).emit('answer_count', { answered: lobby.answers.size, total: lobby.players.size });
+      if (lobby.answers.size >= lobby.players.size) {
+        clearTimer(lobby);
+        setTimeout(() => processPvpDuelAnswers(lobby), 600);
+      }
+    }, botReactionDelay(bot.difficulty, timeLimitSec));
+  }
 }
 
 function processPvpDuelAnswers(lobby) {
@@ -3557,14 +3696,14 @@ io.on('connection', (socket) => {
   socket.on('add_bot', ({ difficulty }) => {
     const lobby = lobbies.get(socket.lobbyId);
     if (!lobby || lobby.hostId !== socket.id || lobby.status !== 'waiting') return;
-    // A duel is two people. join_lobby and quick_join both enforced that; the
-    // bot button did not, so a host could fill a 1v1 with three bots — and a
-    // duel has no bot answering path at all, so each of them would have sat
-    // there as a dead opponent while real players were turned away at the
-    // door. Refused outright rather than capped at two: a bot cannot duel.
-    if (lobby.gameMode === 'pvp_duel') return;
+    // A duel is two people, so it takes exactly one bot — and now that the
+    // duel has a bot answering path (scheduleDuelBotAnswers), that one is a
+    // real opponent rather than a dead seat. Capped here as well as at the
+    // two join routes, because this is the third way into a lobby.
+    const isDuel = lobby.gameMode === 'pvp_duel';
+    if (isDuel && lobby.players.size >= PVP_DUEL_MAX_PLAYERS) return;
     const bots = [...lobby.players.values()].filter(p => p.isBot);
-    if (bots.length >= 3) return;
+    if (!isDuel && bots.length >= 3) return;
     if (!BOT_ACCURACY[difficulty]) return;
 
     const usedNames = new Set([...lobby.players.values()].map(p => p.username));
@@ -3579,6 +3718,9 @@ io.on('connection', (socket) => {
       isBot: true, difficulty,
     });
     io.to(lobby.id).emit('lobby_update', lobbyPayload(lobby));
+    // The second seat is the second seat, whoever took it: a duel starts on
+    // its own at two, and it did so only from the join routes before.
+    maybeAutoStartDuel(lobby);
   });
 
   socket.on('remove_bot', ({ botId }) => {
@@ -12677,6 +12819,30 @@ app.post('/admin/boss-questions/bulk-delete', adminAuth, async (req, res) => {
     if (error) throw error;
     res.json({ ok: true, deleted: ids.length });
   } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// The chapter list, for anyone setting up a duel over one. Chapter names are
+// not private — they are on the Journey map every player already walks — and
+// this returns names and nothing else: no levels, no questions, no progress.
+// Separate from the admin route below because that one is adminAuth and
+// returns whole rows.
+app.get('/api/journey-chapters', async (req, res) => {
+  if (!supabase) return res.json({ chapters: [] });
+  try {
+    let query = supabase.from('journey_chapters')
+      .select('id, name, subject, sort_order')
+      .order('sort_order', { ascending: true })
+      .order('name', { ascending: true });
+    if (req.query.subject) query = query.eq('subject', req.query.subject);
+    const { data, error } = await query;
+    if (error) throw error;
+    res.json({ chapters: data || [] });
+  } catch (err) {
+    // The table is a manual migration; an empty list just means the duel
+    // cannot be narrowed to a chapter, not that anything is broken.
+    console.warn('[/api/journey-chapters] unavailable —', err.message);
+    res.json({ chapters: [] });
+  }
 });
 
 // ── First Aid Journey: chapters (admin) ───────────────────────────────────────

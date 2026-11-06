@@ -28,6 +28,10 @@ export const QUESTION_BANK_MODES = [
     // set for UWorld silently govern Saudi MLE and double-count today's work.
     paceScope: '__adventure__',
     accentRgb: '47, 111, 201',   // the exam blue this mode already used
+    // Same bargain as rapid fire: a question you cannot answer is better
+    // passed over than guessed at. A guess marks it as met and scores it
+    // wrong; a skip leaves it in the bank for a later set and is not graded.
+    allowSkip: true,
     // The game_mode written to activity_sessions. Kept as the original value so
     // every row already logged keeps its label.
     activityMode: 'question_bank_practice',
