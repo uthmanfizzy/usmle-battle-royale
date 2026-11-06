@@ -2228,10 +2228,42 @@ async function recordQuestionSeen(userId, question, { answered, correct }) {
  *
  * Deliberately NOT awaited at any call site: exposure tracking must never sit in
  * front of a player's answer being graded and emitted.
+ *
+ * ── A match does not spend a question bank ──────────────────────────────
+ *
+ * A question that belongs to a bank — UWorld Adventure, Saudi MLE, Mehlman
+ * Rapid Fire, ORE/LDS, OET — is NOT recorded here, because this table is
+ * what those banks mean by "met": it drives the unseen pool, the completion
+ * total and the daily pace. Since online modes can be pointed at a bank's
+ * questions, a Medathon or a duel was quietly spending the UWorld Adventure
+ * plan — questions you raced through once, against a clock, with no
+ * explanation and no rating, were being struck off a bank you had not
+ * actually studied. The bank is a syllabus; a match is not a study session
+ * of it.
+ *
+ * Everything else still records. A Battle Royale question belongs to no
+ * bank, so nothing is spent by writing it down, and it keeps feeding the
+ * "every question ever served to you" pile and the Saudi MLE leaderboard.
+ *
+ * Mastery is untouched either way: subject_mastery is its own table, written
+ * on the awardXP path, so a match still counts for everything it counted for
+ * on the Progress page.
+ *
+ * QUESTION_BANK_MODE_IDS is declared much further down this file. Reading it
+ * HERE is safe because it is read when a match runs, not when the module
+ * loads — the distinction that took the server down once before (see
+ * duelSources).
  */
+function isQuestionBankQuestion(question) {
+  const modes = question?.game_modes;
+  if (!Array.isArray(modes)) return false;
+  return modes.some(m => QUESTION_BANK_MODE_IDS.includes(m));
+}
+
 function trackPlayerAnswer(playerId, question, { answered, correct }) {
   const userId = io.sockets.sockets.get(playerId)?.userId;
   if (!userId) return;
+  if (isQuestionBankQuestion(question)) return;
   void recordQuestionSeen(userId, question, { answered, correct });
 }
 
