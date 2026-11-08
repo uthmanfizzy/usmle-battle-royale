@@ -39,6 +39,7 @@ const MODE_META = {
   ore_lds_practice:       { icon: '🦷', label: 'ORE / LDS'         },
   mehlman_rapid_fire_practice: { icon: '⚡', label: 'Mehlman Rapid Fire' },
   oet_practice:           { icon: '🇬🇧', label: 'OET'               },
+  clinical_practice:      { icon: '🩺', label: 'Clinical'          },
   solo:                   { icon: '🧠', label: 'Solo Practice'     },
 };
 const modeMeta = (m) =>
@@ -203,6 +204,41 @@ function buildTimeline(sessions) {
 // desk, so the button appears where it is plausibly wanted and nowhere else.
 const SLEEP_OFFER_SECONDS = 4 * 3600;
 
+/**
+ * What a gap was.
+ *
+ * `judged` is the one that does any work: whether the gap is weighed as a
+ * break against the study in front of it. The split is not rest-vs-not, it
+ * is CHOSEN-vs-COMMITTED. A nap, a meal, an hour of television — those are
+ * time you could have studied and chose not to, which is exactly what the
+ * balance reading is about. Sleep, work, lectures, travel and illness are
+ * not: being told you took a long break after a day at work is as useless
+ * as being told it after a night's sleep, which is the complaint this
+ * started from.
+ *
+ * `verb` is how the row reads: "10h 22m asleep", "45m at work". A judged
+ * reason keeps the plain "break" wording, because that is what it is.
+ */
+const GAP_REASONS = [
+  { id: 'sleep',         label: 'Sleep',         icon: '🌙', verb: 'asleep',       judged: false },
+  { id: 'nap',           label: 'Nap',           icon: '😴', verb: null,           judged: true  },
+  { id: 'meal',          label: 'Meal',          icon: '🍽️', verb: null,           judged: true  },
+  { id: 'exercise',      label: 'Exercise',      icon: '🏃', verb: null,           judged: true  },
+  { id: 'entertainment', label: 'Entertainment', icon: '🎮', verb: null,           judged: true  },
+  { id: 'work',          label: 'Work',          icon: '💼', verb: 'at work',      judged: false },
+  { id: 'lectures',      label: 'Lectures',      icon: '🎓', verb: 'in lectures',  judged: false },
+  { id: 'travel',        label: 'Travel',        icon: '🚆', verb: 'travelling',   judged: false },
+  { id: 'unwell',        label: 'Unwell',        icon: '🤒', verb: 'unwell',       judged: false },
+];
+const REASON_BY_ID = Object.fromEntries(GAP_REASONS.map(r => [r.id, r]));
+// An unknown id — a reason removed from this list while rows still carry it
+// — must not make a gap vanish from the count. Treated as an ordinary break.
+const reasonOf = (id) => (id ? REASON_BY_ID[id] || null : null);
+const reasonIsJudged = (id) => {
+  const r = reasonOf(id);
+  return r ? r.judged : true;
+};
+
 const BREAK_EARNED_RATIO    = 3;  // a break up to 3x the study before it
 const BREAK_STRETCHED_RATIO = 5;  // ... and past this it is out of proportion
 
@@ -216,21 +252,21 @@ function breakGrade(breakSeconds, studyBefore) {
 }
 
 /**
- * `sleptKeys` holds the gaps marked as sleep. They are still gaps — the
- * study block before them ends, as it plainly did — but they are NOT breaks
- * and are never graded. The page used to announce a ten-hour break taken
- * after ten minutes of study, which is a fair description of a night and a
- * useless thing to be told.
+ * `excusedKeys` holds the gaps that are not weighed as breaks — sleep, work,
+ * lectures, travel, illness. They are still gaps, and the study block before
+ * them still ends, as it plainly did; they are simply never graded. The page
+ * used to announce a ten-hour break taken after ten minutes of study, which
+ * is a fair description of a night and a useless thing to be told.
  */
-function analyseBalance(timeline, sleptKeys = new Set()) {
+function analyseBalance(timeline, excusedKeys = new Set()) {
   const breaks = [];
   let block = 0;  // active seconds studied since the last break
   for (const it of timeline) {
     if (it.type === 'session') {
       block += Number(it.s.duration_seconds) || 0;
     } else {
-      // Sleeping ends the block without being judged against it.
-      if (sleptKeys.has(it.key)) { block = 0; continue; }
+      // Committed time ends the block without being judged against it.
+      if (excusedKeys.has(it.key)) { block = 0; continue; }
       breaks.push({
         key: it.key,
         seconds: it.seconds,
@@ -338,110 +374,129 @@ function SessionRow({ item }) {
  * point of surfacing gaps rather than just closing them up. On someone else's
  * timeline it renders as a plain gap: notes are private to their author.
  */
-function GapRow({ item, editable, note, kind, onSave, onSetKind, grade }) {
+function GapRow({ item, editable, note, kind, onSave, grade }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft]     = useState(note || '');
+  const [draftKind, setDraftKind] = useState(kind || null);
   const [saving, setSaving]   = useState(false);
-  const [error,  setError]    = useState(false);
-  const [kindBusy, setKindBusy] = useState(false);
-  const [kindError, setKindError] = useState(false);
-  const asleep = kind === 'sleep';
-
-  async function toggleSleep() {
-    setKindBusy(true);
-    setKindError(false);
-    const ok = await onSetKind(item.gapStart, asleep ? null : 'sleep');
-    setKindBusy(false);
-    if (!ok) setKindError(true);
-  }
+  const [error,  setError]    = useState('');
+  const reason = reasonOf(kind);
+  const excused = !!reason && !reason.judged;
 
   // A note arriving from the server after mount (the notes fetch resolves
   // independently of the sessions fetch) must not clobber an open draft.
-  useEffect(() => { if (!editing) setDraft(note || ''); }, [note, editing]);
+  useEffect(() => {
+    if (editing) return;
+    setDraft(note || '');
+    setDraftKind(kind || null);
+  }, [note, kind, editing]);
 
-  async function commit() {
+  async function commit(nextKind = draftKind, nextNote = draft) {
     setSaving(true);
-    setError(false);
-    const ok = await onSave(item.gapStart, draft.trim());
+    setError('');
+    // One write for both halves: they live in the same row, and sending them
+    // separately was two requests that could half-fail.
+    const ok = await onSave(item.gapStart, nextNote.trim(), nextKind);
     setSaving(false);
-    // On failure, stay in editing mode with the draft intact — closing here
-    // would silently discard what they typed, which is the exact bug this
-    // is fixing.
-    if (ok) setEditing(false);
-    else setError(true);
+    // On failure, stay open with the draft intact — closing here would
+    // silently discard what they typed, which is the exact bug this is
+    // fixing.
+    // `=== true`, not truthiness: a failure can come back as the STRING
+    // 'missing_column', which is truthy and would otherwise be read as
+    // success — closing the editor on a write that never happened, which is
+    // the exact bug this whole confirm-then-reflect shape exists to avoid.
+    if (ok === true) setEditing(false);
+    else setError(ok === 'missing_column'
+      ? 'Couldn’t save — the reason column isn’t in the database yet.'
+      : 'Couldn’t save — check your connection and try again.');
   }
 
   return (
-    <li className={`da-item da-item--gap${asleep ? ' da-item--slept' : ''}`}>
+    <li className={`da-item da-item--gap${excused ? ' da-item--excused' : ''}`}>
       <div className="da-rail" aria-hidden="true">
         <span className="da-rail-gap" />
       </div>
       <div className="da-item-body">
         <span className="da-when da-when--gap">{clockMs(item.start)} – {clockMs(item.end)}</span>
-        <div className={`da-gap${asleep ? ' da-gap--slept' : ''}`}>
+        <div className={`da-gap${excused ? ' da-gap--excused' : ''}`}>
           <div className="da-gap-head">
-            <span className="da-gap-icon" aria-hidden="true">{asleep ? '🌙' : '☕'}</span>
+            <span className="da-gap-icon" aria-hidden="true">{reason ? reason.icon : '☕'}</span>
             <span className="da-gap-len">
-              {formatGap(item.seconds)} {asleep ? 'asleep' : 'break'}
+              {formatGap(item.seconds)} {reason?.verb || 'break'}
             </span>
             {/* What this particular break followed. The verdict at the top of
                 the day is made of these, so each one says its own working.
-                Absent on a night: "after 9m of study" is a reproach, and
-                nobody is going to answer questions instead of sleeping. */}
-            {grade && !asleep && (
+                Absent where the gap is not judged: "after 9m of study" is a
+                reproach, and nobody is going to answer questions instead of
+                sleeping or working. */}
+            {grade && !excused && (
               <span className={`da-gap-grade da-gap-grade--${grade.grade}`}>
                 after {formatDuration(grade.studyBefore)} of study
               </span>
             )}
-            {/* The one-press way out of being told off for a night. Only on
-                your own timeline, and only worth offering on a gap long
-                enough to have been one. */}
-            {editable && (asleep || item.seconds >= SLEEP_OFFER_SECONDS) && (
+            {/* The reason as a chip, once set — and the way back into the
+                picker. A judged reason still shows, because "45m — Nap" is
+                worth knowing even though it counts. */}
+            {reason && !editing && (
               <button
                 type="button"
-                className={`da-gap-sleep${asleep ? ' is-on' : ''}`}
-                aria-pressed={asleep}
-                disabled={kindBusy}
-                onClick={toggleSleep}
-                title={asleep
-                  ? 'Count this as a break again'
-                  : 'This was sleep — leave it out of the day\u2019s breaks'}
+                className={`da-gap-reason${excused ? ' is-excused' : ''}${editable ? '' : ' is-ro'}`}
+                onClick={() => editable && setEditing(true)}
+                disabled={!editable}
+                title={editable ? 'Change this' : undefined}
               >
-                {kindBusy ? '…' : asleep ? '🌙 Sleep' : '🌙 This was sleep'}
+                {reason.label}
               </button>
             )}
           </div>
-          {kindError && (
-            <p className="da-note-error">
-              Couldn&apos;t save that — the sleep column isn&apos;t in the database yet.
-            </p>
-          )}
 
           {editing ? (
             <div className="da-note-edit">
+              {/* Pick one, or none. Clicking the one already chosen clears
+                  it, so there is no separate "remove" to go looking for. */}
+              <div className="da-reasons" role="group" aria-label="What were you doing?">
+                {GAP_REASONS.map(r => (
+                  <button
+                    key={r.id}
+                    type="button"
+                    className={`da-reason${draftKind === r.id ? ' is-on' : ''}${r.judged ? '' : ' is-excused'}`}
+                    aria-pressed={draftKind === r.id}
+                    onClick={() => setDraftKind(draftKind === r.id ? null : r.id)}
+                    title={r.judged
+                      ? 'Counts as one of the day’s breaks'
+                      : 'Not counted as a break — you could not have been studying'}
+                  >
+                    <span aria-hidden="true">{r.icon}</span> {r.label}
+                  </button>
+                ))}
+              </div>
               <textarea
                 className="da-note-input"
                 value={draft}
                 onChange={e => setDraft(e.target.value)}
-                placeholder="What were you doing? e.g. work shift, lectures, rest day…"
+                placeholder="Anything to add? e.g. night shift, family visit…"
                 maxLength={500}
                 rows={2}
-                autoFocus
               />
               <div className="da-note-actions">
-                <button type="button" className="da-note-btn da-note-btn--save" onClick={commit} disabled={saving}>
+                <button type="button" className="da-note-btn da-note-btn--save" onClick={() => commit()} disabled={saving}>
                   {saving ? 'Saving…' : 'Save'}
                 </button>
                 <button
                   type="button"
                   className="da-note-btn"
-                  onClick={() => { setDraft(note || ''); setEditing(false); setError(false); }}
+                  onClick={() => {
+                    setDraft(note || '');
+                    setDraftKind(kind || null);
+                    setEditing(false);
+                    setError('');
+                  }}
                   disabled={saving}
                 >
                   Cancel
                 </button>
               </div>
-              {error && <p className="da-note-error">Couldn&apos;t save — check your connection and try again.</p>}
+              {error && <p className="da-note-error">{error}</p>}
             </div>
           ) : note ? (
             <button
@@ -449,12 +504,12 @@ function GapRow({ item, editable, note, kind, onSave, onSetKind, grade }) {
               className={`da-note${editable ? '' : ' da-note--ro'}`}
               onClick={() => editable && setEditing(true)}
               disabled={!editable}
-              title={editable ? 'Edit this note' : undefined}
+              title={editable ? 'Edit this' : undefined}
             >
               <span className="da-note-text">{note}</span>
               {editable && <span className="da-note-pencil" aria-hidden="true">✎</span>}
             </button>
-          ) : editable ? (
+          ) : editable && !reason ? (
             <button type="button" className="da-note-add" onClick={() => setEditing(true)}>
               ＋ Add a reason
             </button>
@@ -551,46 +606,37 @@ export default function ActivityPage() {
   // silently dropped it. Returns true/false so GapRow can keep its editor
   // open (draft intact) and show an error on failure, instead of closing on
   // a save that never actually happened.
-  async function saveNote(gapStart, text) {
+  // Confirm-then-reflect, NOT optimistic: local state only updates once the
+  // server has actually accepted the write. The previous optimistic version
+  // updated immediately and never checked the response — a failed write (the
+  // activity_gap_notes migration not having been run yet) still showed as
+  // saved, right up until the next reload silently dropped it.
+  //
+  // The note and the reason go in ONE request because they are one row.
+  // Sending them separately was two writes that could half-fail, and a
+  // cleared note would take the reason with it.
+  //
+  // Returns true, 'missing_column' or false, so the row can say WHICH kind
+  // of failure it was: a column that does not exist yet is a different
+  // problem from a dropped connection, and only one of them is worth
+  // retrying.
+  async function saveGap(gapStart, text, kind) {
     const token = getToken();
     if (!token) return false;
     try {
       const res = await fetch(`${SERVER_URL}/api/activity/gap-notes`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        // The kind travels with every write: one row holds both, and sending
-        // only the note would clear a sleep mark that is still meant to be on.
-        body: JSON.stringify({ gap_start: gapStart, note: text, kind: kinds[gapStart] || null }),
+        body: JSON.stringify({ gap_start: gapStart, note: text, kind: kind || null }),
       });
       const data = await res.json().catch(() => null);
-      if (!res.ok || !data?.ok) return false;
+      if (!res.ok || !data?.ok) return data?.reason === 'missing_column' ? 'missing_column' : false;
       setNotes(prev => {
         const next = { ...prev };
         if (text) next[gapStart] = text;
         else delete next[gapStart];
         return next;
       });
-      return true;
-    } catch {
-      return false;
-    }
-  }
-
-  // Marking a gap as sleep (or back again). Same confirm-then-reflect shape
-  // as saveNote: nothing changes on screen until the server says it stored
-  // it, because the column this needs may not exist yet and a mark that
-  // silently vanished on reload is the bug this page already had once.
-  async function setKind(gapStart, kind) {
-    const token = getToken();
-    if (!token) return false;
-    try {
-      const res = await fetch(`${SERVER_URL}/api/activity/gap-notes`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ gap_start: gapStart, note: notes[gapStart] || '', kind }),
-      });
-      const data = await res.json().catch(() => null);
-      if (!res.ok || !data?.ok) return false;
       setKinds(prev => {
         const next = { ...prev };
         if (kind) next[gapStart] = kind;
@@ -644,15 +690,21 @@ export default function ActivityPage() {
 
   const timeline = buildTimeline(sessions);
   const allGaps = timeline.filter(i => i.type === 'gap');
-  // A gap marked as sleep is counted as sleep everywhere: not in the break
-  // count, not in the break total, not in the verdict.
-  const sleptKeys = new Set(allGaps.filter(g => kinds[g.gapStart] === 'sleep').map(g => g.key));
-  const breaks = allGaps.filter(g => !sleptKeys.has(g.key));
-  const slept  = allGaps.filter(g => sleptKeys.has(g.key));
-  const balance = analyseBalance(timeline, sleptKeys);
+  // A gap whose reason is committed time — sleep, work, lectures, travel,
+  // illness — is out of the break count, the break total and the verdict
+  // alike. Anything else, reason or not, is a break.
+  const excusedKeys = new Set(
+    allGaps.filter(g => !reasonIsJudged(kinds[g.gapStart])).map(g => g.key));
+  const breaks  = allGaps.filter(g => !excusedKeys.has(g.key));
+  const slept   = allGaps.filter(g => kinds[g.gapStart] === 'sleep');
+  // Everything excused that was not sleep, so a day spent at work does not
+  // simply vanish from the summary.
+  const excused = allGaps.filter(g => excusedKeys.has(g.key) && kinds[g.gapStart] !== 'sleep');
+  const balance = analyseBalance(timeline, excusedKeys);
   const gradeByGap = new Map(balance.breaks.map(b => [b.key, b]));
-  const breakSeconds = breaks.reduce((a, g) => a + g.seconds, 0);
-  const sleptSeconds = slept.reduce((a, g) => a + g.seconds, 0);
+  const breakSeconds   = breaks.reduce((a, g) => a + g.seconds, 0);
+  const sleptSeconds   = slept.reduce((a, g) => a + g.seconds, 0);
+  const excusedSeconds = excused.reduce((a, g) => a + g.seconds, 0);
 
   return (
     <div className="da">
@@ -756,6 +808,19 @@ export default function ActivityPage() {
                   </span>
                 </>
               )}
+              {/* Work, lectures, travel, illness — time that was accounted
+                  for and is not held against the day. One figure rather than
+                  a chip per reason: the timeline below says which was which,
+                  and five more chips up here would bury the three numbers
+                  that matter. */}
+              {excused.length > 0 && (
+                <>
+                  <span className="da-summary-divider" aria-hidden="true" />
+                  <span className="da-summary-item">
+                    <strong>{formatGap(excusedSeconds)}</strong> accounted for
+                  </span>
+                </>
+              )}
             </div>
 
             {/* A line per question bank played today. Its own band rather
@@ -814,8 +879,7 @@ export default function ActivityPage() {
                     editable={isOwn}
                     note={notes[item.gapStart] || ''}
                     kind={kinds[item.gapStart] || null}
-                    onSave={saveNote}
-                    onSetKind={setKind}
+                    onSave={saveGap}
                     grade={gradeByGap.get(item.key) || null}
                   />
                 ) : (

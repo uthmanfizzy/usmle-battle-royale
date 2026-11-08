@@ -719,42 +719,80 @@
 }
 
 
-/* ── A night, told apart from a break ──────────────────────────────────────
+/* ── Time that is not held against the day ─────────────────────────────────
    A ten-hour gap after ten minutes of study is not a lapse, it is sleeping,
-   and the page used to grade it as the worst break of the day. Marked as
-   sleep, it keeps its place on the timeline — the night happened — but takes
-   a cooler colour, loses the "after 9m of study" chip, and drops out of the
+   and the page used to grade it as the worst break of the day. The same is
+   true of a shift at work or a morning of lectures. Given one of those
+   reasons, a gap keeps its place on the timeline — it happened — but takes a
+   cooler colour, loses the "after 9m of study" chip, and drops out of the
    break count, the break total and the balance verdict. */
-.da-gap-sleep {
+.da-gap--excused {
+  border-color: rgba(146, 164, 255, 0.26);
+  background: rgba(146, 164, 255, 0.06);
+}
+.da-gap--excused .da-gap-len { color: rgba(206, 214, 255, 0.82); }
+
+/* ── Picking what a gap was ───────────────────────────────────────────────
+   Chips rather than a dropdown: there are nine, they are short, and the one
+   you want is almost always visible without opening anything. The excused
+   ones (sleep, work, lectures, travel, unwell) take a cooler tint, because
+   they do something different — they take the gap out of the day's break
+   count — and that difference should be visible before you press, not
+   discovered after. */
+.da-reasons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 9px;
+}
+
+.da-reason {
+  padding: 5px 11px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(243, 241, 238, 0.74);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.da-reason:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+.da-reason.is-on {
+  background: rgba(232, 176, 75, 0.2);
+  border-color: rgba(232, 176, 75, 0.55);
+  color: #ffd98a;
+}
+.da-reason.is-excused.is-on {
+  background: rgba(146, 164, 255, 0.2);
+  border-color: rgba(146, 164, 255, 0.55);
+  color: #c6d1ff;
+}
+
+/* The chosen reason, shown on the row itself. */
+.da-gap-reason {
   margin-left: auto;
   padding: 3px 10px;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: rgba(255, 255, 255, 0.04);
-  color: rgba(243, 241, 238, 0.56);
+  border: 1px solid rgba(232, 176, 75, 0.4);
+  background: rgba(232, 176, 75, 0.14);
+  color: #ffd98a;
   font: inherit;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.03em;
   white-space: nowrap;
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
-.da-gap-sleep:hover:not(:disabled) {
-  background: rgba(146, 164, 255, 0.14);
-  border-color: rgba(146, 164, 255, 0.34);
-  color: rgb(190, 203, 255);
-}
-.da-gap-sleep:disabled { cursor: default; opacity: 0.6; }
-/* On: it reads as a state, not as an offer. */
-.da-gap-sleep.is-on {
-  background: rgba(146, 164, 255, 0.18);
+.da-gap-reason.is-excused {
   border-color: rgba(146, 164, 255, 0.4);
-  color: rgb(198, 209, 255);
+  background: rgba(146, 164, 255, 0.16);
+  color: #c6d1ff;
 }
-
-.da-gap--slept {
-  border-color: rgba(146, 164, 255, 0.26);
-  background: rgba(146, 164, 255, 0.06);
-}
-.da-gap--slept .da-gap-len { color: rgba(206, 214, 255, 0.82); }
+.da-gap-reason.is-ro { cursor: default; }
+.da-gap-reason:not(.is-ro):hover { filter: brightness(1.25); }

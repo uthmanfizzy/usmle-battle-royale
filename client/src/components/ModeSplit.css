@@ -750,6 +750,25 @@
 
 
 
+/* Clinical white — Clinical. Every HUE was taken by the time this mode
+   arrived (red, amber, blue, green, teal, yellow, violet, magenta), so it is
+   told apart by saturation instead: a bright, fully opaque near-white with a
+   cool glow. Deliberately NOT the faint translucent white of a disabled card
+   — that one is 0.55 opacity with no glow at all, and the two must never be
+   mistaken for each other. */
+.ms-journey-card--clinical {
+  border-color: #c9d6e2;
+  box-shadow: 0 0 18px rgba(201, 214, 226, 0.26);
+}
+
+.ms-journey-card--clinical:hover {
+  box-shadow: 0 0 28px rgba(201, 214, 226, 0.5);
+}
+
+.ms-journey-card--clinical .ms-journey-name {
+  color: #eaf2f9;
+}
+
 /* ══ Story Mode campaigns ═════════════════════════════════════════════════════
    The four campaigns were 640px-wide rows stacked vertically, so on a desktop
    the last one sat below the fold and the page had to be scrolled to see what
@@ -770,6 +789,7 @@
 .ms-journey-card--yellow         { --ms-accent-rgb: 226, 170, 32; }  /* yellow — Mehlman Rapid Fire */
 .ms-journey-card--violet         { --ms-accent-rgb: 150, 106, 232; } /* violet — Minigames */
 .ms-journey-card--magenta        { --ms-accent-rgb: 214, 72, 142; }  /* magenta — OET */
+.ms-journey-card--clinical       { --ms-accent-rgb: 201, 214, 226; } /* clinical white — Clinical */
 
 /* ── Art panel ──────────────────────────────────────────────────────────────
    Was a flat 45° stripe placeholder in near-black, identical on every card bar

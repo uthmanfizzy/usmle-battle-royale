@@ -101,6 +101,27 @@ export const QUESTION_BANK_MODES = [
     targetTotal: null,
   },
   {
+    id: 'clinical',
+    label: 'Clinical',
+    icon: '🩺',
+    route: '/clinical',
+    tagline: 'The procedures a doctor is expected to be able to do, one at a time.',
+    paceScope: '__clinical__',
+    // Clinical white. Every hue Story Mode had was already spoken for — red,
+    // amber, blue, green, teal, yellow, violet, magenta — so this one is told
+    // apart by SATURATION rather than hue, which was the only axis left. It
+    // suits the subject, and the test below compares it against every other
+    // card rather than trusting my eye.
+    accentRgb: '201, 214, 226',
+    activityMode: 'clinical_practice',
+    // Same bargain as the other banks: a procedure you cannot recall is
+    // better passed over than guessed at.
+    allowSkip: true,
+    // No published total: the plan tracks the live count and grows as
+    // procedures are added, the way every bank after UWorld started.
+    targetTotal: null,
+  },
+  {
     id: 'oet',
     label: 'OET',
     icon: '\u{1f1ec}\u{1f1e7}',

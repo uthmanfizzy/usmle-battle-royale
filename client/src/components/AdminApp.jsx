@@ -57,6 +57,7 @@ const GAME_MODES = [
   // question into PvP Arenas at all.
   { id: 'pvp_duel',       label: 'PvP Arenas',     icon: '🤺', color: '#9b59b6' },
   { id: 'oet',            label: 'OET',            icon: '🇬🇧', color: '#d6488e' },
+  { id: 'clinical',       label: 'Clinical',       icon: '🩺', color: '#c9d6e2' },
 ];
 
 // The game_modes tag and its matching special folder id are the SAME string;
@@ -65,6 +66,7 @@ const UWORLD_MODE = 'uworld_adventure';
 const ORE_LDS_MODE = 'ore_lds';
 const SAUDI_MLE_MODE = 'saudi_mle';
 const OET_MODE = 'oet';
+const CLINICAL_MODE = 'clinical';
 const MEHLMAN_MODE = 'mehlman_rapid_fire';
 // Folders that scope by game_modes TAG rather than by subject/category.
 // Anything true of one is true of the other, so they are listed once here
@@ -100,6 +102,7 @@ const FOLDERS = [
   { id: 'saudi_mle',        label: 'Saudi MLE',                    icon: '🇸🇦', prefix: null,  special: true  },
   { id: 'mehlman_rapid_fire', label: 'Mehlman Rapid Fire',         icon: '⚡', prefix: null,  special: true  },
   { id: 'oet',              label: 'OET',                          icon: '🇬🇧', prefix: null,  special: true  },
+  { id: 'clinical',         label: 'Clinical',                     icon: '🩺', prefix: null,  special: true  },
   { id: 'medathon',         label: 'Medathon',                     icon: '🏁', prefix: null,  special: true  },
   { id: 'cardiology',       label: 'Cardiology',                   icon: '❤️',  prefix: 'CA',  special: false },
   { id: 'neurology',        label: 'Neurology',                    icon: '🧠', prefix: 'NE',  special: false },
@@ -11264,6 +11267,7 @@ const ADMIN_GAMES = [
   { id: 'ore_lds',      icon: '🦷', label: 'ORE / LDS' },
   { id: 'mehlman',      icon: '⚡', label: 'Mehlman Rapid Fire' },
   { id: 'oet',          icon: '🇬🇧', label: 'OET' },
+  { id: 'clinical',     icon: '🩺', label: 'Clinical' },
   // ── Online ──
   { id: 'battle_royale',  icon: '⚔️', label: 'Battle Royale',  online: true },
   { id: 'speed_race',     icon: '⚡', label: 'Speed Race',     online: true },
@@ -11561,6 +11565,19 @@ function GamesPanel({ subjects }) {
               <QuestionBankSubjectsPanel modeId={OET_MODE} modeLabel="OET" subjects={subjects} />
               <QuestionBankImagesPanel modeId={OET_MODE} modeLabel="OET" subjects={subjects} />
               <QuestionsPanel subjects={subjects} scopeTag={OET_MODE} />
+            </ErrorBoundary>
+          </>
+        )}
+        {/* Clinical: the same bank machinery as the others, on its own tag. */}
+        {game === 'clinical'     && (
+          <>
+            <ErrorBoundary>
+              <GameModeSettingsPanel bankModeId={CLINICAL_MODE} bankLabel="Clinical" />
+            </ErrorBoundary>
+            <ErrorBoundary>
+              <QuestionBankSubjectsPanel modeId={CLINICAL_MODE} modeLabel="Clinical" subjects={subjects} />
+              <QuestionBankImagesPanel modeId={CLINICAL_MODE} modeLabel="Clinical" subjects={subjects} />
+              <QuestionsPanel subjects={subjects} scopeTag={CLINICAL_MODE} />
             </ErrorBoundary>
           </>
         )}

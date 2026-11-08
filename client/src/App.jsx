@@ -1022,6 +1022,7 @@ export default function App() {
           onMehlman={() => { window.location.href = '/mehlman-rapid-fire'; }}
           onMinigames={() => { window.location.href = '/minigames'; }}
           onOET={() => { window.location.href = '/oet'; }}
+          onClinical={() => { window.location.href = '/clinical'; }}
           course={user?.course}
         />
         </RouteErrorBoundary>

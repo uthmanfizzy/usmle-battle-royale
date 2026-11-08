@@ -1475,6 +1475,13 @@ function endGame(lobby, reason) {
 
 const PVP_DUEL_STARTING_HP    = 100;
 const PVP_DUEL_DAMAGE_PER_HIT = 5;
+// A duel question gets this much longer than the same question would get
+// anywhere else. A duel is read-and-decide against another person rather
+// than against the clock, and the shared easy/hard timers are set for a
+// Battle Royale pace — which left no room to actually think before someone
+// struck. Added to whichever timer the question's difficulty picks, so
+// changing those in the admin still moves the duel with them.
+const PVP_DUEL_EXTRA_SECONDS  = 30;
 
 /**
  * What the host gets to decide before a duel starts.
@@ -1742,7 +1749,8 @@ function nextPvpDuelQuestion(lobby) {
   // Same shuffle-once-into-the-slot pattern as Battle Royale: emit, grading,
   // and both clients all see the identical shuffled order.
   const q = lobby.questionQueue[lobby.questionIdx] = withShuffledOptions(lobby.questionQueue[lobby.questionIdx]);
-  const timeLimit = q.difficulty === 'hard' ? gameSettings.hardModeTimer : gameSettings.easyModeTimer;
+  const baseLimit = q.difficulty === 'hard' ? gameSettings.hardModeTimer : gameSettings.easyModeTimer;
+  const timeLimit = (Number(baseLimit) || 0) + PVP_DUEL_EXTRA_SECONDS;
 
   io.to(lobby.id).emit('new_question', {
     ...toPublicQuestion(q),
@@ -1753,7 +1761,7 @@ function nextPvpDuelQuestion(lobby) {
 
   lobby.timerEnd = Date.now() + timeLimit * 1000;
   lobby.timer    = setTimeout(() => processPvpDuelAnswers(lobby), timeLimit * 1000);
-  scheduleDuelBotAnswers(lobby, q, timeLimit);
+  scheduleDuelBotAnswers(lobby, q, timeLimit, baseLimit);
 }
 
 /**
@@ -1767,11 +1775,21 @@ function nextPvpDuelQuestion(lobby) {
  * The delay matters more here than anywhere else in the game. A duel's whole
  * mechanic is who answers correctly FIRST, so a bot that replied instantly
  * would win every round it knew and the human would never land a strike.
- * botReactionDelay already spreads replies across most of the clock, and it
- * is the same spread a human is being measured against in Battle Royale.
+ *
+ * Which is why the delay is SCALED to the duel's longer clock. BOT_REACTION_MS
+ * is in fixed milliseconds — a hard bot answers in 3 to 8 seconds whatever
+ * the question time is. Handing the human thirty more seconds while the bot
+ * kept replying at second five would not have made the duel easier, only
+ * longer: the bot would take every strike it knew and the extra time would
+ * buy nothing but the chance to answer at all. Scaling by how much longer
+ * the duel's clock is than the base one keeps a bot exactly as fast,
+ * relative to the time available, as it was before.
  */
-function scheduleDuelBotAnswers(lobby, q, timeLimitSec) {
+function scheduleDuelBotAnswers(lobby, q, timeLimitSec, baseLimitSec = timeLimitSec) {
   const bots = [...lobby.players.values()].filter(p => p.isBot);
+  // Guarded so a zero or missing base cannot turn the delay into NaN and
+  // schedule the bot's answer for the heat death of the universe.
+  const stretch = baseLimitSec > 0 ? timeLimitSec / baseLimitSec : 1;
   for (const bot of bots) {
     const roundAtSchedule = lobby.round;
     setTimeout(() => {
@@ -1788,7 +1806,12 @@ function scheduleDuelBotAnswers(lobby, q, timeLimitSec) {
         clearTimer(lobby);
         setTimeout(() => processPvpDuelAnswers(lobby), 600);
       }
-    }, botReactionDelay(bot.difficulty, timeLimitSec));
+    }, Math.min(
+      botReactionDelay(bot.difficulty, timeLimitSec) * stretch,
+      // Never past the clock itself: a scaled delay must still land while
+      // the question is up, or the bot simply never answers.
+      Math.max(0, (timeLimitSec - 0.6) * 1000),
+    ));
   }
 }
 
@@ -4040,7 +4063,7 @@ const UWORLD_MODE_JSON = JSON.stringify([UWORLD_MODE]);
 // Whitelisted, never passed through: this string goes straight into a
 // game_modes containment filter, so an arbitrary one from the query would let a
 // caller scope these endpoints to any tag they liked.
-const QUESTION_BANK_MODE_IDS = ['uworld_adventure', 'saudi_mle', 'ore_lds', 'mehlman_rapid_fire', 'oet'];
+const QUESTION_BANK_MODE_IDS = ['uworld_adventure', 'saudi_mle', 'ore_lds', 'mehlman_rapid_fire', 'oet', 'clinical'];
 
 function modeTagFrom(req) {
   const m = (req.query.mode || '').toString();
@@ -7390,7 +7413,14 @@ let hasGapNotes = true;
 // there, and fall back for the rest of the process once a query proves it is
 // not. The note half of this feature keeps working either way.
 let hasGapKind = true;
-const GAP_KINDS = ['sleep'];
+// What a gap was. Mirrors GAP_REASONS in ActivityPage.jsx — the client
+// decides how each one READS and whether it is weighed as a break, but the
+// server decides which ones may be stored at all, so an unknown value from a
+// hand-made request is dropped rather than written.
+const GAP_KINDS = [
+  'sleep', 'nap', 'meal', 'exercise', 'entertainment',
+  'work', 'lectures', 'travel', 'unwell',
+];
 // 42P01 = undefined_table; PostgREST reports an unknown table as PGRST205.
 // `table` narrows the message-text fallbacks to one table, for callers that
 // have several optional tables in play and must not confuse them.

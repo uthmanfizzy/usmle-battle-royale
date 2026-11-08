@@ -146,6 +146,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
                 <Route path="/saudi-mle" element={<RouteErrorBoundary name="SaudiMLE"><UWorldAdventure mode={questionBankMode('saudi_mle')} /></RouteErrorBoundary>} />
                 <Route path="/ore-lds" element={<RouteErrorBoundary name="OreLds"><UWorldAdventure mode={questionBankMode('ore_lds')} /></RouteErrorBoundary>} />
                 <Route path="/mehlman-rapid-fire" element={<RouteErrorBoundary name="MehlmanRapidFire"><UWorldAdventure mode={questionBankMode('mehlman_rapid_fire')} /></RouteErrorBoundary>} />
+                <Route path="/clinical" element={<RouteErrorBoundary name="Clinical"><UWorldAdventure mode={questionBankMode('clinical')} /></RouteErrorBoundary>} />
                 <Route path="/oet" element={<RouteErrorBoundary name="OET"><UWorldAdventure mode={questionBankMode('oet')} /></RouteErrorBoundary>} />
                 <Route path="/hy-flashcards" element={<RouteErrorBoundary name="HYFlashcards"><HYFlashcards /></RouteErrorBoundary>} />
                 <Route path="/reels"          element={<RouteErrorBoundary name="ReelsPage"><ReelsPage /></RouteErrorBoundary>} />

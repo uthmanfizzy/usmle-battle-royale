@@ -17,6 +17,7 @@ const DUEL_SOURCES = [
   { id: 'saudi_mle',          label: 'Saudi MLE' },
   { id: 'ore_lds',            label: 'ORE / LDS' },
   { id: 'oet',                label: 'OET' },
+  { id: 'clinical',           label: 'Clinical' },
   { id: 'battle_royale',      label: 'Battle Royale pool' },
   { id: 'all',                label: 'Everything' },
 ];

@@ -111,7 +111,7 @@ export default function ModeSplit({ onStory, onOnline, onTraining, onBack }) {
 // card). The Tower campaign was removed from this list — TowerMode.jsx and its
 // App.jsx phase/route are untouched (unreachable, not deleted) in case it
 // comes back.
-export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld, onSaudiMLE, onMehlman, onMinigames, onOET, course }) {
+export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld, onSaudiMLE, onMehlman, onMinigames, onOET, onClinical, course }) {
   // Dentistry students get the ORE/LDS bank in place of the medical licensing
   // ones; everything else (First Aid, flashcards) is shared, so their menu is
   // the same list with the board-exam campaign swapped. Medicine — and anyone
@@ -293,6 +293,23 @@ export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld, onSaudiMLE, o
             <span className="ms-journey-name">OET</span>
             <span className="ms-journey-sub">
               The Occupational English Test, worked through at your own pace.
+            </span>
+          </div>
+        </button>
+
+        {/* Clinical — what a doctor does with their hands rather than what
+            they recall. Its own campaign for the same reason OET is: it is
+            not another system inside a knowledge bank, it is a different
+            kind of knowing. Shown on both courses — cannulating and suturing
+            are not specific to one licensing exam. */}
+        <button className="ms-journey-card ms-journey-card--clinical" onClick={onClinical}>
+          <div className="ms-journey-art" aria-hidden="true">
+            <span className="ms-journey-art-icon">🩺</span>
+          </div>
+          <div className="ms-journey-body">
+            <span className="ms-journey-name">Clinical</span>
+            <span className="ms-journey-sub">
+              The procedures a doctor is expected to be able to do, one at a time.
             </span>
           </div>
         </button>
