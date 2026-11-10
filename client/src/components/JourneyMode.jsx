@@ -94,6 +94,24 @@ export default function JourneyMode({
   const [justPlayed,  setJustPlayed]  = useState(null);
   const [subject,     setSubject]     = useState(null);       // entry from JOURNEY_SUBJECTS
   useStudyActivity(editorMode ? null : 'First Aid Journey', subject?.name || null, 'journey');
+  /**
+   * Which way through the Journey.
+   *
+   * 'full' is the Journey as it has always been and holds every question
+   * written so far; 'rapid' is the shorter, more concise set. Same chapters,
+   * same levels, same map — different questions, and progress kept apart, so
+   * clearing a level the quick way does not mark it cleared the long way.
+   *
+   * Remembered per browser: which way you study is a habit, not a decision
+   * to make again every time the page loads.
+   */
+  const [track, setTrack] = useState(() => {
+    try { return localStorage.getItem('mv_journey_track') === 'rapid' ? 'rapid' : 'full'; }
+    catch { return 'full'; }
+  });
+  const trackRef = useRef(track);
+  trackRef.current = track;
+
   const [path,        setPath]        = useState(null);       // GET /api/journey/:subject response
   const [loading,     setLoading]     = useState(false);
   const [error,       setError]       = useState('');
@@ -254,6 +272,19 @@ export default function JourneyMode({
     : null;
 
   // Reusable so J3c can re-enter the path with fresh unlock state
+  // Switching the way through reloads the map: the two tracks have their own
+  // progress and their own question counts, so the one on screen belongs to
+  // the track that fetched it. Remembered per browser.
+  const pickTrack = (next) => {
+    if (next === trackRef.current) return;
+    trackRef.current = next;
+    setTrack(next);
+    try { localStorage.setItem('mv_journey_track', next); } catch { /* private mode */ }
+    setConfirmNode(null);
+    setJustPlayed(null);
+    if (subject) loadPathRef.current?.(subject);
+  };
+
   const loadPath = useCallback(async (subj) => {
     setLoading(true);
     setError('');
@@ -268,7 +299,7 @@ export default function JourneyMode({
         setLoading(false);
         return data;
       }
-      const res = await fetch(`${SERVER}/api/journey/${subj.id}`, {
+      const res = await fetch(`${SERVER}/api/journey/${subj.id}?track=${trackRef.current}`, {
         headers: { Authorization: `Bearer ${getToken()}` },
       });
       if (res.status === 401) { setAuthExpired(true); setLoading(false); return null; }
@@ -286,6 +317,12 @@ export default function JourneyMode({
     return null;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editorMode]);
+
+  // pickTrack is declared above loadPath (it is used by the chooser, which
+  // renders far below), so it reaches it through a ref rather than forcing a
+  // reorder of two things that read better where they are.
+  const loadPathRef = useRef(loadPath);
+  loadPathRef.current = loadPath;
 
   // ----- Editor mode: preview-path builder + click-to-edit -----
   // Mirrors buildJourneyPath's output from admin reads so the preview renders the
@@ -649,6 +686,10 @@ export default function JourneyMode({
       body: JSON.stringify({
         subject: reentry.subject.id, level_key: reentry.levelKey, score_pct: pct,
         seconds: reentry.seconds,   // active play time, for the activity log
+        // Which way through this was. The level_key stays the real level id
+        // — videos, notes and images are all keyed by it — and the server
+        // namespaces the progress row.
+        track: reentry.track || trackRef.current,
       }),
     })
       .then(r => r.ok ? r.json() : Promise.reject(r.status))
@@ -673,6 +714,8 @@ export default function JourneyMode({
           retryPayload: {
             subject: reentry.subject.id, level_key: reentry.levelKey, score_pct: pct,
             seconds: reentry.seconds,
+            // The retry must land on the same track the attempt was played on.
+            track: reentry.track || trackRef.current,
           },
         });
       });
@@ -1164,7 +1207,7 @@ export default function JourneyMode({
               unlocked: l.unlocked,
               memoryAid: l.memory_aid || null,
               videos: l.videos || [],
-              questionsUrl: `${SERVER}/api/journey-questions?level_id=${l.level_key}`,
+              questionsUrl: `${SERVER}/api/journey-questions?level_id=${l.level_key}&track=${track}`,
               bonusQuestionCount: l.bonus_question_count || 0,
               bonusUnlocked: !!l.bonus_unlocked,
               confidence: l.confidence || null,
@@ -1710,6 +1753,36 @@ export default function JourneyMode({
             </span>
             <span className="jm-progress-label">{doneNodes}/{totalNodes}</span>
           </span>
+        </div>
+
+        {/* ── Which way through ─────────────────────────────────────────
+            Same chapters and same levels either way; what changes is the
+            questions and, deliberately, the progress. A level cleared the
+            quick way is not marked cleared the long way — two passes at the
+            same material is the point of having both, and one marking off
+            the other would quietly remove the second.
+
+            Above the chapters rather than on each one, because it is a
+            decision about the whole run. */}
+        <div className="jm-track" role="group" aria-label="How to study this">
+          <button
+            type="button"
+            className={`jm-track-btn${track === 'full' ? ' is-on' : ''}`}
+            aria-pressed={track === 'full'}
+            onClick={() => pickTrack('full')}
+          >
+            <span className="jm-track-name">📖 Thorough</span>
+            <span className="jm-track-sub">The full question set</span>
+          </button>
+          <button
+            type="button"
+            className={`jm-track-btn${track === 'rapid' ? ' is-on' : ''}`}
+            aria-pressed={track === 'rapid'}
+            onClick={() => pickTrack('rapid')}
+          >
+            <span className="jm-track-name">⚡ Rapid</span>
+            <span className="jm-track-sub">Shorter, more concise</span>
+          </button>
         </div>
 
         <div className="jm-chapters-scroll">

@@ -13436,14 +13436,27 @@ app.delete('/admin/journey-elements/:id', adminAuth, async (req, res) => {
 app.get('/admin/journey-questions', adminAuth, async (req, res) => {
   if (!supabase) return res.json({ questions: [] });
   const { level_id } = req.query;
+  // Which way through this level is being authored. Absent means the long
+  // way, which is where every question written before tracks existed lives.
+  const track = journeyTrackOf(req.query.track);
   try {
     let query = supabase.from('journey_questions').select('*')
       .order('sort_order', { ascending: true })
       .order('created_at', { ascending: true });
     if (level_id) query = query.eq('level_id', level_id);
-    const { data, error } = await query;
+    if (hasJourneyTrack) query = query.eq('track', track);
+    let { data, error } = await query;
+    if (error && hasJourneyTrack && isMissingColumn(error, 'track')) {
+      hasJourneyTrack = false;
+      console.warn('[journey] no track column — the admin lists every question as one set.');
+      let untracked = supabase.from('journey_questions').select('*')
+        .order('sort_order', { ascending: true })
+        .order('created_at', { ascending: true });
+      if (level_id) untracked = untracked.eq('level_id', level_id);
+      ({ data, error } = await untracked);
+    }
     if (error) throw error;
-    res.json({ questions: data || [] });
+    res.json({ questions: data || [], track });
   } catch (err) {
     console.warn('[/admin/journey-questions] unavailable, returning questions: [] —', err.message);
     res.json({ questions: [] });
@@ -13453,6 +13466,9 @@ app.get('/admin/journey-questions', adminAuth, async (req, res) => {
 app.post('/admin/journey-questions', adminAuth, async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
   const { level_id, question, options, correct, explanation, why_others_wrong, image_url, explanation_image_url, sort_order } = req.body;
+  // Which set this question joins. Validated against the known tracks, so a
+  // hand-made request cannot invent one the map will never serve.
+  const track = journeyTrackOf(req.body?.track);
   if (!level_id) return res.status(400).json({ error: 'level_id required' });
   const invalid = bossQuestionError({ question, options, correct });
   if (invalid) return res.status(400).json({ error: invalid });
@@ -13467,9 +13483,21 @@ app.post('/admin/journey-questions', adminAuth, async (req, res) => {
       image_url: image_url || null,
       ...explanationImagesToDb(mergeExplanationImages(null, req.body)),
       sort_order: Number.isFinite(sort_order) ? sort_order : 0,
+      // Only where the column exists. Sending it to a database without the
+      // migration would fail the whole insert, which would turn "add a
+      // question" into "your question was lost" — the same trap the image
+      // columns already guard against.
+      ...(hasJourneyTrack ? { track } : {}),
     };
-    const { data, error } = await questionWrite(record, r =>
+    let { data, error } = await questionWrite(record, r =>
       supabase.from('journey_questions').insert(r).select().single());
+    if (error && hasJourneyTrack && isMissingColumn(error, 'track')) {
+      hasJourneyTrack = false;
+      console.warn('[journey] no track column — the question is written without one. Run the ALTER in schema.sql.');
+      const { track: _drop, ...untracked } = record;
+      ({ data, error } = await questionWrite(untracked, r =>
+        supabase.from('journey_questions').insert(r).select().single()));
+    }
     if (error) throw error;
     res.json(data);
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -14007,7 +14035,73 @@ function noteJourneyConfidenceMissing() {
   journeyConfProbeAt = Date.now();
 }
 
-async function buildJourneyPath(userId, subject) {
+/**
+ * The two ways through the First Aid Journey.
+ *
+ * Same chapters, same levels, same map — different questions. 'full' is the
+ * Journey as it has always been and is what every existing question belongs
+ * to; 'rapid' is the shorter, more concise set written for a quicker pass.
+ *
+ * WHY A COLUMN AND NOT A SECOND MAP: duplicating chapters and levels would
+ * mean two structures to keep in step, and every level video, memory aid,
+ * chapter picture and confidence rating is keyed by the level's own id. One
+ * column on the questions keeps all of that shared and makes the choice what
+ * it actually is — which questions you are asked, not where you are.
+ *
+ * PROGRESS IS SEPARATE. journey_progress.level_key is free text and already
+ * carries namespaced keys ('boss:{chapter}', 'boss:ultimate'), so the rapid
+ * track stores under a 'rapid:' prefix on the same rows. Clearing a level
+ * the quick way therefore does not mark it cleared the long way, which is
+ * the whole point of having two.
+ *
+ * The level_key the client is GIVEN stays the real level id, so every
+ * id-keyed feature — videos, notes, images, confidence — keeps working
+ * untouched; only the progress lookup is namespaced, here and in
+ * /api/journey/complete.
+ */
+const JOURNEY_TRACKS = ['full', 'rapid'];
+const JOURNEY_RAPID  = 'rapid';
+const journeyTrackOf = (v) => (JOURNEY_TRACKS.includes(String(v || '')) ? String(v) : 'full');
+const journeyProgKey = (track, key) => (track === JOURNEY_RAPID ? `rapid:${key}` : key);
+
+// journey_questions.track — a manual migration like the rest of this schema.
+// Optimistic until a query proves otherwise, after which the Journey behaves
+// exactly as it did before tracks existed: one set of questions, no split.
+let hasJourneyTrack = true;
+
+/**
+ * How many RAPID questions each level has.
+ *
+ * Counted with a plain select rather than get_journey_question_counts because
+ * that RPC knows nothing about tracks. Safe while the rapid set is young —
+ * and it reports if it ever brushes PostgREST's row cap, which is the point
+ * at which this needs its own RPC rather than silently under-counting.
+ */
+async function rapidCountsByLevel(levelIds) {
+  const counts = {};
+  if (!hasJourneyTrack || !levelIds.length) return counts;
+  const { data, error } = await supabase
+    .from('journey_questions')
+    .select('level_id')
+    .eq('track', JOURNEY_RAPID)
+    .in('level_id', levelIds);
+  if (error) {
+    if (isMissingColumn(error, 'track')) {
+      hasJourneyTrack = false;
+      console.warn('[journey] no track column — run: ALTER TABLE journey_questions ADD COLUMN IF NOT EXISTS track TEXT NOT NULL DEFAULT \'full\';');
+    } else {
+      console.warn('[journey] rapid counts unavailable —', error.message);
+    }
+    return counts;
+  }
+  for (const r of data || []) counts[r.level_id] = (counts[r.level_id] || 0) + 1;
+  if ((data || []).length >= 1000) {
+    console.warn('[journey] rapid question count hit the row cap — counts may be short; give it its own RPC.');
+  }
+  return counts;
+}
+
+async function buildJourneyPath(userId, subject, track = 'full') {
   const [chaptersRes, progressRes, ultBossRes] = await Promise.all([
     supabase.from('journey_chapters').select('*').eq('subject', subject)
       .order('sort_order', { ascending: true }).order('name', { ascending: true }),
@@ -14089,6 +14183,20 @@ async function buildJourneyPath(userId, subject) {
         for (const r of (qcData || [])) levelQCounts[r.level_id] = r.question_count;
       }
 
+      // The RPC counts a level's questions whatever track they are on, so
+      // the two tracks are separated by subtraction: rapid is counted
+      // directly (it is small), and full is everything else. Exact, and it
+      // needs no second RPC — which matters, because the one above exists
+      // precisely to dodge a row cap that a direct count of the full set
+      // would hit.
+      const rapidCounts = await rapidCountsByLevel(levelRows.map(l => l.id));
+      for (const l of levelRows) {
+        const rapid = rapidCounts[l.id] || 0;
+        levelQCounts[l.id] = track === JOURNEY_RAPID
+          ? rapid
+          : Math.max(0, (levelQCounts[l.id] || 0) - rapid);
+      }
+
       // Same RPC shape, is_bonus-filtered. A missing function or missing
       // is_bonus column (migration not run) both degrade to "no bonus
       // questions anywhere" — the bonus button simply doesn't appear, rather
@@ -14118,8 +14226,10 @@ async function buildJourneyPath(userId, subject) {
   }
 
   const progByKey = new Map(progress.map(p => [p.level_key, p]));
-  const isDone = (key) => !!progByKey.get(key)?.completed_at;
-  const best   = (key) => progByKey.get(key)?.best_score_pct || 0;
+  // Every lookup goes through the track's own namespace, so the two ways
+  // through a level never read each other's progress.
+  const isDone = (key) => !!progByKey.get(journeyProgKey(track, key))?.completed_at;
+  const best   = (key) => progByKey.get(journeyProgKey(track, key))?.best_score_pct || 0;
 
   const chapters = [];
   let allBossesSatisfied = true;
@@ -14165,7 +14275,7 @@ async function buildJourneyPath(userId, subject) {
         // Bonus is earned on THIS level's own best score, independent of the
         // unlock chain above — a level can be bonus-eligible before or after
         // it gates the next one.
-        bonus_question_count: levelBonusCounts[l.id] || 0,
+        bonus_question_count: track === JOURNEY_RAPID ? 0 : (levelBonusCounts[l.id] || 0),
         bonus_unlocked: bestPct > JOURNEY_BONUS_THRESHOLD_PCT,
         // Only meaningful once completed — the UI only offers it there.
         confidence: confidenceByLevel[l.id] || null,
@@ -14359,7 +14469,7 @@ app.get('/api/journey/progress-summary', requireAuth, async (req, res) => {
 app.get('/api/journey/:subject', requireAuth, async (req, res) => {
   if (!supabase) return res.json({ subject: req.params.subject, threshold: 50, chapters: [], ultimate: null, mastery: false });
   try {
-    const path = await buildJourneyPath(req.userId, req.params.subject);
+    const path = await buildJourneyPath(req.userId, req.params.subject, journeyTrackOf(req.query.track));
     res.json(path);
   } catch (err) {
     console.error('[/api/journey] error:', err.message);
@@ -14412,23 +14522,28 @@ app.post('/api/journey/complete', requireAuth, async (req, res) => {
   if (!subject || !level_key || !Number.isFinite(score_pct)) {
     return res.status(400).json({ error: 'subject, level_key and numeric score_pct required' });
   }
+  // Which way through this was. The client is handed the real level id as
+  // its level_key — so that videos, notes and the rest stay keyed by it —
+  // and the namespacing happens here, on the way into journey_progress.
+  const track   = journeyTrackOf(req.body?.track);
+  const progKey = journeyProgKey(track, level_key);
   const pct       = Math.max(0, Math.min(100, Math.round(score_pct)));
   const threshold = Number(gameSettings.journeyThreshold) || 50;
   const seconds   = sanitizeSessionSeconds(req.body?.seconds);
   try {
     const { data: existing } = await supabase.from('journey_progress').select('*')
-      .eq('user_id', req.userId).eq('subject', subject).eq('level_key', level_key)
+      .eq('user_id', req.userId).eq('subject', subject).eq('level_key', progKey)
       .maybeSingle();
     // Idempotent: best score only ever rises; completed_at sticks once earned
     const { error } = await supabase.from('journey_progress').upsert({
       user_id: req.userId,
       subject,
-      level_key,
+      level_key: progKey,
       best_score_pct: Math.max(existing?.best_score_pct || 0, pct),
       completed_at: existing?.completed_at || (pct >= threshold ? new Date().toISOString() : null),
     }, { onConflict: 'user_id,subject,level_key' });
     if (error) throw error;
-    const path = await buildJourneyPath(req.userId, subject);
+    const path = await buildJourneyPath(req.userId, subject, track);
 
     // ── Per-attempt activity log (Phase 2) ─────────────────────────────────
     // Additive: journey_progress above keeps only the best score, so a failed or
@@ -14481,6 +14596,10 @@ app.get('/api/journey-questions', async (req, res) => {
   // player who earned the bonus round wants the bonus content, not the level
   // they already just played reshuffled in with it.
   const wantBonus = req.query.bonus === '1';
+  // Which way through. 'full' is every question written before tracks
+  // existed, so an absent or unknown value serves the Journey exactly as it
+  // always was.
+  const track = journeyTrackOf(req.query.track);
   // Once a request has proven is_bonus missing, EVERY later bonus request must
   // keep returning empty — not just the one that discovered it. Falling
   // through to "query without the flag" here would serve the level's normal
@@ -14496,7 +14615,20 @@ app.get('/api/journey-questions', async (req, res) => {
     let query = supabase.from('journey_questions').select('*').eq('level_id', level_id);
     if (hasJourneyRetirement) query = query.is('retired_at', null);
     if (hasJourneyBonus) query = query.eq('is_bonus', wantBonus);
+    // Same deploy-order safety as the two flags above: filtered only where
+    // the column is known to exist, and the whole Journey falls back to one
+    // undivided set until the migration runs.
+    if (hasJourneyTrack) query = query.eq('track', track);
     let { data, error } = await query.order('sort_order', { ascending: true }).order('created_at', { ascending: true });
+    if (error && hasJourneyTrack && isMissingColumn(error, 'track')) {
+      hasJourneyTrack = false;
+      console.warn('[journey] no track column — serving every question as one set. Run the ALTER in schema.sql.');
+      let untracked = supabase.from('journey_questions').select('*').eq('level_id', level_id);
+      if (hasJourneyRetirement) untracked = untracked.is('retired_at', null);
+      if (hasJourneyBonus) untracked = untracked.eq('is_bonus', wantBonus);
+      ({ data, error } = await untracked
+        .order('sort_order', { ascending: true }).order('created_at', { ascending: true }));
+    }
     if (error && isMissingColumn(error)) {
       hasJourneyBonus = false;
       // A bonus round with no is_bonus column has no bonus content to serve —

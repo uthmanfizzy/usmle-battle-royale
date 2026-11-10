@@ -3199,3 +3199,61 @@
   }
   .jm-confirm-card { padding-top: 26px; }
 }
+
+/* ── Which way through the Journey ────────────────────────────────────────
+   Two ways over the same map: the full question set, or the shorter one.
+   Sits above the chapters because it is a decision about the whole run, not
+   about any one of them — and because what it changes (which questions, and
+   which progress) is invisible until you are already inside a level. */
+.jm-track {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 2px auto 14px;
+  padding: 0 16px;
+}
+
+.jm-track-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 164px;
+  padding: 9px 18px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(10, 14, 20, 0.6);
+  color: rgba(255, 255, 255, 0.72);
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+.jm-track-btn:hover {
+  border-color: rgba(255, 255, 255, 0.36);
+  background: rgba(255, 255, 255, 0.07);
+}
+/* On: it reads as where you are, not as an offer. */
+.jm-track-btn.is-on {
+  border-color: rgba(232, 176, 75, 0.7);
+  background: rgba(232, 176, 75, 0.16);
+  color: #fff;
+}
+
+.jm-track-name {
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.jm-track-sub {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.5);
+  white-space: nowrap;
+}
+.jm-track-btn.is-on .jm-track-sub { color: rgba(255, 224, 170, 0.78); }
+
+@media (max-width: 520px) {
+  .jm-track-btn { min-width: 0; flex: 1 1 140px; padding: 8px 12px; }
+}
