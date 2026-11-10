@@ -42,3 +42,24 @@ export async function authFetch(path, options = {}) {
   });
   return res;
 }
+
+// ── The guest's name ───────────────────────────────────────────────────────
+// A guest has no account and no token, so a refresh used to throw them back
+// to the landing page and make them type a name again. The name is the whole
+// of a guest's identity here, so remembering it IS remembering the guest.
+//
+// Wrapped because storage throws in a private window and comes back empty
+// after a clear; a guest who cannot be remembered simply signs in again.
+const GUEST_KEY = 'mv_guest_name';
+
+export function getGuestName() {
+  try { return localStorage.getItem(GUEST_KEY) || ''; } catch { return ''; }
+}
+
+export function setGuestName(name) {
+  try { localStorage.setItem(GUEST_KEY, String(name || '').slice(0, 20)); } catch { /* not remembered */ }
+}
+
+export function clearGuestName() {
+  try { localStorage.removeItem(GUEST_KEY); } catch { /* nothing to clear */ }
+}

@@ -999,9 +999,10 @@ function lobbyPayload(lobby) {
     subject:         lobby.subject,
     gameMode:        lobby.gameMode,
     openToQuickJoin: lobby.openToQuickJoin !== false,
-    // Only a duel has these. Carried in the lobby payload so the player who
-    // JOINS sees what they are walking into, not just the host who set it.
-    duelOptions:     lobby.gameMode === 'pvp_duel' ? (lobby.duelOptions || null) : undefined,
+    // Carried for every mode, so the player who JOINS sees what they are
+    // walking into — which questions, which systems — and not just the host
+    // who chose it. The duel-only fields are ignored by the other modes.
+    duelOptions:     lobby.duelOptions || null,
     players:         [...lobby.players.values()].map(p => ({
       id: p.id, username: p.username, clanTag: p.clanTag || null,
       lives: p.lives, score: p.score, alive: p.alive, isBot: p.isBot || false,
@@ -1099,7 +1100,8 @@ function streakSnapshot(lobby) {
 const BUZZ_FUN_ROUNDS = 30;
 
 function startBuzzFun(lobby) {
-  const pool = questionBank.filter(q => (q.game_modes || []).includes('buzz_fun'));
+  // The host's chosen questions, or Buzz Fun's own.
+  const pool = matchPoolOr(lobby, questionBank.filter(q => (q.game_modes || []).includes('buzz_fun')));
   if (pool.length < 1) {
     io.to(lobby.id).emit('error', { message: 'No Buzz Fun questions available. Add some via the admin panel.' });
     return;
@@ -1214,12 +1216,83 @@ function processBuzzFunAnswers(lobby) {
   setTimeout(() => nextBuzzFunQuestion(lobby), explanationDelay);
 }
 
+/**
+ * The questions a lobby's match will be played from, when its host chose.
+ *
+ * Every mode used to be locked to its own tag on the bank: a Medathon was
+ * Medathon's questions and nothing else. The host picks now — any bank tag,
+ * everything at once, or the First Aid Journey (Thorough or Rapid), which
+ * lives in Supabase rather than in memory and so needs fetching.
+ *
+ * Sets lobby.matchPool, or leaves it null for "this mode's own questions".
+ * Too thin a pool is left null as well: a mode falling back to what it
+ * always played is a better answer than four questions and a dead round.
+ */
+const MATCH_POOL_MIN = 5;
+
+async function resolveMatchPool(lobby) {
+  lobby.matchPool = null;
+  // Nothing chosen at all. Not the same as choosing: the sanitizer's default
+  // source is the DUEL's pool, which would be the wrong bank to hand a
+  // Medathon whose host never opened the settings.
+  if (!lobby.duelOptions) return;
+  const opts = sanitizeDuelOptions(lobby.duelOptions);
+  if (opts.source === MATCH_DEFAULT_SOURCE) return;
+
+  let pool;
+  if (opts.source === DUEL_JOURNEY_SOURCE) {
+    pool = await journeyDuelPool(opts.chapterId, opts.journeyTrack).catch(() => []);
+  } else if (opts.source === 'all') {
+    pool = questionBank.slice();
+  } else {
+    pool = questionBank.filter(q => (q.game_modes || []).includes(opts.source));
+  }
+
+  // Narrowed by system, the same way a duel is. The Journey has no systems —
+  // it is organised by chapter, which is already the choice for that source.
+  if (opts.subjects.length && opts.source !== DUEL_JOURNEY_SOURCE) {
+    const want = new Set(opts.subjects);
+    const narrowed = pool.filter(q => want.has(String(q.subject || '').toLowerCase()));
+    if (narrowed.length >= MATCH_POOL_MIN) pool = narrowed;
+  }
+
+  if (pool.length >= MATCH_POOL_MIN) lobby.matchPool = pool;
+  else console.warn(`[match] ${lobby.id}: '${opts.source}' had ${pool.length} questions — playing the mode's own.`);
+}
+
+// What a mode should actually play: the host's choice when there is one,
+// otherwise the pool that mode has always built for itself.
+function matchPoolOr(lobby, ownPool) {
+  return Array.isArray(lobby.matchPool) && lobby.matchPool.length >= MATCH_POOL_MIN
+    ? lobby.matchPool
+    : ownPool;
+}
+
 function startGame(lobby) {
   // Wall-clock start for the activity log. Set here, above the mode dispatch,
   // because this is the ONLY entry point into any mode's start function — so
   // one assignment covers all six modes. Read by awardXP at game over.
   lobby.sessionStartedAt = Date.now();
 
+  // A duel resolves its own pool inside startPvpDuel, where the fallback is
+  // reported to both players; every other mode resolves it here first. The
+  // await is real only for the Journey, which is a Supabase round trip —
+  // everything else settles on the spot.
+  if (lobby.gameMode !== 'pvp_duel') {
+    // The resolve is asynchronous, so the lobby is briefly still 'waiting'
+    // and a second Start would run the whole thing twice.
+    if (lobby.starting) return;
+    lobby.starting = true;
+    resolveMatchPool(lobby).then(() => startGameWithPool(lobby)).catch(() => startGameWithPool(lobby));
+    return;
+  }
+  return startGameWithPool(lobby);
+}
+
+function startGameWithPool(lobby) {
+  lobby.starting = false;
+  // Everyone may have left while the pool was being fetched.
+  if (lobby.players.size < 2) return;
   if (lobby.gameMode === 'speed_race')     return startSpeedRace(lobby);
   if (lobby.gameMode === 'trivia_pursuit') return startTriviaPursuit(lobby);
   if (lobby.gameMode === 'buzz_fun')       return startBuzzFun(lobby);
@@ -1246,9 +1319,14 @@ function startGame(lobby) {
 
   let pool;
   if (lobby.gameMode === 'scan_master') {
-    pool = questionBank.filter(q => q.image_url && (q.game_modes || []).includes('scan_master'));
+    // Scan Master is images — that IS the mode. A chosen pool is honoured
+    // only for the questions in it that have one, and only if there are
+    // enough of them to play.
+    const own = questionBank.filter(q => q.image_url && (q.game_modes || []).includes('scan_master'));
+    const picked = (lobby.matchPool || []).filter(q => q.image_url);
+    pool = picked.length >= MATCH_POOL_MIN ? picked : own;
   } else {
-    const brPool = questionBank.filter(q => (q.game_modes || ['battle_royale']).includes('battle_royale'));
+    const brPool = matchPoolOr(lobby, questionBank.filter(q => (q.game_modes || ['battle_royale']).includes('battle_royale')));
     const raw = lobby.subject === 'all'
       ? brPool
       : brPool.filter(q => q.subject === lobby.subject);
@@ -1510,8 +1588,13 @@ const PVP_DUEL_EXTRA_SECONDS  = 30;
 // questions live in journey_questions, keyed by level, and are fetched when
 // the duel starts rather than filtered out of the in-memory bank.
 const DUEL_JOURNEY_SOURCE = 'first_aid_journey';
+// "Whatever this mode normally plays." The one source every mode understands,
+// and the default for every lobby that is not a duel: a Medathon host who
+// touches nothing still gets Medathon's own questions. A duel reads it as its
+// own pool, which is what its default always was.
+const MATCH_DEFAULT_SOURCE = 'default';
 const duelSources = () => [
-  'pvp_duel', 'battle_royale', 'all', DUEL_JOURNEY_SOURCE, ...QUESTION_BANK_MODE_IDS,
+  MATCH_DEFAULT_SOURCE, 'pvp_duel', 'battle_royale', 'all', DUEL_JOURNEY_SOURCE, ...QUESTION_BANK_MODE_IDS,
 ];
 const DUEL_WIN_BY = ['hp', 'rounds'];
 const DUEL_ROUNDS_MIN = 3;
@@ -1526,7 +1609,11 @@ const PVP_DUEL_MAX_PLAYERS = 2;
 const DUEL_MAX_SUBJECTS = 40;
 
 const DEFAULT_DUEL_OPTIONS = {
-  source: 'pvp_duel',
+  // "This mode's own questions". A duel reads it as its own pool, which is
+  // what its default has always been; every other mode reads it as the bank
+  // it has always played. An options payload that omits the source therefore
+  // cannot silently repoint a match at the duel bank.
+  source: MATCH_DEFAULT_SOURCE,
   winBy: 'hp',
   rounds: 10,
   // [] means every system. Listing them is how a host narrows it, and a list
@@ -1535,6 +1622,10 @@ const DEFAULT_DUEL_OPTIONS = {
   // Which First Aid Journey chapter to draw from; null is all of them. Only
   // read when source is 'first_aid_journey'.
   chapterId: null,
+  // Which way through the Journey the questions come from: 'full' is
+  // Thorough, 'rapid' is the short set. Same split the Journey itself plays
+  // by, so a match can be set to either.
+  journeyTrack: 'full',
   // The ability dock and mana bar in the duel HUD. They are display-only
   // today, which is exactly why being able to switch them off matters: an
   // inert row of buttons is worse than no row at all if you do not want it.
@@ -1570,7 +1661,8 @@ function sanitizeDuelOptions(raw) {
   // an older client that sends neither field behaves as it always did.
   const powers = o.powers !== false;
   const explanations = o.explanations !== false;
-  return { source, winBy, rounds, subjects, chapterId, powers, explanations };
+  const journeyTrack = journeyTrackOf(o.journeyTrack);
+  return { source, winBy, rounds, subjects, chapterId, journeyTrack, powers, explanations };
 }
 
 /**
@@ -1585,8 +1677,9 @@ function sanitizeDuelOptions(raw) {
  * it treats a bank tag that is too thin to play: it falls back and says so,
  * rather than refusing to start a duel two people are waiting on.
  */
-async function journeyDuelPool(chapterId) {
+async function journeyDuelPool(chapterId, track = 'full') {
   if (!supabase) return [];
+  const want = journeyTrackOf(track);
   try {
     let levelQuery = supabase.from('journey_levels').select('id');
     if (chapterId) levelQuery = levelQuery.eq('chapter_id', chapterId);
@@ -1599,18 +1692,35 @@ async function journeyDuelPool(chapterId) {
       .from('journey_questions')
       .select('id, level_id, question, options, correct, explanation, why_others_wrong, image_url')
       .in('level_id', levelIds);
+    // Thorough or Rapid — the same split the Journey itself plays by. Only
+    // where the column exists; without the migration there is one undivided
+    // set and both choices draw from it, which is what the Journey does too.
+    if (hasJourneyTrack) qQuery = qQuery.eq('track', want);
     // Same deploy-order safety the rest of this file uses: an unknown column
     // fails the whole select, so the retirement filter is applied only where
     // it is known to exist and dropped on the one failure that proves it is
     // not there.
     if (hasJourneyRetirement) qQuery = qQuery.is('retired_at', null);
     let { data, error } = await qQuery;
-    if (error && isMissingColumn(error)) {
-      hasJourneyRetirement = false;
-      ({ data, error } = await supabase
+    if (error && hasJourneyTrack && isMissingColumn(error, 'track')) {
+      // No track column: one undivided set, and both choices draw from it
+      // rather than this returning nothing at all.
+      hasJourneyTrack = false;
+      let untracked = supabase
         .from('journey_questions')
         .select('id, level_id, question, options, correct, explanation, why_others_wrong, image_url')
-        .in('level_id', levelIds));
+        .in('level_id', levelIds);
+      if (hasJourneyRetirement) untracked = untracked.is('retired_at', null);
+      ({ data, error } = await untracked);
+    }
+    if (error && isMissingColumn(error)) {
+      hasJourneyRetirement = false;
+      let plain = supabase
+        .from('journey_questions')
+        .select('id, level_id, question, options, correct, explanation, why_others_wrong, image_url')
+        .in('level_id', levelIds);
+      if (hasJourneyTrack) plain = plain.eq('track', want);
+      ({ data, error } = await plain);
     }
     if (error) throw error;
 
@@ -1643,7 +1753,7 @@ function startPvpDuel(lobby) {
   // needs a round trip before the duel can be built. Everything else goes
   // straight through, exactly as before.
   if (opts.source === DUEL_JOURNEY_SOURCE) {
-    journeyDuelPool(opts.chapterId)
+    journeyDuelPool(opts.chapterId, opts.journeyTrack)
       .then(pool => beginPvpDuel(lobby, pool))
       .catch(() => beginPvpDuel(lobby, []));
     return;
@@ -1678,10 +1788,13 @@ function beginPvpDuel(lobby, journeyPool) {
 
   // A Journey duel's pool arrived with the call; every other source is a tag
   // on the bank already in memory.
+  // 'default' means "this mode's own questions", which for a duel is the duel
+  // pool it has always drawn from.
+  const srcTag = opts.source === MATCH_DEFAULT_SOURCE ? 'pvp_duel' : opts.source;
   const chosen = journeyPool
     ? journeyPool
-    : opts.source === 'all' ? questionBank.slice() : taggedWith(opts.source);
-  let usedSource = opts.source;
+    : srcTag === 'all' ? questionBank.slice() : taggedWith(srcTag);
+  let usedSource = srcTag;
   let base = chosen;
   if (base.length < 5) {
     base = brPool.length >= 5 ? brPool : questionBank.slice();
@@ -2351,7 +2464,7 @@ function startSpeedRace(lobby) {
     lobby.speedPlayers.set(p.id, { idx: 0, timer: null, botTimer: null, finished: false, timerEnd: 0, usedPowerupThisQ: false });
   }
 
-  const srBank = questionBank.filter(q => (q.game_modes || ['speed_race']).includes('speed_race'));
+  const srBank = matchPoolOr(lobby, questionBank.filter(q => (q.game_modes || ['speed_race']).includes('speed_race')));
   const pool = lobby.subject === 'all'
     ? srBank
     : srBank.filter(q => q.subject === lobby.subject);
@@ -2651,11 +2764,15 @@ async function saveMedathonReview(review) {
  * or it is not there at all. A system with nothing at all is skipped, so the
  * stage list the client draws is always the truth about what is coming.
  */
-function buildMedathonRun() {
-  const pool = questionBank.filter(q => {
+// The bank a Medathon races over when nobody has chosen one.
+function medathonOwnPool() {
+  return questionBank.filter(q => {
     const tags = q.game_modes || [];
     return tags.length === 0 || tags.includes('medathon') || tags.includes('battle_royale');
   });
+}
+
+function buildMedathonRun(pool = medathonOwnPool()) {
   const used   = new Set();
   const queue  = [];
   const stages = [];
@@ -2711,7 +2828,17 @@ function emitMedathonProgress(lobby) {
 }
 
 function startMedathon(lobby) {
-  const { queue, stages } = buildMedathonRun();
+  // The race is fifteen systems, so a chosen pool has to HAVE systems. One
+  // that does not — the First Aid Journey is organised by chapter, and its
+  // questions carry no system — would build an empty run, so the Medathon
+  // falls back to its own bank rather than refusing to start.
+  const own = medathonOwnPool();
+  let run = buildMedathonRun(matchPoolOr(lobby, own));
+  if (run.queue.length === 0 && lobby.matchPool) {
+    console.warn(`[medathon] ${lobby.id}: the chosen questions map to no system — racing the usual bank.`);
+    run = buildMedathonRun(own);
+  }
+  const { queue, stages } = run;
   if (queue.length === 0) {
     io.to(lobby.id).emit('error', { message: 'No questions available for the Medathon yet. Add some via the admin panel.' });
     return;
@@ -3403,8 +3530,10 @@ io.on('connection', (socket) => {
     const reply = typeof ack === 'function' ? ack : () => {};
     if (!lobby) return reply({ ok: false, error: 'No lobby.' });
     if (lobby.hostId !== socket.id) return reply({ ok: false, error: 'Only the host can change the duel.' });
-    if (lobby.status !== 'waiting') return reply({ ok: false, error: 'The duel has already started.' });
-    if (lobby.gameMode !== 'pvp_duel') return reply({ ok: false, error: 'Not a duel.' });
+    if (lobby.status !== 'waiting') return reply({ ok: false, error: 'The match has already started.' });
+    // Every mode now, not just duels: which questions a match is played from
+    // is the host's choice everywhere. The duel-only fields in the payload
+    // (win condition, powers, explanations) are simply unread by the others.
     lobby.duelOptions = sanitizeDuelOptions(options);
     io.to(lobby.id).emit('lobby_update', lobbyPayload(lobby));
     reply({ ok: true, options: lobby.duelOptions });
@@ -3917,6 +4046,10 @@ io.on('connection', (socket) => {
     lobby.duelPlacements  = null;
     lobby.duelTotalRounds = null;
     lobby.duelUsedSource  = null;
+    // The pool a finished match was played from, and the guard that stops a
+    // second Start while one is being fetched. Both belong to that match.
+    lobby.matchPool       = null;
+    lobby.starting        = false;
     lobby.answeredCounts  = new Map();
     clearDuelAdvance(lobby);
 

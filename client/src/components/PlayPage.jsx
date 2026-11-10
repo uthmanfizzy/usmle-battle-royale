@@ -10,6 +10,9 @@ import AnKingMode from './AnKingMode';
 const DUEL_JOURNEY = 'first_aid_journey';
 
 const DUEL_SOURCES = [
+  // "Whatever this mode normally plays" — the default everywhere except a
+  // duel, whose own pool is listed next and is what it has always drawn from.
+  { id: 'default',            label: "This mode's own questions" },
   { id: 'pvp_duel',           label: 'PvP Arenas pool' },
   { id: DUEL_JOURNEY,         label: 'First Aid Journey' },
   { id: 'uworld_adventure',   label: 'UWorld Adventure' },
@@ -192,7 +195,9 @@ export default function PlayPage({
   }
 
   useEffect(() => {
-    if (lobbyGameMode !== 'pvp_duel' || subjects.length) return undefined;
+    // Every mode can be narrowed by system now, so the list is fetched for
+    // any open lobby rather than only for a duel.
+    if (!lobbyId || subjects.length) return undefined;
     let cancelled = false;
     authFetch('/api/subjects')
       .then(r => r.json())
@@ -212,9 +217,12 @@ export default function PlayPage({
       })
       .catch(() => { /* the duel still plays, it just cannot be narrowed */ });
     return () => { cancelled = true; };
-  }, [lobbyGameMode, subjects.length]);
+  }, [lobbyId, subjects.length]);
 
-  const duelSource = duelOptions?.source || 'pvp_duel';
+  // A duel keeps its own pool as the default; every other mode defaults to
+  // the questions it has always played.
+  const isDuel = lobbyGameMode === 'pvp_duel';
+  const duelSource = duelOptions?.source || (isDuel ? 'pvp_duel' : 'default');
   const duelIsJourney = duelSource === DUEL_JOURNEY;
 
   useEffect(() => {
@@ -514,7 +522,7 @@ export default function PlayPage({
               the players and the start button. On a wide screen it gets two
               columns instead of one tall scroll; the modifier is what the
               layout in PlayPageArena.css keys off. */}
-          <div className={`lobby-panel${lobbyGameMode === 'pvp_duel' ? ' lobby-panel--duel' : ''}`}>
+          <div className="lobby-panel lobby-panel--duel">
 
             {/* Header */}
             <div className="lobby-panel-header">
@@ -562,10 +570,10 @@ export default function PlayPage({
                 much as the host needs to choose it. A duel is the one mode
                 where the pool is a real decision — the others draw from the
                 general bank by design. */}
-            {lobbyGameMode === 'pvp_duel' && (
+            {(
               <div className="lobby-duel-section">
                 <p className="lobby-duel-title">
-                  {isHost ? 'Duel settings' : 'The host has set'}
+                  {isHost ? (isDuel ? 'Duel settings' : 'Match settings') : 'The host has set'}
                 </p>
 
                 <div className="lobby-duel-row">
@@ -573,7 +581,7 @@ export default function PlayPage({
                   {isHost ? (
                     <select
                       className="lobby-duel-select"
-                      value={duelOptions?.source || 'pvp_duel'}
+                      value={duelSource}
                       onChange={(e) => onDuelOptions?.({ ...duelOptions, source: e.target.value })}
                     >
                       {DUEL_SOURCES.map(s => (
@@ -582,11 +590,49 @@ export default function PlayPage({
                     </select>
                   ) : (
                     <span className="lobby-duel-value">
-                      {DUEL_SOURCES.find(s => s.id === (duelOptions?.source || 'pvp_duel'))?.label}
+                      {DUEL_SOURCES.find(s => s.id === duelSource)?.label}
                     </span>
                   )}
                 </div>
 
+                {/* ── Which way through the Journey ──────────────────────
+                    The Journey has two question sets over the same chapters:
+                    Thorough, everything written, and Rapid, the short one.
+                    A match drawn from it has to say which, or it would be
+                    drawing from whichever one happened to be the default. */}
+                {duelIsJourney && (
+                  <div className="lobby-duel-row">
+                    <span className="lobby-duel-label">Question set</span>
+                    {isHost ? (
+                      <div className="lobby-duel-choice">
+                        <button
+                          type="button"
+                          className={`lobby-duel-chip${(duelOptions?.journeyTrack || 'full') === 'full' ? ' is-on' : ''}`}
+                          onClick={() => onDuelOptions?.({ ...duelOptions, journeyTrack: 'full' })}
+                        >
+                          📖 Thorough
+                        </button>
+                        <button
+                          type="button"
+                          className={`lobby-duel-chip${duelOptions?.journeyTrack === 'rapid' ? ' is-on' : ''}`}
+                          onClick={() => onDuelOptions?.({ ...duelOptions, journeyTrack: 'rapid' })}
+                        >
+                          ⚡ Rapid
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="lobby-duel-value">
+                        {duelOptions?.journeyTrack === 'rapid' ? 'Rapid — the short set' : 'Thorough — the full set'}
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {/* How a duel is won, how long it runs, whether the ability
+                    dock and the explanations appear — all of it is duel
+                    machinery. The other modes have their own rules and only
+                    share the question-source part above. */}
+                {isDuel && (
                 <div className="lobby-duel-row">
                   <span className="lobby-duel-label">Won by</span>
                   {isHost ? (
@@ -614,8 +660,9 @@ export default function PlayPage({
                     </span>
                   )}
                 </div>
+                )}
 
-                {duelOptions?.winBy === 'rounds' && isHost && (
+                {isDuel && duelOptions?.winBy === 'rounds' && isHost && (
                   <div className="lobby-duel-row">
                     <span className="lobby-duel-label">How many</span>
                     <div className="lobby-duel-choice">
@@ -726,6 +773,7 @@ export default function PlayPage({
                 )}
 
                 {/* ── Powers ────────────────────────────────────────────── */}
+                {isDuel && (
                 <div className="lobby-duel-row">
                   <span className="lobby-duel-label">Powers</span>
                   {isHost ? (
@@ -751,8 +799,10 @@ export default function PlayPage({
                     </span>
                   )}
                 </div>
+                )}
 
                 {/* ── Explanations ─────────────────────────────────────── */}
+                {isDuel && (
                 <div className="lobby-duel-row">
                   <span className="lobby-duel-label">Explanations</span>
                   {isHost ? (
@@ -778,12 +828,16 @@ export default function PlayPage({
                     </span>
                   )}
                 </div>
+                )}
 
+                {isDuel && (
                 <p className="lobby-duel-note">
                   {(duelOptions?.winBy || 'hp') === 'hp'
                     ? 'Both start on 100 HP. The first correct answer each round strikes for 5 — the duel ends when someone hits zero.'
                     : `${duelOptions?.rounds || 10} questions, then most damage dealt wins. A knockout still ends it early.`}
                 </p>
+                )}
+                {isDuel && (
                 <p className="lobby-duel-note">
                   {duelOptions?.explanations === false
                     ? 'No explanations — the next question comes straight away.'
@@ -792,6 +846,14 @@ export default function PlayPage({
                     ? ' The ability dock is hidden.'
                     : ' The ability dock is shown (display only for now).'}
                 </p>
+                )}
+                {!isDuel && (
+                  <p className="lobby-duel-note">
+                    {duelSource === 'default'
+                      ? `${lobbyModeData?.name || 'This mode'} plays its own questions. Pick another set above and the whole match is drawn from that instead.`
+                      : 'Everyone in the match answers from this set. If it turns out too thin to play, the mode falls back to its usual questions.'}
+                  </p>
+                )}
               </div>
             )}
 

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react'
 import socket from './socket';
 import * as audio from './audio';
 import { watchMatch } from './matchWatch';
-import { getToken, clearToken, fetchMe, getCachedUser, redirectToGoogle } from './auth';
+import { getToken, clearToken, fetchMe, getCachedUser, redirectToGoogle, getGuestName, setGuestName, clearGuestName } from './auth';
 import UsernameEntry from './components/UsernameEntry';
 import ExamSelect from './components/ExamSelect';
 import DifficultySelect from './components/DifficultySelect';
@@ -116,11 +116,14 @@ export default function App() {
   // The duel's own settings: where its questions come from and how it is won.
   // Mirrors the server defaults so the lobby renders something sensible before
   // the first lobby_update lands.
+  // Source is left UNSET on purpose. A duel reads that as its own pool and
+  // every other mode as its own questions; naming 'pvp_duel' here made a
+  // fresh Medathon lobby claim it was playing the duel bank.
   const [duelOptions, setDuelOptions] = useState({
-    source: 'pvp_duel', winBy: 'hp', rounds: 10,
+    winBy: 'hp', rounds: 10,
     // [] is every system; several is a mix. Powers are the (display-only)
     // ability dock; explanations are whether one is sent between rounds.
-    subjects: [], chapterId: null, powers: true, explanations: true,
+    subjects: [], chapterId: null, journeyTrack: 'full', powers: true, explanations: true,
   });
   // How many players have said they are done reading this round's
   // explanation, straight from the server. Cleared when the round changes so
@@ -252,8 +255,22 @@ export default function App() {
     }
 
     if (token) {
-      // Logged-in user landing on / → send to /dashboard
+      // Logged-in user landing on / → send to /dashboard. A real account
+      // supersedes any guest name left over from before they signed in.
+      clearGuestName();
       window.location.replace('/dashboard');
+      return;
+    }
+
+    // A guest who refreshes is still that guest. Their name is the whole of
+    // their identity here — there is no account and no token — so restoring
+    // it restores them, straight to where a guest sign-in lands. No welcome
+    // overlay: they are not arriving, they are coming back.
+    const savedGuest = getGuestName();
+    if (savedGuest) {
+      setUsername(savedGuest);
+      connectSocket();
+      setPhase('mode_split');
       return;
     }
 
@@ -617,6 +634,9 @@ export default function App() {
 
   function handleLogout() {
     clearToken();
+    // Logging out means logging out of both kinds of session, or the next
+    // load would quietly sign them back in as the guest they used to be.
+    clearGuestName();
     setUser(null);
     setUsername('');
     socket.disconnect();
@@ -636,6 +656,9 @@ export default function App() {
   function handleGuestLogin(name) {
     setUsername(name);
     setError('');
+    // Remembered here, so a refresh mid-session keeps them signed in as this
+    // guest rather than sending them back to the landing page to retype it.
+    setGuestName(name);
     setGuestWelcome(name);
   }
 
@@ -1101,10 +1124,18 @@ export default function App() {
           openToQuickJoin={openToQuickJoin}
           duelOptions={duelOptions}
           onDuelOptions={(opts) => {
+            // The source travels with EVERY change, even one that did not
+            // touch it. Left out, the server fills in its own default, and a
+            // host who only picked a system would have silently changed
+            // which bank the match is drawn from.
+            const withSource = {
+              ...opts,
+              source: opts.source || (gameMode === 'pvp_duel' ? 'pvp_duel' : 'default'),
+            };
             // Optimistic: the lobby reflects the choice at once, and the
             // server's own lobby_update confirms it a moment later.
-            setDuelOptions(opts);
-            socket.emit('set_duel_options', { options: opts });
+            setDuelOptions(withSource);
+            socket.emit('set_duel_options', { options: withSource });
           }}
           onStartGame={handleStartGame}
           onAddBot={handleAddBot}
