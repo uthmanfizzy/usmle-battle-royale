@@ -6632,6 +6632,21 @@ function JourneyPanel() {
     setQSel(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   }
 
+  /**
+   * Which way through a level is being authored.
+   *
+   * 'full' is the long approach and holds every question written before
+   * tracks existed; 'rapid' is the shorter set. Levels, chapters, videos and
+   * memory aids are SHARED — only the questions differ — so this scopes the
+   * question list and the questions written into it, and nothing else on
+   * this screen.
+   *
+   * Bosses have no tracks: a chapter boss is the chapter boss either way,
+   * and splitting those would mean writing every boss twice to keep both
+   * routes passable.
+   */
+  const [qTrack, setQTrack] = useState('full');
+
   // Editor view: null | { kind: 'level', level, chapter } | { kind: 'boss', chapter } | { kind: 'ultimate' }
   const [selected, setSelected] = useState(null);
   const [levelQs,  setLevelQs]  = useState([]);   // questions for the selected level
@@ -6967,17 +6982,27 @@ function JourneyPanel() {
     setShowForm(false);
   }
 
-  async function openLevel(level, chapter) {
+  async function openLevel(level, chapter, track = qTrack) {
     setError('');
     closeForm();
     setSelected({ kind: 'level', level, chapter });
     setQSel(new Set());   // selection belongs to the target you were viewing
     setLevelQs([]);
     try {
-      const res  = await apiCall(`/admin/journey-questions?level_id=${level.id}`);
+      const res  = await apiCall(`/admin/journey-questions?level_id=${level.id}&track=${track}`);
       const data = await res.json();
       setLevelQs(data.questions || []);
     } catch { setLevelQs([]); }
+  }
+
+  // Switching track reloads the open level's list: the two sets are separate,
+  // so the questions on screen belong to whichever one fetched them.
+  function pickQTrack(next) {
+    if (next === qTrack) return;
+    setQTrack(next);
+    setQSel(new Set());
+    closeForm();
+    if (selected?.kind === 'level') openLevel(selected.level, selected.chapter, next);
   }
 
   function openBoss(chapter) { setError(''); closeForm(); setQSel(new Set()); setSelected({ kind: 'boss', chapter }); }
@@ -7028,7 +7053,7 @@ function JourneyPanel() {
     const isLevel  = selected.kind === 'level';
     const base     = isLevel ? '/admin/journey-questions' : '/admin/boss-questions';
     const idFields = isLevel
-      ? { level_id: selected.level.id }
+      ? { level_id: selected.level.id, track: qTrack }
       : { subject, boss_key: bossKeyFor(selected) };
     const existingCount = editorQuestions.length;
     let imported = 0;
@@ -7114,6 +7139,7 @@ function JourneyPanel() {
             method: 'POST',
             body: JSON.stringify({
               level_id: levelId,
+              track: qTrack,
               question: q.question,
               options,
               correct: q.correct,
@@ -7220,7 +7246,7 @@ function JourneyPanel() {
         applyQs(qs => qs.map(q => q.id === editing.id ? data : q));
       } else {
         const idFields = isLevel
-          ? { level_id: selected.level.id }
+          ? { level_id: selected.level.id, track: qTrack }
           : { subject, boss_key: bossKeyFor(selected) };
         const body = {
           ...idFields,
@@ -7550,6 +7576,42 @@ function JourneyPanel() {
               )}
             </div>
           </div>
+
+          {/* ── Which way through this level ─────────────────────────
+              Scopes the list below AND everything written from here: Add
+              Question, Paste & Parse and Update Questions all land in the
+              track that is on. Levels, videos and memory aids are shared, so
+              this governs the questions and nothing else.
+
+              Bosses are absent on purpose — a chapter boss is the chapter
+              boss either way, and splitting them would mean authoring every
+              boss twice to keep both routes passable. */}
+          {selected.kind === 'level' && (
+            <div className="ap-qtrack" role="group" aria-label="Which question set">
+              <span className="ap-qtrack-label">Question set</span>
+              <button
+                type="button"
+                className={`ap-qtrack-btn${qTrack === 'full' ? ' is-on' : ''}`}
+                aria-pressed={qTrack === 'full'}
+                onClick={() => pickQTrack('full')}
+              >
+                📖 Thorough
+              </button>
+              <button
+                type="button"
+                className={`ap-qtrack-btn${qTrack === 'rapid' ? ' is-on' : ''}`}
+                aria-pressed={qTrack === 'rapid'}
+                onClick={() => pickQTrack('rapid')}
+              >
+                ⚡ Rapid
+              </button>
+              <span className="ap-qtrack-note">
+                {qTrack === 'full'
+                  ? 'The long approach — everything written before the split lives here.'
+                  : 'The short approach — concise questions, its own progress.'}
+              </span>
+            </div>
+          )}
 
           {selected.kind === 'level' && (
             <LevelVideosField key={selected.level.id} levelId={selected.level.id} />

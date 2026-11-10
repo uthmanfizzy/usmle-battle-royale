@@ -6280,3 +6280,65 @@
    default (30s)". Quieter than the description it follows: it states what is
    true right now, it is not more of the explanation. */
 .ap-srow-note { opacity: 0.72; font-style: italic; }
+
+/* ── Which question set a Journey level is being authored into ────────────
+   The First Aid Journey has two ways through: Thorough (the long approach,
+   where every question written before the split lives) and Rapid (shorter,
+   more concise). Levels, videos and memory aids are shared — only the
+   questions differ — so this scopes the list below it and everything
+   written from here: Add Question, Paste & Parse and Update Questions all
+   land in whichever is on.
+
+   Bosses have no equivalent: a chapter boss is the chapter boss either way. */
+.ap-qtrack {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 14px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.ap-qtrack-label {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.ap-qtrack-btn {
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.76);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.ap-qtrack-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+.ap-qtrack-btn.is-on {
+  background: rgba(232, 176, 75, 0.2);
+  border-color: rgba(232, 176, 75, 0.6);
+  color: #ffd98a;
+}
+
+/* Says what the choice means, because "Rapid" alone does not tell an author
+   that what they add here is a different set with its own progress. */
+.ap-qtrack-note {
+  flex: 1 1 260px;
+  min-width: 0;
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.46);
+}
