@@ -6342,3 +6342,24 @@
   line-height: 1.4;
   color: rgba(255, 255, 255, 0.46);
 }
+
+/* The switch moves but the database cannot honour it: no track column, so
+   both sets are the same rows. Loud, because an authoring screen that fills
+   the wrong set looks completely normal while it does it. */
+.ap-qtrack-warn {
+  margin: 0 0 14px;
+  padding: 10px 14px;
+  border: 1px solid rgba(255, 138, 92, 0.45);
+  border-radius: 10px;
+  background: rgba(255, 138, 92, 0.1);
+  color: #ffc9ae;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.ap-qtrack-warn code {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.3);
+  font-size: 12px;
+}

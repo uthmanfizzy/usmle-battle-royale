@@ -6646,6 +6646,10 @@ function JourneyPanel() {
    * routes passable.
    */
   const [qTrack, setQTrack] = useState('full');
+  // True while the server reports no track column on journey_questions. The
+  // switch still moves, but both sets are the same rows until the migration
+  // runs and the server restarts, so the screen has to admit that.
+  const [qUntracked, setQUntracked] = useState(false);
 
   // Editor view: null | { kind: 'level', level, chapter } | { kind: 'boss', chapter } | { kind: 'ultimate' }
   const [selected, setSelected] = useState(null);
@@ -6992,6 +6996,10 @@ function JourneyPanel() {
       const res  = await apiCall(`/admin/journey-questions?level_id=${level.id}&track=${track}`);
       const data = await res.json();
       setLevelQs(data.questions || []);
+      // The server says so when it has no track column: the list it just
+      // sent is every question in the level, not this set's. Without this
+      // the two tabs show identical rows and look like a broken switch.
+      setQUntracked(!!data.untracked);
     } catch { setLevelQs([]); }
   }
 
@@ -7610,6 +7618,14 @@ function JourneyPanel() {
                   ? 'The long approach — everything written before the split lives here.'
                   : 'The short approach — concise questions, its own progress.'}
               </span>
+            </div>
+          )}
+          {selected.kind === 'level' && qUntracked && (
+            <div className="ap-qtrack-warn">
+              ⚠️ <strong>The two sets are not separated in this database yet.</strong> The
+              list below is every question in the level, the same under both tabs, and
+              anything you add is written without a set. Run{' '}
+              <code>journey-tracks-migration.sql</code> in Supabase, then restart the server.
             </div>
           )}
 

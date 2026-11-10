@@ -13456,7 +13456,10 @@ app.get('/admin/journey-questions', adminAuth, async (req, res) => {
       ({ data, error } = await untracked);
     }
     if (error) throw error;
-    res.json({ questions: data || [], track });
+    // untracked: true means this database has no track column yet, so the
+    // list above is EVERY question regardless of set. The admin says so out
+    // loud rather than showing the same rows under both tabs in silence.
+    res.json({ questions: data || [], track, untracked: !hasJourneyTrack });
   } catch (err) {
     console.warn('[/admin/journey-questions] unavailable, returning questions: [] —', err.message);
     res.json({ questions: [] });
