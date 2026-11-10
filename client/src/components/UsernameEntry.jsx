@@ -28,7 +28,7 @@ export default function UsernameEntry({ onJoin, onGoogleLogin, error }) {
   return (
     <div className="screen entry-screen">
       <div className="entry-outer">
-        <div className="entry-wordmark">MEDVALE</div>
+        <img className="entry-wordmark-img" src="/assets/medvale-logo.webp" alt="Medvale" />
         <div className="entry-card">
           <h1 className="entry-heading">Enter Medvale</h1>
           <p className="entry-tagline">Sign in to continue your saga.</p>

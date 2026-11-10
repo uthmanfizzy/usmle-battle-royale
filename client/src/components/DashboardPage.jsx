@@ -51,8 +51,7 @@ export default function DashboardPage() {
       <div className="screen entry-screen">
         <div className="entry-card" style={{ textAlign: 'center' }}>
           <div className="logo">
-            <span className="logo-icon">⚕️</span>
-            <h1>USMLE Battle Royale</h1>
+            <img className="logo-mark" src="/assets/medvale-logo.webp" alt="Medvale" />
           </div>
           <p style={{ color: 'var(--text-dim)', fontSize: 15, lineHeight: 1.6, marginBottom: 24 }}>
             Sign in with Google to save your progress and access your dashboard!

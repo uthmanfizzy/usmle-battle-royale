@@ -634,3 +634,19 @@
     padding: 22px 24px;
   }
 }
+
+/* The mark replaces the typed wordmark in the top-left of the landing nav.
+   Height-locked so it sits on the same line as the links beside it. */
+.lp-logo--img {
+  display: inline-flex;
+  align-items: center;
+  line-height: 0;
+}
+.lp-logo--img img {
+  height: 46px;
+  width: auto;
+  display: block;
+}
+@media (max-width: 760px) {
+  .lp-logo--img img { height: 34px; }
+}

@@ -39,7 +39,13 @@ const REASON_TEXT = {
 
 const STARTING_HP = 100;
 
-export default function PvpDuelResults({ gameResult, history = [], username, onPlayAgain, onHome, isGuest, onSignIn }) {
+export default function PvpDuelResults({
+  gameResult, history = [], username, onPlayAgain, onHome, isGuest, onSignIn,
+  // A rematch is an invitation now: one of you asks, the other answers, and
+  // only a yes rebuilds the lobby. These three say which side of that you are
+  // on — being asked, waiting on an answer, or told no.
+  rematchOffer = null, rematchAsking = false, rematchNote = '', onRematchAnswer,
+}) {
   // Which question's explanation is open. One at a time: the point is to read
   // one properly, not to scroll past twelve.
   const [openRound, setOpenRound] = useState(null);
@@ -229,13 +235,51 @@ export default function PvpDuelResults({ gameResult, history = [], username, onP
         )}
 
         <div className="pdr-actions">
-          <button type="button" className="pdr-btn pdr-btn--primary" onClick={onPlayAgain}>
-            Duel again
+          <button
+            type="button"
+            className="pdr-btn pdr-btn--primary"
+            onClick={onPlayAgain}
+            disabled={rematchAsking || !!rematchOffer}
+          >
+            {rematchAsking ? 'Waiting for their answer…' : 'Duel again'}
           </button>
           <button type="button" className="pdr-btn" onClick={onHome}>
             Home
           </button>
         </div>
+        {rematchNote && <p className="pdr-rematch-note">{rematchNote}</p>}
+
+        {/* ── Asked for a rematch ──────────────────────────────────────
+            Over the card, because it is a question that needs answering
+            before anything else on this screen matters. */}
+        {rematchOffer && (
+          <div className="pdr-rematch" role="dialog" aria-modal="true" aria-label="Rematch offer">
+            <div className="pdr-rematch-card">
+              <span className="pdr-rematch-icon" aria-hidden="true">⚔️</span>
+              <h3 className="pdr-rematch-title">{rematchOffer.from} wants a rematch</h3>
+              <p className="pdr-rematch-sub">
+                Say yes and you both go back to the duel lobby, where the settings
+                can be changed before you start again.
+              </p>
+              <div className="pdr-rematch-btns">
+                <button
+                  type="button"
+                  className="pdr-btn pdr-btn--primary"
+                  onClick={() => onRematchAnswer?.(true)}
+                >
+                  Accept
+                </button>
+                <button
+                  type="button"
+                  className="pdr-btn"
+                  onClick={() => onRematchAnswer?.(false)}
+                >
+                  Decline
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

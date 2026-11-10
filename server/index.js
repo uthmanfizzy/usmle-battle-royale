@@ -3839,7 +3839,56 @@ io.on('connection', (socket) => {
   socket.on('reset_game', () => {
     const lobby = lobbies.get(socket.lobbyId);
     if (!lobby) return;
+    resetLobbyToWaiting(lobby);
+  });
 
+  // ── A rematch is asked for, not taken ───────────────────────────────────
+  //
+  // "Duel again" used to reset the room on the spot, which put the other
+  // player back in a lobby they had not agreed to be in — and, before the
+  // auto-start went, straight into another ranked duel. It is an invitation
+  // now: the rival gets a prompt, and only their yes rebuilds the lobby.
+  //
+  // Both of them land in the duel lobby afterwards, not in a started match,
+  // so the settings can be changed before the second duel.
+  socket.on('duel_rematch_request', (_p, ack) => {
+    const lobby = lobbies.get(socket.lobbyId);
+    const me    = lobby?.players.get(socket.id);
+    if (!lobby || !me) return ack?.({ ok: false, error: 'That lobby is gone.' });
+    if (lobby.gameMode !== 'pvp_duel') return ack?.({ ok: false, error: 'Not a duel.' });
+    // Only from the results screen. Without this a client could send it in
+    // the middle of a duel, and an accepted "rematch" would wipe the match
+    // being played.
+    if (lobby.status !== 'game_over') return ack?.({ ok: false, error: 'That duel is not over.' });
+    // Nobody to ask: the rival has already left. Say so rather than leaving
+    // the asker watching a prompt that will never be answered.
+    const others = [...lobby.players.values()].filter(p => p.id !== socket.id && !p.isBot);
+    if (others.length === 0) return ack?.({ ok: false, error: 'Your rival has left.' });
+    lobby.rematchFrom = socket.id;
+    socket.to(lobby.id).emit('duel_rematch_offer', { from: me.username });
+    ack?.({ ok: true });
+  });
+
+  socket.on('duel_rematch_response', ({ accept } = {}) => {
+    const lobby = lobbies.get(socket.lobbyId);
+    if (!lobby || !lobby.players.has(socket.id)) return;
+    // Only an outstanding offer can be answered, and not by the one who made
+    // it — otherwise a client could reset the room from the results screen.
+    if (!lobby.rematchFrom || lobby.rematchFrom === socket.id) return;
+    if (lobby.status !== 'game_over') return;
+    const asker = lobby.rematchFrom;
+    lobby.rematchFrom = null;
+    if (!accept) {
+      io.to(asker).emit('duel_rematch_declined');
+      return;
+    }
+    resetLobbyToWaiting(lobby);
+    io.to(lobby.id).emit('duel_rematch_accepted', { lobbyId: lobby.id });
+  });
+
+  // Everything a finished match leaves behind, cleared. Shared by the plain
+  // reset and by an accepted rematch so the two cannot drift apart.
+  function resetLobbyToWaiting(lobby) {
     clearTimer(lobby);
     if (lobby.raceTimer) { clearTimeout(lobby.raceTimer); lobby.raceTimer = null; }
 
@@ -3876,14 +3925,8 @@ io.on('connection', (socket) => {
     }
 
     io.to(lobby.id).emit('game_reset', { lobbyId: lobby.id });
-
-    // "Duel again" put both players back in a lobby that never started: a
-    // duel begins on its own at two players, and only the JOIN routes ever
-    // said so. Without this the rematch button led to a dead room, which is
-    // where a guest — who has no other reason to be in a lobby — got stuck.
-    maybeAutoStartDuel(lobby);
     io.to(lobby.id).emit('lobby_update', lobbyPayload(lobby));
-  });
+  }
 
   socket.on('disconnect', async () => {
     console.log('[-] disconnected:', socket.id);

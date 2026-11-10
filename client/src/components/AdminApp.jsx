@@ -11771,7 +11771,7 @@ export default function AdminApp() {
       <header className="ap-header">
         <div className="ap-header-left">
           <span className="ap-header-logo">⚕️</span>
-          <span className="ap-header-title">USMLE Battle Royale</span>
+          <span className="ap-header-title">Medvale</span>
           <span className="ap-header-badge">Admin Panel</span>
         </div>
         <div className="ap-header-right">

@@ -58,6 +58,17 @@ export default function App() {
   const [muted,      setMuted]      = useState(false);
   const [difficulty, setDifficulty] = useState('easy');
   const [gameMode,   setGameMode]   = useState('battle_royale');
+  // The socket handlers are registered once, so their closure never sees a
+  // later gameMode. This mirror is what they read instead.
+  const gameModeRef = useRef('battle_royale');
+  useEffect(() => { gameModeRef.current = gameMode; }, [gameMode]);
+  // ── Rematch, as an invitation ───────────────────────────────────────────
+  // rematchOffer: a rival has asked US, and is waiting on the answer.
+  // rematchAsking: WE asked, and are waiting on theirs.
+  // rematchNote: what came of it, when the answer was no.
+  const [rematchOffer,  setRematchOffer]  = useState(null);
+  const [rematchAsking, setRematchAsking] = useState(false);
+  const [rematchNote,   setRematchNote]   = useState('');
   // Level-up celebration. Driven by a real before/after comparison at the one
   // refresh point that reliably follows an XP award (the game_over fetchMe);
   // levelRef mirrors the current level so the socket handler's stale closure
@@ -289,6 +300,23 @@ export default function App() {
 
     socket.on('duel_skip_votes', (v) => setDuelSkipVotes(v || null));
 
+    // The rival wants another. Shown over the results card until answered.
+    socket.on('duel_rematch_offer', ({ from } = {}) => {
+      setRematchNote('');
+      setRematchOffer({ from: from || 'Your rival' });
+    });
+    socket.on('duel_rematch_declined', () => {
+      setRematchAsking(false);
+      setRematchNote('They turned down the rematch.');
+    });
+    // game_reset has already put both of us in the duel lobby; this only
+    // clears the prompt that asked for it.
+    socket.on('duel_rematch_accepted', () => {
+      setRematchOffer(null);
+      setRematchAsking(false);
+      setRematchNote('');
+    });
+
     socket.on('game_start', ({ gameMode: gm, duelOptions: dOpts, duelSource, totalRounds }) => {
       if (dOpts) setDuelOptions(dOpts);
       setDuelHistory([]);
@@ -506,7 +534,14 @@ export default function App() {
     });
 
     socket.on('game_reset', () => {
-      setPhase('lobby');
+      // A duel goes back to the ARENA lobby — the overlay on PlayPage with
+      // the duel's own settings — not to the generic Battle Lobby screen,
+      // which knows nothing about pools, chapters or systems and was simply
+      // the wrong room to land a rematch in.
+      setPhase(gameModeRef.current === 'pvp_duel' ? 'play_page' : 'lobby');
+      setRematchOffer(null);
+      setRematchAsking(false);
+      setRematchNote('');
       setGameResult(null);
       setQuestion(null);
       setAnswerResult(null);
@@ -542,7 +577,9 @@ export default function App() {
        'answer_result', 'round_results', 'game_over', 'game_reset',
        'player_left', 'error', 'sudden_death',
        'race_progress', 'trivia_turn', 'trivia_rolled', 'trivia_question', 'trivia_answer_result',
-       'powerup_assigned', 'powerup_result', 'frozen', 'unfrozen'].forEach(e => socket.off(e));
+       'powerup_assigned', 'powerup_result', 'frozen', 'unfrozen',
+       'duel_skip_votes', 'duel_rematch_offer', 'duel_rematch_declined',
+       'duel_rematch_accepted'].forEach(e => socket.off(e));
       socket.disconnect();
       audio.stopBgMusic();
     };
@@ -890,7 +927,25 @@ export default function App() {
   function handleSoloSubjectSelect(s)        { setSoloSubject(s); setPhase('solo_difficulty'); }
   function handleSoloDifficultySelect(diff)  { setDifficulty(diff); setPhase('solo_game'); }
   function handleSoloTryAgain()              { setSoloKey(k => k + 1); setPhase('solo_game'); }
-  function handlePlayAgain()                 { socket.emit('reset_game'); }
+  function handlePlayAgain() {
+    // Every other mode resets its own room. A duel asks the rival first —
+    // there are only two of you, and the second duel is theirs to agree to.
+    if (gameMode !== 'pvp_duel') { socket.emit('reset_game'); return; }
+    setRematchNote('');
+    setRematchAsking(true);
+    socket.timeout(8000).emit('duel_rematch_request', {}, (err, res) => {
+      if (err || !res?.ok) {
+        setRematchAsking(false);
+        setRematchNote(err ? 'No answer from the server.' : (res?.error || 'Could not ask for a rematch.'));
+      }
+    });
+  }
+
+  function handleRematchAnswer(accept) {
+    setRematchOffer(null);
+    socket.emit('duel_rematch_response', { accept });
+    if (!accept) setRematchNote('');
+  }
 
   function handleReturnHome() {
     audio.stopBgMusic();
@@ -1316,6 +1371,10 @@ export default function App() {
           onHome={handleReturnHome}
           isGuest={!user}
           onSignIn={handleGoogleLogin}
+          rematchOffer={rematchOffer}
+          rematchAsking={rematchAsking}
+          rematchNote={rematchNote}
+          onRematchAnswer={handleRematchAnswer}
         />
         </RouteErrorBoundary>
       )}

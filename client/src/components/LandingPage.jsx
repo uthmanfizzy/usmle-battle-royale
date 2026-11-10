@@ -55,7 +55,9 @@ export default function LandingPage({ onSignIn }) {
 
         <nav className="lp-nav">
           <div className="lp-nav-left">
-            <button className="lp-logo" onClick={scrollToTop}>MEDVALE</button>
+            <button className="lp-logo lp-logo--img" onClick={scrollToTop} aria-label="Medvale">
+              <img src="/assets/medvale-logo.webp" alt="Medvale" />
+            </button>
             <div className={`lp-nav-links ${menuOpen ? 'open' : ''}`}>
               <button className="lp-nav-link" onClick={() => scrollTo('lore')}>Story</button>
               <button className="lp-nav-link" onClick={() => scrollTo('features')}>Battle Royale</button>

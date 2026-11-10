@@ -411,3 +411,64 @@
 /* The card grows a lot with a review in it, so it scrolls rather than
    overflowing the viewport. */
 .pdr-card { max-height: calc(100vh - 48px); overflow-y: auto; }
+
+/* ── Rematch ──────────────────────────────────────────────────────────────
+   The ask is a prompt over the card, not a line inside it: nothing else on
+   this screen matters until it is answered, and the rival is waiting. */
+.pdr-rematch {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  animation: pdr-rematch-fade 0.2s ease both;
+}
+@keyframes pdr-rematch-fade { from { opacity: 0; } to { opacity: 1; } }
+
+.pdr-rematch-card {
+  width: min(420px, 100%);
+  padding: 26px 24px 22px;
+  text-align: center;
+  border-radius: 16px;
+  border: 1.5px solid rgba(155, 89, 182, 0.55);
+  background: linear-gradient(170deg, rgba(26, 18, 32, 0.98), rgba(10, 8, 13, 0.99));
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6), 0 0 36px rgba(155, 89, 182, 0.18);
+  animation: pdr-rematch-rise 0.26s cubic-bezier(0.2, 0.9, 0.3, 1) both;
+}
+@keyframes pdr-rematch-rise {
+  from { opacity: 0; transform: translateY(12px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+
+.pdr-rematch-icon { font-size: 34px; display: block; margin-bottom: 8px; }
+
+.pdr-rematch-title {
+  margin: 0 0 8px;
+  font-family: var(--mv-font-display, 'Cinzel', serif);
+  font-size: 20px;
+  font-weight: 700;
+  color: #f3e9ff;
+}
+
+.pdr-rematch-sub {
+  margin: 0 0 18px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: rgba(241, 236, 228, 0.7);
+}
+
+.pdr-rematch-btns { display: flex; gap: 10px; justify-content: center; }
+.pdr-rematch-btns .pdr-btn { min-width: 128px; }
+
+/* Said after the fact — "they said no", "your rival has left" — so it sits
+   under the buttons rather than taking the screen. */
+.pdr-rematch-note {
+  margin: 10px 0 0;
+  text-align: center;
+  font-size: 12.5px;
+  color: rgba(241, 236, 228, 0.6);
+}

@@ -4648,3 +4648,22 @@ html[data-study="on"] .uw-exam .sg-stem-audio {
 @media (prefers-reduced-motion: reduce) {
   .sg-undo-toast { animation: none; }
 }
+
+/* ── The Medvale mark ──────────────────────────────────────────────────────
+   One asset, three places: the sign-in card, the Google-sign-in card and
+   anywhere else the wordmark used to be typed out. Sized by height so the
+   caduceus keeps its proportions, and capped by width so it never runs past
+   a narrow card. */
+.entry-wordmark-img {
+  display: block;
+  width: min(260px, 70vw);
+  height: auto;
+  margin: 0 auto;
+}
+
+.logo-mark {
+  display: block;
+  width: min(280px, 72vw);
+  height: auto;
+  margin: 0 auto 18px;
+}

@@ -4,7 +4,7 @@ export default function ExamSelect({ username, onSelectStep1 }) {
       <div className="exam-card">
         <div className="exam-header">
           <span className="exam-header-icon">🏥</span>
-          <h2>USMLE Battle Royale</h2>
+          <h2>Medvale</h2>
           <p>Welcome, <strong>{username}</strong>. Choose your exam.</p>
         </div>
 
