@@ -2144,7 +2144,7 @@ async function awardXP(lobby, sorted) {
       // pass silently or cost the player their XP row. Journey/Training/Solo
       // are deliberately not wired yet (separate phases).
       try {
-        const { error: actErr } = await supabase.from('activity_sessions').insert({
+        const row = {
           user_id:              sock.userId,   // guests already skipped above
           game_mode:            lobby.gameMode || 'battle_royale', // as game_history
           subject:              lobby.subject,
@@ -2156,9 +2156,20 @@ async function awardXP(lobby, sorted) {
           outcome_type:         'win_loss',
           is_win:               isWinner,      // same value that drives games_won
           duration_seconds:     durationSeconds,
+          // What the player got through. The study modes have reported this
+          // since the column existed; the live modes never did, so a match
+          // showed its minutes on Daily Activity with no questions beside
+          // them. Null rather than 0 where nothing was counted, so a row
+          // says nothing instead of claiming none.
+          questions_answered:   lobby.answeredCounts?.get(player.id) ?? null,
           started_at:           startedAtIso,
           ended_at:             endedAtIso,
-        });
+        };
+        // Through sessionWrite, so a database without the questions_answered
+        // column still gets the ROW: losing the count is a shame, losing the
+        // timeline entry over it would be worse.
+        const { error: actErr } = await sessionWrite(row, (r) =>
+          supabase.from('activity_sessions').insert(r));
         if (actErr) {
           console.error(`[activity_sessions] insert failed for ${player.username} —`, actErr.message);
         }
@@ -2284,8 +2295,24 @@ function isQuestionBankQuestion(question) {
 }
 
 function trackPlayerAnswer(playerId, question, { answered, correct }) {
-  const userId = io.sockets.sockets.get(playerId)?.userId;
+  const sock = io.sockets.sockets.get(playerId);
+  const userId = sock?.userId;
   if (!userId) return;
+
+  // How many questions this player actually got through, for the day's
+  // activity row. Counted BEFORE the bank gate below on purpose: the two
+  // are different books. "You answered 38 questions in a duel today" is
+  // true and worth showing on Daily Activity; "those 38 are struck off the
+  // UWorld Adventure syllabus" is not. A match should show its work without
+  // spending a bank's plan.
+  if (answered) {
+    const lobby = lobbies.get(sock.lobbyId);
+    if (lobby) {
+      if (!lobby.answeredCounts) lobby.answeredCounts = new Map();
+      lobby.answeredCounts.set(playerId, (lobby.answeredCounts.get(playerId) || 0) + 1);
+    }
+  }
+
   if (isQuestionBankQuestion(question)) return;
   void recordQuestionSeen(userId, question, { answered, correct });
 }
@@ -3811,11 +3838,28 @@ io.on('connection', (socket) => {
     lobby.triviaCurrentCategory   = null;
     lobby.triviaCurrentQuestion   = null;
 
+    // Duel state. startPvpDuel rebuilds the HP and damage maps, but NOT the
+    // forfeit — so a rematch after someone gave up was decided by the
+    // previous match's forfeit before a question had been asked. The
+    // answered counts go too, or the next activity row would inherit them.
+    lobby.duelForfeitedBy = null;
+    lobby.duelPlacements  = null;
+    lobby.duelTotalRounds = null;
+    lobby.duelUsedSource  = null;
+    lobby.answeredCounts  = new Map();
+    clearDuelAdvance(lobby);
+
     for (const p of lobby.players.values()) {
       p.lives = gameSettings.startingLives; p.score = 0; p.alive = true;
     }
 
     io.to(lobby.id).emit('game_reset', { lobbyId: lobby.id });
+
+    // "Duel again" put both players back in a lobby that never started: a
+    // duel begins on its own at two players, and only the JOIN routes ever
+    // said so. Without this the rematch button led to a dead room, which is
+    // where a guest — who has no other reason to be in a lobby — got stuck.
+    maybeAutoStartDuel(lobby);
     io.to(lobby.id).emit('lobby_update', lobbyPayload(lobby));
   });
 

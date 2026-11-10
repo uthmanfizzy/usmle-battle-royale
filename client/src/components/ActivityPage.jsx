@@ -28,6 +28,7 @@ const MODE_META = {
   buzz_fun:         { icon: '🔔', label: 'Buzz Fun'        },
   scan_master:      { icon: '🔬', label: 'Scan Master'     },
   pvp_duel:         { icon: '🤺', label: 'PvP Duel'        },
+  medathon:         { icon: '🏁', label: 'Medathon'        },
   journey:          { icon: '🚑', label: 'First Aid Journey' },
   training_grounds: { icon: '🎯', label: 'Training Grounds'  },
   // The three study-only writers. They emit activity_sessions rows too, so
@@ -99,6 +100,25 @@ function formatLongDuration(totalSeconds) {
 const BANK_SUMMARY_MODES = QUESTION_BANK_MODES.map(m => ({
   mode: m.activityMode, label: m.label, icon: m.icon,
 }));
+
+// The live modes get a line too. They were absent from this band entirely —
+// an afternoon of duels showed up in the timeline below and in the day's
+// total, but the band that says "where did the hours go" listed only the
+// study banks, so the honest answer to "how much PvP did I play today" was
+// nowhere on the page.
+//
+// Keyed by lobby.gameMode, which is what the server writes to
+// activity_sessions.game_mode for every multiplayer match. Labels and icons
+// come from MODE_META so this list and the timeline rows cannot drift.
+const LIVE_SUMMARY_MODE_IDS = [
+  'pvp_duel', 'medathon', 'battle_royale', 'speed_race',
+  'trivia_pursuit', 'buzz_fun', 'scan_master',
+];
+
+const SUMMARY_MODES = [
+  ...BANK_SUMMARY_MODES,
+  ...LIVE_SUMMARY_MODE_IDS.map(id => ({ mode: id, ...modeMeta(id) })),
+];
 
 const todayUTC = () => new Date().toISOString().slice(0, 10);
 
@@ -675,7 +695,7 @@ export default function ActivityPage() {
   // existed, and summing those as zero would quietly understate the day. So
   // only sessions that actually carry a count are added up, and the line says
   // how many it could see when that is not all of them.
-  const bankSummaries = BANK_SUMMARY_MODES.map(({ mode, label, icon }) => {
+  const bankSummaries = SUMMARY_MODES.map(({ mode, label, icon }) => {
     const rows = sessions.filter(s => s.game_mode === mode);
     if (!rows.length) return null;
     const counted = rows.filter(s => Number(s.questions_answered) > 0);
