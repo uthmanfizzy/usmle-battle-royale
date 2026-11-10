@@ -1241,7 +1241,7 @@ async function resolveMatchPool(lobby) {
 
   let pool;
   if (opts.source === DUEL_JOURNEY_SOURCE) {
-    pool = await journeyDuelPool(opts.chapterId, opts.journeyTrack).catch(() => []);
+    pool = await journeyDuelPool(opts, opts.journeyTrack).catch(() => []);
   } else if (opts.source === 'all') {
     pool = questionBank.slice();
   } else {
@@ -1619,9 +1619,12 @@ const DEFAULT_DUEL_OPTIONS = {
   // [] means every system. Listing them is how a host narrows it, and a list
   // of more than one is how they mix.
   subjects: [],
-  // Which First Aid Journey chapter to draw from; null is all of them. Only
-  // read when source is 'first_aid_journey'.
+  // How a First Aid Journey match is narrowed: subject, then a chapter
+  // inside it, then a level inside that. Null at any step means "all of
+  // them from here down". Only read when source is 'first_aid_journey'.
+  journeySubject: null,
   chapterId: null,
+  levelId: null,
   // Which way through the Journey the questions come from: 'full' is
   // Thorough, 'rapid' is the short set. Same split the Journey itself plays
   // by, so a match can be set to either.
@@ -1654,15 +1657,19 @@ function sanitizeDuelOptions(raw) {
   // Which Journey chapter, when the source is the Journey. Null is every
   // chapter. Only meaningful for that source; carried regardless so switching
   // source and back does not silently lose the choice.
-  const chapterId = typeof o.chapterId === 'string' && o.chapterId.trim()
-    ? o.chapterId.trim().slice(0, 64)
+  const oneId = (v) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, 64) : null);
+  const chapterId = oneId(o.chapterId);
+  const levelId = oneId(o.levelId);
+  // The Journey's own subject key, normalised like every other subject id.
+  const journeySubject = typeof o.journeySubject === 'string' && o.journeySubject.trim()
+    ? o.journeySubject.trim().toLowerCase().slice(0, 64)
     : null;
   // Explicitly false turns them off; anything else keeps the default on, so
   // an older client that sends neither field behaves as it always did.
   const powers = o.powers !== false;
   const explanations = o.explanations !== false;
   const journeyTrack = journeyTrackOf(o.journeyTrack);
-  return { source, winBy, rounds, subjects, chapterId, journeyTrack, powers, explanations };
+  return { source, winBy, rounds, subjects, journeySubject, chapterId, levelId, journeyTrack, powers, explanations };
 }
 
 /**
@@ -1677,15 +1684,36 @@ function sanitizeDuelOptions(raw) {
  * it treats a bank tag that is too thin to play: it falls back and says so,
  * rather than refusing to start a duel two people are waiting on.
  */
-async function journeyDuelPool(chapterId, track = 'full') {
+async function journeyDuelPool({ journeySubject = null, chapterId = null, levelId = null } = {}, track = 'full') {
   if (!supabase) return [];
   const want = journeyTrackOf(track);
   try {
-    let levelQuery = supabase.from('journey_levels').select('id');
-    if (chapterId) levelQuery = levelQuery.eq('chapter_id', chapterId);
-    const { data: levels, error: levelErr } = await levelQuery;
-    if (levelErr) throw levelErr;
-    const levelIds = (levels || []).map(l => l.id).filter(Boolean);
+    // Narrowed from the bottom up, because each step is more specific than
+    // the one above it: a level IS a chapter's level and a chapter IS a
+    // subject's chapter, so the narrowest choice made is the only one that
+    // needs asking about.
+    let levelIds;
+    if (levelId) {
+      levelIds = [levelId];
+    } else {
+      let chapterIds = null;
+      if (chapterId) {
+        chapterIds = [chapterId];
+      } else if (journeySubject) {
+        // Every chapter of that subject. Without this, "Biochemistry, every
+        // chapter" would have drawn from the whole Journey.
+        const { data: chaps, error: chapErr } = await supabase
+          .from('journey_chapters').select('id').eq('subject', journeySubject);
+        if (chapErr) throw chapErr;
+        chapterIds = (chaps || []).map(c => c.id).filter(Boolean);
+        if (!chapterIds.length) return [];
+      }
+      let levelQuery = supabase.from('journey_levels').select('id');
+      if (chapterIds) levelQuery = levelQuery.in('chapter_id', chapterIds);
+      const { data: levels, error: levelErr } = await levelQuery;
+      if (levelErr) throw levelErr;
+      levelIds = (levels || []).map(l => l.id).filter(Boolean);
+    }
     if (!levelIds.length) return [];
 
     let qQuery = supabase
@@ -1753,7 +1781,7 @@ function startPvpDuel(lobby) {
   // needs a round trip before the duel can be built. Everything else goes
   // straight through, exactly as before.
   if (opts.source === DUEL_JOURNEY_SOURCE) {
-    journeyDuelPool(opts.chapterId, opts.journeyTrack)
+    journeyDuelPool(opts, opts.journeyTrack)
       .then(pool => beginPvpDuel(lobby, pool))
       .catch(() => beginPvpDuel(lobby, []));
     return;
@@ -13179,6 +13207,34 @@ app.get('/api/journey-chapters', async (req, res) => {
     // cannot be narrowed to a chapter, not that anything is broken.
     console.warn('[/api/journey-chapters] unavailable —', err.message);
     res.json({ chapters: [] });
+  }
+});
+
+/**
+ * The levels of one chapter, for narrowing a match to a single level.
+ *
+ * Public and read-only, like /api/journey-chapters above: a lobby needs the
+ * names to offer, and nothing here is worth hiding. Without a chapter_id it
+ * returns nothing rather than every level in the game — the list is only
+ * meaningful inside a chapter, and the whole table is not a menu.
+ */
+app.get('/api/journey-levels', async (req, res) => {
+  if (!supabase) return res.json({ levels: [] });
+  const chapterId = (req.query.chapter_id || '').toString().trim();
+  if (!chapterId) return res.json({ levels: [] });
+  try {
+    const { data, error } = await supabase.from('journey_levels')
+      .select('id, chapter_id, name, sort_order')
+      .eq('chapter_id', chapterId)
+      .order('sort_order', { ascending: true })
+      .order('name', { ascending: true });
+    if (error) throw error;
+    res.json({ levels: data || [] });
+  } catch (err) {
+    // Same promise the chapters endpoint makes: an empty list means the match
+    // cannot be narrowed to a level, not that anything is broken.
+    console.warn('[/api/journey-levels] unavailable —', err.message);
+    res.json({ levels: [] });
   }
 });
 

@@ -240,6 +240,57 @@ export default function PlayPage({
 
   const chapterName = (id) => chapters.find(c => c.id === id)?.name || 'that chapter';
 
+  // ── Narrowing a Journey match: subject → chapter → level ────────────────
+  //
+  // Chapters carry their subject, so one fetch of the whole list is also the
+  // list of subjects — and the reason the chapter row needed this in the
+  // first place is that chapter NAMES repeat across subjects. Six chapters
+  // called "Embryology", one per subject, are indistinguishable in a flat
+  // list; inside their subject they are obvious.
+  const journeySubject = duelOptions?.journeySubject || null;
+  const journeyChapterId = duelOptions?.chapterId || null;
+
+  const journeySubjects = (() => {
+    const seen = new Map();
+    for (const c of chapters) {
+      const id = String(c.subject || '').toLowerCase();
+      if (!id || seen.has(id)) continue;
+      seen.set(id, subjects.find(s => s.id === id)?.name
+        || id.replace(/[_-]+/g, ' ').replace(/\b\w/g, ch => ch.toUpperCase()));
+    }
+    return [...seen].map(([id, name]) => ({ id, name }));
+  })();
+
+  // Only the chosen subject's chapters. No subject chosen is every chapter,
+  // which is what the whole Journey means here.
+  const journeyChapters = journeySubject
+    ? chapters.filter(c => String(c.subject || '').toLowerCase() === journeySubject)
+    : chapters;
+
+  // Levels of the chosen chapter. Fetched only once a chapter is picked —
+  // there is no such thing as "the levels" without one, and the endpoint
+  // says so by returning nothing.
+  const [levels, setLevels] = useState([]);
+  useEffect(() => {
+    if (!duelIsJourney || !journeyChapterId) { setLevels([]); return undefined; }
+    let cancelled = false;
+    authFetch(`/api/journey-levels?chapter_id=${encodeURIComponent(journeyChapterId)}`)
+      .then(r => r.json())
+      .then(d => { if (!cancelled) setLevels((d?.levels || []).filter(l => l && l.id)); })
+      .catch(() => { if (!cancelled) setLevels([]); });
+    return () => { cancelled = true; };
+  }, [duelIsJourney, journeyChapterId]);
+
+  const levelName = (id) => levels.find(l => l.id === id)?.name || 'that level';
+
+  // Choosing higher up clears what was chosen below it: a chapter from
+  // another subject, or a level from another chapter, would silently decide
+  // the match while the screen showed the subject the host actually picked.
+  const pickJourneySubject = (id) =>
+    onDuelOptions?.({ ...duelOptions, journeySubject: id, chapterId: null, levelId: null });
+  const pickJourneyChapter = (id) =>
+    onDuelOptions?.({ ...duelOptions, chapterId: id, levelId: null });
+
   // What the host has narrowed to, always an array so the chips below can
   // treat "nothing chosen" and "field missing" the same way.
   const duelSubjects = Array.isArray(duelOptions?.subjects) ? duelOptions.subjects : [];
@@ -680,41 +731,121 @@ export default function PlayPage({
                   </div>
                 )}
 
-                {/* ── Which chapter ──────────────────────────────────
-                    Only for a Journey duel. The Journey is organised by
-                    chapter rather than by system, so this replaces the
-                    systems row rather than sitting beside it — narrowing by
-                    both would filter every question out. */}
+                {/* ── Narrowing a Journey match ─────────────────────────
+                    Subject, then a chapter inside it, then a level inside
+                    that — each step appearing only once the one above it
+                    has been made, because each only means anything inside
+                    the last. This replaces the systems row rather than
+                    sitting beside it: the Journey's questions carry no
+                    system of their own, so narrowing by both would filter
+                    every one of them out. */}
                 {duelIsJourney && (
+                  <div className="lobby-duel-row lobby-duel-row--stack">
+                    <span className="lobby-duel-label">Subject</span>
+                    {isHost ? (
+                      <div className="lobby-duel-subjects">
+                        <button
+                          type="button"
+                          className={`lobby-duel-chip${!journeySubject ? ' is-on' : ''}`}
+                          onClick={() => pickJourneySubject(null)}
+                        >
+                          Every subject
+                        </button>
+                        {journeySubjects.map(sub => (
+                          <button
+                            key={sub.id}
+                            type="button"
+                            className={`lobby-duel-chip${journeySubject === sub.id ? ' is-on' : ''}`}
+                            aria-pressed={journeySubject === sub.id}
+                            onClick={() => pickJourneySubject(sub.id)}
+                          >
+                            {sub.name}
+                          </button>
+                        ))}
+                        {journeySubjects.length === 0 && (
+                          <span className="lobby-duel-value">No subjects to choose from</span>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="lobby-duel-value">
+                        {journeySubject
+                          ? (journeySubjects.find(x => x.id === journeySubject)?.name || journeySubject)
+                          : 'Every subject'}
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {/* A chapter is a chapter OF a subject, so this waits for
+                   one. Chapter names repeat across subjects — six called
+                   "Embryology" in one flat list told you nothing. */}
+                {duelIsJourney && journeySubject && (
                   <div className="lobby-duel-row lobby-duel-row--stack">
                     <span className="lobby-duel-label">Chapter</span>
                     {isHost ? (
                       <div className="lobby-duel-subjects">
                         <button
                           type="button"
-                          className={`lobby-duel-chip${!duelOptions?.chapterId ? ' is-on' : ''}`}
-                          onClick={() => onDuelOptions?.({ ...duelOptions, chapterId: null })}
+                          className={`lobby-duel-chip${!journeyChapterId ? ' is-on' : ''}`}
+                          onClick={() => pickJourneyChapter(null)}
                         >
                           Every chapter
                         </button>
-                        {chapters.map(c => (
+                        {journeyChapters.map(c => (
                           <button
                             key={c.id}
                             type="button"
-                            className={`lobby-duel-chip${duelOptions?.chapterId === c.id ? ' is-on' : ''}`}
-                            aria-pressed={duelOptions?.chapterId === c.id}
-                            onClick={() => onDuelOptions?.({ ...duelOptions, chapterId: c.id })}
+                            className={`lobby-duel-chip${journeyChapterId === c.id ? ' is-on' : ''}`}
+                            aria-pressed={journeyChapterId === c.id}
+                            onClick={() => pickJourneyChapter(c.id)}
                           >
                             {c.name}
                           </button>
                         ))}
-                        {chapters.length === 0 && (
-                          <span className="lobby-duel-value">No chapters to choose from</span>
+                        {journeyChapters.length === 0 && (
+                          <span className="lobby-duel-value">That subject has no chapters yet</span>
                         )}
                       </div>
                     ) : (
                       <span className="lobby-duel-value">
-                        {duelOptions?.chapterId ? chapterName(duelOptions.chapterId) : 'Every chapter'}
+                        {journeyChapterId ? chapterName(journeyChapterId) : 'Every chapter'}
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {/* And a level is a level OF a chapter. "All levels" is the
+                   whole chapter, which is what it was before this existed. */}
+                {duelIsJourney && journeyChapterId && (
+                  <div className="lobby-duel-row lobby-duel-row--stack">
+                    <span className="lobby-duel-label">Level</span>
+                    {isHost ? (
+                      <div className="lobby-duel-subjects">
+                        <button
+                          type="button"
+                          className={`lobby-duel-chip${!duelOptions?.levelId ? ' is-on' : ''}`}
+                          onClick={() => onDuelOptions?.({ ...duelOptions, levelId: null })}
+                        >
+                          All levels
+                        </button>
+                        {levels.map(l => (
+                          <button
+                            key={l.id}
+                            type="button"
+                            className={`lobby-duel-chip${duelOptions?.levelId === l.id ? ' is-on' : ''}`}
+                            aria-pressed={duelOptions?.levelId === l.id}
+                            onClick={() => onDuelOptions?.({ ...duelOptions, levelId: l.id })}
+                          >
+                            {l.name}
+                          </button>
+                        ))}
+                        {levels.length === 0 && (
+                          <span className="lobby-duel-value">That chapter has no levels yet</span>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="lobby-duel-value">
+                        {duelOptions?.levelId ? levelName(duelOptions.levelId) : 'All levels'}
                       </span>
                     )}
                   </div>
