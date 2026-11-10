@@ -79,18 +79,9 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: clamp(12px, 2vw, 20px) clamp(14px, 3vw, 30px) 0;
-}
-.arena-wordmark {
-  font-family: var(--mv-font-display, 'Cinzel', serif);
-  font-size: clamp(16px, 2vw, 21px);
-  font-weight: 700;
-  letter-spacing: 2px;
-  color: #f1ece4;
-  text-decoration: none;
+  padding: 0 clamp(14px, 3vw, 30px);
 }
 .arena-exit {
-  margin-left: 10px;
   padding: 7px 14px;
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.16);
@@ -183,8 +174,24 @@
 .arena-player-guest { font-size: 10px; letter-spacing: 0.08em; color: rgba(241, 236, 228, 0.5); }
 
 /* ── Header ───────────────────────────────────────────────────────────────── */
-.arena-col { position: relative; z-index: 2; }
-.arena-head { display: flex; flex-direction: column; align-items: center; gap: 6px; margin: clamp(10px, 3vh, 30px) 0 clamp(16px, 3vh, 28px); text-align: center; }
+/* Wider than the 820px .pp-col it overrides: six cards in two rows of three
+   rather than three rows of two, which is most of what "bring the games up"
+   amounts to — the wall ends above the fold instead of below it. */
+.arena-col {
+  position: relative;
+  z-index: 2;
+  max-width: min(1180px, 100%);
+}
+/* The title block earns its space but not a screenful of it: tight above,
+   so the first row of cards is visible without scrolling. */
+.arena-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin: 2px 0 clamp(12px, 2vh, 20px);
+  text-align: center;
+}
 .arena-kicker {
   font-size: 11px;
   font-weight: 800;
@@ -196,7 +203,7 @@
 .arena-title {
   margin: 0;
   font-family: var(--mv-font-display, 'Cinzel', serif);
-  font-size: clamp(30px, 6vw, 58px);
+  font-size: clamp(28px, 5vw, 46px);
   font-weight: 700;
   letter-spacing: 0.02em;
   color: #f7f2e9;
@@ -251,9 +258,11 @@
   gap: 9px;
   padding: 17px 17px 15px;
   border-radius: 15px;
-  border: 1.5px solid rgba(255, 255, 255, 0.12);
+  /* The frame itself carries the mode's colour. A shared white hairline was
+     what made six different faces read as one repeated card. */
+  border: 1.5px solid rgba(var(--ac), 0.42);
   background:
-    radial-gradient(120% 80% at 50% -20%, rgba(var(--ac), 0.22) 0%, rgba(0, 0, 0, 0) 62%),
+    radial-gradient(120% 80% at 50% -20%, rgba(var(--ac), 0.3) 0%, rgba(0, 0, 0, 0) 62%),
     linear-gradient(165deg, rgba(22, 19, 24, 0.92), rgba(10, 9, 12, 0.96));
   color: #f1ece4;
   font-family: inherit;
@@ -287,6 +296,36 @@
   transition: transform 0.6s ease;
 }
 .arena-card:hover:not(:disabled) .arena-card-sheen { transform: translateX(60%); }
+
+/* A band of the mode's colour across the top edge — the fastest way to tell
+   one card from another at a glance, before you have read a word of it. */
+.arena-card-rail {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, rgba(var(--ac), 0), rgba(var(--ac), 1) 22%, rgba(var(--ac), 1) 78%, rgba(var(--ac), 0));
+  opacity: 0.85;
+}
+
+/* Locked, said plainly. The card keeps its colour so the wall still reads as
+   six distinct modes rather than five grey rectangles and one live one. */
+.arena-card-soon {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 1;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(8, 7, 10, 0.82);
+  border: 1px solid rgba(var(--ac), 0.5);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(var(--ac), 1);
+}
 
 /* The per-mode art sits behind everything and is painted entirely in
    gradients, so six distinct card faces cost the page nothing. */
@@ -392,8 +431,9 @@
    choice you can make. */
 .arena-card.is-locked {
   cursor: not-allowed;
-  opacity: 0.58;
-  filter: grayscale(0.5);
+  /* No grayscale, and only a light dim: the badge above says it is locked,
+     and five desaturated cards made every mode look like the same mode. */
+  opacity: 0.82;
 }
 .arena-card.is-locked .arena-card-foot { color: rgba(241, 236, 228, 0.55); }
 

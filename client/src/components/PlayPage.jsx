@@ -304,8 +304,10 @@ export default function PlayPage({
         ))}
       </div>
 
+      {/* Leave sits in the top-left corner, where the wordmark used to be.
+          The wordmark was decoration on a page you arrive at from inside the
+          app — the one control you always want here is the way out. */}
       <div className="arena-top">
-        <a className="arena-wordmark" href="/dashboard">MEDVALE</a>
         <button type="button" className="arena-exit" onClick={onBack}>← Leave</button>
         <div className="arena-player">
           <div className="arena-player-avatar">
@@ -373,6 +375,11 @@ export default function PlayPage({
                   >
                     <span className="arena-card-art" aria-hidden="true" />
                     <span className="arena-card-sheen" aria-hidden="true" />
+                    <span className="arena-card-rail" aria-hidden="true" />
+                    {/* Locked is said with a badge, not by draining the card's
+                        colour — greying five of six made the whole wall look
+                        like one repeated card. */}
+                    {!isEnabled && <span className="arena-card-soon">Soon</span>}
                     <span className="arena-card-head">
                       <span className="arena-card-medal" aria-hidden="true">{mode.icon}</span>
                       <span className="arena-card-titles">

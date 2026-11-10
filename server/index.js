@@ -3490,22 +3490,42 @@ io.on('connection', (socket) => {
     const name = (username ?? '').trim().slice(0, 20);
     if (!name) return ack({ ok: false, error: 'Username required.' });
 
-    // Find best open lobby: same mode, waiting, open to quick join, no username
-    // clash, and (for 1v1 duels) not already full — a full duel is skipped so
-    // the existing fallback below creates a fresh lobby instead.
-    const candidates = [...lobbies.values()]
-      .filter(l =>
-        l.status === 'waiting' &&
-        l.openToQuickJoin !== false &&
-        l.gameMode === gameMode &&
-        l.players.size >= 1 &&
-        !(l.gameMode === 'pvp_duel' && l.players.size >= PVP_DUEL_MAX_PLAYERS) &&
-        ![...l.players.values()].some(p => p.username.toLowerCase() === name.toLowerCase())
-      )
-      .sort((a, b) => b.players.size - a.players.size);
+    // A lobby anyone can be dropped into: waiting, open to quick join, has
+    // somebody in it, no username clash, and not a duel that is already full.
+    const joinable = (l) =>
+      l.status === 'waiting' &&
+      l.openToQuickJoin !== false &&
+      l.players.size >= 1 &&
+      !(l.gameMode === 'pvp_duel' && l.players.size >= PVP_DUEL_MAX_PLAYERS) &&
+      ![...l.players.values()].some(p => p.username.toLowerCase() === name.toLowerCase());
 
-    if (candidates.length > 0) {
-      const lobby = candidates[0];
+    const open = [...lobbies.values()].filter(joinable);
+
+    // Fullest first, so quick join gathers the field into one room rather
+    // than scattering it across several half-empty ones.
+    const byFullest = (a, b) => b.players.size - a.players.size;
+
+    // First choice is always the mode the player actually picked.
+    let lobby = open.filter(l => l.gameMode === gameMode).sort(byFullest)[0];
+
+    // Second choice is SOMEBODY ELSE'S ROOM, whatever mode it is on.
+    //
+    // Without this, "quick join" only ever found a lobby when the two players
+    // happened to have the same card selected — and when they hadn't, it
+    // silently built a second empty lobby next to the first and left two
+    // people sitting alone in separate rooms, each believing they were
+    // waiting for the other. Joining the open room and switching the player
+    // to its mode is what they asked for; lobby_update already carries the
+    // real mode back to the client, so the page follows along by itself.
+    //
+    // Duels are kept out of this in BOTH directions: a 1v1 starts the instant
+    // a second player arrives, so crossing into or out of one would drop
+    // somebody into a ranked match they never chose.
+    if (!lobby && gameMode !== 'pvp_duel') {
+      lobby = open.filter(l => l.gameMode !== 'pvp_duel').sort(byFullest)[0];
+    }
+
+    if (lobby) {
       lobby.players.set(socket.id, {
         id: socket.id, username: name, clanTag: clanTag || null, isGuest: Boolean(isGuest),
         lives: gameSettings.startingLives, score: 0, alive: true,
@@ -3520,18 +3540,18 @@ io.on('connection', (socket) => {
       return;
     }
 
-    // No open lobby — create a new one
-    const lobby = makeLobby(socket.id, 'all', gameMode);
-    lobby.players.set(socket.id, {
+    // Nobody is waiting anywhere — open a room and be the one they join.
+    const fresh = makeLobby(socket.id, 'all', gameMode);
+    fresh.players.set(socket.id, {
       id: socket.id, username: name, clanTag: clanTag || null, isGuest: Boolean(isGuest),
       lives: gameSettings.startingLives, score: 0, alive: true,
     });
-    socket.lobbyId = lobby.id;
-    socket.join(lobby.id);
+    socket.lobbyId = fresh.id;
+    socket.join(fresh.id);
     registeredPlayers.add(name.toLowerCase());
-    ack({ ok: true, lobbyId: lobby.id, subject: 'all', created: true });
-    io.to(lobby.id).emit('lobby_update', lobbyPayload(lobby));
-    console.log(`${name} quick-join: no open lobby, created ${lobby.id}`);
+    ack({ ok: true, lobbyId: fresh.id, subject: 'all', created: true });
+    io.to(fresh.id).emit('lobby_update', lobbyPayload(fresh));
+    console.log(`${name} quick-join: no open lobby, created ${fresh.id}`);
   });
 
   // "I have finished reading." Counted, not obeyed: the round moves on when
