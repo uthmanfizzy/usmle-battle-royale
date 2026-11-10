@@ -1022,16 +1022,18 @@ function clearTimer(lobby) {
   if (lobby.timer) { clearTimeout(lobby.timer); lobby.timer = null; }
 }
 
-// PvP duels auto-start the moment the 2nd player joins — no host click.
-// Short delay so both clients process the join's lobby_update before
-// game_start arrives; re-checked inside the timeout in case someone left.
-function maybeAutoStartDuel(lobby) {
-  if (lobby.gameMode !== 'pvp_duel') return;
-  if (lobby.status !== 'waiting' || lobby.players.size !== 2) return;
-  setTimeout(() => {
-    if (lobby.status === 'waiting' && lobby.players.size === 2) startGame(lobby);
-  }, 800);
-}
+// Duels used to start themselves the moment a second player arrived. They no
+// longer do: the host presses Start, like every other mode.
+//
+// Auto-start made the lobby unusable as a lobby — the host could not finish
+// choosing a pool, a chapter or the systems, because the duel began the
+// instant somebody walked in. It also meant quick join could not be allowed
+// anywhere near a duel, since joining one WAS entering a ranked match.
+//
+// Kept as a no-op function rather than deleted so every call site stays a
+// single, obvious line that says "a second player arrived" — and so nothing
+// silently resurrects the behaviour.
+function maybeAutoStartDuel(_lobby) { /* the host starts the duel now */ }
 
 // ── Power-up system ────────────────────────────────────────────────────────────
 
@@ -3518,12 +3520,12 @@ io.on('connection', (socket) => {
     // to its mode is what they asked for; lobby_update already carries the
     // real mode back to the client, so the page follows along by itself.
     //
-    // Duels are kept out of this in BOTH directions: a 1v1 starts the instant
-    // a second player arrives, so crossing into or out of one would drop
-    // somebody into a ranked match they never chose.
-    if (!lobby && gameMode !== 'pvp_duel') {
-      lobby = open.filter(l => l.gameMode !== 'pvp_duel').sort(byFullest)[0];
-    }
+    // Duels are part of this now. They were held out while a 1v1 started
+    // itself the moment a second player arrived — joining one WAS entering a
+    // ranked match. The host presses Start now, so an open duel is just
+    // another room with someone waiting in it, and the player who lands there
+    // sees the duel's settings and can leave before a single question.
+    if (!lobby) lobby = open.sort(byFullest)[0];
 
     if (lobby) {
       lobby.players.set(socket.id, {

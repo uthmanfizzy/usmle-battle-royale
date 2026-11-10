@@ -722,4 +722,142 @@
   .lobby-start-btn--ready { animation: none; }
 }
 
+/* ── The duel lobby, given room ───────────────────────────────────────────
+   A duel lobby holds four different things — the code to share, who is in,
+   a full settings sheet, and the way to begin — and it held them in one
+   520px column, so the settings ran off the bottom behind a scrollbar and
+   the Start button was below everything an author had to read.
+
+   Two columns on a wide screen: the room on the left (code, players,
+   start), the settings on the right, each scrolling on its own. The panel
+   is a fixed height so the Start button never moves as systems are picked.
+   Below 900px it falls back to the single column it always was. ────────── */
+.lobby-panel--duel {
+  max-width: min(1040px, 96vw);
+  padding: 22px;
+  gap: 16px;
+}
+
+@media (min-width: 900px) {
+  .lobby-panel--duel {
+    display: grid;
+    grid-template-columns: minmax(0, 320px) minmax(0, 1fr);
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      "head    head"
+      "code    duel"
+      "players duel"
+      "actions duel";
+    column-gap: 20px;
+    row-gap: 14px;
+    height: min(86vh, 760px);
+    max-height: 86vh;
+    overflow: hidden;      /* each area scrolls itself, not the whole panel */
+  }
+  .lobby-panel--duel .lobby-panel-header  { grid-area: head; }
+  .lobby-panel--duel .lobby-code-section  { grid-area: code; }
+  .lobby-panel--duel .lobby-players-section {
+    grid-area: players;
+    min-height: 0;
+    overflow-y: auto;
+  }
+  .lobby-panel--duel .lobby-actions-section { grid-area: actions; }
+  .lobby-panel--duel .lobby-duel-section {
+    grid-area: duel;
+    min-height: 0;
+    overflow-y: auto;
+    margin: 0;
+  }
+}
+
+/* A rule under the header, so the title reads as a bar rather than as the
+   first of five stacked blocks. */
+.lobby-panel--duel .lobby-panel-header {
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(214, 161, 63, 0.22);
+}
+
+/* The three left-hand blocks become cards of the same family, which is what
+   makes the column read as one side of the room. */
+.lobby-panel--duel .lobby-code-section,
+.lobby-panel--duel .lobby-players-section,
+.lobby-panel--duel .lobby-duel-section {
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(214, 161, 63, 0.16);
+  background: rgba(255, 255, 255, 0.025);
+}
+
+/* Section labels, all cut to one pattern. */
+.lobby-panel--duel .lobby-code-label,
+.lobby-panel--duel .lobby-players-count,
+.lobby-panel--duel .lobby-duel-title {
+  margin: 0 0 10px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(214, 161, 63, 0.8);
+}
+
+/* Settings: label in a fixed column, control beside it, so the sheet reads
+   down one edge instead of zig-zagging with every label's width. */
+.lobby-panel--duel .lobby-duel-row {
+  display: grid;
+  grid-template-columns: 116px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 9px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+.lobby-panel--duel .lobby-duel-row:last-of-type { border-bottom: 0; }
+.lobby-panel--duel .lobby-duel-row--stack {
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+}
+.lobby-panel--duel .lobby-duel-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(241, 236, 228, 0.52);
+}
+
+/* Twenty-odd systems is a list, not a row of chips: it gets its own panel
+   with its own scroll, so picking a system never pushes Start off screen. */
+.lobby-panel--duel .lobby-duel-subjects {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-height: 168px;
+  overflow-y: auto;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(0, 0, 0, 0.3);
+}
+
+/* The notes at the foot of the sheet are what the duel will actually do —
+   worth reading, so they stop looking like small print. */
+.lobby-panel--duel .lobby-duel-note {
+  margin: 10px 0 0;
+  padding: 9px 11px;
+  border-radius: 9px;
+  border-left: 2px solid rgba(214, 161, 63, 0.55);
+  background: rgba(214, 161, 63, 0.07);
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: rgba(241, 236, 228, 0.72);
+}
+
+/* Start sits on its own shelf at the bottom of the left column, where it
+   does not move. */
+.lobby-panel--duel .lobby-actions-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(214, 161, 63, 0.22);
+}
+
 

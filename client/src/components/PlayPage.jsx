@@ -255,6 +255,18 @@ export default function PlayPage({
     if (error) setMmSearching(false);
   }, [error]);
 
+  // A duel no longer starts itself when the second player arrives — the host
+  // presses Start. So "found" is the end of the SEARCH, not the start of the
+  // match: hold the found animation long enough to read, then hand over to
+  // the lobby, where the settings and the Start button are. Without this the
+  // overlay sat on "Entering the arena…" forever and the lobby underneath,
+  // with the only button that can begin the duel, was unreachable.
+  useEffect(() => {
+    if (!mmFound) return undefined;
+    const t = setTimeout(() => setMmSearching(false), 1400);
+    return () => clearTimeout(t);
+  }, [mmFound]);
+
   function handleQuickJoinClick() {
     if (selectedMode === 'pvp_duel') setMmSearching(true);
     handleFindMatch();
@@ -480,7 +492,7 @@ export default function PlayPage({
                   </Fragment>
                 ))}
               </div>
-              <p className="pp-mm-sub">Entering the arena…</p>
+              <p className="pp-mm-sub">Rival found — taking you to the lobby…</p>
             </>
           ) : (
             <>
@@ -498,7 +510,11 @@ export default function PlayPage({
       {/* ── LOBBY OVERLAY — shows when a lobby is active ───────────────────── */}
       {lobbyId && !mmSearching && (
         <div className="lobby-overlay">
-          <div className="lobby-panel">
+          {/* A duel lobby carries a whole settings sheet as well as the code,
+              the players and the start button. On a wide screen it gets two
+              columns instead of one tall scroll; the modifier is what the
+              layout in PlayPageArena.css keys off. */}
+          <div className={`lobby-panel${lobbyGameMode === 'pvp_duel' ? ' lobby-panel--duel' : ''}`}>
 
             {/* Header */}
             <div className="lobby-panel-header">
