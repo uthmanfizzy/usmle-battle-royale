@@ -1273,3 +1273,345 @@
   .pvd-center-label { letter-spacing: 0.08em; }
   .pvd-option-letter { width: 23px; height: 23px; font-size: 11.5px; }
 }
+
+/* ══ The reading surface goes light ═══════════════════════════════════════
+   The question and its explanation are the one part of this screen you
+   READ, and they were set in near-white on near-black inside a dark arena
+   that is deliberately busy with embers, glows and strike flashes. They are
+   a sheet of parchment on the battlefield now: light card, dark ink, the
+   arena still raging behind and around it.
+
+   Everything here is scoped under .pvd, so the dark HUD — plates, timer,
+   feed, abilities — is untouched. */
+.pvd .pvd-modal {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(246, 242, 234, 0.97));
+  border: 1.5px solid rgba(232, 176, 75, 0.85);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.5) inset,
+    0 24px 60px rgba(0, 0, 0, 0.6),
+    0 0 46px rgba(232, 176, 75, 0.22);
+  /* It arrives rather than appears — a beat of motion between the arena and
+     the thing you are being asked to read. */
+  animation: pvd-sheet-in 0.32s cubic-bezier(0.2, 0.9, 0.3, 1) both;
+}
+@keyframes pvd-sheet-in {
+  from { opacity: 0; transform: translateY(14px) scale(0.985); }
+  to { opacity: 1; transform: none; }
+}
+
+.pvd .pvd-modal--waiting {
+  background: linear-gradient(180deg, rgba(20, 17, 24, 0.92), rgba(10, 9, 12, 0.94));
+  border-color: rgba(232, 176, 75, 0.45);
+}
+.pvd .pvd-modal--waiting .pvd-waiting-text { color: rgba(255, 255, 255, 0.7); }
+
+/* Ink. #23202b rather than black: full black on warm paper is harsher than
+   it looks at this size, and this is read under a five-second clock. */
+.pvd .pvd-modal .pvd-stem { color: #23202b; }
+.pvd .pvd-modal-title { color: #9a6b12; }
+.pvd .pvd-modal-clock { color: #23202b; }
+.pvd .pvd-modal-foot { color: rgba(35, 32, 43, 0.6); }
+
+/* A rule under the head, so the card has a masthead rather than a floating
+   label. */
+.pvd .pvd-modal-head {
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(35, 32, 43, 0.12);
+}
+
+/* ── Options on paper ───────────────────────────────────────────────────
+   The same states as before — teal for yours and for right, red for wrong —
+   restated at weights that work on a light ground, where a 15%-alpha tint
+   over near-black simply stopped existing. */
+.pvd .pvd-option {
+  background: rgba(35, 32, 43, 0.035);
+  border: 1px solid rgba(35, 32, 43, 0.16);
+  transition: background 0.15s, border-color 0.15s, transform 0.12s ease;
+  /* Each one slides in behind the one above it, which also gives the eye an
+     order to read them in. */
+  animation: pvd-opt-in 0.3s cubic-bezier(0.2, 0.9, 0.3, 1) both;
+}
+.pvd .pvd-option:nth-child(1) { animation-delay: 0.04s; }
+.pvd .pvd-option:nth-child(2) { animation-delay: 0.09s; }
+.pvd .pvd-option:nth-child(3) { animation-delay: 0.14s; }
+.pvd .pvd-option:nth-child(4) { animation-delay: 0.19s; }
+.pvd .pvd-option:nth-child(5) { animation-delay: 0.24s; }
+@keyframes pvd-opt-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+.pvd .pvd-option:hover:not(:disabled) {
+  background: rgba(35, 32, 43, 0.075);
+  border-color: rgba(35, 32, 43, 0.4);
+  transform: translateX(3px);
+}
+.pvd .pvd-option:active:not(:disabled) { transform: translateX(3px) scale(0.995); }
+
+.pvd .pvd-option-text { color: #23202b; }
+.pvd .pvd-option-letter { color: rgba(35, 32, 43, 0.55); }
+
+.pvd .pvd-option--mine {
+  background: rgba(13, 148, 136, 0.12);
+  border: 1.5px solid #0d9488;
+}
+.pvd .pvd-option--mine .pvd-option-letter { color: #0d9488; }
+.pvd .pvd-option--mine .pvd-option-text { color: #0b1f1d; font-weight: 600; }
+
+.pvd .pvd-option--right {
+  background: rgba(13, 148, 136, 0.16);
+  border: 1.5px solid #0d9488;
+  box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.14);
+}
+.pvd .pvd-option--right .pvd-option-letter { color: #0d9488; }
+.pvd .pvd-option--right .pvd-option-text { color: #0b1f1d; font-weight: 600; }
+
+.pvd .pvd-option--wrong {
+  background: rgba(193, 41, 30, 0.1);
+  border: 1.5px solid #c1291e;
+}
+.pvd .pvd-option--wrong .pvd-option-letter { color: #c1291e; }
+.pvd .pvd-option--wrong .pvd-option-text { color: #4a1410; }
+
+/* ── The explanation ────────────────────────────────────────────────────
+   This was the broken part. App.css sets
+
+       .explanation-text { color: rgba(255,255,255,0.88) !important }
+
+   for every explanation in the app, so on a light card the text would
+   render white on cream — present, selectable and invisible. An !important
+   has to be answered in kind; specificity alone cannot reach it.
+
+   It is also given back the room it needs: it was 13px in a box with no
+   padding of its own, under a 1px rule, which is what made a long
+   explanation read as a wall. */
+.pvd .pvd-result {
+  border-top: 1px solid rgba(35, 32, 43, 0.14);
+  padding-top: 14px;
+}
+.pvd .pvd-result--correct { border-top-color: rgba(13, 148, 136, 0.35); }
+.pvd .pvd-result-verdict { color: #c1291e; }
+.pvd .pvd-result-verdict--correct { color: #0d9488; }
+.pvd .pvd-result-strike { color: #23202b; }
+
+.pvd .pvd-result-expl {
+  padding: 14px 16px;
+  border-radius: 10px;
+  border: 1px solid rgba(35, 32, 43, 0.1);
+  border-left: 3px solid rgba(232, 176, 75, 0.9);
+  background: rgba(35, 32, 43, 0.035);
+  color: #2b2733;
+  font-size: 14px;
+  line-height: 1.65;
+  animation: pvd-expl-in 0.3s ease both;
+}
+@keyframes pvd-expl-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+.pvd .pvd-result-expl strong {
+  color: #0d9488;
+  font-size: 13.5px;
+  margin-bottom: 8px;
+}
+
+/* The answer to App.css's !important, scoped to this screen only. */
+.pvd .pvd-result-expl .explanation-text,
+.pvd .pvd-result-expl .explanation-sentence,
+.pvd .pvd-result-expl .explanation-line {
+  color: #2b2733 !important;
+  font-size: 14px !important;
+  line-height: 1.7 !important;
+}
+/* Paragraphs, not one undifferentiated block. */
+.pvd .pvd-result-expl .explanation-sentence { margin-bottom: 9px; }
+.pvd .pvd-result-expl .explanation-sentence:last-child { margin-bottom: 0; }
+/* Sentence-per-line is the component's own structure; it only reads that way
+   if the spans actually break. */
+.pvd .pvd-result-expl .explanation-line { display: block; }
+/* Inline colours authored against a dark background are unreadable on paper
+   — pale yellows and whites especially. The highlight marks keep theirs,
+   because those set their own bright fill and force dark ink on top. */
+.pvd .pvd-result-expl .explanation-text span[style*="color"]:not(mark span) {
+  color: #2b2733 !important;
+}
+.pvd .pvd-result-expl mark.hl,
+.pvd .pvd-result-expl mark.hl span { color: #1a1a2e !important; }
+/* A picture in an explanation should not run off the card. */
+.pvd .pvd-result-expl img { max-width: 100%; height: auto; border-radius: 8px; }
+
+/* The "we are both done reading" vote, restated for paper. */
+.pvd .pvd-skip-btn {
+  background: rgba(35, 32, 43, 0.06);
+  border: 1px solid rgba(35, 32, 43, 0.22);
+  color: #23202b;
+}
+.pvd .pvd-skip-btn:hover:not(:disabled) { background: rgba(35, 32, 43, 0.12); }
+.pvd .pvd-skip-btn.is-cast { color: #0d9488; border-color: rgba(13, 148, 136, 0.5); }
+.pvd .pvd-skip-count { color: rgba(35, 32, 43, 0.6); }
+
+/* The stem's own highlight marks, on paper. */
+.pvd .pvd-stem mark.hl span { color: #1a1a2e !important; }
+
+/* ══ A little more life in the arena ══════════════════════════════════════
+   Motion that says something: the clock tightening, health draining, a
+   strike landing. Nothing that moves for its own sake, and all of it under
+   the Motion control that is already on this screen. */
+
+/* The HP bar carries a slow sheen, so a bar that is dropping reads as alive
+   rather than as a static block that jumps. */
+.pvd .pvd-bar-fill--hp { position: relative; overflow: hidden; }
+.pvd .pvd-bar-fill--hp::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg,
+    rgba(255, 255, 255, 0) 35%,
+    rgba(255, 255, 255, 0.38) 50%,
+    rgba(255, 255, 255, 0) 65%);
+  transform: translateX(-100%);
+  animation: pvd-hp-sheen 2.8s ease-in-out infinite;
+}
+@keyframes pvd-hp-sheen {
+  0%, 55% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* The last seconds. The clock already turns urgent; now it breathes with it. */
+.pvd .pvd-center-timer--urgent { animation: pvd-tick 1s ease-in-out infinite; }
+@keyframes pvd-tick {
+  50% { transform: scale(1.06); }
+}
+
+/* Each new line of the feed arrives rather than appearing. */
+.pvd .pvd-feed-line--latest { animation: pvd-feed-in 0.3s cubic-bezier(0.2, 0.9, 0.3, 1) both; }
+@keyframes pvd-feed-in {
+  from { opacity: 0; transform: translateX(-12px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* The plates lean away from a blow rather than only flashing. */
+.pvd .pvd-plate { transition: transform 0.18s ease; }
+.pvd .pvd-plate--hit { transform: translateX(-4px) scale(0.985); }
+.pvd .pvd-plate--opp.pvd-plate--hit { transform: translateX(4px) scale(0.985); }
+
+/* Motion control and the system setting both still win: everything above is
+   listed here so "off" means off. */
+.pvd--motion-off .pvd-modal,
+.pvd--motion-off .pvd-option,
+.pvd--motion-off .pvd-result-expl,
+.pvd--motion-off .pvd-bar-fill--hp::after,
+.pvd--motion-off .pvd-center-timer--urgent,
+.pvd--motion-off .pvd-feed-line--latest,
+.pvd--motion-off .pvd-confirm,
+.pvd--motion-off .pvd-confirm-card {
+  animation: none;
+}
+.pvd--motion-off .pvd-plate--hit,
+.pvd--motion-off .pvd-plate--opp.pvd-plate--hit { transform: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .pvd .pvd-modal,
+  .pvd .pvd-option,
+  .pvd .pvd-result-expl,
+  .pvd .pvd-bar-fill--hp::after,
+  .pvd .pvd-center-timer--urgent,
+  .pvd .pvd-feed-line--latest,
+  .pvd-confirm,
+  .pvd-confirm-card {
+    animation: none;
+  }
+  .pvd .pvd-option:hover:not(:disabled) { transform: none; }
+}
+
+/* ══ Forfeit, in the duel's own voice ═════════════════════════════════════
+   window.confirm() put a grey browser box with the deploy host's domain in
+   its title over a duel in progress. This is the same question asked by the
+   game, and "Keep fighting" is the primary: the button that opens it sits in
+   a row you may have reached for mid-question. */
+.pvd-confirm {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(4, 3, 6, 0.74);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  animation: pvd-confirm-fade 0.16s ease both;
+}
+@keyframes pvd-confirm-fade { from { opacity: 0; } to { opacity: 1; } }
+
+.pvd-confirm-card {
+  width: min(430px, 100%);
+  padding: 26px 26px 22px;
+  text-align: center;
+  border-radius: 14px;
+  border: 1.5px solid rgba(193, 41, 30, 0.55);
+  background: linear-gradient(170deg, rgba(28, 18, 20, 0.98), rgba(10, 8, 10, 0.99));
+  box-shadow: 0 26px 64px rgba(0, 0, 0, 0.66), 0 0 36px rgba(193, 41, 30, 0.2);
+  animation: pvd-confirm-rise 0.24s cubic-bezier(0.2, 0.9, 0.3, 1) both;
+}
+@keyframes pvd-confirm-rise {
+  from { opacity: 0; transform: translateY(12px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+
+.pvd-confirm-icon { font-size: 32px; display: block; margin-bottom: 8px; }
+
+.pvd-confirm-title {
+  margin: 0 0 8px;
+  font-family: var(--mv-font-display, 'Cinzel', serif);
+  font-size: 21px;
+  font-weight: 700;
+  color: #f7e9e6;
+}
+
+.pvd-confirm-text {
+  margin: 0 0 20px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: rgba(241, 236, 228, 0.72);
+}
+
+.pvd-confirm-btns { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+
+.pvd-confirm-btn {
+  min-width: 140px;
+  padding: 11px 18px;
+  border-radius: 9px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.12s ease;
+}
+.pvd-confirm-btn:hover { transform: translateY(-1px); }
+
+.pvd-confirm-btn--keep {
+  border: 1px solid rgba(232, 176, 75, 0.6);
+  background: rgba(232, 176, 75, 0.14);
+  color: #f0dba6;
+}
+.pvd-confirm-btn--keep:hover { background: rgba(232, 176, 75, 0.24); }
+
+.pvd-confirm-btn--yield {
+  border: 1px solid rgba(193, 41, 30, 0.7);
+  background: rgba(193, 41, 30, 0.2);
+  color: #ffb3aa;
+}
+.pvd-confirm-btn--yield:hover { background: rgba(193, 41, 30, 0.35); }
+
+/* renderStem wraps the stem in <p class="question-text">, which carries its
+   own near-white colour from the dark-theme question card elsewhere in the
+   app. Inheriting was never going to reach it, so on paper it rendered pale
+   blue on cream — the stem was the one thing on this card you could not
+   read. Same for any inline-coloured run inside it. */
+.pvd .pvd-stem .question-text,
+.pvd .pvd-stem .question-text span:not(mark span) {
+  color: #23202b !important;
+}

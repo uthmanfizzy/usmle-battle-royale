@@ -270,13 +270,20 @@ export default function PvpDuelGame({
     });
   }, [roundResults, question, round, myAnswer, username, onRoundComplete]);
 
-  const handleForfeit = () => {
-    // The match ends on the results screen for both players now, so this
-    // says what actually happens rather than implying you are dropped out.
-    if (window.confirm('Forfeit the match? Your opponent claims the win — you will still see the results and the explanations.')) {
-      onForfeit?.();
-    }
-  };
+  // Giving up is a real decision, and it was being asked for by the browser:
+  // a grey chrome box with the deploy host's domain in the title, in the
+  // middle of a duel. Asked in the duel's own voice now.
+  const [confirmForfeit, setConfirmForfeit] = useState(false);
+  const handleForfeit = () => setConfirmForfeit(true);
+
+  // Escape backs out of it. The question underneath is still running, so the
+  // way out of this has to be as quick as the way in.
+  useEffect(() => {
+    if (!confirmForfeit) return undefined;
+    const onKey = (e) => { if (e.key === 'Escape') setConfirmForfeit(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [confirmForfeit]);
 
   const avatarLetter = (name) => (name || '?')[0].toUpperCase();
   const barPct = (hp) => `${Math.max(0, Math.min(100, (hp / STARTING_HP) * 100))}%`;
@@ -415,6 +422,47 @@ export default function PvpDuelGame({
           Forfeit Match
         </button>
       </div>
+
+      {/* ── Forfeit, asked properly ────────────────────────────────────────
+          Cancel is the safe default and gets the focus, because the button
+          that opened this sits in a row you might have reached for mid-
+          question. What actually happens is spelled out: you are not thrown
+          out of the match, you go to the same results screen they do. */}
+      {confirmForfeit && (
+        <div
+          className="pvd-confirm"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="pvd-confirm-title"
+          onClick={(e) => { if (e.target === e.currentTarget) setConfirmForfeit(false); }}
+        >
+          <div className="pvd-confirm-card">
+            <span className="pvd-confirm-icon" aria-hidden="true">🏳️</span>
+            <h2 className="pvd-confirm-title" id="pvd-confirm-title">Forfeit the match?</h2>
+            <p className="pvd-confirm-text">
+              {oppName} claims the win. You will still see the results and every
+              explanation — this ends the duel, it does not throw you out of it.
+            </p>
+            <div className="pvd-confirm-btns">
+              <button
+                type="button"
+                className="pvd-confirm-btn pvd-confirm-btn--keep"
+                onClick={() => setConfirmForfeit(false)}
+                autoFocus
+              >
+                Keep fighting
+              </button>
+              <button
+                type="button"
+                className="pvd-confirm-btn pvd-confirm-btn--yield"
+                onClick={() => { setConfirmForfeit(false); onForfeit?.(); }}
+              >
+                Yes, forfeit
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Event feed: real strike messages (no fabricated ability lines) ── */}
       {feed.length > 0 && (
