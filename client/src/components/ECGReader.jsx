@@ -4,6 +4,8 @@ import { buildSignal } from '../ecg/ecgEngine';
 import { ECG_CASES, CATEGORY_LABELS } from '../ecg/ecgCases';
 import ECGLabelledStrip from '../ecg/ECGLabelledStrip';
 import { LABELS, NORMAL_LABELS, normalCaseFor, caseByAnswer, whyNot } from '../ecg/ecgTeaching';
+import { sfx } from '../minigameSfx';
+import SfxToggle from './SfxToggle';
 import './ECGReader.css';
 
 /**
@@ -65,6 +67,18 @@ export default function ECGReader({ onExit }) {
     try { return localStorage.getItem('mv_ecg_look') === 'monitor' ? 'monitor' : 'paper'; } catch { return 'paper'; }
   });
   const [beatKey, setBeatKey] = useState(0);
+  // The monitor's beep on every QRS. Its own switch (on top of the shared
+  // sound toggle): authentic, but at 180/min in an SVT it is a lot.
+  const [beep, setBeep] = useState(() => {
+    try { return localStorage.getItem('mv_ecg_beep') !== 'off'; } catch { return true; }
+  });
+  const beepRef = useRef(beep);
+  beepRef.current = beep;
+  const toggleBeep = () => {
+    const v = !beep;
+    setBeep(v);
+    try { localStorage.setItem('mv_ecg_beep', v ? 'on' : 'off'); } catch { /* not remembered */ }
+  };
   // Which wrong option is open side by side with the answer, if any.
   const [compareWith, setCompareWith] = useState(null);
   const nextBtnRef = useRef(null);
@@ -112,11 +126,14 @@ export default function ECGReader({ onExit }) {
     setCompareWith(ok ? null : opt);
     setLog(l => [...l, { caseDef: q.caseDef, picked: opt, correct: ok }]);
     if (ok) {
+      sfx.correct();
+      if (streak + 1 >= 3) setTimeout(() => sfx.sparkle(), 140);
       const nextStreak = streak + 1;
       setScore(s => s + BASE_POINTS + STREAK_BONUS * Math.min(streak, STREAK_BONUS_MAX));
       setStreak(nextStreak);
       setBest(b => Math.max(b, nextStreak));
     } else {
+      sfx.wrong();
       setStreak(0);
     }
     // Freeze the strip so the features named in the explanation can be found
@@ -125,7 +142,8 @@ export default function ECGReader({ onExit }) {
   }, [q, picked, streak]);
 
   const next = useCallback(() => {
-    if (index + 1 >= queue.length) { setPhase('summary'); return; }
+    if (index + 1 >= queue.length) { sfx.fanfare(); setPhase('summary'); return; }
+    sfx.next();
     setIndex(i => i + 1);
     setPicked(null);
     setCompareWith(null);
@@ -173,7 +191,14 @@ export default function ECGReader({ onExit }) {
     try { localStorage.setItem('mv_ecg_look', v); } catch { /* not remembered */ }
   };
 
-  const onBeat = useCallback(() => setBeatKey(k => k + 1), []);
+  // Only while reading: once answered the strip freezes, and the intro's
+  // preview strip never beeps.
+  const answeredRef = useRef(false);
+  answeredRef.current = picked != null;
+  const onBeat = useCallback(() => {
+    setBeatKey(k => k + 1);
+    if (beepRef.current && !answeredRef.current) sfx.beep();
+  }, []);
 
   // ── Intro ───────────────────────────────────────────────────────────────
   if (phase === 'intro') {
@@ -181,6 +206,7 @@ export default function ECGReader({ onExit }) {
       <div className="ecgr ecgr--intro">
         <div className="ecgr-topbar">
           {onExit && <button type="button" className="ecgr-back" onClick={onExit}>← Minigames</button>}
+          <SfxToggle />
         </div>
         <div className="ecgr-intro">
           <span className="ecgr-intro-icon" aria-hidden="true">💓</span>
@@ -238,6 +264,7 @@ export default function ECGReader({ onExit }) {
       <div className="ecgr ecgr--summary">
         <div className="ecgr-topbar">
           {onExit && <button type="button" className="ecgr-back" onClick={onExit}>← Minigames</button>}
+          <SfxToggle />
         </div>
         <div className="ecgr-summary">
           <p className="ecgr-kicker">Run complete</p>
@@ -281,6 +308,7 @@ export default function ECGReader({ onExit }) {
       <div className="ecgr-topbar">
         {onExit && <button type="button" className="ecgr-back" onClick={onExit}>← Quit</button>}
         <div className="ecgr-hud">
+          <SfxToggle />
           <span className="ecgr-hud-item">Strip <strong>{index + 1}</strong>/{queue.length}</span>
           <span className="ecgr-hud-item">Score <strong>{score}</strong></span>
           <span className={`ecgr-hud-item ecgr-streak${streak >= 2 ? ' is-hot' : ''}`}>
@@ -309,6 +337,15 @@ export default function ECGReader({ onExit }) {
                 <button type="button" className={look === 'paper' ? 'is-on' : ''} onClick={() => setLookSaved('paper')}>Paper</button>
                 <button type="button" className={look === 'monitor' ? 'is-on' : ''} onClick={() => setLookSaved('monitor')}>Monitor</button>
               </div>
+              <button
+                type="button"
+                className={`ecgr-beep${beep ? ' is-on' : ''}`}
+                onClick={toggleBeep}
+                aria-pressed={beep}
+                title="Monitor beep on each QRS"
+              >
+                ♥ Beep
+              </button>
               <button
                 type="button"
                 className="ecgr-pause"

@@ -2,6 +2,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ABG_CASES, LEVEL_LABELS } from '../abg/abgCases';
 import { buildSteps, interpretation, NORMALS, toKpa } from '../abg/abgEngine';
 import { PhDial, Seesaw, RangeBar, GapBars, DeltaGauge, CountUp } from '../abg/AbgViz';
+import { RULES, RuleCard } from '../abg/abgRules';
+import { sfx } from '../minigameSfx';
+import SfxToggle from './SfxToggle';
 import './ABGReader.css';
 
 /**
@@ -17,6 +20,9 @@ import './ABGReader.css';
  * Two ways to play:
  *   GUIDED    — the rule for each step is shown before you answer.
  *   CHALLENGE — the rule is hidden; revealing it halves that step's points.
+ *
+ * The rules themselves live in abg/abgRules.jsx, laid out as tables and
+ * if → then rows rather than paragraphs.
  *
  * Steps that do not apply are skipped OUT LOUD ("no compensation step: this
  * is a mixed disorder"), because knowing when a step is not used is part of
@@ -35,50 +41,35 @@ const STEP_INFO = {
   ph: {
     n: 1, title: 'pH', icon: '⚖️',
     question: 'Is the blood acidaemic or alkalaemic?',
-    rule: 'Below 7.35 is acidaemia, above 7.45 alkalaemia. Even inside the normal range, note which side of 7.40 it sits on — that still points to the primary process.',
     focus: ['pH'],
   },
   primary: {
     n: 2, title: 'Primary process', icon: '🔎',
     question: 'Which process explains that pH?',
-    rule: 'Find the value that moved the SAME way as the pH. Acid side: PaCO₂ high (> 45) is respiratory, HCO₃⁻ low (< 22) is metabolic. Alkaline side: PaCO₂ low (< 35) is respiratory, HCO₃⁻ high (> 26) is metabolic. Both pushing the same way: mixed.',
     focus: ['pH', 'PaCO2', 'HCO3'],
   },
   comp: {
     n: 3, title: 'Compensation', icon: '🔁',
     question: 'Is the compensation what you would expect?',
-    // The summary's version; during a case the rule is the one for that
-    // primary process (COMP_RULE below).
-    rule: 'Check the second value against the prediction for the primary process — Winter’s formula for a metabolic acidosis, the acute/chronic rules for a respiratory one. Outside the band means a second process.',
     focus: ['PaCO2', 'HCO3'],
   },
   ag: {
     n: 4, title: 'Anion gap', icon: '🧮',
     question: 'Is the anion gap high?',
-    rule: 'AG = Na⁺ − (Cl⁻ + HCO₃⁻). Normal is 12 ± 2. If albumin is low, add 2.5 for every 1 g/dL below 4. Always calculate it — a high gap can hide behind a normal pH.',
     focus: ['Na', 'Cl', 'HCO3', 'albumin'],
   },
   delta: {
     n: 5, title: 'Delta ratio', icon: '⚡',
     question: 'Is a second metabolic process hiding?',
-    rule: 'Δ ratio = (AG − 12) ÷ (24 − HCO₃⁻). 0.8 to 2: a pure high-gap acidosis. Under 0.8: a normal-gap acidosis as well. Over 2: a metabolic alkalosis as well.',
     focus: ['HCO3'],
   },
   cause: {
     n: 6, title: 'Cause', icon: '🩺',
     question: 'What is the most likely cause?',
-    rule: 'Put the gas back in the patient: the history, the other results, and the pattern you have just worked out.',
     focus: ['extra'],
   },
 };
 
-// The compensation rule depends on what the primary process is.
-const COMP_RULE = {
-  'met-acidosis': 'Winter’s formula: expected PaCO₂ = 1.5 × HCO₃⁻ + 8 (± 2). Higher than that = an added respiratory acidosis; lower = an added respiratory alkalosis.',
-  'met-alkalosis': 'Expected PaCO₂ = 0.7 × HCO₃⁻ + 21 (± 2). Outside that band, a respiratory process is added.',
-  'resp-acidosis': 'For every 10 mmHg PaCO₂ rises, HCO₃⁻ rises ~1 if acute, ~3.5 if chronic (days of renal compensation). In between: acute-on-chronic.',
-  'resp-alkalosis': 'For every 10 mmHg PaCO₂ falls, HCO₃⁻ falls ~2 if acute, ~4–5 if chronic. Lower than the timing allows: a metabolic acidosis is added.',
-};
 
 const SKIP_TEXT = {
   mixed: 'No compensation step: both processes push the pH the same way, so neither is compensating for the other.',
@@ -139,12 +130,15 @@ export default function ABGReader({ onExit }) {
     setPicked(key);
     const pts = ok ? (mode === 'challenge' && !hinted ? STEP_POINTS : STEP_POINTS / 2) : 0;
     setScore(s => s + pts);
+    if (ok) { sfx.correct(); setTimeout(() => sfx.bubble(), 260); } else sfx.wrong();
     setCaseLog(l => [...l, { id: step.id, correct: ok, picked: key }]);
   }, [step, picked, mode, hinted]);
 
   const finishCase = useCallback((log) => {
     const perfect = log.every(s => s.correct);
+    sfx.complete();
     if (perfect) {
+      setTimeout(() => sfx.sparkle(), 120);
       setScore(s => s + PERFECT_BONUS);
       setStreak(st => { const n = st + 1; setBest(b => Math.max(b, n)); return n; });
     } else {
@@ -157,13 +151,15 @@ export default function ABGReader({ onExit }) {
   const nextStep = useCallback(() => {
     if (!built) return;
     if (si + 1 >= built.steps.length) { finishCase(caseLog); return; }
+    sfx.next();
     setSi(i => i + 1);
     setPicked(null);
     setHinted(false);
   }, [built, si, caseLog, finishCase]);
 
   const nextCase = useCallback(() => {
-    if (ci + 1 >= queue.length) { setPhase('summary'); return; }
+    if (ci + 1 >= queue.length) { sfx.fanfare(); setPhase('summary'); return; }
+    sfx.next();
     setCi(i => i + 1); setSi(0); setPicked(null); setHinted(false); setCaseLog([]); setCaseDone(false);
     document.querySelector('.abgr')?.scrollTo({ top: 0, behavior: 'smooth' });
   }, [ci, queue.length]);
@@ -194,6 +190,7 @@ export default function ABGReader({ onExit }) {
         <Bubbles />
         <div className="abgr-top">
           {onExit && <button type="button" className="abgr-back" onClick={onExit}>← Minigames</button>}
+          <SfxToggle />
         </div>
         <div className="abgr-intro">
           <span className="abgr-intro-icon" aria-hidden="true">🫁</span>
@@ -272,6 +269,7 @@ export default function ABGReader({ onExit }) {
         <Bubbles />
         <div className="abgr-top">
           {onExit && <button type="button" className="abgr-back" onClick={onExit}>← Minigames</button>}
+          <SfxToggle />
         </div>
         <div className="abgr-summary">
           <p className="abgr-kicker">Run complete</p>
@@ -298,7 +296,10 @@ export default function ABGReader({ onExit }) {
               );
             })}
             {weakest && weakest[1].right < weakest[1].total && (
-              <p className="abgr-weak">Practise next: <b>{STEP_INFO[weakest[0]].title}</b> — {STEP_INFO[weakest[0]].rule}</p>
+              <div className="abgr-weak">
+                <p>Practise next: <b>{STEP_INFO[weakest[0]].title}</b></p>
+                <RuleCard rule={weakest[0] === 'comp' ? RULES.comp['met-acidosis'] : RULES[weakest[0]]} />
+              </div>
             )}
           </div>
 
@@ -313,7 +314,7 @@ export default function ABGReader({ onExit }) {
 
   // ── Run ─────────────────────────────────────────────────────────────────
   const info = step ? STEP_INFO[step.id] : null;
-  const rule = step?.id === 'comp' ? COMP_RULE[a?.primary] : info?.rule;
+  const rule = step?.id === 'comp' ? RULES.comp[a?.primary] : RULES[step?.id];
   const showRule = mode === 'guided' || hinted;
   const focus = info?.focus || [];
 
@@ -323,6 +324,7 @@ export default function ABGReader({ onExit }) {
       <div className="abgr-top">
         {onExit && <button type="button" className="abgr-back" onClick={onExit}>← Quit</button>}
         <div className="abgr-hud">
+          <SfxToggle />
           <span>Case <b>{ci + 1}</b>/{queue.length}</span>
           <span>Score <b>{score}</b></span>
           <span className={streak >= 2 ? 'is-hot' : ''}>🔥 <b>{streak}</b></span>
@@ -367,12 +369,9 @@ export default function ABGReader({ onExit }) {
               <h3 className="abgr-q">{info.question}</h3>
 
               {rule && (showRule ? (
-                <div className="abgr-rule">
-                  <span className="abgr-rule-tag">Rule</span>
-                  <p>{rule}</p>
-                </div>
+                <RuleCard rule={rule} />
               ) : !answered && (
-                <button type="button" className="abgr-hint" onClick={() => setHinted(true)}>
+                <button type="button" className="abgr-hint" onClick={() => { sfx.select(); setHinted(true); }}>
                   💡 Show the rule <small>(half points for this step)</small>
                 </button>
               ))}

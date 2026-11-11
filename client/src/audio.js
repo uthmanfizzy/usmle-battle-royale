@@ -55,6 +55,17 @@ function out() {
   return masterGain;
 }
 
+/**
+ * The context and output bus, for sounds made elsewhere (the minigames'
+ * effects in minigameSfx.js). Routing them through out() means the player's
+ * volume setting governs them like every other sound here; null when the app
+ * is muted, so a caller can simply skip.
+ */
+export function sfxBus() {
+  if (muted) return null;
+  try { return { c: getCtx(), out: out() }; } catch { return null; }
+}
+
 export function getVolume() { return volume; }
 
 export function setVolume(v) {

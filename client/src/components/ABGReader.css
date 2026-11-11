@@ -71,7 +71,7 @@
 }
 .abgr-back:hover { background: rgba(255, 255, 255, 0.1); }
 .abgr-hud { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
-.abgr-hud span {
+.abgr-hud > span {
   padding: 6px 12px;
   border-radius: 999px;
   border: 1px solid rgba(var(--cy), 0.35);
@@ -79,8 +79,8 @@
   font-size: 12.5px;
   color: rgba(234, 246, 251, 0.72);
 }
-.abgr-hud b { color: #fff; font-variant-numeric: tabular-nums; }
-.abgr-hud .is-hot { border-color: rgba(255, 170, 60, 0.6); background: rgba(255, 150, 40, 0.14); animation: abgr-hot 1.4s ease-in-out infinite; }
+.abgr-hud > span b { color: #fff; font-variant-numeric: tabular-nums; }
+.abgr-hud > .is-hot { border-color: rgba(255, 170, 60, 0.6); background: rgba(255, 150, 40, 0.14); animation: abgr-hot 1.4s ease-in-out infinite; }
 @keyframes abgr-hot { 50% { box-shadow: 0 0 16px rgba(255, 150, 40, 0.4); } }
 
 /* ── Intro ────────────────────────────────────────────────────────────── */
@@ -635,3 +635,96 @@
 }
 
 .abgv-corr-label { text-anchor: middle; fill: #ffd98a; font-size: 10.5px; }
+
+/* ── Rule cards (abg/abgRules.jsx) ────────────────────────────────────────
+   Structure over prose: a formula line, then a table or if → then rows.
+   Rows are coloured by meaning — acid warm, alkali cool, normal green,
+   "look further" amber — the pairing used everywhere else in the game. */
+.abgr-rule { align-items: stretch; }
+.abgr-rule-body { flex: 1; min-width: 0; display: grid; gap: 8px; }
+.abgr-rule-lead { margin: 0; font-size: 13.5px; font-weight: 700; color: #fff0d6; }
+.abgr-rule-formula {
+  margin: 0;
+  padding: 7px 11px;
+  border-radius: 9px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 210, 120, 0.25);
+  font-family: 'JetBrains Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  font-size: 13px;
+  color: #ffe2a8;
+  letter-spacing: 0.01em;
+}
+.abgr-rule-note { margin: 0; font-size: 12.5px; line-height: 1.5; color: rgba(255, 240, 214, 0.75); font-style: italic; }
+
+.abgr-rule-table { width: 100%; border-collapse: separate; border-spacing: 4px; margin: -4px; }
+.abgr-rule-table th, .abgr-rule-table td { text-align: left; vertical-align: middle; }
+.abgr-rule-table thead th {
+  padding: 6px 9px;
+  border-radius: 8px;
+  font-size: 11.5px;
+  font-weight: 800;
+  color: #fff;
+}
+.abgr-rule-table thead th small { display: block; font-size: 10.5px; font-weight: 600; opacity: 0.7; }
+.abgr-rule-table thead th.tone-acid { background: rgba(255, 92, 120, 0.2); }
+.abgr-rule-table thead th.tone-alk { background: rgba(111, 160, 255, 0.2); }
+.abgr-rule-table tbody th {
+  padding: 6px 4px;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(255, 240, 214, 0.75);
+  width: 1%;
+  white-space: nowrap;
+}
+.abgr-rule-table td {
+  padding: 7px 10px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.22);
+  font-size: 13px;
+}
+.abgr-rule-table td b { color: #fff; margin-right: 6px; }
+.abgr-rule-table td span {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgba(255, 210, 120, 0.16);
+  color: #ffe2a8;
+  font-size: 11.5px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.abgr-rule-rows { list-style: none; margin: 0; padding: 0; display: grid; gap: 5px; }
+.abgr-rule-rows li {
+  display: grid;
+  grid-template-columns: minmax(84px, auto) 18px minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 9px;
+  background: rgba(0, 0, 0, 0.22);
+  border-left: 3px solid rgba(255, 210, 120, 0.6);
+}
+.abgr-rule-rows li.tone-acid { border-left-color: rgb(255, 92, 120); }
+.abgr-rule-rows li.tone-alk { border-left-color: rgb(111, 160, 255); }
+.abgr-rule-rows li.tone-normal { border-left-color: rgb(53, 224, 161); }
+.abgr-rule-when {
+  font-family: 'JetBrains Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #ffe2a8;
+  white-space: nowrap;
+}
+.abgr-rule-arrow { color: rgba(255, 240, 214, 0.45); text-align: center; }
+.abgr-rule-then { font-size: 13px; font-weight: 700; color: #fff; }
+@media (max-width: 480px) {
+  .abgr-rule { flex-direction: column; }
+  .abgr-rule-rows li { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  .abgr-rule-arrow { display: none; }
+  .abgr-rule-table td span { display: block; margin-top: 3px; width: fit-content; }
+}
+.abgr-weak p { margin: 0 0 8px; }
+/* The tag sits at the top of the card rather than stretching down its side. */
+.abgr-rule-tag { align-self: flex-start; }
