@@ -861,3 +861,14 @@
 }
 
 
+
+/* USMLE Medical Trivia — the six-wedge wheel, turning slowly in the corner. */
+.arena-card[data-mode="trivia_pursuit"] .arena-card-art {
+  background: conic-gradient(from 0deg at 86% 14%,
+    rgba(220, 62, 48, 0.32) 0 60deg, rgba(86, 170, 235, 0.32) 60deg 120deg,
+    rgba(0, 184, 148, 0.32) 120deg 180deg, rgba(230, 126, 34, 0.32) 180deg 240deg,
+    rgba(155, 89, 182, 0.32) 240deg 300deg, rgba(214, 161, 63, 0.32) 300deg 360deg);
+  -webkit-mask-image: radial-gradient(34% 34% at 86% 14%, #000 60%, rgba(0, 0, 0, 0) 61%), radial-gradient(70% 70% at 86% 14%, rgba(0, 0, 0, 0.18), rgba(0, 0, 0, 0));
+  mask-image: radial-gradient(34% 34% at 86% 14%, #000 60%, rgba(0, 0, 0, 0) 61%), radial-gradient(70% 70% at 86% 14%, rgba(0, 0, 0, 0.18), rgba(0, 0, 0, 0));
+}
+.arena-card[data-mode="trivia_pursuit"] .arena-card-medal { border-radius: 50%; }

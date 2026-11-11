@@ -111,6 +111,32 @@ export default function ModeSplit({ onStory, onOnline, onTraining, onBack }) {
 // card). The Tower campaign was removed from this list — TowerMode.jsx and its
 // App.jsx phase/route are untouched (unreachable, not deleted) in case it
 // comes back.
+/**
+ * A Story Mode campaign that is not open yet. A plain element, not a button:
+ * it cannot be clicked or focused, and it says so — the lock chip and the
+ * title attribute carry it, so it is never mistaken for a broken button.
+ */
+function LockedCard({ variant, icon, name, sub }) {
+  return (
+    <div
+      className={`ms-journey-card ms-journey-card--${variant} is-locked`}
+      aria-disabled="true"
+      title={`${name} is locked for now`}
+    >
+      <div className="ms-journey-art" aria-hidden="true">
+        <span className="ms-journey-art-icon">{icon}</span>
+      </div>
+      <div className="ms-journey-body">
+        <span className="ms-journey-name">
+          {name}
+          <span className="ms-soon-chip"><span aria-hidden="true">🔒</span> LOCKED</span>
+        </span>
+        <span className="ms-journey-sub">{sub}</span>
+      </div>
+    </div>
+  );
+}
+
 export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld, onSaudiMLE, onMehlman, onMinigames, onOET, onClinical, course }) {
   // Dentistry students get the ORE/LDS bank in place of the medical licensing
   // ones; everything else (First Aid, flashcards) is shared, so their menu is
@@ -280,45 +306,31 @@ export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld, onSaudiMLE, o
 
         )}
 
-        {/* OET — the Occupational English Test. Not a medical-knowledge
-            bank at all: it is the English exam a doctor sits to practise
-            here, which is why it reads as its own campaign rather than
-            another system inside one. Shown to everyone; the test is the same
-            whichever course you are on. */}
-        <button className="ms-journey-card ms-journey-card--magenta" onClick={onOET}>
-          <div className="ms-journey-art" aria-hidden="true">
-            <span className="ms-journey-art-icon">🇬🇧</span>
-          </div>
-          <div className="ms-journey-body">
-            <span className="ms-journey-name">OET</span>
-            <span className="ms-journey-sub">
-              The Occupational English Test, worked through at your own pace.
-            </span>
-          </div>
-        </button>
+        {/* ── Locked campaigns ───────────────────────────────────────
+            Shown, not hidden: a player should be able to see what is
+            coming. Each is a plain element rather than a button, so it can
+            not be clicked or tabbed into, and says plainly that it is
+            locked. To open one, swap <LockedCard> back for its button.
 
-        {/* Clinical — what a doctor does with their hands rather than what
-            they recall. Its own campaign for the same reason OET is: it is
-            not another system inside a knowledge bank, it is a different
-            kind of knowing. Shown on both courses — cannulating and suturing
-            are not specific to one licensing exam. */}
-        <button className="ms-journey-card ms-journey-card--clinical" onClick={onClinical}>
-          <div className="ms-journey-art" aria-hidden="true">
-            <span className="ms-journey-art-icon">🩺</span>
-          </div>
-          <div className="ms-journey-body">
-            <span className="ms-journey-name">Clinical</span>
-            <span className="ms-journey-sub">
-              The procedures a doctor is expected to be able to do, one at a time.
-            </span>
-          </div>
-        </button>
+            OET and the minigames are for the medicine track only — neither
+            is part of a dental course, so a dentistry student is not shown
+            them at all. */}
+        {!isDentistry && (
+          <LockedCard variant="magenta" icon="🇬🇧" name="OET"
+            sub="The Occupational English Test, worked through at your own pace." />
+        )}
+
+        <LockedCard variant="clinical" icon="🩺" name="Clinical"
+          sub="The procedures a doctor is expected to be able to do, one at a time." />
+
+        {!isDentistry && (
+          <LockedCard variant="ukmla" icon="🇬🇧" name="UKMLA / PLAB"
+            sub="The UK Medical Licensing Assessment and PLAB, campaign by campaign." />
+        )}
 
         {/* Minigames — the short, skill-shaped things that are neither a
-            question bank nor a campaign. A shelf rather than a mode: each one
-            has its own rules, and they sit together because you play one for
-            five minutes to drill one skill. Shown to everyone; nothing on it
-            is course-specific. */}
+            question bank nor a campaign. Medicine track only. */}
+        {!isDentistry && (
         <button className="ms-journey-card ms-journey-card--violet" onClick={onMinigames}>
           <div className="ms-journey-art" aria-hidden="true">
             <span className="ms-journey-art-icon">🎮</span>
@@ -326,13 +338,12 @@ export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld, onSaudiMLE, o
           <div className="ms-journey-body">
             <span className="ms-journey-name">MINIGAMES</span>
             <span className="ms-journey-sub">
-              Short games that drill one skill at a time — pathways, gases, strips.
+              Short games that drill one skill at a time — pathways, gases, strips, muscles, biostats.
             </span>
           </div>
         </button>
+        )}
 
-        {/* The same question-bank machine pointed at the Saudi MLE pool — its
-            own route, pace and colours, sharing one component. */}
         {/* Mehlman Rapid Fire — the same question-bank machine on its own
             tag and its own yellow. Named for the Mehlman HY material it
             carries; the questions are short, so the block moves quickly. */}
@@ -351,17 +362,8 @@ export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld, onSaudiMLE, o
         )}
 
         {!isDentistry && (
-        <button className="ms-journey-card ms-journey-card--green" onClick={onSaudiMLE}>
-          <div className="ms-journey-art" aria-hidden="true">
-            <span className="ms-journey-art-icon">📗</span>
-          </div>
-          <div className="ms-journey-body">
-            <span className="ms-journey-name">SAUDI MLE</span>
-            <span className="ms-journey-sub">
-              Work the Saudi Medical Licensing Exam bank down, at your own pace.
-            </span>
-          </div>
-        </button>
+          <LockedCard variant="green" icon="📗" name="SAUDI MLE"
+            sub="Work the Saudi Medical Licensing Exam bank down, at your own pace." />
         )}
       </div>
     </div>

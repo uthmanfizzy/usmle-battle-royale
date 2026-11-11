@@ -956,3 +956,21 @@ html[data-study="on"] .solo-gameover .sgo-level-label {
     margin-top: 14px;
   }
 }
+
+/* ── The study menu scrolls ───────────────────────────────────────────────
+   The panel grew past a phone's height (Explanation, Summary, Answers,
+   Highlights, Question hints…) and had no limit, so the lower options fell
+   off the bottom of the screen with no way to reach them. It is capped to
+   the space below the header and scrolls inside itself. Unscoped on
+   purpose: every theme that shows this panel (study, Journey's vibrant
+   skin, the default) needs it, and none of them sets a height.
+   overscroll-behavior stops a fling at the end from scrolling the question
+   behind it. */
+.study-menu-panel {
+  max-height: calc(100vh - 96px);
+  max-height: calc(100dvh - 96px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}

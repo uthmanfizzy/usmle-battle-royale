@@ -116,6 +116,9 @@ const LIVE_SUMMARY_MODE_IDS = [
 ];
 
 const SUMMARY_MODES = [
+  // The Journey first: it is the main study campaign, and its sessions now
+  // carry how many questions they answered like every other mode's.
+  { mode: 'journey', ...modeMeta('journey') },
   ...BANK_SUMMARY_MODES,
   ...LIVE_SUMMARY_MODE_IDS.map(id => ({ mode: id, ...modeMeta(id) })),
 ];
@@ -679,6 +682,9 @@ export default function ActivityPage() {
   // level into one. journey_passed is the server's call, made against the
   // configured pass threshold.
   const journeySessions = sessions.filter(s => s.game_mode === 'journey');
+  // Questions answered in the Journey today. Sessions from before the count
+  // was recorded carry none and are simply not added, never counted as zero.
+  const journeyQuestions = journeySessions.reduce((a, s) => a + (Number(s.questions_answered) > 0 ? Number(s.questions_answered) : 0), 0);
   const journeyLevelsDone = new Set(
     journeySessions
       .filter(s => s.journey_passed)
@@ -810,6 +816,14 @@ export default function ActivityPage() {
                   <span className="da-summary-item">
                     <strong>{journeyLevelsDone}</strong> Journey level{journeyLevelsDone === 1 ? '' : 's'} completed
                   </span>
+                  {journeyQuestions > 0 && (
+                    <>
+                      <span className="da-summary-divider" aria-hidden="true" />
+                      <span className="da-summary-item">
+                        <strong>{journeyQuestions}</strong> Journey question{journeyQuestions === 1 ? '' : 's'} answered
+                      </span>
+                    </>
+                  )}
                 </>
               )}
               {breaks.length > 0 && (

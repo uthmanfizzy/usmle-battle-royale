@@ -3375,7 +3375,13 @@ function handleTriviaRoll(lobby) {
   // Send question after movement animation
   setTimeout(() => {
     if (lobby.status !== 'trivia_question') return;
-    const tpBank = questionBank.filter(q => (q.game_modes || ['trivia_pursuit']).includes('trivia_pursuit'));
+    // The host's chosen questions if they picked a set; otherwise the
+    // trivia-tagged bank — and if nothing carries that tag, the general
+    // pool. It used to be the tag alone, so an untagged bank handed this
+    // turn `undefined` and the game broke on its first question.
+    const ownBank = questionBank.filter(q => (q.game_modes || []).includes('trivia_pursuit'));
+    const generalBank = questionBank.filter(q => (q.game_modes || ['battle_royale']).includes('battle_royale'));
+    const tpBank = matchPoolOr(lobby, ownBank.length >= 20 ? ownBank : (generalBank.length ? generalBank : questionBank));
     const pool = tpBank.filter(q => q.subject === space.category);
     // Shuffle + remap on a clone; processTriviaAnswer checks against
     // lobby.triviaCurrentQuestion, the same shuffled object emitted + used by bots.
@@ -14817,9 +14823,13 @@ app.post('/api/journey/complete', requireAuth, async (req, res) => {
       const { chapterName, levelName } = resolveJourneyNames(path, level_key);
       const endedAt   = new Date();
       const startedAt = new Date(endedAt.getTime() - seconds * 1000);
-      const { error: actErr } = await supabase.from('activity_sessions').insert({
+      // Through sessionWrite, like every other mode's row: the question
+      // count was missing from Journey sessions entirely, so a morning of
+      // Journey levels added nothing to the day's "questions answered".
+      const { error: actErr } = await sessionWrite({
         user_id:              req.userId,   // requireAuth guarantees a real user
         game_mode:            'journey',
+        questions_answered:   sanitizeQuestionCount(req.body?.questions),
         subject,
         journey_chapter_name: chapterName,
         journey_level_name:   levelName,
@@ -14829,7 +14839,7 @@ app.post('/api/journey/complete', requireAuth, async (req, res) => {
         duration_seconds:     seconds,
         started_at:           startedAt.toISOString(),
         ended_at:             endedAt.toISOString(),
-      });
+      }, r => supabase.from('activity_sessions').insert(r));
       if (actErr) console.error('[activity_sessions] journey insert failed —', actErr.message);
     } catch (actEx) {
       console.error('[activity_sessions] journey insert threw —', actEx.message);

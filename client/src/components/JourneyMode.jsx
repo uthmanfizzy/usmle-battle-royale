@@ -774,6 +774,8 @@ export default function JourneyMode({
       body: JSON.stringify({
         subject: reentry.subject.id, level_key: reentry.levelKey, score_pct: pct,
         seconds: reentry.seconds,   // active play time, for the activity log
+        // Questions answered this attempt — Daily Activity counts them.
+        questions: reentry.answered ?? null,
         // Which way through this was. The level_key stays the real level id
         // — videos, notes and images are all keyed by it — and the server
         // namespaces the progress row.
@@ -802,6 +804,7 @@ export default function JourneyMode({
           retryPayload: {
             subject: reentry.subject.id, level_key: reentry.levelKey, score_pct: pct,
             seconds: reentry.seconds,
+            questions: reentry.answered ?? null,
             // The retry must land on the same track the attempt was played on.
             track: reentry.track || trackRef.current,
           },

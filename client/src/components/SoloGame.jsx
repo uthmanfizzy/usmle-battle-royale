@@ -2086,6 +2086,9 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
           correct: c, total: graded, pct,
           activeSeconds: activeSecondsRef.current,
           skipped: skippedCountRef.current,
+          // Answered, not served — for the day's question count. The
+          // completion endpoints write the activity row, so they need it.
+          answered: answeredCountRef.current,
         });
       } else {
         // Plain Solo has no completion handler, so nothing else would ever

@@ -785,9 +785,11 @@ export default function App() {
     setPhase('solo_game');
   }
 
-  function handleJourneyComplete({ pct, activeSeconds }) {
+  function handleJourneyComplete({ pct, activeSeconds, answered }) {
     setJourneyReentry({
       pct,
+      // How many questions were actually answered, for Daily Activity.
+      answered,
       // Carried through so JourneyMode's completion POST can report how long the
       // attempt actually took (SoloGame unmounts before that POST fires).
       seconds:     activeSeconds,

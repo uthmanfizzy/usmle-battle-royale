@@ -1005,3 +1005,32 @@
   .ms-course { width: 100%; justify-content: center; }
   .ms-course-btn { flex: 1; justify-content: center; padding: 9px 10px; }
 }
+
+/* UKMLA / PLAB — the UK's navy: a deep royal blue, darker than UWorld's blue
+   so the two never read as one campaign. */
+.ms-journey-card--ukmla { --ms-accent-rgb: 64, 96, 200; border-color: #4060c8; box-shadow: 0 0 18px rgba(64, 96, 200, 0.22); }
+.ms-journey-card--ukmla .ms-journey-name { color: #a9bcff; }
+
+/* ── Locked campaigns ─────────────────────────────────────────────────────
+   Visible but closed: dimmed and desaturated, no glow, no hover lift, a
+   not-allowed cursor — and the 🔒 LOCKED chip in the name says it in words,
+   so it never reads as a button that failed to respond. */
+.ms-journey-card.is-locked {
+  cursor: not-allowed;
+  opacity: 0.55;
+  filter: grayscale(0.45);
+  box-shadow: none;
+}
+.ms-journey-card.is-locked:hover {
+  transform: none;
+  box-shadow: none;
+}
+.ms-journey-card.is-locked .ms-soon-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.85);
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}

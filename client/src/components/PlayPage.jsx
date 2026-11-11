@@ -92,6 +92,23 @@ const GAME_MODES = [
     supportsSolo: false,
   },
   {
+    // The trivia board: roll, move round a 36-space board, and win a wedge
+    // by answering correctly on a subject's headquarters — cardiology,
+    // neurology, pharmacology, microbiology, biochemistry, biostatistics.
+    // All six, then a final question, wins. The server and the board UI
+    // (TriviaGame / TriviaBoard) were already built; this is its card.
+    id: 'trivia_pursuit',
+    name: 'USMLE MEDICAL TRIVIA',
+    icon: '🎲',
+    shortDesc: 'Roll, move, and win all six subject wedges.',
+    meta: 'Multiplayer',
+    accent: '232, 84, 160',
+    tagline: 'Six wedges to win',
+    facts: ['6 subjects', 'Roll & move', 'Final question'],
+    longDescription: 'Roll the dice and move round the board. Land on a subject’s headquarters — cardiology, neurology, pharmacology, microbiology, biochemistry or biostatistics — and answer correctly to win its wedge. Collect all six, then answer one final question to win.',
+    supportsSolo: false,
+  },
+  {
     // Real, live 1v1 mode (Phase 4a). Card copy follows the Deploy mockup's
     // "PvP Arenas" treatment; kept ALL-CAPS to match the five sibling names.
     id: 'pvp_duel',
