@@ -29,6 +29,7 @@ import { questionBankMode } from './questionBankModes';
 const HYFlashcards      = lazy(() => import('./components/HYFlashcards'));
 const ReelsPage         = lazy(() => import('./components/ReelsPage'));
 const PathwayNavigator  = lazy(() => import('./components/PathwayNavigator'));
+const ECGReader         = lazy(() => import('./components/ECGReader'));
 const MinigamesPage     = lazy(() => import('./components/MinigamesPage'));
 const UsernameSetupPage = lazy(() => import('./components/UsernameSetupPage'));
 
@@ -154,6 +155,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
                 {/* Leaving the navigator now goes back to the shelf it was
                     launched from, not to the Journey it used to live in. */}
                 <Route path="/pathway-navigator" element={<RouteErrorBoundary name="PathwayNavigator"><PathwayNavigator onExit={() => { window.location.href = '/minigames'; }} /></RouteErrorBoundary>} />
+                <Route path="/ecg-reader" element={<RouteErrorBoundary name="ECGReader"><ECGReader onExit={() => { window.location.href = '/minigames'; }} /></RouteErrorBoundary>} />
                 <Route path="/username-setup" element={<UsernameSetupPage />} />
                 <Route path="/*"              element={<App />} />
               </Routes>

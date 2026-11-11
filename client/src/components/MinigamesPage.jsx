@@ -52,7 +52,7 @@ const MINIGAMES = [
     subject: 'Cardiology',
     icon: '💓',
     accent: '214, 54, 60',           // cardiology red
-    soon: true,
+    route: '/ecg-reader',
     blurb: 'A strip comes up and you read it: rate, rhythm, axis, intervals, '
          + 'blocks — then the diagnosis, and for an infarct, which territory '
          + 'and which vessel.',
