@@ -93,6 +93,10 @@ export default function JourneyMode({
   // play, which is the right answer to "I came here to study".
   const [justPlayed,  setJustPlayed]  = useState(null);
   const [subject,     setSubject]     = useState(null);       // entry from JOURNEY_SUBJECTS
+  // Read by an in-flight track switch to tell whether the player is still on
+  // the subject it was fetching for, without waiting on a re-render.
+  const subjectIdRef = useRef(null);
+  subjectIdRef.current = subject?.id ?? null;
   useStudyActivity(editorMode ? null : 'First Aid Journey', subject?.name || null, 'journey');
   /**
    * Which way through the Journey.
@@ -271,10 +275,68 @@ export default function JourneyMode({
     ? <div className="jm-bg" style={{ backgroundImage: `url(${bgUrl})` }} aria-hidden="true" />
     : null;
 
-  // Reusable so J3c can re-enter the path with fresh unlock state
-  // Switching the way through reloads the map: the two tracks have their own
-  // progress and their own question counts, so the one on screen belongs to
-  // the track that fetched it. Remembered per browser.
+  // ── Switching Thorough ↔ Rapid, without the wait ────────────────────────
+  //
+  // Switching used to cost three things at once: the whole map vanished
+  // behind a full-screen "Charting your journey…" spinner, it waited on the
+  // server rebuilding the entire path from scratch, and then it dropped you
+  // back on the chapter list even if you had been inside a chapter. For what
+  // is, to the player, flipping a toggle.
+  //
+  // Now:
+  //  - Every path fetched is kept, keyed by subject AND track, and the moment
+  //    one track's map loads, the OTHER track's is fetched quietly behind it.
+  //    So the first switch is normally already in memory, and is instant.
+  //  - A cached map is shown at once and then refreshed in the background
+  //    (stale-while-revalidate), so instant never means out of date for long.
+  //  - With nothing cached, the current map stays on screen while the new one
+  //    loads, and only the toggle says it is working.
+  //  - You stay where you are. Chapters and levels are SHARED between the two
+  //    tracks — only the questions, counts and progress differ — so the
+  //    chapter you were in exists on the other side too.
+  //
+  // The cache cannot go stale in the way that would matter: progress is kept
+  // per track, so playing Thorough never changes Rapid's map, and the track
+  // you are actually playing is refetched by loadPath after every level.
+  const pathCacheRef = useRef(new Map());
+  const cacheKey = (subjId, trk) => `${subjId}:${trk}`;
+  const [trackSwitching, setTrackSwitching] = useState(false);
+
+  // A bare fetch of one subject's map on one track. No state is touched, so
+  // it is safe to fire and forget; the caller decides what to do with it.
+  const fetchPathFor = useCallback(async (subjId, trk) => {
+    const res = await fetch(`${SERVER}/api/journey/${subjId}?track=${trk}`, {
+      headers: { Authorization: `Bearer ${getToken()}` },
+    });
+    if (res.status === 401) { const e = new Error('auth'); e.auth = true; throw e; }
+    if (!res.ok) throw new Error(`Server error (${res.status})`);
+    const data = await res.json();
+    pathCacheRef.current.set(cacheKey(subjId, trk), data);
+    return data;
+  }, []);
+
+  // Warm the other track. Silent by design: a failure here only means the
+  // switch will load normally rather than instantly.
+  const prefetchOtherTrack = useCallback((subjId, trk) => {
+    if (editorMode) return;
+    const other = trk === 'rapid' ? 'full' : 'rapid';
+    if (pathCacheRef.current.has(cacheKey(subjId, other))) return;
+    fetchPathFor(subjId, other).catch(() => { /* loads normally on switch */ });
+  }, [editorMode, fetchPathFor]);
+
+  // Swap the map underneath whatever the player is looking at, keeping their
+  // place. A chapter index past the end of the new map (it should not happen —
+  // the chapters are shared — but a half-saved admin edit could do it) falls
+  // back to the chapter list rather than rendering an empty chapter.
+  const showPath = (data) => {
+    setPath(data);
+    const n = data?.chapters?.length || 0;
+    setChapterIdx(i => {
+      if (i >= n) { setView('chapters'); return 0; }
+      return i;
+    });
+  };
+
   const pickTrack = (next) => {
     if (next === trackRef.current) return;
     trackRef.current = next;
@@ -282,7 +344,33 @@ export default function JourneyMode({
     try { localStorage.setItem('mv_journey_track', next); } catch { /* private mode */ }
     setConfirmNode(null);
     setJustPlayed(null);
-    if (subject) loadPathRef.current?.(subject);
+    if (!subject) return;
+
+    // Editor previews come from admin reads with no tracks; keep that path.
+    if (editorMode) { loadPathRef.current?.(subject); return; }
+
+    const subjId = subject.id;
+    const cached = pathCacheRef.current.get(cacheKey(subjId, next));
+    if (cached) showPath(cached);
+    else setTrackSwitching(true);
+
+    // Fresh either way — the cached copy is for speed, not for truth.
+    fetchPathFor(subjId, next)
+      .then(fresh => {
+        // The player may have switched back, or left the subject, while this
+        // was in flight. Only the request for what is on screen may land.
+        if (trackRef.current !== next || subjectIdRef.current !== subjId) return;
+        showPath(fresh);
+      })
+      .catch(err => {
+        if (err?.auth) { setAuthExpired(true); return; }
+        // A cached map is already showing, so a failed refresh costs nothing.
+        // With nothing cached the old map is still up; say so plainly.
+        if (!cached && trackRef.current === next) {
+          setError('Could not switch to that question set. Check your connection.');
+        }
+      })
+      .finally(() => { if (trackRef.current === next) setTrackSwitching(false); });
   };
 
   const loadPath = useCallback(async (subj) => {
@@ -299,24 +387,24 @@ export default function JourneyMode({
         setLoading(false);
         return data;
       }
-      const res = await fetch(`${SERVER}/api/journey/${subj.id}?track=${trackRef.current}`, {
-        headers: { Authorization: `Bearer ${getToken()}` },
-      });
-      if (res.status === 401) { setAuthExpired(true); setLoading(false); return null; }
-      if (!res.ok) throw new Error(`Server error (${res.status})`);
-      const data = await res.json();
+      const trk = trackRef.current;
+      const data = await fetchPathFor(subj.id, trk);
       setPath(data);
       setSubject(subj);
       setView('chapters');
       setLoading(false);
+      // The map is up; now quietly fetch the other track's, so the first
+      // Thorough ↔ Rapid switch is already in memory when it is pressed.
+      prefetchOtherTrack(subj.id, trk);
       return data;
-    } catch {
+    } catch (err) {
+      if (err?.auth) { setAuthExpired(true); setLoading(false); return null; }
       setError('Could not load the journey. Check your connection.');
     }
     setLoading(false);
     return null;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editorMode]);
+  }, [editorMode, fetchPathFor, prefetchOtherTrack]);
 
   // pickTrack is declared above loadPath (it is used by the chooser, which
   // renders far below), so it reaches it through a ref rather than forcing a
@@ -1764,7 +1852,12 @@ export default function JourneyMode({
 
             Above the chapters rather than on each one, because it is a
             decision about the whole run. */}
-        <div className="jm-track" role="group" aria-label="How to study this">
+        <div
+          className={`jm-track${trackSwitching ? ' is-switching' : ''}`}
+          role="group"
+          aria-label="How to study this"
+          aria-busy={trackSwitching}
+        >
           <button
             type="button"
             className={`jm-track-btn${track === 'full' ? ' is-on' : ''}`}
@@ -1785,7 +1878,7 @@ export default function JourneyMode({
           </button>
         </div>
 
-        <div className="jm-chapters-scroll">
+        <div className={`jm-chapters-scroll${trackSwitching ? ' is-switching' : ''}`}>
           <div className="jm-chapter-list">
             <p className="jm-chapters-tagline" {...ek('chapters.tagline')}>{t('chapters.tagline', 'Choose a chapter to begin.')}</p>
             {/* The Metabolic Pathway Navigator used to sit here, above

@@ -3257,3 +3257,32 @@
 @media (max-width: 520px) {
   .jm-track-btn { min-width: 0; flex: 1 1 140px; padding: 8px 12px; }
 }
+
+/* ── Switching tracks ────────────────────────────────────────────────────
+   Only when the other track's map was not already in memory. The map stays
+   on screen — it is the same chapters either way — and dims slightly while
+   its counts and progress are swapped, with a sweep along the active toggle
+   so the press visibly registered. No full-screen spinner: that was what
+   made a toggle feel like a page load. */
+.jm-track.is-switching .jm-track-btn.is-on {
+  position: relative;
+  overflow: hidden;
+}
+.jm-track.is-switching .jm-track-btn.is-on::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, rgba(255, 224, 170, 0) 30%, rgba(255, 224, 170, 0.28) 50%, rgba(255, 224, 170, 0) 70%);
+  transform: translateX(-100%);
+  animation: jm-track-sweep 0.9s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes jm-track-sweep {
+  to { transform: translateX(100%); }
+}
+.jm-chapters-scroll { transition: opacity 0.18s ease; }
+.jm-chapters-scroll.is-switching { opacity: 0.6; }
+
+@media (prefers-reduced-motion: reduce) {
+  .jm-track.is-switching .jm-track-btn.is-on::after { animation: none; opacity: 0.5; transform: none; }
+}
