@@ -3,6 +3,7 @@ import socket from './socket';
 import * as audio from './audio';
 import { watchMatch } from './matchWatch';
 import { getToken, clearToken, fetchMe, getCachedUser, redirectToGoogle, getGuestName, setGuestName, clearGuestName } from './auth';
+import { SERVER_URL } from './serverUrl';
 import UsernameEntry from './components/UsernameEntry';
 import ExamSelect from './components/ExamSelect';
 import DifficultySelect from './components/DifficultySelect';
@@ -277,7 +278,7 @@ export default function App() {
     setPhase('landing');
 
     // DEBUG: Fetch and log game settings
-    fetch('https://usmle-battle-royale-production.up.railway.app/api/game-settings')
+    fetch(`${SERVER_URL}/api/game-settings`)
       .then(r => r.json())
       .then(data => {
         console.log('========================================');
@@ -819,7 +820,7 @@ export default function App() {
     // Whole-folder / sub-folder runs carry an explicit completionKey (group:<id>);
     // single-topic runs keep the original subject/topicId key (byte-identical).
     const category = trainingTopic.completionKey || `${trainingTopic.category}/${trainingTopic.topicId}`;
-    fetch('https://usmle-battle-royale-production.up.railway.app/api/training-complete', {
+    fetch(`${SERVER_URL}/api/training-complete`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       // seconds: active answering time for this run, for the activity log

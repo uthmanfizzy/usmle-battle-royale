@@ -3,7 +3,7 @@ import { getToken } from '../auth';
 import { JOURNEY_SUBJECTS } from '../journeySubjects';
 import './TrainingGrounds.css';
 
-const SERVER = 'https://usmle-battle-royale-production.up.railway.app';
+import { SERVER_URL as SERVER } from '../serverUrl';
 
 // Training Grounds subject ids that have a matching First Aid Journey (same id).
 // Only these get a real progress ring; non-matching subjects stay at 0%.

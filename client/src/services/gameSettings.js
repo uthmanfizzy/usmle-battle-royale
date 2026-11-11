@@ -5,7 +5,7 @@
  * Settings are refreshed every 5 minutes.
  */
 
-const SERVER_URL = 'https://usmle-battle-royale-production.up.railway.app';
+import { SERVER_URL } from '../serverUrl';
 
 let cachedSettings = null;
 let lastFetchTime = 0;

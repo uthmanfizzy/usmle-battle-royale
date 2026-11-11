@@ -43,7 +43,7 @@ const optionImageIndex = (field) => {
   const m = new RegExp(`^${OPTION_IMAGE_PREFIX}(\\d+)$`).exec(field || '');
   return m ? Number.parseInt(m[1], 10) : null;
 };
-const SERVER_URL = 'https://usmle-battle-royale-production.up.railway.app';
+import { SERVER_URL } from '../serverUrl';
 
 // Self-assessment buckets shown below the explanation on every UWorld
 // Adventure question — same five categories and exact value strings as HY

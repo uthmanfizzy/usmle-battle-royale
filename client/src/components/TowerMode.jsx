@@ -6,7 +6,7 @@ import { useStudyActivity } from '../studyPresence';
 import ExplanationText from './ExplanationText';
 import { shuffleQuestionOptions } from '../utils/shuffleOptions';
 
-const SERVER = 'https://usmle-battle-royale-production.up.railway.app';
+import { SERVER_URL as SERVER } from '../serverUrl';
 const LABELS  = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
 
 // ── Zone & floor data ──────────────────────────────────────────────────────────

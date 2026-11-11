@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import './GuidePage.css';
 
-const SERVER_URL = 'https://usmle-battle-royale-production.up.railway.app';
+import { SERVER_URL } from '../serverUrl';
 
 // 16:9 responsive embed — same wrapper convention as JourneyMode's
 // .jm-confirm-video-frame (aspect-ratio box + absolutely-filled iframe).

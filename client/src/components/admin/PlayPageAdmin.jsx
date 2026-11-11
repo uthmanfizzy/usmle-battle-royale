@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import './PlayPageAdmin.css';
 
-const API = 'https://usmle-battle-royale-production.up.railway.app';
+import { SERVER_URL as API } from '../../serverUrl';
 const AUTH_KEY = 'usmle_admin_session';
 
 function apiCall(path, options = {}) {

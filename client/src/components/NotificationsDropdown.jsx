@@ -2,7 +2,7 @@ import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { SwordsGlyph, TrophyGlyph, GroupGlyph, PlayGlyph, ScrollGlyph, WrenchGlyph } from './HomeGlyphs';
 import './NotificationsDropdown.css';
 
-const SERVER_URL = 'https://usmle-battle-royale-production.up.railway.app';
+import { SERVER_URL } from '../serverUrl';
 // Same read-state store the News tab uses (Dashboard.jsx ANN_READ_KEY), so
 // reading an item in either place clears it in both.
 const READ_KEY = 'mrb_read_announcements';

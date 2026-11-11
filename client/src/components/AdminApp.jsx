@@ -10,7 +10,7 @@ import { JOURNEY_SUBJECTS, JOURNEY_SECTIONS } from '../journeySubjects';
 import { normalizeExplanationImages, MAX_EXPLANATION_IMAGES } from '../utils/explanationImages';
 import { QUESTION_BANK_MODES } from '../questionBankModes';
 
-const API = 'https://usmle-battle-royale-production.up.railway.app';
+import { SERVER_URL as API } from '../serverUrl';
 const AUTH_KEY = 'usmle_admin_session';
 
 const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];

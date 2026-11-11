@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { parseRichText } from '../utils/parseRichText';
 import './MedathonReview.css';
 
-const SERVER_URL = 'https://usmle-battle-royale-production.up.railway.app';
+import { SERVER_URL } from '../serverUrl';
 
 /**
  * The post-match review.

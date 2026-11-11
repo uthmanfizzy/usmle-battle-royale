@@ -75,7 +75,7 @@ class DashboardErrorBoundary extends React.Component {
   }
 }
 
-const SERVER_URL = 'https://usmle-battle-royale-production.up.railway.app';
+import { SERVER_URL } from '../serverUrl';
 const ANN_READ_KEY    = 'mrb_read_announcements';
 const ANN_WELCOME_KEY = 'mrb_welcome_v1';
 // Category tag pills for the News tab, on the shared token families (static

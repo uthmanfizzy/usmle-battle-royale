@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { getToken, fetchMe, getCachedUser, authFetch } from '../auth';
 import './ShopPage.css';
 
-const SERVER_URL = 'https://usmle-battle-royale-production.up.railway.app';
+import { SERVER_URL } from '../serverUrl';
 
 // Standalone Shop page — virtual-currency (gems) gear purchases only.
 // Featured bundles and real-money currency packs have NO backend (no payment

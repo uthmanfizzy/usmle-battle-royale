@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-const SERVER_URL = 'https://usmle-battle-royale-production.up.railway.app';
+import { SERVER_URL } from '../serverUrl';
 
 export default function ClanSettingsModal({ clan, user, onClose, onUpdated }) {
   const [form, setForm] = useState({

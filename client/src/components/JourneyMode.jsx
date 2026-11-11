@@ -8,7 +8,7 @@ import { getStarCount } from '../utils/journeyStars';
 import './JourneyMode.css';
 import { cachedImageMap, rememberImageMap } from '../utils/cachedImages';
 
-const SERVER = 'https://usmle-battle-royale-production.up.railway.app';
+import { SERVER_URL as SERVER } from '../serverUrl';
 
 // Self-assessment offered on a level you've already completed. Deliberately
 // phrased as revision states rather than grades — the score is already on the

@@ -4,7 +4,7 @@ import { authFetch, getCachedUser, setCachedUser } from '../auth';
 import './ModeSplit.css';
 import './ChooseYourPath.css';
 
-const SERVER_URL = 'https://usmle-battle-royale-production.up.railway.app';
+import { SERVER_URL } from '../serverUrl';
 
 // "Choose Your Path" — shown after clicking Play. Three wide art cards (Story,
 // Online, Training Grounds), each with a medallion, coloured title, call-to-

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 
-const SERVER_URL = 'https://usmle-battle-royale-production.up.railway.app';
+import { SERVER_URL } from '../serverUrl';
 
 export default function BrowseClansModal({ user, onClose, onJoined }) {
   const [clans, setClans] = useState([]);

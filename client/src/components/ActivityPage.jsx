@@ -5,7 +5,7 @@ import { getMasteryColor } from '../utils/masteryColors';
 import { QUESTION_BANK_MODES } from '../questionBankModes';
 import './ActivityPage.css';
 
-const SERVER_URL = 'https://usmle-battle-royale-production.up.railway.app';
+import { SERVER_URL } from '../serverUrl';
 
 // Standalone Daily Activity page: one day of activity_sessions rows, in the
 // order they happened. Reads the public

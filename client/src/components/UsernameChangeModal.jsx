@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { authFetch } from '../auth';
 import './UsernameChangeModal.css';
 
-const SERVER_URL = 'https://usmle-battle-royale-production.up.railway.app';
+import { SERVER_URL } from '../serverUrl';
 const MS_PER_YEAR = 365 * 24 * 60 * 60 * 1000;
 
 function fmtLong(date) {

@@ -4,7 +4,7 @@ import CreateClanModal from './CreateClanModal';
 import BrowseClansModal from './BrowseClansModal';
 import ClanSettingsModal from './ClanSettingsModal';
 
-const SERVER_URL = 'https://usmle-battle-royale-production.up.railway.app';
+import { SERVER_URL } from '../serverUrl';
 
 // Roles come back in mixed casing / legacy names; normalize to the three real
 // display roles (Elder is the real name — NOT "Officer", per an earlier decision).

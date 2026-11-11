@@ -9,7 +9,7 @@ import { getToken } from './auth';
 // with its game on top) the most recently mounted one wins, and unmounting
 // falls back to the one underneath.
 
-const SERVER_URL = 'https://usmle-battle-royale-production.up.railway.app';
+import { SERVER_URL } from './serverUrl';
 const BEAT_MS = 30000;
 
 const stack = [];            // [{ key, activity }]

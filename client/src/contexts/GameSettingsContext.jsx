@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState } from 'react';
 
 const GameSettingsContext = createContext({});
 
-const SERVER_URL = 'https://usmle-battle-royale-production.up.railway.app';
+import { SERVER_URL } from '../serverUrl';
 
 export function GameSettingsProvider({ children }) {
   const [settings, setSettings] = useState({

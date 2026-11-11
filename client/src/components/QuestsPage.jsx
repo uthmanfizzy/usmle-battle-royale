@@ -3,7 +3,7 @@ import { getToken, fetchMe, getCachedUser, authFetch } from '../auth';
 import { timeToDailyReset } from '../utils/dailyReset';
 import './QuestsPage.css';
 
-const SERVER_URL = 'https://usmle-battle-royale-production.up.railway.app';
+import { SERVER_URL } from '../serverUrl';
 
 // Standalone Quests page (Phase C) — promoted from the Dashboard dock's
 // temporary scroll-to-widget bridge. Reads the same two endpoints the Home

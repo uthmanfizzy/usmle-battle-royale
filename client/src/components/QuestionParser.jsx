@@ -33,7 +33,7 @@ function assembleStem(lines) {
   return parts.join('\n').trim();
 }
 
-const SERVER_URL = 'https://usmle-battle-royale-production.up.railway.app';
+import { SERVER_URL } from '../serverUrl';
 
 const EXAMPLE_TEXT = `1. A 45-year-old man presents with fatigue, pallor, and shortness of breath. His blood film shows hypochromic microcytic red blood cells. Serum ferritin is low. Which is the most likely diagnosis?
 System: Haematology

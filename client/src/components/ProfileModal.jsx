@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import './ProfileModal.css';
 
-const SERVER_URL = 'https://usmle-battle-royale-production.up.railway.app';
+import { SERVER_URL } from '../serverUrl';
 
 const ZERO_STATS = { total_seconds: 0, today_seconds: 0, week_seconds: 0, streak_days: 0 };
 

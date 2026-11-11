@@ -9,7 +9,7 @@ import StudyCalendar from './StudyCalendar';
 import SubjectDetailModal from './SubjectDetailModal';
 import './ProgressPage.css';
 
-const SERVER_URL = 'https://usmle-battle-royale-production.up.railway.app';
+import { SERVER_URL } from '../serverUrl';
 
 // Rank/color tiers copied from StatsPage's SubjectMastery pattern (StatsPage
 // itself is intentionally left untouched — see task notes).

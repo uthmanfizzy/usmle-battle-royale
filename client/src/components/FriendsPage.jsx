@@ -4,7 +4,7 @@ import { authFetch, getToken } from '../auth';
 import { GroupGlyph } from './HomeGlyphs';
 import './FriendsPage.css';
 
-const SERVER_URL = 'https://usmle-battle-royale-production.up.railway.app';
+import { SERVER_URL } from '../serverUrl';
 const POLL_MS = 30000;
 
 const MODE_LABELS = {

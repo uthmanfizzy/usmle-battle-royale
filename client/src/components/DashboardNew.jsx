@@ -18,7 +18,7 @@ import { cachedImageMap, rememberImageMap } from '../utils/cachedImages';
 
 const StatsPage = lazy(() => import('./StatsPage'));
 
-const SERVER_URL = 'https://usmle-battle-royale-production.up.railway.app';
+import { SERVER_URL } from '../serverUrl';
 const ANN_READ_KEY = 'mrb_read_announcements';
 
 function getReadIds() {

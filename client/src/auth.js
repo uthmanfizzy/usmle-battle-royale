@@ -1,6 +1,6 @@
 const TOKEN_KEY  = 'authToken';
 const USER_KEY   = 'user';
-const SERVER_URL = 'https://usmle-battle-royale-production.up.railway.app';
+import { SERVER_URL } from './serverUrl';
 
 export function getToken()              { return localStorage.getItem(TOKEN_KEY); }
 export function setToken(token)         { localStorage.setItem(TOKEN_KEY, token); }

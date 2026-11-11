@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 
-const SERVER = 'https://usmle-battle-royale-production.up.railway.app';
+import { SERVER_URL as SERVER } from '../serverUrl';
 
 // Master list — kept static so Lobby.jsx can do a fast lookup by id.
 // Active/inactive state is fetched from the API at render time.

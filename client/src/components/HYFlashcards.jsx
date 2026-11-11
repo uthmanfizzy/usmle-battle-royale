@@ -4,7 +4,7 @@ import * as audio from '../audio';
 import { useStudyActivity } from '../studyPresence';
 import './HYFlashcards.css';
 
-const SERVER_URL = 'https://usmle-battle-royale-production.up.railway.app';
+import { SERVER_URL } from '../serverUrl';
 
 // Fisher-Yates — cards arrive in authored (sort_order) order; shuffle is opt-in.
 function shuffle(arr) {

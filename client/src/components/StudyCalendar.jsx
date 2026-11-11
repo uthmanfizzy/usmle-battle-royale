@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { formatStudyTime } from './ProfileModal';
 import './StudyCalendar.css';
 
-const SERVER_URL = 'https://usmle-battle-royale-production.up.railway.app';
+import { SERVER_URL } from '../serverUrl';
 
 const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',

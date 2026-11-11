@@ -3,7 +3,7 @@ import ProfileModal from './ProfileModal';
 import { authFetch } from '../auth';
 import './FriendsPanel.css';
 
-const SERVER_URL = 'https://usmle-battle-royale-production.up.railway.app';
+import { SERVER_URL } from '../serverUrl';
 
 export default function FriendsPanel({ user, onClose, onInviteToGame, isDropdown }) {
   const [activeTab, setActiveTab] = useState('friends');

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { getToken, fetchMe, authFetch } from '../auth';
 import './UsernameSetupPage.css';
 
-const SERVER_URL = 'https://usmle-battle-royale-production.up.railway.app';
+import { SERVER_URL } from '../serverUrl';
 
 function makeSuggestions(email) {
   const base = (email || '').split('@')[0].replace(/[^a-zA-Z0-9]/g, '') || 'Player';

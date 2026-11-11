@@ -18,7 +18,7 @@ import './ShortsFeed.css';
 //   iframe failures (login wall, removed video, blocked network) are silent,
 //   so the way out is always visible.
 
-const SERVER_URL = 'https://usmle-battle-royale-production.up.railway.app';
+import { SERVER_URL } from '../serverUrl';
 
 function OpenLink({ short, prominent = false }) {
   return (

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import './AnKingAdmin.css';
 
-const SERVER_URL = 'https://usmle-battle-royale-production.up.railway.app';
+import { SERVER_URL } from '../../serverUrl';
 const AUTH_KEY = 'usmle_admin_session';
 
 function apiCall(path, options = {}) {

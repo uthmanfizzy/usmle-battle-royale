@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import './SubjectDetailModal.css';
 
-const SERVER_URL = 'https://usmle-battle-royale-production.up.railway.app';
+import { SERVER_URL } from '../serverUrl';
 
 // '2026-07-11T09:41:00Z' -> 'Jul 11, 2026' (viewer's locale month/day order)
 function formatGameDate(iso) {
