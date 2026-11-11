@@ -226,6 +226,57 @@ const RHYTHMS = {
     return { pWaves, complexes };
   },
 
+  // Sinus arrhythmia: the rate rises with inspiration and falls with
+  // expiration, so the RR intervals swell and shrink smoothly over a breath
+  // (~4 s). Every beat is still sinus, with an identical P and PR.
+  sinusArrhythmia({ rate = 72, pr = 0.16, depth = 0.22, breath = 4.2 }, rng, horizon) {
+    const pWaves = [], complexes = [];
+    const rr0 = 60 / rate;
+    for (let t = 0.6; t < horizon;) {
+      pWaves.push(t - pr);
+      complexes.push({ at: t, kind: 'normal', pr });
+      t += rr0 * (1 + depth * Math.sin((2 * Math.PI * t) / breath));
+    }
+    return { pWaves, complexes };
+  },
+
+  // Multifocal atrial tachycardia: several atrial foci take turns, so the P
+  // wave changes shape from beat to beat (at least three forms), the PR
+  // varies with it, and the rhythm is irregular — but every QRS has a P.
+  mat({ rate = 118 }, rng, horizon) {
+    const pWaves = [], pKinds = [], complexes = [];
+    const prs = [0.12, 0.16, 0.20];
+    const mean = 60 / rate;
+    for (let t = 0.6; t < horizon;) {
+      const k = Math.floor(rng() * 3);
+      pWaves.push(t - prs[k]);
+      pKinds.push(k);
+      complexes.push({ at: t, kind: 'normal', pr: prs[k] });
+      t += mean * (0.78 + rng() * 0.44);
+    }
+    return { pWaves, pKinds, complexes };
+  },
+
+  // Premature atrial complexes. Every `every`th beat comes early, from an
+  // ectopic atrial focus — a differently shaped P, then a normal narrow QRS.
+  // The PAC resets the sinus node, so the pause after it is NOT
+  // compensatory: the next sinus beat comes one ordinary cycle later.
+  // every: 2 is atrial bigeminy.
+  pacs({ rate = 100, pr = 0.15, every = 4, coupling = 0.68 }, rng, horizon) {
+    const pWaves = [], pKinds = [], complexes = [];
+    const rr = 60 / rate;
+    let n = 0;
+    for (let t = 0.6; t < horizon; n++) {
+      const early = (n % every) === every - 1;
+      const at = early ? t - rr + rr * coupling : t;
+      pWaves.push(at - pr);
+      pKinds.push(early ? 1 : 0);
+      complexes.push({ at, kind: 'normal', pr });
+      t = at + rr;
+    }
+    return { pWaves, pKinds, complexes };
+  },
+
   // Nothing organised at all: VF, torsades and asystole are continuous.
   none() {
     return { pWaves: [], complexes: [] };
@@ -289,7 +340,7 @@ export function buildSignal(caseDef, seed = 1, horizon = 900) {
   const rng = mulberry32(seed);
   const rhythmFn = RHYTHMS[caseDef.rhythm.type];
   if (!rhythmFn) throw new Error(`Unknown rhythm: ${caseDef.rhythm.type}`);
-  const { pWaves, complexes } = rhythmFn(caseDef.rhythm, rng, horizon);
+  const { pWaves, complexes, pKinds = null } = rhythmFn(caseDef.rhythm, rng, horizon);
 
   // Each complex's QT is fixed once, from the RR interval before it, so a
   // beat does not change shape while you watch it.
@@ -318,13 +369,17 @@ export function buildSignal(caseDef, seed = 1, horizon = 900) {
     }
 
     // P waves are their own events: in a block they exist with no QRS.
-    const p = lead.morph.normal.p;
-    if (p) {
+    // Where the rhythm names which atrial focus fired (MAT, PACs), the lead's
+    // pAlt gives that focus its own P shape.
+    const p0 = lead.morph.normal.p;
+    const alt = lead.morph.pAlt;
+    if (p0 || alt) {
       const plo = lowerBound(pWaves, t - 0.2);
       for (let i = plo; i < pWaves.length; i++) {
         const onset = pWaves[i];
         if (onset > t + 0.05) break;
-        v += gauss(t, onset + 0.05, p.s, p.a);
+        const p = pKinds && alt ? (alt[pKinds[i]] || p0) : p0;
+        if (p) v += gauss(t, onset + 0.05, p.s, p.a);
       }
     }
 
@@ -342,5 +397,50 @@ export function buildSignal(caseDef, seed = 1, horizon = 900) {
     return i >= 0 ? complexes[i].at : null;
   }
 
-  return { leads: leads.map(l => ({ name: l.name })), value, lastQrsBefore, complexes, pWaves };
+  return {
+    leads: leads.map(l => ({ name: l.name })),
+    value, lastQrsBefore, complexes, pWaves, pKinds,
+    // Where the parts of a complex fall, for labelling a strip.
+    timings(li, c) {
+      const morph = leads[li].morph[c.kind] || leads[li].morph.normal;
+      return complexTimings(morph, c, qtFor(morph, c));
+    },
+    morphOf(li, c) { return leads[li].morph[c.kind] || leads[li].morph.normal; },
+  };
+}
+
+// ── Where the parts of a complex fall ────────────────────────────────────
+/**
+ * QRS onset and offset, measured off the kernels the way a reader would see
+ * them: the span where the QRS carries more than 4% of its own peak.
+ */
+export function qrsSpan(morph) {
+  const val = (t) => morph.qrs.reduce((v, k) => v + gauss(t, k.c, k.s, k.a), 0);
+  let peak = 0;
+  for (let t = -0.05; t < 0.3; t += 0.001) peak = Math.max(peak, Math.abs(val(t)));
+  let on = null, off = null;
+  for (let t = -0.05; t < 0.3; t += 0.001) {
+    if (Math.abs(val(t)) > 0.04 * peak) { if (on == null) on = t; off = t; }
+  }
+  return { on: on ?? 0, off: off ?? morph.j };
+}
+
+/** Absolute times of a complex's landmarks, for annotation. */
+export function complexTimings(morph, c, qt) {
+  const span = qrsSpan(morph);
+  let tPeak = qt - 2.6 * morph.t.fall;
+  if (tPeak < morph.j + 0.06) tPeak = morph.j + 0.06;
+  // The tallest kernel is the R (or the deepest, for a negative complex).
+  const main = morph.qrs.reduce((m, k) => (Math.abs(k.a) > Math.abs(m.a) ? k : m), morph.qrs[0]);
+  return {
+    qrsOn: c.at + span.on,
+    qrsOff: c.at + span.off,
+    peak: c.at + main.c,
+    j: c.at + morph.j,
+    tPeak: c.at + tPeak,
+    tEnd: c.at + qt,
+    uPeak: morph.u ? c.at + qt + 0.085 : null,
+    pOnset: c.pr ? c.at - c.pr : null,
+    qt,
+  };
 }

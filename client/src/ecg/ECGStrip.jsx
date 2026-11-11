@@ -25,12 +25,12 @@ import { useEffect, useRef } from 'react';
  *   look     'paper' (pink grid, dark ink) or 'monitor' (green on black)
  *   onBeat   called when a QRS passes the write-head (for a pulse indicator)
  */
-const PAPER_SPEED = 25;      // mm per second
-const GAIN = 10;             // mm per mV
-const MARGIN_MM = 14;        // left margin: lead label + calibration pulse
+export const PAPER_SPEED = 25;      // mm per second
+export const GAIN = 10;             // mm per mV
+export const MARGIN_MM = 14;        // left margin: lead label + calibration pulse
 const GAP_MM = 9;            // the erased band ahead of the write-head
 
-const LOOKS = {
+export const LOOKS = {
   paper: {
     bg: '#fff4f2',
     minor: 'rgba(232, 120, 120, 0.28)',
@@ -137,7 +137,7 @@ export default function ECGStrip({ signal, paused = false, look = 'paper', onBea
 }
 
 // ── Paper ─────────────────────────────────────────────────────────────────
-function drawPaper(size, L, signal) {
+export function drawPaper(size, L, signal) {
   const { w, h, pxPerMm, bandMm, dpr } = size;
   const c = document.createElement('canvas');
   c.width = Math.round(w * dpr);
@@ -190,7 +190,7 @@ function drawPaper(size, L, signal) {
 
 // The isoelectric line sits a little below the middle of each band: R waves
 // and ST elevation need more room above than S waves need below.
-function baselineY(li, size) {
+export function baselineY(li, size) {
   return (li * size.bandMm + size.bandMm * 0.56) * size.pxPerMm;
 }
 

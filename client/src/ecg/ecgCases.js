@@ -64,7 +64,11 @@ const II_VT = {
   qt: 0.32,
 };
 
-const lead = (name, morph, extra = {}) => ({ name, morph: { normal: morph, ...extra.kinds }, contScale: extra.contScale });
+const lead = (name, morph, extra = {}) => ({
+  name,
+  morph: { normal: morph, ...extra.kinds, ...(extra.pAlt ? { pAlt: extra.pAlt } : {}) },
+  contScale: extra.contScale,
+});
 
 // ── The bank ─────────────────────────────────────────────────────────────
 export const ECG_CASES = [
@@ -470,6 +474,126 @@ export const ECG_CASES = [
       'ST segments and T waves point AWAY from the QRS (discordant) — expected, not ischaemia.',
     ],
     why: 'The left ventricle depolarises late, from right to left. Rarely benign — think hypertension, aortic stenosis, cardiomyopathy and ischaemia. A new LBBB with chest pain is managed as a STEMI equivalent.',
+  },
+  // ── Added so every distractor has a strip to compare against ───────────
+  {
+    id: 'sinus-arrhythmia',
+    category: 'rhythm',
+    answer: 'Sinus arrhythmia',
+    distractors: ['Normal sinus rhythm', 'Atrial fibrillation', 'Mobitz I (Wenckebach)', 'Atrial bigeminy (PACs)'],
+    // A 6 s breath (10/min, resting) gives ~7 beats per cycle, so the RR drifts
+    // rather than jumps — the gradual quality that separates it from AF.
+    rhythm: { type: 'sinusArrhythmia', rate: 68, pr: 0.16, depth: 0.17, breath: 6 },
+    leads: [lead('II', II_NORMAL)],
+    look: [
+      'The RR interval lengthens and shortens smoothly and gradually, in a cycle of a few seconds — with breathing.',
+      'Every beat is sinus: the same upright P wave, the same PR, before every QRS.',
+      'Regularly irregular — there is a pattern to it, unlike atrial fibrillation.',
+    ],
+    why: 'The heart rate rises on inspiration and falls on expiration, through vagal tone. Normal and healthy, especially in the young; it fades with age and autonomic disease.',
+  },
+  {
+    id: 'junctional',
+    category: 'rhythm',
+    answer: 'Junctional rhythm',
+    distractors: ['Sinus bradycardia', 'Complete (third-degree) heart block', 'First-degree AV block', 'Wolff–Parkinson–White'],
+    rhythm: { type: 'sinus', rate: 50, pr: 0.08, variability: 0.01 },
+    leads: [lead('II', { ...II_NORMAL, p: { a: -0.11, s: 0.018 } })],
+    look: [
+      'Regular, narrow QRS at a junctional rate — 40 to 60.',
+      'The P wave is INVERTED in lead II: the atria are being activated backwards, from below.',
+      'The PR is short (under 0.12 s) — or the P is hidden in or just after the QRS.',
+    ],
+    why: 'The AV junction has taken over as pacemaker, because the sinus node has failed or slowed below it. Think sick sinus syndrome, digoxin, beta-blockers, inferior MI.',
+  },
+  {
+    id: 'flutter-variable',
+    category: 'rhythm',
+    answer: 'Atrial flutter with variable block',
+    distractors: ['Atrial fibrillation', 'Atrial flutter with 2:1 block', 'Multifocal atrial tachycardia', 'Sinus tachycardia with PACs'],
+    rhythm: { type: 'flutter', ratios: [2, 4, 3, 4, 2, 3, 4] },
+    continuous: 'flutter',
+    leads: [lead('II', { ...II_NORMAL, p: null })],
+    look: [
+      'An irregular ventricular rhythm…',
+      '…over a REGULAR sawtooth baseline at 300/min — the flutter waves never change pace.',
+      'The RR intervals are always whole multiples of the flutter cycle (2:1, 3:1, 4:1).',
+    ],
+    why: 'The same right-atrial circuit as any flutter, with the AV node letting through a varying number of waves. Irregular, so easily called AF — the organised sawtooth is what gives it away.',
+  },
+  {
+    id: 'mat',
+    category: 'rhythm',
+    answer: 'Multifocal atrial tachycardia',
+    distractors: ['Atrial fibrillation', 'Sinus tachycardia with PACs', 'Atrial flutter with variable block', 'Sinus tachycardia'],
+    rhythm: { type: 'mat', rate: 118 },
+    leads: [lead('II', II_NORMAL, { pAlt: [P_NORMAL, { a: -0.1, s: 0.018 }, { a: 0.26, s: 0.014 }] })],
+    look: [
+      'An irregular tachycardia over 100…',
+      '…with a P wave before every QRS — but at least three DIFFERENT P-wave shapes.',
+      'The PR interval changes along with the P wave, because each comes from a different focus.',
+    ],
+    why: 'Several atrial foci firing in turn — classically in severe COPD, hypoxia, hypokalaemia and hypomagnesaemia. Treat the lung disease and the electrolytes; it does not respond to cardioversion.',
+  },
+  {
+    id: 'pacs',
+    category: 'rhythm',
+    answer: 'Sinus tachycardia with PACs',
+    distractors: ['Atrial fibrillation', 'Multifocal atrial tachycardia', 'Atrial bigeminy (PACs)', 'Ventricular bigeminy (PVCs)'],
+    rhythm: { type: 'pacs', rate: 108, pr: 0.15, every: 4, coupling: 0.68 },
+    leads: [lead('II', II_NORMAL, { pAlt: [P_NORMAL, { a: -0.09, s: 0.016 }] })],
+    look: [
+      'A sinus tachycardia, interrupted by an occasional EARLY beat.',
+      'The early beat has a P wave of a different shape, then a normal narrow QRS.',
+      'The pause after it is not compensatory: the PAC resets the sinus node.',
+    ],
+    why: 'Premature atrial complexes from an ectopic atrial focus. Common and usually benign — caffeine, alcohol, stress, stimulants, atrial stretch.',
+  },
+  {
+    id: 'atrial-bigeminy',
+    category: 'rhythm',
+    answer: 'Atrial bigeminy (PACs)',
+    distractors: ['Ventricular bigeminy (PVCs)', 'Mobitz I (Wenckebach)', 'Sinus arrhythmia', 'Mobitz II (second-degree, type II)'],
+    rhythm: { type: 'pacs', rate: 76, pr: 0.16, every: 2, coupling: 0.62 },
+    leads: [lead('II', II_NORMAL, { pAlt: [P_NORMAL, { a: -0.09, s: 0.016 }] })],
+    look: [
+      'Beats arrive in pairs: a sinus beat, then an early beat, then a pause.',
+      'The early beat has its own, differently shaped P wave, and a NARROW QRS like the sinus beats.',
+      'Every QRS has a P in front of it — none is dropped.',
+    ],
+    why: 'Every other beat is a premature atrial complex. Benign in most; the grouped rhythm is easily mistaken for second-degree AV block, so look for the early P wave.',
+  },
+  {
+    id: 'digoxin',
+    category: 'pattern',
+    answer: 'Digoxin effect',
+    distractors: ['Hypokalaemia', 'Long QT syndrome', 'Hyperkalaemia', 'Acute pericarditis'],
+    rhythm: { type: 'sinus', rate: 64, pr: 0.2 },
+    leads: [lead('II', { ...II_NORMAL, st: -0.14, t: { a: 0.06, rise: 0.06, fall: 0.04 }, qtc: 0.36 })],
+    look: [
+      'Sagging, scooped ST depression — the "reverse tick".',
+      'Flattened or inverted T waves.',
+      'A SHORT QT, and often a longish PR.',
+    ],
+    why: 'The expected effect of digoxin at therapeutic levels — not toxicity on its own. Toxicity shows as arrhythmias: PACs and PVCs, atrial tachycardia with block, bidirectional VT. Hypokalaemia makes it worse.',
+  },
+  {
+    id: 'early-repol',
+    category: 'pattern',
+    answer: 'Early repolarisation',
+    distractors: ['Anterior STEMI (left anterior descending)', 'Acute pericarditis', 'Hyperkalaemia', 'Left bundle branch block'],
+    rhythm: { type: 'sinus', rate: 58, pr: 0.16 },
+    leads: [
+      lead('V2', { p: { a: 0.07, s: 0.02 }, qrs: [{ c: 0.03, s: 0.009, a: 0.35 }, { c: 0.058, s: 0.011, a: -0.9 }, { c: 0.086, s: 0.006, a: 0.12 }], j: 0.095, st: 0.16, t: { a: 0.62, rise: 0.08, fall: 0.05 }, qtc: 0.40 }),
+      lead('V3', { p: { a: 0.08, s: 0.02 }, qrs: [{ c: 0.034, s: 0.01, a: 0.75 }, { c: 0.062, s: 0.011, a: -0.6 }, { c: 0.088, s: 0.006, a: 0.14 }], j: 0.095, st: 0.18, t: { a: 0.68, rise: 0.08, fall: 0.05 }, qtc: 0.40 }),
+      lead('V4', { p: { a: 0.1, s: 0.02 }, qrs: [{ c: 0.012, s: 0.006, a: -0.06 }, { c: 0.04, s: 0.0095, a: 1.2 }, { c: 0.068, s: 0.009, a: -0.25 }, { c: 0.088, s: 0.006, a: 0.13 }], j: 0.095, st: 0.15, t: { a: 0.58, rise: 0.08, fall: 0.05 }, qtc: 0.40 }),
+    ],
+    look: [
+      'Modest, CONCAVE ST elevation, usually in the precordial leads.',
+      'A notch or slur at the J point, where the QRS ends.',
+      'Tall T waves in proportion to the QRS, a slowish rate, and no reciprocal ST depression anywhere.',
+    ],
+    why: 'A benign variant, typical of young, fit men. The danger is calling it a STEMI — or the reverse. Infarct elevation is convex, evolves over time, and has reciprocal change.',
   },
 ];
 

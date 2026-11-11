@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ECGStrip from '../ecg/ECGStrip';
 import { buildSignal } from '../ecg/ecgEngine';
 import { ECG_CASES, CATEGORY_LABELS } from '../ecg/ecgCases';
+import ECGLabelledStrip from '../ecg/ECGLabelledStrip';
+import { LABELS, NORMAL_LABELS, normalCaseFor, caseByAnswer, whyNot } from '../ecg/ecgTeaching';
 import './ECGReader.css';
 
 /**
@@ -63,7 +65,18 @@ export default function ECGReader({ onExit }) {
     try { return localStorage.getItem('mv_ecg_look') === 'monitor' ? 'monitor' : 'paper'; } catch { return 'paper'; }
   });
   const [beatKey, setBeatKey] = useState(0);
+  // Which wrong option is open side by side with the answer, if any.
+  const [compareWith, setCompareWith] = useState(null);
   const nextBtnRef = useRef(null);
+  const topNextRef = useRef(null);
+  const compareRef = useRef(null);
+  // Normal strips are built per lead set, once each.
+  const normalCache = useRef(new Map());
+  const normalFor = (caseDef) => {
+    const key = caseDef.leads.map(l => l.name).join(',');
+    if (!normalCache.current.has(key)) normalCache.current.set(key, normalCaseFor(caseDef));
+    return normalCache.current.get(key);
+  };
 
   const pool = useMemo(
     () => (category === 'all' ? ECG_CASES : ECG_CASES.filter(c => c.category === category)),
@@ -94,6 +107,9 @@ export default function ECGReader({ onExit }) {
     if (!q || picked != null) return;
     const ok = opt === q.caseDef.answer;
     setPicked(opt);
+    // A wrong answer opens straight into the comparison that answers it:
+    // what you picked, beside what it actually was.
+    setCompareWith(ok ? null : opt);
     setLog(l => [...l, { caseDef: q.caseDef, picked: opt, correct: ok }]);
     if (ok) {
       const nextStreak = streak + 1;
@@ -112,7 +128,10 @@ export default function ECGReader({ onExit }) {
     if (index + 1 >= queue.length) { setPhase('summary'); return; }
     setIndex(i => i + 1);
     setPicked(null);
+    setCompareWith(null);
     setPaused(false);
+    // Back to the top for the next strip — the reveal may have been long.
+    document.querySelector('.ecgr')?.scrollTo({ top: 0, behavior: 'smooth' });
   }, [index, queue.length]);
 
   // Keys: 1–4 to answer, Enter or → for the next strip, Space to pause.
@@ -134,7 +153,20 @@ export default function ECGReader({ onExit }) {
   }, [phase, answered, q, choose, next]);
 
   // Focus "Next" once answered, so Enter carries straight on.
-  useEffect(() => { if (answered) nextBtnRef.current?.focus(); }, [answered]);
+  // The TOP Next button, and without scrolling: focusing the one at the foot
+  // of a long reveal would yank the page past the explanation.
+  useEffect(() => { if (answered) topNextRef.current?.focus({ preventScroll: true }); }, [answered]);
+
+  // A comparison the player OPENS is brought into view. One opened for them
+  // on a wrong answer is not: that would scroll straight past the labelled
+  // strip, which is the first thing they should see.
+  const scrollToCompare = useRef(false);
+  useEffect(() => {
+    if (compareWith && scrollToCompare.current) {
+      compareRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+    scrollToCompare.current = false;
+  }, [compareWith]);
 
   const setLookSaved = (v) => {
     setLook(v);
@@ -330,7 +362,41 @@ export default function ECGReader({ onExit }) {
               <span className="ecgr-verdict">{correct ? 'Correct' : 'Not quite'}</span>
               <span className="ecgr-reveal-answer">{q.caseDef.answer}</span>
               {correct && streak >= 2 && <span className="ecgr-reveal-streak">{streak} in a row</span>}
+              {/* Up here as well as at the bottom: the reveal is long, and
+                  someone who already knows this one should not have to
+                  scroll past it to move on. */}
+              <button type="button" className="ecgr-next ecgr-next--top" onClick={next} ref={topNextRef}>
+                {index + 1 >= queue.length ? 'See results' : 'Next strip'} →
+              </button>
             </div>
+
+            {/* ── The strip they read, labelled ─────────────────────────
+                The same seed as the question, so this is the very strip on
+                screen above — frozen on the stretch that shows the answer,
+                with each feature marked and measured. */}
+            <ECGLabelledStrip
+              caseDef={q.caseDef}
+              seed={q.seed}
+              rules={LABELS[q.caseDef.id]}
+              look={look}
+              title={`This strip, labelled — ${q.caseDef.answer}`}
+            />
+
+            {/* ── And what normal looks like, in the same leads ─────────
+                A normal lead II under an abnormal V1 compares nothing, so
+                the normal strip is built in whichever leads this case uses.
+                Not shown when the answer IS normal. */}
+            {q.caseDef.id !== 'nsr' && (
+              <ECGLabelledStrip
+                caseDef={normalFor(q.caseDef)}
+                seed={7}
+                rules={NORMAL_LABELS}
+                look={look}
+                tone="normal"
+                title={`A normal ECG in the same lead${q.caseDef.leads.length > 1 ? 's' : ''}, for comparison`}
+              />
+            )}
+
             <div className="ecgr-reveal-body">
               <div>
                 <h3 className="ecgr-reveal-h">What to look for</h3>
@@ -343,6 +409,74 @@ export default function ECGReader({ onExit }) {
                 <p className="ecgr-why">{q.caseDef.why}</p>
               </div>
             </div>
+
+            {/* ── Why each of the others is wrong ───────────────────────
+                Written against THIS strip, not as a definition: the reason
+                you would rule it out looking at what is in front of you.
+                Each can be opened side by side with its own labelled strip. */}
+            <div className="ecgr-wrongs">
+              <h3 className="ecgr-reveal-h">Why the other answers are wrong</h3>
+              <ul>
+                {q.options.filter(o => o !== q.caseDef.answer).map(opt => {
+                  const mine = opt === picked;
+                  const open = compareWith === opt;
+                  const canCompare = !!caseByAnswer(opt);
+                  return (
+                    <li key={opt} className={`ecgr-wrong${mine ? ' is-mine' : ''}${open ? ' is-open' : ''}`}>
+                      <div className="ecgr-wrong-head">
+                        <span className="ecgr-wrong-name">
+                          {opt}
+                          {mine && <span className="ecgr-wrong-tag">your answer</span>}
+                        </span>
+                        {canCompare && (
+                          <button
+                            type="button"
+                            className="ecgr-compare-btn"
+                            aria-expanded={open}
+                            onClick={() => { scrollToCompare.current = !open; setCompareWith(open ? null : opt); }}
+                          >
+                            {open ? 'Hide comparison' : 'Compare side by side'}
+                          </button>
+                        )}
+                      </div>
+                      <p className="ecgr-wrong-why">{whyNot(q.caseDef, opt)}</p>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+
+            {/* ── Side by side ──────────────────────────────────────────
+                The real answer on the left, the one being compared on the
+                right, each labelled with its own features, and the reason
+                that separates them above. Stacked on narrow screens: an ECG
+                squeezed into half a phone is not readable. */}
+            {compareWith && caseByAnswer(compareWith) && (
+              <div className="ecgr-compare" ref={compareRef}>
+                <p className="ecgr-compare-why">
+                  <strong>The difference:</strong> {whyNot(q.caseDef, compareWith)}
+                </p>
+                <div className="ecgr-compare-grid">
+                  <ECGLabelledStrip
+                    caseDef={q.caseDef}
+                    seed={q.seed}
+                    rules={LABELS[q.caseDef.id]}
+                    look={look}
+                    tone="case"
+                    title={`✓ ${q.caseDef.answer} — this strip`}
+                  />
+                  <ECGLabelledStrip
+                    caseDef={caseByAnswer(compareWith)}
+                    seed={97}
+                    rules={LABELS[caseByAnswer(compareWith).id]}
+                    look={look}
+                    tone="other"
+                    title={`${compareWith} — for comparison`}
+                  />
+                </div>
+              </div>
+            )}
+
             <button type="button" className="ecgr-next" onClick={next} ref={nextBtnRef}>
               {index + 1 >= queue.length ? 'See results' : 'Next strip'} →
             </button>
