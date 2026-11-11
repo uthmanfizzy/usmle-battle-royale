@@ -64,7 +64,7 @@ const MINIGAMES = [
     subject: 'Respiratory',
     icon: '🩸',
     accent: '42, 160, 196',          // respiratory cyan
-    soon: true,
+    route: '/abg-reader',
     blurb: 'A gas appears — pH, PaCO₂, HCO₃⁻, and the numbers that go with it. '
          + 'Call it: acidosis or alkalosis, respiratory or metabolic, '
          + 'compensated or not. Then the anion gap when it matters, and what '
