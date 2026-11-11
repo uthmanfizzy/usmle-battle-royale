@@ -553,3 +553,9 @@
   cursor: pointer;
 }
 .ecgr-beep.is-on { color: #ff6d78; border-color: rgba(255, 77, 90, 0.55); }
+
+/* Full 12-lead (ecg/ECG12Lead.jsx): a printed page is wide by nature, so on a
+   narrow screen it scrolls sideways inside its own box instead of shrinking
+   the squares until they cannot be counted. */
+.ecg-12 { overflow-x: auto; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; scrollbar-width: thin; }
+.ecg-12 canvas { width: auto; max-width: none; }

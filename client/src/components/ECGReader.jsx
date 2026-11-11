@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ECGStrip from '../ecg/ECGStrip';
+import ECG12Lead from '../ecg/ECG12Lead';
+import { twelveLeadCase } from '../ecg/ecgTwelveLead';
 import { buildSignal } from '../ecg/ecgEngine';
 import { ECG_CASES, CATEGORY_LABELS } from '../ecg/ecgCases';
 import ECGLabelledStrip from '../ecg/ECGLabelledStrip';
@@ -101,6 +103,13 @@ export default function ECGReader({ onExit }) {
   // Rebuilt only when the question changes — the strip must not reset while
   // you are reading it.
   const signal = useMemo(() => (q ? buildSignal(q.caseDef, q.seed) : null), [q]);
+  // The whole 12-lead, built only when it is asked for. Same seed, so the
+  // rhythm on it is the very rhythm on the strip.
+  const [view, setView] = useState(() => {
+    try { return localStorage.getItem('mv_ecg_view') === 'full' ? 'full' : 'strip'; } catch { return 'strip'; }
+  });
+  const setViewSaved = (v) => { setView(v); try { localStorage.setItem('mv_ecg_view', v); } catch { /* not remembered */ } };
+  const signal12 = useMemo(() => (q && view === 'full' ? buildSignal(twelveLeadCase(q.caseDef), q.seed) : null), [q, view]);
   const answered = picked != null;
   const correct = answered && picked === q.caseDef.answer;
 
@@ -330,9 +339,13 @@ export default function ECGReader({ onExit }) {
           <div className="ecgr-monitor-bar">
             <span className="ecgr-monitor-pulse" key={beatKey} aria-hidden="true">♥</span>
             <span className="ecgr-monitor-meta">
-              Lead{signal?.leads.length > 1 ? 's' : ''} {leadNames} · 25 mm/s · 10 mm/mV
+              {view === 'full' ? 'Full 12-lead' : `Lead${signal?.leads.length > 1 ? 's' : ''} ${leadNames}`} · 25 mm/s · 10 mm/mV
             </span>
             <div className="ecgr-monitor-ctrls">
+              <div className="ecgr-seg" role="group" aria-label="Leads shown">
+                <button type="button" className={view === 'strip' ? 'is-on' : ''} aria-pressed={view === 'strip'} onClick={() => setViewSaved('strip')}>Strip</button>
+                <button type="button" className={view === 'full' ? 'is-on' : ''} aria-pressed={view === 'full'} onClick={() => setViewSaved('full')} title="See all twelve leads">Full 12-lead</button>
+              </div>
               <div className="ecgr-seg" role="group" aria-label="Display">
                 <button type="button" className={look === 'paper' ? 'is-on' : ''} onClick={() => setLookSaved('paper')}>Paper</button>
                 <button type="button" className={look === 'monitor' ? 'is-on' : ''} onClick={() => setLookSaved('monitor')}>Monitor</button>
@@ -358,7 +371,10 @@ export default function ECGReader({ onExit }) {
             </div>
           </div>
 
-          {signal && (
+          {view === 'full' && signal12 && (
+            <ECG12Lead signal={signal12} paused={paused} look={look} onBeat={onBeat} />
+          )}
+          {view === 'strip' && signal && (
             <ECGStrip
               signal={signal}
               paused={paused}

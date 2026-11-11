@@ -4640,6 +4640,43 @@ app.post('/api/uworld-questions/:questionId/rate', requireAuth, async (req, res)
 });
 
 /**
+ * POST /api/journey-questions/:questionId/rate   { rating, source? }
+ *
+ * The same six self-assessment ratings as UWorld Adventure, for First Aid
+ * Journey questions. Journey and boss questions live in their own tables
+ * (journey_questions, boss_questions) with their own UUIDs, so they cannot go
+ * in uworld_question_ratings (whose FK points at `questions`). One row per
+ * (user, question), re-rating overwrites — the most recent judgement wins.
+ * `source` records which table the id belongs to ('journey' or 'boss').
+ *
+ * Needs journey-question-ratings-migration.sql run once in Supabase; until
+ * then this answers ok:false / missing_table so the client can say so.
+ */
+app.post('/api/journey-questions/:questionId/rate', requireAuth, async (req, res) => {
+  const rating = (req.body?.rating ?? '').toString();
+  if (!UWORLD_RATINGS.includes(rating)) {
+    return res.status(400).json({ error: `rating must be one of: ${UWORLD_RATINGS.join(', ')}` });
+  }
+  const questionId = String(req.params.questionId || '');
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(questionId)) return res.json({ ok: false, reason: 'no_question_id' });
+  const source = req.body?.source === 'boss' ? 'boss' : 'journey';
+  if (!supabase) return res.json({ ok: false, reason: 'no_supabase' });
+  const row = { user_id: req.userId, question_id: questionId, source, rating, updated_at: new Date().toISOString() };
+  try {
+    const { error } = await supabase
+      .from('journey_question_ratings')
+      .upsert(row, { onConflict: 'user_id,question_id' });
+    if (!error) return res.json({ ok: true });
+    console.error('[journey rate] upsert failed —', error.code, error.message);
+    if (isMissingTable(error, 'journey_question_ratings')) return res.json({ ok: false, reason: 'missing_table' });
+    res.json({ ok: false, reason: describeRatingWriteError(error) });
+  } catch (err) {
+    console.warn('[/api/journey-questions/:questionId/rate] failed —', err.message);
+    res.json({ ok: false, reason: 'exception' });
+  }
+});
+
+/**
  * POST /api/uworld-questions/:questionId/save-explanation   { saved }
  *
  * Put a question's explanation aside to read later, or take it back off the

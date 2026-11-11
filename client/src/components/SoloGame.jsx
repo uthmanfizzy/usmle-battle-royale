@@ -129,6 +129,31 @@ function postQuestionRating(q, rating) {
     .catch(() => ({ ok: false, reason: 'network' }));
 }
 
+// First Aid Journey: the same six ratings, stored against the journey (or
+// boss) question's own UUID — see journey-question-ratings-migration.sql.
+function postJourneyRating(q, rating, source) {
+  const questionId = q?.id;
+  if (!questionId) return Promise.resolve({ ok: false, reason: 'no_question_id' });
+  const token = getToken();
+  if (!token) return Promise.resolve({ ok: false, reason: 'not_signed_in' });
+  return fetch(`${SERVER_URL}/api/journey-questions/${encodeURIComponent(questionId)}/rate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ rating, source }),
+  })
+    .then(r => r.json())
+    .catch(() => ({ ok: false, reason: 'network' }));
+}
+
+const JOURNEY_RATING_ERROR_TEXT = {
+  missing_table:   'Ratings are not saving yet — the journey_question_ratings table needs creating in the database.',
+  not_signed_in:   'Sign in to save your ratings — this one was not stored.',
+  no_question_id:  'This question has no id, so its rating cannot be stored.',
+  network:         'Could not reach the server — that rating was not saved.',
+};
+const journeyRatingErrorText = reason =>
+  JOURNEY_RATING_ERROR_TEXT[reason] || 'That rating was not saved.';
+
 // UWorld Adventure only: put this question's explanation aside to read later,
 // or take it back off the shelf. Deliberately NOT a rating — see
 // uworld_saved_explanations in schema.sql — and deliberately not fire-and-
@@ -2463,6 +2488,16 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
     const q = (shuffledQRef.current && shuffledQRef.current.qIdx === qIdxRef.current && shuffledQRef.current.q)
       ? shuffledQRef.current.q
       : questionsRef.current[qIdxRef.current];
+    // First Aid Journey: rating is optional there (the explanation timer still
+    // moves on by itself), so picking one saves it and then does exactly what
+    // Next does.
+    if (!uworldSkin) {
+      postJourneyRating(q, ratingKey, retireEndpoint === 'boss-questions' ? 'boss' : 'journey').then(r => {
+        if (r && r.ok === false) setRatingSaveError(journeyRatingErrorText(r.reason));
+      });
+      handleSkip();
+      return;
+    }
     // Advancing does not wait on this (a lost rating must never block the run),
     // but a failure is now reported rather than swallowed.
     postQuestionRating(q, ratingKey).then(r => {
@@ -4208,6 +4243,40 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
                 </div>
               </div>
             ) : (
+              <>
+              {/* First Aid Journey: the same six ratings as UWorld Adventure.
+                  Optional here — picking one saves it and moves on, Next
+                  below still skips without rating. */}
+              {isJourney && (
+                <div className="uw-rate-row jm-rate-row" role="group" aria-label="Rate your recall">
+                  <div className="uw-rate-head">
+                    <p className="uw-rate-prompt" aria-live="polite">
+                      {rated ? '✓ Rated — moving on…' : 'How well did you know this one?'}
+                    </p>
+                  </div>
+                  <div className="uw-rate-groups">
+                    {UWORLD_RATING_GROUPS.map(g => (
+                      <div className={`uw-rate-group uw-rate-group--${g.id}`} key={g.id}>
+                        <span className="uw-rate-group-label" aria-hidden="true">{g.label}</span>
+                        <div className="uw-rate-buttons" role="group" aria-label={g.label}>
+                          {g.items.map(r => (
+                            <button
+                              key={r.key}
+                              type="button"
+                              className={`uw-rate-btn uw-rate-btn--${r.key}`}
+                              disabled={rated}
+                              onClick={() => rate(r.key)}
+                            >
+                              <span className="uw-rate-btn-icon" aria-hidden="true">{r.icon}</span>
+                              <span className="uw-rate-btn-label">{r.label}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div className="rr-skip-row">
                 {canPause && (
                   <button
@@ -4220,8 +4289,9 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
                     {explPaused ? `▶ Resume · ${explPausedLeft}s left` : '⏸ Pause'}
                   </button>
                 )}
-                <button className="rr-skip-btn" onClick={handleSkip}>Next Question →</button>
+                <button className="rr-skip-btn" onClick={handleSkip}>{isJourney ? 'Next without rating →' : 'Next Question →'}</button>
               </div>
+              </>
             )}
           </div>
         )}
