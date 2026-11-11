@@ -124,7 +124,7 @@ const MINIGAMES = [
     subject: 'Musculoskeletal',
     icon: '🦴',
     accent: '150, 190, 58',          // MSK lime
-    soon: true,
+    route: '/muscle-mapper',
     blurb: 'A movement is lost or a nerve is cut — name the muscle behind it, '
          + 'the nerve and root that drive it, and the test that shows it up.',
     drills: 'Muscles, nerves and the moves they own',
