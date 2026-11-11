@@ -129,6 +129,18 @@ const MINIGAMES = [
          + 'the nerve and root that drive it, and the test that shows it up.',
     drills: 'Muscles, nerves and the moves they own',
   },
+  {
+    id: 'biostats-lab',
+    name: 'Biostats Lab',
+    subject: 'Biostatistics',
+    icon: '📊',
+    accent: '255, 205, 90',          // biostatistics gold
+    route: '/biostats-lab',
+    blurb: 'Eight stations in one lab: the 2×2 table, the cutoff, risk and NNT, '
+         + 'study designs, biases, errors and power, picking the test, and the '
+         + 'normal curve — fresh numbers every run.',
+    drills: 'Step 1 biostatistics, worked out',
+  },
 ];
 
 export default function MinigamesPage() {
