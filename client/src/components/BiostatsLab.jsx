@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   screeningQuestion, cutoffQuestion, riskQuestion, normalQuestion, ratesQuestion,
   ciQuestion, powerQuestion, correlationQuestion, shuffle,
@@ -97,6 +97,9 @@ export default function BiostatsLab({ onExit }) {
   });
   const buildMode = tableMode === 'build';
   const drawMode = tableMode === 'draw';
+  // The hand-drawn table for the current question, kept out here so switching
+  // to another table mode and back does not wipe it.
+  const padStore = useRef({ qi: -1, run: 0, strokes: [] });
   const [tableState, setTableState] = useState('building');   // building | built | shown
   const [log, setLog] = useState([]);
   const [score, setScore] = useState(0);
@@ -109,12 +112,19 @@ export default function BiostatsLab({ onExit }) {
   const correct = answered && q && picked === q.answer;
   const meta = station === 'mixed' ? MIXED : STATIONS.find(s => s.id === station);
 
+  const runId = useRef(0);
+  const padFor = (i) => {
+    const p = padStore.current;
+    if (p.qi !== i || p.run !== runId.current) padStore.current = { qi: i, run: runId.current, strokes: [] };
+    return padStore.current;
+  };
   const saveTableMode = (m) => { setTableMode(m); setTableState('building'); try { localStorage.setItem('mv_biostats_build', m); } catch { /* not remembered */ } };
   const saveMode = (m) => { setMode(m); try { localStorage.setItem('mv_biostats_mode', m); } catch { /* not remembered */ } };
 
   const start = (id) => {
     sfx.select();
     setStation(id);
+    runId.current += 1;
     setQueue(buildRun(id));
     setQi(0); setPicked(null); setHinted(false); setTableState('building'); setLog([]); setScore(0); setStreak(0); setBestStreak(0);
     setPhase('run');
@@ -321,7 +331,7 @@ export default function BiostatsLab({ onExit }) {
               {/* The pad stays mounted after answering so the drawing is kept,
                   read-only, beside the real table to compare against. */}
               {answered && <p className="bsl-compare-h">Your table</p>}
-              <DrawPad key={`pad-${qi}`} readOnly={answered} />
+              <DrawPad key={`pad-${qi}`} readOnly={answered} store={padFor(qi)} />
               {answered && (
                 <>
                   <p className="bsl-compare-h">The real table — does yours match?</p>

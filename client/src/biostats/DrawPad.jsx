@@ -21,10 +21,15 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 const INKS = { black: '#1c1d2b', blue: '#1f4fd1', red: '#c4223a' };
 const ASPECT = 0.62;
 
-export default function DrawPad({ readOnly = false }) {
+export default function DrawPad({ readOnly = false, store = null }) {
   const wrapRef = useRef(null);
   const canvasRef = useRef(null);
-  const strokesRef = useRef([]);          // [{ tool, ink, w, pts: [[x, y, p]] }] — x, y as fractions of width
+  // [{ tool, ink, w, pts: [[x, y, p]] }] — x, y as fractions of width.
+  // When the page passes a `store`, the strokes live THERE, so the drawing
+  // survives this pad being unmounted (switching to another table mode and
+  // back). The array is only ever mutated in place, never replaced.
+  const strokesRef = useRef(null);
+  if (!strokesRef.current) strokesRef.current = store ? store.strokes : [];
   const liveRef = useRef(null);
   const sizeRef = useRef({ w: 600, h: 372, dpr: 1 });
   const [tool, setTool] = useState('pen');
@@ -105,7 +110,7 @@ export default function DrawPad({ readOnly = false }) {
   };
 
   const undo = () => { strokesRef.current.pop(); setCount(n => n + 1); redraw(); };
-  const clear = () => { strokesRef.current = []; setCount(n => n + 1); redraw(); };
+  const clear = () => { strokesRef.current.length = 0; setCount(n => n + 1); redraw(); };
 
   // Ctrl/Cmd+Z undoes the last stroke.
   useEffect(() => {
