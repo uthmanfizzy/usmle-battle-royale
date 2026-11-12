@@ -101,7 +101,7 @@ const MINIGAMES = [
     subject: 'Pharmacology',
     icon: '💊',
     accent: '70, 120, 220',          // pharmacology blue
-    soon: true,
+    route: '/drug-match',
     blurb: 'Drugs on one side, mechanisms on the other — pair them up before '
          + 'the clock runs out, then say what the class does and what it costs '
          + 'the patient.',

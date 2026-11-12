@@ -35,6 +35,7 @@ const MuscleMapper      = lazy(() => import('./components/MuscleMapper'));
 const BiostatsLab       = lazy(() => import('./components/BiostatsLab'));
 const SpotTheDiagnosis  = lazy(() => import('./components/SpotTheDiagnosis'));
 const GeneticsRoulette  = lazy(() => import('./components/GeneticsRoulette'));
+const DrugMatch         = lazy(() => import('./components/DrugMatch'));
 const MinigamesPage     = lazy(() => import('./components/MinigamesPage'));
 const UsernameSetupPage = lazy(() => import('./components/UsernameSetupPage'));
 
@@ -166,6 +167,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
                 <Route path="/biostats-lab" element={<RouteErrorBoundary name="BiostatsLab"><BiostatsLab onExit={() => { window.location.href = '/minigames'; }} /></RouteErrorBoundary>} />
                 <Route path="/spot-the-diagnosis" element={<RouteErrorBoundary name="SpotTheDiagnosis"><SpotTheDiagnosis onExit={() => { window.location.href = '/minigames'; }} /></RouteErrorBoundary>} />
                 <Route path="/genetics-roulette" element={<RouteErrorBoundary name="GeneticsRoulette"><GeneticsRoulette onExit={() => { window.location.href = '/minigames'; }} /></RouteErrorBoundary>} />
+                <Route path="/drug-match" element={<RouteErrorBoundary name="DrugMatch"><DrugMatch onExit={() => { window.location.href = '/minigames'; }} /></RouteErrorBoundary>} />
                 <Route path="/username-setup" element={<UsernameSetupPage />} />
                 <Route path="/*"              element={<App />} />
               </Routes>
