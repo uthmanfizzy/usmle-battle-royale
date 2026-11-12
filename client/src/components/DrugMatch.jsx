@@ -34,8 +34,22 @@ const HUES = ['226, 76, 96', '64, 170, 220', '150, 190, 58', '236, 170, 60', '16
 const shuffle = (a) => { const r = a.slice(); for (let i = r.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [r[i], r[j]] = [r[j], r[i]]; } return r; };
 const pick = (a) => a[Math.floor(Math.random() * a.length)];
 
+/**
+ * The classes in one deck.
+ *
+ * A class can be lent to a second system (`also`) — a loop diuretic is both
+ * cardiology and nephrology — so "which deck is this in" depends on which
+ * system is being asked about. The class itself is never duplicated, which
+ * is what keeps one mechanism to one drug on a board.
+ */
+const deckOf = (d, system) =>
+  (d.system === system ? d.deck : d.also?.find(a => a.system === system)?.deck);
+
 function deckGroups(system, deck) {
-  return DRUGS.filter(d => d.system === system && (deck === 'all' || d.deck === deck));
+  return DRUGS.filter(d => {
+    const own = deckOf(d, system);
+    return own != null && (deck === 'all' || own === deck);
+  });
 }
 
 function makeBoard(groups) {
@@ -230,7 +244,10 @@ export default function DrugMatch({ onExit }) {
             >
               <span className="dm-system-icon" aria-hidden="true">{s.icon}</span>
               <span className="dm-system-name">{s.name}</span>
-              <span className="dm-system-n">{s.ready ? `${DRUGS.filter(d => d.system === id).length} classes` : 'Coming soon'}</span>
+              {/* deckGroups, not a filter on `system`: a system's size has to
+                  include the classes lent to it, or Renal advertises 13 and
+                  then deals 22. */}
+              <span className="dm-system-n">{s.ready ? `${deckGroups(id, 'all').length} classes` : 'Coming soon'}</span>
             </button>
           ))}
         </section>
@@ -266,7 +283,12 @@ export default function DrugMatch({ onExit }) {
   if (view === 'study') {
     const q = search.trim().toLowerCase();
     const list = deckGroups(system, deck).filter(g => !q || [g.cls, g.mech, g.uses, g.adverse, ...g.drugs].join(' ').toLowerCase().includes(q));
-    const grouped = Object.entries(DECKS[system]).map(([id, name]) => [name, list.filter(g => g.deck === id)]).filter(([, l]) => l.length);
+    // deckOf, not g.deck: a class lent from another system sits in the deck
+    // THIS system files it under, and would otherwise vanish from the study
+    // list while still turning up in its boards.
+    const grouped = Object.entries(DECKS[system])
+      .map(([id, name]) => [name, list.filter(g => deckOf(g, system) === id)])
+      .filter(([, l]) => l.length);
     return (
       <div className="dm dm--study" style={{ '--acc': SYSTEMS[system].accent }}>
         <div className="dm-top">
