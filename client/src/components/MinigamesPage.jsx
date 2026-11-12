@@ -89,7 +89,7 @@ const MINIGAMES = [
     subject: 'Genetics',
     icon: '🎲',
     accent: '226, 158, 32',          // genetics amber
-    soon: true,
+    route: '/genetics-roulette',
     blurb: 'The wheel lands on a condition and you call it: inheritance '
          + 'pattern, the gene or chromosome behind it, and the risk to the '
          + 'next child.',
