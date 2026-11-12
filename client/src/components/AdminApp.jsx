@@ -6611,7 +6611,7 @@ function ChapterImageLibrary({ chapterId, bank = null }) {
   );
 }
 
-function JourneyPanel() {
+function JourneyPanel({ track = 'full' }) {
   const [subject,  setSubject]  = useState(JOURNEY_SUBJECTS[0].id);
   const [chapters, setChapters] = useState([]);
   const [bossQs,   setBossQs]   = useState([]);   // subject-wide boss questions
@@ -6644,8 +6644,12 @@ function JourneyPanel() {
    * Bosses have no tracks: a chapter boss is the chapter boss either way,
    * and splitting those would mean writing every boss twice to keep both
    * routes passable.
+   *
+   * The TAB decides this now (Thorough / Concise are separate tabs), so it
+   * arrives as a prop and is never changed from inside this panel — one
+   * control, in one place, rather than two that can disagree.
    */
-  const [qTrack, setQTrack] = useState('full');
+  const qTrack = track;
   // True while the server reports no track column on journey_questions. The
   // switch still moves, but both sets are the same rows until the migration
   // runs and the server restarts, so the screen has to admit that.
@@ -6986,14 +6990,14 @@ function JourneyPanel() {
     setShowForm(false);
   }
 
-  async function openLevel(level, chapter, track = qTrack) {
+  async function openLevel(level, chapter) {
     setError('');
     closeForm();
     setSelected({ kind: 'level', level, chapter });
     setQSel(new Set());   // selection belongs to the target you were viewing
     setLevelQs([]);
     try {
-      const res  = await apiCall(`/admin/journey-questions?level_id=${level.id}&track=${track}`);
+      const res  = await apiCall(`/admin/journey-questions?level_id=${level.id}&track=${qTrack}`);
       const data = await res.json();
       setLevelQs(data.questions || []);
       // The server says so when it has no track column: the list it just
@@ -7001,16 +7005,6 @@ function JourneyPanel() {
       // the two tabs show identical rows and look like a broken switch.
       setQUntracked(!!data.untracked);
     } catch { setLevelQs([]); }
-  }
-
-  // Switching track reloads the open level's list: the two sets are separate,
-  // so the questions on screen belong to whichever one fetched them.
-  function pickQTrack(next) {
-    if (next === qTrack) return;
-    setQTrack(next);
-    setQSel(new Set());
-    closeForm();
-    if (selected?.kind === 'level') openLevel(selected.level, selected.chapter, next);
   }
 
   function openBoss(chapter) { setError(''); closeForm(); setQSel(new Set()); setSelected({ kind: 'boss', chapter }); }
@@ -7586,37 +7580,26 @@ function JourneyPanel() {
           </div>
 
           {/* ── Which way through this level ─────────────────────────
-              Scopes the list below AND everything written from here: Add
-              Question, Paste & Parse and Update Questions all land in the
-              track that is on. Levels, videos and memory aids are shared, so
-              this governs the questions and nothing else.
+              Says which set this screen is working in — the TAB chose it, so
+              this reports rather than switches. It scopes the list below and
+              everything written from here: Add Question, Paste & Parse and
+              Update Questions all land in this set. Levels, videos and
+              memory aids are shared, so it governs the questions and nothing
+              else.
 
               Bosses are absent on purpose — a chapter boss is the chapter
               boss either way, and splitting them would mean authoring every
               boss twice to keep both routes passable. */}
           {selected.kind === 'level' && (
-            <div className="ap-qtrack" role="group" aria-label="Which question set">
+            <div className={`ap-qtrack is-${qTrack}`} aria-label="Which question set">
               <span className="ap-qtrack-label">Question set</span>
-              <button
-                type="button"
-                className={`ap-qtrack-btn${qTrack === 'full' ? ' is-on' : ''}`}
-                aria-pressed={qTrack === 'full'}
-                onClick={() => pickQTrack('full')}
-              >
-                📖 Thorough
-              </button>
-              <button
-                type="button"
-                className={`ap-qtrack-btn${qTrack === 'rapid' ? ' is-on' : ''}`}
-                aria-pressed={qTrack === 'rapid'}
-                onClick={() => pickQTrack('rapid')}
-              >
-                ⚡ Rapid
-              </button>
+              <span className="ap-qtrack-now">
+                {qTrack === 'full' ? '📖 Thorough' : '⚡ Concise'}
+              </span>
               <span className="ap-qtrack-note">
                 {qTrack === 'full'
-                  ? 'The long approach — everything written before the split lives here.'
-                  : 'The short approach — concise questions, its own progress.'}
+                  ? 'The long approach — everything written before the split lives here. Switch tabs above for Concise.'
+                  : 'The short approach — concise questions, its own progress. Switch tabs above for Thorough.'}
               </span>
             </div>
           )}
@@ -11335,7 +11318,12 @@ function GameModeSettingsPanel({ gameId, bankModeId, bankLabel }) {
 // that mode's tag, where tagging an existing question is "show this one here"
 // and the Add button is "write a new one".
 const ADMIN_GAMES = [
-  { id: 'journey',      icon: '🚑', label: 'First Aid Journey' },
+  // The Journey's two routes are separate tabs, because they are separate
+  // banks of questions: picking the tab is picking which one you author.
+  // Chapters, levels, videos and memory aids are SHARED, so both tabs show
+  // the same tree — only the questions inside a level differ.
+  { id: 'journey',       icon: '🚑', label: 'First Aid Journey', sub: 'Thorough', track: 'full' },
+  { id: 'journey_rapid', icon: '⚡', label: 'First Aid Journey', sub: 'Concise',  track: 'rapid' },
   { id: 'saudi_mle',    icon: '📗', label: 'SMLE' },
   { id: 'hyflashcards', icon: '🎴', label: 'HY Flashcards' },
   { id: 'uworld',       icon: '🌍', label: 'UWorld Adventure' },
@@ -11528,19 +11516,29 @@ function GamesPanel({ subjects }) {
             onClick={() => choose(g.id)}
           >
             <span className="ap-games-icon" aria-hidden="true">{g.icon}</span>
-            <span>{g.label}</span>
+            <span>
+              {g.label}
+              {g.sub && <span className="ap-games-sub">{g.sub}</span>}
+            </span>
           </button>
         ))}
       </div>
 
       <div className="ap-games-body">
-        {game === 'journey'      && (
+        {(game === 'journey' || game === 'journey_rapid') && (
           <>
             <ErrorBoundary>
+              {/* Mode settings belong to the Journey as a whole, not to one
+                  route, so they are the same panel under both tabs. */}
               <GameModeSettingsPanel gameId="journey" />
             </ErrorBoundary>
             <ErrorBoundary>
-            <JourneyPanel />
+            {/* Which route this tab authors is declared on the tab itself
+                (ADMIN_GAMES), so the mapping lives in one place.
+                Remounted per track: a tab switch starts the editor fresh on
+                the other bank rather than leaving a level open with the old
+                route's questions still listed. */}
+            <JourneyPanel key={game} track={ADMIN_GAMES.find(g => g.id === game)?.track || 'full'} />
           </ErrorBoundary>
           </>
         )}

@@ -5591,6 +5591,19 @@
 }
 .ap-games-icon { font-size: 22px; line-height: 1; }
 
+/* Two tabs can share a name — the Journey's Thorough and Concise routes —
+   so the route rides under the name rather than making a longer label. */
+.ap-games-sub {
+  display: block;
+  margin-top: 2px;
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.45);
+}
+.ap-games-option.active .ap-games-sub { color: inherit; opacity: 0.85; }
+
 /* Permissions sit under Game Settings. */
 .ap-settings-permissions {
   margin-top: 32px;
@@ -6310,28 +6323,24 @@
   color: rgba(255, 255, 255, 0.5);
 }
 
-.ap-qtrack-btn {
+/* Which set this screen is in. The TAB chose it, so this reports rather
+   than switches — a badge, not a button, in that set's own colour. */
+.ap-qtrack-now {
   padding: 6px 14px;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  background: rgba(255, 255, 255, 0.04);
-  color: rgba(255, 255, 255, 0.76);
-  font: inherit;
-  font-size: 13px;
-  font-weight: 700;
-  white-space: nowrap;
-  cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
-}
-.ap-qtrack-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.3);
-}
-.ap-qtrack-btn.is-on {
+  border: 1px solid rgba(232, 176, 75, 0.6);
   background: rgba(232, 176, 75, 0.2);
-  border-color: rgba(232, 176, 75, 0.6);
   color: #ffd98a;
+  font-size: 13px;
+  font-weight: 800;
+  white-space: nowrap;
 }
+.ap-qtrack.is-rapid .ap-qtrack-now {
+  border-color: rgba(108, 196, 255, 0.6);
+  background: rgba(108, 196, 255, 0.18);
+  color: #a9dcff;
+}
+.ap-qtrack.is-rapid { border-color: rgba(108, 196, 255, 0.28); }
 
 /* Says what the choice means, because "Rapid" alone does not tell an author
    that what they add here is a different set with its own progress. */
