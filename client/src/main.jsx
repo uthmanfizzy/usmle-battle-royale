@@ -33,6 +33,7 @@ const ECGReader         = lazy(() => import('./components/ECGReader'));
 const ABGReader         = lazy(() => import('./components/ABGReader'));
 const MuscleMapper      = lazy(() => import('./components/MuscleMapper'));
 const BiostatsLab       = lazy(() => import('./components/BiostatsLab'));
+const SpotTheDiagnosis  = lazy(() => import('./components/SpotTheDiagnosis'));
 const MinigamesPage     = lazy(() => import('./components/MinigamesPage'));
 const UsernameSetupPage = lazy(() => import('./components/UsernameSetupPage'));
 
@@ -162,6 +163,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
                 <Route path="/abg-reader" element={<RouteErrorBoundary name="ABGReader"><ABGReader onExit={() => { window.location.href = '/minigames'; }} /></RouteErrorBoundary>} />
                 <Route path="/muscle-mapper" element={<RouteErrorBoundary name="MuscleMapper"><MuscleMapper onExit={() => { window.location.href = '/minigames'; }} /></RouteErrorBoundary>} />
                 <Route path="/biostats-lab" element={<RouteErrorBoundary name="BiostatsLab"><BiostatsLab onExit={() => { window.location.href = '/minigames'; }} /></RouteErrorBoundary>} />
+                <Route path="/spot-the-diagnosis" element={<RouteErrorBoundary name="SpotTheDiagnosis"><SpotTheDiagnosis onExit={() => { window.location.href = '/minigames'; }} /></RouteErrorBoundary>} />
                 <Route path="/username-setup" element={<UsernameSetupPage />} />
                 <Route path="/*"              element={<App />} />
               </Routes>

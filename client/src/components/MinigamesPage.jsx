@@ -77,9 +77,10 @@ const MINIGAMES = [
     subject: 'Psychiatry',
     icon: '🎬',
     accent: '150, 106, 232',         // psychiatry violet
-    soon: true,
-    blurb: 'Watch a short video of a patient and name the condition from how '
-         + 'they present — speech, affect, movement and what they say.',
+    route: '/spot-the-diagnosis',
+    blurb: 'A patient sits down and the interview plays — watch how they move, '
+         + 'listen to what they say, and name the diagnosis. Then the criteria, '
+         + 'the durations and why the others are wrong.',
     drills: 'Recognising psychiatric presentations',
   },
   {
