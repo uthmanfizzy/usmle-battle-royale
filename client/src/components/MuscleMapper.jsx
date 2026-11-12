@@ -5,6 +5,7 @@ import { PlexusMap, MusclePanel, RootLadder, SignCard } from '../muscle/MuscleVi
 import { sheetFor, CheatCard } from '../muscle/muscleSheets';
 import { sfx } from '../minigameSfx';
 import SfxToggle from './SfxToggle';
+import InjuryTheatre from './InjuryTheatre';
 import './MuscleMapper.css';
 
 /**
@@ -159,6 +160,9 @@ export default function MuscleMapper({ onExit }) {
 
   const saveMode = (m) => { setMode(m); try { localStorage.setItem('mv_mm_mode', m); } catch { /* not remembered */ } };
 
+  // ── Injury Theatre: the second section — watch the lesion happen ───────
+  if (phase === 'theatre') return <InjuryTheatre onBack={() => setPhase('intro')} />;
+
   // ── Intro, with the atlas ──────────────────────────────────────────────
   if (phase === 'intro') {
     const n = NERVES[atlasNerve];
@@ -177,6 +181,16 @@ export default function MuscleMapper({ onExit }) {
             A movement is lost or a nerve is cut. Walk the chain — <b>injury → nerve → roots → muscle → sign</b> —
             and watch the plexus light up, then go dark where the lesion falls.
           </p>
+
+          {/* The second way to play: watch the lesion happen on a patient. */}
+          <button type="button" className="mm-theatre-card" onClick={() => { sfx.select(); setPhase('theatre'); }}>
+            <span className="mm-theatre-icon" aria-hidden="true">🎬</span>
+            <span className="mm-theatre-copy">
+              <b>Injury Theatre — watch it happen</b>
+              <small>See the injury (Erb at delivery, Klumpke grabbing a branch…), the posture it leaves, then the patient trying to move — and name the lesion.</small>
+            </span>
+            <span className="mm-theatre-go" aria-hidden="true">Watch →</span>
+          </button>
 
           {/* The atlas: study before you play. */}
           <section className="mm-atlas">

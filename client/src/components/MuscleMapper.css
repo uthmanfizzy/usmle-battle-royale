@@ -298,3 +298,20 @@
   .mmv-rung.is-hit, .mmv-sign, .mm-chain li.is-now .mm-chain-dot, .mm-hud > .is-hot, .mm-kind-track i { animation: none !important; }
   .mm-fibres { display: none; }
 }
+
+/* Doorway to the Injury Theatre (components/InjuryTheatre.jsx). */
+.mm-theatre-card {
+  width: 100%; max-width: 760px; margin: 0 auto 18px; display: flex; align-items: center; gap: 14px;
+  padding: 14px 18px; border-radius: 16px; border: 1px solid rgba(var(--lime), 0.5);
+  background: linear-gradient(110deg, rgba(var(--lime), 0.2), rgba(42, 160, 140, 0.12));
+  color: #eef6e6; font: inherit; text-align: left; cursor: pointer;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.3); transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.mm-theatre-card:hover { transform: translateY(-2px); box-shadow: 0 14px 32px rgba(var(--lime), 0.2); }
+.mm-theatre-icon { font-size: 30px; flex-shrink: 0; animation: mm-theatre-bob 2.6s ease-in-out infinite; }
+@keyframes mm-theatre-bob { 50% { transform: rotate(-8deg) scale(1.08); } }
+.mm-theatre-copy { flex: 1; min-width: 0; display: grid; gap: 3px; }
+.mm-theatre-copy b { font-size: 16px; color: #fff; }
+.mm-theatre-copy small { font-size: 13px; line-height: 1.45; color: rgba(238, 246, 230, 0.75); }
+.mm-theatre-go { flex-shrink: 0; font-weight: 900; color: rgb(var(--lime)); }
+@media (prefers-reduced-motion: reduce) { .mm-theatre-icon { animation: none; } }
