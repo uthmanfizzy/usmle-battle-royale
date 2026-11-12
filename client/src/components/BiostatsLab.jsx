@@ -9,6 +9,7 @@ import {
   TwoByTwo, CutoffCurves, RiskArrays, NormalCurve, CiPlot, Scatter, ErrorGrid,
   SkewCurve, Target, RatesBar, DesignFlow, TableBuilder,
 } from '../biostats/BiostatsViz';
+import DrawPad from '../biostats/DrawPad';
 import { CountUp } from '../abg/AbgViz';
 import { sfx } from '../minigameSfx';
 import SfxToggle from './SfxToggle';
@@ -90,9 +91,12 @@ export default function BiostatsLab({ onExit }) {
   const [hinted, setHinted] = useState(false);
   // 2×2 questions: the table given, or read the stem and build it yourself —
   // which is what the exam actually asks of you. Remembered per device.
-  const [buildMode, setBuildMode] = useState(() => {
-    try { return localStorage.getItem('mv_biostats_build') === 'build'; } catch { return false; }
+  // given | build (type the cells in, checked) | draw (pen on paper, compared after)
+  const [tableMode, setTableMode] = useState(() => {
+    try { const v = localStorage.getItem('mv_biostats_build'); return v === 'build' || v === 'draw' ? v : 'given'; } catch { return 'given'; }
   });
+  const buildMode = tableMode === 'build';
+  const drawMode = tableMode === 'draw';
   const [tableState, setTableState] = useState('building');   // building | built | shown
   const [log, setLog] = useState([]);
   const [score, setScore] = useState(0);
@@ -105,7 +109,7 @@ export default function BiostatsLab({ onExit }) {
   const correct = answered && q && picked === q.answer;
   const meta = station === 'mixed' ? MIXED : STATIONS.find(s => s.id === station);
 
-  const saveBuild = (on) => { setBuildMode(on); setTableState('building'); try { localStorage.setItem('mv_biostats_build', on ? 'build' : 'given'); } catch { /* not remembered */ } };
+  const saveTableMode = (m) => { setTableMode(m); setTableState('building'); try { localStorage.setItem('mv_biostats_build', m); } catch { /* not remembered */ } };
   const saveMode = (m) => { setMode(m); try { localStorage.setItem('mv_biostats_mode', m); } catch { /* not remembered */ } };
 
   const start = (id) => {
@@ -305,13 +309,31 @@ export default function BiostatsLab({ onExit }) {
           <p className="bsl-q-kicker">{KIND_LABEL[q.kind]}</p>
           {q.kind === 'screening' && (
             <div className="bsl-tablemode" role="group" aria-label="How the 2×2 table is given">
-              <button type="button" className={!buildMode ? 'is-on' : ''} aria-pressed={!buildMode} disabled={answered} onClick={() => saveBuild(false)}>Table given</button>
-              <button type="button" className={buildMode ? 'is-on' : ''} aria-pressed={buildMode} disabled={answered} onClick={() => saveBuild(true)}>✏️ Build it myself</button>
+              <button type="button" className={tableMode === 'given' ? 'is-on' : ''} aria-pressed={tableMode === 'given'} disabled={answered} onClick={() => saveTableMode('given')}>Table given</button>
+              <button type="button" className={buildMode ? 'is-on' : ''} aria-pressed={buildMode} disabled={answered} onClick={() => saveTableMode('build')}>⌨️ Type it in</button>
+              <button type="button" className={drawMode ? 'is-on' : ''} aria-pressed={drawMode} disabled={answered} onClick={() => saveTableMode('draw')}>🖊️ Draw it</button>
             </div>
           )}
-          {q.kind === 'screening' && buildMode && <p className="bsl-stem">{q.vignette}</p>}
+          {q.kind === 'screening' && (buildMode || drawMode) && <p className="bsl-stem">{q.vignette}</p>}
           <h2 className="bsl-prompt">{q.prompt}</h2>
-          {q.kind === 'screening' && buildMode && !answered
+          {q.kind === 'screening' && drawMode ? (
+            <>
+              {/* The pad stays mounted after answering so the drawing is kept,
+                  read-only, beside the real table to compare against. */}
+              {answered && <p className="bsl-compare-h">Your table</p>}
+              <DrawPad key={`pad-${qi}`} readOnly={answered} />
+              {answered && (
+                <>
+                  <p className="bsl-compare-h">The real table — does yours match?</p>
+                  <Picture q={q} reveal instant />
+                  <div className="bsl-tb-how">
+                    <p>How each cell comes from the question:</p>
+                    <ul>{['TP', 'FP', 'FN', 'TN'].map(k => <li key={k}><b>{k}</b> {q.steps[k]}</li>)}</ul>
+                  </div>
+                </>
+              )}
+            </>
+          ) : q.kind === 'screening' && buildMode && !answered
             ? <TableBuilder key={`tb-${qi}`} t={q.table} steps={q.steps} onDone={(r) => { setTableState(r); if (r === 'built') sfx.sparkle(); }} />
             : <Picture q={q} reveal={answered} instant={buildMode} />}
         </section>
