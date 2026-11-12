@@ -1723,17 +1723,17 @@ async function journeyDuelPool({ journeySubject = null, chapterId = null, levelI
     // Thorough or Rapid — the same split the Journey itself plays by. Only
     // where the column exists; without the migration there is one undivided
     // set and both choices draw from it, which is what the Journey does too.
-    if (hasJourneyTrack) qQuery = qQuery.eq('track', want);
+    if (journeyTrackReady()) qQuery = qQuery.eq('track', want);
     // Same deploy-order safety the rest of this file uses: an unknown column
     // fails the whole select, so the retirement filter is applied only where
     // it is known to exist and dropped on the one failure that proves it is
     // not there.
     if (hasJourneyRetirement) qQuery = qQuery.is('retired_at', null);
     let { data, error } = await qQuery;
-    if (error && hasJourneyTrack && isMissingColumn(error, 'track')) {
+    if (error && isMissingColumn(error, 'track')) {
       // No track column: one undivided set, and both choices draw from it
       // rather than this returning nothing at all.
-      hasJourneyTrack = false;
+      journeyTrackMissing('play');
       let untracked = supabase
         .from('journey_questions')
         .select('id, level_id, question, options, correct, explanation, why_others_wrong, image_url')
@@ -1747,7 +1747,7 @@ async function journeyDuelPool({ journeySubject = null, chapterId = null, levelI
         .from('journey_questions')
         .select('id, level_id, question, options, correct, explanation, why_others_wrong, image_url')
         .in('level_id', levelIds);
-      if (hasJourneyTrack) plain = plain.eq('track', want);
+      if (journeyTrackReady()) plain = plain.eq('track', want);
       ({ data, error } = await plain);
     }
     if (error) throw error;
@@ -13741,11 +13741,12 @@ app.get('/admin/journey-questions', adminAuth, async (req, res) => {
       .order('sort_order', { ascending: true })
       .order('created_at', { ascending: true });
     if (level_id) query = query.eq('level_id', level_id);
-    if (hasJourneyTrack) query = query.eq('track', track);
+    let tracked = journeyTrackReady();
+    if (tracked) query = query.eq('track', track);
     let { data, error } = await query;
-    if (error && hasJourneyTrack && isMissingColumn(error, 'track')) {
-      hasJourneyTrack = false;
-      console.warn('[journey] no track column — the admin lists every question as one set.');
+    if (error && isMissingColumn(error, 'track')) {
+      journeyTrackMissing('admin list');
+      tracked = false;
       let untracked = supabase.from('journey_questions').select('*')
         .order('sort_order', { ascending: true })
         .order('created_at', { ascending: true });
@@ -13756,7 +13757,7 @@ app.get('/admin/journey-questions', adminAuth, async (req, res) => {
     // untracked: true means this database has no track column yet, so the
     // list above is EVERY question regardless of set. The admin says so out
     // loud rather than showing the same rows under both tabs in silence.
-    res.json({ questions: data || [], track, untracked: !hasJourneyTrack });
+    res.json({ questions: data || [], track, untracked: !tracked });
   } catch (err) {
     console.warn('[/admin/journey-questions] unavailable, returning questions: [] —', err.message);
     res.json({ questions: [] });
@@ -13787,13 +13788,12 @@ app.post('/admin/journey-questions', adminAuth, async (req, res) => {
       // migration would fail the whole insert, which would turn "add a
       // question" into "your question was lost" — the same trap the image
       // columns already guard against.
-      ...(hasJourneyTrack ? { track } : {}),
+      ...(journeyTrackReady() ? { track } : {}),
     };
     let { data, error } = await questionWrite(record, r =>
       supabase.from('journey_questions').insert(r).select().single());
-    if (error && hasJourneyTrack && isMissingColumn(error, 'track')) {
-      hasJourneyTrack = false;
-      console.warn('[journey] no track column — the question is written without one. Run the ALTER in schema.sql.');
+    if (error && isMissingColumn(error, 'track')) {
+      journeyTrackMissing('admin insert');
       const { track: _drop, ...untracked } = record;
       ({ data, error } = await questionWrite(untracked, r =>
         supabase.from('journey_questions').insert(r).select().single()));
@@ -14367,7 +14367,33 @@ const journeyProgKey = (track, key) => (track === JOURNEY_RAPID ? `rapid:${key}`
 // journey_questions.track — a manual migration like the rest of this schema.
 // Optimistic until a query proves otherwise, after which the Journey behaves
 // exactly as it did before tracks existed: one set of questions, no split.
-let hasJourneyTrack = true;
+//
+// The "no such column" answer is remembered with an EXPIRY, never for the
+// life of the process. It used to latch: a server that started before the
+// migration ran kept filtering nothing and kept writing rows with no track,
+// so every question authored as Concise was filed as Thorough — silently,
+// and until somebody thought to restart. Now a migration takes effect on its
+// own within a minute, at a cost of one failed query a minute until it does.
+const JOURNEY_TRACK_RECHECK_MS = 60_000;
+let journeyTrackMissingAt = 0;
+
+/** True while the column is believed to be there (and when it is time to look again). */
+function journeyTrackReady() {
+  if (!journeyTrackMissingAt) return true;
+  if (Date.now() - journeyTrackMissingAt < JOURNEY_TRACK_RECHECK_MS) return false;
+  journeyTrackMissingAt = 0;
+  console.log('[journey] re-checking for the track column…');
+  return true;
+}
+
+/** A query just proved the column is not there. Say so once, then go quiet. */
+function journeyTrackMissing(where) {
+  if (!journeyTrackMissingAt) {
+    console.warn(`[journey] no track column${where ? ` (${where})` : ''} — both sets are one until the migration runs:`);
+    console.warn("[journey]   ALTER TABLE journey_questions ADD COLUMN IF NOT EXISTS track TEXT NOT NULL DEFAULT 'full';");
+  }
+  journeyTrackMissingAt = Date.now();
+}
 
 /**
  * How many RAPID questions each level has.
@@ -14379,7 +14405,7 @@ let hasJourneyTrack = true;
  */
 async function rapidCountsByLevel(levelIds) {
   const counts = {};
-  if (!hasJourneyTrack || !levelIds.length) return counts;
+  if (!journeyTrackReady() || !levelIds.length) return counts;
   const { data, error } = await supabase
     .from('journey_questions')
     .select('level_id')
@@ -14387,8 +14413,7 @@ async function rapidCountsByLevel(levelIds) {
     .in('level_id', levelIds);
   if (error) {
     if (isMissingColumn(error, 'track')) {
-      hasJourneyTrack = false;
-      console.warn('[journey] no track column — run: ALTER TABLE journey_questions ADD COLUMN IF NOT EXISTS track TEXT NOT NULL DEFAULT \'full\';');
+      journeyTrackMissing('rapid counts');
     } else {
       console.warn('[journey] rapid counts unavailable —', error.message);
     }
@@ -14922,11 +14947,10 @@ app.get('/api/journey-questions', async (req, res) => {
     // Same deploy-order safety as the two flags above: filtered only where
     // the column is known to exist, and the whole Journey falls back to one
     // undivided set until the migration runs.
-    if (hasJourneyTrack) query = query.eq('track', track);
+    if (journeyTrackReady()) query = query.eq('track', track);
     let { data, error } = await query.order('sort_order', { ascending: true }).order('created_at', { ascending: true });
-    if (error && hasJourneyTrack && isMissingColumn(error, 'track')) {
-      hasJourneyTrack = false;
-      console.warn('[journey] no track column — serving every question as one set. Run the ALTER in schema.sql.');
+    if (error && isMissingColumn(error, 'track')) {
+      journeyTrackMissing('level questions');
       let untracked = supabase.from('journey_questions').select('*').eq('level_id', level_id);
       if (hasJourneyRetirement) untracked = untracked.is('retired_at', null);
       if (hasJourneyBonus) untracked = untracked.eq('is_bonus', wantBonus);
