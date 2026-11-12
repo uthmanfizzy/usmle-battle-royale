@@ -218,6 +218,26 @@ export default function JourneyMode({
    */
   const [ratingPick, setRatingPick] = useState('all');
   const [levelRatings, setLevelRatings] = useState(null);   // { counts, total, rated } | null
+
+  /**
+   * Campaign or free practice.
+   *
+   * 'campaign' is the Journey as built: the unlock chain decides what can be
+   * tapped. 'free' asks the server for the map with the gates off and offers
+   * practice by rating instead. Remembered per device, like the track —
+   * which way someone studies is a habit, not a per-visit decision.
+   */
+  const [studyMode, setStudyMode] = useState(() => {
+    try { return localStorage.getItem('mv_journey_mode') === 'free' ? 'free' : 'campaign'; }
+    catch { return 'campaign'; }
+  });
+  const studyModeRef = useRef(studyMode);
+  studyModeRef.current = studyMode;
+  // Rating counts across the WHOLE subject, for the free-practice panel.
+  const [ratingSummary, setRatingSummary] = useState(null);
+  // Bumped after a practice run: the answers just rated belong in different
+  // buckets now, so the panel has to ask again.
+  const [summaryNonce, setSummaryNonce] = useState(0);
   const withRating = (url) =>
     (ratingPick === 'all' ? url : `${url}${url.includes('?') ? '&' : '?'}rating=${ratingPick}`);
 
@@ -334,19 +354,20 @@ export default function JourneyMode({
   // per track, so playing Thorough never changes Rapid's map, and the track
   // you are actually playing is refetched by loadPath after every level.
   const pathCacheRef = useRef(new Map());
-  const cacheKey = (subjId, trk) => `${subjId}:${trk}`;
+  const cacheKey = (subjId, trk, mode = studyModeRef.current) => `${subjId}:${trk}:${mode}`;
   const [trackSwitching, setTrackSwitching] = useState(false);
 
   // A bare fetch of one subject's map on one track. No state is touched, so
   // it is safe to fire and forget; the caller decides what to do with it.
-  const fetchPathFor = useCallback(async (subjId, trk) => {
-    const res = await fetch(`${SERVER}/api/journey/${subjId}?track=${trk}`, {
+  const fetchPathFor = useCallback(async (subjId, trk, mode = studyModeRef.current) => {
+    const open = mode === 'free' ? '&open=1' : '';
+    const res = await fetch(`${SERVER}/api/journey/${subjId}?track=${trk}${open}`, {
       headers: { Authorization: `Bearer ${getToken()}` },
     });
     if (res.status === 401) { const e = new Error('auth'); e.auth = true; throw e; }
     if (!res.ok) throw new Error(`Server error (${res.status})`);
     const data = await res.json();
-    pathCacheRef.current.set(cacheKey(subjId, trk), data);
+    pathCacheRef.current.set(cacheKey(subjId, trk, mode), data);
     return data;
   }, []);
 
@@ -369,6 +390,48 @@ export default function JourneyMode({
     setChapterIdx(i => {
       if (i >= n) { setView('chapters'); return 0; }
       return i;
+    });
+  };
+
+  /**
+   * Campaign ↔ free practice. The map itself has to come back from the
+   * server, because which levels are open is decided there — doing it
+   * client-side would leave the two answers free to disagree.
+   */
+  const pickStudyMode = (next) => {
+    if (next === studyModeRef.current) return;
+    studyModeRef.current = next;
+    setStudyMode(next);
+    try { localStorage.setItem('mv_journey_mode', next); } catch { /* private mode */ }
+    setConfirmNode(null);
+    setJustPlayed(null);
+    if (!subject) return;
+    const subjId = subject.id;
+    const trk = trackRef.current;
+    const cached = pathCacheRef.current.get(cacheKey(subjId, trk, next));
+    if (cached) { showPath(cached); return; }
+    setTrackSwitching(true);
+    fetchPathFor(subjId, trk, next)
+      .then(data => { if (studyModeRef.current === next) showPath(data); })
+      .catch(() => { /* leaves the current map up */ })
+      .finally(() => { if (studyModeRef.current === next) setTrackSwitching(false); });
+  };
+
+  /**
+   * A run drawn from the whole subject, filtered to one rating. Not a level,
+   * so it records nothing — `isPractice` tells the reentry effect to skip
+   * the completion POST the way a bonus round already does.
+   */
+  const startRatingPractice = (ratingKey, label) => {
+    if (!subject) return;
+    onPlayLevel({
+      subject,
+      levelKey: null,
+      questionsUrl: `${SERVER}/api/journey/practice?subject=${encodeURIComponent(subject.id)}`
+        + `&track=${trackRef.current}&rating=${ratingKey}&limit=20`,
+      questionOrder,
+      levelLabel: `${label} · ${subject.label}`,
+      isPractice: true,
     });
   };
 
@@ -407,6 +470,25 @@ export default function JourneyMode({
       })
       .finally(() => { if (trackRef.current === next) setTrackSwitching(false); });
   };
+
+  /**
+   * The free-practice buckets for the subject on screen.
+   *
+   * Only in free practice, and only once a subject is open — the campaign
+   * map never shows them, so fetching there would be work nobody asked for.
+   * Cleared whenever the subject, track or mode changes so the counts can
+   * never belong to a different set than the one being looked at.
+   */
+  useEffect(() => {
+    if (editorMode || studyMode !== 'free' || !subject || !getToken()) { setRatingSummary(null); return undefined; }
+    let live = true;
+    fetch(`${SERVER}/api/journey/rating-summary?subject=${encodeURIComponent(subject.id)}&track=${track}`,
+      { headers: { Authorization: `Bearer ${getToken()}` } })
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => { if (live && d) setRatingSummary(d); })
+      .catch(() => { /* the panel simply stays hidden */ });
+    return () => { live = false; };
+  }, [editorMode, studyMode, subject, track, summaryNonce]);
 
   const loadPath = useCallback(async (subj) => {
     setLoading(true);
@@ -786,6 +868,16 @@ export default function JourneyMode({
     if (reentry.pct === null) {
       // Quit mid-level: return to the same chapter's map, no POST
       loadPath(reentry.subject).then(data => { if (data) landOn(data); });
+      return;
+    }
+    if (reentry.isPractice) {
+      // A rating practice run is drawn from the whole subject, so there is no
+      // one level it could have cleared: no POST, no progress, no unlock.
+      // The ratings themselves may well have changed, so the panel is
+      // refreshed — questions just re-rated belong in different buckets now.
+      setSubject(reentry.subject);
+      landOn(path);
+      setSummaryNonce(n => n + 1);
       return;
     }
     if (reentry.isBonus) {
@@ -1958,6 +2050,68 @@ export default function JourneyMode({
             <span className="jm-track-sub">Shorter, more concise</span>
           </button>
         </div>
+
+        {/* ── Campaign or free practice ─────────────────────────────────
+            The same map, read two ways. Campaign is the Journey as built:
+            levels open as you clear them, which gives the material an order
+            and a sense of ground gained. Free practice unlocks everything
+            and practises by the player's OWN ratings instead — the right
+            mode for revision, where "what did I keep getting wrong" matters
+            more than where you are on the path.
+
+            Progress is recorded either way: a level cleared in free
+            practice counts in campaign too. They are two doors into one
+            Journey, not two save files. */}
+        <div className="jm-mode" role="group" aria-label="How to work through this">
+          <button
+            type="button"
+            className={`jm-mode-btn${studyMode === 'campaign' ? ' is-on' : ''}`}
+            aria-pressed={studyMode === 'campaign'}
+            onClick={() => pickStudyMode('campaign')}
+          >
+            <span className="jm-track-name">📜 Campaign</span>
+            <span className="jm-track-sub">Levels unlock as you pass them</span>
+          </button>
+          <button
+            type="button"
+            className={`jm-mode-btn${studyMode === 'free' ? ' is-on' : ''}`}
+            aria-pressed={studyMode === 'free'}
+            onClick={() => pickStudyMode('free')}
+          >
+            <span className="jm-track-name">🎯 Free practice</span>
+            <span className="jm-track-sub">Everything open, practise by rating</span>
+          </button>
+        </div>
+
+        {/* Free practice only: the whole subject, split by what the player
+            said about each question. Hidden until something has been rated —
+            before that it is a row of zeroes offering nothing. */}
+        {studyMode === 'free' && ratingSummary && ratingSummary.rated > 0 && (
+          <div className="jm-practice">
+            <p className="jm-practice-title">Practise by how it felt</p>
+            <p className="jm-practice-sub">
+              Drawn from all of {subject?.label} — {ratingSummary.rated} rated of {ratingSummary.total}.
+            </p>
+            <div className="jm-practice-row">
+              {JOURNEY_RATING_PICKS.map(r => {
+                const n = ratingSummary.counts?.[r.key] || 0;
+                if (!n) return null;
+                return (
+                  <button
+                    key={r.key}
+                    type="button"
+                    className={`jm-practice-btn jm-rating-btn--${r.key}`}
+                    onClick={() => startRatingPractice(r.key, r.label)}
+                  >
+                    <span className="jm-practice-icon" aria-hidden="true">{r.icon}</span>
+                    <span className="jm-practice-name">{r.label}</span>
+                    <span className="jm-practice-n">{n}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         <div className={`jm-chapters-scroll${trackSwitching ? ' is-switching' : ''}`}>
           <div className="jm-chapter-list">

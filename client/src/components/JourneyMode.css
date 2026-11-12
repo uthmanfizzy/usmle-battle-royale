@@ -3370,3 +3370,111 @@
 @media (max-width: 420px) {
   .jm-rating-btn { padding: 6px 9px; font-size: 10.5px; }
 }
+
+/* ── Campaign vs free practice ───────────────────────────────────────────
+   Sits under the track switch and reads as its sibling: same two-up shape,
+   same weight. One decides WHICH questions, the other decides whether the
+   map has gates. */
+.jm-mode {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0 auto 14px;
+  max-width: 560px;
+}
+
+.jm-mode-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(0, 0, 0, 0.3);
+  color: var(--text-soft);
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.16s, border-color 0.16s, color 0.16s;
+}
+.jm-mode-btn:hover { background: rgba(255, 255, 255, 0.07); color: var(--text); }
+.jm-mode-btn.is-on {
+  color: #fff;
+  border-color: var(--mv-gold, #e8b04b);
+  background: rgba(232, 176, 75, 0.16);
+}
+
+/* ── Free practice: the whole subject, split by rating ────────────────── */
+.jm-practice {
+  max-width: 560px;
+  margin: 0 auto 16px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(232, 176, 75, 0.3);
+  background: rgba(232, 176, 75, 0.07);
+  text-align: center;
+}
+
+.jm-practice-title {
+  margin: 0;
+  font-family: 'Cinzel', serif;
+  font-size: 16px;
+  color: #fff;
+}
+
+.jm-practice-sub {
+  margin: 2px 0 10px;
+  font-size: 12px;
+  color: var(--text-soft);
+}
+
+.jm-practice-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+}
+
+/* Each bucket is a button sized by its label, with the count as a chip —
+   the number is the reason to press it, so it reads last and loudest. */
+.jm-practice-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(0, 0, 0, 0.35);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.16s, border-color 0.16s, transform 0.16s;
+}
+.jm-practice-btn:hover { transform: translateY(-1px); background: rgba(255, 255, 255, 0.1); }
+
+.jm-practice-n {
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The same warm-to-cool ramp the level card's filter uses, so a bucket is
+   the same colour wherever it is offered. */
+.jm-practice-btn.jm-rating-btn--knowledge_gap    { border-color: rgba(231, 76, 60, 0.7); }
+.jm-practice-btn.jm-rating-btn--careless_miss    { border-color: rgba(230, 126, 34, 0.7); }
+.jm-practice-btn.jm-rating-btn--lucky_guess      { border-color: rgba(212, 172, 13, 0.7); }
+.jm-practice-btn.jm-rating-btn--somewhat_know    { border-color: rgba(63, 127, 214, 0.7); }
+.jm-practice-btn.jm-rating-btn--fully_understood { border-color: rgba(46, 160, 87, 0.7); }
+.jm-practice-btn.jm-rating-btn--long_term_memory { border-color: rgba(123, 104, 196, 0.7); }
+
+@media (max-width: 480px) {
+  .jm-mode-btn { padding: 9px 8px; }
+  .jm-practice { padding: 12px; }
+  .jm-practice-btn { font-size: 11.5px; padding: 6px 10px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .jm-practice-btn:hover { transform: none; }
+}

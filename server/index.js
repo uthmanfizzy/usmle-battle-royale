@@ -14455,7 +14455,14 @@ async function rapidCountsByLevel(levelIds) {
   }
 }
 
-async function buildJourneyPath(userId, subject, track = 'full') {
+/**
+ * @param open  Free practice: report every level, boss and the ultimate as
+ *              unlocked. The player asked for the map without its gates —
+ *              they are still computed (progress, completion and the bonus
+ *              threshold all keep working), the chain just stops deciding
+ *              what may be tapped.
+ */
+async function buildJourneyPath(userId, subject, track = 'full', { open = false } = {}) {
   const [chaptersRes, progressRes, ultBossRes] = await Promise.all([
     supabase.from('journey_chapters').select('*').eq('subject', subject)
       .order('sort_order', { ascending: true }).order('name', { ascending: true }),
@@ -14609,7 +14616,7 @@ async function buildJourneyPath(userId, subject, track = 'full') {
       // means they can be cleared out of order, and a strict two-back gate then
       // leaves a locked level stranded between two open ones (skip L1, clear
       // L2, and L3 locks while L4 opens).
-      const unlocked  = completed || prev1 || prev2;
+      const unlocked  = open || completed || prev1 || prev2;
       prev2 = prev1;
       prev1 = completed;
       const bestPct = best(l.id);
@@ -14664,7 +14671,7 @@ async function buildJourneyPath(userId, subject, track = 'full') {
         question_count: qCount,
         completed,
         best_score_pct: best(levelKey),
-        unlocked: allLevelsDone,
+        unlocked: open || allLevelsDone,
         // Kept, and always false: a boss that is here has questions. The
         // field stays so anything reading it keeps working.
         auto_skipped: false,
@@ -14678,7 +14685,7 @@ async function buildJourneyPath(userId, subject, track = 'full') {
 
   const ultQCount      = bossCounts['ultimate'] || 0;
   const ultCompleted   = isDone('boss:ultimate');
-  const ultUnlocked    = chapters.length > 0 && allBossesSatisfied;
+  const ultUnlocked    = chapters.length > 0 && (open || allBossesSatisfied);
   const ultAutoSkipped = ultQCount === 0 && ultUnlocked;
 
   // The same rule at the end of the subject: no ultimate questions, no
@@ -14821,6 +14828,127 @@ app.get('/api/journey/progress-summary', requireAuth, async (req, res) => {
 });
 
 /**
+ * Every question in one subject, for the "practise what I keep getting
+ * wrong" runs — a level id is too small a unit for that.
+ *
+ * Shared by the summary and the run below so the count on the button and the
+ * questions behind it can never come from different pools. Returns rows with
+ * the fields the solo wire shape needs, paged, with the same retirement,
+ * bonus and track guards the level route applies.
+ */
+async function journeySubjectQuestions(subject, track) {
+  const { data: chs, error: chErr } = await supabase
+    .from('journey_chapters').select('id').eq('subject', subject);
+  if (chErr) throw chErr;
+  const chapterIds = (chs || []).map(c => c.id);
+  if (!chapterIds.length) return [];
+
+  const { data: lv, error: lvErr } = await supabase
+    .from('journey_levels').select('id').in('chapter_id', chapterIds);
+  if (lvErr) throw lvErr;
+  const levelIds = (lv || []).map(l => l.id);
+  if (!levelIds.length) return [];
+
+  const out = [];
+  const PAGE = 1000;
+  for (let from = 0; ; from += PAGE) {
+    let q = supabase.from('journey_questions').select('*').in('level_id', levelIds);
+    if (hasJourneyRetirement) q = q.is('retired_at', null);
+    if (hasJourneyBonus) q = q.eq('is_bonus', false);
+    if (journeyTrackReady()) q = q.eq('track', track);
+    let { data, error } = await q.range(from, from + PAGE - 1);
+    if (error && isMissingColumn(error, 'track')) {
+      journeyTrackMissing('subject practice');
+      let untracked = supabase.from('journey_questions').select('*').in('level_id', levelIds);
+      if (hasJourneyRetirement) untracked = untracked.is('retired_at', null);
+      if (hasJourneyBonus) untracked = untracked.eq('is_bonus', false);
+      ({ data, error } = await untracked.range(from, from + PAGE - 1));
+    }
+    if (error) throw error;
+    out.push(...(data || []));
+    if (!data || data.length < PAGE) return out;
+  }
+}
+
+/**
+ * GET /api/journey/rating-summary?subject=&track=
+ *
+ * How this player has rated the WHOLE subject, bucket by bucket, so free
+ * practice can offer "my 48 Knowledge Gaps across Cardiology" without first
+ * opening a level.
+ */
+app.get('/api/journey/rating-summary', requireAuth, async (req, res) => {
+  const empty = { counts: {}, total: 0, rated: 0 };
+  if (!supabase) return res.json(empty);
+  const { subject } = req.query;
+  if (!subject) return res.status(400).json({ error: 'subject required', ...empty });
+  const track = journeyTrackOf(req.query.track);
+  try {
+    const rows = await journeySubjectQuestions(subject, track);
+    const ratings = await journeyRatingsFor(req.userId, rows.map(r => r.id));
+    const counts = {};
+    for (const r of rows) {
+      const key = ratings[r.id] || 'unrated';
+      counts[key] = (counts[key] || 0) + 1;
+    }
+    res.json({ counts, total: rows.length, rated: rows.length - (counts.unrated || 0) });
+  } catch (err) {
+    console.warn('[/api/journey/rating-summary] unavailable —', err.message);
+    res.json(empty);
+  }
+});
+
+/**
+ * GET /api/journey/practice?subject=&track=&rating=&limit=
+ *
+ * A run drawn from the whole subject rather than one level, filtered to one
+ * of the player's own ratings. Shuffled and capped, because "every Knowledge
+ * Gap in Cardiology" can be hundreds of questions and a run nobody finishes
+ * teaches nothing.
+ */
+app.get('/api/journey/practice', requireAuth, async (req, res) => {
+  if (!supabase) return res.json({ questions: [] });
+  const { subject } = req.query;
+  if (!subject) return res.status(400).json({ error: 'subject required', questions: [] });
+  const track = journeyTrackOf(req.query.track);
+  const wantRating = JOURNEY_RATING_FILTERS.includes(req.query.rating) ? req.query.rating : null;
+  const limit = Math.min(60, Math.max(5, Number(req.query.limit) || 20));
+  try {
+    let rows = await journeySubjectQuestions(subject, track);
+    if (wantRating) {
+      const ratings = await journeyRatingsFor(req.userId, rows.map(r => r.id));
+      rows = rows.filter(r => (ratings[r.id] || 'unrated') === wantRating);
+    }
+    if (!rows.length) {
+      return res.json({
+        questions: [], empty: true,
+        message: wantRating
+          ? 'Nothing in this subject is rated that way yet.'
+          : 'No questions authored for this subject yet.',
+      });
+    }
+    const questions = shuffle(rows).slice(0, limit).map(q => ({
+      id: q.id,
+      question: q.question,
+      options: q.options,
+      correct: q.correct,
+      explanation: q.explanation || '',
+      why_others_wrong: q.why_others_wrong || null,
+      image_url: q.image_url || null,
+      explanation_image_url: q.explanation_image_url || null,
+      explanation_images: normalizeExplanationImages(q),
+      option_images: normalizeOptionImages(q),
+      stem_images: normalizeStemImages(q),
+      stem_audio_url: q.stem_audio_url || null,
+    }));
+    res.json({ questions, empty: false, pool: rows.length });
+  } catch (err) {
+    console.warn('[/api/journey/practice] unavailable —', err.message);
+    res.json({ questions: [] });
+  }
+});
+
+/**
  * GET /api/journey/level-ratings?level_id=&track=
  *
  * How this player has rated the questions in one level, counted per bucket,
@@ -14867,7 +14995,7 @@ app.get('/api/journey/level-ratings', requireAuth, async (req, res) => {
 app.get('/api/journey/:subject', requireAuth, async (req, res) => {
   if (!supabase) return res.json({ subject: req.params.subject, threshold: 50, chapters: [], ultimate: null, mastery: false });
   try {
-    const path = await buildJourneyPath(req.userId, req.params.subject, journeyTrackOf(req.query.track));
+    const path = await buildJourneyPath(req.userId, req.params.subject, journeyTrackOf(req.query.track), { open: req.query.open === '1' });
     res.json(path);
   } catch (err) {
     console.error('[/api/journey] error:', err.message);

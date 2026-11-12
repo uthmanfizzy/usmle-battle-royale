@@ -783,8 +783,8 @@ export default function App() {
     setPhase('solo_game');
   }
 
-  function handlePlayJourneyLevel({ subject, levelKey, questionsUrl, levelLabel, wasMastery, questionOrder, isBonus }) {
-    setJourneyContext({ subject, levelKey, questionsUrl, levelLabel, wasMastery, questionOrder, isBonus });
+  function handlePlayJourneyLevel({ subject, levelKey, questionsUrl, levelLabel, wasMastery, questionOrder, isBonus, isPractice }) {
+    setJourneyContext({ subject, levelKey, questionsUrl, levelLabel, wasMastery, questionOrder, isBonus, isPractice });
     setPhase('solo_game');
   }
 
@@ -808,6 +808,9 @@ export default function App() {
       // progress, unlocks, or mastery. JourneyMode's reentry effect checks
       // this flag before it does anything else.
       isBonus: !!journeyContext.isBonus,
+      // Rating practice spans the whole subject, so it clears no level and
+      // must not reach /api/journey/complete either.
+      isPractice: !!journeyContext.isPractice,
     });
     setJourneyContext(null);
     setPhase('journey');
