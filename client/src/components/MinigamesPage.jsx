@@ -142,6 +142,30 @@ const MINIGAMES = [
          + 'normal curve — fresh numbers every run.',
     drills: 'Step 1 biostatistics, worked out',
   },
+  {
+    id: 'microbiology',
+    name: 'Microbiology',
+    subject: 'Microbiology',
+    icon: '🦠',
+    accent: '70, 190, 160',          // microbiology teal
+    soon: true,
+    blurb: 'Identify the bug from the Gram stain, the culture and the clinical '
+         + 'picture — then name its virulence factors, the disease it causes '
+         + 'and the drug that treats it.',
+    drills: 'Bugs, stains, toxins and treatment',
+  },
+  {
+    id: 'hiv',
+    name: 'HIV',
+    subject: 'Immunology & infectious disease',
+    icon: '🎗️',
+    accent: '214, 64, 82',           // awareness red
+    soon: true,
+    blurb: 'Follow HIV from infection to AIDS — the life cycle and where each '
+         + 'drug class strikes it, CD4 counts and the opportunistic infections '
+         + 'that come with them, and the prophylaxis that prevents them.',
+    drills: 'Life cycle, ART, CD4 thresholds, opportunistic infections',
+  },
 ];
 
 export default function MinigamesPage() {
