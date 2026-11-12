@@ -235,6 +235,8 @@ export default function JourneyMode({
   studyModeRef.current = studyMode;
   // Rating counts across the WHOLE subject, for the free-practice panel.
   const [ratingSummary, setRatingSummary] = useState(null);
+  // Free practice: nothing on the map is gated, whatever the server says.
+  const openAll = studyMode === 'free';
   // Bumped after a practice run: the answers just rated belong in different
   // buckets now, so the panel has to ask again.
   const [summaryNonce, setSummaryNonce] = useState(0);
@@ -1407,7 +1409,7 @@ export default function JourneyMode({
     const stars      = l.completed ? getStarCount(l.best_score_pct) : 0;
     const cls = [
       'jm-node', 'jm-node--level',
-      !l.unlocked ? 'jm-node--locked' : '',
+      !l.unlocked && !openAll ? 'jm-node--locked' : '',
       l.completed ? 'jm-node--done' : '',
       isFrontier ? 'jm-node--frontier' : '',
       empty ? 'jm-node--empty' : '',
@@ -1435,7 +1437,7 @@ export default function JourneyMode({
               kind: 'level', name: l.name, questionCount: l.question_count,
               bestPct: l.best_score_pct, completed: l.completed,
               levelKey: l.level_key,
-              unlocked: l.unlocked,
+              unlocked: l.unlocked || openAll,
               memoryAid: l.memory_aid || null,
               videos: l.videos || [],
               questionsUrl: `${SERVER}/api/journey-questions?level_id=${l.level_key}&track=${track}`,
@@ -1445,7 +1447,7 @@ export default function JourneyMode({
             })}
           >
             <span className="jm-node-face">
-              {!l.unlocked ? '🔒' : (li + 1)}
+              {!l.unlocked && !openAll ? '🔒' : (li + 1)}
             </span>
             {l.completed && <span className="jm-node-badge" aria-hidden="true">✓</span>}
             {/* Earned, not just authored: a star only shows once THIS player's
@@ -1472,11 +1474,11 @@ export default function JourneyMode({
     if (!boss) return null;
     const isFrontier = boss.level_key === frontierKey;
     const isTarget   = boss.level_key === chapterTargetKey;
-    const tappable   = boss.unlocked && !boss.auto_skipped && boss.question_count > 0;
+    const tappable   = (boss.unlocked || openAll) && !boss.auto_skipped && boss.question_count > 0;
     const stars      = boss.completed ? getStarCount(boss.best_score_pct) : 0;
     const cls = [
       'jm-node', big ? 'jm-node--ultimate' : 'jm-node--boss',
-      !boss.unlocked ? 'jm-node--locked' : '',
+      !boss.unlocked && !openAll ? 'jm-node--locked' : '',
       boss.completed ? 'jm-node--done' : '',
       isFrontier ? 'jm-node--frontier' : '',
       boss.auto_skipped ? 'jm-node--skipped' : '',
@@ -1499,11 +1501,12 @@ export default function JourneyMode({
               kind: big ? 'ultimate' : 'boss', name: label, questionCount: boss.question_count,
               bestPct: boss.best_score_pct, completed: boss.completed,
               levelKey: boss.level_key,
+              unlocked: boss.unlocked || openAll,
               questionsUrl: `${SERVER}/api/boss-questions?subject=${subject?.id}&boss_key=${boss.boss_key}`,
             })}
           >
             <span className="jm-node-face">
-              {boss.auto_skipped ? '💨' : !boss.unlocked ? '🔒' : big ? '👑' : '💀'}
+              {boss.auto_skipped ? '💨' : (!boss.unlocked && !openAll) ? '🔒' : big ? '👑' : '💀'}
             </span>
             {boss.completed && <span className="jm-node-badge" aria-hidden="true">✓</span>}
           </button>
@@ -1561,6 +1564,12 @@ export default function JourneyMode({
               <p className="jm-confirm-locked">
                 🔒 Locked — clear an earlier level in this chapter to open it.
               </p>
+            ) : openAll ? (
+              // Nothing is waiting to be unlocked in free practice, so
+              // promising a threshold here would describe a rule that is not
+              // running. Scores are still kept — the level still counts as
+              // cleared — it just is not the key to anything.
+              <p className="jm-confirm-threshold">🎯 Free practice — every level is open. Your score still counts.</p>
             ) : (
               <p className="jm-confirm-threshold">Pass with ≥{threshold}% to unlock the next {confirmNode.kind === 'level' ? 'level' : 'stage'}</p>
             )}
@@ -1992,7 +2001,7 @@ export default function JourneyMode({
   // ----- Chapter list ('chapters') — mockup chapter rows + Ultimate card -----
   if (view === 'chapters') {
     const ult = ultimate;
-    const ultTappable = ult && ult.unlocked && !ult.auto_skipped && ult.question_count > 0;
+    const ultTappable = ult && (ult.unlocked || openAll) && !ult.auto_skipped && ult.question_count > 0;
     const ultStars = ult?.completed ? getStarCount(ult.best_score_pct) : 0;
     return (
       <div className={`screen jm-screen jm-screen--chapters jm-themed${bgClass}${editorMode ? ' jm-editor' : ''}`} style={themeStyle} {...editorRootProps}>
@@ -2160,20 +2169,21 @@ export default function JourneyMode({
               <div className="jm-ultimate-card">
                 <button
                   type="button"
-                  className={`jm-ultimate-btn${ultimate.completed ? ' jm-ultimate-btn--done' : ''}${!ultimate.unlocked ? ' jm-ultimate-btn--locked' : ''}`}
+                  className={`jm-ultimate-btn${ultimate.completed ? ' jm-ultimate-btn--done' : ''}${!ultimate.unlocked && !openAll ? ' jm-ultimate-btn--locked' : ''}`}
                   disabled={!ultTappable}
                   onClick={editorMode ? undefined : () => openConfirm({
                     kind: 'ultimate', name: t('ultimate.label', 'ULTIMATE BOSS'),
                     questionCount: ultimate.question_count, bestPct: ultimate.best_score_pct,
                     completed: ultimate.completed, levelKey: ultimate.level_key,
+                    unlocked: ultimate.unlocked || openAll,
                     questionsUrl: `${SERVER}/api/boss-questions?subject=${subject?.id}&boss_key=${ultimate.boss_key}`,
                   })}
                 >
-                  <span className="jm-ultimate-face">{ultimate.auto_skipped ? '💨' : !ultimate.unlocked ? '🔒' : '👑'}</span>
+                  <span className="jm-ultimate-face">{ultimate.auto_skipped ? '💨' : (!ultimate.unlocked && !openAll) ? '🔒' : '👑'}</span>
                   <span className="jm-ultimate-text">
                     <span className="jm-ultimate-name" {...ek('ultimate.label')}>{t('ultimate.label', 'ULTIMATE BOSS')}</span>
                     <span className="jm-ultimate-sub">
-                      {!ultimate.unlocked
+                      {!ultimate.unlocked && !openAll
                         ? t('ultimate.locked', 'Clear every chapter boss to face it')
                         : ultimate.completed
                           ? <>Defeated {'★'.repeat(ultStars)}{'☆'.repeat(Math.max(0, 3 - ultStars))}</>
