@@ -728,3 +728,47 @@
 .abgr-weak p { margin: 0 0 8px; }
 /* The tag sits at the top of the card rather than stretching down its side. */
 .abgr-rule-tag { align-self: flex-start; }
+
+/* The "why" behind a rule (abgRules `explain` / `example`): two facts and the
+   question to ask, then the same idea worked through with real numbers. */
+.abgr-rule-explain { list-style: none; margin: 0; padding: 0; display: grid; gap: 5px; }
+.abgr-rule-explain li {
+  display: grid;
+  grid-template-columns: minmax(118px, auto) minmax(0, 1fr);
+  gap: 10px;
+  align-items: baseline;
+  padding: 7px 10px;
+  border-radius: 9px;
+  background: rgba(0, 0, 0, 0.22);
+  border-left: 3px solid rgba(255, 210, 120, 0.6);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.abgr-rule-explain li.tone-acid { border-left-color: rgb(255, 92, 120); }
+.abgr-rule-explain li.tone-alk { border-left-color: rgb(111, 160, 255); }
+.abgr-rule-explain b { color: #fff; white-space: nowrap; }
+.abgr-rule-explain span { color: rgba(255, 240, 214, 0.9); }
+.abgr-rule-example {
+  margin: 0;
+  padding: 8px 11px;
+  border-radius: 9px;
+  border: 1px dashed rgba(255, 210, 120, 0.35);
+  font-size: 13px;
+  line-height: 1.55;
+  color: rgba(255, 240, 214, 0.9);
+}
+.abgr-rule-example b {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgba(255, 196, 92, 0.22);
+  color: #ffd98a;
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.abgr-rule-lead--sub { margin-top: 2px; font-size: 12.5px; color: rgba(255, 240, 214, 0.8); }
+@media (max-width: 480px) {
+  .abgr-rule-explain li { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+}

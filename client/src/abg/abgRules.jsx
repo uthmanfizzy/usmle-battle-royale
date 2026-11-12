@@ -24,7 +24,17 @@ export const RULES = {
   },
 
   primary: {
-    lead: 'Which value moved the SAME way as the pH?',
+    lead: 'Find the value that CAUSED the pH you just found.',
+    // "Moved the same way as the pH" was shorthand nobody could unpack. The
+    // idea underneath is two facts and one question, so it is now spelled
+    // out as exactly that, with a worked example, before the cheat sheet.
+    explain: [
+      { k: 'CO₂ is an ACID', v: 'More CO₂ → more acidic (pH falls). Less CO₂ → more alkaline (pH rises).', tone: 'acid' },
+      { k: 'HCO₃⁻ is a BASE', v: 'Less HCO₃⁻ → more acidic (pH falls). More HCO₃⁻ → more alkaline (pH rises).', tone: 'alk' },
+      { k: 'Ask of each value', v: 'Does its change push the pH in the direction the pH actually went? The one that does is the PRIMARY cause. The one pushing the other way is the body compensating.', tone: 'look' },
+    ],
+    example: 'pH 7.29 is acidic. PaCO₂ 26 is LOW — less acid, which would make the blood alkaline, so it cannot be the cause. HCO₃⁻ 12 is LOW — less base, which makes the blood acidic ✓. So: metabolic acidosis, and the low CO₂ is the lungs breathing it off to compensate.',
+    tableLead: 'Cheat sheet — what causes each side:',
     table: {
       corner: '',
       cols: [
@@ -36,7 +46,7 @@ export const RULES = {
         { label: 'Metabolic', cells: ['HCO₃⁻ LOW  < 22', 'HCO₃⁻ HIGH  > 26'] },
       ],
     },
-    note: 'Both values pushing the pH the same way → a mixed disorder.',
+    note: 'If BOTH values push the pH the same way (e.g. CO₂ high AND HCO₃⁻ low in an acidaemia), both are causes — a mixed disorder.',
   },
 
   comp: {
@@ -116,6 +126,21 @@ export function RuleCard({ rule }) {
       <div className="abgr-rule-body">
         {rule.lead && <p className="abgr-rule-lead">{rule.lead}</p>}
         {rule.formula && <p className="abgr-rule-formula">{rule.formula}</p>}
+
+        {rule.explain && (
+          <ul className="abgr-rule-explain">
+            {rule.explain.map(x => (
+              <li key={x.k} className={`tone-${x.tone || 'look'}`}>
+                <b>{x.k}</b>
+                <span>{x.v}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+        {rule.example && (
+          <p className="abgr-rule-example"><b>Example</b> {rule.example}</p>
+        )}
+        {rule.tableLead && <p className="abgr-rule-lead abgr-rule-lead--sub">{rule.tableLead}</p>}
 
         {rule.table && (
           <table className="abgr-rule-table">
