@@ -3286,3 +3286,87 @@
 @media (prefers-reduced-motion: reduce) {
   .jm-track.is-switching .jm-track-btn.is-on::after { animation: none; opacity: 0.5; transform: none; }
 }
+
+/* ── Practise by rating (level confirm card) ─────────────────────────────
+   The six judgements a player gave this level's questions, offered back as
+   a way in: "just the ones I called a Knowledge Gap". Wraps rather than
+   scrolls — these are read, not swiped, and a hidden option is one that
+   never gets used. Only buckets with questions in them are rendered, so the
+   row is as short as the player's history. */
+.jm-confirm-ratings {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  margin: 2px 0 12px;
+}
+
+.jm-rating-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 5px;
+  max-width: 100%;
+}
+
+.jm-rating-btn {
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 6px 11px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-soft);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.16s, color 0.16s, border-color 0.16s;
+}
+.jm-rating-btn:hover { color: var(--text); background: rgba(255, 255, 255, 0.1); }
+
+/* The count rides inside the button: how many questions that choice starts,
+   so nobody picks a bucket expecting more than it holds. */
+.jm-rating-btn span {
+  margin-left: 4px;
+  opacity: 0.6;
+  font-variant-numeric: tabular-nums;
+}
+
+.jm-rating-btn--on {
+  color: #fff;
+  border-color: var(--mv-gold, #e8b04b);
+  background: rgba(232, 176, 75, 0.2);
+}
+.jm-rating-btn--on span { opacity: 0.85; }
+
+/* Weakest first reads warm-to-cool, so the row itself says which end is
+   worth practising. Only the selected button takes its colour — unselected
+   stays neutral, or seven tinted pills would fight the card. */
+.jm-rating-btn--knowledge_gap.jm-rating-btn--on {
+  border-color: rgba(231, 76, 60, 0.85);
+  background: rgba(231, 76, 60, 0.22);
+}
+.jm-rating-btn--careless_miss.jm-rating-btn--on {
+  border-color: rgba(230, 126, 34, 0.85);
+  background: rgba(230, 126, 34, 0.22);
+}
+.jm-rating-btn--lucky_guess.jm-rating-btn--on {
+  border-color: rgba(212, 172, 13, 0.85);
+  background: rgba(212, 172, 13, 0.24);
+}
+.jm-rating-btn--somewhat_know.jm-rating-btn--on {
+  border-color: rgba(63, 127, 214, 0.85);
+  background: rgba(63, 127, 214, 0.22);
+}
+.jm-rating-btn--fully_understood.jm-rating-btn--on {
+  border-color: rgba(46, 160, 87, 0.85);
+  background: rgba(46, 160, 87, 0.22);
+}
+.jm-rating-btn--long_term_memory.jm-rating-btn--on {
+  border-color: rgba(123, 104, 196, 0.85);
+  background: rgba(123, 104, 196, 0.24);
+}
+
+@media (max-width: 420px) {
+  .jm-rating-btn { padding: 6px 9px; font-size: 10.5px; }
+}

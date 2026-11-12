@@ -213,8 +213,14 @@ export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld, onSaudiMLE, o
       <div className="ms-campaign-list">
         {/* First Aid and the flashcard decks are medical content, so a
             dentistry student's menu is the ORE/LDS campaign alone. */}
+        {/* The two routes are on the card itself, so "I want the short one"
+            is one tap rather than open-the-map-then-switch. The card stays
+            one big target: a transparent cover button carries the plain tap
+            (the player's last route), and the two route buttons sit above it
+            on their own layer. Nested buttons would be invalid HTML, which
+            is why the card is a div with a cover rather than a button. */}
         {!isDentistry && (
-        <button className="ms-journey-card" onClick={onJourney}>
+        <div className="ms-journey-card ms-journey-card--routed">
           <div className="ms-journey-art" aria-hidden="true">
             <span className="ms-journey-art-icon">🚑</span>
           </div>
@@ -223,8 +229,26 @@ export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld, onSaudiMLE, o
             <span className="ms-journey-sub">
               A field medic&apos;s first steps — march through First Aid, chapter by chapter.
             </span>
+            <div className="ms-journey-routes">
+              <button
+                type="button"
+                className="ms-route-btn"
+                onClick={(e) => { e.stopPropagation(); onJourney('full'); }}
+              >📖 Thorough</button>
+              <button
+                type="button"
+                className="ms-route-btn ms-route-btn--rapid"
+                onClick={(e) => { e.stopPropagation(); onJourney('rapid'); }}
+              >⚡ Concise</button>
+            </div>
           </div>
-        </button>
+          <button
+            type="button"
+            className="ms-journey-cover"
+            onClick={() => onJourney()}
+            aria-label="First Aid Journey"
+          />
+        </div>
         )}
 
         {/* FLASHCARDS is a category, not a mode: it opens in place to reveal

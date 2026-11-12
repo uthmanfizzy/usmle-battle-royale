@@ -93,6 +93,9 @@ export default function App() {
   const [tgReturnPhase, setTgReturnPhase] = useState('mode_split');
   const [journeyContext,  setJourneyContext]  = useState(null); // { subject, levelKey, questionsUrl, levelLabel, isBonus? }
   const [journeyReentry,  setJourneyReentry]  = useState(null); // { pct, subject, levelKey?, questionsUrl?, levelLabel?, isBonus? }
+  // Route picked on the Story Menu card ('full' | 'rapid'), or null for "use
+  // whichever they last studied". Read once, when the Journey mounts.
+  const [journeyTrack,    setJourneyTrack]    = useState(null);
   const [playInitialMode, setPlayInitialMode] = useState(null); // Story→AnKing passes 'anking'; Online leaves null
 
   const [raceProgress, setRaceProgress] = useState([]);
@@ -1094,7 +1097,7 @@ export default function App() {
         <RouteErrorBoundary name="StoryMenu">
         <StoryMenu
           onBack={() => setPhase('mode_split')}
-          onJourney={() => setPhase('journey')}
+          onJourney={(trk) => { setJourneyTrack(trk === 'rapid' || trk === 'full' ? trk : null); setPhase('journey'); }}
           onAnKing={() => { setPlayInitialMode('anking'); setPhase('play_page'); }}
           // A real route, not a phase — same navigation style as the /dashboard
           // links above.
@@ -1476,6 +1479,7 @@ export default function App() {
           onPlayLevel={handlePlayJourneyLevel}
           journeyReentry={journeyReentry}
           onReentryConsumed={() => setJourneyReentry(null)}
+          initialTrack={journeyTrack}
         />
         </RouteErrorBoundary>
       )}

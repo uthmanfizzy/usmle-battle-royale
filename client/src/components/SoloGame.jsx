@@ -1997,7 +1997,12 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
       url += `&difficulty=${difficulty}`;
     }
 
-    fetch(url)
+    // Signed in? Say so. Every url here points at our own server, and the
+    // Journey's "just my Knowledge Gaps" filter needs to know whose ratings
+    // to read — without this the server sees an anonymous request and serves
+    // the whole level, silently ignoring the filter the player chose.
+    const authToken = getToken();
+    fetch(url, authToken ? { headers: { Authorization: `Bearer ${authToken}` } } : undefined)
       .then(r => r.json())
       .then(data => {
         const questions = data.questions || [];

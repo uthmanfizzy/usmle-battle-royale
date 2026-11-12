@@ -835,6 +835,22 @@ function requireAuth(req, res, next) {
   next();
 }
 
+/**
+ * Who is asking, if anyone — for routes that are PUBLIC but do more when they
+ * know the player, like the Journey's level questions narrowing to the ones
+ * that person rated a Knowledge Gap. A missing or stale token is not an
+ * error here: it just means no personalisation, so guests and signed-out
+ * players keep getting the whole level rather than a 401.
+ */
+function optionalAuth(req, _res, next) {
+  const auth = req.headers.authorization;
+  if (auth?.startsWith('Bearer ')) {
+    const decoded = verifyToken(auth.slice(7));
+    if (decoded) req.userId = decoded.userId;
+  }
+  next();
+}
+
 // ── Per-user moderator permission ─────────────────────────────────────────────
 // Two ways to be trusted, deliberately kept separate:
 //   OWNER      — the x-admin-password header. Unlocks the whole admin panel,
@@ -14804,6 +14820,50 @@ app.get('/api/journey/progress-summary', requireAuth, async (req, res) => {
   }
 });
 
+/**
+ * GET /api/journey/level-ratings?level_id=&track=
+ *
+ * How this player has rated the questions in one level, counted per bucket,
+ * so the level card can offer "just my Knowledge Gaps (4)" and leave out the
+ * buckets that would start an empty run.
+ */
+app.get('/api/journey/level-ratings', requireAuth, async (req, res) => {
+  const empty = { counts: {}, total: 0, rated: 0 };
+  if (!supabase) return res.json(empty);
+  const { level_id } = req.query;
+  if (!level_id) return res.status(400).json({ error: 'level_id required', ...empty });
+  const track = journeyTrackOf(req.query.track);
+  try {
+    // Same guards as the questions route: this must count exactly the pool a
+    // run would draw from, or the numbers on the card promise questions the
+    // run cannot serve.
+    let q = supabase.from('journey_questions').select('id').eq('level_id', level_id);
+    if (hasJourneyRetirement) q = q.is('retired_at', null);
+    if (hasJourneyBonus) q = q.eq('is_bonus', false);
+    if (journeyTrackReady()) q = q.eq('track', track);
+    let { data, error } = await q;
+    if (error && isMissingColumn(error, 'track')) {
+      journeyTrackMissing('level ratings');
+      let untracked = supabase.from('journey_questions').select('id').eq('level_id', level_id);
+      if (hasJourneyRetirement) untracked = untracked.is('retired_at', null);
+      if (hasJourneyBonus) untracked = untracked.eq('is_bonus', false);
+      ({ data, error } = await untracked);
+    }
+    if (error) throw error;
+    const ids = (data || []).map(r => r.id);
+    const ratings = await journeyRatingsFor(req.userId, ids);
+    const counts = {};
+    for (const id of ids) {
+      const key = ratings[id] || 'unrated';
+      counts[key] = (counts[key] || 0) + 1;
+    }
+    res.json({ counts, total: ids.length, rated: ids.length - (counts.unrated || 0) });
+  } catch (err) {
+    console.warn('[/api/journey/level-ratings] unavailable —', err.message);
+    res.json(empty);
+  }
+});
+
 app.get('/api/journey/:subject', requireAuth, async (req, res) => {
   if (!supabase) return res.json({ subject: req.params.subject, threshold: 50, chapters: [], ultimate: null, mastery: false });
   try {
@@ -14927,8 +14987,46 @@ app.post('/api/journey/complete', requireAuth, async (req, res) => {
   }
 });
 
-// Public level questions in the exact solo wire shape (client-judged)
-app.get('/api/journey-questions', async (req, res) => {
+/**
+ * What this player has said about these questions, as question_id -> rating.
+ *
+ * Paged, for the same reason the rapid tally is: PostgREST returns the first
+ * 1000 rows and no error, and a half-read map here would quietly drop
+ * questions out of a "just my Knowledge Gaps" run.
+ *
+ * Returns {} when the table has not been created yet (the ratings migration
+ * is manual), so every caller degrades to "nothing is rated" rather than
+ * failing the request that was really about questions.
+ */
+async function journeyRatingsFor(userId, questionIds) {
+  const map = {};
+  if (!userId || !questionIds.length) return map;
+  const PAGE = 1000;
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await supabase
+      .from('journey_question_ratings')
+      .select('question_id, rating')
+      .eq('user_id', userId)
+      .in('question_id', questionIds)
+      .range(from, from + PAGE - 1);
+    if (error) {
+      if (!isMissingTable(error, 'journey_question_ratings')) {
+        console.warn('[journey] ratings unavailable —', error.message);
+      }
+      return map;
+    }
+    for (const r of data || []) map[r.question_id] = r.rating;
+    if (!data || data.length < PAGE) return map;
+  }
+}
+
+/** The buckets a player can ask for. 'unrated' is the questions never judged. */
+const JOURNEY_RATING_FILTERS = [...UWORLD_RATINGS, 'unrated'];
+
+// Public level questions in the exact solo wire shape (client-judged).
+// optionalAuth: public as ever, but a signed-in player can narrow the run to
+// the questions they rated a given way (?rating=knowledge_gap).
+app.get('/api/journey-questions', optionalAuth, async (req, res) => {
   if (!supabase) return res.json({ questions: [] });
   const { level_id } = req.query;
   if (!level_id) return res.status(400).json({ error: 'level_id required', questions: [] });
@@ -14982,6 +15080,25 @@ app.get('/api/journey-questions', async (req, res) => {
       ({ data, error } = await fallback.order('sort_order', { ascending: true }).order('created_at', { ascending: true }));
     }
     if (error) throw error;
+
+    // "Just the ones I called a Knowledge Gap." Applied AFTER the pool is
+    // built, so it narrows exactly what a normal run would have served and
+    // inherits the retirement, bonus and track guards above rather than
+    // restating them. Ignored for signed-out players, who have no ratings.
+    const wantRating = JOURNEY_RATING_FILTERS.includes(req.query.rating) ? req.query.rating : null;
+    if (wantRating && req.userId) {
+      const ratings = await journeyRatingsFor(req.userId, (data || []).map(q => q.id));
+      data = (data || []).filter(q => (ratings[q.id] || 'unrated') === wantRating);
+      if (data.length === 0) {
+        return res.json({
+          questions: [], empty: true,
+          message: wantRating === 'unrated'
+            ? 'You have rated every question in this level.'
+            : 'No questions in this level are rated that way yet.',
+        });
+      }
+    }
+
     const questions = (data || []).map(q => ({
       id: q.id,
       question: q.question,

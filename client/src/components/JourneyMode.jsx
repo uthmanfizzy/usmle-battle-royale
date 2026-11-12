@@ -19,6 +19,23 @@ const JM_CONFIDENCE = [
   { key: 'getting_there', label: 'Getting There', icon: '🟡' },
   { key: 'confident',     label: 'Confident',     icon: '🟢' },
 ];
+/**
+ * The six ratings a player gives a question under its explanation, offered
+ * back as a way to replay a level: "just the ones I called a Knowledge Gap".
+ * Weakest first, which is the order worth practising in. Keys must match the
+ * server's CHECK on journey_question_ratings — and the labels match the
+ * rating buttons, so the filter reads as the same vocabulary.
+ */
+const JOURNEY_RATING_PICKS = [
+  { key: 'knowledge_gap',    label: 'Knowledge Gap',    icon: '🧠' },
+  { key: 'careless_miss',    label: 'Careless Miss',    icon: '😅' },
+  { key: 'lucky_guess',      label: 'Lucky Guess',      icon: '🍀' },
+  { key: 'somewhat_know',    label: 'Somewhat Know',    icon: '🤔' },
+  { key: 'fully_understood', label: 'Fully Understood', icon: '✅' },
+  { key: 'long_term_memory', label: 'Long-term Memory', icon: '🗄️' },
+  { key: 'unrated',          label: 'Not yet rated',    icon: '◻️' },
+];
+
 const ADMIN_KEY = 'usmle_admin_session';
 
 // Admin-authenticated fetch — only ever used in editor mode (admin-only path).
@@ -84,6 +101,9 @@ export default function JourneyMode({
   // Visual builder (editor only): draft panels + drag/edit/delete callbacks.
   editorElements = null, onElementMove, onElementText, onElementDelete,
   previewSubjectId = null,
+  // Set when the player chose a route on the Story Menu card, which beats
+  // the remembered habit for this visit.
+  initialTrack = null,
 }) {
   const [view,        setView]        = useState('subjects'); // 'subjects' | 'chapters' | 'levels'
   const [chapterIdx,  setChapterIdx]  = useState(0);          // which chapter the 'levels' view shows
@@ -110,6 +130,7 @@ export default function JourneyMode({
    * to make again every time the page loads.
    */
   const [track, setTrack] = useState(() => {
+    if (initialTrack === 'rapid' || initialTrack === 'full') return initialTrack;
     try { return localStorage.getItem('mv_journey_track') === 'rapid' ? 'rapid' : 'full'; }
     catch { return 'full'; }
   });
@@ -185,6 +206,20 @@ export default function JourneyMode({
   // Every play route (level, chapter boss, ultimate boss) funnels through the
   // confirm card, so tagging the URL here covers all three.
   const withOrder = (url) => `${url}${url.includes('?') ? '&' : '?'}order=${questionOrder}`;
+
+  /**
+   * Practising by what you said about a question last time.
+   *
+   * A level can be replayed as "just the ones I called a Knowledge Gap"
+   * instead of the whole set — the point of rating them in the first place.
+   * NOT remembered between levels: the default is always the whole level,
+   * because a filter left on from an hour ago quietly shrinks every run
+   * afterwards and looks like missing content.
+   */
+  const [ratingPick, setRatingPick] = useState('all');
+  const [levelRatings, setLevelRatings] = useState(null);   // { counts, total, rated } | null
+  const withRating = (url) =>
+    (ratingPick === 'all' ? url : `${url}${url.includes('?') ? '&' : '?'}rating=${ratingPick}`);
 
   // Admin-overridable UI text: { text_key: value }. Empty → every t() returns its default,
   // so with no overrides the page is byte-identical to the hardcoded version.
@@ -1198,7 +1233,20 @@ export default function JourneyMode({
     setLinksOpen(false);
     setAidOpen(false);
     setAidDraft(null); setAidError('');
+    setRatingPick('all');
+    setLevelRatings(null);
     setConfirmNode(node);
+    // How this player rated this level's questions, for the "practise what I
+    // got wrong" row. Levels only — bosses are not rated. Fire and forget: a
+    // failure (signed out, migration not run) simply means the row stays
+    // hidden and the level plays whole, which is the old behaviour.
+    if (node?.kind === 'level' && node.levelKey && getToken()) {
+      fetch(`${SERVER}/api/journey/level-ratings?level_id=${encodeURIComponent(node.levelKey)}&track=${track}`,
+        { headers: { Authorization: `Bearer ${getToken()}` } })
+        .then(r => (r.ok ? r.json() : null))
+        .then(d => { if (d && d.rated > 0) setLevelRatings(d); })
+        .catch(() => {});
+    }
   };
   const closeConfirm = () => { setVideoModalOpen(false); setConfirmNode(null); setConfError(''); };
 
@@ -1516,6 +1564,36 @@ export default function JourneyMode({
               </div>
             )}
 
+            {/* Practise by what you said last time. Only once this player has
+                actually rated something here — on a fresh level there is
+                nothing to filter by and the row would be six dead buttons. */}
+            {!nodeLocked && levelRatings && (
+              <div className="jm-confirm-ratings">
+                <span className="jm-confirm-order-label">Which questions</span>
+                <div className="jm-rating-row" role="group" aria-label="Which questions">
+                  <button
+                    type="button"
+                    className={`jm-rating-btn${ratingPick === 'all' ? ' jm-rating-btn--on' : ''}`}
+                    aria-pressed={ratingPick === 'all'}
+                    onClick={() => setRatingPick('all')}
+                  >All <span>{levelRatings.total}</span></button>
+                  {JOURNEY_RATING_PICKS.map(r => {
+                    const n = levelRatings.counts?.[r.key] || 0;
+                    if (!n) return null;   // nothing rated that way: no button to press
+                    return (
+                      <button
+                        key={r.key}
+                        type="button"
+                        className={`jm-rating-btn jm-rating-btn--${r.key}${ratingPick === r.key ? ' jm-rating-btn--on' : ''}`}
+                        aria-pressed={ratingPick === r.key}
+                        onClick={() => setRatingPick(r.key)}
+                      >{r.icon} {r.label} <span>{n}</span></button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* Question order — read at PLAY time, so switching here applies to
                 this run without reopening the card. */}
             {!nodeLocked && (
@@ -1556,7 +1634,7 @@ export default function JourneyMode({
                 onPlayLevel({
                   subject,
                   levelKey:    confirmNode.levelKey,
-                  questionsUrl: withOrder(confirmNode.questionsUrl),
+                  questionsUrl: withRating(withOrder(confirmNode.questionsUrl)),
                   // "In order" means as AUTHORED — which covers the A/B/C/D
                   // order too, not just the question sequence. SoloGame
                   // otherwise reshuffles the options on every appearance.
