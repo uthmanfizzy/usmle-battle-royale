@@ -113,9 +113,60 @@ export function screeningQuestion() {
   return {
     kind: 'screening', table: t, measure: key,
     prompt: `What is the ${lc(M.name)} of this test?`,
+    ...screeningVignette(t, key),
     options: shuffle(opts), answer: 'ans',
     formula: workingFor(key, t),
     why: M.why,
+  };
+}
+
+/**
+ * The same table, told as an exam stem — so the 2×2 can be drawn by hand.
+ * Three ways the exam gives the numbers, each from the SAME cells, so the
+ * table the player builds is exactly the one the answer is computed from:
+ *   counts    — who has the disease, who tested which way
+ *   rates     — sensitivity and specificity with a population and prevalence
+ *               (not used when the question IS sensitivity or specificity)
+ *   positives — how many tested positive and how many of those were real
+ * `steps` is how to fill each cell from that stem, shown when checking.
+ */
+function screeningVignette(t, key) {
+  const D = t.TP + t.FN, H = t.FP + t.TN, N = D + H;
+  const sens = Math.round((t.TP / D) * 100), spec = Math.round((t.TN / H) * 100);
+  const styles = ['counts', 'positives'];
+  if (key !== 'sens' && key !== 'spec' && key !== 'lrPos' && key !== 'lrNeg') styles.push('rates', 'rates');
+  const style = rnd(styles);
+  const test = rnd(['A new blood test for pancreatic cancer', 'A rapid antigen test for strep throat', 'A new screening questionnaire for depression', 'A troponin assay for myocardial infarction', 'A new ELISA for HIV']);
+  if (style === 'rates') {
+    return {
+      vignette: `${test} has a sensitivity of ${sens}% and a specificity of ${spec}%. It is used in ${N} people, ${D} of whom have the disease.`,
+      steps: {
+        TP: `Sensitivity × diseased = ${sens}% × ${D} = ${t.TP}`,
+        FN: `Diseased − TP = ${D} − ${t.TP} = ${t.FN}`,
+        TN: `Specificity × healthy = ${spec}% × ${H} = ${t.TN}  (healthy = ${N} − ${D} = ${H})`,
+        FP: `Healthy − TN = ${H} − ${t.TN} = ${t.FP}`,
+      },
+    };
+  }
+  if (style === 'positives') {
+    return {
+      vignette: `${test} is given to ${N} patients. It is positive in ${t.TP + t.FP} of them, and ${t.TP} of those positives truly have the disease. In all, ${D} of the ${N} patients have the disease.`,
+      steps: {
+        TP: `Positives that truly have it = ${t.TP}`,
+        FP: `All positives − TP = ${t.TP + t.FP} − ${t.TP} = ${t.FP}`,
+        FN: `Diseased − TP = ${D} − ${t.TP} = ${t.FN}`,
+        TN: `Everyone left = ${N} − ${t.TP} − ${t.FP} − ${t.FN} = ${t.TN}`,
+      },
+    };
+  }
+  return {
+    vignette: `${test} is evaluated in ${N} patients, ${D} of whom have the disease on the gold-standard test. Of those with the disease, ${t.TP} test positive. Of those without it, ${t.TN} test negative.`,
+    steps: {
+      TP: `Diseased who test positive = ${t.TP}`,
+      FN: `Diseased − TP = ${D} − ${t.TP} = ${t.FN}`,
+      TN: `Healthy who test negative = ${t.TN}`,
+      FP: `Healthy − TN = (${N} − ${D}) − ${t.TN} = ${H} − ${t.TN} = ${t.FP}`,
+    },
   };
 }
 

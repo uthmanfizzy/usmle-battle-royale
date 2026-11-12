@@ -7,7 +7,7 @@ import { designQuestion, biasQuestion, errorConceptQuestion, testQuestion, shape
 import { RULES, RuleCard } from '../biostats/biostatsRules';
 import {
   TwoByTwo, CutoffCurves, RiskArrays, NormalCurve, CiPlot, Scatter, ErrorGrid,
-  SkewCurve, Target, RatesBar, DesignFlow,
+  SkewCurve, Target, RatesBar, DesignFlow, TableBuilder,
 } from '../biostats/BiostatsViz';
 import { CountUp } from '../abg/AbgViz';
 import { sfx } from '../minigameSfx';
@@ -38,9 +38,10 @@ import './BiostatsLab.css';
 const RUN_LENGTH = 8;
 const POINTS = 20;
 const PERFECT_BONUS = 40;
+const BUILD_BONUS = 5;      // for building the 2×2 yourself, correctly
 
 export const STATIONS = [
-  { id: 'screening', name: 'Screening Room', icon: '🧪', accent: '46, 196, 160', blurb: 'Read the 2×2 table: sensitivity, specificity, PPV, NPV, likelihood ratios.', gens: [screeningQuestion] },
+  { id: 'screening', name: 'Screening Room', icon: '🧪', accent: '46, 196, 160', blurb: 'The 2×2 table — given, or built yourself from the stem as on exam day: sensitivity, specificity, PPV, NPV, LRs.', gens: [screeningQuestion] },
   { id: 'cutoff', name: 'Cutoff Slider', icon: '🎚️', accent: '120, 140, 255', blurb: 'Slide the cutoff, change the prevalence — what rises and what falls?', gens: [cutoffQuestion] },
   { id: 'risk', name: 'Risk Clinic', icon: '💊', accent: '255, 140, 90', blurb: 'RR, ARR, RRR, NNT, NNH, odds ratios and vaccine efficacy from real trials.', gens: [riskQuestion] },
   { id: 'design', name: 'Study Design Detective', icon: '🔍', accent: '236, 190, 70', blurb: 'Case–control or cohort? Cross-sectional or ecological? And the four trial phases.', gens: [designQuestion] },
@@ -87,6 +88,12 @@ export default function BiostatsLab({ onExit }) {
   const [qi, setQi] = useState(0);
   const [picked, setPicked] = useState(null);
   const [hinted, setHinted] = useState(false);
+  // 2×2 questions: the table given, or read the stem and build it yourself —
+  // which is what the exam actually asks of you. Remembered per device.
+  const [buildMode, setBuildMode] = useState(() => {
+    try { return localStorage.getItem('mv_biostats_build') === 'build'; } catch { return false; }
+  });
+  const [tableState, setTableState] = useState('building');   // building | built | shown
   const [log, setLog] = useState([]);
   const [score, setScore] = useState(0);
   const [streak, setStreak] = useState(0);
@@ -98,22 +105,26 @@ export default function BiostatsLab({ onExit }) {
   const correct = answered && q && picked === q.answer;
   const meta = station === 'mixed' ? MIXED : STATIONS.find(s => s.id === station);
 
+  const saveBuild = (on) => { setBuildMode(on); setTableState('building'); try { localStorage.setItem('mv_biostats_build', on ? 'build' : 'given'); } catch { /* not remembered */ } };
   const saveMode = (m) => { setMode(m); try { localStorage.setItem('mv_biostats_mode', m); } catch { /* not remembered */ } };
 
   const start = (id) => {
     sfx.select();
     setStation(id);
     setQueue(buildRun(id));
-    setQi(0); setPicked(null); setHinted(false); setLog([]); setScore(0); setStreak(0); setBestStreak(0);
+    setQi(0); setPicked(null); setHinted(false); setTableState('building'); setLog([]); setScore(0); setStreak(0); setBestStreak(0);
     setPhase('run');
     document.querySelector('.bsl')?.scrollTo({ top: 0 });
   };
 
   const choose = useCallback((key) => {
     if (!q || picked != null) return;
+    const building = buildMode && q.kind === 'screening';
+    if (building && tableState === 'building') return;   // build the table first
     const ok = key === q.answer;
     setPicked(key);
-    const pts = ok ? (mode === 'challenge' && !hinted ? POINTS : POINTS / 2) : 0;
+    const full = mode === 'challenge' && !hinted && !(building && tableState === 'shown');
+    const pts = ok ? (full ? POINTS : POINTS / 2) + (building && tableState === 'built' ? BUILD_BONUS : 0) : 0;
     setScore(s => s + pts);
     if (ok) {
       sfx.correct(); setTimeout(() => sfx.bubble(), 240);
@@ -122,7 +133,7 @@ export default function BiostatsLab({ onExit }) {
       sfx.wrong(); setStreak(0);
     }
     setLog(l => [...l, { kind: q.kind, correct: ok }]);
-  }, [q, picked, mode, hinted]);
+  }, [q, picked, mode, hinted, buildMode, tableState]);
 
   const next = useCallback(() => {
     if (qi + 1 >= queue.length) {
@@ -140,7 +151,7 @@ export default function BiostatsLab({ onExit }) {
       return;
     }
     sfx.next();
-    setQi(i => i + 1); setPicked(null); setHinted(false);
+    setQi(i => i + 1); setPicked(null); setHinted(false); setTableState('building');
     document.querySelector('.bsl')?.scrollTo({ top: 0, behavior: 'smooth' });
   }, [qi, queue.length, log, score, station]);
 
@@ -292,8 +303,17 @@ export default function BiostatsLab({ onExit }) {
       <div className="bsl-layout">
         <section className="bsl-card bsl-q" key={`q-${qi}`}>
           <p className="bsl-q-kicker">{KIND_LABEL[q.kind]}</p>
+          {q.kind === 'screening' && (
+            <div className="bsl-tablemode" role="group" aria-label="How the 2×2 table is given">
+              <button type="button" className={!buildMode ? 'is-on' : ''} aria-pressed={!buildMode} disabled={answered} onClick={() => saveBuild(false)}>Table given</button>
+              <button type="button" className={buildMode ? 'is-on' : ''} aria-pressed={buildMode} disabled={answered} onClick={() => saveBuild(true)}>✏️ Build it myself</button>
+            </div>
+          )}
+          {q.kind === 'screening' && buildMode && <p className="bsl-stem">{q.vignette}</p>}
           <h2 className="bsl-prompt">{q.prompt}</h2>
-          <Picture q={q} reveal={answered} />
+          {q.kind === 'screening' && buildMode && !answered
+            ? <TableBuilder key={`tb-${qi}`} t={q.table} steps={q.steps} onDone={(r) => { setTableState(r); if (r === 'built') sfx.sparkle(); }} />
+            : <Picture q={q} reveal={answered} instant={buildMode} />}
         </section>
 
         <section className="bsl-card bsl-a" key={`a-${qi}`}>
@@ -303,12 +323,15 @@ export default function BiostatsLab({ onExit }) {
             </button>
           ))}
 
+          {q.kind === 'screening' && buildMode && tableState === 'building' && !answered && (
+            <p className="bsl-locked">🔒 Build the table first — then the answers unlock. (+{BUILD_BONUS} for building it right.)</p>
+          )}
           <div className="bsl-options">
             {q.options.map((o, i) => {
               const isAns = o.key === q.answer;
               const cls = !answered ? '' : isAns ? ' is-right' : o.key === picked ? ' is-wrong' : ' is-dim';
               return (
-                <button key={o.key} type="button" className={`bsl-option${cls}`} onClick={() => choose(o.key)} disabled={answered} style={{ '--d': `${0.05 * i}s` }}>
+                <button key={o.key} type="button" className={`bsl-option${cls}`} onClick={() => choose(o.key)} disabled={answered || (q.kind === 'screening' && buildMode && tableState === 'building')} style={{ '--d': `${0.05 * i}s` }}>
                   <span className="bsl-option-key">{i + 1}</span>
                   <span>{o.label}</span>
                 </button>
@@ -333,9 +356,9 @@ export default function BiostatsLab({ onExit }) {
   );
 }
 
-function Picture({ q, reveal }) {
+function Picture({ q, reveal, instant }) {
   switch (q.kind) {
-    case 'screening': return <TwoByTwo t={q.table} measure={q.measure} reveal={reveal} />;
+    case 'screening': return <TwoByTwo t={q.table} measure={q.measure} reveal={reveal} instant={instant} />;
     case 'cutoff': return <CutoffCurves q={q} reveal={reveal} />;
     case 'risk': return <RiskArrays q={q} reveal={reveal} />;
     case 'normal': return <NormalCurve q={q} reveal={reveal} />;

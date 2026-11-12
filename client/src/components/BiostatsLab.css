@@ -470,8 +470,8 @@
 .bsl-viz-note { margin: 6px 0 0; font-size: 12px; color: rgba(238, 240, 255, 0.6); display: flex; align-items: center; gap: 6px; }
 
 /* 2×2 table */
-.bsl-tt-wrap { overflow-x: auto; }
-.bsl-tt { width: 100%; border-collapse: separate; border-spacing: 6px; margin: -6px; }
+.bsl-tt-wrap { overflow-x: auto; overflow-y: hidden; padding: 2px; }
+.bsl-tt { width: 100%; border-collapse: separate; border-spacing: 6px; margin: 0; }
 .bsl-tt-h { padding: 6px; border-radius: 9px; font-size: 12px; font-weight: 800; text-align: center; }
 .bsl-tt-h.is-d { background: rgba(255, 92, 120, 0.18); color: #ffc4cf; }
 .bsl-tt-h.is-h { background: rgba(111, 160, 255, 0.18); color: #cddcff; }
@@ -598,3 +598,44 @@
   .bsl-bg-curve path { stroke-dashoffset: 0; }
   .bsl-bg span { display: none; }
 }
+
+/* ── Build the 2×2 yourself ────────────────────────────────────────────── */
+.bsl-tablemode { display: inline-flex; gap: 4px; padding: 4px; margin-bottom: 12px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.12); background: rgba(0, 0, 0, 0.3); }
+.bsl-tablemode button { padding: 6px 12px; border-radius: 9px; border: 0; background: transparent; color: rgba(238, 240, 255, 0.65); font: inherit; font-size: 12.5px; font-weight: 800; cursor: pointer; }
+.bsl-tablemode button.is-on { background: rgba(var(--accent), 0.24); color: #fff; box-shadow: inset 0 0 0 1px rgba(var(--accent), 0.65); }
+.bsl-tablemode button:disabled { cursor: default; opacity: 0.6; }
+.bsl-stem {
+  margin: 0 0 10px; padding: 12px 14px; border-radius: 12px;
+  background: rgba(255, 248, 225, 0.06); border-left: 3px solid rgb(var(--accent));
+  font-size: 15px; line-height: 1.65; color: #f4f1ff; animation: bsl-card 0.35s ease both;
+}
+.bsl-tb-cell input {
+  width: 100%; max-width: 110px; margin-top: 2px; padding: 4px 6px; border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.22); background: rgba(0, 0, 0, 0.35); color: #fff;
+  font: inherit; font-size: 20px; font-weight: 900; text-align: center; font-variant-numeric: tabular-nums;
+  -moz-appearance: textfield;
+}
+.bsl-tb-cell input::-webkit-outer-spin-button, .bsl-tb-cell input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.bsl-tb-cell input:focus { outline: none; border-color: rgb(var(--accent)); box-shadow: 0 0 0 3px rgba(var(--accent), 0.25); }
+.bsl-tb-cell input::placeholder { color: rgba(238, 240, 255, 0.3); }
+.bsl-tb-cell.is-ok { border-color: rgb(53, 224, 161); background: rgba(53, 224, 161, 0.14); }
+.bsl-tb-cell.is-bad { border-color: rgb(255, 92, 120); background: rgba(255, 92, 120, 0.12); animation: bsl-shake 0.4s ease; }
+.bsl-tb-cell.is-locked input { border-color: transparent; background: transparent; }
+.bsl-tb-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.bsl-tb-check { padding: 9px 16px; border-radius: 10px; border: 0; background: rgb(var(--accent)); color: #0b1030; font: inherit; font-size: 13.5px; font-weight: 900; cursor: pointer; }
+.bsl-tb-check:disabled { opacity: 0.4; cursor: default; }
+.bsl-tb-show { padding: 9px 14px; border-radius: 10px; border: 1px dashed rgba(255, 196, 92, 0.55); background: transparent; color: #ffd98a; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+.bsl-tb-show small { opacity: 0.7; font-weight: 600; }
+.bsl-tb-tip { margin: 8px 0 0; font-size: 12.5px; color: rgba(238, 240, 255, 0.55); line-height: 1.5; }
+.bsl-tb-fix { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 5px; font-size: 13px; }
+.bsl-tb-fix li { padding: 6px 10px; border-radius: 9px; background: rgba(255, 92, 120, 0.1); border-left: 3px solid rgb(255, 92, 120); }
+.bsl-tb-fix li.bsl-tb-fix-more { background: rgba(0, 0, 0, 0.2); border-left-color: rgba(255, 196, 92, 0.7); }
+.bsl-tb-fix b { color: #fff; margin-right: 4px; }
+.bsl-tb-fix summary { cursor: pointer; color: #ffd98a; font-weight: 700; }
+.bsl-tb-fix details p { margin: 6px 0 0; font-family: 'JetBrains Mono', ui-monospace, Consolas, monospace; font-size: 12px; color: #ffe9b8; }
+.bsl-tb-done { margin: 10px 0 0; font-weight: 900; color: #b8ffe2; animation: bsl-card 0.35s ease both; }
+.bsl-tb-how { margin-top: 10px; padding: 10px 12px; border-radius: 10px; background: rgba(0, 0, 0, 0.25); font-size: 12.5px; }
+.bsl-tb-how p { margin: 0 0 6px; color: rgba(238, 240, 255, 0.75); }
+.bsl-tb-how ul { margin: 0; padding-left: 16px; display: grid; gap: 3px; font-family: 'JetBrains Mono', ui-monospace, Consolas, monospace; color: #ffe9b8; }
+.bsl-locked { margin: 0 0 10px; padding: 9px 12px; border-radius: 10px; background: rgba(0, 0, 0, 0.25); font-size: 13px; color: rgba(238, 240, 255, 0.75); }
+@media (max-width: 480px) { .bsl-tb-cell input { font-size: 17px; } }

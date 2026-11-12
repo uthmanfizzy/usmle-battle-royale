@@ -39,13 +39,13 @@ function useTween(target, ms = 900) {
 }
 
 // ── The 2×2 table ─────────────────────────────────────────────────────────
-export function TwoByTwo({ t, measure, reveal }) {
+export function TwoByTwo({ t, measure, reveal, instant = false }) {
   const M = MEASURES[measure];
   const cls = (k) => (!reveal ? '' : M.num.includes(k) ? ' is-num' : M.den.includes(k) ? ' is-den' : ' is-off');
   const cell = (k, label, i) => (
     <td className={`bsl-tt-cell bsl-tt-${k}${cls(k)}`} style={{ '--d': `${0.08 * i}s` }}>
       <small>{label}</small>
-      <b><CountUp value={t[k]} /></b>
+      <b>{instant ? t[k] : <CountUp value={t[k]} />}</b>
     </td>
   );
   const D = t.TP + t.FN, H = t.FP + t.TN;
@@ -83,6 +83,112 @@ export function TwoByTwo({ t, measure, reveal }) {
       </table>
       {reveal && (
         <p className="bsl-tt-key"><span className="is-num">numerator</span><span className="is-den">denominator</span></p>
+      )}
+    </div>
+  );
+}
+
+// ── Build the 2×2 yourself ────────────────────────────────────────────────
+/**
+ * A blank 2×2 to fill from the question stem, the way it has to be done on
+ * exam day. Totals add up live as cells are typed, so a row or column that
+ * cannot be right shows itself. "Check" marks each cell; a wrong cell shows
+ * how to get it from the stem (`steps`). Giving up fills the table in.
+ * Calls onDone('built') once every cell is right, or onDone('shown').
+ */
+const CELLS = [['TP', 'Test +', 'Disease +'], ['FP', 'Test +', 'Disease −'], ['FN', 'Test −', 'Disease +'], ['TN', 'Test −', 'Disease −']];
+export function TableBuilder({ t, steps, onDone }) {
+  const [vals, setVals] = useState({ TP: '', FP: '', FN: '', TN: '' });
+  const [checked, setChecked] = useState(null);     // null | { TP: bool, ... }
+  const [state, setState] = useState('building');   // building | built | shown
+  const num = (k) => (vals[k] === '' ? null : Number(vals[k]));
+  const sum = (a, b) => (num(a) == null || num(b) == null ? '' : num(a) + num(b));
+  const allIn = CELLS.every(([k]) => vals[k] !== '');
+
+  const check = () => {
+    const res = Object.fromEntries(CELLS.map(([k]) => [k, num(k) === t[k]]));
+    setChecked(res);
+    if (Object.values(res).every(Boolean)) { setState('built'); onDone?.('built'); }
+  };
+  const show = () => {
+    setVals({ TP: String(t.TP), FP: String(t.FP), FN: String(t.FN), TN: String(t.TN) });
+    setChecked(null); setState('shown'); onDone?.('shown');
+  };
+  const locked = state !== 'building';
+
+  const cell = (k, label) => {
+    const st = checked ? (checked[k] ? ' is-ok' : ' is-bad') : '';
+    return (
+      <td className={`bsl-tt-cell bsl-tt-${k} bsl-tb-cell${st}${locked ? ' is-locked' : ''}`}>
+        <small>{label}</small>
+        <input
+          type="number"
+          inputMode="numeric"
+          min="0"
+          aria-label={`${k} — ${CELLS.find(c => c[0] === k)[1]}, ${CELLS.find(c => c[0] === k)[2]}`}
+          value={vals[k]}
+          disabled={locked}
+          onChange={(e) => { setVals(v => ({ ...v, [k]: e.target.value.replace(/[^\d]/g, '').slice(0, 5) })); setChecked(null); }}
+          onKeyDown={(e) => { if (e.key === 'Enter' && allIn) { e.preventDefault(); check(); } }}
+          placeholder="?"
+        />
+      </td>
+    );
+  };
+  const wrong = checked ? CELLS.filter(([k]) => !checked[k]).map(([k]) => k) : [];
+  const total = (num('TP') ?? 0) + (num('FP') ?? 0) + (num('FN') ?? 0) + (num('TN') ?? 0);
+
+  return (
+    <div className="bsl-tb">
+      <div className="bsl-tt-wrap">
+        <table className="bsl-tt">
+          <thead>
+            <tr>
+              <th aria-hidden="true" />
+              <th className="bsl-tt-h is-d">Disease +</th>
+              <th className="bsl-tt-h is-h">Disease −</th>
+              <th className="bsl-tt-h is-tot">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><th className="bsl-tt-r">Test +</th>{cell('TP', 'TP · a')}{cell('FP', 'FP · b')}<td className="bsl-tt-tot">{sum('TP', 'FP')}</td></tr>
+            <tr><th className="bsl-tt-r">Test −</th>{cell('FN', 'FN · c')}{cell('TN', 'TN · d')}<td className="bsl-tt-tot">{sum('FN', 'TN')}</td></tr>
+            <tr className="bsl-tt-totrow">
+              <th className="bsl-tt-r">Total</th>
+              <td className="bsl-tt-tot">{sum('TP', 'FN')}</td>
+              <td className="bsl-tt-tot">{sum('FP', 'TN')}</td>
+              <td className="bsl-tt-tot">{allIn ? total : ''}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      {state === 'building' && (
+        <div className="bsl-tb-actions">
+          <button type="button" className="bsl-tb-check" onClick={check} disabled={!allIn}>Check my table</button>
+          <button type="button" className="bsl-tb-show" onClick={show}>Show me the table <small>(half points)</small></button>
+        </div>
+      )}
+      {state === 'building' && !checked && (
+        <p className="bsl-tb-tip">Columns are the truth (disease), rows are the test. Fill all four, then check — the totals add up as you type.</p>
+      )}
+      {wrong.length > 0 && (
+        <ul className="bsl-tb-fix">
+          {wrong.map(k => <li key={k}><b>{k}</b> {k === 'TP' ? 'Diseased AND test positive' : k === 'FP' ? 'Healthy but test positive' : k === 'FN' ? 'Diseased but test negative' : 'Healthy AND test negative'} — try again{steps ? '' : '.'}</li>)}
+          <li className="bsl-tb-fix-more">
+            <details>
+              <summary>Stuck? Show how to get the {wrong.length === 1 ? 'cell' : 'cells'}</summary>
+              {wrong.map(k => <p key={k}><b>{k}</b> {steps?.[k]}</p>)}
+            </details>
+          </li>
+        </ul>
+      )}
+      {state === 'built' && <p className="bsl-tb-done">✓ Table built correctly — now work out the answer.</p>}
+      {state === 'shown' && steps && (
+        <div className="bsl-tb-how">
+          <p>How each cell comes from the question:</p>
+          <ul>{CELLS.map(([k]) => <li key={k}><b>{k}</b> {steps[k]}</li>)}</ul>
+        </div>
       )}
     </div>
   );
