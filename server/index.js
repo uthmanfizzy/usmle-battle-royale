@@ -13361,6 +13361,9 @@ app.delete('/admin/journey-chapters/:id', adminAuth, async (req, res) => {
 app.get('/admin/journey-counts', adminAuth, async (req, res) => {
   if (!supabase) return res.json({ levels: {}, chapters: {}, bosses: {} });
   const { subject } = req.query;
+  // Which set the badges are counting. Absent means Thorough, which is what
+  // the editors that know nothing about tracks are editing.
+  const track = journeyTrackOf(req.query.track);
   if (!subject) return res.status(400).json({ error: 'subject required' });
   try {
     // Chapters in this subject
@@ -13394,6 +13397,17 @@ app.get('/admin/journey-counts', adminAuth, async (req, res) => {
       if (qErr) throw qErr;
       // Levels with zero questions are absent from the result; readers use `|| 0`.
       for (const r of (qc || [])) levels[r.level_id] = r.question_count;
+
+      // Split by track, exactly as the player's map does. The RPC counts a
+      // level's questions whatever track they are on, so a badge built from
+      // it alone says "21 questions" on a Thorough level whose 21 questions
+      // are all Concise — and the level opens empty. Rapid is counted
+      // directly and Thorough is the remainder.
+      const rapidCounts = await rapidCountsByLevel(levelIds);
+      for (const id of levelIds) {
+        const rapid = rapidCounts[id] || 0;
+        levels[id] = track === JOURNEY_RAPID ? rapid : Math.max(0, (levels[id] || 0) - rapid);
+      }
     }
 
     // boss_key -> question count (chapter bosses + ultimate), also cap-immune.
@@ -14399,31 +14413,30 @@ function journeyTrackMissing(where) {
  * How many RAPID questions each level has.
  *
  * Counted with a plain select rather than get_journey_question_counts because
- * that RPC knows nothing about tracks. Safe while the rapid set is young —
- * and it reports if it ever brushes PostgREST's row cap, which is the point
- * at which this needs its own RPC rather than silently under-counting.
+ * that RPC knows nothing about tracks. PAGED, because PostgREST caps a select
+ * at 1000 rows and returns the first page with no error: unpaged, this would
+ * start under-counting the moment the rapid set outgrew one page, and a level
+ * reporting fewer questions than it has is invisible until a player meets it.
  */
 async function rapidCountsByLevel(levelIds) {
   const counts = {};
   if (!journeyTrackReady() || !levelIds.length) return counts;
-  const { data, error } = await supabase
-    .from('journey_questions')
-    .select('level_id')
-    .eq('track', JOURNEY_RAPID)
-    .in('level_id', levelIds);
-  if (error) {
-    if (isMissingColumn(error, 'track')) {
-      journeyTrackMissing('rapid counts');
-    } else {
-      console.warn('[journey] rapid counts unavailable —', error.message);
+  const PAGE = 1000;
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await supabase
+      .from('journey_questions')
+      .select('level_id')
+      .eq('track', JOURNEY_RAPID)
+      .in('level_id', levelIds)
+      .range(from, from + PAGE - 1);
+    if (error) {
+      if (isMissingColumn(error, 'track')) journeyTrackMissing('rapid counts');
+      else console.warn('[journey] rapid counts unavailable —', error.message);
+      return counts;
     }
-    return counts;
+    for (const r of data || []) counts[r.level_id] = (counts[r.level_id] || 0) + 1;
+    if (!data || data.length < PAGE) return counts;
   }
-  for (const r of data || []) counts[r.level_id] = (counts[r.level_id] || 0) + 1;
-  if ((data || []).length >= 1000) {
-    console.warn('[journey] rapid question count hit the row cap — counts may be short; give it its own RPC.');
-  }
-  return counts;
 }
 
 async function buildJourneyPath(userId, subject, track = 'full') {

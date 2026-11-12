@@ -6788,7 +6788,9 @@ function JourneyPanel({ track = 'full' }) {
       const [chRes, bossRes, countRes] = await Promise.all([
         apiCall(`/admin/journey-chapters?subject=${encodeURIComponent(subject)}`),
         apiCall(`/admin/boss-questions?subject=${encodeURIComponent(subject)}`),
-        apiCall(`/admin/journey-counts?subject=${encodeURIComponent(subject)}`),
+        // Scoped to this tab's set, or the badges count both and a Thorough
+        // level reads "21 questions" while opening empty.
+        apiCall(`/admin/journey-counts?subject=${encodeURIComponent(subject)}&track=${qTrack}`),
       ]);
       const chData    = await chRes.json();
       const bossData  = await bossRes.json();
