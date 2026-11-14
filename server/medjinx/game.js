@@ -78,6 +78,21 @@ module.exports = function createMedJinx({ io, lobbies, shuffle, awardXP, lobbyPa
   const review = new Map();     // topicId → Map(norm → { text, count, last })
   let warnedNoTable = false;
 
+  // The best match scores since the server last started, for the board on
+  // the MedJinx home page. In memory on purpose: it is a "who is hot right
+  // now" list, not a record, and it says so on screen.
+  const topScores = [];         // [{ username, score, at }], best first
+  function recordScores(players) {
+    for (const p of players) {
+      if (p.isBot || !p.score) continue;
+      const had = topScores.find(t => t.username === p.username);
+      if (had) { if (p.score > had.score) { had.score = p.score; had.at = Date.now(); } }
+      else topScores.push({ username: p.username, score: p.score, at: Date.now() });
+    }
+    topScores.sort((a, b) => b.score - a.score);
+    topScores.length = Math.min(topScores.length, 20);
+  }
+
   // ── Building a match ──────────────────────────────────────────────────────
 
   function pickTopics(opts) {
@@ -519,6 +534,9 @@ module.exports = function createMedJinx({ io, lobbies, shuffle, awardXP, lobbyPa
       };
     });
 
+    // A match abandoned part-way is not a score worth posting.
+    if (reason === 'complete') recordScores(players);
+
     io.to(lobby.id).emit('game_over', {
       gameMode: 'medjinx',
       reason,
@@ -608,6 +626,7 @@ module.exports = function createMedJinx({ io, lobbies, shuffle, awardXP, lobbyPa
     MAX_PLAYERS,
     defaults: () => ({ ...DEFAULTS, systems: [] }),
     sanitizeOptions, start, attach, onLeave, reset, reviewQueue,
+    topScores: () => topScores.slice(0, 5).map(t => ({ username: t.username, score: t.score })),
     catalog: () => ({
       ...bank.catalog(),
       tiers: E.TIERS,

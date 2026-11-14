@@ -562,6 +562,7 @@
   .mjx-stage {
     display: flex;
     flex-direction: column;
+    justify-content: flex-start;
     align-items: stretch;
     gap: 14px;
     padding: 54px 12px 16px;
@@ -604,4 +605,173 @@
 
 @media (prefers-reduced-motion: reduce) {
   .mjx *, .mjx *::before, .mjx *::after { animation: none !important; transition: none !important; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   The MedJinx home page (MedJinxHome.jsx). Sits under the shared lobby
+   overlay (z-index 500), which opens on top of it.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.mjx-home { z-index: 400; }
+.mjx-home a.mjx-btn { text-decoration: none; display: inline-flex; align-items: center; }
+
+.mjx-home-body {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: minmax(170px, 230px) minmax(0, 620px) minmax(190px, 270px);
+  justify-content: center;
+  align-items: start;
+  gap: 34px;
+  padding: max(64px, 21vh) 22px 18px;
+  overflow-y: auto;
+}
+.mjx-home-side { display: flex; flex-direction: column; gap: 22px; padding-top: 110px; }
+.mjx-home-main { display: flex; flex-direction: column; align-items: center; min-width: 0; }
+
+.mjx-wordmark {
+  margin: 0;
+  font-family: var(--px);
+  font-weight: 400;
+  font-size: clamp(34px, 6.4vw, 84px);
+  line-height: 1.1;
+  color: #eaf6ff;
+  text-shadow: 5px 5px 0 var(--ink), 0 0 26px rgba(72, 230, 255, 0.55);
+}
+.mjx-wordmark b { color: #3df08a; font-weight: 400; }
+.mjx-tagline { margin: 12px 0 18px; font-size: clamp(17px, 1.7vw, 24px); font-weight: 600; text-shadow: 2px 2px 0 var(--ink); }
+
+.mjx-door { width: 100%; padding: 16px 18px 18px; }
+.mjx-door-label { font-family: var(--px); font-size: 10px; text-transform: uppercase; color: var(--violet); }
+.mjx-nick {
+  margin: 8px 0 14px;
+  padding: 10px 14px;
+  background: #07071a;
+  border: 3px solid var(--ink);
+  box-shadow: 0 0 0 2px #2b2e72;
+  font-size: 26px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mjx-door-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+.mjx-door-row:last-of-type { margin-bottom: 0; }
+.mjx-door-row--code { grid-template-columns: 1fr auto; }
+.mjx-code {
+  min-width: 0;
+  background: #07071a;
+  border: 3px solid var(--ink);
+  box-shadow: 0 0 0 2px #2b2e72;
+  color: #fff;
+  font-family: var(--px);
+  font-size: 18px;
+  letter-spacing: 0.4em;
+  text-align: center;
+  padding: 12px;
+  outline: none;
+  border-radius: 0;
+}
+.mjx-code::placeholder { color: #565c9c; }
+.mjx-code:focus { box-shadow: 0 0 0 3px var(--yellow); }
+
+.mjx-big {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 62px;
+  padding: 10px 14px;
+  border: 3px solid var(--ink);
+  font-family: var(--px) !important;
+  font-size: 14px;
+  text-transform: uppercase;
+  color: #10131f;
+  cursor: pointer;
+  box-shadow: inset 0 -6px 0 rgba(0, 0, 0, 0.28), inset 0 4px 0 rgba(255, 255, 255, 0.28), 4px 4px 0 rgba(0, 0, 0, 0.4);
+  transition: transform 0.06s steps(2), filter 0.1s;
+}
+.mjx-big span { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.mjx-big small { text-transform: none; font-family: var(--body); font-size: 14px; font-weight: 600; opacity: 0.85; }
+.mjx-big i { font-style: normal; display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; background: #2f7d12; color: #eaffd0; border: 2px solid var(--ink); }
+.mjx-big:hover:not(:disabled) { filter: brightness(1.1); }
+.mjx-big:active:not(:disabled) { transform: translateY(3px); box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.28); }
+.mjx-big:focus-visible { outline: 3px solid var(--yellow); outline-offset: 2px; }
+.mjx-big:disabled { opacity: 0.5; cursor: default; }
+.mjx-big--lime { background: #9be22d; }
+.mjx-big--blue { background: #2f9bea; color: #fff; }
+.mjx-big--violet { background: #8b3fe0; color: #fff; padding: 10px 26px; }
+.mjx-big--gold { background: #f5b921; }
+.mjx-door-error { margin: 12px 0 0; padding: 8px 10px; background: #2a1524; border-left: 4px solid var(--red); color: #ffd7dc; font-size: 16px; }
+
+.mjx-home-nav { display: flex; justify-content: center; gap: clamp(18px, 4vw, 56px); margin-top: 22px; }
+.mjx-home-nav a {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  color: #fff; text-decoration: none;
+  font-family: var(--px); font-size: 10px; text-transform: uppercase;
+  text-shadow: 2px 2px 0 var(--ink);
+}
+.mjx-home-nav a:hover svg, .mjx-home-nav a:focus-visible svg { transform: translateY(-4px); }
+.mjx-home-nav svg { image-rendering: pixelated; filter: drop-shadow(3px 3px 0 rgba(0, 0, 0, 0.5)); transition: transform 0.1s steps(2); }
+
+/* Framed pictures on the left wall. */
+.mjx-frame {
+  background: #12143a;
+  border: 4px solid #5a3a1a;
+  box-shadow: inset 0 0 0 3px #2a1a0c, 6px 6px 0 rgba(0, 0, 0, 0.45);
+  padding: 12px;
+}
+.mjx-frame h2 { margin: 0 0 10px; font-family: var(--px); font-weight: 400; font-size: 10px; text-transform: uppercase; color: var(--yellow); }
+.mjx-frame ol { margin: 0; padding-left: 20px; font-size: 15.5px; line-height: 1.35; color: #dfe3ff; }
+.mjx-frame li { padding: 2px 0; }
+.mjx-frame--doc { display: flex; flex-direction: column; align-items: center; }
+
+/* The hanging sign. */
+.mjx-sign {
+  position: relative;
+  margin-top: 26px;
+  padding: 14px 10px;
+  text-align: center;
+  background: #10112c;
+  border: 5px solid #6a4530;
+  box-shadow: 6px 6px 0 rgba(0, 0, 0, 0.45);
+}
+.mjx-sign::before {
+  content: "";
+  position: absolute;
+  left: 50%; top: -30px;
+  width: 44px; height: 44px;
+  border-left: 3px solid #8a6a4a; border-top: 3px solid #8a6a4a;
+  transform: translateX(-50%) rotate(45deg);
+  z-index: -1;
+}
+.mjx-sign b { display: block; font-family: var(--px); font-weight: 400; font-size: 26px; color: #ffb224; }
+.mjx-sign span { display: inline-flex; align-items: center; gap: 8px; margin-top: 8px; font-family: var(--px); font-size: 9px; text-transform: uppercase; }
+.mjx-sign span i { width: 10px; height: 10px; background: #49f08a; box-shadow: 0 0 8px #49f08a; animation: mjx-blink 1.6s steps(2) infinite; }
+
+.mjx-home-board { transform: rotate(0.8deg); }
+.mjx-home-board li em { font-style: normal; font-family: var(--px); font-size: 10px; width: 18px; color: #8a5a1c; }
+.mjx-home-board li span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mjx-home-board-empty { margin: 0 !important; font-size: 16px !important; }
+
+@media (max-width: 1000px) {
+  /* flex-start, not the desktop centre: a centred column taller than the
+     screen overflows upwards, where it cannot be scrolled to. */
+  .mjx-home-body { display: flex; flex-direction: column; justify-content: flex-start; align-items: stretch; gap: 16px; padding: 60px 12px 18px; overflow-x: hidden; }
+  .mjx-home-main { order: 1; }
+  .mjx-home-side { padding-top: 0; }
+  .mjx-home-side--right { order: 2; flex-direction: row; align-items: stretch; gap: 12px; }
+  .mjx-home-side--right > * { flex: 1; min-width: 0; margin-top: 0; transform: none; }
+  .mjx-sign::before { display: none; }
+  .mjx-home-side--left { order: 3; }
+  .mjx-frame--doc { display: none; }
+  .mjx-big { font-size: 11px; min-height: 56px; padding: 8px; }
+  .mjx-door { padding: 12px; }
+  .mjx-door-row { gap: 10px; margin-bottom: 10px; }
+  .mjx-code { font-size: 14px; }
+  .mjx-tagline { margin: 8px 0 12px; }
+}
+@media (max-width: 520px) {
+  .mjx-home-side--right { flex-direction: column; }
 }

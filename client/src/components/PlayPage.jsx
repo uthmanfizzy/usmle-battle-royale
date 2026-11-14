@@ -5,6 +5,7 @@ import './PlayPageArena.css';
 import { cachedImageMap, rememberImageMap } from '../utils/cachedImages';
 import AnKingMode from './AnKingMode';
 import MedJinxLobby from './MedJinxLobby';
+import MedJinxHome from './MedJinxHome';
 
 // Where a duel can draw its questions from. The ids are game_modes tags and
 // are whitelisted server-side — this list is the menu, not the authority.
@@ -170,6 +171,33 @@ export default function PlayPage({
   const [chapters, setChapters] = useState([]);
   const [playBgImage, setPlayBgImage] = useState(() => cachedImageMap('play').play_page_background || '');
   const [lobbyCode, setLobbyCode] = useState('');
+  // MedJinx has a front door of its own (MedJinxHome): clicking its card
+  // opens that page instead of only selecting it. `jinxQuick` is a Quick
+  // Play in flight — a room has been asked for and, once it exists, gets
+  // two bots and starts without the host touching the lobby.
+  const [jinxHome, setJinxHome] = useState(false);
+  const [jinxQuick, setJinxQuick] = useState(false);
+  const jinxGo = (action, extra = {}) => {
+    if (onClearError) onClearError();
+    setSelectedMode('medjinx');
+    onModeSelect({ mode: 'medjinx', action, squadSize, fillTeam, exam: selectedExam, step: selectedStep, ...extra });
+  };
+
+  useEffect(() => {
+    if (!jinxQuick) return undefined;
+    if (error) { setJinxQuick(false); return undefined; }
+    if (!lobbyId || !isHost || lobbyGameMode !== 'medjinx') return undefined;
+    setJinxQuick(false);
+    // Only fill the room if it is still just us: a Quick Play must never
+    // start a room that somebody else has already walked into.
+    if ((lobbyPlayers?.length || 1) > 1) return undefined;
+    onAddBot('hard');
+    onAddBot('easy');
+    // Not cleared on cleanup: clearing the flag above re-runs this effect,
+    // and a cleanup here would cancel the very start it had just scheduled.
+    setTimeout(() => onStartGame(), 450);
+    return undefined;
+  }, [jinxQuick, error, lobbyId, isHost, lobbyGameMode]); // eslint-disable-line react-hooks/exhaustive-deps
   const [joinError, setJoinError] = useState('');
 
   // The lobby overlay titles itself from the lobby's OWN mode, not whatever is
@@ -474,7 +502,11 @@ export default function PlayPage({
                     data-mode={mode.id}
                     className={`arena-card${active ? ' is-active' : ''}${isEnabled ? '' : ' is-locked'}`}
                     style={{ '--ac': mode.accent || '214, 161, 63', '--d': `${0.06 * i}s` }}
-                    onClick={() => { if (isEnabled) setSelectedMode(mode.id); }}
+                    onClick={() => {
+                      if (!isEnabled) return;
+                      setSelectedMode(mode.id);
+                      if (mode.id === 'medjinx') setJinxHome(true);
+                    }}
                     aria-pressed={active}
                     disabled={!isEnabled}
                   >
@@ -504,7 +536,7 @@ export default function PlayPage({
                         ? <><span aria-hidden="true">🔒</span> Coming soon</>
                         : active
                           ? <><span aria-hidden="true">✓</span> Selected — deploy below</>
-                          : 'Choose this battlefield'}
+                          : mode.id === 'medjinx' ? 'Enter MedJinx ›' : 'Choose this battlefield'}
                     </span>
                   </button>
                 );
@@ -557,6 +589,22 @@ export default function PlayPage({
           </>
         )}
       </div>
+
+      {/* ── The MedJinx front door: over the card wall, under the lobby
+             overlay, which opens on top of it. ── */}
+      {jinxHome && (
+        <MedJinxHome
+          user={user}
+          username={username}
+          error={lobbyId ? '' : error}
+          busy={jinxQuick}
+          onBack={() => { setJinxHome(false); if (onClearError) onClearError(); }}
+          onCreate={() => jinxGo('create')}
+          onFind={() => jinxGo('find')}
+          onJoin={(code) => jinxGo('join', { lobbyCode: code })}
+          onQuickPlay={() => { setJinxQuick(true); jinxGo('create'); }}
+        />
+      )}
 
       {/* ── PVP MATCHMAKING OVERLAY ────────────────────────────────────────
           Replaces the lobby panel for a PvP Arenas quick join: the duel

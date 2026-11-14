@@ -4248,6 +4248,17 @@ app.get('/api/medjinx/catalog', rateLimit(60, 60000), (req, res) => {
 });
 
 /**
+ * What the MedJinx home page shows beside its buttons: how many players are
+ * connected right now, how many MedJinx rooms are open to join, and the best
+ * match scores since the server last started. All real, all cheap.
+ */
+app.get('/api/medjinx/home', rateLimit(120, 60000), (req, res) => {
+  const rooms = [...lobbies.values()].filter(l =>
+    l.gameMode === 'medjinx' && l.status === 'waiting' && l.openToQuickJoin !== false).length;
+  res.json({ online: io.engine.clientsCount, rooms, top: medjinx.topScores() });
+});
+
+/**
  * Answers players typed that are in neither list for their topic. Each one
  * is either a correct association the bank is missing or a wrong one worth
  * recording as a trap; a person decides which. Held in memory since the last
