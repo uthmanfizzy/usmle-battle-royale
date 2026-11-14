@@ -101,7 +101,15 @@ export default function MedJinxHome({
 
         {/* ── centre: the wordmark and the ways in ── */}
         <main className="mjx-home-main">
-          <h1 className="mjx-wordmark">Med<b>Jinx</b></h1>
+          <div className="mjx-mark">
+            <svg viewBox="0 0 60 20" preserveAspectRatio="none" aria-hidden="true">
+              <polyline points="0,10 30,10 36,3 42,17 47,10 60,10" fill="none" stroke="#48e6ff" strokeWidth="1.6" />
+            </svg>
+            <h1 className="mjx-wordmark">Med<b>Vale</b></h1>
+            <svg viewBox="0 0 60 20" preserveAspectRatio="none" aria-hidden="true">
+              <polyline points="0,10 13,10 18,3 24,17 30,10 60,10" fill="none" stroke="#48e6ff" strokeWidth="1.6" />
+            </svg>
+          </div>
           <p className="mjx-tagline">Play. Learn. Excel in Medicine.</p>
 
           <section className="mjx-panel mjx-door">

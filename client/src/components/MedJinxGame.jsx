@@ -312,10 +312,9 @@ function Rarity({ tiers }) {
 
 // ── The breakdown ────────────────────────────────────────────────────────────
 
-function Breakdown({ reveal, players, socketId, isHost, ready, replay, onReady, onReplay, deadline }) {
+function Breakdown({ reveal, players, socketId, isHost, ready, replay, iAmReady, onReady, onReplay, onBack, deadline }) {
   const left = useCountdown(deadline);
   const [filter, setFilter] = useState('all');
-  const [iAmReady, setIAmReady] = useState(false);
   const name = useCallback((id) => {
     if (id === socketId) return 'You';
     return players.find(p => p.id === id)?.username
@@ -514,6 +513,7 @@ function Breakdown({ reveal, players, socketId, isHost, ready, replay, onReady, 
           {ready.need > 0 ? `${ready.ready} of ${ready.need} ready` : ''}
           <small>moves on in {Math.ceil(left / 1000)}s</small>
         </span>
+        {onBack && <button type="button" className="mjx-btn mjx-btn--ghost" onClick={onBack}>◀ Best answers</button>}
         {isHost && (
           <button
             type="button"
@@ -529,7 +529,7 @@ function Breakdown({ reveal, players, socketId, isHost, ready, replay, onReady, 
           type="button"
           className="mjx-btn mjx-btn--go"
           disabled={iAmReady}
-          onClick={() => { setIAmReady(true); onReady(); }}
+          onClick={onReady}
         >
           {iAmReady ? 'Waiting for the others…' : reveal.isLast && !replay ? 'Final results ▶' : 'Next round ▶'}
         </button>
@@ -538,97 +538,342 @@ function Breakdown({ reveal, players, socketId, isHost, ready, replay, onReady, 
   );
 }
 
+// ── Chat ─────────────────────────────────────────────────────────────────────
+
+/**
+ * Talk between rounds. The server only relays a message while no clock is
+ * running (server/medjinx/game.js), so this can never be a way of passing
+ * answers — which is why it is shown on the results screens and nowhere else.
+ */
+function Chat({ chat, players, socketId, onSend }) {
+  const [text, setText] = useState('');
+  const endRef = useRef(null);
+  useEffect(() => { endRef.current?.scrollIntoView({ block: 'nearest' }); }, [chat.length]);
+  const send = (e) => {
+    e.preventDefault();
+    const t = text.trim();
+    if (!t) return;
+    onSend(t);
+    setText('');
+  };
+  const colour = (id) => LINE_COLOURS[Math.max(0, players.findIndex(p => p.id === id)) % LINE_COLOURS.length];
+  return (
+    <section className="mjx-panel mjx-feed mjx-chat">
+      <header className="mjx-feed-head"><span>Chat</span></header>
+      <div className="mjx-feed-list" aria-live="polite">
+        {chat.length === 0 && (
+          <p className="mjx-feed-empty">Say something. Chat is open between rounds and closed while the clock is running.</p>
+        )}
+        {chat.map(m => (
+          <p className="mjx-line" key={m.key}>
+            <b style={{ color: colour(m.id) }}>{m.id === socketId ? 'You' : m.username}:</b>{' '}
+            <span className="mjx-line-text">{m.text}</span>
+          </p>
+        ))}
+        <span ref={endRef} />
+      </div>
+      <form className="mjx-chat-form" onSubmit={send}>
+        <input
+          className="mjx-chat-input"
+          value={text}
+          onChange={e => setText(e.target.value)}
+          placeholder="Say something…"
+          maxLength={140}
+          autoComplete="off"
+          aria-label="Chat message"
+        />
+        <button type="submit" className="mjx-btn mjx-btn--go mjx-btn--mini" disabled={!text.trim()}>Send</button>
+      </form>
+    </section>
+  );
+}
+
+// ── After a round: the best answers, third to first ──────────────────────────
+
+const PLACE = ['1st', '2nd', '3rd'];
+
+function BestAnswers({
+  reveal, players, socketId, isHost, ready, replay, iAmReady,
+  onReady, onReplay, onFull, deadline, chat, onChat,
+}) {
+  const left = useCountdown(deadline);
+  const name = (id) => (id === socketId ? 'You' : players.find(p => p.id === id)?.username
+    || reveal.standings.find(s => s.id === id)?.username || 'Player');
+  const realName = (id) => players.find(p => p.id === id)?.username
+    || reveal.standings.find(s => s.id === id)?.username || '?';
+
+  const found = reveal.answers.filter(a => a.finders.length);
+  // "Best" is what an answer actually paid each finder: an obscure answer
+  // three people shared can rank below a commoner one somebody had alone.
+  const top = [...found]
+    .sort((a, b) => b.each - a.each || b.tier - a.tier || a.finders.length - b.finders.length)
+    .slice(0, 3);
+  const missed = reveal.answers.filter(a => !a.finders.length).sort((a, b) => b.tier - a.tier)[0];
+  const shared = [...found].filter(a => a.finders.length > 1).sort((a, b) => b.finders.length - a.finders.length || b.tier - a.tier)[0];
+  const wild = [...reveal.standings].filter(s => s.misses > 0).sort((a, b) => b.misses - a.misses)[0];
+
+  // Third place first, then second, then the winner. `step` is how many of
+  // them are on show.
+  const [step, setStep] = useState(0);
+  useEffect(() => {
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) { setStep(3); return undefined; }
+    const timers = [700, 1900, 3100].map((ms, i) => setTimeout(() => { setStep(i + 1); audio.playTick(); }, ms));
+    return () => timers.forEach(clearTimeout);
+  }, []);
+  const shown = (i) => step >= top.length - i;
+  const done = step >= top.length;
+
+  return (
+    <div className="mjx-stage mjx-stage--results">
+      <Chat chat={chat} players={players} socketId={socketId} onSend={onChat} />
+
+      <div className="mjx-centre">
+        <header className="mjx-panel mjx-res-head">
+          <span className="mjx-round-meta">Round {reveal.round} of {reveal.total} <i>•</i> {reveal.system}</span>
+          <b>{reveal.topic.title}</b>
+        </header>
+
+        <div className="mjx-awards">
+          <section className="mjx-panel mjx-award">
+            <span className="mjx-award-icon" aria-hidden="true">🏆</span>
+            <div>
+              <h3>Most shared</h3>
+              {shared ? (
+                <>
+                  <p>&ldquo;{shared.label}&rdquo; ×{shared.finders.length}</p>
+                  <span className="mjx-award-docs">
+                    {shared.finders.slice(0, 6).map(id => <PixelDoc key={id} seed={realName(id)} size={22} />)}
+                  </span>
+                </>
+              ) : <p>Nobody gave the same answer as anyone else.</p>}
+            </div>
+          </section>
+          <section className="mjx-panel mjx-award">
+            <span className="mjx-award-icon" aria-hidden="true">🎲</span>
+            <div>
+              <h3>Wild guesser</h3>
+              {wild ? (
+                <>
+                  <p>{name(wild.id)}</p>
+                  <small>{wild.misses} answer{wild.misses === 1 ? '' : 's'} not accepted</small>
+                </>
+              ) : <p>Nobody had an answer turned down.</p>}
+            </div>
+          </section>
+        </div>
+
+        <section className="mjx-panel mjx-best">
+          <h2 className="mjx-best-title">Best answers</h2>
+          {top.length === 0 && <p className="mjx-feed-empty">Nobody found an answer this round.</p>}
+          {top.map((a, i) => (
+            <article className={`mjx-best-row mjx-best-row--${i + 1}${shown(i) ? ' is-shown' : ''}`} key={a.id}>
+              <span className="mjx-best-place">{PLACE[i]}</span>
+              {shown(i) ? (
+                <>
+                  <PixelDoc seed={realName(a.finders[0])} size={i === 0 ? 56 : 40} />
+                  <Flask tier={a.tier} size={i === 0 ? 34 : 24} />
+                  <div className="mjx-best-body">
+                    <p className="mjx-best-label">{a.label}</p>
+                    <p className="mjx-best-meta">
+                      <span className={`mjx-tier mjx-tier--${a.tier}`}>{TIER_NAMES[a.tier]}</span>
+                      <b>{fmt(a.each)}</b>
+                      {a.finders.length > 1 && <small>{fmt(a.value)} split {a.finders.length} ways</small>}
+                    </p>
+                    <p className="mjx-best-who">{a.finders.map(name).join(', ')}</p>
+                    {i === 0 && <p className="mjx-best-why">{a.why}</p>}
+                  </div>
+                </>
+              ) : <span className="mjx-best-wait">…</span>}
+            </article>
+          ))}
+          {done && missed && (
+            <p className="mjx-best-missed">
+              <small>Nobody found</small>
+              <Flask tier={missed.tier} size={16} /> <b>{missed.label}</b> <em>{fmt(missed.value)}</em>
+            </p>
+          )}
+        </section>
+
+        <section className="mjx-panel mjx-lb">
+          <h2 className="mjx-best-title">Leaderboard</h2>
+          {reveal.standings.map((s, i) => (
+            <div className={`mjx-lb-row${s.id === socketId ? ' is-me' : ''}`} key={s.id}>
+              <span className="mjx-stand-rank">{i + 1}</span>
+              <PixelDoc seed={s.username} size={30} />
+              <span className="mjx-lb-name">{s.id === socketId ? 'You' : s.username}</span>
+              <span className="mjx-lb-gain">+{fmt(s.roundPoints)}</span>
+              <b>{fmt(s.total)}</b>
+            </div>
+          ))}
+        </section>
+
+        <footer className="mjx-panel mjx-board-foot">
+          <span className="mjx-foot-status">
+            {reveal.isLast && !replay ? 'Results' : 'Next round'} in <b>{Math.ceil(left / 1000)}s</b>
+            <small>{ready.need > 0 ? `${ready.ready} of ${ready.need} ready` : ''}</small>
+          </span>
+          <button type="button" className="mjx-btn mjx-btn--ghost" onClick={onFull}>Full breakdown</button>
+          {isHost && (
+            <button
+              type="button"
+              className={`mjx-btn mjx-btn--ghost${replay ? ' is-on' : ''}`}
+              onClick={() => onReplay(!replay)}
+              aria-pressed={replay}
+            >{replay ? '↻ Replaying' : '↻ Replay'}</button>
+          )}
+          <button type="button" className="mjx-btn mjx-btn--go" disabled={iAmReady} onClick={onReady}>
+            {iAmReady ? 'Waiting…' : reveal.isLast && !replay ? 'Results ▶' : 'Next round ▶'}
+          </button>
+        </footer>
+      </div>
+
+      <Rarity tiers={reveal.tiers} />
+    </div>
+  );
+}
+
+/**
+ * What follows a round. It opens on the best answers, counted up from third;
+ * the full educational breakdown is one button away, and "ready" is shared
+ * between the two so pressing it in one is pressing it in both.
+ */
+function RevealScreen(props) {
+  const [view, setView] = useState('best');
+  const [iAmReady, setIAmReady] = useState(false);
+  const onReady = () => { setIAmReady(true); props.onReady(); };
+  return view === 'best'
+    ? <BestAnswers {...props} iAmReady={iAmReady} onReady={onReady} onFull={() => setView('full')} />
+    : <Breakdown {...props} iAmReady={iAmReady} onReady={onReady} onBack={() => setView('best')} />;
+}
+
 // ── The end ──────────────────────────────────────────────────────────────────
 
-function Final({ result, socketId, username, onPlayAgain, onLeave }) {
+function Crown() {
+  return (
+    <svg className="mjx-crown" width="44" height="28" viewBox="0 0 11 7" shapeRendering="crispEdges" aria-hidden="true">
+      <rect x="0" y="1" width="1" height="4" fill="#ffcf3a" />
+      <rect x="5" y="0" width="1" height="5" fill="#ffcf3a" />
+      <rect x="10" y="1" width="1" height="4" fill="#ffcf3a" />
+      <rect x="2" y="3" width="2" height="2" fill="#ffcf3a" />
+      <rect x="7" y="3" width="2" height="2" fill="#ffcf3a" />
+      <rect x="0" y="5" width="11" height="2" fill="#f0a81e" />
+      <rect x="2" y="5" width="1" height="1" fill="#e23b4a" />
+      <rect x="5" y="5" width="1" height="1" fill="#48e6ff" />
+      <rect x="8" y="5" width="1" height="1" fill="#e23b4a" />
+    </svg>
+  );
+}
+
+function Final({ result, players: room, socketId, username, onPlayAgain, onLeave, chat, onChat }) {
   const players = result.players || [];
   const me = players.find(p => p.id === socketId) || players.find(p => p.username === username);
-  const podium = players.slice(0, 3);
-  return (
-    <div className="mjx-board mjx-final">
-      <header className="mjx-panel mjx-board-head">
-        <span className="mjx-round-meta">MedJinx <i>•</i> Final results</span>
-        <h1 className="mjx-title">
-          {me?.place === 1 ? 'You out-knew the room' : `${result.winner || 'Nobody'} wins`}
-        </h1>
-        <p className="mjx-desc">
-          {result.reason === 'forfeit'
-            ? 'The room emptied before the last round.'
-            : 'The more you know, the more you score.'}
-        </p>
-      </header>
+  const who = (p) => (p.id === socketId ? 'You' : p.username);
+  const [shared, setShared] = useState(false);
 
-      <div className="mjx-board-body">
-        <aside className="mjx-board-side">
-          <section className="mjx-panel mjx-podium">
-            {podium.map(p => (
-              <div className={`mjx-pod mjx-pod--${p.place}`} key={p.id}>
-                <PixelDoc seed={p.username} size={p.place === 1 ? 64 : 48} />
-                <b>{p.id === socketId ? 'You' : p.username}</b>
-                <span>{fmt(p.score)}</span>
-                <i>{p.place}</i>
+  // Second, first, third: the order a podium stands in.
+  const podium = [players[1], players[0], players[2]].filter(Boolean);
+
+  const rounds = result.rounds || [];
+  const best = rounds.filter(r => r.best)
+    .sort((a, b) => b.best.tier - a.best.tier || (b.best.each || 0) - (a.best.each || 0))[0];
+  const sharpest = [...players].filter(p => p.accuracy != null && p.accepted > 0)
+    .sort((a, b) => b.accuracy - a.accuracy || b.accepted - a.accepted)[0];
+  const deepest = [...players].filter(p => p.unique > 0).sort((a, b) => b.unique - a.unique)[0];
+
+  const share = async () => {
+    const text = `MedJinx: ${result.winner} won with ${fmt(players[0]?.score)} points.`
+      + (me ? ` I came ${me.place} of ${players.length} with ${fmt(me.score)}.` : '')
+      + (best ? ` Answer of the game: ${best.best.label} (${best.title}).` : '');
+    try {
+      if (navigator.share) await navigator.share({ text });
+      else { await navigator.clipboard.writeText(text); setShared(true); }
+    } catch { /* dismissed, or no clipboard access: nothing to report */ }
+  };
+
+  return (
+    <div className="mjx-stage mjx-stage--results mjx-stage--final">
+      <Chat chat={chat} players={room?.length ? room : players} socketId={socketId} onSend={onChat} />
+
+      <div className="mjx-centre">
+        <h1 className="mjx-wins">
+          <small>Game over</small>
+          {me?.place === 1 ? 'You win!' : `${result.winner || 'Nobody'} wins!`}
+        </h1>
+
+        <div className="mjx-pd">
+          {podium.map(p => (
+            <div className={`mjx-pd-col mjx-pd-col--${p.place}`} key={p.id}>
+              {p.place === 1 && <Crown />}
+              <PixelDoc seed={p.username} size={p.place === 1 ? 96 : 72} />
+              <span className="mjx-pd-name">{who(p)}</span>
+              <div className="mjx-pd-block"><b>{p.place}</b><span>{fmt(p.score)}</span></div>
+            </div>
+          ))}
+        </div>
+
+        {best && (
+          <section className="mjx-panel mjx-aotg">
+            <h2>Answer of the game</h2>
+            <div className="mjx-aotg-body">
+              <Flask tier={best.best.tier} size={56} />
+              <div>
+                <p className="mjx-aotg-label">{best.best.label}</p>
+                <p className="mjx-best-meta">
+                  <span className={`mjx-tier mjx-tier--${best.best.tier}`}>{TIER_NAMES[best.best.tier]}</span>
+                  {best.best.each ? <b>{fmt(best.best.each)}</b> : null}
+                  <small>{best.best.by.join(', ')} · round {best.round}, {best.title}</small>
+                </p>
+                {best.best.why && <p className="mjx-aotg-why">{best.best.why}</p>}
+              </div>
+            </div>
+          </section>
+        )}
+
+        {sharpest && (
+          <section className="mjx-panel mjx-award mjx-award--wide">
+            <span className="mjx-award-icon" aria-hidden="true">🎯</span>
+            <div>
+              <h3>Sharpest <em>{who(sharpest)}</em></h3>
+              <small>{sharpest.accuracy}% of what they typed was accepted ({sharpest.accepted} answers)</small>
+            </div>
+          </section>
+        )}
+        {deepest && (
+          <section className="mjx-panel mjx-award mjx-award--wide">
+            <span className="mjx-award-icon" aria-hidden="true">🧠</span>
+            <div>
+              <h3>Deep cut <em>{who(deepest)}</em></h3>
+              <small>{deepest.unique} answer{deepest.unique === 1 ? '' : 's'} that nobody else gave</small>
+            </div>
+          </section>
+        )}
+
+        {players.length > 3 && (
+          <section className="mjx-panel mjx-lb">
+            <h2 className="mjx-best-title">Everyone</h2>
+            {players.map(p => (
+              <div className={`mjx-lb-row${p.id === socketId ? ' is-me' : ''}`} key={p.id}>
+                <span className="mjx-stand-rank">{p.place}</span>
+                <PixelDoc seed={p.username} size={30} />
+                <span className="mjx-lb-name">{who(p)}</span>
+                <span className="mjx-lb-gain">{p.accepted} accepted</span>
+                <b>{fmt(p.score)}</b>
               </div>
             ))}
           </section>
-          {me && (
-            <section className="mjx-panel mjx-you">
-              <h2 className="mjx-h">Your match</h2>
-              <dl>
-                <div><dt>Place</dt><dd>{me.place} of {players.length}</dd></div>
-                <div><dt>Points</dt><dd>{fmt(me.score)}</dd></div>
-                <div><dt>Accepted</dt><dd>{me.accepted}</dd></div>
-                <div><dt>Unique</dt><dd>{me.unique}</dd></div>
-                <div><dt>Accuracy</dt><dd>{me.accuracy == null ? '—' : `${me.accuracy}%`}</dd></div>
-                <div><dt>Best tier</dt><dd>{me.bestTier ? TIER_NAMES[me.bestTier] : '—'}</dd></div>
-              </dl>
-              {me.rarest && <p className="mjx-you-best"><Flask tier={me.bestTier} size={16} /><span>Rarest find: <b>{me.rarest}</b></span></p>}
-            </section>
-          )}
-        </aside>
+        )}
 
-        <main className="mjx-panel mjx-answers">
-          <section className="mjx-block">
-            <h2 className="mjx-h">Standings</h2>
-            <div className="mjx-table" role="table">
-              <div className="mjx-tr mjx-tr--head" role="row">
-                <span>#</span><span>Player</span><span>Points</span><span>Accepted</span><span>Unique</span><span>Accuracy</span>
-              </div>
-              {players.map(p => (
-                <div className={`mjx-tr${p.id === socketId ? ' is-me' : ''}`} role="row" key={p.id}>
-                  <span>{p.place}</span>
-                  <span className="mjx-td-name"><PixelDoc seed={p.username} size={22} />{p.id === socketId ? 'You' : p.username}</span>
-                  <span>{fmt(p.score)}</span>
-                  <span>{p.accepted}</span>
-                  <span>{p.unique}</span>
-                  <span>{p.accuracy == null ? '—' : `${p.accuracy}%`}</span>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          <section className="mjx-block">
-            <h2 className="mjx-h">The rounds</h2>
-            <ul className="mjx-finds">
-              {(result.rounds || []).map(r => (
-                <li key={r.round}>
-                  <Flask tier={r.best?.tier || 1} size={18} />
-                  <span>
-                    <b>{r.round}. {r.title}</b> — {r.found} of {r.bank} answers found.
-                    {r.best ? <> Best find: {r.best.label} ({r.best.by.join(', ')}).</> : ' Nothing was found.'}
-                  </span>
-                  <em>{r.variant === 'clinical' ? 'Clinical' : 'Open'}</em>
-                </li>
-              ))}
-            </ul>
-          </section>
-        </main>
+        <footer className="mjx-panel mjx-board-foot">
+          <button type="button" className="mjx-btn mjx-btn--ghost" onClick={share}>{shared ? 'Copied!' : 'Share'}</button>
+          <span className="mjx-foot-status">
+            {result.reason === 'forfeit' ? 'The room emptied before the last round.' : 'Same room, same players, new topics.'}
+          </span>
+          <button type="button" className="mjx-btn mjx-btn--ghost" onClick={onLeave}>Leave</button>
+          <button type="button" className="mjx-btn mjx-btn--go" onClick={onPlayAgain}>Play again ▶</button>
+        </footer>
       </div>
 
-      <footer className="mjx-panel mjx-board-foot">
-        <span className="mjx-foot-status">Same room, same players, new topics.</span>
-        <button type="button" className="mjx-btn mjx-btn--ghost" onClick={onLeave}>Leave</button>
-        <button type="button" className="mjx-btn mjx-btn--go" onClick={onPlayAgain}>Play again ▶</button>
-      </footer>
+      <Rarity />
     </div>
   );
 }
@@ -649,6 +894,7 @@ export default function MedJinxGame({
   const [replay, setReplay] = useState(false);
   const [feedHidden, setFeedHidden] = useState(false);
   const [note, setNote] = useState('');
+  const [chat, setChat] = useState([]);
 
   const playersRef = useRef(players);
   playersRef.current = players;
@@ -715,6 +961,8 @@ export default function MedJinxGame({
     socket.on('medjinx_reveal', onReveal);
     socket.on('medjinx_ready', setReady);
     socket.on('medjinx_replay', ({ on }) => setReplay(Boolean(on)));
+    const onChat = (m) => setChat(c => [...c, { ...m, key: `c${seq.current++}` }].slice(-80));
+    socket.on('medjinx_chat', onChat);
     // Whatever was announced before this mounted, ask for it again.
     socket.emit('medjinx_sync');
     const resync = () => socket.emit('medjinx_sync');
@@ -726,6 +974,7 @@ export default function MedJinxGame({
       socket.off('medjinx_reveal', onReveal);
       socket.off('medjinx_ready', setReady);
       socket.off('medjinx_replay');
+      socket.off('medjinx_chat', onChat);
       socket.off('connect', resync);
       clearTimeout(noteTimer.current);
     };
@@ -787,12 +1036,17 @@ export default function MedJinxGame({
       </div>
 
       {over ? (
-        <Final result={gameResult} socketId={socketId} username={username} onPlayAgain={onPlayAgain} onLeave={onLeave} />
+        <Final
+          result={gameResult} players={players} socketId={socketId} username={username}
+          onPlayAgain={onPlayAgain} onLeave={onLeave}
+          chat={chat} onChat={(text) => socket.emit('medjinx_chat', { text })}
+        />
       ) : phase === 'reveal' && reveal ? (
-        <Breakdown
+        <RevealScreen
           key={`${reveal.round}-${reveal.topic.id}`}
           reveal={reveal} players={players} socketId={socketId} isHost={isHost}
           ready={ready} replay={replay} deadline={deadline}
+          chat={chat} onChat={(text) => socket.emit('medjinx_chat', { text })}
           onReady={() => socket.emit('medjinx_ready')}
           onReplay={(on) => socket.emit('medjinx_replay', { on })}
         />

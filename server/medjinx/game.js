@@ -18,6 +18,7 @@
  *   → medjinx_ready                         on the breakdown: "next round"
  *   → medjinx_replay {on}                   host: play this topic again
  *   → medjinx_sync                          "send me where we are"
+ *   ↔ medjinx_chat {text}                   between rounds only
  *   ← medjinx_round    intro / answering, with the prompt and time left
  *   ← medjinx_progress accepted-answer counts per player
  *   ← medjinx_reveal   the breakdown (per player: includes their own log)
@@ -396,6 +397,8 @@ module.exports = function createMedJinx({ io, lobbies, shuffle, awardXP, lobbyPa
         roundPoints: r.points, total: t.score, accepted: r.accepted, unique: r.unique,
         bestTier: r.bestTier, rarest: r.rarest, multiplier: r.multiplier,
         streak: s.streaks.get(p.id) || 0,
+        // Answers typed that were not accepted — for the round's awards.
+        misses: Math.max(0, (s.attempts.get(p.id) || 0) - r.accepted),
       };
     }).sort((a, b) => b.total - a.total || b.roundPoints - a.roundPoints);
 
@@ -418,7 +421,7 @@ module.exports = function createMedJinx({ io, lobbies, shuffle, awardXP, lobbyPa
     s.history.push({
       round: s.idx + 1, title: q.topic.title, variant: q.variant, event: q.event,
       found: scored.perAnswer.filter(a => a.finders.length).length, bank: scored.perAnswer.length,
-      best: best ? { label: best.label, tier: best.tier, by: best.finders.map(name) } : null,
+      best: best ? { label: best.label, tier: best.tier, by: best.finders.map(name), each: best.each, why: best.why } : null,
     });
 
     s.reveal = {
@@ -608,6 +611,22 @@ module.exports = function createMedJinx({ io, lobbies, shuffle, awardXP, lobbyPa
     socket.on('medjinx_ready', () => ready(socket));
     socket.on('medjinx_replay', (payload) => setReplay(socket, payload));
     socket.on('medjinx_sync', () => sync(socket));
+
+    // Chat, between rounds only. While a prompt is on screen — the intro as
+    // well as the clock — nothing is relayed, so it cannot carry an answer
+    // or a hint from one player to another.
+    socket.on('medjinx_chat', (payload) => {
+      const lobby = lobbies.get(socket.lobbyId);
+      const me = lobby?.players.get(socket.id);
+      if (!lobby || !me || lobby.gameMode !== 'medjinx' || !lobby.mjx) return;
+      if (lobby.mjx.phase === 'intro' || lobby.mjx.phase === 'answering') return;
+      const now = Date.now();
+      if (now - (socket.mjxChatAt || 0) < 400) return;
+      socket.mjxChatAt = now;
+      const text = String(payload?.text ?? '').replace(/\s+/g, ' ').trim().slice(0, 140);
+      if (!text) return;
+      io.to(lobby.id).emit('medjinx_chat', { id: socket.id, username: me.username, text });
+    });
   }
 
   /** Unmatched answers waiting for a person to look at them. */

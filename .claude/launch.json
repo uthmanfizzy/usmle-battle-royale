@@ -4,20 +4,53 @@
     {
       "name": "client-dev",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "--prefix", "client"],
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--prefix",
+        "client"
+      ],
       "port": 5173
     },
     {
       "name": "game-server-local",
       "runtimeExecutable": "node",
-      "runtimeArgs": ["tools/local-server.cjs"],
+      "runtimeArgs": [
+        "tools/local-server.cjs"
+      ],
       "port": 3001
     },
     {
       "name": "client-dev-local",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "--prefix", "client", "--", "--mode", "localserver", "--port", "5174", "--strictPort"],
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--prefix",
+        "client",
+        "--",
+        "--mode",
+        "localserver",
+        "--port",
+        "5174",
+        "--strictPort"
+      ],
       "port": 5174
+    },
+    {
+      "name": "client-built-local",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "preview",
+        "--prefix",
+        "client",
+        "--",
+        "--port",
+        "4174",
+        "--strictPort"
+      ],
+      "port": 4174
     }
   ]
 }

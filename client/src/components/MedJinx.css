@@ -612,7 +612,11 @@
    overlay (z-index 500), which opens on top of it.
    ═══════════════════════════════════════════════════════════════════════════ */
 
-.mjx-home { z-index: 400; }
+/* Doubled class: this must hold whatever order the stylesheets load in. */
+.mjx.mjx-home { position: fixed; inset: 0; z-index: 400; }
+
+.mjx-mark { display: flex; align-items: center; justify-content: center; gap: 10px; max-width: 100%; }
+.mjx-mark svg { flex: 1; min-width: 30px; max-width: 150px; height: 44px; filter: drop-shadow(0 0 3px #48e6ff) drop-shadow(0 0 8px rgba(72, 230, 255, 0.6)); }
 .mjx-home a.mjx-btn { text-decoration: none; display: inline-flex; align-items: center; }
 
 .mjx-home-body {
@@ -775,3 +779,165 @@
 @media (max-width: 520px) {
   .mjx-home-side--right { flex-direction: column; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Results: the best answers after a round, and the podium after a match.
+   Both use the round's three-column stage — chat, results, legend.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.mjx-stage--results { padding-top: 64px; }
+
+.mjx-chat { max-height: min(62vh, 560px); }
+.mjx-chat-form { display: flex; gap: 8px; padding: 10px; border-top: 3px solid var(--ink); background: var(--panel-2); }
+.mjx-chat-input {
+  flex: 1; min-width: 0;
+  background: #07071a; border: 3px solid var(--ink); border-radius: 0; outline: none;
+  color: #fff; font-family: var(--body); font-size: 16px; padding: 7px 9px;
+}
+.mjx-chat-input:focus { box-shadow: 0 0 0 2px var(--yellow); }
+.mjx-chat-input::placeholder { color: #6a70a8; }
+
+.mjx-res-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 10px 14px; }
+.mjx-res-head b { font-family: var(--px); font-weight: 400; font-size: 12px; color: #fff; }
+
+.mjx-awards { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.mjx-award { display: flex; align-items: center; gap: 12px; padding: 10px 14px; min-width: 0; }
+.mjx-award > div { min-width: 0; }
+.mjx-award-icon { font-size: 30px; line-height: 1; flex: none; }
+.mjx-award h3 { margin: 0 0 3px; font-family: var(--px); font-weight: 400; font-size: 9px; text-transform: uppercase; color: var(--yellow); }
+.mjx-award h3 em { font-style: normal; font-family: var(--body); font-size: 17px; font-weight: 700; color: #fff; text-transform: none; margin-left: 8px; }
+.mjx-award p { margin: 0; font-size: 16.5px; font-weight: 600; overflow-wrap: anywhere; }
+.mjx-award small { color: var(--dim); font-size: 14.5px; }
+.mjx-award-docs { display: flex; gap: 3px; margin-top: 4px; }
+
+.mjx-best, .mjx-lb { padding: 12px 14px; }
+.mjx-best-title { margin: 0 0 10px; font-family: var(--px); font-weight: 400; font-size: 13px; text-transform: uppercase; color: var(--yellow); }
+
+.mjx-best-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 64px;
+  padding: 8px 12px;
+  margin-bottom: 4px;
+  background: var(--panel-2);
+  border-left: 5px solid #3d9cff;
+}
+.mjx-best-row.is-shown { animation: mjx-land 0.4s steps(5); }
+.mjx-best-row--1 { min-height: 104px; border-left-color: #ffe14a; }
+.mjx-best-row--1.is-shown { background: #3a3414; box-shadow: inset 0 0 0 2px rgba(255, 225, 74, 0.5); }
+@keyframes mjx-land { from { transform: translateY(14px) scale(0.96); opacity: 0; } to { transform: none; opacity: 1; } }
+.mjx-best-place { font-family: var(--px); font-size: 13px; color: var(--cyan); width: 44px; flex: none; }
+.mjx-best-row--1 .mjx-best-place { color: #ffe14a; font-size: 15px; }
+.mjx-best-wait { font-family: var(--px); color: #4b5196; animation: mjx-blink 0.8s steps(2) infinite; }
+.mjx-best-body { flex: 1; min-width: 0; }
+.mjx-best-label { margin: 0; font-size: 19px; font-weight: 700; overflow-wrap: anywhere; }
+.mjx-best-row--1 .mjx-best-label { font-size: 24px; }
+.mjx-best-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; margin: 3px 0 0; }
+.mjx-best-meta b { font-family: var(--px); font-weight: 400; font-size: 11px; color: var(--lime); }
+.mjx-best-meta small { color: var(--dim); font-size: 14.5px; }
+.mjx-best-who { margin: 2px 0 0; color: var(--dim); font-size: 15.5px; }
+.mjx-best-why { margin: 4px 0 0; color: #e9e3c0; font-size: 15.5px; }
+.mjx-best-missed { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin: 8px 0 0; padding: 8px 12px; background: #12132c; font-size: 16.5px; animation: mjx-in 0.2s steps(3); }
+.mjx-best-missed small { flex-basis: 100%; color: var(--dim); font-size: 14px; }
+.mjx-best-missed em { font-style: normal; margin-left: auto; font-family: var(--px); font-size: 9px; color: var(--violet); }
+
+.mjx-tier { font-family: var(--px); font-size: 8px; text-transform: uppercase; padding: 4px 6px; color: #10131f; background: #8f8477; }
+.mjx-tier--2 { background: #3d9cff; }
+.mjx-tier--3 { background: #7bdc3a; }
+.mjx-tier--4 { background: #a56bff; }
+.mjx-tier--5 { background: #ffcf3a; }
+
+.mjx-lb-row { display: flex; align-items: center; gap: 10px; padding: 5px 8px; background: var(--panel-2); margin-bottom: 3px; }
+.mjx-lb-row.is-me { background: #1c2a4a; box-shadow: -4px 0 0 var(--lime); }
+.mjx-lb-name { flex: 1; min-width: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mjx-lb-gain { color: var(--lime); font-size: 15px; white-space: nowrap; }
+.mjx-lb-row b { font-family: var(--px); font-weight: 400; font-size: 11px; min-width: 76px; text-align: right; }
+.mjx-foot-status b { color: var(--yellow); }
+
+/* ── Game over ── */
+
+.mjx-wins {
+  margin: 0;
+  text-align: center;
+  font-family: var(--px);
+  font-weight: 400;
+  font-size: clamp(20px, 3.2vw, 40px);
+  line-height: 1.3;
+  color: #eaf6ff;
+  text-shadow: 4px 4px 0 var(--ink), 0 0 22px rgba(72, 230, 255, 0.6);
+  overflow-wrap: anywhere;
+}
+.mjx-wins small { display: block; font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: #ffcf3a; text-shadow: 2px 2px 0 var(--ink); margin-bottom: 6px; }
+
+.mjx-pd { display: flex; align-items: flex-end; justify-content: center; gap: 12px; margin-top: 4px; }
+.mjx-pd-col { display: flex; flex-direction: column; align-items: center; flex: 1; max-width: 210px; min-width: 0; animation: mjx-land 0.5s steps(6) backwards; }
+.mjx-pd-col--3 { animation-delay: 0.15s; }
+.mjx-pd-col--2 { animation-delay: 0.45s; }
+.mjx-pd-col--1 { animation-delay: 0.8s; }
+.mjx-crown { image-rendering: pixelated; margin-bottom: -2px; animation: mjx-bob 1.2s steps(4) infinite; }
+@keyframes mjx-bob { 50% { transform: translateY(-4px); } }
+.mjx-pd-name {
+  max-width: 100%;
+  margin-top: 4px;
+  padding: 5px 12px;
+  background: #1a1c40;
+  border: 3px solid var(--ink);
+  border-bottom: 0;
+  font-size: 18px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mjx-pd-block {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 3px solid var(--ink);
+  color: #14092e;
+  box-shadow: inset 0 5px 0 rgba(255, 255, 255, 0.35), inset 0 -6px 0 rgba(0, 0, 0, 0.2), 5px 5px 0 rgba(0, 0, 0, 0.4);
+}
+.mjx-pd-block b { font-family: var(--px); font-weight: 400; font-size: 28px; }
+.mjx-pd-block span { font-family: var(--px); font-size: 11px; }
+.mjx-pd-col--1 .mjx-pd-block { height: 126px; background: #ffcf3a; }
+.mjx-pd-col--2 .mjx-pd-block { height: 88px; background: #b9c8f5; }
+.mjx-pd-col--3 .mjx-pd-block { height: 78px; background: #f0a04a; }
+
+.mjx-aotg { padding: 12px 16px 14px; box-shadow: 0 0 0 3px #ffcf3a, 7px 7px 0 3px rgba(0, 0, 0, 0.45); background: #1d1a2e; }
+.mjx-aotg h2 { margin: 0 0 10px; font-family: var(--px); font-weight: 400; font-size: 12px; text-transform: uppercase; color: #ffcf3a; }
+.mjx-aotg-body { display: flex; align-items: center; gap: 18px; }
+.mjx-aotg-body > div { min-width: 0; }
+.mjx-aotg-label { margin: 0; font-size: 24px; font-weight: 700; overflow-wrap: anywhere; }
+.mjx-aotg-why { margin: 6px 0 0; color: #d9dcf7; font-size: 16px; }
+
+@media (max-width: 1000px) {
+  .mjx-stage--results { padding-top: 58px; }
+  .mjx-stage--results .mjx-chat { order: 2; max-height: 240px; }
+  .mjx-awards { grid-template-columns: 1fr; gap: 10px; }
+  .mjx-best-row { gap: 8px; padding: 8px; }
+  .mjx-best-place { width: 34px; font-size: 10px; }
+  .mjx-best-row--1 .mjx-best-label { font-size: 20px; }
+  .mjx-pd { gap: 6px; }
+  .mjx-pd-name { font-size: 15px; padding: 4px 6px; }
+  .mjx-pd-block b { font-size: 20px; }
+  .mjx-pd-block span { font-size: 9px; }
+  .mjx-aotg-body { gap: 12px; }
+  .mjx-lb-row b { min-width: 60px; font-size: 10px; }
+}
+
+/* The lobby overlay, when it has been portalled onto the body to sit above
+   the MedJinx home page: the text styles it used to inherit from the
+   Online page wrapper. */
+body > .lobby-overlay { color: var(--mv-text); font-family: "Inter", "Segoe UI", system-ui, sans-serif; }
+
+/* The buttons that move a results screen on stay in view however long the
+   board above them is. */
+.mjx-stage--results .mjx-board-foot { position: sticky; bottom: 0; z-index: 3; padding: 8px 12px; gap: 8px; }
+.mjx-stage--results .mjx-board-foot .mjx-btn { font-size: 9px; padding: 10px; }
+.mjx-stage--results .mjx-foot-status { min-width: 110px; }
+.mjx-best-row--1 { min-height: 92px; }
+.mjx-wins { font-size: clamp(18px, 2.4vw, 30px); padding: 8px 12px; background: rgba(8, 8, 30, 0.72); }

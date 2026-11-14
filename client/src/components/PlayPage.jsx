@@ -1,4 +1,5 @@
 import { useState, useEffect, Fragment } from 'react';
+import { createPortal } from 'react-dom';
 import { authFetch } from '../auth';
 import './PlayPage.css';
 import './PlayPageArena.css';
@@ -592,7 +593,12 @@ export default function PlayPage({
 
       {/* ── The MedJinx front door: over the card wall, under the lobby
              overlay, which opens on top of it. ── */}
-      {jinxHome && (
+      {/* Portalled onto the body. As a child of this wrapper it was caught by
+          `.play-page-wrapper > * { position: relative }`, which in the built
+          site loads after the MedJinx stylesheet and so won: the page was
+          rendered with no height, and clicking the card appeared to do
+          nothing. Outside the wrapper no rule of this page can reach it. */}
+      {jinxHome && createPortal(
         <MedJinxHome
           user={user}
           username={username}
@@ -603,7 +609,8 @@ export default function PlayPage({
           onFind={() => jinxGo('find')}
           onJoin={(code) => jinxGo('join', { lobbyCode: code })}
           onQuickPlay={() => { setJinxQuick(true); jinxGo('create'); }}
-        />
+        />,
+        document.body,
       )}
 
       {/* ── PVP MATCHMAKING OVERLAY ────────────────────────────────────────
@@ -649,7 +656,9 @@ export default function PlayPage({
       )}
 
       {/* ── LOBBY OVERLAY — shows when a lobby is active ───────────────────── */}
-      {lobbyId && !mmSearching && (
+      {/* When the MedJinx home page is up it sits on the body, outside this
+          wrapper, so the lobby has to join it there to appear on top. */}
+      {lobbyId && !mmSearching && ((node) => (jinxHome ? createPortal(node, document.body) : node))(
         <div className="lobby-overlay">
           {/* A duel lobby carries a whole settings sheet as well as the code,
               the players and the start button. On a wide screen it gets two
