@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import './AdminApp.css';
 import PlayPageAdmin from './admin/PlayPageAdmin';
 import AnKingAdmin from './admin/AnKingAdmin';
+import MedJinxAdmin from './admin/MedJinxAdmin';
 import JourneyMode from './JourneyMode';
 import QuestionParser from './QuestionParser';
 import { parseRichText } from '../utils/parseRichText';
@@ -11820,6 +11821,9 @@ export default function AdminApp() {
         <button className={`ap-nav-btn ${tab === 'games'         ? 'active' : ''}`} onClick={() => setTab('games')}>
           🕹️ Games
         </button>
+        <button className={`ap-nav-btn ${tab === 'medjinx'       ? 'active' : ''}`} onClick={() => setTab('medjinx')}>
+          🧪 MedJinx
+        </button>
         <button className={`ap-nav-btn ${tab === 'reports'       ? 'active' : ''}`} onClick={() => setTab('reports')}>
           🔍 Game Reports
         </button>
@@ -11856,6 +11860,7 @@ export default function AdminApp() {
         {tab === 'announcements' && <AnnouncementsPanel />}
         {tab === 'guide'         && <GuidePanel />}
         {tab === 'reports'       && <GameReportsPanel />}
+        {tab === 'medjinx'       && <MedJinxAdmin />}
         {tab === 'pages'         && <PagesPanel />}
         {tab === 'settings'      && (
           <>

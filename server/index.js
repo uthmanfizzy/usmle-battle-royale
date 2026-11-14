@@ -4269,6 +4269,53 @@ app.get('/admin/medjinx/review', adminAuth, (req, res) => {
 });
 
 /**
+ * The whole bank for the admin MedJinx tab: every topic with its accepted
+ * answers (and synonyms), traps, vignette and teaching points, plus the
+ * problems check.js would report. Read-only — the bank is code.
+ */
+app.get('/admin/medjinx/bank', adminAuth, (req, res) => {
+  const bank = require('./medjinx/bank');
+  const E = require('./medjinx/engine');
+  const problems = [];
+  for (const t of bank.TOPICS) {
+    for (const v of ['open', 'clinical']) problems.push(...E.compileTopic(t, v).problems.map(p => `${v}: ${p}`));
+  }
+  const rooms = [...lobbies.values()]
+    .filter(l => l.gameMode === 'medjinx')
+    .map(l => ({
+      id: l.id,
+      status: l.status,
+      players: [...l.players.values()].map(p => ({ username: p.username, isBot: Boolean(p.isBot), score: p.score || 0 })),
+      round: l.mjx ? l.mjx.idx + 1 : null,
+      total: l.mjx ? l.mjx.queue.length : null,
+      phase: l.mjx ? l.mjx.phase : null,
+      topic: l.mjx ? l.mjx.queue[l.mjx.idx]?.topic?.title : null,
+    }));
+  res.json({
+    topics: bank.TOPICS,
+    catalog: medjinx.catalog(),
+    tierPoints: E.TIER_POINTS,
+    categories: E.CATEGORIES,
+    problems: [...new Set(problems)],
+    rooms,
+    topScores: medjinx.topScores(),
+  });
+});
+
+/** Try a typed answer against one topic exactly as the game would mark it. */
+app.post('/admin/medjinx/test', adminAuth, (req, res) => {
+  const bank = require('./medjinx/bank');
+  const E = require('./medjinx/engine');
+  const topic = bank.byId.get(String(req.body?.topicId || ''));
+  if (!topic) return res.status(404).json({ error: 'No such topic.' });
+  const variant = req.body?.variant === 'clinical' ? 'clinical' : 'open';
+  const text = String(req.body?.text ?? '').slice(0, 80);
+  const result = E.matchAnswer(E.compileTopic(topic, variant), text);
+  const keys = E.keysOf(text);
+  res.json({ ...result, normalised: keys ? keys.plain : '' });
+});
+
+/**
  * A finished Medathon, for the review screen after the tab has been closed.
  * Public on purpose: a match review is shared between the people who raced it,
  * and the row holds no private data beyond the usernames already on the

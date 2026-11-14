@@ -1,0 +1,166 @@
+/* Admin → MedJinx. Reads the admin's own theme variables (--card, --border,
+   --text, --text-dim, --gold), so it follows the light/dark admin toggle. */
+
+.mja { padding: 20px 24px; display: flex; flex-direction: column; gap: 16px; max-width: 1400px; }
+
+.mja-head { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.mja-head h2 { margin: 0; font-family: 'Cinzel', serif; font-size: 22px; color: var(--gold, #e8b04b); }
+.mja-tabs { display: flex; gap: 6px; flex-wrap: wrap; flex: 1; }
+.mja-tab {
+  padding: 7px 14px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.mja-tab:hover { color: var(--text); }
+.mja-tab.is-on { background: var(--card-hi); border-color: var(--gold); color: var(--text); }
+
+.mja-error { color: #ff6b7a; margin: 0; }
+.mja-ok { color: #3fbf7f; margin: 0 0 8px; font-weight: 600; }
+.mja-dim { color: var(--text-dim); font-size: 13px; margin: 6px 0; }
+.mja-cap { text-transform: capitalize; }
+.mja-num { text-align: right; font-variant-numeric: tabular-nums; }
+.mja-nowrap { white-space: nowrap; }
+
+.mja-card { padding: 16px 18px; }
+.mja-card h3 { margin: 0 0 10px; font-size: 15px; color: var(--text); }
+.mja-card h3 + .ap-table, .mja-card .ap-table + h3 { margin-top: 4px; }
+.mja-card .ap-table + h3 { margin-top: 16px; }
+.mja-card h4 { margin: 0 0 6px; font-size: 13px; color: var(--text); }
+
+/* Overview */
+.mja-overview { display: flex; flex-direction: column; gap: 16px; }
+.mja-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+.mja-stat { padding: 14px 16px; display: flex; flex-direction: column; gap: 2px; }
+.mja-stat b { font-size: 26px; color: var(--gold); }
+.mja-stat span { color: var(--text-dim); font-size: 13px; }
+.mja-stat.is-bad b { color: #ff6b7a; }
+.mja-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; align-items: start; }
+.mja-dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; margin: 0 0 14px; font-size: 13px; }
+.mja-dl dt { color: var(--text-dim); }
+.mja-dl dd { margin: 0; text-transform: capitalize; }
+.mja-events { margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.5; }
+.mja-scores { margin: 0; padding-left: 22px; font-size: 14px; }
+.mja-scores li { padding: 3px 0; }
+.mja-scores li { display: list-item; }
+.mja-scores span { display: inline-block; min-width: 60%; }
+.mja-problems { margin: 0 0 8px; padding-left: 18px; color: #ff6b7a; font-size: 13px; }
+
+/* Tiers — the same colours as the game's flasks. */
+.mja-tier {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #fff;
+  vertical-align: middle;
+}
+.mja-tier--1 { background: #6b7280; }
+.mja-tier--2 { background: #2f8fd8; }
+.mja-tier--3 { background: #2e9e5b; }
+.mja-tier--4 { background: #8b4fd8; }
+.mja-tier--5 { background: #d4920f; }
+
+/* Topics */
+.mja-topics { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 16px; align-items: start; }
+.mja-side {
+  position: sticky;
+  top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: calc(100vh - 160px);
+}
+.mja-filters { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.mja-filters select { min-width: 0; }
+.mja-list { list-style: none; margin: 0; padding: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
+.mja-item {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.mja-item b { font-size: 14px; }
+.mja-item small { color: var(--text-dim); font-size: 12px; }
+.mja-item:hover { border-color: var(--gold-dim, var(--gold)); }
+.mja-item.is-on { border-color: var(--gold); background: var(--card-hi); }
+
+.mja-detail { min-width: 0; }
+.mja-topic { display: flex; flex-direction: column; gap: 14px; }
+.mja-title-row { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.mja-title { font-size: 20px !important; margin: 0 !important; }
+.mja-id { color: var(--text-dim); font-size: 12px; }
+.mja-meta { color: var(--text-dim); font-size: 13px; margin: 4px 0 10px; }
+.mja-shows { display: grid; grid-template-columns: 1fr 2fr; gap: 16px; margin-top: 12px; }
+.mja-vignette {
+  margin: 0 0 6px;
+  padding: 10px 12px;
+  border-left: 3px solid var(--gold);
+  background: var(--card-hi);
+  border-radius: 0 6px 6px 0;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.mja-sec-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
+.mja-sec-head h3 { margin: 0; flex: 1; }
+.mja-cat { width: auto; max-width: 260px; }
+
+.mja-tier-group { margin-bottom: 14px; }
+.mja-tier-group h4 small { color: var(--text-dim); font-weight: 400; margin-left: 4px; }
+.mja-answers td { vertical-align: top; }
+.mja-answers td:first-child { width: 22%; }
+.mja-why { color: var(--text-dim); font-size: 13px; }
+.mja-answers tr.is-hit td { background: rgba(232, 176, 75, 0.12); }
+
+.mja-chip {
+  display: inline-block;
+  margin: 2px 4px 2px 0;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text);
+}
+.mja-chip--trap { border-color: rgba(255, 107, 122, 0.5); }
+.mja-chip.is-hit { border-color: var(--gold); background: rgba(232, 176, 75, 0.2); }
+
+.mja-takeaways { margin: 0; padding-left: 18px; font-size: 14px; line-height: 1.55; }
+
+/* Tester */
+.mja-tester-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.mja-tester-row input { flex: 1; min-width: 220px; }
+.mja-tester-row select { width: auto; }
+.mja-result { margin-top: 10px; padding: 10px 12px; border-radius: 8px; font-size: 14px; border: 1px solid var(--border); }
+.mja-result small { display: block; margin-top: 4px; color: var(--text-dim); }
+.mja-result--accepted { border-color: rgba(63, 191, 127, 0.6); background: rgba(63, 191, 127, 0.1); }
+.mja-result--trap { border-color: rgba(255, 107, 122, 0.6); background: rgba(255, 107, 122, 0.08); }
+.mja-result--unknown { border-color: rgba(232, 176, 75, 0.6); background: rgba(232, 176, 75, 0.08); }
+
+.mja-rooms { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+
+@media (max-width: 900px) {
+  .mja { padding: 14px; }
+  .mja-topics { grid-template-columns: 1fr; }
+  .mja-side { position: static; max-height: none; }
+  .mja-list { max-height: 300px; }
+  .mja-shows { grid-template-columns: 1fr; }
+  .mja-answers td:first-child { width: auto; }
+}
