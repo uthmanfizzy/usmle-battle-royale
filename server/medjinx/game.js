@@ -31,16 +31,16 @@ const bank = require('./bank');
 
 const MAX_PLAYERS = 20;
 const INTRO_MS = 4000;
-const REVEAL_MS = 75000;        // the breakdown moves on by itself after this
+const REVEAL_MS = 16000;        // the next round starts by itself after this (top-3 reveal ~4-8s, then a read)
 const GRACE_MS = 400;           // an answer sent on the buzzer still counts
 const MAX_ATTEMPTS = 90;        // per player per round
 const MAX_LEN = 80;
-const RAPID_SECONDS = 20;
+const RAPID_SECONDS = 15;
 
 const DEFAULTS = Object.freeze({
   variant: 'mixed',             // open | clinical | mixed
   rounds: 5,
-  seconds: 75,
+  seconds: 30,
   difficulty: 'mixed',          // mixed | easy | intermediate | advanced
   systems: [],                  // [] = every system
   events: true,
@@ -48,7 +48,7 @@ const DEFAULTS = Object.freeze({
 
 const VARIANTS = ['open', 'clinical', 'mixed'];
 const ROUND_CHOICES = [3, 5, 7];
-const SECOND_CHOICES = [45, 60, 75, 90];
+const SECOND_CHOICES = [30];  // every round is 30 seconds
 const DIFFICULTIES = ['mixed', 'easy', 'intermediate', 'advanced'];
 
 // How likely a bot is to know an answer of each tier.

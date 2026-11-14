@@ -773,3 +773,161 @@ export function playEliminated() {
     t += 0.32;
   });
 }
+
+// ── MedJinx: one answer revealed in the round's top three ──────────────────
+// The rarer the answer, the bigger the hit. Each tier keeps everything the
+// tier below it has and adds a layer, so the five read as one family growing
+// rather than five unrelated sounds:
+//   1 Common      a single soft chime
+//   2 Recognised  + a second, higher note
+//   3 Specific    + a full major arpeggio and a sparkle on top
+//   4 Advanced    + a low impact and a brass chord swelling under it
+//   5 Rare        + a sub-bass drop, a noise riser, a wide detuned chord and
+//                   a long room tail — the "something rare just happened" one
+// `first` (the winning answer) adds a little extra weight to whatever it is.
+let mjxRoom = null;
+export function playRarityReveal(tier = 1, first = false) {
+  if (muted) return;
+  const c = getCtx();
+  const t = c.currentTime + 0.02;
+  const T = Math.max(1, Math.min(5, Number(tier) || 1));
+  const bus = c.createGain();
+  bus.gain.value = 0.9;
+  bus.connect(out());
+
+  // A room for the bigger tiers to ring in.
+  let wet = null;
+  if (T >= 3) {
+    if (!mjxRoom || mjxRoom.context !== c) {
+      mjxRoom = c.createConvolver();
+      mjxRoom.buffer = roomImpulse(c, 2.8);
+      mjxRoom.connect(out());
+    }
+    wet = c.createGain();
+    wet.gain.value = T === 5 ? 0.55 : T === 4 ? 0.35 : 0.2;
+    wet.connect(mjxRoom);
+  }
+  const send = (node) => { node.connect(bus); if (wet) node.connect(wet); };
+
+  const tone = (freq, at, dur, vol, type = 'triangle', attack = 0.005) => {
+    const o = c.createOscillator();
+    const g = c.createGain();
+    o.type = type;
+    o.frequency.value = freq;
+    g.gain.setValueAtTime(0.0001, at);
+    g.gain.exponentialRampToValueAtTime(vol, at + attack);
+    g.gain.exponentialRampToValueAtTime(0.0001, at + dur);
+    o.connect(g); send(g);
+    o.start(at); o.stop(at + dur + 0.02);
+  };
+
+  // Each tier sits a step higher, so they climb as well as grow.
+  const root = [0, 523.25, 587.33, 659.25, 698.46, 783.99][T];
+
+  // 5: the riser comes first, and everything else lands on the end of it.
+  const hit = T === 5 ? t + 0.45 : t;
+  if (T === 5) {
+    const src = c.createBufferSource();
+    src.buffer = getNoiseBuf(c);
+    src.loop = true;
+    const f = c.createBiquadFilter();
+    f.type = 'bandpass';
+    f.Q.value = 1.4;
+    f.frequency.setValueAtTime(400, t);
+    f.frequency.exponentialRampToValueAtTime(6000, hit);
+    const g = c.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.22, hit - 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, hit + 0.05);
+    src.connect(f); f.connect(g); g.connect(bus);
+    src.start(t); src.stop(hit + 0.08);
+  }
+
+  // 1+: the chime.
+  tone(root, hit, 0.5 + T * 0.12, 0.16);
+  tone(root * 2, hit, 0.3, 0.05, 'sine');
+
+  // 2+: a second, higher note.
+  if (T >= 2) tone(root * 1.5, hit + 0.09, 0.55 + T * 0.1, 0.13);
+
+  // 3+: the rest of the arpeggio and a sparkle.
+  if (T >= 3) {
+    tone(root * 1.26, hit + 0.05, 0.8, 0.1);
+    tone(root * 2, hit + 0.18, 0.9, 0.1);
+    [3, 4, 5, 6].forEach((m, i) => tone(root * m, hit + 0.22 + i * 0.06, 0.35, 0.025, 'sine'));
+  }
+
+  // 4+: the impact and a brass chord swelling underneath.
+  if (T >= 4) {
+    const boom = c.createOscillator();
+    const bg = c.createGain();
+    boom.type = 'sine';
+    boom.frequency.setValueAtTime(T === 5 ? 140 : 180, hit);
+    boom.frequency.exponentialRampToValueAtTime(T === 5 ? 32 : 48, hit + (T === 5 ? 0.9 : 0.5));
+    bg.gain.setValueAtTime(T === 5 ? 0.7 : 0.45, hit);
+    bg.gain.exponentialRampToValueAtTime(0.0001, hit + (T === 5 ? 1.4 : 0.7));
+    boom.connect(bg); bg.connect(bus);
+    boom.start(hit); boom.stop(hit + 1.5);
+
+    // The crack of the hit.
+    const n = c.createBufferSource();
+    n.buffer = getNoiseBuf(c);
+    const nf = c.createBiquadFilter();
+    nf.type = 'lowpass';
+    nf.frequency.value = T === 5 ? 2400 : 1600;
+    const ng = c.createGain();
+    ng.gain.setValueAtTime(T === 5 ? 0.45 : 0.3, hit);
+    ng.gain.exponentialRampToValueAtTime(0.0001, hit + 0.25);
+    n.connect(nf); nf.connect(ng); send(ng);
+    n.start(hit); n.stop(hit + 0.3);
+
+    // Brass: detuned saws through a filter that opens.
+    const chord = T === 5 ? [0.5, 0.75, 1, 1.26, 1.5, 2] : [0.5, 0.75, 1, 1.26];
+    const lp = c.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.Q.value = 2;
+    lp.frequency.setValueAtTime(300, hit);
+    lp.frequency.exponentialRampToValueAtTime(T === 5 ? 4200 : 2400, hit + 0.35);
+    lp.frequency.exponentialRampToValueAtTime(600, hit + (T === 5 ? 2.6 : 1.4));
+    const cg = c.createGain();
+    const len = T === 5 ? 2.8 : 1.5;
+    cg.gain.setValueAtTime(0.0001, hit);
+    cg.gain.exponentialRampToValueAtTime(T === 5 ? 0.12 : 0.09, hit + 0.08);
+    cg.gain.setValueAtTime(T === 5 ? 0.12 : 0.09, hit + len * 0.45);
+    cg.gain.exponentialRampToValueAtTime(0.0001, hit + len);
+    lp.connect(cg); send(cg);
+    for (const m of chord) {
+      for (const det of (T === 5 ? [-9, 0, 9] : [-6, 6])) {
+        const o = c.createOscillator();
+        o.type = 'sawtooth';
+        o.frequency.value = root * m * 0.5;
+        o.detune.value = det;
+        o.connect(lp);
+        o.start(hit); o.stop(hit + len + 0.05);
+      }
+    }
+  }
+
+  // 5: a high bell over the top, rung twice.
+  if (T === 5) {
+    [0.35, 0.8].forEach((d) => {
+      tone(root * 4, hit + d, 1.6, 0.06, 'sine');
+      tone(root * 4 * 2.76, hit + d, 0.9, 0.02, 'sine');
+    });
+  }
+
+  // The winning answer lands a touch heavier, whatever its tier.
+  if (first && T < 4) {
+    const o = c.createOscillator();
+    const g = c.createGain();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(160, hit);
+    o.frequency.exponentialRampToValueAtTime(60, hit + 0.3);
+    g.gain.setValueAtTime(0.35, hit);
+    g.gain.exponentialRampToValueAtTime(0.0001, hit + 0.45);
+    o.connect(g); g.connect(bus);
+    o.start(hit); o.stop(hit + 0.5);
+  }
+
+  setTimeout(() => { try { bus.disconnect(); wet?.disconnect(); } catch { /* gone */ } }, 4000);
+}

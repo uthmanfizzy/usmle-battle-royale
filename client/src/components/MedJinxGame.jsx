@@ -531,7 +531,7 @@ function Breakdown({ reveal, players, socketId, isHost, ready, replay, iAmReady,
           disabled={iAmReady}
           onClick={onReady}
         >
-          {iAmReady ? 'Waiting for the others…' : reveal.isLast && !replay ? 'Final results ▶' : 'Next round ▶'}
+          {iAmReady ? 'Waiting for the others…' : 'Skip ▶'}
         </button>
       </footer>
     </div>
@@ -617,8 +617,17 @@ function BestAnswers({
   const [step, setStep] = useState(0);
   useEffect(() => {
     if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) { setStep(3); return undefined; }
-    const timers = [700, 1900, 3100].map((ms, i) => setTimeout(() => { setStep(i + 1); audio.playTick(); }, ms));
+    // Each answer lands with a sound for its rarity (audio.playRarityReveal),
+    // and the gap after it is long enough for the bigger hits to ring out.
+    const timers = [];
+    let at = 700;
+    for (let k = 1; k <= top.length; k += 1) {
+      const a = top[top.length - k];
+      timers.push(setTimeout(() => { setStep(k); audio.playRarityReveal(a.tier, k === top.length); }, at));
+      at += a.tier >= 5 ? 2200 : a.tier >= 4 ? 1700 : 1200;
+    }
     return () => timers.forEach(clearTimeout);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const shown = (i) => step >= top.length - i;
   const done = step >= top.length;
@@ -722,7 +731,7 @@ function BestAnswers({
             >{replay ? '↻ Replaying' : '↻ Replay'}</button>
           )}
           <button type="button" className="mjx-btn mjx-btn--go" disabled={iAmReady} onClick={onReady}>
-            {iAmReady ? 'Waiting…' : reveal.isLast && !replay ? 'Results ▶' : 'Next round ▶'}
+            {iAmReady ? 'Waiting…' : 'Skip ▶'}
           </button>
         </footer>
       </div>

@@ -53,12 +53,14 @@
 }
 
 /* Cards */
+/* Three portrait cards side by side: art fills each card, the text sits at
+   the bottom over a scrim that darkens upwards from it. */
 .cyp-list {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
   width: 100%;
-  max-width: 620px;
+  max-width: 860px;
 }
 
 .cyp-card--story    { --cyp-rgb: 46, 184, 110;  --cyp-hi: #8ff0b8; --cyp-delay: 0.08s; }  /* green */
@@ -71,13 +73,16 @@
   isolation: isolate;
   overflow: hidden;
   display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
   align-items: stretch;
   width: 100%;
-  min-height: 178px;
+  aspect-ratio: 3 / 5;
+  min-height: 0;
   padding: 0;
   border: 0;
   border-radius: 14px;
-  background: radial-gradient(130% 120% at 85% 40%, rgba(var(--cyp-rgb), 0.28) 0%, rgba(12, 12, 10, 0.95) 55%, #070807 100%);
+  background: radial-gradient(140% 90% at 50% 20%, rgba(var(--cyp-rgb), 0.28) 0%, rgba(12, 12, 10, 0.95) 55%, #070807 100%);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55), 0 0 22px rgba(var(--cyp-rgb), 0.22);
   color: #f1ede4;
   text-align: left;
@@ -86,7 +91,7 @@
   animation: cyp-rise 0.5s ease-out var(--cyp-delay) both, cyp-glow 3.2s ease-in-out var(--cyp-delay) infinite;
   transition: transform 0.18s ease;
 }
-.cyp-card:hover { transform: translateY(-2px); }
+.cyp-card:hover { transform: translateY(-4px); }
 .cyp-card:focus-visible { outline: 2px solid rgb(var(--cyp-rgb)); outline-offset: 3px; }
 
 /* Animated border ring */
@@ -120,7 +125,7 @@
   position: absolute;
   inset: 0;
   z-index: -1;
-  background: linear-gradient(90deg, rgba(6, 6, 5, 0.92) 0%, rgba(6, 6, 5, 0.7) 38%, rgba(6, 6, 5, 0.1) 72%, rgba(6, 6, 5, 0) 100%);
+  background: linear-gradient(0deg, rgba(6, 6, 5, 0.95) 0%, rgba(6, 6, 5, 0.75) 35%, rgba(6, 6, 5, 0.1) 70%, rgba(6, 6, 5, 0) 100%);
   pointer-events: none;
 }
 .cyp-art {
@@ -130,16 +135,16 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: right center;
+  object-position: center center;
 }
 
 .cyp-body {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
+  text-align: center;
   gap: 6px;
-  padding: 18px 20px 18px;
-  max-width: 64%;
+  padding: 18px 14px 20px;
 }
 
 .cyp-medal {
@@ -159,7 +164,8 @@
 
 .cyp-name {
   font-family: 'Cinzel', serif;
-  font-size: clamp(21px, 5.6vw, 27px);
+  font-size: clamp(14px, 2.6vw, 24px);
+  line-height: 1.15;
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -200,7 +206,7 @@
 .cyp-card.is-locked .cyp-name,
 .cyp-card.is-locked .cyp-sub { filter: saturate(0.55); opacity: 0.75; }
 .cyp-card.is-locked::before { animation-duration: 9s; opacity: 0.75; }
-.cyp-locked { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin-top: 8px; }
+.cyp-locked { display: flex; flex-direction: column; align-items: center; gap: 6px; margin-top: 8px; }
 .cyp-lock-pill {
   display: inline-flex;
   align-items: center;
@@ -246,12 +252,21 @@
   to   { opacity: 1; transform: none; }
 }
 
-@media (max-width: 480px) {
-  .cyp-card { min-height: 164px; }
-  .cyp-body { max-width: 72%; padding: 16px 16px; }
-  .cyp-medal { width: 48px; height: 48px; font-size: 22px; }
-  .cyp-sub { font-size: 15px; }
-  .cyp-cta { font-size: 11px; padding: 7px 12px; }
+@media (max-width: 640px) {
+  .cyp-list { gap: 10px; }
+  .cyp-body { padding: 12px 8px 14px; gap: 5px; }
+  .cyp-medal { width: 40px; height: 40px; font-size: 19px; box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.45), 0 0 0 4px rgba(var(--cyp-rgb), 0.45), 0 0 12px rgba(var(--cyp-rgb), 0.45); }
+  .cyp-name { letter-spacing: 0.02em; }
+  .cyp-sub { font-size: 12.5px; }
+  .cyp-cta { font-size: 9.5px; padding: 6px 8px; gap: 6px; letter-spacing: 0.06em; }
+  .cyp-cta span { font-size: 14px; }
+  .cyp-lock-pill { font-size: 10px; padding: 5px 9px; }
+  .cyp-dev { font-size: 8.5px; letter-spacing: 0.1em; }
+}
+@media (max-width: 400px) {
+  .cyp-list { gap: 8px; }
+  .cyp-card { aspect-ratio: 9 / 17; }
+  .cyp-sub { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {

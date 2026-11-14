@@ -6,7 +6,7 @@ import './ChooseYourPath.css';
 
 import { SERVER_URL } from '../serverUrl';
 
-// "Choose Your Path" — shown after clicking Play. Three wide art cards (Story,
+// "Choose Your Path" — shown after clicking Play. Three tall art cards (Story,
 // Online, Training Grounds), each with a medallion, coloured title, call-to-
 // action and a light that travels round its border. Card art is uploaded in
 // admin → Pages → Home Page (path_*_art); each card has a painted fallback.

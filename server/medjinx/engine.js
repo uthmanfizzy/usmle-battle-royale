@@ -275,7 +275,7 @@ function matchAnswer(compiled, raw) {
 const EVENTS = {
   double:  { id: 'double',  name: 'Double Points',   blurb: 'Every accepted answer is worth double.' },
   rare:    { id: 'rare',    name: 'Rare Knowledge',  blurb: 'Only Advanced and Rare answers score.' },
-  rapid:   { id: 'rapid',   name: 'Rapid Recall',    blurb: 'Twenty seconds. Go.' },
+  rapid:   { id: 'rapid',   name: 'Rapid Recall',    blurb: 'Fifteen seconds. Go.' },
   reverse: { id: 'reverse', name: 'Reverse Jinx',    blurb: 'The tiers are flipped: the obvious answers pay the most.' },
   boss:    { id: 'boss',    name: 'Boss Case',       blurb: 'A hard vignette, and everything on it pays one and a half times.' },
   streak:  { id: 'streak',  name: 'Streak Round',    blurb: 'Your multiplier grows with every round in a row you found a Specific-or-better answer.' },

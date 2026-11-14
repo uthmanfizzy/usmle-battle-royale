@@ -29,7 +29,7 @@ const LEVELS = [
 
 export default function MedJinxLobby({ isHost, options, onChange }) {
   const [catalog, setCatalog] = useState(null);
-  const o = options || { variant: 'mixed', rounds: 5, seconds: 75, difficulty: 'mixed', systems: [], events: true };
+  const o = options || { variant: 'mixed', rounds: 5, seconds: 30, difficulty: 'mixed', systems: [], events: true };
   const set = (patch) => onChange?.({ ...o, ...patch });
 
   useEffect(() => {
@@ -80,11 +80,7 @@ export default function MedJinxLobby({ isHost, options, onChange }) {
 
       <div className="lobby-duel-row">
         <span className="lobby-duel-label">Clock</span>
-        {isHost ? (
-          <div className="lobby-duel-choice">
-            {[45, 60, 75, 90].map(n => <Choice key={n} value={n} current={o.seconds} onPick={() => set({ seconds: n })}>{n}s</Choice>)}
-          </div>
-        ) : <span className="lobby-duel-value">{o.seconds} seconds a round</span>}
+        <span className="lobby-duel-value">30 seconds a round</span>
       </div>
 
       <div className="lobby-duel-row">
