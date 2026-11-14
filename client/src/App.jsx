@@ -26,6 +26,7 @@ const TowerMode = lazy(() => import('./components/TowerMode'));
 const BuzzFunGame = lazy(() => import('./components/BuzzFunGame'));
 const PvpDuelGame = lazy(() => import('./components/PvpDuelGame'));
 const MedathonGame = lazy(() => import('./components/MedathonGame'));
+const MedJinxGame = lazy(() => import('./components/MedJinxGame'));
 const LandingPage = lazy(() => import('./components/LandingPage'));
 const TrainingGrounds = lazy(() => import('./components/TrainingGrounds'));
 const PlayPage = lazy(() => import('./components/PlayPage'));
@@ -133,6 +134,9 @@ export default function App() {
   // explanation, straight from the server. Cleared when the round changes so
   // a stale "1 of 2" never sits under the next question.
   const [duelSkipVotes, setDuelSkipVotes] = useState(null);
+  // The MedJinx lobby settings (rounds, clock, systems), as the server last
+  // reported them. Null until a MedJinx lobby says otherwise.
+  const [medjinxOptions, setMedjinxOptions] = useState(null);
   // What the match actually ran with — the server reports the pool it used,
   // which differs from the one asked for when that bank was too thin.
   const [duelRun, setDuelRun] = useState({ source: null, totalRounds: null });
@@ -308,7 +312,8 @@ export default function App() {
   // ── Socket events (register once; connect later when entering game) ───────
 
   useEffect(() => {
-    socket.on('lobby_update', ({ players: ps, hostId, subject: s, gameMode: gm, openToQuickJoin: otqj, duelOptions: dOpts }) => {
+    socket.on('lobby_update', ({ players: ps, hostId, subject: s, gameMode: gm, openToQuickJoin: otqj, duelOptions: dOpts, medjinxOptions: mOpts }) => {
+      setMedjinxOptions(mOpts || null);
       setPlayers(ps);
       setIsHost(socket.id === hostId);
       if (s) setSubject(s);
@@ -559,7 +564,8 @@ export default function App() {
       // the duel's own settings — not to the generic Battle Lobby screen,
       // which knows nothing about pools, chapters or systems and was simply
       // the wrong room to land a rematch in.
-      setPhase(gameModeRef.current === 'pvp_duel' ? 'play_page' : 'lobby');
+      // MedJinx goes there too: its settings live in that overlay as well.
+      setPhase(gameModeRef.current === 'pvp_duel' || gameModeRef.current === 'medjinx' ? 'play_page' : 'lobby');
       setRematchOffer(null);
       setRematchAsking(false);
       setRematchNote('');
@@ -1030,7 +1036,8 @@ export default function App() {
   // The duel HUD carries its own Sound toggle and Forfeit button, and its
   // fixed top-left plate sits where the floating buttons live — hide the
   // global pair for that screen only.
-  const inDuelHud   = phase === 'game' && (gameMode === 'pvp_duel' || gameMode === 'medathon');
+  const inDuelHud   = (phase === 'game' && (gameMode === 'pvp_duel' || gameMode === 'medathon'))
+    || ((phase === 'game' || phase === 'game_over') && gameMode === 'medjinx');
   const showMuteBtn = ['lobby', 'game', 'game_over', 'solo_game', 'tower'].includes(phase) && !inDuelHud;
 
   return (
@@ -1145,6 +1152,13 @@ export default function App() {
             // server's own lobby_update confirms it a moment later.
             setDuelOptions(withSource);
             socket.emit('set_duel_options', { options: withSource });
+          }}
+          medjinxOptions={medjinxOptions}
+          onMedjinxOptions={(opts) => {
+            // Optimistic, like the duel: the lobby_update that follows is
+            // the server's sanitized version of the same thing.
+            setMedjinxOptions(opts);
+            socket.emit('set_medjinx_options', { options: opts });
           }}
           onStartGame={handleStartGame}
           onAddBot={handleAddBot}
@@ -1374,6 +1388,25 @@ export default function App() {
         </RouteErrorBoundary>
       )}
 
+      {/* MedJinx keeps one component from the first round to the final
+          standings: the last breakdown and the results are the same room,
+          so it stays mounted across game → game_over. */}
+      {(phase === 'game' || phase === 'game_over') && gameMode === 'medjinx' && (
+        <RouteErrorBoundary name="MedJinxGame">
+        <MedJinxGame
+          players={players}
+          username={username}
+          socketId={socket.id}
+          isHost={isHost}
+          gameResult={phase === 'game_over' ? gameResult : null}
+          muted={muted}
+          onToggleMute={toggleMute}
+          onLeave={handleReturnHome}
+          onPlayAgain={handlePlayAgain}
+        />
+        </RouteErrorBoundary>
+      )}
+
       {phase === 'game' && gameMode === 'buzz_fun' && (
         <RouteErrorBoundary name="BuzzFunGame">
         <BuzzFunGame
@@ -1419,7 +1452,7 @@ export default function App() {
         </RouteErrorBoundary>
       )}
 
-      {phase === 'game_over' && gameMode !== 'pvp_duel' && (
+      {phase === 'game_over' && gameMode !== 'pvp_duel' && gameMode !== 'medjinx' && (
         <RouteErrorBoundary name="Leaderboard">
         <Leaderboard
           gameResult={gameResult}

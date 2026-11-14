@@ -4,6 +4,7 @@ import './PlayPage.css';
 import './PlayPageArena.css';
 import { cachedImageMap, rememberImageMap } from '../utils/cachedImages';
 import AnKingMode from './AnKingMode';
+import MedJinxLobby from './MedJinxLobby';
 
 // Where a duel can draw its questions from. The ids are game_modes tags and
 // are whitelisted server-side — this list is the menu, not the authority.
@@ -92,6 +93,21 @@ const GAME_MODES = [
     supportsSolo: false,
   },
   {
+    // Free recall, scored by rarity. It has its own bank of topics and its
+    // own lobby settings (MedJinxLobby) rather than the question sources the
+    // other modes choose between.
+    id: 'medjinx',
+    name: 'MEDJINX',
+    icon: '🧪',
+    shortDesc: 'Name what goes with it. Rare answers pay.',
+    meta: '2–20 players',
+    accent: '155, 226, 45',
+    tagline: 'Know what they overlook',
+    facts: ['Typed answers', 'Rarity scoring', 'Open & clinical'],
+    longDescription: 'A condition or a clinical vignette goes up, and everyone types as many correct associations as they can before the clock runs out. Each answer is worth its rarity — 1,000 for the obvious up to 8,000 for the obscure — shared between everyone who gave it. Then the whole answer bank is laid out and explained.',
+    supportsSolo: false,
+  },
+  {
     // The trivia board: roll, move round a 36-space board, and win a wedge
     // by answering correctly on a subject's headquarters — cardiology,
     // neurology, pharmacology, microbiology, biochemistry, biostatistics.
@@ -128,6 +144,7 @@ export default function PlayPage({
   user, username, onModeSelect, onBack, error, onClearError,
   lobbyId, lobbyPlayers, isHost, lobbySubject, lobbyGameMode, openToQuickJoin,
   duelOptions, onDuelOptions,
+  medjinxOptions, onMedjinxOptions,
   onStartGame, onAddBot, onRemoveBot, onToggleQuickJoin, onLeaveLobby,
   initialMode
 }) {
@@ -619,7 +636,9 @@ export default function PlayPage({
 
             {/* Players */}
             <div className="lobby-players-section">
-              <p className="lobby-players-count">{lobbyPlayers?.length || 1} / ∞ players joined</p>
+              <p className="lobby-players-count">
+                {lobbyPlayers?.length || 1} / {lobbyGameMode === 'medjinx' ? 20 : '∞'} players joined
+              </p>
               <div className="lobby-players-list">
                 {(lobbyPlayers || [{ username: username, isHost: true }]).map((player, i) => (
                   <div className="lobby-player-row" key={i}>
@@ -637,8 +656,13 @@ export default function PlayPage({
                 player who JOINS needs to know what they are walking into as
                 much as the host needs to choose it. A duel is the one mode
                 where the pool is a real decision — the others draw from the
-                general bank by design. */}
-            {(
+                general bank by design.
+
+                MedJinx is the exception to all of it: its own bank, its own
+                settings, and none of the rows below mean anything to it. */}
+            {lobbyGameMode === 'medjinx' ? (
+              <MedJinxLobby isHost={isHost} options={medjinxOptions} onChange={onMedjinxOptions} />
+            ) : (
               <div className="lobby-duel-section">
                 <p className="lobby-duel-title">
                   {isHost ? (isDuel ? 'Duel settings' : 'Match settings') : 'The host has set'}

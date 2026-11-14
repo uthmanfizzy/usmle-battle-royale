@@ -29,6 +29,7 @@ const MODE_META = {
   scan_master:      { icon: '🔬', label: 'Scan Master'     },
   pvp_duel:         { icon: '🤺', label: 'PvP Duel'        },
   medathon:         { icon: '🏁', label: 'Medathon'        },
+  medjinx:          { icon: '🧪', label: 'MedJinx'         },
   journey:          { icon: '🚑', label: 'First Aid Journey' },
   training_grounds: { icon: '🎯', label: 'Training Grounds'  },
   // The three study-only writers. They emit activity_sessions rows too, so
@@ -111,7 +112,7 @@ const BANK_SUMMARY_MODES = QUESTION_BANK_MODES.map(m => ({
 // activity_sessions.game_mode for every multiplayer match. Labels and icons
 // come from MODE_META so this list and the timeline rows cannot drift.
 const LIVE_SUMMARY_MODE_IDS = [
-  'pvp_duel', 'medathon', 'battle_royale', 'speed_race',
+  'pvp_duel', 'medathon', 'medjinx', 'battle_royale', 'speed_race',
   'trivia_pursuit', 'buzz_fun', 'scan_master',
 ];
 

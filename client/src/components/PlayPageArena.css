@@ -872,3 +872,14 @@
   mask-image: radial-gradient(34% 34% at 86% 14%, #000 60%, rgba(0, 0, 0, 0) 61%), radial-gradient(70% 70% at 86% 14%, rgba(0, 0, 0, 0.18), rgba(0, 0, 0, 0));
 }
 .arena-card[data-mode="trivia_pursuit"] .arena-card-medal { border-radius: 50%; }
+
+/* MedJinx — bubbles rising through a flask-green glow. */
+.arena-card[data-mode="medjinx"] .arena-card-art {
+  background:
+    radial-gradient(circle at 82% 78%, rgba(155, 226, 45, 0.3) 0 5px, rgba(0, 0, 0, 0) 6px),
+    radial-gradient(circle at 90% 52%, rgba(155, 226, 45, 0.22) 0 3px, rgba(0, 0, 0, 0) 4px),
+    radial-gradient(circle at 74% 34%, rgba(155, 226, 45, 0.18) 0 4px, rgba(0, 0, 0, 0) 5px),
+    radial-gradient(circle at 94% 18%, rgba(155, 226, 45, 0.14) 0 2px, rgba(0, 0, 0, 0) 3px),
+    radial-gradient(70% 60% at 88% 100%, rgba(155, 226, 45, 0.16), rgba(0, 0, 0, 0));
+}
+.arena-card[data-mode="medjinx"] .arena-card-medal { border-radius: 14px 14px 50% 50%; }

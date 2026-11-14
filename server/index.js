@@ -759,6 +759,19 @@ const registeredPlayers = new Set();
 // ── In-memory game state ──────────────────────────────────────────────────────
 
 const lobbies         = new Map(); // lobbyId → lobby
+
+// MedJinx lives in its own directory (server/medjinx): the game loop, the
+// answer matcher and the question bank. It is handed the few things it needs
+// from here rather than reaching in for them. The functions are declared
+// further down and hoisted; `supabase` is read through a getter because it
+// can be null until the client is built.
+const medjinx = require('./medjinx/game')({
+  io, lobbies,
+  shuffle:      (arr) => shuffle(arr),
+  awardXP:      (lobby, sorted) => awardXP(lobby, sorted),
+  lobbyPayload: (lobby) => lobbyPayload(lobby),
+  getSupabase:  () => supabase,
+});
 const globalLeaderboard = new Map(); // username → { wins, gamesPlayed, highScore }
 
 // ── Admin auth ─────────────────────────────────────────────────────────────────
@@ -1019,6 +1032,11 @@ function lobbyPayload(lobby) {
     // walking into — which questions, which systems — and not just the host
     // who chose it. The duel-only fields are ignored by the other modes.
     duelOptions:     lobby.duelOptions || null,
+    // MedJinx has its own settings (rounds, clock, systems) and none of the
+    // question-source ones above.
+    medjinxOptions:  lobby.gameMode === 'medjinx'
+      ? medjinx.sanitizeOptions(lobby.medjinxOptions)
+      : null,
     players:         [...lobby.players.values()].map(p => ({
       id: p.id, username: p.username, clanTag: p.clanTag || null,
       lives: p.lives, score: p.score, alive: p.alive, isBot: p.isBot || false,
@@ -1314,6 +1332,7 @@ function startGameWithPool(lobby) {
   if (lobby.gameMode === 'buzz_fun')       return startBuzzFun(lobby);
   if (lobby.gameMode === 'pvp_duel')       return startPvpDuel(lobby);
   if (lobby.gameMode === 'medathon')       return startMedathon(lobby);
+  if (lobby.gameMode === 'medjinx')        return medjinx.start(lobby);
 
   // ── Battle Royale & Scan Master ────────────────────────────────────────────
   // Guard: Scan Master needs image questions
@@ -3619,6 +3638,8 @@ io.on('connection', (socket) => {
     // 1v1 cap: a duel holds exactly 2 players (other modes stay uncapped)
     if (lobby.gameMode === 'pvp_duel' && lobby.players.size >= PVP_DUEL_MAX_PLAYERS)
       return ack({ ok: false, error: 'This duel is full.' });
+    if (lobby.gameMode === 'medjinx' && lobby.players.size >= medjinx.MAX_PLAYERS)
+      return ack({ ok: false, error: 'This MedJinx room is full.' });
 
     const taken = [...lobby.players.values()].some(
       p => p.username.toLowerCase() === name.toLowerCase()
@@ -3678,6 +3699,7 @@ io.on('connection', (socket) => {
       l.openToQuickJoin !== false &&
       l.players.size >= 1 &&
       !(l.gameMode === 'pvp_duel' && l.players.size >= PVP_DUEL_MAX_PLAYERS) &&
+      !(l.gameMode === 'medjinx' && l.players.size >= medjinx.MAX_PLAYERS) &&
       ![...l.players.values()].some(p => p.username.toLowerCase() === name.toLowerCase());
 
     const open = [...lobbies.values()].filter(joinable);
@@ -3852,6 +3874,10 @@ io.on('connection', (socket) => {
       socket.emit('powerup_result', { type: 'double_xp' });
     }
   });
+
+  // set_medjinx_options, medjinx_submit, medjinx_ready, medjinx_replay,
+  // medjinx_sync — see server/medjinx/game.js.
+  medjinx.attach(socket);
 
   socket.on('start_game', () => {
     const lobby = lobbies.get(socket.lobbyId);
@@ -4102,6 +4128,7 @@ io.on('connection', (socket) => {
     lobby.starting        = false;
     lobby.answeredCounts  = new Map();
     clearDuelAdvance(lobby);
+    medjinx.reset(lobby);
 
     for (const p of lobby.players.values()) {
       p.lives = gameSettings.startingLives; p.score = 0; p.alive = true;
@@ -4191,6 +4218,8 @@ io.on('connection', (socket) => {
       }
       if (lobby.players.size <= 1) endMedathon(lobby, 'forfeit');
       else emitMedathonProgress(lobby);
+    } else if (lobby.status === 'medjinx') {
+      medjinx.onLeave(lobby, socket.id);
     } else if (lobby.status === 'trivia_question') {
       if (lobby.players.size <= 1) {
         endTriviaPursuit(lobby, [...lobby.players.keys()][0]);
@@ -4208,6 +4237,25 @@ io.on('connection', (socket) => {
 });
 
 // ── REST API ───────────────────────────────────────────────────────────────────
+
+/**
+ * The shape of the MedJinx bank — systems, how many topics each has, the
+ * tiers and the special rounds — for the lobby's settings. Never the answers:
+ * those leave the server one topic at a time, after its round has closed.
+ */
+app.get('/api/medjinx/catalog', rateLimit(60, 60000), (req, res) => {
+  res.json(medjinx.catalog());
+});
+
+/**
+ * Answers players typed that are in neither list for their topic. Each one
+ * is either a correct association the bank is missing or a wrong one worth
+ * recording as a trap; a person decides which. Held in memory since the last
+ * restart (and written to medjinx_unmatched when that table exists).
+ */
+app.get('/admin/medjinx/review', adminAuth, (req, res) => {
+  res.json({ items: medjinx.reviewQueue().slice(0, 500) });
+});
 
 /**
  * A finished Medathon, for the review screen after the tab has been closed.
