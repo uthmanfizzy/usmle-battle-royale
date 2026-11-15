@@ -33,6 +33,7 @@ export default function ScanMasterAdmin() {
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [formError, setFormError] = useState('');
+  const [importing, setImporting] = useState(null);   // { done, total, added, skipped, failed, name } while running / after
 
   function load() {
     setError('');
@@ -95,6 +96,62 @@ export default function ScanMasterAdmin() {
     load();
   }
 
+  /**
+   * Load a question pack: a JSON file of { images: {key: dataURL}, items: [...] }.
+   * Each picture is uploaded once through /admin/upload-image (so it lands in
+   * the same storage bucket as a hand-added one) and every question that uses
+   * it is then created. A question already in the bank — same system, prompt
+   * and answer — is skipped, so importing the same pack twice adds nothing.
+   * The pack stays on the admin's computer; nothing of it is in the code.
+   */
+  async function importPack(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    let pack;
+    try { pack = JSON.parse(await file.text()); } catch { setError('That file is not a Scan Master pack.'); return; }
+    if (pack?.format !== 'scan-master-pack' || !Array.isArray(pack.items) || !pack.images) { setError('That file is not a Scan Master pack.'); return; }
+    if (data?.missingTable) { setError('Create the table first (scan-master-migration.sql).'); return; }
+    if (!window.confirm(`Import "${pack.name || file.name}": ${pack.items.length} questions using ${Object.keys(pack.images).length} images?`)) return;
+
+    const key = (r) => `${r.system}|${(r.prompt || '').trim().toLowerCase()}|${(r.answer || '').trim().toLowerCase()}`;
+    const have = new Set(images.map(key));
+    const todo = pack.items.filter(it => !have.has(key(it)));
+    const state = { name: pack.name || file.name, total: pack.items.length, done: pack.items.length - todo.length, added: 0, skipped: pack.items.length - todo.length, failed: 0, error: '' };
+    setImporting({ ...state });
+    const urls = {};
+    for (const it of todo) {
+      try {
+        if (!urls[it.image]) {
+          const dataUrl = pack.images[it.image];
+          if (!dataUrl) throw new Error(`image ${it.image} missing from the pack`);
+          const mime = (dataUrl.match(/^data:([^;]+);/) || [])[1] || 'image/jpeg';
+          const up = await apiCall('/admin/upload-image', {
+            method: 'POST',
+            body: JSON.stringify({ base64: dataUrl, filename: `scan-${it.image}.${mime.split('/')[1]}`, mimeType: mime }),
+          });
+          const ud = await up.json().catch(() => ({}));
+          if (!up.ok || !ud.url) throw new Error(ud.error || 'upload failed');
+          urls[it.image] = ud.url;
+        }
+        const res = await apiCall('/admin/scan-master/images', {
+          method: 'POST',
+          body: JSON.stringify({ ...it, image_url: urls[it.image], active: true }),
+        });
+        const d = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(d.error || 'save failed');
+        state.added += 1;
+      } catch (err) {
+        state.failed += 1;
+        state.error = err.message;
+      }
+      state.done += 1;
+      setImporting({ ...state });
+    }
+    setImporting({ ...state, finished: true });
+    load();
+  }
+
   async function remove(im) {
     if (!window.confirm(`Delete the "${im.answer}" image? This cannot be undone.`)) return;
     await apiCall(`/admin/scan-master/images/${im.id}`, { method: 'DELETE' });
@@ -118,8 +175,25 @@ export default function ScanMasterAdmin() {
         <h2>🔬 Scan Master images</h2>
         <span className="sma-total">{images.filter(i => i.active !== false).length} live</span>
         <button type="button" className="ap-btn-pri" onClick={() => { setFormError(''); setForm({ ...EMPTY, distractors: ['', '', ''] }); }}>+ Add image</button>
+        <label className={`ap-btn-sec ap-btn-sm sma-import${importing && !importing.finished ? ' is-busy' : ''}`} title="Load a Scan Master question pack (.json)">
+          📦 Import pack
+          <input type="file" accept=".json,application/json" onChange={importPack} hidden disabled={Boolean(importing && !importing.finished)} />
+        </label>
         <button type="button" className="ap-btn-sec ap-btn-sm" onClick={load}>↻</button>
       </div>
+
+      {importing && (
+        <div className={`sma-progress${importing.failed ? ' has-fail' : ''}`}>
+          <b>{importing.finished ? 'Import finished' : 'Importing'} — {importing.name}</b>
+          <span className="sma-bar"><i style={{ width: `${(importing.done / importing.total) * 100}%` }} /></span>
+          <small>
+            {importing.done}/{importing.total} · {importing.added} added
+            {importing.skipped ? ` · ${importing.skipped} already in the bank` : ''}
+            {importing.failed ? ` · ${importing.failed} failed (${importing.error})` : ''}
+          </small>
+          {importing.finished && <button type="button" className="ap-btn-sec ap-btn-sm" onClick={() => setImporting(null)}>Close</button>}
+        </div>
+      )}
 
       {error && <p className="sma-error">{error}</p>}
       {data?.missingTable && (

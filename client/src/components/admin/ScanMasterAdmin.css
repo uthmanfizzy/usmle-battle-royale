@@ -56,3 +56,12 @@
 .sma-check { flex-direction: row !important; align-items: center; }
 .sma-form-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 14px; }
 @media (max-width: 760px) { .sma-form-grid { grid-template-columns: 1fr; } }
+
+.sma-import { cursor: pointer; }
+.sma-import.is-busy { opacity: 0.5; pointer-events: none; }
+.sma-progress { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--border); background: var(--card); }
+.sma-progress.has-fail { border-color: rgba(255, 107, 122, 0.6); }
+.sma-progress small { color: var(--text-dim); }
+.sma-progress button { align-self: flex-start; }
+.sma-bar { height: 6px; border-radius: 6px; background: var(--card-hi); overflow: hidden; }
+.sma-bar i { display: block; height: 100%; background: var(--gold); transition: width 0.3s; }

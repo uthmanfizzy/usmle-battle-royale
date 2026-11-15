@@ -610,3 +610,6 @@
 }
 .smh-warn { margin: 0; padding: 10px 12px; border-radius: 10px; background: rgba(255, 200, 70, 0.1); border: 1px solid rgba(255, 200, 70, 0.4); color: #ffe4a3; font-size: 13px; }
 .smh-err { margin: 0; color: #ff9c9c; font-size: 13px; }
+
+/* "Which letter on the image?" — the label itself is the answer. */
+.smg-opt-text--label { font-size: 18px; font-weight: 800; letter-spacing: 0.04em; }

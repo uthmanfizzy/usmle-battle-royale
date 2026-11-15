@@ -43,7 +43,7 @@ const SYSTEM_IDS = new Set(SYSTEMS.map(s => s.id));
 
 const MODALITIES = [
   'ECG', 'X-ray', 'CT', 'MRI', 'Ultrasound', 'Histology', 'Gross pathology',
-  'Blood smear', 'Skin / clinical photo', 'Fundoscopy', 'Microbiology', 'Other',
+  'Blood smear', 'Skin / clinical photo', 'Fundoscopy', 'Microbiology', 'Angiogram', 'Diagram', 'Other',
 ];
 
 const COUNT_CHOICES = [5, 10, 15, 20, 30];

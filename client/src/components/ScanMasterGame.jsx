@@ -90,6 +90,8 @@ export default function ScanMasterGame({
   muted, onToggleMute,
 }) {
   const online = mode === 'online';
+  // Options that are single letters (labels on the image) get numbered keys,
+  // so a button never reads "A · F".
   const [phase, setPhase] = useState(online ? 'loading' : 'loading');
   const [q, setQ] = useState(null);
   const [openAt, setOpenAt] = useState(0);
@@ -117,6 +119,7 @@ export default function ScanMasterGame({
   const soloTimer = useRef(null);
   const ticked = useRef(new Set());
 
+  const letterOpts = Boolean(q?.options?.length && q.options.every(o => /^[A-Z]$/.test(String(o).trim())));
   const live = phase === 'intro' || phase === 'answering' || phase === 'reveal';
   const now = useNow(live);
   const msTotal = (q?.seconds || 20) * 1000;
@@ -306,14 +309,16 @@ export default function ScanMasterGame({
       if (zoom && e.key === 'Escape') { setZoom(false); return; }
       if (e.target && /input|textarea/i.test(e.target.tagName)) return;
       const k = e.key.toUpperCase();
-      const n = /^[1-6]$/.test(k) ? Number(k) - 1 : LETTERS.indexOf(k);
+      // When the options are themselves letters ("which letter is the
+      // lesion?"), only the number keys pick — A-D would be ambiguous.
+      const n = /^[1-6]$/.test(k) ? Number(k) - 1 : (letterOpts ? -1 : LETTERS.indexOf(k));
       if (n >= 0) pick(n);
       if (!online && phase === 'reveal' && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); advanceSolo(); }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pick, zoom, online, phase]);
+  }, [pick, zoom, online, phase, letterOpts]);
 
   // ── Derived ───────────────────────────────────────────────────────────────
   const myId = online ? socket.id : 'me';
@@ -534,8 +539,8 @@ export default function ScanMasterGame({
                   disabled={phase !== 'answering' || myPick !== null}
                   onClick={() => pick(i)}
                 >
-                  <span className="smg-opt-key">{LETTERS[i]}</span>
-                  <span className="smg-opt-text">{opt}</span>
+                  <span className="smg-opt-key">{letterOpts ? i + 1 : LETTERS[i]}</span>
+                  <span className={`smg-opt-text${letterOpts ? ' smg-opt-text--label' : ''}`}>{letterOpts ? `Label ${opt}` : opt}</span>
                   {isCorrect && <span className="smg-opt-mark" aria-hidden="true">✓</span>}
                   {wrongMine && <span className="smg-opt-mark" aria-hidden="true">✗</span>}
                   {pickers.length > 0 && (
