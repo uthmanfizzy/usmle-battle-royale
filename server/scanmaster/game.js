@@ -37,6 +37,7 @@ const SYSTEMS = [
   { id: 'endo',        name: 'Endocrine',        icon: '🦋' },
   { id: 'repro',       name: 'Reproductive',     icon: '👶' },
   { id: 'micro',       name: 'Microbiology',     icon: '🦠' },
+  { id: 'ophtho',      name: 'Ophthalmology',    icon: '👁️' },
   { id: 'multisystem', name: 'Multisystem',      icon: '🩺' },
 ];
 const SYSTEM_IDS = new Set(SYSTEMS.map(s => s.id));

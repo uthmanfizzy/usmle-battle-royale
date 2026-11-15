@@ -7,7 +7,7 @@
 -- image to the existing public `question-images` storage bucket and writes
 -- the row; the game reads only rows with active = true.
 --
---   system       one of: cardio pulm renal gi neuro msk derm heme_onc
+--   system       one of: cardio pulm renal gi neuro msk derm heme_onc ophtho
 --                immuno endo repro micro multisystem
 --   answer       the correct option, shown to the player as written
 --   distractors  JSON array of wrong options; when there are fewer than
