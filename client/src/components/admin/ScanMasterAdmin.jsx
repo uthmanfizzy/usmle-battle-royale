@@ -195,7 +195,7 @@ export default function ScanMasterAdmin() {
         </div>
       )}
 
-      {error && <p className="sma-error">{error}</p>}
+      {error && !data?.missingTable && <p className="sma-error">{error}</p>}
       {data?.missingTable && (
         <p className="sma-warn">Run <code>scan-master-migration.sql</code> (repo root) in the Supabase SQL editor to create the table, then reload.</p>
       )}
