@@ -14680,13 +14680,25 @@ async function rapidCountsByLevel(levelIds) {
 }
 
 /**
- * Free practice measures a level by the player's own ratings, not a score:
- * it counts as done only once EVERY question in it is rated Fully Understood
- * or Long-term Memory. Returns { levelId: { mastered, total } } for the given
- * levels on one track. Both reads are paged (the 1000-row cap returns a
- * silent partial page); a missing ratings table means nothing is rated.
+ * Free practice measures a level by the player's own ratings, not a score.
+ * A level is REVIEWED once every question in it has been given a rating
+ * (any rating), and it carries a knowledge score from 0 to 1: the average of
+ * its rated questions, where each rating is worth
+ *
+ *   Knowledge Gap 0 · Lucky Guess 0.25 · Somewhat Know 0.5 ·
+ *   Careless Miss 0.75 · Fully Understood 1 · Long-term Memory 1
+ *
+ * (a careless miss is knowledge that was there but slipped; a lucky guess is
+ * knowledge that was not). Returns { levelId: { total, rated, scoreSum,
+ * mastered } } for the given levels on one track. Both reads are paged (the
+ * 1000-row cap returns a silent partial page); a missing ratings table means
+ * nothing is rated.
  */
 const JOURNEY_MASTERED_RATINGS = new Set(['fully_understood', 'long_term_memory']);
+const JOURNEY_RATING_WEIGHT = {
+  knowledge_gap: 0, lucky_guess: 0.25, somewhat_know: 0.5,
+  careless_miss: 0.75, fully_understood: 1, long_term_memory: 1,
+};
 async function journeyRatingMasteryByLevel(userId, levelIds, track) {
   const out = {};
   if (!userId || !levelIds.length) return out;
@@ -14711,8 +14723,10 @@ async function journeyRatingMasteryByLevel(userId, levelIds, track) {
   }
   const ratings = await journeyRatingsFor(userId, rows.map(r => r.id));
   for (const r of rows) {
-    const m = (out[r.level_id] ||= { mastered: 0, total: 0 });
+    const m = (out[r.level_id] ||= { mastered: 0, total: 0, rated: 0, scoreSum: 0 });
     m.total += 1;
+    const w = JOURNEY_RATING_WEIGHT[ratings[r.id]];
+    if (w !== undefined) { m.rated += 1; m.scoreSum += w; }
     if (JOURNEY_MASTERED_RATINGS.has(ratings[r.id])) m.mastered += 1;
   }
   return out;
@@ -14879,10 +14893,10 @@ async function buildJourneyPath(userId, subject, track = 'full', { open = false 
     let prev1 = true;   // level i-1 completed — vacuously true before the first
     let prev2 = true;   // level i-2 completed
     const levels = members.map(l => {
-      const mastery = ratingMastery ? (ratingMastery[l.id] || { mastered: 0, total: 0 }) : null;
-      // Free practice: done = every question rated Fully Understood or
-      // Long-term Memory. Campaign: done = the pass mark was reached.
-      const completed = mastery ? (mastery.total > 0 && mastery.mastered === mastery.total) : isDone(l.id);
+      const mastery = ratingMastery ? (ratingMastery[l.id] || { mastered: 0, total: 0, rated: 0, scoreSum: 0 }) : null;
+      // Free practice: done = fully REVIEWED, every question given a rating.
+      // Campaign: done = the pass mark was reached.
+      const completed = mastery ? (mastery.total > 0 && mastery.rated === mastery.total) : isDone(l.id);
       // EITHER of the previous two, not exactly two back. Opening two levels
       // means they can be cleared out of order, and a strict two-back gate then
       // leaves a locked level stranded between two open ones (skip L1, clear
@@ -14912,7 +14926,16 @@ async function buildJourneyPath(userId, subject, track = 'full', { open = false 
         // Only meaningful once completed — the UI only offers it there.
         confidence: confidenceByLevel[l.id] || null,
         // Free practice only: how many of its questions are rated as known.
-        ...(mastery ? { rating_mastered: mastery.mastered, rating_total: mastery.total } : {}),
+        // rating_score is the 0-1 knowledge score over the rated questions
+        // (null until one is rated); rating_score_sum lets a chapter weight
+        // its levels by how many questions each has rated.
+        ...(mastery ? {
+          rating_mastered: mastery.mastered,
+          rating_total: mastery.total,
+          rating_rated: mastery.rated,
+          rating_score_sum: Math.round(mastery.scoreSum * 100) / 100,
+          rating_score: mastery.rated ? Math.round((mastery.scoreSum / mastery.rated) * 100) / 100 : null,
+        } : {}),
       };
     });
 

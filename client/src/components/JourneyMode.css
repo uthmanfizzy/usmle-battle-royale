@@ -3494,3 +3494,35 @@
 @media (prefers-reduced-motion: reduce) {
   .jm-practice-btn:hover { transform: none; }
 }
+
+/* Free practice: reviewed count + knowledge score (0-1) under a level node,
+   on chapter rows and in the progress headers. Static rgba only. */
+.jm-node-review { display: inline-flex; flex-direction: column; align-items: center; gap: 4px; }
+.jm-kscore {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(8, 4, 24, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.9);
+  white-space: nowrap;
+  vertical-align: middle;
+}
+.jm-kscore-label { text-transform: uppercase; letter-spacing: 0.08em; font-size: 9px; color: rgba(255, 255, 255, 0.6); }
+.jm-kscore-bar { width: 38px; height: 5px; border-radius: 5px; background: rgba(255, 255, 255, 0.12); overflow: hidden; }
+.jm-kscore-bar i { display: block; height: 100%; border-radius: inherit; }
+.jm-kscore--good { border-color: rgba(46, 184, 110, 0.6); }
+.jm-kscore--good .jm-kscore-bar i { background: #2eb86e; }
+.jm-kscore--good b { color: #8ff0b8; }
+.jm-kscore--mid { border-color: rgba(232, 176, 75, 0.6); }
+.jm-kscore--mid .jm-kscore-bar i { background: #e8b04b; }
+.jm-kscore--mid b { color: #ffd98a; }
+.jm-kscore--low { border-color: rgba(231, 76, 60, 0.6); }
+.jm-kscore--low .jm-kscore-bar i { background: #e74c3c; }
+.jm-kscore--low b { color: #ff9c8f; }
+.jm-chapter-row-progress .jm-kscore { margin-left: 8px; }
+.jm-path-progress .jm-kscore { margin-left: 8px; }

@@ -50,6 +50,27 @@ function adminApi(path, options = {}) {
   });
 }
 
+/**
+ * Free practice's knowledge score, 0 to 1: the average of the ratings given,
+ * where Knowledge Gap = 0, Lucky Guess = 0.25, Somewhat Know = 0.5,
+ * Careless Miss = 0.75, Fully Understood = Long-term Memory = 1.
+ * Red below 0.4, amber below 0.7, green from 0.7.
+ */
+function KnowledgeScore({ value, label }) {
+  const v = Math.max(0, Math.min(1, Number(value) || 0));
+  const tone = v >= 0.7 ? 'good' : v >= 0.4 ? 'mid' : 'low';
+  return (
+    <span
+      className={`jm-kscore jm-kscore--${tone}`}
+      title="Knowledge score: 0 = don't know it, 1 = know it fully (average of your ratings)"
+    >
+      {label && <span className="jm-kscore-label">{label}</span>}
+      <span className="jm-kscore-bar" aria-hidden="true"><i style={{ width: `${Math.round(v * 100)}%` }} /></span>
+      <b>{v.toFixed(2)}</b>
+    </span>
+  );
+}
+
 // Decorative compass rose for the map corner
 function CompassRose() {
   return (
@@ -1137,14 +1158,18 @@ export default function JourneyMode({
     );
   }
 
-  // Progress counter: levels + bosses that actually require play (auto-skipped bosses excluded)
-  let totalNodes = 0, doneNodes = 0;
+  // Progress counter: levels + bosses that actually require play (auto-skipped bosses excluded).
+  // Free practice counts LEVELS reviewed (bosses are not rated), plus the
+  // subject's knowledge score: the average of every rated question.
+  let totalNodes = 0, doneNodes = 0, subjRated = 0, subjScoreSum = 0;
   for (const c of chapters) {
     totalNodes += c.levels.length;
     doneNodes  += c.levels.filter(l => l.completed).length;
-    if (c.boss && !c.boss.auto_skipped) { totalNodes += 1; if (c.boss.completed) doneNodes += 1; }
+    for (const l of c.levels) { subjRated += l.rating_rated || 0; subjScoreSum += l.rating_score_sum || 0; }
+    if (!openAll && c.boss && !c.boss.auto_skipped) { totalNodes += 1; if (c.boss.completed) doneNodes += 1; }
   }
-  if (ultimate && !ultimate.auto_skipped) { totalNodes += 1; if (ultimate.completed) doneNodes += 1; }
+  if (!openAll && ultimate && !ultimate.auto_skipped) { totalNodes += 1; if (ultimate.completed) doneNodes += 1; }
+  const subjScore = subjRated ? subjScoreSum / subjRated : null;
 
   // The frontier = first node that is unlocked but not completed (for auto-scroll + pulse)
   const frontierKey = (() => {
@@ -1473,8 +1498,11 @@ export default function JourneyMode({
             {/* Free practice counts a level done by rating, not score, so it
                 shows how many questions are rated as known instead of stars. */}
             {openAll && !empty && typeof l.rating_total === 'number' ? (
-              <span className={`jm-node-known${l.completed ? ' is-done' : ''}`} title="Questions rated Fully Understood or Long-term Memory">
-                ✅ {l.rating_mastered || 0}/{l.rating_total} known
+              <span className="jm-node-review">
+                <span className={`jm-node-known${l.completed ? ' is-done' : ''}`} title="Questions you have rated in this level">
+                  {l.completed ? '✓ Fully reviewed' : `${l.rating_rated || 0}/${l.rating_total} reviewed`}
+                </span>
+                {l.rating_score != null && <KnowledgeScore value={l.rating_score} />}
               </span>
             ) : l.completed && <span className="jm-node-stars">{'★'.repeat(stars)}{'☆'.repeat(Math.max(0, 3 - stars))}</span>}
             {empty && <span className="jm-node-tag" {...ek('tag.uncharted')}>{t('tag.uncharted', 'Uncharted')}</span>}
@@ -1539,8 +1567,17 @@ export default function JourneyMode({
     );
   };
 
-  // Per-chapter progress stats (same computation the old inline banner used)
+  // Per-chapter progress stats (same computation the old inline banner used).
+  // In free practice: levels fully reviewed, and the chapter's knowledge
+  // score weighted by how many questions each level has rated.
   const chapterStats = (c) => {
+    if (openAll) {
+      const chTotal = c.levels.length;
+      const chDone = c.levels.filter(l => l.completed).length;
+      const rated = c.levels.reduce((n, l) => n + (l.rating_rated || 0), 0);
+      const sum = c.levels.reduce((n, l) => n + (l.rating_score_sum || 0), 0);
+      return { chTotal, chDone, chComplete: chTotal > 0 && chDone === chTotal, chScore: rated ? sum / rated : null };
+    }
     const countsBoss = !!c.boss && !c.boss.auto_skipped;
     const chTotal = c.levels.length + (countsBoss ? 1 : 0);
     const chDone  = c.levels.filter(l => l.completed).length
@@ -1588,7 +1625,7 @@ export default function JourneyMode({
               // promising a threshold here would describe a rule that is not
               // running. Scores are still kept — the level still counts as
               // cleared — it just is not the key to anything.
-              <p className="jm-confirm-threshold">🎯 Free practice — rate every question as you go. The level counts as done once all of them are Fully Understood or Long-term Memory.</p>
+              <p className="jm-confirm-threshold">🎯 Free practice — rate every question as you go. The level is fully reviewed once every question has a rating, and its knowledge score (0 = don't know it, 1 = know it fully) is the average of those ratings.</p>
             ) : (
               <p className="jm-confirm-threshold">Pass with ≥{threshold}% to unlock the next {confirmNode.kind === 'level' ? 'level' : 'stage'}</p>
             )}
@@ -2040,7 +2077,8 @@ export default function JourneyMode({
                 style={{ width: `${totalNodes ? Math.round((doneNodes / totalNodes) * 100) : 0}%` }}
               />
             </span>
-            <span className="jm-progress-label">{doneNodes}/{totalNodes}</span>
+            <span className="jm-progress-label">{doneNodes}/{totalNodes}{openAll ? ' reviewed' : ''}</span>
+            {openAll && subjScore != null && <KnowledgeScore value={subjScore} label="Knowledge" />}
           </span>
         </div>
 
@@ -2150,7 +2188,7 @@ export default function JourneyMode({
                 rather than part of this campaign. The route it opens
                 (/pathway-navigator) is unchanged. */}
             {chapters.map((c, ci) => {
-              const { chTotal, chDone, chComplete } = chapterStats(c);
+              const { chTotal, chDone, chComplete, chScore } = chapterStats(c);
               return (
                 <button
                   key={c.chapter.id}
@@ -2170,7 +2208,10 @@ export default function JourneyMode({
                   <span className="jm-chapter-row-text">
                     <span className="jm-chapter-row-name" {...en('chapter', c.chapter.id, c.chapter.name)}>{c.chapter.name}</span>
                     <span className="jm-chapter-row-progress">
-                      {c.levels.length} level{c.levels.length === 1 ? '' : 's'} · {chComplete ? 'Complete' : `${chDone}/${chTotal} completed`}
+                      {c.levels.length} level{c.levels.length === 1 ? '' : 's'} · {openAll
+                        ? (chComplete ? 'Fully reviewed' : `${chDone}/${chTotal} reviewed`)
+                        : (chComplete ? 'Complete' : `${chDone}/${chTotal} completed`)}
+                      {openAll && chScore != null && <KnowledgeScore value={chScore} />}
                     </span>
                     <span className="jm-chapter-row-bar" aria-hidden="true">
                       <span style={{ width: `${chTotal ? Math.round((chDone / chTotal) * 100) : 0}%` }} />
@@ -2248,7 +2289,8 @@ export default function JourneyMode({
               style={{ width: `${curStats.chTotal ? Math.round((curStats.chDone / curStats.chTotal) * 100) : 0}%` }}
             />
           </span>
-          <span className="jm-progress-label">{curStats.chDone}/{curStats.chTotal}</span>
+          <span className="jm-progress-label">{curStats.chDone}/{curStats.chTotal}{openAll ? ' reviewed' : ''}</span>
+          {openAll && curStats.chScore != null && <KnowledgeScore value={curStats.chScore} label="Knowledge" />}
         </span>
       </div>
 
