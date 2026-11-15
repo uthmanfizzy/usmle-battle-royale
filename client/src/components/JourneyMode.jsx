@@ -237,6 +237,9 @@ export default function JourneyMode({
   const [ratingSummary, setRatingSummary] = useState(null);
   // Free practice: nothing on the map is gated, whatever the server says.
   const openAll = studyMode === 'free';
+  // Every run goes out through here, so the question screen knows whether it
+  // is free practice — where every question must be rated before moving on.
+  const playLevel = (ctx) => onPlayLevel({ ...ctx, freePractice: studyModeRef.current === 'free' });
   // Bumped after a practice run: the answers just rated belong in different
   // buckets now, so the panel has to ask again.
   const [summaryNonce, setSummaryNonce] = useState(0);
@@ -426,7 +429,7 @@ export default function JourneyMode({
    */
   const startRatingPractice = (ratingKey, label) => {
     if (!subject) return;
-    onPlayLevel({
+    playLevel({
       subject,
       levelKey: null,
       questionsUrl: `${SERVER}/api/journey/practice?subject=${encodeURIComponent(subject.id)}`
@@ -878,8 +881,15 @@ export default function JourneyMode({
       // The ratings themselves may well have changed, so the panel is
       // refreshed — questions just re-rated belong in different buckets now.
       setSubject(reentry.subject);
-      landOn(path);
       setSummaryNonce(n => n + 1);
+      // In free practice a level's "done" comes from its ratings, which this
+      // run has just changed — so the map is fetched again, not reused.
+      if (studyModeRef.current === 'free') {
+        landOn(path);
+        loadPath(reentry.subject).then(data => { if (data) landOn(data); });
+      } else {
+        landOn(path);
+      }
       return;
     }
     if (reentry.isBonus) {
@@ -909,6 +919,8 @@ export default function JourneyMode({
         // — videos, notes and images are all keyed by it — and the server
         // namespaces the progress row.
         track: reentry.track || trackRef.current,
+        // Free practice: the map that comes back marks levels done by rating.
+        open: studyModeRef.current === 'free',
       }),
     })
       .then(r => r.ok ? r.json() : Promise.reject(r.status))
@@ -936,6 +948,7 @@ export default function JourneyMode({
             questions: reentry.answered ?? null,
             // The retry must land on the same track the attempt was played on.
             track: reentry.track || trackRef.current,
+            open: studyModeRef.current === 'free',
           },
         });
       });
@@ -1457,7 +1470,13 @@ export default function JourneyMode({
           </button>
           <div className="jm-node-caption">
             <span className="jm-node-name" {...en('level', l.level_key, l.name)}>{l.name}</span>
-            {l.completed && <span className="jm-node-stars">{'★'.repeat(stars)}{'☆'.repeat(Math.max(0, 3 - stars))}</span>}
+            {/* Free practice counts a level done by rating, not score, so it
+                shows how many questions are rated as known instead of stars. */}
+            {openAll && !empty && typeof l.rating_total === 'number' ? (
+              <span className={`jm-node-known${l.completed ? ' is-done' : ''}`} title="Questions rated Fully Understood or Long-term Memory">
+                ✅ {l.rating_mastered || 0}/{l.rating_total} known
+              </span>
+            ) : l.completed && <span className="jm-node-stars">{'★'.repeat(stars)}{'☆'.repeat(Math.max(0, 3 - stars))}</span>}
             {empty && <span className="jm-node-tag" {...ek('tag.uncharted')}>{t('tag.uncharted', 'Uncharted')}</span>}
           </div>
         </div>
@@ -1569,7 +1588,7 @@ export default function JourneyMode({
               // promising a threshold here would describe a rule that is not
               // running. Scores are still kept — the level still counts as
               // cleared — it just is not the key to anything.
-              <p className="jm-confirm-threshold">🎯 Free practice — every level is open. Your score still counts.</p>
+              <p className="jm-confirm-threshold">🎯 Free practice — rate every question as you go. The level counts as done once all of them are Fully Understood or Long-term Memory.</p>
             ) : (
               <p className="jm-confirm-threshold">Pass with ≥{threshold}% to unlock the next {confirmNode.kind === 'level' ? 'level' : 'stage'}</p>
             )}
@@ -1732,7 +1751,7 @@ export default function JourneyMode({
             <button
               className="btn-start jm-confirm-play"
               onClick={() => {
-                onPlayLevel({
+                playLevel({
                   subject,
                   levelKey:    confirmNode.levelKey,
                   questionsUrl: withRating(withOrder(confirmNode.questionsUrl)),
@@ -1757,7 +1776,7 @@ export default function JourneyMode({
                   type="button"
                   className="btn-secondary jm-confirm-bonus-btn"
                   onClick={() => {
-                    onPlayLevel({
+                    playLevel({
                       subject,
                       levelKey:    confirmNode.levelKey,
                       questionsUrl: withOrder(`${confirmNode.questionsUrl}&bonus=1`),
@@ -1953,7 +1972,7 @@ export default function JourneyMode({
                 <p className="jm-interstitial-score">{interstitial.pct}% — need {interstitial.threshold}% to pass</p>
                 <button
                   className="btn-start"
-                  onClick={() => { setInterstitial(null); onPlayLevel(lastPlayedRef.current); }}
+                  onClick={() => { setInterstitial(null); playLevel(lastPlayedRef.current); }}
                   {...ek('inter.retry')}
                 >{t('inter.retry', 'Retry Level')}</button>
                 <button className="btn-secondary" onClick={() => setInterstitial(null)} {...ek('inter.backmap')}>{t('inter.backmap', 'Back to Map')}</button>

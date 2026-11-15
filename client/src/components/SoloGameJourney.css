@@ -1246,26 +1246,47 @@ body:has(.solo-screen) .calc-button.equals-btn {
 
 /* ── Recall rating (the six UWorld Adventure ratings, in the Journey) ─────
    The buttons come from SoloGameUWorld.css's .uw-rate-* rules, which paint
-   with the exam skin's --uwq-* colours. Those are only defined on the exam
-   screen, so the row brings its own, on a light card of its own — it reads
-   the same over every Journey theme, dark glass included. */
+   with the exam skin's --uwq-* colours. Here those are pointed at the
+   Journey's own theme tokens, so the row sits in the same dark glass as the
+   explanation above it and takes on each theme's accent — every theme is
+   dark, and the per-rating tints are translucent, so they read on all of
+   them. */
 .jm-rate-row {
-  --uwq-ink: #1a2233;
-  --uwq-ink-soft: #6b7684;
-  --uwq-rule: #e4e8ee;
-  --uwq-ring: #c3cbd6;
-  --uwq-blue-lt: #3f7fd6;
+  --uwq-ink: var(--text);
+  --uwq-ink-soft: var(--text-dim);
+  --uwq-rule: rgba(var(--jm-glow-a), 0.22);
+  --uwq-ring: rgba(var(--jm-glow-a), 0.28);
+  --uwq-blue-lt: rgba(63, 127, 214, 0.7);
   margin-top: 16px;
-  padding: 14px 14px 12px;
-  border-top: 0;
-  border-radius: 14px;
-  background: #ffffff;
-  border: 1px solid #e4e8ee;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+  padding: 14px 2px 4px;
+  border: 0;
+  border-top: 1px solid var(--uwq-rule);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
   color: var(--uwq-ink);
   text-align: left;
 }
 .jm-rate-row .uw-rate-btn { font-size: 13px; }
+/* Glass instead of the exam skin's white — but only at rest. Hovered and
+   picked buttons are left to the per-rating tints in SoloGameUWorld.css,
+   and this selector outranks the white base whichever file loads first. */
+.jm-rate-row .uw-rate-btn:not(:disabled):not(:hover) { background: rgba(255, 255, 255, 0.05); }
+.jm-rate-row .uw-rate-btn:disabled { opacity: 0.55; }
+.jm-rate-row .uw-rate-group-label { color: var(--text-dim); }
+/* Free practice, explanation time up and still unrated: the only way on. */
+.jm-rate-row--due {
+  border-top-color: rgba(var(--jm-glow-a), 0.7);
+  animation: jm-rate-due 1.1s ease-in-out 3;
+}
+.jm-rate-row--due .uw-rate-prompt { color: var(--jm-accent); }
+@keyframes jm-rate-due {
+  0%, 100% { background: transparent; }
+  50%      { background: rgba(var(--jm-glow-a), 0.1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .jm-rate-row--due { animation: none; }
+}
 @media (max-width: 420px) {
   .jm-rate-row { padding: 12px 10px 10px; }
   .jm-rate-row .uw-rate-buttons { gap: 6px; }

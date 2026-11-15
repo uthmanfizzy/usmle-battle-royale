@@ -789,8 +789,8 @@ export default function App() {
     setPhase('solo_game');
   }
 
-  function handlePlayJourneyLevel({ subject, levelKey, questionsUrl, levelLabel, wasMastery, questionOrder, isBonus, isPractice }) {
-    setJourneyContext({ subject, levelKey, questionsUrl, levelLabel, wasMastery, questionOrder, isBonus, isPractice });
+  function handlePlayJourneyLevel({ subject, levelKey, questionsUrl, levelLabel, wasMastery, questionOrder, isBonus, isPractice, freePractice }) {
+    setJourneyContext({ subject, levelKey, questionsUrl, levelLabel, wasMastery, questionOrder, isBonus, isPractice, freePractice });
     setPhase('solo_game');
   }
 
@@ -1499,6 +1499,8 @@ export default function App() {
           levelLabel={journeyContext?.levelLabel}
           studySubjectName={journeyContext?.subject?.name || null}
           isJourney={!!journeyContext}
+          // Free practice: every question must be rated before moving on.
+          journeyMustRate={!!journeyContext?.freePractice}
           // Journey's "In order" means as authored, options included. Every
           // other mode keeps the anti-memorisation shuffle.
           shuffleOptions={journeyContext?.questionOrder !== 'sequential'}

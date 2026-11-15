@@ -953,6 +953,22 @@
   text-shadow: 0 0 8px rgba(251, 191, 36, 0.6);
 }
 
+/* Free practice: how many of the level's questions are rated as known. */
+.jm-node-known {
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.8);
+  background: rgba(8, 4, 24, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+  padding: 2px 9px;
+  white-space: nowrap;
+}
+.jm-node-known.is-done {
+  color: #8ff0b8;
+  border-color: rgba(46, 184, 110, 0.6);
+}
+
 .jm-node-tag {
   font-family: 'Baloo 2', sans-serif;
   font-weight: 700;

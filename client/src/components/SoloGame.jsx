@@ -375,7 +375,10 @@ function DevImageSlot({ field, label, qid, armed, busy, message, currentUrl, onA
   );
 }
 
-export default function SoloGame({ subject, username, difficulty, onBack, onTryAgain, onChangeSubject, onBackToTopics, topicId, questionsUrl, onComplete, levelLabel, isJourney, providedQuestions, shuffleOptions = true, uworldSkin = false, examTheme = null, uwaRemainingToday = 0, uwaCompletionLabel = null, uwaReview = false, studySubjectName = null }) {
+export default function SoloGame({ subject, username, difficulty, onBack, onTryAgain, onChangeSubject, onBackToTopics, topicId, questionsUrl, onComplete, levelLabel, isJourney, providedQuestions, shuffleOptions = true, uworldSkin = false, examTheme = null, uwaRemainingToday = 0, uwaCompletionLabel = null, uwaReview = false, studySubjectName = null, journeyMustRate = false }) {
+  // Questions that cannot be left until they are rated: the exam skin always,
+  // and the First Aid Journey in free practice.
+  const mustRate = uworldSkin || (isJourney && journeyMustRate);
   // Tell friends what this run is. Declared first so it runs whatever the
   // component returns below.
   const prettySubject = studySubjectName
@@ -2299,7 +2302,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
       // — so rather than silently stalling on an explanation the player can no
       // longer act on, bring the rating row to them: flag the deadline (the
       // prompt and the row restyle) and scroll it into view.
-      if (uworldSkin && !ratedRef.current) {
+      if (mustRate && !ratedRef.current) {
         setExplanationExpired(true);
         rateRowRef.current?.scrollIntoView({
           behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
@@ -2500,7 +2503,11 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
       postJourneyRating(q, ratingKey, retireEndpoint === 'boss-questions' ? 'boss' : 'journey').then(r => {
         if (r && r.ok === false) setRatingSaveError(journeyRatingErrorText(r.reason));
       });
-      handleSkip();
+      // doAdvanceRef, not handleSkip: in free practice a Next pressed before
+      // rating has already used up skipActionRef, and the rating must still
+      // be able to move on.
+      if (skipTimerRef.current) { clearTimeout(skipTimerRef.current); skipTimerRef.current = null; }
+      doAdvanceRef.current?.();
       return;
     }
     // Advancing does not wait on this (a lost rating must never block the run),
@@ -4253,10 +4260,19 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
                   Optional here — picking one saves it and moves on, Next
                   below still skips without rating. */}
               {isJourney && (
-                <div className="uw-rate-row jm-rate-row" role="group" aria-label="Rate your recall">
+                <div
+                  ref={mustRate ? rateRowRef : undefined}
+                  className={`uw-rate-row jm-rate-row${mustRate && explanationExpired && !rated ? ' jm-rate-row--due' : ''}`}
+                  role="group"
+                  aria-label="Rate your recall"
+                >
                   <div className="uw-rate-head">
                     <p className="uw-rate-prompt" aria-live="polite">
-                      {rated ? '✓ Rated — moving on…' : 'How well did you know this one?'}
+                      {rated
+                        ? '✓ Rated — moving on…'
+                        : mustRate
+                          ? (explanationExpired ? '⏱ Rate this question to continue' : 'Rate this question to continue')
+                          : 'How well did you know this one?'}
                     </p>
                   </div>
                   <div className="uw-rate-groups">
@@ -4294,7 +4310,10 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
                     {explPaused ? `▶ Resume · ${explPausedLeft}s left` : '⏸ Pause'}
                   </button>
                 )}
-                <button className="rr-skip-btn" onClick={handleSkip}>{isJourney ? 'Next without rating →' : 'Next Question →'}</button>
+                {/* Free practice has no way past a question but rating it. */}
+                {!mustRate && (
+                  <button className="rr-skip-btn" onClick={handleSkip}>{isJourney ? 'Next without rating →' : 'Next Question →'}</button>
+                )}
               </div>
               </>
             )}

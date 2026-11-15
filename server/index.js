@@ -14562,6 +14562,45 @@ async function rapidCountsByLevel(levelIds) {
 }
 
 /**
+ * Free practice measures a level by the player's own ratings, not a score:
+ * it counts as done only once EVERY question in it is rated Fully Understood
+ * or Long-term Memory. Returns { levelId: { mastered, total } } for the given
+ * levels on one track. Both reads are paged (the 1000-row cap returns a
+ * silent partial page); a missing ratings table means nothing is rated.
+ */
+const JOURNEY_MASTERED_RATINGS = new Set(['fully_understood', 'long_term_memory']);
+async function journeyRatingMasteryByLevel(userId, levelIds, track) {
+  const out = {};
+  if (!userId || !levelIds.length) return out;
+  const rows = [];
+  const PAGE = 1000;
+  for (let from = 0; ; from += PAGE) {
+    let q = supabase.from('journey_questions').select('id, level_id').in('level_id', levelIds);
+    if (hasJourneyRetirement) q = q.is('retired_at', null);
+    if (hasJourneyBonus) q = q.eq('is_bonus', false);
+    if (journeyTrackReady()) q = q.eq('track', track);
+    let { data, error } = await q.range(from, from + PAGE - 1);
+    if (error && isMissingColumn(error, 'track')) {
+      journeyTrackMissing('rating mastery');
+      let untracked = supabase.from('journey_questions').select('id, level_id').in('level_id', levelIds);
+      if (hasJourneyRetirement) untracked = untracked.is('retired_at', null);
+      if (hasJourneyBonus) untracked = untracked.eq('is_bonus', false);
+      ({ data, error } = await untracked.range(from, from + PAGE - 1));
+    }
+    if (error) { console.warn('[journey] rating mastery unavailable —', error.message); return out; }
+    rows.push(...(data || []));
+    if (!data || data.length < PAGE) break;
+  }
+  const ratings = await journeyRatingsFor(userId, rows.map(r => r.id));
+  for (const r of rows) {
+    const m = (out[r.level_id] ||= { mastered: 0, total: 0 });
+    m.total += 1;
+    if (JOURNEY_MASTERED_RATINGS.has(ratings[r.id])) m.mastered += 1;
+  }
+  return out;
+}
+
+/**
  * @param open  Free practice: report every level, boss and the ultimate as
  *              unlocked. The player asked for the map without its gates —
  *              they are still computed (progress, completion and the bonus
@@ -14692,6 +14731,11 @@ async function buildJourneyPath(userId, subject, track = 'full', { open = false 
     }
   }
 
+  // Free practice: a level is done when all its questions are rated as known.
+  const ratingMastery = open && levelRows.length
+    ? await journeyRatingMasteryByLevel(userId, levelRows.map(l => l.id), track)
+    : null;
+
   const progByKey = new Map(progress.map(p => [p.level_key, p]));
   // Every lookup goes through the track's own namespace, so the two ways
   // through a level never read each other's progress.
@@ -14717,7 +14761,10 @@ async function buildJourneyPath(userId, subject, track = 'full', { open = false 
     let prev1 = true;   // level i-1 completed — vacuously true before the first
     let prev2 = true;   // level i-2 completed
     const levels = members.map(l => {
-      const completed = isDone(l.id);
+      const mastery = ratingMastery ? (ratingMastery[l.id] || { mastered: 0, total: 0 }) : null;
+      // Free practice: done = every question rated Fully Understood or
+      // Long-term Memory. Campaign: done = the pass mark was reached.
+      const completed = mastery ? (mastery.total > 0 && mastery.mastered === mastery.total) : isDone(l.id);
       // EITHER of the previous two, not exactly two back. Opening two levels
       // means they can be cleared out of order, and a strict two-back gate then
       // leaves a locked level stranded between two open ones (skip L1, clear
@@ -14746,6 +14793,8 @@ async function buildJourneyPath(userId, subject, track = 'full', { open = false 
         bonus_unlocked: bestPct > JOURNEY_BONUS_THRESHOLD_PCT,
         // Only meaningful once completed — the UI only offers it there.
         confidence: confidenceByLevel[l.id] || null,
+        // Free practice only: how many of its questions are rated as known.
+        ...(mastery ? { rating_mastered: mastery.mastered, rating_total: mastery.total } : {}),
       };
     });
 
@@ -15175,7 +15224,7 @@ app.post('/api/journey/complete', requireAuth, async (req, res) => {
       completed_at: existing?.completed_at || (pct >= threshold ? new Date().toISOString() : null),
     }, { onConflict: 'user_id,subject,level_key' });
     if (error) throw error;
-    const path = await buildJourneyPath(req.userId, subject, track);
+    const path = await buildJourneyPath(req.userId, subject, track, { open: req.body?.open === true });
 
     // ── Per-attempt activity log (Phase 2) ─────────────────────────────────
     // Additive: journey_progress above keeps only the best score, so a failed or

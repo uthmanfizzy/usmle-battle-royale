@@ -252,21 +252,32 @@
   to   { opacity: 1; transform: none; }
 }
 
+/* Phones: three tall cards side by side are too narrow to read, so each
+   card becomes a wide horizontal banner, stacked — text on the left over a
+   left-to-right scrim, the art showing on the right. */
 @media (max-width: 640px) {
-  .cyp-list { gap: 10px; }
-  .cyp-body { padding: 12px 8px 14px; gap: 5px; }
-  .cyp-medal { width: 40px; height: 40px; font-size: 19px; box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.45), 0 0 0 4px rgba(var(--cyp-rgb), 0.45), 0 0 12px rgba(var(--cyp-rgb), 0.45); }
-  .cyp-name { letter-spacing: 0.02em; }
-  .cyp-sub { font-size: 12.5px; }
-  .cyp-cta { font-size: 9.5px; padding: 6px 8px; gap: 6px; letter-spacing: 0.06em; }
-  .cyp-cta span { font-size: 14px; }
-  .cyp-lock-pill { font-size: 10px; padding: 5px 9px; }
-  .cyp-dev { font-size: 8.5px; letter-spacing: 0.1em; }
-}
-@media (max-width: 400px) {
-  .cyp-list { gap: 8px; }
-  .cyp-card { aspect-ratio: 9 / 17; }
-  .cyp-sub { display: none; }
+  .cyp-list { grid-template-columns: 1fr; gap: 14px; max-width: 620px; }
+  .cyp-card {
+    aspect-ratio: auto;
+    min-height: 150px;
+    justify-content: center;
+    background: radial-gradient(130% 120% at 85% 40%, rgba(var(--cyp-rgb), 0.28) 0%, rgba(12, 12, 10, 0.95) 55%, #070807 100%);
+  }
+  .cyp-card::after {
+    background: linear-gradient(90deg, rgba(6, 6, 5, 0.92) 0%, rgba(6, 6, 5, 0.7) 40%, rgba(6, 6, 5, 0.1) 75%, rgba(6, 6, 5, 0) 100%);
+  }
+  .cyp-art { object-position: right center; }
+  .cyp-body {
+    align-items: flex-start;
+    text-align: left;
+    max-width: 72%;
+    padding: 16px 16px;
+  }
+  .cyp-medal { width: 46px; height: 46px; font-size: 21px; }
+  .cyp-name { font-size: clamp(20px, 6vw, 26px); }
+  .cyp-sub { font-size: 15px; }
+  .cyp-cta { font-size: 11px; padding: 7px 12px; }
+  .cyp-locked { align-items: flex-start; }
 }
 
 @media (prefers-reduced-motion: reduce) {
