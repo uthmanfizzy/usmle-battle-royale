@@ -2084,6 +2084,11 @@ export default function JourneyMode({
           </span>
         </div>
 
+        {/* Desktop: the study controls sit in a side column beside the
+            chapter list (JourneyMode.css .jm-body); on a phone they stack
+            above it as before. */}
+        <div className="jm-body">
+        <aside className="jm-controls" aria-label="Study options">
         {/* ── Which way through ─────────────────────────────────────────
             Same chapters and same levels either way; what changes is the
             questions and, deliberately, the progress. A level cleared the
@@ -2181,6 +2186,8 @@ export default function JourneyMode({
           </div>
         )}
 
+        </aside>
+
         <div className={`jm-chapters-scroll${trackSwitching ? ' is-switching' : ''}`}>
           <div className="jm-chapter-list">
             <p className="jm-chapters-tagline" {...ek('chapters.tagline')}>{t('chapters.tagline', 'Choose a chapter to begin.')}</p>
@@ -2261,6 +2268,7 @@ export default function JourneyMode({
               </div>
             )}
           </div>
+        </div>
         </div>
 
         {renderElementsLayer()}
