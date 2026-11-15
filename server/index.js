@@ -15425,13 +15425,20 @@ app.post('/api/journey/complete', requireAuth, async (req, res) => {
 async function journeyRatingsFor(userId, questionIds) {
   const map = {};
   if (!userId || !questionIds.length) return map;
+  // The player's OWN ratings, filtered here — never .in(question_id, ...).
+  // A whole subject is hundreds of UUIDs, and .in() puts every one of them in
+  // the request URL: past the URL limit the read failed, this returned {} and
+  // the free-practice map showed "0 reviewed" for questions the player had
+  // rated. One player's ratings are bounded by what they have rated, and are
+  // paged here like every other read.
+  const wanted = new Set(questionIds);
   const PAGE = 1000;
   for (let from = 0; ; from += PAGE) {
     const { data, error } = await supabase
       .from('journey_question_ratings')
       .select('question_id, rating')
       .eq('user_id', userId)
-      .in('question_id', questionIds)
+      .order('question_id', { ascending: true })
       .range(from, from + PAGE - 1);
     if (error) {
       if (!isMissingTable(error, 'journey_question_ratings')) {
@@ -15439,7 +15446,7 @@ async function journeyRatingsFor(userId, questionIds) {
       }
       return map;
     }
-    for (const r of data || []) map[r.question_id] = r.rating;
+    for (const r of data || []) if (wanted.has(r.question_id)) map[r.question_id] = r.rating;
     if (!data || data.length < PAGE) return map;
   }
 }

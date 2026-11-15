@@ -435,8 +435,10 @@ export default function JourneyMode({
     const subjId = subject.id;
     const trk = trackRef.current;
     const cached = pathCacheRef.current.get(cacheKey(subjId, trk, next));
-    if (cached) { showPath(cached); return; }
-    setTrackSwitching(true);
+    // A cached map shows at once, but is always refreshed: ratings given since
+    // it was fetched change what free practice shows as reviewed.
+    if (cached) showPath(cached);
+    else setTrackSwitching(true);
     fetchPathFor(subjId, trk, next)
       .then(data => { if (studyModeRef.current === next) showPath(data); })
       .catch(() => { /* leaves the current map up */ })
