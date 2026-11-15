@@ -1538,3 +1538,11 @@ ALTER TABLE journey_questions ADD COLUMN IF NOT EXISTS stem_audio_url TEXT;
 ALTER TABLE boss_questions    ADD COLUMN IF NOT EXISTS stem_audio_url TEXT;
 
 NOTIFY pgrst, 'reload schema';
+
+
+-- ──────────────────────────────────────────────────────────────────────────────
+-- scan_master_images — the Scan Master picture bank (DOC ONLY: run
+-- scan-master-migration.sql at the repo root in the Supabase SQL editor).
+-- One row per picture: system, modality, image_url, prompt, answer,
+-- distractors (JSONB array), explanation, active. Written by Admin → Scan Master.
+-- ──────────────────────────────────────────────────────────────────────────────

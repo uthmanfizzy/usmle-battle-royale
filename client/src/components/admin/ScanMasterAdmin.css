@@ -1,0 +1,58 @@
+/* Admin → Scan Master. Reads the admin theme tokens (--card, --border,
+   --text, --text-dim, --gold) so it follows the light/dark toggle. */
+.sma { padding: 20px 24px; display: flex; flex-direction: column; gap: 14px; max-width: 1400px; }
+.sma-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.sma-head h2 { margin: 0; font-family: 'Cinzel', serif; font-size: 22px; color: var(--gold, #e8b04b); }
+.sma-total { color: var(--text-dim); font-size: 13px; flex: 1; }
+.sma-error { color: #ff6b7a; margin: 0; }
+.sma-warn { margin: 0; padding: 10px 12px; border-radius: 8px; border: 1px solid rgba(232, 176, 75, 0.5); background: rgba(232, 176, 75, 0.1); }
+.sma-dim { color: var(--text-dim); }
+.sma-systems { display: flex; flex-wrap: wrap; gap: 6px; }
+.sma-sys {
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.sma-sys b { color: var(--text); margin-left: 4px; }
+.sma-sys.is-on { border-color: var(--gold); background: var(--card-hi); color: var(--text); }
+.sma-search { max-width: 420px; }
+
+.sma-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
+.sma-card { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: var(--card); display: flex; flex-direction: column; }
+.sma-card.is-off { opacity: 0.5; }
+.sma-card img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; background: #000; display: block; }
+.sma-card-body { padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; }
+.sma-card-body small { color: var(--text-dim); font-size: 12px; }
+.sma-wrong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sma-card-actions { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+
+.sma-modal { position: fixed; inset: 0; z-index: 100; background: rgba(0, 0, 0, 0.6); display: grid; place-items: center; padding: 16px; overflow-y: auto; }
+.sma-form { width: 100%; max-width: 900px; background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 20px; color: var(--text); box-shadow: var(--shadow); }
+.sma-form h3 { margin: 0 0 14px; }
+.sma-form-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 18px; }
+.sma-drop { display: flex; flex-direction: column; gap: 8px; }
+.sma-drop img, .sma-drop > span {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: contain;
+  background: #000;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  color: #999;
+}
+.sma-upload { text-align: center; cursor: pointer; }
+.sma-fields { display: flex; flex-direction: column; gap: 10px; }
+.sma-fields label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 600; }
+.sma-right input { border-color: rgba(46, 184, 110, 0.7) !important; }
+.sma-wrongs { display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 600; }
+.sma-wrongs small { color: var(--text-dim); font-weight: 400; }
+.sma-wrongs input { border-color: rgba(231, 76, 60, 0.45) !important; }
+.sma-check { flex-direction: row !important; align-items: center; }
+.sma-form-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 14px; }
+@media (max-width: 760px) { .sma-form-grid { grid-template-columns: 1fr; } }

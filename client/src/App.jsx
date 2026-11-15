@@ -27,6 +27,7 @@ const BuzzFunGame = lazy(() => import('./components/BuzzFunGame'));
 const PvpDuelGame = lazy(() => import('./components/PvpDuelGame'));
 const MedathonGame = lazy(() => import('./components/MedathonGame'));
 const MedJinxGame = lazy(() => import('./components/MedJinxGame'));
+const ScanMasterGame = lazy(() => import('./components/ScanMasterGame'));
 const LandingPage = lazy(() => import('./components/LandingPage'));
 const TrainingGrounds = lazy(() => import('./components/TrainingGrounds'));
 const PlayPage = lazy(() => import('./components/PlayPage'));
@@ -137,6 +138,9 @@ export default function App() {
   // The MedJinx lobby settings (rounds, clock, systems), as the server last
   // reported them. Null until a MedJinx lobby says otherwise.
   const [medjinxOptions, setMedjinxOptions] = useState(null);
+  // Scan Master: the lobby's systems + image count, and a solo run's choices.
+  const [scanOptions, setScanOptions] = useState(null);
+  const [scanSolo, setScanSolo] = useState(null);
   // What the match actually ran with — the server reports the pool it used,
   // which differs from the one asked for when that bank was too thin.
   const [duelRun, setDuelRun] = useState({ source: null, totalRounds: null });
@@ -312,8 +316,9 @@ export default function App() {
   // ── Socket events (register once; connect later when entering game) ───────
 
   useEffect(() => {
-    socket.on('lobby_update', ({ players: ps, hostId, subject: s, gameMode: gm, openToQuickJoin: otqj, duelOptions: dOpts, medjinxOptions: mOpts }) => {
+    socket.on('lobby_update', ({ players: ps, hostId, subject: s, gameMode: gm, openToQuickJoin: otqj, duelOptions: dOpts, medjinxOptions: mOpts, scanOptions: sOpts }) => {
       setMedjinxOptions(mOpts || null);
+      setScanOptions(sOpts || null);
       setPlayers(ps);
       setIsHost(socket.id === hostId);
       if (s) setSubject(s);
@@ -565,7 +570,7 @@ export default function App() {
       // which knows nothing about pools, chapters or systems and was simply
       // the wrong room to land a rematch in.
       // MedJinx goes there too: its settings live in that overlay as well.
-      setPhase(gameModeRef.current === 'pvp_duel' || gameModeRef.current === 'medjinx' ? 'play_page' : 'lobby');
+      setPhase(['pvp_duel', 'medjinx', 'scan_master'].includes(gameModeRef.current) ? 'play_page' : 'lobby');
       setRematchOffer(null);
       setRematchAsking(false);
       setRematchNote('');
@@ -721,6 +726,14 @@ export default function App() {
     }
 
     console.log('handlePlayPageModeSelect received:', { mode, action, modeOrOptions });
+
+    // Scan Master solo: no lobby, no socket — straight into a run.
+    if (mode === 'scan_master' && action === 'solo') {
+      setGameMode('scan_master');
+      setScanSolo(modeOrOptions?.scanOptions || { systems: [], count: 10 });
+      setPhase('scan_solo');
+      return;
+    }
 
     setGameMode(mode);
     // Launching anything from the play page clears the Story→AnKing initial mode,
@@ -1037,7 +1050,8 @@ export default function App() {
   // fixed top-left plate sits where the floating buttons live — hide the
   // global pair for that screen only.
   const inDuelHud   = (phase === 'game' && (gameMode === 'pvp_duel' || gameMode === 'medathon'))
-    || ((phase === 'game' || phase === 'game_over') && gameMode === 'medjinx');
+    || ((phase === 'game' || phase === 'game_over') && (gameMode === 'medjinx' || gameMode === 'scan_master'))
+    || phase === 'scan_solo';
   const showMuteBtn = ['lobby', 'game', 'game_over', 'solo_game', 'tower'].includes(phase) && !inDuelHud;
 
   return (
@@ -1153,6 +1167,11 @@ export default function App() {
             setDuelOptions(withSource);
             socket.emit('set_duel_options', { options: withSource });
           }}
+          scanOptions={scanOptions}
+          onScanOptions={(opts) => {
+            setScanOptions(opts);
+            socket.emit('set_scan_options', { options: opts });
+          }}
           medjinxOptions={medjinxOptions}
           onMedjinxOptions={(opts) => {
             // Optimistic, like the duel: the lobby_update that follows is
@@ -1229,7 +1248,7 @@ export default function App() {
         </RouteErrorBoundary>
       )}
 
-      {phase === 'game' && (gameMode === 'battle_royale' || gameMode === 'scan_master') && (
+      {phase === 'game' && gameMode === 'battle_royale' && (
         <RouteErrorBoundary name="GameRoom">
         <GameRoom
           question={question}
@@ -1407,6 +1426,37 @@ export default function App() {
         </RouteErrorBoundary>
       )}
 
+      {/* Scan Master, online: one component from the first image to the
+          final podium, like MedJinx. */}
+      {(phase === 'game' || phase === 'game_over') && gameMode === 'scan_master' && (
+        <RouteErrorBoundary name="ScanMasterGame">
+        <ScanMasterGame
+          mode="online"
+          players={players}
+          username={username}
+          isHost={isHost}
+          gameResult={phase === 'game_over' ? gameResult : null}
+          muted={muted}
+          onToggleMute={toggleMute}
+          onLeave={handleReturnHome}
+          onPlayAgain={handlePlayAgain}
+        />
+        </RouteErrorBoundary>
+      )}
+
+      {phase === 'scan_solo' && (
+        <RouteErrorBoundary name="ScanMasterSolo">
+        <ScanMasterGame
+          mode="solo"
+          username={username}
+          soloOptions={scanSolo}
+          muted={muted}
+          onToggleMute={toggleMute}
+          onExit={() => { setScanSolo(null); setPhase('play_page'); }}
+        />
+        </RouteErrorBoundary>
+      )}
+
       {phase === 'game' && gameMode === 'buzz_fun' && (
         <RouteErrorBoundary name="BuzzFunGame">
         <BuzzFunGame
@@ -1452,7 +1502,7 @@ export default function App() {
         </RouteErrorBoundary>
       )}
 
-      {phase === 'game_over' && gameMode !== 'pvp_duel' && gameMode !== 'medjinx' && (
+      {phase === 'game_over' && gameMode !== 'pvp_duel' && gameMode !== 'medjinx' && gameMode !== 'scan_master' && (
         <RouteErrorBoundary name="Leaderboard">
         <Leaderboard
           gameResult={gameResult}

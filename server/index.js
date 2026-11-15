@@ -772,6 +772,16 @@ const medjinx = require('./medjinx/game')({
   lobbyPayload: (lobby) => lobbyPayload(lobby),
   getSupabase:  () => supabase,
 });
+// Scan Master: its own directory too (server/scanmaster) — an admin-curated
+// image bank, the match loop and the bots. Same hand-over as MedJinx.
+const scanMaster = require('./scanmaster/game')({
+  io, lobbies,
+  shuffle:      (arr) => shuffle(arr),
+  awardXP:      (lobby, sorted) => awardXP(lobby, sorted),
+  lobbyPayload: (lobby) => lobbyPayload(lobby),
+  getSupabase:  () => supabase,
+  getSeconds:   () => gameSettings.timerScanMaster,
+});
 const globalLeaderboard = new Map(); // username → { wins, gamesPlayed, highScore }
 
 // ── Admin auth ─────────────────────────────────────────────────────────────────
@@ -1036,6 +1046,10 @@ function lobbyPayload(lobby) {
     // question-source ones above.
     medjinxOptions:  lobby.gameMode === 'medjinx'
       ? medjinx.sanitizeOptions(lobby.medjinxOptions)
+      : null,
+    // Scan Master: which systems, how many pictures.
+    scanOptions:     lobby.gameMode === 'scan_master'
+      ? scanMaster.sanitizeOptions(lobby.scanOptions)
       : null,
     players:         [...lobby.players.values()].map(p => ({
       id: p.id, username: p.username, clanTag: p.clanTag || null,
@@ -1333,6 +1347,7 @@ function startGameWithPool(lobby) {
   if (lobby.gameMode === 'pvp_duel')       return startPvpDuel(lobby);
   if (lobby.gameMode === 'medathon')       return startMedathon(lobby);
   if (lobby.gameMode === 'medjinx')        return medjinx.start(lobby);
+  if (lobby.gameMode === 'scan_master')    return scanMaster.start(lobby);
 
   // ── Battle Royale & Scan Master ────────────────────────────────────────────
   // Guard: Scan Master needs image questions
@@ -3640,6 +3655,8 @@ io.on('connection', (socket) => {
       return ack({ ok: false, error: 'This duel is full.' });
     if (lobby.gameMode === 'medjinx' && lobby.players.size >= medjinx.MAX_PLAYERS)
       return ack({ ok: false, error: 'This MedJinx room is full.' });
+    if (lobby.gameMode === 'scan_master' && lobby.players.size >= scanMaster.MAX_PLAYERS)
+      return ack({ ok: false, error: 'This Scan Master room is full.' });
 
     const taken = [...lobby.players.values()].some(
       p => p.username.toLowerCase() === name.toLowerCase()
@@ -3878,6 +3895,8 @@ io.on('connection', (socket) => {
   // set_medjinx_options, medjinx_submit, medjinx_ready, medjinx_replay,
   // medjinx_sync — see server/medjinx/game.js.
   medjinx.attach(socket);
+  // set_scan_options, scan_answer, scan_sync — see server/scanmaster/game.js.
+  scanMaster.attach(socket);
 
   socket.on('start_game', () => {
     const lobby = lobbies.get(socket.lobbyId);
@@ -4129,6 +4148,7 @@ io.on('connection', (socket) => {
     lobby.answeredCounts  = new Map();
     clearDuelAdvance(lobby);
     medjinx.reset(lobby);
+    scanMaster.reset(lobby);
 
     for (const p of lobby.players.values()) {
       p.lives = gameSettings.startingLives; p.score = 0; p.alive = true;
@@ -4220,6 +4240,8 @@ io.on('connection', (socket) => {
       else emitMedathonProgress(lobby);
     } else if (lobby.status === 'medjinx') {
       medjinx.onLeave(lobby, socket.id);
+    } else if (lobby.status === 'scan_master') {
+      scanMaster.onLeave(lobby, socket.id);
     } else if (lobby.status === 'trivia_question') {
       if (lobby.players.size <= 1) {
         endTriviaPursuit(lobby, [...lobby.players.keys()][0]);
@@ -4266,6 +4288,102 @@ app.get('/api/medjinx/home', rateLimit(120, 60000), (req, res) => {
  */
 app.get('/admin/medjinx/review', adminAuth, (req, res) => {
   res.json({ items: medjinx.reviewQueue().slice(0, 500) });
+});
+
+// ── Scan Master ──────────────────────────────────────────────────────────────
+
+/** Systems with how many pictures each has — for the setup screens. */
+app.get('/api/scan-master/catalog', rateLimit(60, 60000), async (req, res) => {
+  try { res.json(await scanMaster.catalog()); }
+  catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+/**
+ * A solo run: the pictures with their options AND the correct index, since a
+ * solo game is marked in the browser. Only playable rows, shuffled.
+ */
+app.get('/api/scan-master/solo', rateLimit(30, 60000), async (req, res) => {
+  try {
+    const opts = scanMaster.sanitizeOptions({
+      systems: String(req.query.systems || '').split(',').filter(Boolean),
+      count: req.query.count,
+    });
+    const run = await scanMaster.buildRun(opts);
+    res.json({
+      seconds: scanMaster.seconds(),
+      questions: run.map(q => ({
+        id: q.id,
+        system: scanMaster.SYSTEMS.find(s => s.id === q.system) || { id: q.system, name: q.system, icon: '🩺' },
+        modality: q.modality, prompt: q.prompt || 'What does this image show?',
+        image: q.image_url, options: q.options, correct: q.correct,
+        answer: q.answer, explanation: q.explanation,
+      })),
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message, questions: [] });
+  }
+});
+
+const SCAN_TABLE_HELP = 'The scan_master_images table does not exist yet — run scan-master-migration.sql in the Supabase SQL editor.';
+const scanTableMissing = (error) => /scan_master_images/.test(error?.message || '') && /(does not exist|not find|schema cache)/i.test(error?.message || '');
+
+function scanRowFromBody(b) {
+  const distractors = (Array.isArray(b?.distractors) ? b.distractors : [])
+    .map(d => String(d || '').trim().slice(0, 160)).filter(Boolean).slice(0, 6);
+  return {
+    system: String(b?.system || ''),
+    modality: b?.modality ? String(b.modality).slice(0, 40) : null,
+    image_url: String(b?.image_url || '').trim(),
+    prompt: b?.prompt ? String(b.prompt).trim().slice(0, 240) : null,
+    answer: String(b?.answer || '').trim().slice(0, 160),
+    distractors,
+    explanation: b?.explanation ? String(b.explanation).trim().slice(0, 4000) : null,
+    active: b?.active !== false,
+  };
+}
+
+app.get('/admin/scan-master/images', adminAuth, async (req, res) => {
+  if (!supabase) return res.json({ images: [], systems: scanMaster.SYSTEMS, modalities: scanMaster.MODALITIES });
+  const rows = [];
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await supabase.from('scan_master_images').select('*')
+      .order('created_at', { ascending: false }).range(from, from + 999);
+    if (error) {
+      return res.json({ images: [], systems: scanMaster.SYSTEMS, modalities: scanMaster.MODALITIES,
+        missingTable: scanTableMissing(error), error: scanTableMissing(error) ? SCAN_TABLE_HELP : error.message });
+    }
+    rows.push(...(data || []));
+    if (!data || data.length < 1000) break;
+  }
+  res.json({ images: rows, systems: scanMaster.SYSTEMS, modalities: scanMaster.MODALITIES });
+});
+
+app.post('/admin/scan-master/images', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  const row = scanRowFromBody(req.body);
+  if (!scanMaster.SYSTEMS.some(s => s.id === row.system)) return res.status(400).json({ error: 'Pick a system.' });
+  if (!row.image_url) return res.status(400).json({ error: 'Upload an image first.' });
+  if (!row.answer) return res.status(400).json({ error: 'The correct answer is required.' });
+  const { data, error } = await supabase.from('scan_master_images').insert(row).select().single();
+  if (error) return res.status(500).json({ error: scanTableMissing(error) ? SCAN_TABLE_HELP : error.message });
+  res.json({ ok: true, image: data });
+});
+
+app.put('/admin/scan-master/images/:id', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  const row = scanRowFromBody(req.body);
+  if (!scanMaster.SYSTEMS.some(s => s.id === row.system)) return res.status(400).json({ error: 'Pick a system.' });
+  if (!row.image_url || !row.answer) return res.status(400).json({ error: 'An image and the correct answer are required.' });
+  const { data, error } = await supabase.from('scan_master_images').update(row).eq('id', req.params.id).select().single();
+  if (error) return res.status(500).json({ error: scanTableMissing(error) ? SCAN_TABLE_HELP : error.message });
+  res.json({ ok: true, image: data });
+});
+
+app.delete('/admin/scan-master/images/:id', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  const { error } = await supabase.from('scan_master_images').delete().eq('id', req.params.id);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ ok: true });
 });
 
 /**

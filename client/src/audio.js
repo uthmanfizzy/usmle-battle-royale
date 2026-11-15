@@ -931,3 +931,97 @@ export function playRarityReveal(tier = 1, first = false) {
 
   setTimeout(() => { try { bus.disconnect(); wet?.disconnect(); } catch { /* gone */ } }, 4000);
 }
+
+// ── Scan Master ─────────────────────────────────────────────────────────────
+// A radiology-suite palette: soft sine bleeps, a filtered-noise scanner sweep,
+// glassy chimes for a right read and a dull detuned buzz for a wrong one.
+
+function smTone(c, dest, freq, at, dur, vol, type = 'sine', glideTo = null) {
+  const o = c.createOscillator();
+  const g = c.createGain();
+  o.type = type;
+  o.frequency.setValueAtTime(freq, at);
+  if (glideTo) o.frequency.exponentialRampToValueAtTime(glideTo, at + dur);
+  g.gain.setValueAtTime(0.0001, at);
+  g.gain.exponentialRampToValueAtTime(vol, at + 0.012);
+  g.gain.exponentialRampToValueAtTime(0.0001, at + dur);
+  o.connect(g); g.connect(dest);
+  o.start(at); o.stop(at + dur + 0.02);
+}
+
+/** The image is being "scanned in": a rising filtered sweep and two bleeps. */
+export function playScanSweep() {
+  if (muted) return;
+  const c = getCtx();
+  const t = c.currentTime;
+  const src = c.createBufferSource();
+  src.buffer = getNoiseBuf(c);
+  src.loop = true;
+  const f = c.createBiquadFilter();
+  f.type = 'bandpass';
+  f.Q.value = 6;
+  f.frequency.setValueAtTime(300, t);
+  f.frequency.exponentialRampToValueAtTime(3200, t + 1.2);
+  const g = c.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(0.09, t + 0.25);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 1.35);
+  src.connect(f); f.connect(g); g.connect(out());
+  src.start(t); src.stop(t + 1.4);
+  smTone(c, out(), 880, t + 0.05, 0.12, 0.06);
+  smTone(c, out(), 1320, t + 1.3, 0.18, 0.07);
+}
+
+/** Your answer is locked in. */
+export function playScanLock() {
+  if (muted) return;
+  const c = getCtx();
+  const t = c.currentTime;
+  smTone(c, out(), 620, t, 0.07, 0.12, 'square');
+  smTone(c, out(), 930, t + 0.05, 0.1, 0.08, 'triangle');
+}
+
+/** A right read. Higher and fuller the longer the streak. */
+export function playScanCorrect(streak = 1) {
+  if (muted) return;
+  const c = getCtx();
+  const t = c.currentTime;
+  const lift = Math.min(streak - 1, 5) * 0.06;     // up to about a minor third
+  const base = 659.25 * (1 + lift);
+  [1, 1.26, 1.5, 2].forEach((m, i) => smTone(c, out(), base * m, t + i * 0.07, 0.45, 0.11, 'triangle'));
+  smTone(c, out(), base * 4, t + 0.3, 0.6, 0.03, 'sine');
+  if (streak >= 3) {
+    // A shimmer on top once a streak is running.
+    [5, 6, 8].forEach((m, i) => smTone(c, out(), base * m, t + 0.35 + i * 0.05, 0.3, 0.02, 'sine'));
+  }
+}
+
+/** A wrong read, or time ran out. */
+export function playScanWrong() {
+  if (muted) return;
+  const c = getCtx();
+  const t = c.currentTime;
+  smTone(c, out(), 196, t, 0.32, 0.12, 'sawtooth', 130);
+  smTone(c, out(), 207, t, 0.32, 0.08, 'sawtooth', 138);
+}
+
+/** The last seconds of the clock. */
+export function playScanCountdown(urgent = false) {
+  if (muted) return;
+  const c = getCtx();
+  smTone(c, out(), urgent ? 1480 : 1100, c.currentTime, 0.06, 0.07, 'square');
+}
+
+/** The final standings. A bigger fanfare for first place. */
+export function playScanFanfare(won = false) {
+  if (muted) return;
+  const c = getCtx();
+  const t = c.currentTime;
+  const notes = won
+    ? [[523.25, 0], [659.25, 0.12], [783.99, 0.24], [1046.5, 0.38], [783.99, 0.56], [1046.5, 0.68]]
+    : [[523.25, 0], [659.25, 0.14], [783.99, 0.28]];
+  for (const [f, d] of notes) {
+    smTone(c, out(), f, t + d, 0.5, 0.1, 'triangle');
+    smTone(c, out(), f / 2, t + d, 0.5, 0.05, 'sine');
+  }
+}

@@ -3,6 +3,7 @@ import './AdminApp.css';
 import PlayPageAdmin from './admin/PlayPageAdmin';
 import AnKingAdmin from './admin/AnKingAdmin';
 import MedJinxAdmin from './admin/MedJinxAdmin';
+import ScanMasterAdmin from './admin/ScanMasterAdmin';
 import JourneyMode from './JourneyMode';
 import QuestionParser from './QuestionParser';
 import { parseRichText } from '../utils/parseRichText';
@@ -11824,6 +11825,9 @@ export default function AdminApp() {
         <button className={`ap-nav-btn ${tab === 'medjinx'       ? 'active' : ''}`} onClick={() => setTab('medjinx')}>
           🧪 MedJinx
         </button>
+        <button className={`ap-nav-btn ${tab === 'scanmaster'    ? 'active' : ''}`} onClick={() => setTab('scanmaster')}>
+          🔬 Scan Master
+        </button>
         <button className={`ap-nav-btn ${tab === 'reports'       ? 'active' : ''}`} onClick={() => setTab('reports')}>
           🔍 Game Reports
         </button>
@@ -11861,6 +11865,7 @@ export default function AdminApp() {
         {tab === 'guide'         && <GuidePanel />}
         {tab === 'reports'       && <GameReportsPanel />}
         {tab === 'medjinx'       && <MedJinxAdmin />}
+        {tab === 'scanmaster'    && <ScanMasterAdmin />}
         {tab === 'pages'         && <PagesPanel />}
         {tab === 'settings'      && (
           <>

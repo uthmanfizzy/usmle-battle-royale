@@ -7,6 +7,8 @@ import { cachedImageMap, rememberImageMap } from '../utils/cachedImages';
 import AnKingMode from './AnKingMode';
 import MedJinxLobby from './MedJinxLobby';
 import MedJinxHome from './MedJinxHome';
+import ScanMasterLobby from './ScanMasterLobby';
+import ScanMasterHome from './ScanMasterHome';
 
 // Where a duel can draw its questions from. The ids are game_modes tags and
 // are whitelisted server-side — this list is the menu, not the authority.
@@ -62,12 +64,12 @@ const GAME_MODES = [
     id: 'scan_master',
     name: 'SCAN MASTER',
     icon: '🔬',
-    shortDesc: 'Identify conditions from medical images',
-    meta: 'Multiplayer',
+    shortDesc: 'Identify conditions from high-yield images',
+    meta: 'Solo or 2–20 players',
     accent: '0, 184, 148',
     tagline: 'Read the film',
-    facts: ['ECGs & imaging', 'Histology', 'Visual diagnosis'],
-    longDescription: 'Study real medical images including ECGs, X-rays, histology slides, and dermatology photos. Last doctor standing wins through visual diagnosis mastery.',
+    facts: ['Pick your systems', 'Speed points', 'Streak bonus'],
+    longDescription: 'High-yield USMLE images — ECGs, X-rays, histology, smears and skin. Pick the systems, read each image and choose the answer before the clock runs out. Play solo, or race friends: fast right answers and streaks earn the most points.',
     supportsSolo: false,
   },
   {
@@ -147,6 +149,7 @@ export default function PlayPage({
   lobbyId, lobbyPlayers, isHost, lobbySubject, lobbyGameMode, openToQuickJoin,
   duelOptions, onDuelOptions,
   medjinxOptions, onMedjinxOptions,
+  scanOptions, onScanOptions,
   onStartGame, onAddBot, onRemoveBot, onToggleQuickJoin, onLeaveLobby,
   initialMode
 }) {
@@ -199,6 +202,33 @@ export default function PlayPage({
     setTimeout(() => onStartGame(), 450);
     return undefined;
   }, [jinxQuick, error, lobbyId, isHost, lobbyGameMode]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Scan Master's front door, like MedJinx's. The systems and image count
+  // chosen there are applied to the room once it exists (scanPending);
+  // Quick Play then adds two bots and starts.
+  const [scanHome, setScanHome] = useState(false);
+  const [scanPending, setScanPending] = useState(null);
+  const [scanQuick, setScanQuick] = useState(false);
+  const scanGo = (action, opts, extra = {}) => {
+    if (onClearError) onClearError();
+    setSelectedMode('scan_master');
+    if (action === 'create') setScanPending(opts || null);
+    onModeSelect({ mode: 'scan_master', action, squadSize, fillTeam, exam: selectedExam, step: selectedStep, scanOptions: opts, ...extra });
+  };
+  useEffect(() => {
+    if (error) { setScanQuick(false); setScanPending(null); return undefined; }
+    if (!lobbyId || !isHost || lobbyGameMode !== 'scan_master') return undefined;
+    if (scanPending) {
+      onScanOptions?.(scanPending);
+      setScanPending(null);
+    }
+    if (!scanQuick) return undefined;
+    setScanQuick(false);
+    if ((lobbyPlayers?.length || 1) > 1) return undefined;
+    onAddBot('hard');
+    onAddBot('easy');
+    setTimeout(() => onStartGame(), 600);
+    return undefined;
+  }, [scanQuick, scanPending, error, lobbyId, isHost, lobbyGameMode]); // eslint-disable-line react-hooks/exhaustive-deps
   const [joinError, setJoinError] = useState('');
 
   // The lobby overlay titles itself from the lobby's OWN mode, not whatever is
@@ -507,6 +537,7 @@ export default function PlayPage({
                       if (!isEnabled) return;
                       setSelectedMode(mode.id);
                       if (mode.id === 'medjinx') setJinxHome(true);
+                      if (mode.id === 'scan_master') setScanHome(true);
                     }}
                     aria-pressed={active}
                     disabled={!isEnabled}
@@ -537,7 +568,8 @@ export default function PlayPage({
                         ? <><span aria-hidden="true">🔒</span> Coming soon</>
                         : active
                           ? <><span aria-hidden="true">✓</span> Selected — deploy below</>
-                          : mode.id === 'medjinx' ? 'Enter MedJinx ›' : 'Choose this battlefield'}
+                          : mode.id === 'medjinx' ? 'Enter MedJinx ›'
+                            : mode.id === 'scan_master' ? 'Enter Scan Master ›' : 'Choose this battlefield'}
                     </span>
                   </button>
                 );
@@ -613,6 +645,21 @@ export default function PlayPage({
         document.body,
       )}
 
+      {/* ── The Scan Master front door, portalled for the same reason. ── */}
+      {scanHome && createPortal(
+        <ScanMasterHome
+          username={username}
+          error={lobbyId ? '' : error}
+          busy={scanQuick}
+          onBack={() => { setScanHome(false); if (onClearError) onClearError(); }}
+          onSolo={(opts) => { setScanHome(false); scanGo('solo', opts); }}
+          onCreate={(opts) => scanGo('create', opts)}
+          onJoin={(code) => scanGo('join', null, { lobbyCode: code })}
+          onQuickPlay={(opts) => { setScanQuick(true); scanGo('create', opts); }}
+        />,
+        document.body,
+      )}
+
       {/* ── PVP MATCHMAKING OVERLAY ────────────────────────────────────────
           Replaces the lobby panel for a PvP Arenas quick join: the duel
           auto-starts the moment a second player arrives, so the lobby's
@@ -658,7 +705,7 @@ export default function PlayPage({
       {/* ── LOBBY OVERLAY — shows when a lobby is active ───────────────────── */}
       {/* When the MedJinx home page is up it sits on the body, outside this
           wrapper, so the lobby has to join it there to appear on top. */}
-      {lobbyId && !mmSearching && ((node) => (jinxHome ? createPortal(node, document.body) : node))(
+      {lobbyId && !mmSearching && ((node) => ((jinxHome || scanHome) ? createPortal(node, document.body) : node))(
         <div className="lobby-overlay">
           {/* A duel lobby carries a whole settings sheet as well as the code,
               the players and the start button. On a wide screen it gets two
@@ -694,7 +741,7 @@ export default function PlayPage({
             {/* Players */}
             <div className="lobby-players-section">
               <p className="lobby-players-count">
-                {lobbyPlayers?.length || 1} / {lobbyGameMode === 'medjinx' ? 20 : '∞'} players joined
+                {lobbyPlayers?.length || 1} / {lobbyGameMode === 'medjinx' || lobbyGameMode === 'scan_master' ? 20 : '∞'} players joined
               </p>
               <div className="lobby-players-list">
                 {(lobbyPlayers || [{ username: username, isHost: true }]).map((player, i) => (
@@ -719,6 +766,8 @@ export default function PlayPage({
                 settings, and none of the rows below mean anything to it. */}
             {lobbyGameMode === 'medjinx' ? (
               <MedJinxLobby isHost={isHost} options={medjinxOptions} onChange={onMedjinxOptions} />
+            ) : lobbyGameMode === 'scan_master' ? (
+              <ScanMasterLobby isHost={isHost} options={scanOptions} onChange={onScanOptions} />
             ) : (
               <div className="lobby-duel-section">
                 <p className="lobby-duel-title">
