@@ -21,6 +21,7 @@ const SpeedRaceGame = lazy(() => import('./components/SpeedRaceGame'));
 const TriviaGame = lazy(() => import('./components/TriviaGame'));
 const Leaderboard = lazy(() => import('./components/Leaderboard'));
 const PvpDuelResults = lazy(() => import('./components/PvpDuelResults'));
+const BuzzFunResults = lazy(() => import('./components/BuzzFunResults'));
 const SoloGame = lazy(() => import('./components/SoloGame'));
 const TowerMode = lazy(() => import('./components/TowerMode'));
 const BuzzFunGame = lazy(() => import('./components/BuzzFunGame'));
@@ -1010,6 +1011,21 @@ export default function App() {
     if (!accept) setRematchNote('');
   }
 
+  // From a results screen back to the Online page: leave the room (the
+  // server drops us from the lobby) and land where Online always lands.
+  function handleBackToOnline() {
+    audio.stopGameMusic();
+    audio.stopMedathonMusic();
+    socket.emit('leave_lobby');
+    setLobbyId('');
+    setPlayers([]);
+    setIsHost(false);
+    setError('');
+    setGameResult(null);
+    setPlayInitialMode(null);
+    setPhase('play_page');
+  }
+
   function handleReturnHome() {
     audio.stopBgMusic();
     audio.stopGameMusic();
@@ -1519,7 +1535,21 @@ export default function App() {
         </RouteErrorBoundary>
       )}
 
-      {phase === 'game_over' && gameMode !== 'pvp_duel' && gameMode !== 'medjinx' && gameMode !== 'scan_master' && (
+      {phase === 'game_over' && gameMode === 'buzz_fun' && (
+        <RouteErrorBoundary name="BuzzFunResults">
+        <BuzzFunResults
+          gameResult={gameResult}
+          username={username}
+          onPlayAgain={handlePlayAgain}
+          onOnline={handleBackToOnline}
+          onHome={handleReturnHome}
+          isGuest={!user}
+          onSignIn={handleGoogleLogin}
+        />
+        </RouteErrorBoundary>
+      )}
+
+      {phase === 'game_over' && gameMode !== 'pvp_duel' && gameMode !== 'medjinx' && gameMode !== 'scan_master' && gameMode !== 'buzz_fun' && (
         <RouteErrorBoundary name="Leaderboard">
         <Leaderboard
           gameResult={gameResult}

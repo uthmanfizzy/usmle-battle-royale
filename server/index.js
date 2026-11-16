@@ -1227,6 +1227,8 @@ function startBuzzFun(lobby) {
   lobby.buzzFirstCorrect = null;
   lobby.buzzAnswerTimes  = new Map();
   lobby.buzzTimerStart   = 0;
+  // Per-player tallies for the results screen.
+  lobby.buzzStats        = new Map();
 
   const sections = buzzFunSections(lobby, pool);
   if (sections) {
@@ -1328,6 +1330,21 @@ function processBuzzFunAnswers(lobby) {
 
     const sr = updateStreak(lobby, player.id, correct);
     results.push({ id: player.id, username: player.username, answered: answer !== undefined, correct, lives: 3, alive: true, streak: sr.streak });
+    if (lobby.buzzStats) {
+      const st = lobby.buzzStats.get(player.id) || { correct: 0, answered: 0, bestStreak: 0, firsts: 0, fastestMs: null, topics: {} };
+      if (answer !== undefined) st.answered++;
+      if (correct) {
+        st.correct++;
+        if (lobby.buzzFirstCorrect === player.id) st.firsts++;
+        if (answerTime !== null && (st.fastestMs === null || answerTime < st.fastestMs)) st.fastestMs = answerTime;
+      }
+      st.bestStreak = Math.max(st.bestStreak, sr.streak || 0);
+      const tk = q.topic || 'Mixed';
+      const tt = st.topics[tk] || (st.topics[tk] = { correct: 0, total: 0 });
+      tt.total++;
+      if (correct) tt.correct++;
+      lobby.buzzStats.set(player.id, st);
+    }
     trackPlayerAnswer(player.id, q, { answered: answer !== undefined, correct });
 
     const explanation = (lobby.difficulty === 'hard' ? gameSettings.hardModeHideExplanations : gameSettings.easyModeHideExplanations)
@@ -1702,6 +1719,8 @@ function endGame(lobby, reason) {
 
   const leaderboard = sorted.map((p, i) => ({
     rank: i + 1, username: p.username, score: p.score, lives: p.lives, alive: p.alive,
+    // Buzz Fun's own tallies (accuracy, streak, first buzzes, topics) for its results screen.
+    ...(lobby.gameMode === 'buzz_fun' && lobby.buzzStats ? { isBot: !!p.isBot, buzz: lobby.buzzStats.get(p.id) || null } : {}),
   }));
 
   const globalLB = [...globalLeaderboard.entries()]
@@ -1713,6 +1732,7 @@ function endGame(lobby, reason) {
     gameMode: lobby.gameMode,
     winner: winner ? { username: winner.username, score: winner.score } : null,
     leaderboard, globalLeaderboard: globalLB, reason,
+    ...(lobby.gameMode === 'buzz_fun' ? { totalCards: lobby.round || 0 } : {}),
   });
 
   // Award XP to authenticated players (fire-and-forget)
@@ -4353,6 +4373,18 @@ io.on('connection', (socket) => {
       socket.broadcast.emit('user_status_change', { userId, online: false });
     }
 
+    removeFromLobby(socket);
+  });
+
+  socket.on('leave_lobby', () => {
+    const id = socket.lobbyId;
+    // Out of the room first, so the leaver is not told they left.
+    if (id) socket.leave(id);
+    removeFromLobby(socket);
+    socket.lobbyId = null;
+  });
+
+  function removeFromLobby(socket) {
     const lobby = lobbies.get(socket.lobbyId);
     if (!lobby) return;
 
@@ -4428,7 +4460,7 @@ io.on('connection', (socket) => {
       clearTimer(lobby);
       endPvpDuel(lobby, 'forfeit');
     }
-  });
+  }
 });
 
 // ── REST API ───────────────────────────────────────────────────────────────────
