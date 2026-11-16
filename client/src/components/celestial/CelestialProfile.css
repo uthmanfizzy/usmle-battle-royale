@@ -1,0 +1,134 @@
+/* ── Celestial theme: profile (ProgressPage) ──────────────────────────────────
+   Values from the Profile design export (Profile.dc.html). Static rgba only. */
+
+.pp.pp--celestial {
+  --bg: transparent;
+  --accent: #c58bff;
+  --gold: #c58bff;
+  --glass: rgba(124, 58, 237, 0.06);
+  --glass2: rgba(124, 58, 237, 0.12);
+  --border: #2a1a5e;
+  --border2: #5b34c2;
+  --text: #efe9ff;
+  --muted: #b39dfc;
+  background: transparent;
+  font-family: 'Nunito Sans', 'Segoe UI', system-ui, sans-serif;
+  overflow-x: clip;
+}
+
+/* ── Banner ───────────────────────────────────────────────────────────────── */
+.cpp-banner { position: relative; overflow: hidden; box-sizing: border-box; padding: 96px 24px 20px; background: #0d0a26; }
+.cpp-banner-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 30%; }
+.cpp-banner-shade { position: absolute; inset: 0; background: linear-gradient(0deg, #0a091c 0%, rgba(10, 9, 28, 0.55) 45%, rgba(10, 9, 28, 0.6) 100%); }
+.cpp-banner-side { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(10, 9, 28, 0.85) 0%, rgba(10, 9, 28, 0.35) 45%, rgba(10, 9, 28, 0) 70%); }
+.cpp-id { position: relative; display: flex; align-items: center; flex-wrap: wrap; gap: 14px 22px; }
+.cpp-av { border-width: 2.5px !important; box-shadow: 0 0 18px rgba(181, 101, 255, 0.6) !important; flex: none; }
+.cpp-id-text { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.cpp-name {
+  margin: 0; font-family: 'Cinzel', 'Trajan Pro', Georgia, serif; font-weight: 500;
+  font-size: clamp(32px, 5vw, 44px); line-height: 1; letter-spacing: 0.01em; color: #f3ebff;
+  text-shadow: 0 0 16px rgba(190, 130, 255, 0.6);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.cpp-sc, .scc-sc { font-size: 0.8em; }
+.cpp-streak { margin: 0; display: flex; align-items: center; gap: 8px; font-size: 14px; line-height: 20px; color: #d9ccff; }
+.cpp-streak svg { width: 16px; height: 16px; flex: none; fill: #f5a623; }
+.cpp-meta { margin: 0; display: flex; align-items: center; flex-wrap: wrap; gap: 4px 12px; font-size: 13px; color: #b39dfc; }
+.cpp-link { padding: 0; background: none; border: 0; cursor: pointer; font: inherit; color: #c9b3ff !important; text-decoration: underline; text-underline-offset: 3px; }
+.cpp-link:hover { color: #fff !important; }
+
+.pp--celestial .cpp-page { max-width: none; margin: 0; padding: 14px 24px 0; gap: 28px; }
+
+/* ── Study calendar (StudyCalendar variant="celestial") ───────────────────── */
+.sc--celestial { padding-bottom: 22px; color: #efe9ff; margin: 0; border: 0; }
+.scc-head { min-height: 56px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px 16px; padding: 6px 22px 0 29px; }
+.scc-title { display: flex; align-items: center; gap: 14px; }
+.scc-diamond { width: 9px; height: 9px; background: #b44dff; transform: rotate(45deg); box-shadow: 0 0 8px #b44dff; }
+.scc-title h2 { margin: 0; font-family: inherit; font-size: 15px; line-height: 20px; font-weight: 600; letter-spacing: 0.08em; color: #c9b3ff; text-transform: uppercase; }
+.scc-nav { display: flex; align-items: center; gap: 10px; }
+.scc-arrow {
+  width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; cursor: pointer;
+  background: #170f3a; border: 1px solid #35207a; border-radius: 4px; padding: 0; color: #c9b3ff;
+}
+.scc-arrow:hover:not(:disabled) { border-color: #8a55e6; color: #fff; }
+.scc-arrow:disabled { opacity: 0.35; cursor: default; }
+.scc-arrow svg { width: 9px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.scc-month { margin: 0; min-width: 184px; text-align: center; font-family: 'Cinzel', 'Trajan Pro', Georgia, serif; font-weight: 500; font-size: 20px; line-height: 26px; letter-spacing: 0.03em; color: #f3ebff; }
+
+.scc-stats { padding: 4px 29px 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr)); gap: 14px; }
+.scc-stats > div { box-sizing: border-box; min-height: 72px; padding: 11px 16px; border: 1px solid #2a1a5e; background: rgba(124, 58, 237, 0.08); display: flex; flex-direction: column; gap: 2px; }
+.scc-stats > div > span { font-size: 12px; line-height: 16px; letter-spacing: 0.1em; color: #b39dfc; text-transform: uppercase; }
+.scc-stats b { font-family: 'Cinzel', 'Trajan Pro', Georgia, serif; font-weight: 500; font-size: 26px; line-height: 30px; color: #f3ebff; }
+
+.scc-grid { padding: 20px 29px 0; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; }
+.scc-wd { padding: 0 4px 4px; font-size: 12px; letter-spacing: 0.1em; color: #b39dfc; }
+.scc-blank { min-height: 72px; }
+.scc-day {
+  position: relative; min-height: 72px; box-sizing: border-box; padding: 9px 11px;
+  display: flex; flex-direction: column; justify-content: space-between; align-items: flex-start;
+  font: inherit; font-size: 15px; font-weight: 600; color: #f3ebff; text-align: left; cursor: pointer;
+  border-radius: 2px; margin: 0; box-shadow: none;
+  background: #110c2c; border: 1px solid #221650;
+  transition: border-color 0.15s, filter 0.15s;
+}
+.scc-day:hover:not(:disabled) { border-color: #b46cff; filter: brightness(1.12); }
+.scc-day.is-future { color: rgba(239, 233, 255, 0.45); cursor: default; background: #0e0a26; border-color: #1a1240; }
+.scc-num { line-height: 18px; }
+.scc-time { font-size: 14px; line-height: 18px; }
+.scc-today { position: absolute; top: 10px; right: 11px; font-size: 11px; font-weight: 700; color: #ddd0ff; }
+.scc-day.is-today { border: 2px solid #f3ebff; box-shadow: 0 0 12px rgba(215, 170, 255, 0.55); }
+.scc-day.is-sel:not(.is-today) { border-color: #d9b3ff; }
+/* Heat ramp: none → deep violet → bright violet (tiers 4/5 share the top). */
+.scc-lvl-0 { background: #110c2c; }
+.scc-lvl-1 { background: #24164f; border-color: #2d1c62; }
+.scc-lvl-2 { background: #3b1c86; border-color: #4a26a3; }
+.scc-lvl-3 { background: #5222b8; border-color: #6230d1; }
+.scc-lvl-4, .scc-lvl-5 { background: #6d28d9; border-color: #8546ef; }
+
+.scc-foot { padding: 22px 29px 0; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px 20px; }
+.scc-detail { margin: 0; display: flex; align-items: center; flex-wrap: wrap; gap: 4px 18px; font-size: 14px; color: #ddd0ff; }
+.scc-detail b { color: #fff; font-weight: 700; }
+.scc-link { display: inline-flex; align-items: center; gap: 6px; padding: 0; background: none; border: 0; cursor: pointer; font: inherit; color: #b9a4ec; }
+.scc-link:hover { color: #fff; }
+.scc-link svg { width: 10px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.scc-legend { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #b39dfc; }
+.scc-legend i { width: 14px; height: 14px; display: inline-block; border: 1px solid #35207a; }
+
+/* ── The rest of the profile, in the panel style ─────────────────────────── */
+.pp--celestial .pp-panel {
+  background: linear-gradient(160deg, #100c2b 0%, #0e0b25 60%, #150d33 100%);
+  border: 1px solid #2a1a5e; border-radius: 4px; box-shadow: none;
+  backdrop-filter: none; -webkit-backdrop-filter: none;
+}
+.pp--celestial .pp-tile { background: rgba(124, 58, 237, 0.08); border: 1px solid #2a1a5e; border-radius: 0; }
+.pp--celestial .pp-tile-value { font-family: 'Cinzel', 'Trajan Pro', Georgia, serif; font-weight: 500; color: #f3ebff; }
+.pp--celestial .pp-tile-value--gold { color: #d590ff; }
+.pp--celestial .pp-tile-label { color: #b39dfc; letter-spacing: 0.1em; }
+.pp--celestial .pp-section-head {
+  font-family: inherit; font-size: 15px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #c9b3ff;
+}
+.pp--celestial .pp-section-head::before {
+  content: ''; width: 9px; height: 9px; background: #b44dff; transform: rotate(45deg); box-shadow: 0 0 8px #b44dff; margin: 0 4px 0 4px;
+}
+.pp--celestial .pp-panel-title, .pp--celestial h2 { color: #f3ebff; }
+.pp--celestial .pp-cta-btn, .pp--celestial .pp-xp-fill {
+  background: linear-gradient(90deg, #8a3df0, #6426cf) !important; color: #fff !important; border-color: transparent !important;
+}
+
+@media (max-width: 760px) {
+  .cpp-banner { padding: 70px 16px 18px; }
+  .cpp-name { font-size: 34px !important; }
+  .scc-title h2, .cda-head h2 { font-size: 14px !important; }
+  .pp--celestial .cpp-page { padding: 12px 12px 0; gap: 22px; }
+  .scc-head, .scc-stats, .scc-grid, .scc-foot { padding-left: 14px; padding-right: 14px; }
+  .scc-month { min-width: 130px; font-size: 17px; }
+  .scc-grid { gap: 4px; }
+  .scc-day, .scc-blank { min-height: 52px; padding: 5px 6px; font-size: 13px; }
+  .scc-time { font-size: 10px; white-space: nowrap; letter-spacing: -0.02em; }
+  .scc-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+  .scc-stats > div { min-height: 0; padding: 8px 8px; }
+  .scc-stats > div > span { font-size: 9.5px; letter-spacing: 0.06em; }
+  .scc-stats b { font-size: 16px; line-height: 20px; }
+  .scc-wd { font-size: 10px; letter-spacing: 0.04em; padding: 0 2px 2px; }
+  .scc-today { display: none; }
+}

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import Dashboard from './Dashboard';
 import DashboardNew from './DashboardNew';
 import { useGameSettings } from '../contexts/GameSettingsContext';
+import { useTheme } from '../theme';
 import { getToken, clearToken, fetchMe, getCachedUser, setCachedUser, redirectToGoogle } from '../auth';
 
 export default function DashboardPage() {
@@ -11,6 +12,8 @@ export default function DashboardPage() {
   // true = new bottom-nav shell (DashboardNew). Switchable anytime in /admin.
   const { settings } = useGameSettings();
   const useNewDashboard = !!settings.useNewDashboard;
+  // The Celestial theme has its own frame, built on the classic shell.
+  const { theme } = useTheme() || {};
 
   useEffect(() => {
     const token = getToken();
@@ -86,7 +89,7 @@ export default function DashboardPage() {
     );
   }
 
-  const DashboardShell = useNewDashboard ? DashboardNew : Dashboard;
+  const DashboardShell = useNewDashboard && theme !== 'celestial' ? DashboardNew : Dashboard;
   return (
     <DashboardShell
       user={user}

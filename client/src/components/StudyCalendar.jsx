@@ -35,7 +35,11 @@ function compactTime(seconds) {
 
 // From-scratch month-grid heatmap of study_time_daily (no calendar lib is
 // installed). Month navigation re-fetches; future months are unreachable.
-export default function StudyCalendar({ userId }) {
+// variant="celestial" is the Celestial theme's Profile design: a titled panel
+// with month totals, uppercase weekdays, a "Today" tile and a Less→More key.
+// The data, navigation and day links are the same.
+export default function StudyCalendar({ userId, variant, onSeeActivity }) {
+  const celestial = variant === 'celestial';
   const today = new Date();
   const [year, setYear]         = useState(today.getFullYear());
   const [month, setMonth]       = useState(today.getMonth() + 1); // 1-12
@@ -83,6 +87,80 @@ export default function StudyCalendar({ userId }) {
   const cells = [];
   for (let i = 0; i < leadBlanks; i++) cells.push(null);
   for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+
+  if (celestial) {
+    // Month totals: average and "days studied" count only the days that have
+    // happened (all of them for a past month, up to today for this one).
+    const elapsed = isCurrentMonth ? today.getDate() : daysInMonth;
+    let total = 0; let studied = 0;
+    for (let d = 1; d <= elapsed; d++) { const v = dayMap[dateKey(d)] || 0; total += v; if (v > 0) studied++; }
+    const caps = (secs) => (formatStudyTime(secs) || '0m').toUpperCase();
+    const todayNum = isCurrentMonth ? today.getDate() : null;
+    const sel = selected || (todayNum ? { date: dateKey(todayNum), day: todayNum, seconds: dayMap[dateKey(todayNum)] || 0 } : null);
+    const selDate = sel ? new Date(year, month - 1, sel.day) : null;
+    return (
+      <div className="sc--celestial">
+        <div className="scc-head">
+          <div className="scc-title"><span className="scc-diamond" aria-hidden="true" /><h2>Study time</h2></div>
+          <div className="scc-nav">
+            <button type="button" className="scc-arrow" onClick={prevMonth} aria-label="Previous month">
+              <svg viewBox="0 0 10 17" aria-hidden="true"><path d="M8.5 1.5 1.5 8.5l7 7" /></svg>
+            </button>
+            <p className="scc-month" aria-live="polite"><span>{MONTHS[month - 1][0]}</span><span className="scc-sc">{MONTHS[month - 1].slice(1).toUpperCase()}</span> {year}</p>
+            <button type="button" className="scc-arrow" onClick={nextMonth} disabled={isCurrentMonth} aria-label="Next month">
+              <svg viewBox="0 0 10 17" aria-hidden="true"><path d="M1.5 1.5 8.5 8.5l-7 7" /></svg>
+            </button>
+          </div>
+        </div>
+        <div className="scc-stats">
+          <div><span>{isCurrentMonth ? 'Total this month' : 'Total that month'}</span><b>{loading ? '…' : caps(total)}</b></div>
+          <div><span>Daily average</span><b>{loading ? '…' : caps(elapsed ? total / elapsed : 0)}</b></div>
+          <div><span>Days studied</span><b>{loading ? '…' : <>{studied} <span className="scc-sc">OF</span> {elapsed}</>}</b></div>
+        </div>
+        <div className="scc-grid">
+          {WEEKDAYS.map(w => <div key={w} className="scc-wd">{w.toUpperCase()}</div>)}
+          {cells.map((d, i) => {
+            if (d === null) return <div key={`blank-${i}`} className="scc-blank" />;
+            const secs = dayMap[dateKey(d)] || 0;
+            const lvl  = intensity(secs);
+            const future = isCurrentMonth && d > today.getDate();
+            const isToday = d === todayNum;
+            return (
+              <button
+                key={d}
+                type="button"
+                className={`scc-day scc-lvl-${lvl}${isToday ? ' is-today' : ''}${future ? ' is-future' : ''}${selected?.day === d ? ' is-sel' : ''}`}
+                disabled={future}
+                onClick={() => {
+                  setSelected({ date: dateKey(d), day: d, seconds: secs });
+                  if (secs > 0 && userId) window.location.href = `/activity/${userId}?date=${dateKey(d)}`;
+                }}
+                title={secs > 0 ? `${formatStudyTime(secs)} studied — open this day's activity` : 'No study time recorded'}
+              >
+                <span className="scc-num">{d}</span>
+                {isToday && <span className="scc-today">Today</span>}
+                {secs > 0 && <span className="scc-time">{compactTime(secs)}</span>}
+              </button>
+            );
+          })}
+        </div>
+        <div className="scc-foot">
+          <p className="scc-detail">
+            {sel && <><b>{selDate.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}</b> · {sel.seconds > 0 ? formatStudyTime(sel.seconds) : 'no study time'}</>}
+            {onSeeActivity && (
+              <button type="button" className="scc-link" onClick={onSeeActivity}>
+                See daily activity
+                <svg viewBox="0 0 12 16" aria-hidden="true"><path d="M6 1v13M1.5 9.5 6 14l4.5-4.5" /></svg>
+              </button>
+            )}
+          </p>
+          <span className="scc-legend" aria-hidden="true">
+            Less <i className="scc-lvl-0" /><i className="scc-lvl-1" /><i className="scc-lvl-2" /><i className="scc-lvl-3" /><i className="scc-lvl-4" /> More
+          </span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="sc">

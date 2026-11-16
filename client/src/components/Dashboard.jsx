@@ -9,6 +9,9 @@ import { SwordsGlyph, TrophyGlyph, GroupGlyph, PlayRingGlyph } from './HomeGlyph
 import UsernameChangeModal from './UsernameChangeModal';
 import { cachedImageMap, rememberImageMap, isImageReady } from '../utils/cachedImages';
 import DashboardAmbient from './DashboardAmbient';
+import { useTheme } from '../theme';
+import CelestialShell from './celestial/CelestialShell';
+import CelestialHome from './celestial/CelestialHome';
 import './Dashboard.css';
 
 // Error Boundary to prevent black screens
@@ -877,6 +880,10 @@ function AnnouncementsSection() {
 
 // ── Main Dashboard ─────────────────────────────────────────────────────────────
 function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
+  // Settings → Appearance → Celestial swaps this page's frame and home tab
+  // for the Celestial designs; the tabs, data and handlers are the same.
+  const { theme } = useTheme() || {};
+  const isCelestial = theme === 'celestial';
   // Deep-linkable tab: /dashboard?tab=clans etc. (used by ProgressPage's
   // clan-tag link; unknown values fall back to home)
   const [dashTab,      setDashTab]      = useState(() => {
@@ -1094,6 +1101,42 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
     }
   }
 
+  if (isCelestial) {
+    const navKey = { home: 'home', friends: 'home', leaderboard: 'leaderboard', clans: 'clans', announcements: 'news' }[dashTab] || 'home';
+    const goTab = (tab) => {
+      if (tab === 'announcements') handleAnnouncementsTab();
+      else setDashTab(tab);
+      window.scrollTo(0, 0);
+    };
+    return (
+      <CelestialShell active={navKey} onTab={goTab}>
+        {showWelcome && <WelcomePopup announcement={welcomeAnn} onClose={handleWelcomeClose} />}
+        {dashTab === 'home' ? (
+          <CelestialHome
+            user={user}
+            announcements={annList}
+            unread={unreadCount}
+            onTab={goTab}
+            onPlay={onPlayNow}
+            reward={{
+              available: rewardAvailable,
+              claiming,
+              notice: claimNotice,
+              label: rewardCooldownLabel,
+              onClaim: handleClaimReward,
+            }}
+          />
+        ) : (
+          <div className="dashboard-screen cs-tabhost">
+            {dashTab === 'friends' && <FriendsPage user={user} bannerArt={homeImages.friends_banner_art} />}
+            {dashTab === 'leaderboard' && <LeaderboardSection userId={user.id} user={user} />}
+            {dashTab === 'clans' && <UnderDevelopment title="Clans" icon="🛡️" />}
+            {dashTab === 'announcements' && <AnnouncementsSection />}
+          </div>
+        )}
+      </CelestialShell>
+    );
+  }
 
   return (
     <div className={`dashboard-screen${dashTab === 'home' || dashTab === 'friends' ? ' dash-home' : ''}${dashTab === 'friends' ? ' dash-friends' : ''}`}>

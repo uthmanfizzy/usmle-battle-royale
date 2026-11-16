@@ -1,0 +1,45 @@
+.cda { display: flex; flex-direction: column; gap: 12px; scroll-margin-top: 20px; }
+.cda-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px 16px; padding: 0 4px; min-height: 30px; }
+.cda-title { display: flex; align-items: center; gap: 14px; }
+.cda-diamond { width: 9px; height: 9px; background: #b44dff; transform: rotate(45deg); box-shadow: 0 0 8px #b44dff; }
+.cda-head h2 { margin: 0; font-family: inherit; font-size: 15px; line-height: 20px; font-weight: 600; letter-spacing: 0.08em; color: #c9b3ff; text-transform: uppercase; }
+.cda-range { font-size: 13.5px; color: #b39dfc; }
+
+.cda-day {
+  display: grid; grid-template-columns: 170px minmax(0, 1fr); gap: 16px; align-items: start;
+  padding: 16px 22px 16px 22px; box-sizing: border-box;
+  background: #0f0b29; border: 1px solid #241656; color: #efe9ff !important;
+  transition: border-color 0.2s, background 0.2s;
+}
+.cda-day:hover { border-color: #5b34c2; background: #130e33; }
+.cda-day--loading { display: block; color: #b39dfc !important; }
+.cda-date { display: flex; align-items: center; gap: 10px; font-size: 15px; color: #f3ebff; }
+.cda-today { padding: 1px 7px; font-size: 11px; font-weight: 800; letter-spacing: 0.06em; color: #fff; background: #6d28d9; border-radius: 2px; }
+.cda-total { font-family: 'Cinzel', 'Trajan Pro', Georgia, serif; font-weight: 500; font-size: 24px; line-height: 30px; color: #f3ebff; }
+.cda-count { font-size: 13px; color: #b39dfc; }
+
+.cda-track {
+  position: relative; height: 22px; margin-top: 4px;
+  background:
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.05) 0 1px, transparent 1px calc(100% / 24)),
+    #171036;
+}
+.cda-bar {
+  position: absolute; top: 4px; bottom: 4px; border-radius: 3px;
+  background: linear-gradient(180deg, #d59bff, #9b4dff); box-shadow: 0 0 8px rgba(181, 101, 255, 0.6);
+}
+.cda-hours { display: flex; justify-content: space-between; margin-top: 6px; font-size: 11.5px; color: #a593e0; font-variant-numeric: tabular-nums; }
+.cda-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.cda-chip {
+  display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 999px;
+  font-size: 13px; color: #ddd0ff; background: #160f38; border: 1px solid #35207a; font-variant-numeric: tabular-nums;
+}
+.cda-chip b { color: #f3ebff; font-weight: 700; }
+.cda-chip em { font-style: normal; font-weight: 700; color: #f3ebff; }
+.cda-none { margin: 10px 0 0; font-size: 13.5px; color: #b39dfc; }
+
+@media (max-width: 640px) {
+  .cda-day { grid-template-columns: 1fr; gap: 8px; padding: 14px; }
+  .cda-sum { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; }
+  .cda-total { font-size: 20px; }
+}

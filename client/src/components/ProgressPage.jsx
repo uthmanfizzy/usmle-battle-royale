@@ -8,6 +8,10 @@ import { getMasteryColor } from '../utils/masteryColors';
 import StudyCalendar from './StudyCalendar';
 import SubjectDetailModal from './SubjectDetailModal';
 import './ProgressPage.css';
+import { useTheme } from '../theme';
+import CelestialShell, { CelestialTopbar, Avatar } from './celestial/CelestialShell';
+import CelestialDailyActivity from './celestial/CelestialDailyActivity';
+import './celestial/CelestialProfile.css';
 
 import { SERVER_URL } from '../serverUrl';
 
@@ -126,6 +130,10 @@ export default function ProgressPage() {
   const [xpHistory,   setXpHistory]   = useState(null);
   const [globalStats, setGlobalStats] = useState(null);
   const [showUsername, setShowUsername] = useState(false);
+  // Settings → Appearance → Celestial: the Profile design (banner, study
+  // calendar panel, seven-day activity) inside the Celestial sidebar frame.
+  const { theme } = useTheme() || {};
+  const celestial = theme === 'celestial';
 
   // No :userId param = my own progress. Same own-identity resolution StatsPage
   // uses: token check, cached user, fetchMe fallback, redirect home if guest.
@@ -230,6 +238,385 @@ export default function ProgressPage() {
   const level = u.level || 1;
   const xpToNext = 500 - xpInLevel;
 
+  const identity = (
+    <>
+      {/* Identity header */}
+      <div className="pp-panel pp-identity">
+        {/* Wrapper so the diamond level badge can overhang the clipped
+            avatar circle (same technique as the dashboard header) */}
+        <div className="pp-avatar-wrap">
+          <div className="pp-avatar">
+            {u.avatar_url
+              ? <img src={u.avatar_url} alt={u.username} referrerPolicy="no-referrer" />
+              : <span>{u.username?.[0]?.toUpperCase() || '?'}</span>
+            }
+          </div>
+          <div className="pp-lvl-badge" title={`Level ${level}`}>
+            <span className="pp-lvl-num">{level}</span>
+          </div>
+        </div>
+        <div className="pp-id-text">
+          <div className="pp-username">
+            {u.username || 'Player'}
+            {u.clan_tag && (
+              <a className="pp-clan-tag" href="/dashboard?tab=clans"> [{u.clan_tag}]</a>
+            )}
+            {isOwn && <span className="pp-you-badge"> (you)</span>}
+            {isOwn && own && (
+              <button type="button" className="ucm-trigger" onClick={() => setShowUsername(true)}>
+                ✏️ Change username
+              </button>
+            )}
+          </div>
+          <div className="pp-level">Level {level} · {(u.xp || 0).toLocaleString()} XP</div>
+          <div className="pp-xp-track">
+            <div className="pp-xp-fill" style={{ width: `${Math.round(xpInLevel / 500 * 100)}%` }} />
+          </div>
+          <div className="pp-xp-text">{xpInLevel.toLocaleString()} / 500 XP to next level</div>
+        </div>
+      </div>
+
+    </>
+  );
+  const tiles = (
+    <>
+      {/* Stat grid (mockup): value-over-label tiles from /game-stats.
+          "Allies Healed" = lifetime correct answers (the closest real
+          derivable stat — no healing mechanic exists). */}
+      <div className="pp-tiles">
+        <div className="pp-tile">
+          <div className="pp-tile-value pp-tile-value--gold">{gs.wins.toLocaleString()}</div>
+          <div className="pp-tile-label">TOTAL WINS</div>
+        </div>
+        <div className="pp-tile">
+          <div className="pp-tile-value">{gs.total_correct_answers.toLocaleString()}</div>
+          <div className="pp-tile-label">ALLIES HEALED</div>
+        </div>
+        <div className="pp-tile">
+          <div className="pp-tile-value">{gs.win_rate}%</div>
+          <div className="pp-tile-label">WIN RATE</div>
+        </div>
+        <div className="pp-tile">
+          <div className="pp-tile-value">{gs.total_games.toLocaleString()}</div>
+          <div className="pp-tile-label">MATCHES PLAYED</div>
+        </div>
+      </div>
+
+    </>
+  );
+  const studyPanel = (
+    <>
+      {/* Study time */}
+      <div className="pp-panel">
+        <div className="pp-panel-hd">
+          <h2 className="pp-panel-title">📚 Study Time</h2>
+          <span className="pp-panel-note">Active time answering questions</span>
+        </div>
+        <div className="pp-stats-grid">
+          <div className="pp-stat">
+            <span className="pp-stat-value">{formatStudyTime(study?.total_seconds)}</span>
+            <span className="pp-stat-key">Total</span>
+          </div>
+          <div className="pp-stat">
+            <span className="pp-stat-value">{formatStudyTime(study?.today_seconds)}</span>
+            <span className="pp-stat-key">Today</span>
+          </div>
+          <div className="pp-stat">
+            <span className="pp-stat-value">{formatStudyTime(study?.week_seconds)}</span>
+            <span className="pp-stat-key">This Week</span>
+          </div>
+          <div className="pp-stat">
+            <span className="pp-stat-value">🔥 {study?.streak_days || 0}d</span>
+            <span className="pp-stat-key">Streak</span>
+          </div>
+        </div>
+
+        <StudyCalendar userId={viewedId} />
+
+        {/* The calendar shows how MUCH was studied per day; the activity log
+            shows WHAT was played on a given day. Carries viewedId so the link
+            keeps own-vs-other context. */}
+        <a className="pp-activity-link" href={`/activity/${viewedId}`}>
+          View Daily Activity →
+        </a>
+      </div>
+
+    </>
+  );
+  const rest = (
+    <>
+      {/* Gear Collection — real owned items from the shop (public endpoint,
+          works for any viewed profile). Collection display only: no prices,
+          no buying here, and gear has no gameplay/visual effect anywhere. */}
+      <div className="pp-section-head">Gear Collection</div>
+      {gear.length > 0 ? (
+        <div className="pp-gear">
+          {gear.map(g => (
+            <div className="pp-gear-card" key={g.id} title={g.description || g.name}>
+              <div className="pp-gear-art" />
+              <div className="pp-gear-name">{g.name}</div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="pp-gear-empty">
+          No gear collected yet.
+          {isOwn && <a className="pp-gear-shop-link" href="/shop">Visit the Shop →</a>}
+        </div>
+      )}
+
+      {/* Achievements (shared evaluator; mockup badge circles) */}
+      <div className="pp-section-head">Achievements</div>
+      <div className="pp-ach-grid">
+        {achievements.map(a => (
+          <div
+            className={`pp-ach${a.unlocked ? ' pp-ach--unlocked' : ''}`}
+            key={a.id}
+            title={`${a.name} — ${a.desc}`}
+          >
+            <span className="pp-ach-circle">{a.unlocked ? a.icon : '?'}</span>
+            <span className="pp-ach-name">{a.unlocked ? a.name : 'Locked'}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Recent Matches (mockup list) from /game-stats */}
+      <div className="pp-section-head">Recent Matches</div>
+      <div className="pp-panel pp-matches">
+        {gs.recent_matches.length === 0 ? (
+          <div className="pp-match-empty">No ranked matches recorded yet.</div>
+        ) : (
+          gs.recent_matches.map((m, i) => (
+            <div className="pp-match-row" key={`${m.played_at}-${i}`}>
+              <span className={`pp-match-tag ${m.is_win ? 'pp-match-tag--win' : 'pp-match-tag--loss'}`}>
+                {m.is_win ? 'WIN' : 'LOSS'}
+              </span>
+              <span className="pp-match-mode">
+                {modeLabel(m.mode)}
+                <span className="pp-match-score"> · {m.correct_answers}/{m.total_questions}</span>
+              </span>
+              <span className="pp-match-date">{timeAgo(m.played_at)}</span>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Subject mastery */}
+      <div className="pp-panel">
+        <div className="pp-panel-hd">
+          <h2 className="pp-panel-title">⚔️ Subject Mastery</h2>
+          <span className="pp-panel-note">Based on ranked multiplayer games</span>
+        </div>
+
+        {!data.hasData ? (
+          <div className="pp-empty">
+            <span className="pp-empty-icon">🎮</span>
+            <p>No ranked multiplayer games played yet — mastery tracking is based on ranked games.</p>
+            <p className="pp-empty-sub">Solo, Training Grounds and Journey progress don't count toward subject mastery (yet).</p>
+          </div>
+        ) : (
+          <>
+            <div className="pp-highlights">
+              <HighlightCard title="Strongest" icon="💪" items={data.strongest} tone="strong" />
+              <HighlightCard title="Needs work" icon="🎯" items={data.weakest} tone="weak" />
+            </div>
+            <div className="pp-skill-list">
+              {data.subjects.map((s, i) => (
+                <SubjectBar key={s.subject} s={s} i={i} onClick={() => setDetailSubject(s)} />
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* ── Your Stats — OWN profile only. StatsPage's unique own-user
+             content (global rank / tower / streak, level milestones, XP
+             graph, global comparison, CTA), re-rendered here on the
+             page's token palette from the same endpoints StatsPage uses.
+             StatsPage itself is untouched. ── */}
+      {isOwn && (
+        <>
+          <div className="pp-section-head">Your Stats</div>
+
+          <div className="pp-tiles pp-tiles--own">
+            <div className="pp-tile">
+              <div className="pp-tile-value pp-tile-value--gold">{ownRank ? `#${ownRank}` : '—'}</div>
+              <div className="pp-tile-label">GLOBAL RANK</div>
+            </div>
+            <div className="pp-tile">
+              <div className="pp-tile-value">{own?.tower_floor || own?.tower_progress || 0}/100</div>
+              <div className="pp-tile-label">TOWER FLOOR</div>
+            </div>
+            <div className="pp-tile">
+              <div className="pp-tile-value">🔥 {study?.streak_days || 0}d</div>
+              <div className="pp-tile-label">DAILY STREAK</div>
+            </div>
+          </div>
+
+          {/* Level milestones */}
+          <div className="pp-panel">
+            <div className="pp-panel-hd">
+              <h2 className="pp-panel-title">🗺️ Level Milestones</h2>
+              <span className="pp-panel-note">Level {level}</span>
+            </div>
+            <div className="pp-miles">
+              {LEVEL_MILESTONES.map(m => (
+                <div className={`pp-mile${level >= m.level ? ' pp-mile--done' : ''}`} key={m.level}>
+                  <span className="pp-mile-level">Lv {m.level}</span>
+                  <span className="pp-mile-title">{m.title}</span>
+                  <span className="pp-mile-reward">{m.reward}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* XP over the last 30 days */}
+          {xpHistory && xpHistory.length > 0 && (
+            <div className="pp-panel">
+              <div className="pp-panel-hd">
+                <h2 className="pp-panel-title">📈 XP — Last 30 Days</h2>
+                <span className="pp-panel-note">
+                  {xpHistory.reduce((s, d) => s + (d.xp || 0), 0).toLocaleString()} XP earned
+                </span>
+              </div>
+              <XpSparkline days={xpHistory} />
+            </div>
+          )}
+
+          {/* Global comparison */}
+          <div className="pp-panel">
+            <div className="pp-panel-hd">
+              <h2 className="pp-panel-title">🌍 How You Stack Up</h2>
+              <span className="pp-panel-note">You vs global average</span>
+            </div>
+            {(() => {
+              const subjects = data.subjects || [];
+              const totalC = subjects.reduce((s, m) => s + (m.questions_correct || 0), 0);
+              const totalA = subjects.reduce((s, m) => s + (m.questions_attempted || 0), 0);
+              const yourAcc = totalA > 0 ? Math.round((totalC / totalA) * 100) : 0;
+              const g = globalStats || { accuracy: 50, win_rate: 20, tower_floor: 5 };
+              const rows = [
+                { label: 'Answer Accuracy', yours: yourAcc, global: g.accuracy, fmt: v => `${v}%` },
+                { label: 'Win Rate', yours: gs.win_rate, global: g.win_rate, fmt: v => `${v}%` },
+                { label: 'Tower Floor', yours: own?.tower_floor || own?.tower_progress || 0, global: g.tower_floor, fmt: v => `${v}` },
+              ];
+              return (
+                <div className="pp-cmp">
+                  {rows.map(r => {
+                    const max = Math.max(r.yours, r.global, 1);
+                    return (
+                      <div className="pp-cmp-row" key={r.label}>
+                        <div className="pp-cmp-label">{r.label}</div>
+                        <div className="pp-cmp-bars">
+                          <div className="pp-cmp-track">
+                            <div className="pp-cmp-fill pp-cmp-fill--you" style={{ width: `${(r.yours / max) * 100}%` }} />
+                          </div>
+                          <span className="pp-cmp-val pp-cmp-val--you">{r.fmt(r.yours)}</span>
+                        </div>
+                        <div className="pp-cmp-bars">
+                          <div className="pp-cmp-track">
+                            <div className="pp-cmp-fill pp-cmp-fill--avg" style={{ width: `${(r.global / max) * 100}%` }} />
+                          </div>
+                          <span className="pp-cmp-val">{r.fmt(r.global)}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  <div className="pp-cmp-legend">
+                    <span className="pp-cmp-leg pp-cmp-leg--you">■ You</span>
+                    <span className="pp-cmp-leg">■ Global Average</span>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+
+          {/* CTA */}
+          <div className="pp-panel pp-cta">
+            <div className="pp-cta-text">
+              Keep climbing. Your next level is
+              <span className="pp-cta-xp"> {xpToNext.toLocaleString()} XP </span>
+              away.
+            </div>
+            <button className="pp-cta-btn" onClick={() => { window.location.href = '/'; }}>
+              Play Now →
+            </button>
+          </div>
+        </>
+      )}
+
+    </>
+  );
+
+  const usernameModal = showUsername && own && (
+    <UsernameChangeModal
+      user={own}
+      onClose={() => setShowUsername(false)}
+      onSuccess={(username, lastChange) => {
+        const next = { ...own, username, last_username_change: lastChange };
+        setOwn(next);
+        setCachedUser(next);
+        setData(d => (d?.user ? { ...d, user: { ...d.user, username } } : d));
+        setShowUsername(false);
+      }}
+    />
+  );
+
+  if (celestial) {
+    const me = own || getCachedUser();
+    const name = (u.username || 'Player').toUpperCase();
+    const streak = study?.streak_days || 0;
+    return (
+      <CelestialShell active={isOwn ? 'profile' : null}>
+        <div className="pp pp--celestial">
+          {usernameModal}
+          <header className="cpp-banner">
+            <img className="cpp-banner-art" src="/themes/celestial/hero.jpg" alt="" />
+            <div className="cpp-banner-shade" aria-hidden="true" />
+            <div className="cpp-banner-side" aria-hidden="true" />
+            {getToken() && me && <CelestialTopbar user={me} />}
+            <div className="cpp-id">
+              <Avatar user={u} size={76} className="cpp-av" />
+              <div className="cpp-id-text">
+                <h1 className="cpp-name" title={u.username}><span>{name[0]}</span><span className="cpp-sc">{name.slice(1)}</span></h1>
+                <p className="cpp-streak">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12.6 1.5c.6 3.6-1 5.4-2.8 7.4-1.2-1-1.7-2.2-1.7-3.6C5.6 7.4 4 10.4 4 13.6 4 18.2 7.6 22 12 22s8-3.6 8-8.2c0-5-3.4-9.3-7.4-12.3zM12 19.4c-1.8 0-3.2-1.4-3.2-3.2 0-1.6 1-2.7 2.1-3.9.5.8 1.2 1.3 2 1.5.3-1.1.2-2.1-.2-3.2 1.7 1.4 2.6 3.4 2.6 5.4 0 1.9-1.5 3.4-3.3 3.4z" /></svg>
+                  <span>{streak} day{streak === 1 ? '' : 's'} study streak</span>
+                </p>
+                <p className="cpp-meta">
+                  Level {level} · {(u.xp || 0).toLocaleString()} XP
+                  {u.clan_tag && <a href="/dashboard?tab=clans"> · [{u.clan_tag}]</a>}
+                  {isOwn && own && (
+                    <button type="button" className="cpp-link" onClick={() => setShowUsername(true)}>Change username</button>
+                  )}
+                  {!isOwn && getToken() && <a className="cpp-link" href="/progress">View my profile</a>}
+                </p>
+              </div>
+            </div>
+          </header>
+
+          <div className="pp-page cpp-page">
+            <section className="cs-panel cpp-study" aria-label="Study time">
+              <div className="cs-panel-in">
+                <StudyCalendar
+                  userId={viewedId}
+                  variant="celestial"
+                  onSeeActivity={() => document.getElementById('cpp-activity')?.scrollIntoView({ behavior: 'smooth' })}
+                />
+              </div>
+            </section>
+
+            <CelestialDailyActivity userId={viewedId} anchorId="cpp-activity" />
+
+            {tiles}
+            {rest}
+            <div className="pp-footer-space" />
+          </div>
+        </div>
+      </CelestialShell>
+    );
+  }
+
   return (
     <div className="pp">
       <nav className="pp-nav">
@@ -244,314 +631,13 @@ export default function ProgressPage() {
         ) : <span className="pp-nav-spacer" />}
       </nav>
 
-      {showUsername && own && (
-        <UsernameChangeModal
-          user={own}
-          onClose={() => setShowUsername(false)}
-          onSuccess={(username, lastChange) => {
-            const next = { ...own, username, last_username_change: lastChange };
-            setOwn(next);
-            setCachedUser(next);
-            setData(d => (d?.user ? { ...d, user: { ...d.user, username } } : d));
-            setShowUsername(false);
-          }}
-        />
-      )}
+      {usernameModal}
 
       <div className="pp-page">
-        {/* Identity header */}
-        <div className="pp-panel pp-identity">
-          {/* Wrapper so the diamond level badge can overhang the clipped
-              avatar circle (same technique as the dashboard header) */}
-          <div className="pp-avatar-wrap">
-            <div className="pp-avatar">
-              {u.avatar_url
-                ? <img src={u.avatar_url} alt={u.username} referrerPolicy="no-referrer" />
-                : <span>{u.username?.[0]?.toUpperCase() || '?'}</span>
-              }
-            </div>
-            <div className="pp-lvl-badge" title={`Level ${level}`}>
-              <span className="pp-lvl-num">{level}</span>
-            </div>
-          </div>
-          <div className="pp-id-text">
-            <div className="pp-username">
-              {u.username || 'Player'}
-              {u.clan_tag && (
-                <a className="pp-clan-tag" href="/dashboard?tab=clans"> [{u.clan_tag}]</a>
-              )}
-              {isOwn && <span className="pp-you-badge"> (you)</span>}
-              {isOwn && own && (
-                <button type="button" className="ucm-trigger" onClick={() => setShowUsername(true)}>
-                  ✏️ Change username
-                </button>
-              )}
-            </div>
-            <div className="pp-level">Level {level} · {(u.xp || 0).toLocaleString()} XP</div>
-            <div className="pp-xp-track">
-              <div className="pp-xp-fill" style={{ width: `${Math.round(xpInLevel / 500 * 100)}%` }} />
-            </div>
-            <div className="pp-xp-text">{xpInLevel.toLocaleString()} / 500 XP to next level</div>
-          </div>
-        </div>
-
-        {/* Stat grid (mockup): value-over-label tiles from /game-stats.
-            "Allies Healed" = lifetime correct answers (the closest real
-            derivable stat — no healing mechanic exists). */}
-        <div className="pp-tiles">
-          <div className="pp-tile">
-            <div className="pp-tile-value pp-tile-value--gold">{gs.wins.toLocaleString()}</div>
-            <div className="pp-tile-label">TOTAL WINS</div>
-          </div>
-          <div className="pp-tile">
-            <div className="pp-tile-value">{gs.total_correct_answers.toLocaleString()}</div>
-            <div className="pp-tile-label">ALLIES HEALED</div>
-          </div>
-          <div className="pp-tile">
-            <div className="pp-tile-value">{gs.win_rate}%</div>
-            <div className="pp-tile-label">WIN RATE</div>
-          </div>
-          <div className="pp-tile">
-            <div className="pp-tile-value">{gs.total_games.toLocaleString()}</div>
-            <div className="pp-tile-label">MATCHES PLAYED</div>
-          </div>
-        </div>
-
-        {/* Study time */}
-        <div className="pp-panel">
-          <div className="pp-panel-hd">
-            <h2 className="pp-panel-title">📚 Study Time</h2>
-            <span className="pp-panel-note">Active time answering questions</span>
-          </div>
-          <div className="pp-stats-grid">
-            <div className="pp-stat">
-              <span className="pp-stat-value">{formatStudyTime(study?.total_seconds)}</span>
-              <span className="pp-stat-key">Total</span>
-            </div>
-            <div className="pp-stat">
-              <span className="pp-stat-value">{formatStudyTime(study?.today_seconds)}</span>
-              <span className="pp-stat-key">Today</span>
-            </div>
-            <div className="pp-stat">
-              <span className="pp-stat-value">{formatStudyTime(study?.week_seconds)}</span>
-              <span className="pp-stat-key">This Week</span>
-            </div>
-            <div className="pp-stat">
-              <span className="pp-stat-value">🔥 {study?.streak_days || 0}d</span>
-              <span className="pp-stat-key">Streak</span>
-            </div>
-          </div>
-
-          <StudyCalendar userId={viewedId} />
-
-          {/* The calendar shows how MUCH was studied per day; the activity log
-              shows WHAT was played on a given day. Carries viewedId so the link
-              keeps own-vs-other context. */}
-          <a className="pp-activity-link" href={`/activity/${viewedId}`}>
-            View Daily Activity →
-          </a>
-        </div>
-
-        {/* Gear Collection — real owned items from the shop (public endpoint,
-            works for any viewed profile). Collection display only: no prices,
-            no buying here, and gear has no gameplay/visual effect anywhere. */}
-        <div className="pp-section-head">Gear Collection</div>
-        {gear.length > 0 ? (
-          <div className="pp-gear">
-            {gear.map(g => (
-              <div className="pp-gear-card" key={g.id} title={g.description || g.name}>
-                <div className="pp-gear-art" />
-                <div className="pp-gear-name">{g.name}</div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="pp-gear-empty">
-            No gear collected yet.
-            {isOwn && <a className="pp-gear-shop-link" href="/shop">Visit the Shop →</a>}
-          </div>
-        )}
-
-        {/* Achievements (shared evaluator; mockup badge circles) */}
-        <div className="pp-section-head">Achievements</div>
-        <div className="pp-ach-grid">
-          {achievements.map(a => (
-            <div
-              className={`pp-ach${a.unlocked ? ' pp-ach--unlocked' : ''}`}
-              key={a.id}
-              title={`${a.name} — ${a.desc}`}
-            >
-              <span className="pp-ach-circle">{a.unlocked ? a.icon : '?'}</span>
-              <span className="pp-ach-name">{a.unlocked ? a.name : 'Locked'}</span>
-            </div>
-          ))}
-        </div>
-
-        {/* Recent Matches (mockup list) from /game-stats */}
-        <div className="pp-section-head">Recent Matches</div>
-        <div className="pp-panel pp-matches">
-          {gs.recent_matches.length === 0 ? (
-            <div className="pp-match-empty">No ranked matches recorded yet.</div>
-          ) : (
-            gs.recent_matches.map((m, i) => (
-              <div className="pp-match-row" key={`${m.played_at}-${i}`}>
-                <span className={`pp-match-tag ${m.is_win ? 'pp-match-tag--win' : 'pp-match-tag--loss'}`}>
-                  {m.is_win ? 'WIN' : 'LOSS'}
-                </span>
-                <span className="pp-match-mode">
-                  {modeLabel(m.mode)}
-                  <span className="pp-match-score"> · {m.correct_answers}/{m.total_questions}</span>
-                </span>
-                <span className="pp-match-date">{timeAgo(m.played_at)}</span>
-              </div>
-            ))
-          )}
-        </div>
-
-        {/* Subject mastery */}
-        <div className="pp-panel">
-          <div className="pp-panel-hd">
-            <h2 className="pp-panel-title">⚔️ Subject Mastery</h2>
-            <span className="pp-panel-note">Based on ranked multiplayer games</span>
-          </div>
-
-          {!data.hasData ? (
-            <div className="pp-empty">
-              <span className="pp-empty-icon">🎮</span>
-              <p>No ranked multiplayer games played yet — mastery tracking is based on ranked games.</p>
-              <p className="pp-empty-sub">Solo, Training Grounds and Journey progress don't count toward subject mastery (yet).</p>
-            </div>
-          ) : (
-            <>
-              <div className="pp-highlights">
-                <HighlightCard title="Strongest" icon="💪" items={data.strongest} tone="strong" />
-                <HighlightCard title="Needs work" icon="🎯" items={data.weakest} tone="weak" />
-              </div>
-              <div className="pp-skill-list">
-                {data.subjects.map((s, i) => (
-                  <SubjectBar key={s.subject} s={s} i={i} onClick={() => setDetailSubject(s)} />
-                ))}
-              </div>
-            </>
-          )}
-        </div>
-
-        {/* ── Your Stats — OWN profile only. StatsPage's unique own-user
-               content (global rank / tower / streak, level milestones, XP
-               graph, global comparison, CTA), re-rendered here on the
-               page's token palette from the same endpoints StatsPage uses.
-               StatsPage itself is untouched. ── */}
-        {isOwn && (
-          <>
-            <div className="pp-section-head">Your Stats</div>
-
-            <div className="pp-tiles pp-tiles--own">
-              <div className="pp-tile">
-                <div className="pp-tile-value pp-tile-value--gold">{ownRank ? `#${ownRank}` : '—'}</div>
-                <div className="pp-tile-label">GLOBAL RANK</div>
-              </div>
-              <div className="pp-tile">
-                <div className="pp-tile-value">{own?.tower_floor || own?.tower_progress || 0}/100</div>
-                <div className="pp-tile-label">TOWER FLOOR</div>
-              </div>
-              <div className="pp-tile">
-                <div className="pp-tile-value">🔥 {study?.streak_days || 0}d</div>
-                <div className="pp-tile-label">DAILY STREAK</div>
-              </div>
-            </div>
-
-            {/* Level milestones */}
-            <div className="pp-panel">
-              <div className="pp-panel-hd">
-                <h2 className="pp-panel-title">🗺️ Level Milestones</h2>
-                <span className="pp-panel-note">Level {level}</span>
-              </div>
-              <div className="pp-miles">
-                {LEVEL_MILESTONES.map(m => (
-                  <div className={`pp-mile${level >= m.level ? ' pp-mile--done' : ''}`} key={m.level}>
-                    <span className="pp-mile-level">Lv {m.level}</span>
-                    <span className="pp-mile-title">{m.title}</span>
-                    <span className="pp-mile-reward">{m.reward}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* XP over the last 30 days */}
-            {xpHistory && xpHistory.length > 0 && (
-              <div className="pp-panel">
-                <div className="pp-panel-hd">
-                  <h2 className="pp-panel-title">📈 XP — Last 30 Days</h2>
-                  <span className="pp-panel-note">
-                    {xpHistory.reduce((s, d) => s + (d.xp || 0), 0).toLocaleString()} XP earned
-                  </span>
-                </div>
-                <XpSparkline days={xpHistory} />
-              </div>
-            )}
-
-            {/* Global comparison */}
-            <div className="pp-panel">
-              <div className="pp-panel-hd">
-                <h2 className="pp-panel-title">🌍 How You Stack Up</h2>
-                <span className="pp-panel-note">You vs global average</span>
-              </div>
-              {(() => {
-                const subjects = data.subjects || [];
-                const totalC = subjects.reduce((s, m) => s + (m.questions_correct || 0), 0);
-                const totalA = subjects.reduce((s, m) => s + (m.questions_attempted || 0), 0);
-                const yourAcc = totalA > 0 ? Math.round((totalC / totalA) * 100) : 0;
-                const g = globalStats || { accuracy: 50, win_rate: 20, tower_floor: 5 };
-                const rows = [
-                  { label: 'Answer Accuracy', yours: yourAcc, global: g.accuracy, fmt: v => `${v}%` },
-                  { label: 'Win Rate', yours: gs.win_rate, global: g.win_rate, fmt: v => `${v}%` },
-                  { label: 'Tower Floor', yours: own?.tower_floor || own?.tower_progress || 0, global: g.tower_floor, fmt: v => `${v}` },
-                ];
-                return (
-                  <div className="pp-cmp">
-                    {rows.map(r => {
-                      const max = Math.max(r.yours, r.global, 1);
-                      return (
-                        <div className="pp-cmp-row" key={r.label}>
-                          <div className="pp-cmp-label">{r.label}</div>
-                          <div className="pp-cmp-bars">
-                            <div className="pp-cmp-track">
-                              <div className="pp-cmp-fill pp-cmp-fill--you" style={{ width: `${(r.yours / max) * 100}%` }} />
-                            </div>
-                            <span className="pp-cmp-val pp-cmp-val--you">{r.fmt(r.yours)}</span>
-                          </div>
-                          <div className="pp-cmp-bars">
-                            <div className="pp-cmp-track">
-                              <div className="pp-cmp-fill pp-cmp-fill--avg" style={{ width: `${(r.global / max) * 100}%` }} />
-                            </div>
-                            <span className="pp-cmp-val">{r.fmt(r.global)}</span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                    <div className="pp-cmp-legend">
-                      <span className="pp-cmp-leg pp-cmp-leg--you">■ You</span>
-                      <span className="pp-cmp-leg">■ Global Average</span>
-                    </div>
-                  </div>
-                );
-              })()}
-            </div>
-
-            {/* CTA */}
-            <div className="pp-panel pp-cta">
-              <div className="pp-cta-text">
-                Keep climbing. Your next level is
-                <span className="pp-cta-xp"> {xpToNext.toLocaleString()} XP </span>
-                away.
-              </div>
-              <button className="pp-cta-btn" onClick={() => { window.location.href = '/'; }}>
-                Play Now →
-              </button>
-            </div>
-          </>
-        )}
-
+        {identity}
+        {tiles}
+        {studyPanel}
+        {rest}
         <div className="pp-footer-space" />
       </div>
 

@@ -3,6 +3,7 @@ import { getToken, clearToken, fetchMe, getCachedUser, setCachedUser } from '../
 import UsernameChangeModal from './UsernameChangeModal';
 import { useTheme, PALETTE } from '../theme';
 import { DefaultPreview, PixelPreview } from './AppearanceSection';
+import CelestialPreview from './celestial/CelestialPreview';
 import { useScreenComfort } from '../screenComfort';
 import './SettingsPage.css';
 
@@ -180,6 +181,8 @@ export default function SettingsPage() {
             {[
               { id: 'default', name: 'Default', Preview: DefaultPreview },
               { id: 'pixel',   name: 'Pixel Art', Preview: PixelPreview  },
+              // The purple home + profile designs (components/celestial).
+              { id: 'celestial', name: 'Celestial', Preview: CelestialPreview },
             ].map(({ id, name, Preview }) => (
               <button
                 key={id}

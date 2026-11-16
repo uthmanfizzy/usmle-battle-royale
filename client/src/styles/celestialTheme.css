@@ -1,0 +1,36 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   CELESTIAL THEME — site-wide layer (Settings → Appearance → Celestial)
+
+   The home tab and the profile page have their own Celestial layouts
+   (components/celestial). Everywhere else this swaps the shared --mv-* palette
+   for the design's purples, so pages built on the tokens follow along.
+   Static rgba only — color-mix() ships broken to older browsers.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+html[data-theme="celestial"] {
+  --mv-bg-void: #09081a;
+  --mv-bg-base: #0a091c;
+  --mv-glass: rgba(19, 14, 51, 0.8);
+  --mv-glass-strong: rgba(14, 11, 37, 0.94);
+
+  --mv-red: #7c3aed;          /* primary actions → violet */
+  --mv-red-link: #b46cff;
+  --mv-gold: #c58bff;         /* accents → lilac */
+  --mv-gold-dim: rgba(197, 139, 255, 0.5);
+  --mv-border: rgba(124, 92, 220, 0.22);
+  --mv-border-gold: rgba(197, 139, 255, 0.35);
+  --mv-text-dim-85: rgba(239, 233, 255, 0.85);
+  --mv-text-dim-65: rgba(239, 233, 255, 0.65);
+  --mv-text-dim-45: rgba(239, 233, 255, 0.45);
+
+  /* App.css's older palette */
+  --bg: #0a091c;
+  --surface: #130e33;
+  --text-dim: #b39dfc;
+}
+
+html[data-theme="celestial"] body {
+  background: radial-gradient(60% 45% at 72% 100%, rgba(76, 29, 149, 0.2), rgba(76, 29, 149, 0) 100%), #0a091c;
+}
+
+html[data-theme="celestial"] ::selection { background: rgba(168, 85, 247, 0.45); color: #fff; }

@@ -45,7 +45,7 @@ const MODE_META = {
   amboss_200_concepts_practice: { icon: '🧭', label: 'Amboss 200 Concepts' },
   solo:                   { icon: '🧠', label: 'Solo Practice'     },
 };
-const modeMeta = (m) =>
+export const modeMeta = (m) =>
   MODE_META[m] || {
     icon: '🎮',
     label: m ? m.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : 'Session',
@@ -65,7 +65,7 @@ const SUBJECT_LABELS = {
   renal: 'Renal', reproductive: 'Reproductive', respiratory: 'Respiratory',
   scan_master: 'Image Questions',
 };
-const subjectLabel = (s) =>
+export const subjectLabel = (s) =>
   !s ? null : (SUBJECT_LABELS[s] || s.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()));
 
 // "2m 17s" / "45s". ProfileModal's formatStudyTime is hour/minute only, which

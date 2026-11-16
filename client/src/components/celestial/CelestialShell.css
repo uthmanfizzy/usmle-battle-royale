@@ -1,0 +1,194 @@
+/* ── Celestial theme: page frame ──────────────────────────────────────────────
+   Values from the Homepage / Profile design exports. Static rgba only —
+   color-mix() ships broken to older browsers. */
+
+.cs {
+  min-height: 100vh; box-sizing: border-box;
+  display: flex;
+  background: radial-gradient(60% 45% at 72% 100%, rgba(76, 29, 149, 0.2), rgba(76, 29, 149, 0) 100%), #0a091c;
+  color: #efe9ff;
+  font-family: 'Nunito Sans', 'Segoe UI', system-ui, sans-serif;
+  text-align: left;
+}
+/* :where() keeps these at zero specificity, so component rules win. */
+:where(.cs) a { color: #b9a4ec; text-decoration: none; }
+:where(.cs) a:hover { color: #fff; }
+:where(.cs) button { font: inherit; }
+.cs :focus-visible { outline: 2px solid #d9b3ff; outline-offset: 2px; }
+
+/* ── Sidebar ─────────────────────────────────────────────────────────────── */
+.cs-side {
+  flex: 0 0 181px; box-sizing: border-box; padding-left: 21px;
+  position: sticky; top: 0; height: 100vh; z-index: 30;
+}
+.cs-side-in {
+  height: 100%; display: flex; flex-direction: column;
+  border-left: 1px solid #1d1545; border-right: 1px solid #1d1545;
+  background: linear-gradient(180deg, #0c0b22 0%, #0a0a1d 100%);
+}
+.cs-side-top { display: flex; justify-content: center; }
+.cs-emblem {
+  width: 102px; height: 110px; margin: 22px auto 0; display: block; object-fit: contain;
+  mix-blend-mode: lighten;
+  -webkit-mask-image: radial-gradient(closest-side, #000 72%, transparent 100%);
+  mask-image: radial-gradient(closest-side, #000 72%, transparent 100%);
+}
+.cs-burger { display: none; }
+.cs-items { display: flex; flex-direction: column; margin-top: 21px; padding-right: 7px; overflow-y: auto; }
+
+.cs-ic { width: 22px; height: 22px; flex: none; color: #a855f7; }
+.cs-item {
+  display: flex; align-items: center; gap: 24px;
+  height: 47.5px; box-sizing: border-box; padding-left: 19px;
+  font-size: 14px; color: #b9a4ec !important;
+  border-radius: 6px; transition: background 0.2s, color 0.2s;
+}
+.cs-item:hover { background: rgba(124, 58, 237, 0.16); color: #fff !important; }
+
+.cs-item-on-wrap { margin-bottom: 9px; filter: drop-shadow(0 0 7px rgba(168, 85, 247, 0.55)); }
+.cs-item-on {
+  display: flex; height: 50px; box-sizing: border-box; padding: 1.5px;
+  clip-path: polygon(7px 0, calc(100% - 7px) 0, 100% 7px, 100% calc(100% - 7px), calc(100% - 7px) 100%, 7px 100%, 0 calc(100% - 7px), 0 7px);
+  background: linear-gradient(90deg, #cf8cff 0%, #7c3aed 60%, #4c1d95 100%);
+  color: #fff !important;
+}
+.cs-item-on-in {
+  flex: 1; display: flex; align-items: center; gap: 24px; padding-left: 17.5px; padding-right: 8px; min-width: 0; white-space: nowrap;
+  clip-path: polygon(7px 0, calc(100% - 7px) 0, 100% 7px, 100% calc(100% - 7px), calc(100% - 7px) 100%, 7px 100%, 0 calc(100% - 7px), 0 7px);
+  background: linear-gradient(90deg, #6d1fc9 0%, #3b1680 55%, #21103f 100%);
+  font-size: 14px; font-weight: 700;
+}
+.cs-item-on .cs-ic { color: #fff; width: 23px; height: 23px; }
+.cs-item-on-in > span { overflow: hidden; text-overflow: ellipsis; }
+.cs-item-on--long .cs-item-on-in { gap: 16px; }
+
+.cs-side-foot {
+  margin-top: auto; border-top: 1px solid #1d1545;
+  display: flex; justify-content: center; gap: 26px; padding: 13px 0 34px;
+}
+.cs-foot-btn {
+  width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;
+  background: none; border: 0; padding: 0; cursor: pointer; color: #a855f7 !important;
+  transition: color 0.2s;
+}
+.cs-foot-btn:hover { color: #fff !important; }
+.cs-foot-btn svg { width: 25px; height: 25px; fill: none; stroke: currentColor; }
+
+/* ── Main column ─────────────────────────────────────────────────────────── */
+.cs-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+
+/* ── Top bar: currency + avatar ──────────────────────────────────────────── */
+.cs-topbar {
+  position: absolute; top: 10px; right: clamp(10px, 2vw, 26px); z-index: 5;
+  display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: 4px 20px;
+}
+.cs-cur { display: flex; align-items: center; gap: 10px; font-size: 16px; color: #ece6ff; font-variant-numeric: tabular-nums; }
+.cs-cur-gem { width: 17px; height: 21px; flex: none; filter: drop-shadow(0 0 4px rgba(190, 110, 255, 0.8)); }
+.cs-cur-coin { width: 22px; height: 22px; flex: none; filter: drop-shadow(0 0 4px rgba(245, 166, 35, 0.55)); }
+.cs-cur-add { width: 30px; height: 44px; display: flex; align-items: center; justify-content: center; color: #9d7cf0 !important; }
+.cs-cur-add:hover { color: #fff !important; }
+.cs-cur-add svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+
+.cs-acct { position: relative; margin-left: 8px; }
+.cs-acct-btn { display: flex; align-items: center; gap: 13px; height: 48px; background: none; border: 0; padding: 0; cursor: pointer; color: #9d7cf0; }
+.cs-acct-btn:hover { color: #fff; }
+.cs-acct-av { position: relative; width: 48px; height: 48px; flex: none; }
+.cs-acct-chev { width: 14px; height: 9px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.cs-av {
+  box-sizing: border-box; border-radius: 50%; border: 2px solid #b565ff; object-fit: cover; display: block;
+  box-shadow: 0 0 10px rgba(181, 101, 255, 0.55);
+}
+.cs-av--letter {
+  display: grid; place-items: center; font-family: 'Cinzel', Georgia, serif; font-weight: 600; color: #f3ebff;
+  background: radial-gradient(circle at 35% 30%, #6d1fc9, #21103f);
+}
+.cs-online {
+  position: absolute; right: -1px; bottom: -1px; width: 10px; height: 10px; border-radius: 50%;
+  background: #22c55e; border: 2px solid #130c2e; animation: csPing 2s ease-out infinite;
+}
+@keyframes csPing { 0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); } 100% { box-shadow: 0 0 0 7px rgba(34, 197, 94, 0); } }
+
+.cs-menu {
+  position: absolute; right: 0; top: calc(100% + 8px); min-width: 190px; z-index: 40;
+  display: grid; padding: 6px; border-radius: 10px;
+  background: #130e33; border: 1px solid #35207a; box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+}
+.cs-menu-head { padding: 8px 10px 10px; font-weight: 700; color: #f3ebff; border-bottom: 1px solid #2a1a5e; margin-bottom: 4px; display: grid; }
+.cs-menu-head small { font-weight: 400; color: #b39dfc; font-size: 12px; }
+.cs-menu a, .cs-menu button {
+  display: block; text-align: left; padding: 9px 10px; border-radius: 6px; font-size: 14px;
+  color: #ddd0ff !important; background: none; border: 0; cursor: pointer;
+}
+.cs-menu a:hover, .cs-menu button:hover { background: rgba(124, 58, 237, 0.2); color: #fff !important; }
+
+/* ── Panel heading ("◆ TOP PLAYERS   See all →") ─────────────────────────── */
+.cs-ph { flex: none; min-height: 43px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px 16px; padding: 0 24px 0 29px; }
+.cs-ph-l { display: flex; align-items: center; gap: 14px; }
+.cs-diamond { width: 9px; height: 9px; background: #b44dff; transform: rotate(45deg); box-shadow: 0 0 8px #b44dff; flex: none; }
+.cs-ph h2 { margin: 0; font-family: inherit; font-size: 15px; line-height: 20px; font-weight: 600; letter-spacing: 0.08em; color: #c9b3ff; text-transform: uppercase; }
+.cs-ph-link { display: flex; align-items: center; gap: 8px; padding: 10px 0; font-size: 13.5px; line-height: 19px; }
+.cs-ph-link svg { width: 14px; height: 11px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+
+/* Chamfered gradient-bordered panel (outer = border colour, inner = fill). */
+.cs-panel {
+  display: flex; box-sizing: border-box; padding: 1.5px; min-width: 0;
+  clip-path: polygon(10px 0, calc(100% - 4px) 0, 100% 4px, 100% calc(100% - 14px), calc(100% - 14px) 100%, 4px 100%, 0 calc(100% - 4px), 0 10px);
+  background: linear-gradient(135deg, #3a2485 0%, #2a1a5e 80%, #8a3df0 100%);
+}
+.cs-panel-in {
+  flex: 1; min-width: 0; display: flex; flex-direction: column;
+  clip-path: polygon(10px 0, calc(100% - 4px) 0, 100% 4px, 100% calc(100% - 14px), calc(100% - 14px) 100%, 4px 100%, 0 calc(100% - 4px), 0 10px);
+  background: linear-gradient(160deg, #100c2b 0%, #0e0b25 60%, #150d33 100%);
+}
+
+/* ── Phone / narrow: sidebar becomes a top bar with a menu ───────────────── */
+@media (max-width: 760px) {
+  .cs { flex-direction: column; }
+  .cs-side { position: sticky; top: 0; height: auto; flex: none; padding-left: 0; }
+  .cs-side-in { border: 0; border-bottom: 1px solid #1d1545; background: rgba(12, 11, 34, 0.96); }
+  .cs-side-top { justify-content: space-between; align-items: center; padding: 4px 12px 4px 8px; }
+  .cs-emblem { width: 52px; height: 56px; margin: 0; }
+  .cs-burger {
+    display: grid; gap: 5px; width: 44px; height: 44px; place-content: center;
+    background: none; border: 1px solid #35207a; border-radius: 8px; cursor: pointer;
+  }
+  .cs-burger span { display: block; width: 20px; height: 2px; border-radius: 2px; background: #c9b3ff; }
+  .cs-items, .cs-side-foot { display: none; }
+  .cs-side.is-open .cs-items { display: grid; grid-template-columns: 1fr 1fr; margin: 4px 12px 0; padding: 0; gap: 2px 8px; }
+  .cs-side.is-open .cs-side-foot { display: flex; padding: 8px 0 12px; }
+  .cs-item-on-wrap { margin-bottom: 0; }
+  .cs-item, .cs-item-on-in { gap: 14px; }
+  .cs-topbar { gap: 2px 10px; right: 8px; }
+  .cs-cur { font-size: 14px; gap: 6px; }
+  .cs-cur-add { width: 22px; }
+  /* Dashboard.css sizes every h1/h2 with !important on phones. */
+  .cs-ph h2 { font-size: 14px !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cs *, .cs *::before, .cs *::after { animation: none !important; }
+}
+
+/* Daily chest pill in the top bar */
+.cs-reward-wrap { position: relative; }
+.cs-reward {
+  display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 14px; cursor: pointer;
+  font-size: 13px; font-weight: 700; color: #ddd0ff; border-radius: 999px;
+  background: rgba(23, 15, 58, 0.8); border: 1px solid #35207a;
+}
+.cs-reward:disabled { cursor: default; opacity: 0.75; font-weight: 600; }
+.cs-reward.is-ready { color: #fff; border-color: #c58bff; background: linear-gradient(90deg, #6d1fc9, #3b1680); box-shadow: 0 0 14px rgba(181, 101, 255, 0.55); animation: csReady 2s ease-in-out infinite alternate; }
+@keyframes csReady { to { box-shadow: 0 0 24px rgba(215, 150, 255, 0.85); } }
+.cs-reward-toast {
+  position: absolute; right: 0; top: calc(100% + 6px); white-space: nowrap; z-index: 41;
+  padding: 7px 12px; border-radius: 8px; font-size: 13px; font-weight: 700; color: #fff;
+  background: #3b1680; border: 1px solid #c58bff;
+}
+@media (max-width: 760px) {
+  .cs-reward-text { display: none; }
+  .cs-reward { padding: 0 10px; }
+}
+
+/* Dashboard tabs (leaderboard, clans, news, friends) inside the Celestial frame:
+   no fixed old-style header here, so drop its clearance. */
+.cs-tabhost { position: relative; min-height: 100vh; padding: 24px 0 40px !important; background: transparent !important; }
