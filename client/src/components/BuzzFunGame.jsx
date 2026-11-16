@@ -25,7 +25,7 @@ export const BUZZ_TYPES = {
   MECHANISM:   { label: 'Mechanism',   icon: '⚙️', hue: '255, 176, 80' },
 };
 
-const SUBJECT_LABEL = { biochemistry: 'Biochemistry', immunology: 'Immunology' };
+const SUBJECT_LABEL = { biochemistry: 'Biochemistry', immunology: 'Immunology', endocrinology: 'Endocrinology' };
 const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F'];
 const RING = 2 * Math.PI * 44;
 
@@ -444,8 +444,11 @@ function sentences(text) {
   return out.map(x => x.trim()).filter(Boolean);
 }
 function Explanation({ text }) {
-  if (/[<*_\[\]#|]/.test(text)) return <ExplanationText text={text} />;
-  const lines = sentences(text);
+  // Real markup (bold, tags, [colour] codes, tables) goes through the shared
+  // renderer. A lone asterisk is not markup: HLA-B*57:01 is a gene name.
+  if (/(\*\*|<[a-z/]|\[\/?[a-z]+[\]=]|^#|\|\s)/m.test(text)) return <ExplanationText text={text} />;
+  // One high-yield point per line, and a line holding two sentences splits too.
+  const lines = String(text).split('\n').flatMap(sentences);
   return (
     <ul className="bf-why-list">
       {lines.map((l, i) => <li key={i} style={{ '--i': i }}>{l}</li>)}

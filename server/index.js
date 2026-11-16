@@ -14574,7 +14574,7 @@ seedSubjects();
  * GET /api/buzz-fun/subjects — the systems Buzz Fun actually has cards for,
  * with counts, so a lobby offers only systems that can be played.
  */
-const BUZZ_SUBJECT_NAMES = { biochemistry: 'Biochemistry', immunology: 'Immunology' };
+const BUZZ_SUBJECT_NAMES = require('./buzzfun').BUZZ_SUBJECT_NAMES;
 app.get('/api/buzz-fun/subjects', (req, res) => {
   const counts = new Map();
   const topicsBySubject = new Map();   // id -> Map(topic -> count), in bank order

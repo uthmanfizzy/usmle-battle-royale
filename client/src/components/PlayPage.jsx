@@ -8,6 +8,7 @@ import AnKingMode from './AnKingMode';
 import MedJinxLobby from './MedJinxLobby';
 import MedJinxHome from './MedJinxHome';
 import ScanMasterLobby from './ScanMasterLobby';
+import BuzzFunLobby from './BuzzFunLobby';
 import ScanMasterHome from './ScanMasterHome';
 
 // Where a duel can draw its questions from. The ids are game_modes tags and
@@ -81,8 +82,8 @@ const GAME_MODES = [
     meta: 'Solo or multiplayer',
     accent: '230, 126, 34',
     tagline: 'Buzz first',
-    facts: ['15s a card', 'Biochem + Immuno', 'Solo or race'],
-    longDescription: 'Quick-fire flash cards of the buzzwords every exam leans on — Biochemistry and Immunology to start: vitamins, storage diseases, enzymes, immunodeficiencies, autoantibodies, HLA and more. Fast answers, the first right buzz and streaks earn the most honey. Fifteen seconds a card; play solo (with pause) or race friends. Pick systems in the match settings, or play them all.',
+    facts: ['15s a card', 'Biochem · Immuno · Endo', 'Solo or race'],
+    longDescription: 'Quick-fire flash cards of the buzzwords every exam leans on — Biochemistry, Immunology and Endocrinology: vitamins, storage diseases, immunodeficiencies, autoantibodies, thyroid, adrenal, diabetes and more — with a few high-yield points after every card. Fast answers, the first right buzz and streaks earn the most honey. Fifteen seconds a card; play solo (with pause) or race friends. Pick systems and topics in the lobby, or play them all mixed.',
     supportsSolo: false,
   },
   {
@@ -325,6 +326,7 @@ export default function PlayPage({
     const fallback = [
       { id: 'biochemistry', name: 'Biochemistry' },
       { id: 'immunology', name: 'Immunology' },
+      { id: 'endocrinology', name: 'Endocrinology' },
     ];
     authFetch('/api/buzz-fun/subjects')
       .then(r => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
@@ -420,11 +422,6 @@ export default function PlayPage({
   // What the host has narrowed to, always an array so the chips below can
   // treat "nothing chosen" and "field missing" the same way.
   const duelSubjects = Array.isArray(duelOptions?.subjects) ? duelOptions.subjects : [];
-  // Every topic in the systems this Buzz Fun match is on (all of them when
-  // no system is picked).
-  const buzzTopicChoices = (buzzSubjects || [])
-    .filter(sub => !duelSubjects.length || duelSubjects.includes(sub.id))
-    .flatMap(sub => (sub.topics || []).map(t => ({ ...t, subjectName: sub.name })));
   // A system's name for the player who did NOT choose it. Falls back to the
   // id, tidied, if the list has not arrived.
   const subjectName = (id) => subjects.find(x => x.id === id)?.name
@@ -749,7 +746,7 @@ export default function PlayPage({
               the players and the start button. On a wide screen it gets two
               columns instead of one tall scroll; the modifier is what the
               layout in PlayPageArena.css keys off. */}
-          <div className="lobby-panel lobby-panel--duel">
+          <div className={`lobby-panel lobby-panel--duel${lobbyGameMode === 'buzz_fun' ? ' lobby-panel--buzz' : ''}`}>
 
             {/* Header */}
             <div className="lobby-panel-header">
@@ -806,6 +803,8 @@ export default function PlayPage({
               <MedJinxLobby isHost={isHost} options={medjinxOptions} onChange={onMedjinxOptions} />
             ) : lobbyGameMode === 'scan_master' ? (
               <ScanMasterLobby isHost={isHost} options={scanOptions} onChange={onScanOptions} />
+            ) : isBuzz ? (
+              <BuzzFunLobby isHost={isHost} options={duelOptions} onChange={onDuelOptions} subjects={buzzSubjects} />
             ) : (
               <div className="lobby-duel-section">
                 <p className="lobby-duel-title">
@@ -1091,54 +1090,6 @@ export default function PlayPage({
                       {duelSubjects.length
                         ? duelSubjects.map(id => subjectName(id)).join(', ')
                         : 'Every system'}
-                    </span>
-                  )}
-                </div>
-                )}
-
-                {/* ── Buzz Fun topics, in the order picked ───────────────
-                    Tap topics to focus the match on them. The order you
-                    tap is the order they are played, one section each,
-                    with a heads-up between sections. None picked = a mixed
-                    30-card match across the systems above. */}
-                {isBuzz && (
-                <div className="lobby-duel-row lobby-duel-row--stack">
-                  <span className="lobby-duel-label">Topics {buzzTopics.length > 0 && <span className="lobby-duel-count">· in this order</span>}</span>
-                  {isHost ? (
-                    <div className="lobby-duel-subjects lobby-topic-grid">
-                      <button
-                        type="button"
-                        className={`lobby-duel-chip${!buzzTopics.length ? ' is-on' : ''}`}
-                        onClick={() => onDuelOptions?.({ ...duelOptions, topics: [] })}
-                      >
-                        Mixed (all topics)
-                      </button>
-                      {buzzTopicChoices.map(t => {
-                        const pos = buzzTopics.indexOf(t.key);
-                        const on = pos >= 0;
-                        return (
-                          <button
-                            key={t.key}
-                            type="button"
-                            className={`lobby-duel-chip lobby-topic-chip${on ? ' is-on' : ''}`}
-                            aria-pressed={on}
-                            title={`${t.subjectName} · ${t.count} cards`}
-                            onClick={() => onDuelOptions?.({
-                              ...duelOptions,
-                              topics: on ? buzzTopics.filter(k => k !== t.key) : [...buzzTopics, t.key],
-                            })}
-                          >
-                            {on && <span className="lobby-topic-order">{pos + 1}</span>}
-                            {t.topic}<span className="lobby-duel-count"> · {t.count}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <span className="lobby-duel-value">
-                      {buzzTopics.length
-                        ? buzzTopics.map((k, i) => `${i + 1}. ${k.split('::')[1]}`).join('  →  ')
-                        : 'Mixed (all topics)'}
                     </span>
                   )}
                 </div>
