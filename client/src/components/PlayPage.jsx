@@ -81,8 +81,8 @@ const GAME_MODES = [
     meta: 'Multiplayer',
     accent: '230, 126, 34',
     tagline: 'Eight seconds',
-    facts: ['8s a card', 'Buzzwords', 'Speed bonuses'],
-    longDescription: 'Fast-paced flash cards of buzzwords, triads, side effects and classic high-yield associations. 8 seconds each — fast answers earn bonus points!',
+    facts: ['8s a card', 'Biochem + Immuno', 'Combos'],
+    longDescription: 'Eight-second flash cards of the buzzwords every exam leans on — Biochemistry and Immunology to start: vitamins, storage diseases, enzymes, immunodeficiencies, autoantibodies, HLA and more. Fast answers, the first right buzz and streaks earn the most honey. Pick a subject in the match settings, or play them all.',
     supportsSolo: false,
   },
   {

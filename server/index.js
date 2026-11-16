@@ -1148,10 +1148,32 @@ function streakSnapshot(lobby) {
 // ── Buzz Fun ───────────────────────────────────────────────────────────────────
 
 const BUZZ_FUN_ROUNDS = 30;
+// The built-in card bank (server/buzzfun): high-yield buzzwords by subject.
+const { BUZZ_BANK } = require('./buzzfun');
+
+/**
+ * Buzz Fun's own pool: the built-in cards plus any an admin has tagged
+ * buzz_fun (an admin card wins over a built-in one with the same clue), then
+ * narrowed to the subjects the host picked — the match-settings systems row,
+ * or the lobby's single subject. Narrowing is skipped if it would leave too
+ * few cards for a game.
+ */
+function buzzFunOwnPool(lobby) {
+  const admin = questionBank.filter(q => (q.game_modes || []).includes('buzz_fun'));
+  const seen = new Set(admin.map(q => String(q.question || '').trim().toLowerCase()));
+  let pool = [...admin, ...BUZZ_BANK.filter(c => !seen.has(c.question.trim().toLowerCase()))];
+  const chosen = lobby.duelOptions ? sanitizeDuelOptions(lobby.duelOptions).subjects : [];
+  const want = new Set(chosen.length ? chosen : (lobby.subject && lobby.subject !== 'all' ? [String(lobby.subject).toLowerCase()] : []));
+  if (want.size) {
+    const narrowed = pool.filter(q => want.has(String(q.subject || '').toLowerCase()));
+    if (narrowed.length >= MATCH_POOL_MIN) pool = narrowed;
+  }
+  return pool;
+}
 
 function startBuzzFun(lobby) {
   // The host's chosen questions, or Buzz Fun's own.
-  const pool = matchPoolOr(lobby, questionBank.filter(q => (q.game_modes || []).includes('buzz_fun')));
+  const pool = matchPoolOr(lobby, buzzFunOwnPool(lobby));
   if (pool.length < 1) {
     io.to(lobby.id).emit('error', { message: 'No Buzz Fun questions available. Add some via the admin panel.' });
     return;
@@ -1194,6 +1216,9 @@ function nextBuzzFunQuestion(lobby) {
     ...toPublicQuestion(q),
     round: lobby.round, timeLimit, alivePlayers: lobby.players.size,
     buzz_type: q.buzz_type || 'BUZZWORD',
+    // Shown on the card as a chip; says nothing about which option is right.
+    topic: q.topic || null,
+    subject: q.subject || null,
     totalRounds: lobby.questionQueue.length,
   });
 
