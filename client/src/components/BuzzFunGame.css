@@ -293,3 +293,24 @@
   background: rgba(255, 255, 255, 0.2);
 }
 .bf-next-pips i.is-on { background: #3ddc84; }
+
+/* ── Pause (solo) ────────────────────────────────────────────────────────── */
+.bf-pause-btn { cursor: pointer; font: inherit; font-size: 14px; font-weight: 800; color: #2a1200; background: linear-gradient(135deg, #ffd23f, #ff8c00); border-color: rgba(255, 210, 63, 0.9); }
+.bf-pause-btn[aria-pressed="true"] { color: #fff; background: rgba(61, 220, 132, 0.25); border-color: rgba(61, 220, 132, 0.7); }
+.bf-stage.is-paused, .bf-reveal.is-paused { filter: blur(14px); pointer-events: none; user-select: none; }
+.bf-pause {
+  position: fixed; inset: 0; z-index: 40;
+  display: grid; place-items: center; padding: 16px;
+  background: rgba(12, 6, 2, 0.6);
+  backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+}
+.bf-pause-box {
+  width: min(360px, 100%); padding: 26px 22px; border-radius: 22px; text-align: center;
+  background: #1d1007; border: 1.5px solid rgba(255, 170, 60, 0.6);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6), 0 0 40px rgba(255, 140, 0, 0.18);
+  animation: bf-deal 0.3s ease both;
+}
+.bf-pause-icon { font-size: 44px; }
+.bf-pause-box h2 { margin: 6px 0 4px; font-family: 'Cinzel', Georgia, serif; font-size: 28px; color: #ffd27a; letter-spacing: 0.06em; }
+.bf-pause-box p { margin: 0 0 16px; color: #ffe7c7; font-size: 15px; }
+.bf-pause-box small { display: block; margin-top: 10px; color: rgba(255, 231, 199, 0.7); font-size: 12.5px; }

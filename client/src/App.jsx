@@ -135,6 +135,8 @@ export default function App() {
   // explanation, straight from the server. Cleared when the round changes so
   // a stale "1 of 2" never sits under the next question.
   const [duelSkipVotes, setDuelSkipVotes] = useState(null);
+  // Buzz Fun solo pause: { paused, phase, remainingMs, at } from the server.
+  const [buzzPause, setBuzzPause] = useState(null);
   // The MedJinx lobby settings (rounds, clock, systems), as the server last
   // reported them. Null until a MedJinx lobby says otherwise.
   const [medjinxOptions, setMedjinxOptions] = useState(null);
@@ -330,6 +332,7 @@ export default function App() {
     });
 
     socket.on('duel_skip_votes', (v) => setDuelSkipVotes(v || null));
+    socket.on('buzz_pause', (d) => setBuzzPause(d ? { ...d, at: Date.now() } : null));
 
     // The rival wants another. Shown over the results card until answered.
     socket.on('duel_rematch_offer', ({ from } = {}) => {
@@ -492,6 +495,7 @@ export default function App() {
       // A new question is a new vote: a stale "1 of 2 ready" under it would
       // be reporting the last round.
       setDuelSkipVotes(null);
+      setBuzzPause(null);
       setQuestion(data);
       setRound(data.round);
       setTimeLimit(data.timeLimit);
@@ -521,6 +525,8 @@ export default function App() {
         setStreaks(prev => ({ ...prev, [socket.id]: result.streak }));
       }
       if (result.onFire) showToast('🔥 You\'re on fire!');
+      // Buzz Fun plays its own sounds (buzzSfx.js) from its screen.
+      if (gameModeRef.current === 'buzz_fun') return;
       if (result.correct) audio.playCorrect();
       else {
         audio.playWrong();
@@ -610,7 +616,7 @@ export default function App() {
        'player_left', 'error', 'sudden_death',
        'race_progress', 'trivia_turn', 'trivia_rolled', 'trivia_question', 'trivia_answer_result',
        'powerup_assigned', 'powerup_result', 'frozen', 'unfrozen',
-       'duel_skip_votes', 'duel_rematch_offer', 'duel_rematch_declined',
+       'duel_skip_votes', 'buzz_pause', 'duel_rematch_offer', 'duel_rematch_declined',
        'duel_rematch_accepted'].forEach(e => socket.off(e));
       socket.disconnect();
       audio.stopBgMusic();
@@ -1474,9 +1480,11 @@ export default function App() {
           showingRoundResult={showingRoundResult}
           onAnswer={handleAnswer}
           username={username}
-          onTick={audio.playTick}
           skipVotes={duelSkipVotes}
           onSkip={() => socket.emit('skip_explanation')}
+          pause={buzzPause}
+          canPause={(players?.length || 0) === 1}
+          onPause={(p) => socket.emit('buzz_pause', { paused: p })}
         />
         </RouteErrorBoundary>
       )}

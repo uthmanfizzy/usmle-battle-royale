@@ -1172,16 +1172,12 @@ function buzzFunOwnPool(lobby) {
 }
 
 /**
- * How long a card stays up. Eight seconds was the whole budget whatever the
- * card said, and a 25-word clue with four long options cannot even be READ
- * in eight. A short card still gets ten; every 25 characters past 120 adds a
- * second, up to eighteen. Speed still pays: the bonus is measured against
- * this card's own clock.
+ * How long a card stays up: fifteen seconds, every card. (Eight was too short
+ * to read a long clue; a length-based 10–18 s made the clock unpredictable.)
+ * Speed still pays: the bonus is measured against this clock.
  */
-function buzzFunSeconds(q) {
-  const chars = String(q.question || '').length + (q.options || []).reduce((n, o) => n + String(o).length, 0);
-  return Math.max(10, Math.min(18, 10 + Math.ceil(Math.max(0, chars - 120) / 25)));
-}
+const BUZZ_FUN_SECONDS = 15;
+function buzzFunSeconds() { return BUZZ_FUN_SECONDS; }
 
 function startBuzzFun(lobby) {
   // The host's chosen questions, or Buzz Fun's own.
@@ -2181,6 +2177,7 @@ function scheduleDuelAdvance(lobby, fn, delay, skippable) {
   lobby.duelAdvanceFn = fn;
   lobby.duelSkipVotes = skippable ? new Set() : null;
   lobby.duelAdvanceTimer = setTimeout(() => runDuelAdvance(lobby), delay);
+  lobby.duelAdvanceEnd = Date.now() + delay;
 }
 
 function runDuelAdvance(lobby) {
@@ -2190,6 +2187,7 @@ function runDuelAdvance(lobby) {
 }
 
 function clearDuelAdvance(lobby) {
+  lobby.buzzPause = null;
   if (lobby.duelAdvanceTimer) clearTimeout(lobby.duelAdvanceTimer);
   lobby.duelAdvanceTimer = null;
   lobby.duelAdvanceFn = null;
@@ -3835,6 +3833,47 @@ io.on('connection', (socket) => {
 
   // "I have finished reading." Counted, not obeyed: the round moves on when
   // everyone still in the duel has said it.
+  // ── Buzz Fun: pause (solo only) ─────────────────────────────────────────
+  // The clocks live here, so pausing has to stop them here: the card's
+  // answer timer while a card is up, the explanation wait between cards.
+  // Only for a player alone in the match (no bots, no friends) — pausing a
+  // race would freeze everyone else's clock too.
+  socket.on('buzz_pause', ({ paused } = {}) => {
+    const lobby = lobbies.get(socket.lobbyId);
+    if (!lobby || lobby.gameMode !== 'buzz_fun' || !lobby.players.has(socket.id)) return;
+    if (lobby.players.size !== 1) return socket.emit('error', { message: 'Pause is for solo games only.' });
+    const now = Date.now();
+    if (paused && !lobby.buzzPause) {
+      if (lobby.status === 'buzz_fun_question' && lobby.timer) {
+        const remaining = Math.max(0, (lobby.timerEnd || now) - now);
+        clearTimer(lobby);
+        lobby.buzzPause = { phase: 'question', remaining, at: now };
+      } else if (lobby.status === 'buzz_fun_reviewing' && lobby.duelAdvanceTimer) {
+        const remaining = Math.max(0, (lobby.duelAdvanceEnd || now) - now);
+        clearTimeout(lobby.duelAdvanceTimer);
+        lobby.duelAdvanceTimer = null;
+        lobby.buzzPause = { phase: 'review', remaining, at: now };
+      } else {
+        return;
+      }
+      socket.emit('buzz_pause', { paused: true, phase: lobby.buzzPause.phase, remainingMs: lobby.buzzPause.remaining });
+    } else if (!paused && lobby.buzzPause) {
+      const { phase, remaining, at } = lobby.buzzPause;
+      lobby.buzzPause = null;
+      if (phase === 'question' && lobby.status === 'buzz_fun_question') {
+        // The speed bonus counts from the card's start; move that start on by
+        // the time spent paused, so pausing neither costs nor earns points.
+        lobby.buzzTimerStart += now - at;
+        lobby.timerEnd = now + remaining;
+        lobby.timer = setTimeout(() => processBuzzFunAnswers(lobby), remaining);
+      } else if (phase === 'review' && lobby.duelAdvanceFn) {
+        lobby.duelAdvanceTimer = setTimeout(() => runDuelAdvance(lobby), remaining);
+        lobby.duelAdvanceEnd = now + remaining;
+      }
+      socket.emit('buzz_pause', { paused: false, phase, remainingMs: remaining });
+    }
+  });
+
   socket.on('skip_explanation', () => {
     const lobby = lobbies.get(socket.lobbyId);
     if (!lobby || (lobby.gameMode !== 'pvp_duel' && lobby.gameMode !== 'buzz_fun')) return;
@@ -3994,6 +4033,7 @@ io.on('connection', (socket) => {
 
     // ── Buzz Fun ───────────────────────────────────────────────────────────
     if (lobby.status === 'buzz_fun_question') {
+      if (lobby.buzzPause) return;   // paused: the card is hidden, so no answers
       if (lobby.answers.has(socket.id)) return;
       const player = lobby.players.get(socket.id);
       if (!player) return;

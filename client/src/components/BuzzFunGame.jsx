@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import './BuzzFunGame.css';
 import ExplanationText from './ExplanationText';
 import Calculator from './Calculator';
+import { buzzSfx } from '../buzzSfx';
 
 /**
  * Buzz Fun — eight-second flash cards of high-yield buzzwords.
@@ -34,7 +35,9 @@ export default function BuzzFunGame({
   answerResult, roundResults, showingRoundResult,
   onAnswer, username, onTick,
   skipVotes = null, onSkip,
+  pause = null, canPause = false, onPause,
 }) {
+  const paused = !!pause?.paused;
   const limit = timeLimit || 8;
   const [timeLeft, setTimeLeft] = useState(limit);
   const [fraction, setFraction] = useState(1);
@@ -49,7 +52,15 @@ export default function BuzzFunGame({
   const [voted, setVoted] = useState(false);
   useEffect(() => { setVoted(false); }, [question?.id, showingRoundResult]);
 
-  // A new card: reset the ring and the reveal.
+  // The card's clock is a deadline. A pause freezes it (the server stops its
+  // own clock too); a resume sets a new deadline from the time the server
+  // says was left, so the two can never drift apart.
+  const deadline = useRef(0);
+  const frozen = useRef(false);
+  const answeredRef = useRef(false);
+  answeredRef.current = hasAnswered;
+
+  // A new card: reset the ring and the reveal, and announce it.
   useEffect(() => {
     if (!question) return undefined;
     setTimeLeft(limit);
@@ -58,18 +69,57 @@ export default function BuzzFunGame({
     setRevealCorrect(false);
     clearInterval(timerRef.current);
     lastTick.current = null;
-    const start = Date.now();
+    frozen.current = false;
+    deadline.current = Date.now() + limit * 1000;
+    buzzSfx.card();
     const total = limit * 1000;
     timerRef.current = setInterval(() => {
-      const remainingMs = Math.max(0, total - (Date.now() - start));
+      if (frozen.current) return;
+      const remainingMs = Math.max(0, deadline.current - Date.now());
       const secs = Math.ceil(remainingMs / 1000);
       setFraction(remainingMs / total);
       setTimeLeft(secs);
-      if (secs <= 3 && secs > 0 && lastTick.current !== secs) { lastTick.current = secs; onTick?.(); }
+      if (!answeredRef.current && secs <= 3 && secs > 0 && lastTick.current !== secs) {
+        lastTick.current = secs;
+        buzzSfx.tick(secs);
+      }
       if (remainingMs === 0) clearInterval(timerRef.current);
     }, 80);
     return () => clearInterval(timerRef.current);
   }, [question?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Pause and resume, from the server's word.
+  const wasPaused = useRef(false);
+  useEffect(() => {
+    if (paused && !wasPaused.current) {
+      frozen.current = true;
+      buzzSfx.pause();
+    } else if (!paused && wasPaused.current) {
+      if (pause && pause.phase === 'question' && typeof pause.remainingMs === 'number') {
+        deadline.current = Date.now() + pause.remainingMs;
+      }
+      frozen.current = false;
+      buzzSfx.resume();
+    }
+    wasPaused.current = paused;
+  }, [paused, pause]);
+
+  // P or Escape pauses and resumes a solo game.
+  useEffect(() => {
+    if (!canPause || !onPause) return undefined;
+    const onKey = (e) => {
+      if (e.target && /INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
+      if (e.key === 'p' || e.key === 'P' || e.key === 'Escape') { e.preventDefault(); onPause(!paused); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [canPause, onPause, paused]);
+
+  const answer = (letter) => {
+    if (hasAnswered || paused) return;
+    buzzSfx.lock();
+    onAnswer(letter);
+  };
 
   // The verdict on my answer.
   useEffect(() => {
@@ -78,6 +128,14 @@ export default function BuzzFunGame({
     const ok = !!answerResult.correct;
     setFlash(ok ? 'correct' : 'wrong');
     const s = typeof answerResult.streak === 'number' ? answerResult.streak : (ok ? streak + 1 : 0);
+    if (ok) {
+      buzzSfx.correct(s);
+      if (s >= 2 && s <= 5) setTimeout(() => buzzSfx.combo(), 260);
+    } else if (myAnswer) {
+      buzzSfx.wrong();
+    } else {
+      buzzSfx.timeUp();
+    }
     setStreak(s);
     setBestStreak(b => Math.max(b, s));
     if (!ok) setTimeout(() => setRevealCorrect(true), 350);
@@ -86,18 +144,18 @@ export default function BuzzFunGame({
 
   // Keys 1–4 or A–D to answer.
   useEffect(() => {
-    if (!question || hasAnswered || showingRoundResult) return undefined;
+    if (!question || hasAnswered || showingRoundResult || paused) return undefined;
     const onKey = (e) => {
       if (e.target && /INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
       const k = e.key.toUpperCase();
       let idx = -1;
       if (/^[1-6]$/.test(k)) idx = Number(k) - 1;
       else if (/^[A-F]$/.test(k)) idx = k.charCodeAt(0) - 65;
-      if (idx >= 0 && idx < (question.options || []).length) { e.preventDefault(); onAnswer(LETTERS[idx]); }
+      if (idx >= 0 && idx < (question.options || []).length) { e.preventDefault(); answer(LETTERS[idx]); }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [question, hasAnswered, showingRoundResult, onAnswer]);
+  }, [question, hasAnswered, showingRoundResult, paused, onAnswer]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!question) {
     return (
@@ -125,8 +183,10 @@ export default function BuzzFunGame({
     return (
       <div className="bf-screen">
         <Hive />
-        <Hud round={round} totalRounds={totalRounds} score={myScore} streak={streak} rank={myRank} field={sorted.length} />
-        <div className="bf-reveal">
+        <Hud round={round} totalRounds={totalRounds} score={myScore} streak={streak} rank={myRank} field={sorted.length}
+          canPause={canPause} paused={paused} onPause={onPause} />
+        {paused && <PauseOverlay onResume={() => onPause?.(false)} />}
+        <div className={`bf-reveal${paused ? ' is-paused' : ''}`}>
           <div className="bf-reveal-card">
             <div className="bf-reveal-top">
               <TypeBadge type={type} />
@@ -162,7 +222,7 @@ export default function BuzzFunGame({
                 votes={skipVotes?.votes ?? 0}
                 need={skipVotes?.need ?? 1}
                 voted={voted}
-                onVote={() => { if (!voted) { setVoted(true); onSkip(); } }}
+                onVote={() => { if (!voted) { setVoted(true); buzzSfx.skip(); onSkip(); } }}
               />
             )}
           </div>
@@ -193,9 +253,11 @@ export default function BuzzFunGame({
   return (
     <div className={`bf-screen${urgent ? ' is-urgent' : ''}`}>
       <Hive />
-      <Hud round={round} totalRounds={totalRounds} score={myScore} streak={streak} rank={myRank} field={sorted.length} />
+      <Hud round={round} totalRounds={totalRounds} score={myScore} streak={streak} rank={myRank} field={sorted.length}
+        canPause={canPause} paused={paused} onPause={onPause} />
+      {paused && <PauseOverlay onResume={() => onPause?.(false)} />}
 
-      <div className="bf-stage">
+      <div className={`bf-stage${paused ? ' is-paused' : ''}`}>
         <div className={`bf-card${flash ? ` is-${flash}` : ''}`} style={{ '--type': type.hue }} key={question.id}>
           <div className="bf-card-top">
             <TypeBadge type={type} />
@@ -238,7 +300,7 @@ export default function BuzzFunGame({
                 revealCorrect && !right && !wrong && 'is-dim',
               ].filter(Boolean).join(' ');
               return (
-                <button key={letter} type="button" className={cls} onClick={() => !hasAnswered && onAnswer(letter)} disabled={hasAnswered} style={{ '--d': `${i * 0.06}s` }}>
+                <button key={letter} type="button" className={cls} onClick={() => answer(letter)} disabled={hasAnswered || paused} style={{ '--d': `${i * 0.06}s` }}>
                   <span className="bf-opt-key">{i + 1}</span>
                   <span className="bf-opt-text">{opt}</span>
                   {right && <span className="bf-opt-mark">✓</span>}
@@ -297,7 +359,22 @@ export default function BuzzFunGame({
   );
 }
 
-function Hud({ round, totalRounds, score, streak, rank, field }) {
+/** Covers the card: a paused card is not a free look at the question. */
+function PauseOverlay({ onResume }) {
+  return (
+    <div className="bf-pause" role="dialog" aria-label="Paused">
+      <div className="bf-pause-box">
+        <div className="bf-pause-icon" aria-hidden="true">⏸</div>
+        <h2>Paused</h2>
+        <p>The clock has stopped and the card is hidden.</p>
+        <button type="button" className="bf-next-btn" onClick={onResume} autoFocus>▶ Resume</button>
+        <small>P or Esc to resume</small>
+      </div>
+    </div>
+  );
+}
+
+function Hud({ round, totalRounds, score, streak, rank, field, canPause, paused, onPause }) {
   return (
     <header className="bf-hud">
       <div className="bf-brand"><span aria-hidden="true">🐝</span> BUZZ <b>FUN</b></div>
@@ -311,6 +388,11 @@ function Hud({ round, totalRounds, score, streak, rank, field }) {
         {field > 1 && <span className="bf-pill">#{rank}</span>}
         <span className={`bf-pill bf-pill--fire${streak >= 3 ? ' is-hot' : ''}`}>🔥 <b>{streak}</b></span>
         <span className="bf-pill bf-pill--score">🍯 <b>{score || 0}</b></span>
+        {canPause && onPause && (
+          <button type="button" className="bf-pill bf-pause-btn" onClick={() => onPause(!paused)} aria-pressed={paused} title="Pause (P)">
+            {paused ? '▶ Resume' : '⏸ Pause'}
+          </button>
+        )}
       </div>
     </header>
   );

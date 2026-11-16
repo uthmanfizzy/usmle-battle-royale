@@ -81,8 +81,8 @@ const GAME_MODES = [
     meta: 'Solo or multiplayer',
     accent: '230, 126, 34',
     tagline: 'Buzz first',
-    facts: ['10–18s a card', 'Biochem + Immuno', 'Combos'],
-    longDescription: 'Quick-fire flash cards of the buzzwords every exam leans on — Biochemistry and Immunology to start: vitamins, storage diseases, enzymes, immunodeficiencies, autoantibodies, HLA and more. Fast answers, the first right buzz and streaks earn the most honey. Each card gets 10 to 18 seconds depending on how much there is to read. Pick systems in the match settings, or play them all.',
+    facts: ['15s a card', 'Biochem + Immuno', 'Solo or race'],
+    longDescription: 'Quick-fire flash cards of the buzzwords every exam leans on — Biochemistry and Immunology to start: vitamins, storage diseases, enzymes, immunodeficiencies, autoantibodies, HLA and more. Fast answers, the first right buzz and streaks earn the most honey. Fifteen seconds a card; play solo (with pause) or race friends. Pick systems in the match settings, or play them all.',
     supportsSolo: false,
   },
   {
