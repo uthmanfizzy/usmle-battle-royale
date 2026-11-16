@@ -59,6 +59,18 @@ const MINIGAMES = [
     drills: 'Rhythm and 12-lead recognition',
   },
   {
+    id: 'murmurs',
+    name: 'Murmurs',
+    subject: 'Cardiology',
+    icon: '🩺',
+    accent: '232, 86, 120',          // cardiology rose (the ECG Reader has the red)
+    route: '/murmurs',
+    blurb: 'Put the stethoscope on and name what you hear — then see its shape '
+         + 'between S1 and S2, where it is loudest, what breathing and '
+         + 'manoeuvres do to it, and every case it turns up in.',
+    drills: 'Murmurs and heart sounds by ear',
+  },
+  {
     id: 'abg',
     name: 'ABG Reader',
     subject: 'Respiratory',
