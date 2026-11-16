@@ -1179,6 +1179,40 @@ function buzzFunOwnPool(lobby) {
 const BUZZ_FUN_SECONDS = 15;
 function buzzFunSeconds() { return BUZZ_FUN_SECONDS; }
 
+// A topic-focused match plays every card in the chosen topics (up to this
+// many), rather than a random 30 across everything.
+const BUZZ_FUN_TOPIC_MAX = 60;
+const BUZZ_SECTION_HEADSUP_MS = 3200;
+
+/**
+ * When the host picked topics: one section per topic, IN THE ORDER PICKED,
+ * each shuffled inside itself. If the topics add up to more than
+ * BUZZ_FUN_TOPIC_MAX, every section is trimmed in proportion so the last one
+ * is not starved. Returns null when no usable topics were chosen.
+ */
+function buzzFunSections(lobby, pool) {
+  const chosen = lobby.duelOptions ? sanitizeDuelOptions(lobby.duelOptions).topics : [];
+  if (!chosen.length) return null;
+  const groups = chosen
+    .map(key => {
+      const [subject, topic] = key.split('::');
+      const cards = pool.filter(q => String(q.subject || '').toLowerCase() === subject && q.topic === topic);
+      return { key, subject, topic, cards: shuffle(cards) };
+    })
+    .filter(g => g.cards.length);
+  if (!groups.length) return null;
+  const total = groups.reduce((n, g) => n + g.cards.length, 0);
+  const scale = total > BUZZ_FUN_TOPIC_MAX ? BUZZ_FUN_TOPIC_MAX / total : 1;
+  const queue = [];
+  const list = groups.map((g, i) => {
+    const take = Math.max(1, Math.floor(g.cards.length * scale));
+    const cards = g.cards.slice(0, take).map(c => ({ ...c, buzzSection: i }));
+    queue.push(...cards);
+    return { index: i, key: g.key, topic: g.topic, subject: g.subject, count: cards.length };
+  });
+  return { queue, list };
+}
+
 function startBuzzFun(lobby) {
   // The host's chosen questions, or Buzz Fun's own.
   const pool = matchPoolOr(lobby, buzzFunOwnPool(lobby));
@@ -1194,8 +1228,15 @@ function startBuzzFun(lobby) {
   lobby.buzzAnswerTimes  = new Map();
   lobby.buzzTimerStart   = 0;
 
-  const shuffled = shuffle(pool);
-  lobby.questionQueue = shuffled.slice(0, Math.min(BUZZ_FUN_ROUNDS, shuffled.length));
+  const sections = buzzFunSections(lobby, pool);
+  if (sections) {
+    lobby.questionQueue = sections.queue;
+    lobby.buzzSections  = sections.list;
+  } else {
+    const shuffled = shuffle(pool);
+    lobby.questionQueue = shuffled.slice(0, Math.min(BUZZ_FUN_ROUNDS, shuffled.length));
+    lobby.buzzSections  = null;
+  }
   lobby.questionIdx   = -1;
 
   for (const p of lobby.players.values()) { p.score = 0; p.alive = true; p.lives = 3; }
@@ -1204,9 +1245,30 @@ function startBuzzFun(lobby) {
   setTimeout(() => nextBuzzFunQuestion(lobby), 1500);
 }
 
-function nextBuzzFunQuestion(lobby) {
+function nextBuzzFunQuestion(lobby, { headsUpShown = false } = {}) {
   lobby.questionIdx++;
   if (lobby.questionIdx >= lobby.questionQueue.length) { endGame(lobby, 'questions_exhausted'); return; }
+
+  // A new topic section starts here: say so, and give it a moment before
+  // the card (the card's own clock does not start until it is shown).
+  const sections = lobby.buzzSections;
+  const cur = lobby.questionQueue[lobby.questionIdx];
+  const prev = lobby.questionQueue[lobby.questionIdx - 1];
+  if (sections && !headsUpShown && cur && cur.buzzSection != null
+      && (!prev || prev.buzzSection !== cur.buzzSection)) {
+    const sec = sections[cur.buzzSection];
+    lobby.status = 'buzz_fun_section';
+    io.to(lobby.id).emit('buzz_section', {
+      index: sec.index, total: sections.length,
+      topic: sec.topic, subject: sec.subject,
+      subjectName: BUZZ_SUBJECT_NAMES[sec.subject] || sec.subject,
+      count: sec.count,
+      next: sections[sec.index + 1] ? sections[sec.index + 1].topic : null,
+    });
+    lobby.questionIdx--;   // the same card, served after the heads-up
+    lobby.timer = setTimeout(() => nextBuzzFunQuestion(lobby, { headsUpShown: true }), BUZZ_SECTION_HEADSUP_MS);
+    return;
+  }
 
   lobby.round++;
   lobby.status            = 'buzz_fun_question';
@@ -1229,6 +1291,10 @@ function nextBuzzFunQuestion(lobby) {
     topic: q.topic || null,
     subject: q.subject || null,
     totalRounds: lobby.questionQueue.length,
+    // Which section this card is in, for the HUD ("Section 2 of 3").
+    section: (lobby.buzzSections && q.buzzSection != null)
+      ? { index: q.buzzSection, total: lobby.buzzSections.length, topic: lobby.buzzSections[q.buzzSection].topic }
+      : null,
   });
 
   lobby.timerEnd = Date.now() + timeLimit * 1000;
@@ -1774,7 +1840,14 @@ function sanitizeDuelOptions(raw) {
   const powers = o.powers !== false;
   const explanations = o.explanations !== false;
   const journeyTrack = journeyTrackOf(o.journeyTrack);
-  return { source, winBy, rounds, subjects, journeySubject, chapterId, levelId, journeyTrack, powers, explanations };
+  // Buzz Fun topics, as "subject::Topic" keys, IN THE ORDER PICKED — the order
+  // is the point (sections are dealt in it), so it is deduped but not sorted.
+  const topics = Array.isArray(o.topics)
+    ? [...new Set(o.topics
+        .filter(t => typeof t === 'string' && t.includes('::'))
+        .map(t => t.trim().slice(0, 100)))].slice(0, 40)
+    : [];
+  return { source, winBy, rounds, subjects, journeySubject, chapterId, levelId, journeyTrack, powers, explanations, topics };
 }
 
 /**
@@ -14504,12 +14577,22 @@ seedSubjects();
 const BUZZ_SUBJECT_NAMES = { biochemistry: 'Biochemistry', immunology: 'Immunology' };
 app.get('/api/buzz-fun/subjects', (req, res) => {
   const counts = new Map();
+  const topicsBySubject = new Map();   // id -> Map(topic -> count), in bank order
   for (const q of buzzFunOwnPool({})) {
     const id = String(q.subject || '').toLowerCase();
-    if (id) counts.set(id, (counts.get(id) || 0) + 1);
+    if (!id) continue;
+    counts.set(id, (counts.get(id) || 0) + 1);
+    if (q.topic) {
+      if (!topicsBySubject.has(id)) topicsBySubject.set(id, new Map());
+      const m = topicsBySubject.get(id);
+      m.set(q.topic, (m.get(q.topic) || 0) + 1);
+    }
   }
   const subjects = [...counts.entries()]
-    .map(([id, count]) => ({ id, count, name: BUZZ_SUBJECT_NAMES[id] || id.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) }))
+    .map(([id, count]) => ({
+      id, count,
+      topics: [...(topicsBySubject.get(id) || new Map()).entries()].map(([topic, n]) => ({ key: `${id}::${topic}`, topic, count: n })),
+      name: BUZZ_SUBJECT_NAMES[id] || id.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) }))
     // Only systems with enough cards for a match: narrowing to fewer than
     // MATCH_POOL_MIN is ignored by buzzFunOwnPool, so offering one would let
     // a host pick a system that then plays everything instead.

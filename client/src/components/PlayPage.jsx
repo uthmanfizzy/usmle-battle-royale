@@ -345,6 +345,8 @@ export default function PlayPage({
   const isBuzz = lobbyGameMode === 'buzz_fun';
   // Buzz Fun can be played alone; every other mode needs a second player.
   const minPlayers = isBuzz ? 1 : 2;
+  // Topics picked, in order, as "subject::Topic" keys.
+  const buzzTopics = Array.isArray(duelOptions?.topics) ? duelOptions.topics : [];
   const playerCount = lobbyPlayers?.length || 1;
   const duelSource = duelOptions?.source || (isDuel ? 'pvp_duel' : 'default');
   const duelIsJourney = duelSource === DUEL_JOURNEY;
@@ -418,6 +420,11 @@ export default function PlayPage({
   // What the host has narrowed to, always an array so the chips below can
   // treat "nothing chosen" and "field missing" the same way.
   const duelSubjects = Array.isArray(duelOptions?.subjects) ? duelOptions.subjects : [];
+  // Every topic in the systems this Buzz Fun match is on (all of them when
+  // no system is picked).
+  const buzzTopicChoices = (buzzSubjects || [])
+    .filter(sub => !duelSubjects.length || duelSubjects.includes(sub.id))
+    .flatMap(sub => (sub.topics || []).map(t => ({ ...t, subjectName: sub.name })));
   // A system's name for the player who did NOT choose it. Falls back to the
   // id, tidied, if the list has not arrived.
   const subjectName = (id) => subjects.find(x => x.id === id)?.name
@@ -1051,6 +1058,9 @@ export default function PlayPage({
                         Everything
                       </button>
                       {(isBuzz ? (buzzSubjects || []) : subjects).map(sub => {
+                        const nextSubjects = duelSubjects.includes(sub.id)
+                          ? duelSubjects.filter(x => x !== sub.id)
+                          : [...duelSubjects, sub.id];
                         const on = duelSubjects.includes(sub.id);
                         return (
                           <button
@@ -1060,9 +1070,12 @@ export default function PlayPage({
                             aria-pressed={on}
                             onClick={() => onDuelOptions?.({
                               ...duelOptions,
-                              subjects: on
-                                ? duelSubjects.filter(x => x !== sub.id)
-                                : [...duelSubjects, sub.id],
+                              subjects: nextSubjects,
+                              // A topic from a system that is no longer in
+                              // the match would have nothing to play.
+                              ...(isBuzz ? {
+                                topics: buzzTopics.filter(k => !nextSubjects.length || nextSubjects.includes(k.split('::')[0])),
+                              } : {}),
                             })}
                           >
                             {sub.name}{isBuzz && sub.count ? <span className="lobby-duel-count"> · {sub.count}</span> : null}
@@ -1078,6 +1091,54 @@ export default function PlayPage({
                       {duelSubjects.length
                         ? duelSubjects.map(id => subjectName(id)).join(', ')
                         : 'Every system'}
+                    </span>
+                  )}
+                </div>
+                )}
+
+                {/* ── Buzz Fun topics, in the order picked ───────────────
+                    Tap topics to focus the match on them. The order you
+                    tap is the order they are played, one section each,
+                    with a heads-up between sections. None picked = a mixed
+                    30-card match across the systems above. */}
+                {isBuzz && (
+                <div className="lobby-duel-row lobby-duel-row--stack">
+                  <span className="lobby-duel-label">Topics {buzzTopics.length > 0 && <span className="lobby-duel-count">· in this order</span>}</span>
+                  {isHost ? (
+                    <div className="lobby-duel-subjects lobby-topic-grid">
+                      <button
+                        type="button"
+                        className={`lobby-duel-chip${!buzzTopics.length ? ' is-on' : ''}`}
+                        onClick={() => onDuelOptions?.({ ...duelOptions, topics: [] })}
+                      >
+                        Mixed (all topics)
+                      </button>
+                      {buzzTopicChoices.map(t => {
+                        const pos = buzzTopics.indexOf(t.key);
+                        const on = pos >= 0;
+                        return (
+                          <button
+                            key={t.key}
+                            type="button"
+                            className={`lobby-duel-chip lobby-topic-chip${on ? ' is-on' : ''}`}
+                            aria-pressed={on}
+                            title={`${t.subjectName} · ${t.count} cards`}
+                            onClick={() => onDuelOptions?.({
+                              ...duelOptions,
+                              topics: on ? buzzTopics.filter(k => k !== t.key) : [...buzzTopics, t.key],
+                            })}
+                          >
+                            {on && <span className="lobby-topic-order">{pos + 1}</span>}
+                            {t.topic}<span className="lobby-duel-count"> · {t.count}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <span className="lobby-duel-value">
+                      {buzzTopics.length
+                        ? buzzTopics.map((k, i) => `${i + 1}. ${k.split('::')[1]}`).join('  →  ')
+                        : 'Mixed (all topics)'}
                     </span>
                   )}
                 </div>

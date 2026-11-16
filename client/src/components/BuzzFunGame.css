@@ -314,3 +314,22 @@
 .bf-pause-box h2 { margin: 6px 0 4px; font-family: 'Cinzel', Georgia, serif; font-size: 28px; color: #ffd27a; letter-spacing: 0.06em; }
 .bf-pause-box p { margin: 0 0 16px; color: #ffe7c7; font-size: 15px; }
 .bf-pause-box small { display: block; margin-top: 10px; color: rgba(255, 231, 199, 0.7); font-size: 12.5px; }
+
+/* ── Topic change: the section splash ────────────────────────────────────── */
+.bf-section {
+  position: relative; z-index: 1;
+  min-height: 78vh; display: grid; place-content: center; justify-items: center; gap: 10px;
+  text-align: center; padding: 20px;
+  animation: bf-deal 0.4s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+}
+.bf-section-kicker { font-size: 13px; font-weight: 900; letter-spacing: 0.18em; text-transform: uppercase; color: #ffb35c; }
+.bf-section-topic {
+  margin: 0; font-family: 'Cinzel', Georgia, serif; font-size: clamp(32px, 7vw, 58px); font-weight: 900;
+  color: #ffd23f; text-shadow: 0 6px 30px rgba(255, 140, 0, 0.55);
+}
+.bf-section-meta { font-size: 17px; font-weight: 700; color: #fff; }
+.bf-section-next { margin-top: 6px; font-size: 14px; color: rgba(255, 231, 199, 0.8); }
+.bf-section-bar { width: min(320px, 70vw); height: 6px; border-radius: 999px; background: rgba(255, 255, 255, 0.12); overflow: hidden; margin-top: 8px; }
+.bf-section-bar i { display: block; height: 100%; background: linear-gradient(90deg, #ffd23f, #ff8c00); animation: bf-section-fill 3.1s linear both; }
+@keyframes bf-section-fill { from { width: 0; } to { width: 100%; } }
+.bf-chip--section { color: #2a1200; background: linear-gradient(135deg, #ffd23f, #ff8c00); border-color: rgba(255, 210, 63, 0.9); }

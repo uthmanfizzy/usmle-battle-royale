@@ -441,6 +441,172 @@ export function startGameMusic() {
   gameNodes = [{ interval: startSequencer(gameGain, 132, true) }];
 }
 
+// ── Buzz Fun theme — "Honey Run" ─────────────────────────────────────────────
+// Buzz Fun's own music, in place of the shared quiz sequencer: bouncy and
+// light (112 BPM, F major), a marimba-ish pluck over I–vi–IV–V with a short
+// buzzy bass, soft kick, finger snaps and a shaker, and once every eight bars
+// a bee drifts across the top. An 8-bar loop with a second melody line so it
+// does not repeat every four. It reuses gameGain / gameNodes, so everything
+// that stops game music (game over, leaving, mute) stops this too.
+//
+// Scheduled with a look-ahead clock on the AudioContext rather than a bare
+// setInterval per note, so it stays in time when the tab is busy.
+const BUZZ_BPM = 112;
+const BUZZ_GAIN = 0.09;
+let buzzNoise = null;
+
+function buzzNoiseBuffer(c) {
+  if (buzzNoise && buzzNoise.sampleRate === c.sampleRate) return buzzNoise;
+  const len = Math.floor(c.sampleRate * 0.5);
+  buzzNoise = c.createBuffer(1, len, c.sampleRate);
+  const d = buzzNoise.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+  return buzzNoise;
+}
+
+const buzzMidi = (n) => 440 * Math.pow(2, (n - 69) / 12);
+
+// Chords per bar (8 bars): F Dm Bb C | F Dm Bb C — as root MIDI notes.
+const BUZZ_ROOTS = [41, 38, 46, 48, 41, 38, 46, 48];
+// Melody: one entry per 8th note (8 per bar), MIDI or null. F major pentatonic.
+const BUZZ_MELODY = [
+  77, null, 76, 77, 81, null, 79, 77,   74, null, 72, 74, 77, null, 74, null,
+  70, null, 72, 74, 77, 79, 77, null,   72, 74, 76, null, 79, null, 76, null,
+  81, null, 79, 77, 81, 84, 81, null,   77, null, 76, 74, 72, null, 74, 77,
+  74, 76, 77, null, 79, null, 81, 79,   77, null, null, 72, 76, null, 77, null,
+];
+
+function buzzPluck(c, dest, t, freq, peak) {
+  for (const [mult, amp, type] of [[1, 1, 'triangle'], [4, 0.18, 'sine']]) {
+    const o = c.createOscillator();
+    o.type = type;
+    o.frequency.value = freq * mult;
+    const g = c.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(peak * amp, t + 0.006);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.32);
+    o.connect(g).connect(dest);
+    o.start(t);
+    o.stop(t + 0.36);
+  }
+}
+
+function buzzBass(c, dest, t, freq) {
+  const o = c.createOscillator();
+  o.type = 'sawtooth';
+  o.frequency.value = freq;
+  const lp = c.createBiquadFilter();
+  lp.type = 'lowpass';
+  lp.frequency.setValueAtTime(900, t);
+  lp.frequency.exponentialRampToValueAtTime(220, t + 0.2);
+  const g = c.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(0.5, t + 0.01);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.24);
+  o.connect(lp).connect(g).connect(dest);
+  o.start(t);
+  o.stop(t + 0.3);
+}
+
+function buzzKick(c, dest, t) {
+  const o = c.createOscillator();
+  o.frequency.setValueAtTime(130, t);
+  o.frequency.exponentialRampToValueAtTime(45, t + 0.12);
+  const g = c.createGain();
+  g.gain.setValueAtTime(0.7, t);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
+  o.connect(g).connect(dest);
+  o.start(t);
+  o.stop(t + 0.2);
+}
+
+function buzzNoiseHit(c, dest, t, { freq, q = 1, peak, len }) {
+  const src = c.createBufferSource();
+  src.buffer = buzzNoiseBuffer(c);
+  const bp = c.createBiquadFilter();
+  bp.type = 'bandpass';
+  bp.frequency.value = freq;
+  bp.Q.value = q;
+  const g = c.createGain();
+  g.gain.setValueAtTime(peak, t);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + len);
+  src.connect(bp).connect(g).connect(dest);
+  src.start(t, Math.random() * 0.3);
+  src.stop(t + len + 0.02);
+}
+
+function buzzBee(c, dest, t) {
+  const o = c.createOscillator();
+  o.type = 'sawtooth';
+  o.frequency.setValueAtTime(220, t);
+  o.frequency.linearRampToValueAtTime(300, t + 0.8);
+  o.frequency.linearRampToValueAtTime(240, t + 1.6);
+  const lfo = c.createOscillator();
+  lfo.frequency.value = 26;
+  const lg = c.createGain();
+  lg.gain.value = 14;
+  lfo.connect(lg).connect(o.frequency);
+  const bp = c.createBiquadFilter();
+  bp.type = 'bandpass';
+  bp.frequency.value = 520;
+  bp.Q.value = 5;
+  const g = c.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.linearRampToValueAtTime(0.12, t + 0.5);
+  g.gain.linearRampToValueAtTime(0.0001, t + 1.6);
+  o.connect(bp).connect(g).connect(dest);
+  o.start(t); lfo.start(t);
+  o.stop(t + 1.7); lfo.stop(t + 1.7);
+}
+
+export function startBuzzMusic() {
+  stopBgMusic();
+  stopGameMusic();
+  if (muted) return;
+  const c = getCtx();
+  gameGain = c.createGain();
+  gameGain.gain.value = BUZZ_GAIN;
+  gameGain.connect(out());
+  const dest = gameGain;
+  const sixteenth = 60 / BUZZ_BPM / 4;
+  let step = 0;                              // 16 per bar, 128 per loop
+  let next = c.currentTime + 0.1;
+  const tick = () => {
+    if (gameGain !== dest) return;           // stopped or replaced
+    while (next < c.currentTime + 0.15) {
+      const s = step % 128;
+      const bar = Math.floor(s / 16);
+      const inBar = s % 16;
+      const root = BUZZ_ROOTS[bar];
+      // Drums
+      if (inBar === 0 || inBar === 8 || (inBar === 14 && bar % 2 === 1)) buzzKick(c, dest, next);
+      if (inBar === 4 || inBar === 12) buzzNoiseHit(c, dest, next, { freq: 1800, q: 1.2, peak: 0.35, len: 0.09 });
+      if (inBar % 2 === 1) buzzNoiseHit(c, dest, next, { freq: 7000, q: 0.8, peak: inBar % 4 === 3 ? 0.14 : 0.08, len: 0.04 });
+      // Bass: root, fifth, octave bounce
+      if (inBar === 0) buzzBass(c, dest, next, buzzMidi(root));
+      if (inBar === 6) buzzBass(c, dest, next, buzzMidi(root + 7));
+      if (inBar === 8) buzzBass(c, dest, next, buzzMidi(root + 12));
+      if (inBar === 12) buzzBass(c, dest, next, buzzMidi(root + 7));
+      // Chord stabs on the off-beats, quiet
+      if (inBar === 2 || inBar === 10) {
+        const third = root === 38 ? 3 : 4;   // Dm is minor; F, Bb and C are major
+        for (const n of [root + 24, root + 24 + third, root + 31]) buzzPluck(c, dest, next, buzzMidi(n), 0.045);
+      }
+      // Melody on 8th notes
+      if (inBar % 2 === 0) {
+        const note = BUZZ_MELODY[bar * 8 + inBar / 2];
+        if (note) buzzPluck(c, dest, next, buzzMidi(note), 0.13);
+      }
+      // A bee drifts past once a loop
+      if (s === 96) buzzBee(c, dest, next);
+      next += sixteenth;
+      step += 1;
+    }
+  };
+  tick();
+  gameNodes = [{ interval: setInterval(tick, 25) }];
+}
+
 // ── The Medathon theme ────────────────────────────────────────────────────
 // The one piece of audio in the app that is a recording rather than
 // something built out of oscillators: client/public/assets/medathon-theme.mp3,

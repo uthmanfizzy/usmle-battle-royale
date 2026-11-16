@@ -110,6 +110,11 @@ export const buzzSfx = {
     buzz(bus, { freq: 220, dur: 0.28, peak: 0.06, glide: 260, wobble: 38 });
     buzz(bus, { at: 0.05, freq: 330, dur: 0.24, peak: 0.05, glide: 300, wobble: 41 });
   }),
+  /** A new topic section: a little three-note fanfare over a passing swarm. */
+  section: play((bus) => {
+    buzz(bus, { freq: 200, dur: 0.5, peak: 0.05, glide: 160, wobble: 30 });
+    [523.25, 659.25, 783.99].forEach((f, i) => bell(bus, { at: 0.12 + i * 0.12, freq: f, dur: 0.5, peak: 0.08 }));
+  }),
   /** Next card / vote to skip. */
   skip: play((bus) => { knock(bus, { freq: 700, peak: 0.08 }); knock(bus, { at: 0.07, freq: 1050, peak: 0.08 }); }),
   /** Pause and resume. */

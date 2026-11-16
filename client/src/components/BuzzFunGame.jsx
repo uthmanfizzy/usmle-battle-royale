@@ -36,6 +36,7 @@ export default function BuzzFunGame({
   onAnswer, username, onTick,
   skipVotes = null, onSkip,
   pause = null, canPause = false, onPause,
+  section = null,
 }) {
   const paused = !!pause?.paused;
   const limit = timeLimit || 8;
@@ -157,6 +158,10 @@ export default function BuzzFunGame({
     return () => window.removeEventListener('keydown', onKey);
   }, [question, hasAnswered, showingRoundResult, paused, onAnswer]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  if (section) {
+    return <SectionSplash section={section} />;
+  }
+
   if (!question) {
     return (
       <div className="bf-screen">
@@ -264,6 +269,9 @@ export default function BuzzFunGame({
             <div className="bf-chips">
               {question.subject && <span className="bf-chip bf-chip--subject">{SUBJECT_LABEL[question.subject] || question.subject}</span>}
               {question.topic && <span className="bf-chip">{question.topic}</span>}
+              {question.section && (
+                <span className="bf-chip bf-chip--section">Section {question.section.index + 1}/{question.section.total}</span>
+              )}
             </div>
             <div className={`bf-ring${urgent ? ' is-urgent' : ''}`} aria-label={`${timeLeft} seconds left`}>
               <svg viewBox="0 0 100 100">
@@ -360,6 +368,28 @@ export default function BuzzFunGame({
 }
 
 /** Covers the card: a paused card is not a free look at the question. */
+/**
+ * "Topic change": the next section is about to start. Shown for the few
+ * seconds the server waits before its first card.
+ */
+function SectionSplash({ section }) {
+  useEffect(() => { buzzSfx.section(); }, [section.index]);
+  return (
+    <div className="bf-screen">
+      <Hive />
+      <div className="bf-section" key={section.index}>
+        <span className="bf-section-kicker">
+          {section.index === 0 ? 'First up' : 'Topic change'} · Section {section.index + 1} of {section.total}
+        </span>
+        <h2 className="bf-section-topic">{section.topic}</h2>
+        <span className="bf-section-meta">{section.subjectName} · {section.count} card{section.count === 1 ? '' : 's'}</span>
+        <div className="bf-section-bar"><i /></div>
+        {section.next && <span className="bf-section-next">Then: {section.next}</span>}
+      </div>
+    </div>
+  );
+}
+
 function PauseOverlay({ onResume }) {
   return (
     <div className="bf-pause" role="dialog" aria-label="Paused">
