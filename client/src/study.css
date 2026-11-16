@@ -17,8 +17,7 @@
    Trivia) is re-skinned by this single block. */
 html[data-study="on"] .game-screen,
 html[data-study="on"] .solo-screen,
-html[data-study="on"] .trivia-screen,
-html[data-study="on"] .bf-screen {
+html[data-study="on"] .trivia-screen {
   --bg:        #f7f8fc;
   --surface:   #ffffff;
   --card:      #ffffff;
@@ -101,56 +100,9 @@ html[data-study="on"] .trivia-result-feedback.wrong {
 }
 html[data-study="on"] .trf-explanation { color: var(--text-dim); }
 
-/* ── BuzzFun bespoke classes (white-on-dark by default) ────────────── */
-html[data-study="on"] .bf-screen {
-  background: linear-gradient(160deg, #f7f8fc 0%, #f1edfb 50%, #f7f8fc 100%);
-}
-html[data-study="on"] .bf-card {
-  background: #ffffff;
-  border-color: #d9dcea;
-  box-shadow: 0 8px 28px rgba(40,50,90,0.10);
-}
-html[data-study="on"] .bf-card-correct {
-  background: rgba(21,128,61,0.10) !important;
-  border-color: rgba(21,128,61,0.5) !important;
-  box-shadow: 0 0 30px rgba(21,128,61,0.15);
-}
-html[data-study="on"] .bf-card-wrong {
-  background: rgba(220,38,38,0.08) !important;
-  border-color: rgba(220,38,38,0.5) !important;
-  box-shadow: 0 0 30px rgba(220,38,38,0.12);
-}
-html[data-study="on"] .bf-term { color: #1c2030; text-shadow: none; }
-html[data-study="on"] .bf-opt {
-  background: #f3f5fc;
-  border-color: #d9dcea;
-  color: #1c2030;
-}
-html[data-study="on"] .bf-opt-letter { background: #e2e7f5; color: #1c2030; }
-html[data-study="on"] .bf-opt-active:hover {
-  background: rgba(180,83,9,0.10);
-  border-color: rgba(180,83,9,0.5);
-}
-html[data-study="on"] .bf-opt-selected {
-  background: rgba(180,83,9,0.14);
-  border-color: rgba(180,83,9,0.6);
-}
-html[data-study="on"] .bf-opt-reveal-correct {
-  background: rgba(21,128,61,0.12) !important;
-  border-color: rgba(21,128,61,0.7) !important;
-}
-html[data-study="on"] .bf-opt-reveal-wrong {
-  background: rgba(220,38,38,0.10) !important;
-  border-color: rgba(220,38,38,0.6) !important;
-}
-html[data-study="on"] .bf-rr-header {
-  background: #f3f5fc;
-  border-color: #d9dcea;
-}
-html[data-study="on"] .bf-rr-label  { color: #545a72; }
-html[data-study="on"] .bf-rr-row    { background: #f3f5fc; color: #1c2030; }
-html[data-study="on"] .bf-lb-row    { background: #f3f5fc; color: #545a72; }
-html[data-study="on"] .bf-rr-explanation { color: #545a72; }
+/* Buzz Fun keeps its own dark hive look in study mode: a white card in the
+   question phase and a dark one on the answer screen read as two games. */
+
 
 /* ── (c) Learning layout — calmer, bigger, explanation as focal point ─ */
 /* Applies in study scope only; dark layout is unchanged. */
@@ -162,14 +114,12 @@ html[data-study="on"] .question-card {
   padding: 34px 36px;
 }
 html[data-study="on"] .question-text,
-html[data-study="on"] .trivia-question-card .question-text,
-html[data-study="on"] .bf-term {
+html[data-study="on"] .trivia-question-card .question-text {
   font-size: clamp(18px, 1.4vw, 20px);
   line-height: 1.85;
 }
 html[data-study="on"] .options { gap: 14px; }
-html[data-study="on"] .option-btn,
-html[data-study="on"] .bf-opt {
+html[data-study="on"] .option-btn {
   padding: 18px 20px;
   font-size: 16px;
   line-height: 1.55;
@@ -178,7 +128,6 @@ html[data-study="on"] .bf-opt {
 /* Explanation block = the learning focal point */
 html[data-study="on"] .rr-explanation,
 html[data-study="on"] .trf-explanation,
-html[data-study="on"] .bf-rr-explanation,
 html[data-study="on"] .explanation-text {
   border-left: 4px solid var(--color-primary-dark);
   padding-left: 18px;

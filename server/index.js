@@ -1297,11 +1297,22 @@ function processBuzzFunAnswers(lobby) {
   const explanationDelay = lobby.difficulty === 'hard'
     ? (gameSettings.hardModeHideExplanations ? 2500 : 22000)  // HARDCODED: 20s explanation + 2s buffer
     : (gameSettings.easyModeHideExplanations ? 2500 : ((gameSettings.easyModeExplanationTime || gameSettings.explanationTime || 5) * 1000 + 2000));
-  if (lobby.questionIdx >= lobby.questionQueue.length - 1) {
-    setTimeout(() => endGame(lobby, 'questions_exhausted'), explanationDelay);
-    return;
-  }
-  setTimeout(() => nextBuzzFunQuestion(lobby), explanationDelay);
+  // The wait is a backstop, not a sentence: when every human player has
+  // pressed Next it moves on (bots never vote, so they are not counted, and
+  // a solo player moves on at once). See skip_explanation.
+  const last = lobby.questionIdx >= lobby.questionQueue.length - 1;
+  scheduleDuelAdvance(
+    lobby,
+    last ? () => endGame(lobby, 'questions_exhausted') : () => nextBuzzFunQuestion(lobby),
+    explanationDelay,
+    true,
+  );
+  io.to(lobby.id).emit('duel_skip_votes', { votes: 0, need: buzzHumans(lobby) });
+}
+
+// The players whose vote a Buzz Fun skip needs: everyone but the bots.
+function buzzHumans(lobby) {
+  return Math.max(1, [...lobby.players.values()].filter(p => !p.isBot).length);
 }
 
 /**
@@ -1381,10 +1392,14 @@ function startGame(lobby) {
   return startGameWithPool(lobby);
 }
 
+// Buzz Fun can be played solo; every other mode needs a second player (a
+// bot counts).
+const minPlayersFor = (lobby) => (lobby.gameMode === 'buzz_fun' ? 1 : 2);
+
 function startGameWithPool(lobby) {
   lobby.starting = false;
   // Everyone may have left while the pool was being fetched.
-  if (lobby.players.size < 2) return;
+  if (lobby.players.size < minPlayersFor(lobby)) return;
   if (lobby.gameMode === 'speed_race')     return startSpeedRace(lobby);
   if (lobby.gameMode === 'trivia_pursuit') return startTriviaPursuit(lobby);
   if (lobby.gameMode === 'buzz_fun')       return startBuzzFun(lobby);
@@ -3822,12 +3837,13 @@ io.on('connection', (socket) => {
   // everyone still in the duel has said it.
   socket.on('skip_explanation', () => {
     const lobby = lobbies.get(socket.lobbyId);
-    if (!lobby || lobby.gameMode !== 'pvp_duel') return;
+    if (!lobby || (lobby.gameMode !== 'pvp_duel' && lobby.gameMode !== 'buzz_fun')) return;
     if (!lobby.duelAdvanceFn || !lobby.duelSkipVotes) return;   // nothing pending, or not skippable
     if (!lobby.players.has(socket.id)) return;
     lobby.duelSkipVotes.add(socket.id);
     const votes = lobby.duelSkipVotes.size;
-    const need  = lobby.players.size;
+    // Buzz Fun counts humans only — bots never vote.
+    const need  = lobby.gameMode === 'buzz_fun' ? buzzHumans(lobby) : lobby.players.size;
     io.to(lobby.id).emit('duel_skip_votes', { votes, need });
     if (votes >= need) runDuelAdvance(lobby);
   });
@@ -3947,7 +3963,7 @@ io.on('connection', (socket) => {
     if (!lobby) return socket.emit('error', { message: 'Lobby not found.' });
     if (lobby.hostId !== socket.id) return socket.emit('error', { message: 'Only the host can start the game.' });
     if (lobby.status !== 'waiting') return socket.emit('error', { message: 'Game already started.' });
-    if (lobby.players.size < 2)     return socket.emit('error', { message: 'Need at least 2 players to start.' });
+    if (lobby.players.size < minPlayersFor(lobby)) return socket.emit('error', { message: 'Need at least 2 players to start.' });
     startGame(lobby);
   });
 

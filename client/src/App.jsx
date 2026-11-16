@@ -1475,6 +1475,8 @@ export default function App() {
           onAnswer={handleAnswer}
           username={username}
           onTick={audio.playTick}
+          skipVotes={duelSkipVotes}
+          onSkip={() => socket.emit('skip_explanation')}
         />
         </RouteErrorBoundary>
       )}

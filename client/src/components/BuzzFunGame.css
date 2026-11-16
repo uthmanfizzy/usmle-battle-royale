@@ -251,3 +251,45 @@
 @media (prefers-reduced-motion: reduce) {
   .bf-screen *, .bf-screen { animation: none !important; transition: none !important; }
 }
+
+/* ── Explanation: one sentence per line ─────────────────────────────────── */
+.bf-why-list { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 8px; }
+.bf-why-list li {
+  position: relative;
+  padding: 9px 12px 9px 34px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.28);
+  font-size: 16.5px; line-height: 1.5; font-weight: 500; color: #fff;
+  animation: bf-in 0.3s ease both; animation-delay: calc(var(--i) * 0.08s);
+}
+.bf-why-list li::before {
+  content: '';
+  position: absolute; left: 12px; top: 14px;
+  width: 12px; height: 13px;
+  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+  background: linear-gradient(160deg, #ffd23f, #ff8c00);
+}
+.bf-why-list li:first-child { background: rgba(255, 193, 7, 0.14); font-weight: 700; }
+/* Whatever the app-wide theme does to explanations (study mode's accent bar,
+   its light-sheet palette), Buzz Fun's sit on its own dark hive. */
+.bf-screen .explanation-text,
+.bf-screen .explanation-sentence { border-left: none !important; padding-left: 0 !important; color: #fff !important; }
+
+/* ── Next card / vote to skip ────────────────────────────────────────────── */
+.bf-next { margin-top: 14px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.bf-next-btn {
+  padding: 12px 22px; border-radius: 999px; border: 0; cursor: pointer;
+  font: inherit; font-size: 16px; font-weight: 900; letter-spacing: 0.02em;
+  color: #2a1200; background: linear-gradient(135deg, #ffd23f, #ff8c00);
+  box-shadow: 0 8px 22px rgba(255, 140, 0, 0.35);
+}
+.bf-next-btn:hover:not(:disabled) { filter: brightness(1.08); }
+.bf-next-btn.is-voted { cursor: default; color: #fff; background: rgba(61, 220, 132, 0.25); box-shadow: inset 0 0 0 1.5px rgba(61, 220, 132, 0.7); }
+.bf-next-count { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700; color: #ffe7c7; }
+.bf-next-pips { display: inline-flex; gap: 4px; }
+.bf-next-pips i {
+  width: 12px; height: 13px;
+  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+  background: rgba(255, 255, 255, 0.2);
+}
+.bf-next-pips i.is-on { background: #3ddc84; }

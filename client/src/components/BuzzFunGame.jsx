@@ -33,6 +33,7 @@ export default function BuzzFunGame({
   answeredCount, totalAlive, myScore, players,
   answerResult, roundResults, showingRoundResult,
   onAnswer, username, onTick,
+  skipVotes = null, onSkip,
 }) {
   const limit = timeLimit || 8;
   const [timeLeft, setTimeLeft] = useState(limit);
@@ -44,6 +45,9 @@ export default function BuzzFunGame({
   const [bestStreak, setBestStreak] = useState(0);
   const timerRef = useRef(null);
   const lastTick = useRef(null);
+  // Whether I have pressed Next on this card's explanation.
+  const [voted, setVoted] = useState(false);
+  useEffect(() => { setVoted(false); }, [question?.id, showingRoundResult]);
 
   // A new card: reset the ring and the reveal.
   useEffect(() => {
@@ -149,8 +153,17 @@ export default function BuzzFunGame({
             {roundResults.explanation && (
               <div className="bf-reveal-why">
                 <span className="bf-reveal-why-tag">💡 High-yield</span>
-                <ExplanationText text={roundResults.explanation} />
+                <Explanation text={roundResults.explanation} />
               </div>
+            )}
+
+            {onSkip && (
+              <NextVote
+                votes={skipVotes?.votes ?? 0}
+                need={skipVotes?.need ?? 1}
+                voted={voted}
+                onVote={() => { if (!voted) { setVoted(true); onSkip(); } }}
+              />
             )}
           </div>
 
@@ -300,6 +313,51 @@ function Hud({ round, totalRounds, score, streak, rank, field }) {
         <span className="bf-pill bf-pill--score">🍯 <b>{score || 0}</b></span>
       </div>
     </header>
+  );
+}
+
+/**
+ * One sentence per line. The built-in cards are plain text, so they are split
+ * on sentence ends (not after e.g./i.e./vs. or a single initial); anything
+ * with markup goes through the shared renderer untouched.
+ */
+const NO_SPLIT_AFTER = /(?:\be\.g|\bi\.e|\bvs|\betc|\bcf|\bDr|\bSt|\b[A-Z])\.$/;
+function sentences(text) {
+  const parts = String(text).split(/(?<=[.!?])\s+(?=[A-Z0-9"“(])/);
+  const out = [];
+  for (const p of parts) {
+    if (out.length && NO_SPLIT_AFTER.test(out[out.length - 1])) out[out.length - 1] += ' ' + p;
+    else out.push(p);
+  }
+  return out.map(x => x.trim()).filter(Boolean);
+}
+function Explanation({ text }) {
+  if (/[<*_\[\]#|]/.test(text)) return <ExplanationText text={text} />;
+  const lines = sentences(text);
+  return (
+    <ul className="bf-why-list">
+      {lines.map((l, i) => <li key={i} style={{ '--i': i }}>{l}</li>)}
+    </ul>
+  );
+}
+
+/** Move on before the timer: solo it is instant, with others it is a vote. */
+function NextVote({ votes, need, voted, onVote }) {
+  const solo = need <= 1;
+  return (
+    <div className="bf-next">
+      <button type="button" className={`bf-next-btn${voted ? ' is-voted' : ''}`} onClick={onVote} disabled={voted}>
+        {solo ? 'Next card →' : voted ? '✓ Voted to skip' : 'Vote to skip →'}
+      </button>
+      {!solo && (
+        <span className="bf-next-count">
+          <span className="bf-next-pips">
+            {Array.from({ length: need }, (_, i) => <i key={i} className={i < votes ? 'is-on' : ''} />)}
+          </span>
+          {votes}/{need} ready
+        </span>
+      )}
+    </div>
   );
 }
 

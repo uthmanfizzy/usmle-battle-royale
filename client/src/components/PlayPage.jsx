@@ -78,7 +78,7 @@ const GAME_MODES = [
     name: 'BUZZ FUN',
     icon: '🧠',
     shortDesc: 'Buzzwords, triads & classic HY facts',
-    meta: 'Multiplayer',
+    meta: 'Solo or multiplayer',
     accent: '230, 126, 34',
     tagline: 'Buzz first',
     facts: ['10–18s a card', 'Biochem + Immuno', 'Combos'],
@@ -318,10 +318,22 @@ export default function PlayPage({
   useEffect(() => {
     if (!lobbyId || lobbyGameMode !== 'buzz_fun' || buzzSubjects) return undefined;
     let cancelled = false;
+    // If the server cannot say (an older server still deploying, a network
+    // blip), fall back to the systems Buzz Fun ships with rather than
+    // showing none — the first version cached an empty list here and the
+    // lobby offered nothing but "Everything".
+    const fallback = [
+      { id: 'biochemistry', name: 'Biochemistry' },
+      { id: 'immunology', name: 'Immunology' },
+    ];
     authFetch('/api/buzz-fun/subjects')
-      .then(r => r.json())
-      .then(d => { if (!cancelled) setBuzzSubjects(Array.isArray(d?.subjects) ? d.subjects : []); })
-      .catch(() => { if (!cancelled) setBuzzSubjects([]); });
+      .then(r => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+      .then(d => {
+        if (cancelled) return;
+        const list = Array.isArray(d?.subjects) ? d.subjects : [];
+        setBuzzSubjects(list.length ? list : fallback);
+      })
+      .catch(() => { if (!cancelled) setBuzzSubjects(fallback); });
     return () => { cancelled = true; };
   }, [lobbyId, lobbyGameMode, buzzSubjects]);
 
@@ -331,6 +343,9 @@ export default function PlayPage({
   // Buzz Fun plays only its own cards, so its lobby has no "Questions from"
   // and offers only the systems it actually has cards for.
   const isBuzz = lobbyGameMode === 'buzz_fun';
+  // Buzz Fun can be played alone; every other mode needs a second player.
+  const minPlayers = isBuzz ? 1 : 2;
+  const playerCount = lobbyPlayers?.length || 1;
   const duelSource = duelOptions?.source || (isDuel ? 'pvp_duel' : 'default');
   const duelIsJourney = duelSource === DUEL_JOURNEY;
 
@@ -1165,11 +1180,13 @@ export default function PlayPage({
 
               {isHost ? (
                 <button
-                  className={`lobby-start-btn ${(lobbyPlayers?.length || 1) < 2 ? 'lobby-start-btn--waiting' : 'lobby-start-btn--ready'}`}
+                  className={`lobby-start-btn ${playerCount < minPlayers ? 'lobby-start-btn--waiting' : 'lobby-start-btn--ready'}`}
                   onClick={onStartGame}
-                  disabled={(lobbyPlayers?.length || 1) < 2}
+                  disabled={playerCount < minPlayers}
                 >
-                  {(lobbyPlayers?.length || 1) < 2 ? '⏳ Waiting for players...' : '⚔️ Start Game!'}
+                  {playerCount < minPlayers
+                    ? '⏳ Waiting for players...'
+                    : isBuzz && playerCount === 1 ? '▶ Play solo' : '⚔️ Start Game!'}
                 </button>
               ) : (
                 <div className="lobby-waiting-msg">
@@ -1177,8 +1194,11 @@ export default function PlayPage({
                 </div>
               )}
 
-              {(lobbyPlayers?.length || 1) < 2 && (
+              {playerCount < minPlayers && (
                 <p className="lobby-min-players">Need at least 2 players (or add a bot)</p>
+              )}
+              {isBuzz && playerCount === 1 && (
+                <p className="lobby-min-players">Play solo now, or wait for friends and bots to join for a race.</p>
               )}
             </div>
 
