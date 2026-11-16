@@ -26,6 +26,7 @@ const DUEL_SOURCES = [
   { id: 'ore_lds',            label: 'ORE / LDS' },
   { id: 'oet',                label: 'OET' },
   { id: 'clinical',           label: 'Clinical' },
+  { id: 'amboss_200_concepts', label: 'Amboss 200 Concepts' },
   { id: 'battle_royale',      label: 'Battle Royale pool' },
   { id: 'all',                label: 'Everything' },
 ];

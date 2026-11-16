@@ -60,6 +60,7 @@ const GAME_MODES = [
   { id: 'pvp_duel',       label: 'PvP Arenas',     icon: '🤺', color: '#9b59b6' },
   { id: 'oet',            label: 'OET',            icon: '🇬🇧', color: '#d6488e' },
   { id: 'clinical',       label: 'Clinical',       icon: '🩺', color: '#c9d6e2' },
+  { id: 'amboss_200_concepts', label: 'Amboss 200 Concepts', icon: '🧭', color: '#84cc16' },
 ];
 
 // The game_modes tag and its matching special folder id are the SAME string;
@@ -69,6 +70,7 @@ const ORE_LDS_MODE = 'ore_lds';
 const SAUDI_MLE_MODE = 'saudi_mle';
 const OET_MODE = 'oet';
 const CLINICAL_MODE = 'clinical';
+const AMBOSS_200_MODE = 'amboss_200_concepts';
 const MEHLMAN_MODE = 'mehlman_rapid_fire';
 // Folders that scope by game_modes TAG rather than by subject/category.
 // Anything true of one is true of the other, so they are listed once here
@@ -105,6 +107,7 @@ const FOLDERS = [
   { id: 'mehlman_rapid_fire', label: 'Mehlman Rapid Fire',         icon: '⚡', prefix: null,  special: true  },
   { id: 'oet',              label: 'OET',                          icon: '🇬🇧', prefix: null,  special: true  },
   { id: 'clinical',         label: 'Clinical',                     icon: '🩺', prefix: null,  special: true  },
+  { id: 'amboss_200_concepts', label: 'Amboss 200 Concepts',       icon: '🧭', prefix: null,  special: true  },
   { id: 'medathon',         label: 'Medathon',                     icon: '🏁', prefix: null,  special: true  },
   { id: 'cardiology',       label: 'Cardiology',                   icon: '❤️',  prefix: 'CA',  special: false },
   { id: 'neurology',        label: 'Neurology',                    icon: '🧠', prefix: 'NE',  special: false },
@@ -11338,6 +11341,7 @@ const ADMIN_GAMES = [
   { id: 'mehlman',      icon: '⚡', label: 'Mehlman Rapid Fire' },
   { id: 'oet',          icon: '🇬🇧', label: 'OET' },
   { id: 'clinical',     icon: '🩺', label: 'Clinical' },
+  { id: 'amboss_200',   icon: '🧭', label: 'Amboss 200 Concepts' },
   // ── Online ──
   { id: 'battle_royale',  icon: '⚔️', label: 'Battle Royale',  online: true },
   { id: 'speed_race',     icon: '⚡', label: 'Speed Race',     online: true },
@@ -11658,6 +11662,19 @@ function GamesPanel({ subjects }) {
               <QuestionBankSubjectsPanel modeId={CLINICAL_MODE} modeLabel="Clinical" subjects={subjects} />
               <QuestionBankImagesPanel modeId={CLINICAL_MODE} modeLabel="Clinical" subjects={subjects} />
               <QuestionsPanel subjects={subjects} scopeTag={CLINICAL_MODE} />
+            </ErrorBoundary>
+          </>
+        )}
+        {/* Amboss Quest → 200 Concepts: the same bank machinery, on its own tag. */}
+        {game === 'amboss_200'   && (
+          <>
+            <ErrorBoundary>
+              <GameModeSettingsPanel bankModeId={AMBOSS_200_MODE} bankLabel="Amboss 200 Concepts" />
+            </ErrorBoundary>
+            <ErrorBoundary>
+              <QuestionBankSubjectsPanel modeId={AMBOSS_200_MODE} modeLabel="Amboss 200 Concepts" subjects={subjects} />
+              <QuestionBankImagesPanel modeId={AMBOSS_200_MODE} modeLabel="Amboss 200 Concepts" subjects={subjects} />
+              <QuestionsPanel subjects={subjects} scopeTag={AMBOSS_200_MODE} />
             </ErrorBoundary>
           </>
         )}

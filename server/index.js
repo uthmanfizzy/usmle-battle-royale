@@ -4579,7 +4579,7 @@ const UWORLD_MODE_JSON = JSON.stringify([UWORLD_MODE]);
 // Whitelisted, never passed through: this string goes straight into a
 // game_modes containment filter, so an arbitrary one from the query would let a
 // caller scope these endpoints to any tag they liked.
-const QUESTION_BANK_MODE_IDS = ['uworld_adventure', 'saudi_mle', 'ore_lds', 'mehlman_rapid_fire', 'oet', 'clinical'];
+const QUESTION_BANK_MODE_IDS = ['uworld_adventure', 'saudi_mle', 'ore_lds', 'mehlman_rapid_fire', 'oet', 'clinical', 'amboss_200_concepts'];
 
 function modeTagFrom(req) {
   const m = (req.query.mode || '').toString();
@@ -4627,6 +4627,9 @@ const QUESTION_BANK_ACTIVITY_MODE = {
   ore_lds:          'ore_lds_practice',
   mehlman_rapid_fire: 'mehlman_rapid_fire_practice',
   oet:              'oet_practice',
+  // Clinical was missing here, so its sessions were logged as UWorld.
+  clinical:         'clinical_practice',
+  amboss_200_concepts: 'amboss_200_concepts_practice',
 };
 
 // Questions whose explanation the student put aside to read later. A table of
@@ -7597,6 +7600,7 @@ function sanitizeQuestionCount(v) {
 const STUDY_SESSION_MODES = new Set([
   'solo', 'training_grounds', 'journey', 'question_bank_practice', 'saudi_mle_practice',
   'ore_lds_practice', 'mehlman_rapid_fire_practice', 'oet_practice',
+  'clinical_practice', 'amboss_200_concepts_practice',
 ]);
 
 app.post('/api/study-session', requireAuth, async (req, res) => {

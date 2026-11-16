@@ -1011,6 +1011,13 @@
 .ms-journey-card--ukmla { --ms-accent-rgb: 64, 96, 200; border-color: #4060c8; box-shadow: 0 0 18px rgba(64, 96, 200, 0.22); }
 .ms-journey-card--ukmla .ms-journey-name { color: #a9bcff; }
 
+/* Amboss Quest — lime, the one hue still free that sits apart from both
+   Saudi MLE's green and Mehlman's yellow. Shared by the Story Mode card and
+   every card on the /amboss-quest hub. */
+.ms-journey-card--amboss { --ms-accent-rgb: 132, 204, 22; border-color: #84cc16; box-shadow: 0 0 18px rgba(132, 204, 22, 0.22); }
+.ms-journey-card--amboss:hover { box-shadow: 0 0 28px rgba(132, 204, 22, 0.48); }
+.ms-journey-card--amboss .ms-journey-name { color: #c4f07a; }
+
 /* ── Locked campaigns ─────────────────────────────────────────────────────
    Visible but closed: dimmed and desaturated, no glow, no hover lift, a
    not-allowed cursor — and the 🔒 LOCKED chip in the name says it in words,

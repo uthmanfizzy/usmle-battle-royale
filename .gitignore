@@ -19,3 +19,10 @@ dist/
 .env.*.local
 client/.env.local
 client/.env.*.local
+
+# AMBOSS 200 Concepts: transcribed third-party questions and figures, and the
+# SQL built from them. The repo is PUBLIC, so the content stays on this
+# machine and reaches the app only through Supabase. tools/amboss-200/build.js
+# is the part that is committed.
+tools/amboss-200/data/
+tools/amboss-200/out/

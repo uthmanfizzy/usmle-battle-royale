@@ -750,8 +750,10 @@ export default function UWorldAdventure({ mode = DEFAULT_QUESTION_BANK_MODE }) {
           )}
         </div>
 
-        <button type="button" className="uwa-hero-back" onClick={() => { window.location.href = '/?story=1'; }}>
-          ← Story Mode
+        {/* A bank that lives inside a hub (Amboss Quest's 200 Concepts) goes
+            back to that hub; every other bank goes back to Story Mode. */}
+        <button type="button" className="uwa-hero-back" onClick={() => { window.location.href = mode.back?.route || '/?story=1'; }}>
+          ← {mode.back?.label || 'Story Mode'}
         </button>
 
         <div className="uwa-hero-inner">

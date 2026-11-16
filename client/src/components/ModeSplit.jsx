@@ -116,7 +116,7 @@ export default function ModeSplit({ onStory, onOnline, onTraining, onBack }) {
  * it cannot be clicked or focused, and it says so — the lock chip and the
  * title attribute carry it, so it is never mistaken for a broken button.
  */
-function LockedCard({ variant, icon, name, sub }) {
+export function LockedCard({ variant, icon, name, sub }) {
   return (
     <div
       className={`ms-journey-card ms-journey-card--${variant} is-locked`}
@@ -328,6 +328,22 @@ export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld, onSaudiMLE, o
           </div>
         </button>
 
+        )}
+
+        {/* Amboss Quest — a hub of its own sub-modes (Qbank, 200 Concepts,
+            HY Ethics), so it opens /amboss-quest rather than a bank. */}
+        {!isDentistry && (
+        <button className="ms-journey-card ms-journey-card--amboss" onClick={() => { window.location.href = '/amboss-quest'; }}>
+          <div className="ms-journey-art" aria-hidden="true">
+            <span className="ms-journey-art-icon">🧭</span>
+          </div>
+          <div className="ms-journey-body">
+            <span className="ms-journey-name">AMBOSS QUEST</span>
+            <span className="ms-journey-sub">
+              Qbank, 200 Concepts and HY Ethics — AMBOSS, quest by quest.
+            </span>
+          </div>
+        </button>
         )}
 
         {/* ── Locked campaigns ───────────────────────────────────────

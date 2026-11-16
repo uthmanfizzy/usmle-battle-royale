@@ -27,6 +27,7 @@ const UWorldAdventure   = lazy(() => import('./components/UWorldAdventure'));
 // Not lazy: a tiny config object, and the /saudi-mle route needs it at render.
 import { questionBankMode } from './questionBankModes';
 const HYFlashcards      = lazy(() => import('./components/HYFlashcards'));
+const AmbossQuest       = lazy(() => import('./components/AmbossQuest'));
 const ReelsPage         = lazy(() => import('./components/ReelsPage'));
 const PathwayNavigator  = lazy(() => import('./components/PathwayNavigator'));
 const ECGReader         = lazy(() => import('./components/ECGReader'));
@@ -155,6 +156,9 @@ ReactDOM.createRoot(document.getElementById('root')).render(
                 <Route path="/mehlman-rapid-fire" element={<RouteErrorBoundary name="MehlmanRapidFire"><UWorldAdventure mode={questionBankMode('mehlman_rapid_fire')} /></RouteErrorBoundary>} />
                 <Route path="/clinical" element={<RouteErrorBoundary name="Clinical"><UWorldAdventure mode={questionBankMode('clinical')} /></RouteErrorBoundary>} />
                 <Route path="/oet" element={<RouteErrorBoundary name="OET"><UWorldAdventure mode={questionBankMode('oet')} /></RouteErrorBoundary>} />
+                {/* Amboss Quest: a hub of sub-modes. 200 Concepts is a normal bank. */}
+                <Route path="/amboss-quest" element={<RouteErrorBoundary name="AmbossQuest"><AmbossQuest /></RouteErrorBoundary>} />
+                <Route path="/amboss-200-concepts" element={<RouteErrorBoundary name="Amboss200Concepts"><UWorldAdventure mode={questionBankMode('amboss_200_concepts')} /></RouteErrorBoundary>} />
                 <Route path="/hy-flashcards" element={<RouteErrorBoundary name="HYFlashcards"><HYFlashcards /></RouteErrorBoundary>} />
                 <Route path="/reels"          element={<RouteErrorBoundary name="ReelsPage"><ReelsPage /></RouteErrorBoundary>} />
                 <Route path="/minigames" element={<RouteErrorBoundary name="MinigamesPage"><MinigamesPage /></RouteErrorBoundary>} />

@@ -326,7 +326,7 @@ function normalizeImport(raw, { defaultCategory, defaultDifficulty } = {}) {
   let correct;
   if (!rawCorrect) {
     correct = 'A';
-  } else if (rawCorrect.length === 1 && rawCorrect >= 'A' && rawCorrect <= 'H') {
+  } else if (rawCorrect.length === 1 && rawCorrect >= 'A' && rawCorrect <= 'J') {
     const letterIndex = rawCorrect.charCodeAt(0) - 65; // A=0, B=1, C=2, ...
     correct = (letterIndex >= 0 && letterIndex < options.length) ? rawCorrect : 'A';
   } else {

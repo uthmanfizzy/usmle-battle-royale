@@ -134,6 +134,23 @@ export const QUESTION_BANK_MODES = [
     // questions are added, the way every bank after UWorld started.
     targetTotal: null,
   },
+  {
+    // The first of Amboss Quest's sub-modes. It is reached from the Amboss
+    // Quest hub (/amboss-quest), not from Story Mode directly, so its back
+    // button returns there.
+    id: 'amboss_200_concepts',
+    label: 'Amboss 200 Concepts',
+    icon: '🧭',
+    route: '/amboss-200-concepts',
+    tagline: 'The 200 concepts that turn up on every Step 1 exam, one question each.',
+    paceScope: '__amboss_200_concepts__',
+    accentRgb: '132, 204, 22',   // Amboss Quest lime
+    activityMode: 'amboss_200_concepts_practice',
+    allowSkip: true,
+    back: { route: '/amboss-quest', label: 'Amboss Quest' },
+    // A fixed set: AMBOSS's list is exactly 200 questions.
+    targetTotal: 200,
+  },
 ];
 
 export const DEFAULT_QUESTION_BANK_MODE = QUESTION_BANK_MODES[0];

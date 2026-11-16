@@ -42,6 +42,7 @@ const MODE_META = {
   mehlman_rapid_fire_practice: { icon: '⚡', label: 'Mehlman Rapid Fire' },
   oet_practice:           { icon: '🇬🇧', label: 'OET'               },
   clinical_practice:      { icon: '🩺', label: 'Clinical'          },
+  amboss_200_concepts_practice: { icon: '🧭', label: 'Amboss 200 Concepts' },
   solo:                   { icon: '🧠', label: 'Solo Practice'     },
 };
 const modeMeta = (m) =>
