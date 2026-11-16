@@ -80,7 +80,7 @@ const MODE_DATA = {
     accent:   '#e67e22',
     rules: [
       { icon: '⚡', text: 'Flash cards of buzzwords, triads, side effects and classic HY associations' },
-      { icon: '⏱️', text: '8 seconds per card — speed matters!' },
+      { icon: '⏱️', text: '10–18 seconds per card (longer cards get longer) — speed still matters!' },
       { icon: '🃏', text: '30 cards per game — every round is a new term to identify' },
       { icon: '🏆', text: 'Correct answer = 100 pts + up to 50 speed bonus' },
       { icon: '🥇', text: 'First player to answer correctly earns an extra 50 bonus points' },

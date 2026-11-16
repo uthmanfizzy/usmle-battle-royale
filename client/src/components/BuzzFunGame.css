@@ -31,7 +31,7 @@
   left: calc(var(--i) * 7.3% - 2%);
   top: calc(((var(--i) * 37) % 100) * 1%);
   clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
-  background: rgba(255, 160, 40, 0.05);
+  background: rgba(255, 160, 40, 0.035);
   animation: bf-drift calc(14s + var(--i) * 0.7s) ease-in-out infinite alternate;
 }
 @keyframes bf-drift { to { transform: translateY(-30px) rotate(8deg); } }
@@ -48,17 +48,17 @@
 .bf-brand b { color: #ff8c00; }
 .bf-honeycomb { display: flex; gap: 3px; flex-wrap: wrap; justify-content: center; }
 .bf-honeycomb span {
-  width: 12px; height: 13px;
+  width: 14px; height: 15px;
   clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.18);
 }
 .bf-honeycomb span.is-done { background: rgba(255, 170, 40, 0.75); }
 .bf-honeycomb span.is-now { background: #fff; animation: bf-blink 1s ease-in-out infinite; }
 @keyframes bf-blink { 50% { opacity: 0.4; } }
 .bf-hud-stats { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
 .bf-pill {
-  padding: 6px 11px; border-radius: 999px; font-size: 12.5px; white-space: nowrap;
-  background: rgba(255, 140, 0, 0.1); border: 1px solid rgba(255, 140, 0, 0.32); color: rgba(255, 246, 234, 0.78);
+  padding: 7px 13px; border-radius: 999px; font-size: 14px; font-weight: 600; white-space: nowrap;
+  background: rgba(255, 140, 0, 0.14); border: 1px solid rgba(255, 140, 0, 0.45); color: #fff1dc;
 }
 .bf-pill b { color: #fff; font-variant-numeric: tabular-nums; }
 .bf-pill--score { background: rgba(255, 193, 7, 0.16); border-color: rgba(255, 193, 7, 0.5); }
@@ -79,8 +79,8 @@
   padding: 18px 20px 20px;
   border-radius: 22px;
   background:
-    linear-gradient(160deg, rgba(255, 150, 30, 0.14), rgba(255, 150, 30, 0) 45%),
-    linear-gradient(180deg, rgba(44, 22, 8, 0.96), rgba(22, 11, 4, 0.96));
+    linear-gradient(160deg, rgba(255, 150, 30, 0.1), rgba(255, 150, 30, 0) 45%),
+    #1d1007;
   border: 1.5px solid rgba(var(--type), 0.55);
   box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5), 0 0 40px rgba(var(--type), 0.12);
   animation: bf-deal 0.38s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
@@ -94,12 +94,12 @@
 .bf-type {
   display: inline-flex; align-items: center; gap: 6px;
   padding: 6px 12px; border-radius: 999px;
-  font-size: 12px; font-weight: 900; letter-spacing: 0.1em; text-transform: uppercase;
+  font-size: 13px; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase;
   color: #1a0d03; background: rgb(var(--type));
   box-shadow: 0 4px 14px rgba(var(--type), 0.45);
 }
 .bf-chips { display: flex; gap: 6px; flex-wrap: wrap; flex: 1; }
-.bf-chip { padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; color: #ffd9a8; background: rgba(255, 160, 40, 0.1); border: 1px solid rgba(255, 160, 40, 0.28); }
+.bf-chip { padding: 5px 11px; border-radius: 999px; font-size: 13px; font-weight: 700; color: #ffe7c7; background: rgba(255, 160, 40, 0.16); border: 1px solid rgba(255, 160, 40, 0.45); }
 .bf-chip--subject { color: #fff; background: rgba(255, 120, 0, 0.22); border-color: rgba(255, 120, 0, 0.5); }
 
 /* Countdown ring */
@@ -113,9 +113,10 @@
 .bf-ring-n { position: absolute; inset: 0; display: grid; place-items: center; font-size: 22px; font-weight: 900; font-variant-numeric: tabular-nums; }
 
 .bf-clue {
-  margin: 16px 0 18px;
-  font-size: clamp(19px, 3vw, 27px); font-weight: 800; line-height: 1.32; letter-spacing: -0.01em;
-  color: #fff;
+  margin: 18px 0 20px;
+  font-size: clamp(21px, 3.2vw, 30px); font-weight: 800; line-height: 1.4; letter-spacing: 0;
+  color: #ffffff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
 }
 .bf-img { display: block; max-width: 100%; max-height: 300px; margin: 0 auto 16px; border-radius: 12px; }
 
@@ -125,11 +126,11 @@
 .bf-opt {
   position: relative;
   display: flex; align-items: center; gap: 12px;
-  min-height: 62px; padding: 12px 14px;
+  min-height: 66px; padding: 13px 15px;
   border-radius: 16px; text-align: left; cursor: default;
-  font: inherit; font-size: 15.5px; font-weight: 700; line-height: 1.3; color: #fff6ea;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1.5px solid rgba(255, 170, 60, 0.22);
+  font: inherit; font-size: 17px; font-weight: 700; line-height: 1.35; color: #ffffff;
+  background: #2a1709;
+  border: 1.5px solid rgba(255, 170, 60, 0.4);
   animation: bf-in 0.32s ease both; animation-delay: var(--d);
   transition: transform 0.12s ease, border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease, opacity 0.2s;
 }
@@ -140,7 +141,7 @@
 .bf-opt.is-mine { border-color: #ffb020; background: rgba(255, 176, 32, 0.18); }
 .bf-opt.is-right { border-color: #3ddc84; background: rgba(61, 220, 132, 0.2); box-shadow: 0 0 22px rgba(61, 220, 132, 0.25); }
 .bf-opt.is-wrong { border-color: #ff5a4f; background: rgba(255, 90, 79, 0.2); }
-.bf-opt.is-dim { opacity: 0.42; }
+.bf-opt.is-dim { opacity: 0.62; }
 .bf-opt:disabled { cursor: default; }
 .bf-opt-key {
   width: 30px; height: 32px; flex: none; display: grid; place-items: center;
@@ -153,34 +154,39 @@
 .bf-locked { margin-top: 12px; text-align: center; font-size: 13.5px; font-weight: 700; color: #ffd27a; animation: bf-blink 1.4s ease-in-out infinite; }
 
 /* ── Verdict pops ────────────────────────────────────────────────────────── */
+/* In the flow, under the answers. It used to sit over the middle of the
+   card and cover the question. */
 .bf-burst {
-  position: absolute; left: 50%; top: 42%; transform: translate(-50%, -50%);
-  display: grid; justify-items: center; pointer-events: none; z-index: 3;
-  animation: bf-pop 1.3s cubic-bezier(0.2, 1.4, 0.3, 1) both;
+  position: relative; margin-top: 14px;
+  display: flex; align-items: center; justify-content: center; gap: 14px; flex-wrap: wrap;
+  padding: 10px 14px; border-radius: 14px;
+  background: rgba(61, 220, 132, 0.12); border: 1px solid rgba(61, 220, 132, 0.45);
+  pointer-events: none;
+  animation: bf-pop 0.45s cubic-bezier(0.2, 1.4, 0.3, 1) both;
 }
-@keyframes bf-pop { 0% { opacity: 0; transform: translate(-50%, -50%) scale(0.4); } 25% { opacity: 1; transform: translate(-50%, -50%) scale(1.08); } 75% { opacity: 1; transform: translate(-50%, -60%) scale(1); } 100% { opacity: 0; transform: translate(-50%, -85%) scale(0.95); } }
-.bf-burst-word { font-family: 'Cinzel', Georgia, serif; font-size: clamp(44px, 9vw, 74px); font-weight: 900; letter-spacing: 0.04em; color: #ffd23f; -webkit-text-stroke: 2px #b34700; text-shadow: 0 6px 30px rgba(255, 140, 0, 0.8); }
-.bf-burst-pts { font-size: 26px; font-weight: 900; color: #fff; text-shadow: 0 2px 12px rgba(0, 0, 0, 0.6); }
-.bf-burst-streak { margin-top: 4px; font-size: 14px; font-weight: 800; color: #ffb36b; }
-.bf-sparks { position: absolute; left: 50%; top: 40%; }
+@keyframes bf-pop { from { opacity: 0; transform: scale(0.6); } }
+.bf-burst-word { font-family: 'Cinzel', Georgia, serif; font-size: clamp(30px, 5vw, 40px); font-weight: 900; letter-spacing: 0.04em; color: #ffd23f; -webkit-text-stroke: 2px #b34700; text-shadow: 0 6px 30px rgba(255, 140, 0, 0.8); }
+.bf-burst-pts { font-size: 24px; font-weight: 900; color: #fff; text-shadow: 0 2px 12px rgba(0, 0, 0, 0.6); }
+.bf-burst-streak { font-size: 15px; font-weight: 800; color: #ffb36b; }
+.bf-sparks { position: absolute; left: 50%; top: 50%; }
 .bf-sparks i {
   position: absolute; width: 8px; height: 8px; border-radius: 50%; background: #ffc233;
   transform: rotate(var(--a)) translateX(0);
   animation: bf-spark 0.9s ease-out forwards;
 }
-@keyframes bf-spark { to { transform: rotate(var(--a)) translateX(150px); opacity: 0; } }
+@keyframes bf-spark { to { transform: rotate(var(--a)) translateX(90px); opacity: 0; } }
 .bf-miss {
   margin-top: 14px; padding: 10px 14px; border-radius: 12px;
   background: rgba(255, 90, 79, 0.14); border: 1px solid rgba(255, 90, 79, 0.45);
-  font-weight: 900; color: #ff8a80; animation: bf-in 0.3s ease both;
+  font-weight: 900; font-size: 17px; color: #ff9d94; animation: bf-in 0.3s ease both;
 }
-.bf-miss span { display: block; margin-top: 2px; font-weight: 600; color: #ffe3dc; font-size: 14px; }
+.bf-miss span { display: block; margin-top: 3px; font-weight: 700; color: #fff; font-size: 16px; }
 
 /* ── Side panel: combo + mini table ──────────────────────────────────────── */
 .bf-side { display: grid; gap: 10px; }
 .bf-combo, .bf-mini { padding: 12px 14px; border-radius: 16px; background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(255, 150, 30, 0.22); }
 .bf-combo { display: grid; gap: 6px; }
-.bf-combo-label { font-size: 11px; font-weight: 900; letter-spacing: 0.16em; text-transform: uppercase; color: #ffb35c; }
+.bf-combo-label { font-size: 12px; font-weight: 900; letter-spacing: 0.16em; text-transform: uppercase; color: #ffb35c; }
 .bf-combo-cells { display: flex; gap: 5px; }
 .bf-combo-cells span {
   flex: 1; height: 22px;
@@ -188,9 +194,9 @@
   background: rgba(255, 255, 255, 0.08); transition: background 0.25s ease;
 }
 .bf-combo-cells span.is-on { background: linear-gradient(180deg, #ffd23f, #ff7a00); box-shadow: 0 0 10px rgba(255, 140, 0, 0.6); }
-.bf-combo-best { font-size: 12px; color: rgba(255, 246, 234, 0.6); }
+.bf-combo-best { font-size: 13px; color: rgba(255, 246, 234, 0.85); }
 .bf-mini { display: grid; gap: 4px; }
-.bf-mini-row { display: flex; align-items: center; gap: 8px; padding: 5px 6px; border-radius: 8px; font-size: 13.5px; }
+.bf-mini-row { display: flex; align-items: center; gap: 8px; padding: 6px 7px; border-radius: 8px; font-size: 15px; }
 .bf-mini-row.is-me { background: rgba(255, 140, 0, 0.18); }
 .bf-mini-rank { width: 22px; text-align: center; font-weight: 800; color: #ffb35c; }
 .bf-mini-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -204,12 +210,21 @@
   display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 16px; align-items: start;
 }
 @media (max-width: 880px) { .bf-reveal { grid-template-columns: 1fr; } }
-.bf-reveal-card { padding: 18px 20px; border-radius: 22px; background: linear-gradient(180deg, rgba(44, 22, 8, 0.96), rgba(22, 11, 4, 0.96)); border: 1.5px solid rgba(61, 220, 132, 0.45); animation: bf-deal 0.35s ease both; }
+.bf-reveal-card { padding: 18px 20px; border-radius: 22px; background: #1d1007; border: 1.5px solid rgba(61, 220, 132, 0.45); animation: bf-deal 0.35s ease both; }
 .bf-reveal-top { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.bf-reveal-clue { margin: 12px 0; font-size: 16px; line-height: 1.45; color: rgba(255, 246, 234, 0.82); }
+.bf-reveal-clue { margin: 14px 0; font-size: 19px; font-weight: 700; line-height: 1.45; color: #fff; }
 .bf-reveal-answer { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 14px; background: rgba(61, 220, 132, 0.15); border: 1px solid rgba(61, 220, 132, 0.5); font-size: 19px; font-weight: 900; }
 .bf-reveal-key { width: 32px; height: 34px; flex: none; display: grid; place-items: center; clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); background: #3ddc84; color: #04220f; font-size: 14px; }
-.bf-reveal-why { margin-top: 12px; padding: 12px 14px; border-radius: 14px; background: rgba(255, 193, 7, 0.08); border: 1px solid rgba(255, 193, 7, 0.28); line-height: 1.55; font-size: 14.5px; }
+.bf-reveal-opts { display: grid; gap: 8px; }
+.bf-reveal-opt { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 12px; background: #2a1709; border: 1px solid rgba(255, 170, 60, 0.3); font-size: 16px; font-weight: 600; color: rgba(255, 255, 255, 0.82); }
+.bf-reveal-opt.is-right { background: rgba(61, 220, 132, 0.16); border-color: rgba(61, 220, 132, 0.6); color: #fff; font-size: 18px; font-weight: 800; }
+.bf-reveal-opt.is-wrong { background: rgba(255, 90, 79, 0.14); border-color: rgba(255, 90, 79, 0.55); color: #fff; }
+.bf-reveal-opt-text { flex: 1; }
+.bf-reveal-tag { font-size: 12px; font-weight: 800; padding: 3px 8px; border-radius: 999px; background: rgba(0, 0, 0, 0.35); white-space: nowrap; }
+.bf-reveal-opt:not(.is-right) .bf-reveal-key { background: rgba(255, 255, 255, 0.18); color: #fff; }
+.bf-reveal-why { margin-top: 12px; padding: 12px 14px; border-radius: 14px; background: rgba(255, 193, 7, 0.1); border: 1px solid rgba(255, 193, 7, 0.4); line-height: 1.6; font-size: 16px; }
+/* The app-wide explanation rule sets 15px at 0.88 white with !important. */
+.bf-reveal-why .explanation-text, .bf-reveal-why .explanation-sentence { font-size: 16px !important; color: #fff !important; }
 .bf-reveal-why-tag { display: inline-block; margin-bottom: 4px; font-size: 11px; font-weight: 900; letter-spacing: 0.14em; text-transform: uppercase; color: #ffc233; }
 
 .bf-table { padding: 12px; border-radius: 22px; background: rgba(0, 0, 0, 0.32); border: 1px solid rgba(255, 150, 30, 0.25); display: grid; gap: 6px; }
@@ -221,7 +236,7 @@
 .bf-row.is-me { background: rgba(255, 140, 0, 0.2); border: 1px solid rgba(255, 140, 0, 0.55); }
 .bf-row.is-top1 { box-shadow: inset 0 0 0 1px rgba(255, 210, 63, 0.6); }
 .bf-row-rank { width: 26px; text-align: center; font-weight: 900; color: #ffb35c; }
-.bf-row-name { flex: 1; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bf-row-name { flex: 1; font-weight: 700; font-size: 15.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bf-row-fire { font-size: 12.5px; font-weight: 800; color: #ff9a3c; }
 .bf-row-mark { width: 22px; text-align: center; font-weight: 900; color: rgba(255, 255, 255, 0.4); }
 .bf-row-mark.is-ok { color: #3ddc84; }

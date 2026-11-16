@@ -129,9 +129,22 @@ export default function BuzzFunGame({
               {question.topic && <span className="bf-chip">{question.topic}</span>}
             </div>
             <p className="bf-reveal-clue">{question.question}</p>
-            <div className="bf-reveal-answer">
-              <span className="bf-reveal-key">{roundResults.correctAnswer}</span>
-              <span>{optionText(roundResults.correctAnswer)}</span>
+            {/* Every option, not just the answer: what you picked, what it
+                was, and the two you did not, readable at full size. */}
+            <div className="bf-reveal-opts">
+              {question.options.map((opt, i) => {
+                const letter = LETTERS[i];
+                const right = letter === roundResults.correctAnswer;
+                const mine = letter === myAnswer;
+                return (
+                  <div key={letter} className={`bf-reveal-opt${right ? ' is-right' : ''}${mine && !right ? ' is-wrong' : ''}`}>
+                    <span className="bf-reveal-key">{letter}</span>
+                    <span className="bf-reveal-opt-text">{opt}</span>
+                    {right && <span className="bf-reveal-tag">✓ Answer</span>}
+                    {mine && !right && <span className="bf-reveal-tag">Your pick</span>}
+                  </div>
+                );
+              })}
             </div>
             {roundResults.explanation && (
               <div className="bf-reveal-why">
@@ -184,7 +197,7 @@ export default function BuzzFunGame({
                   className="bf-ring-fg"
                   cx="50" cy="50" r="44"
                   strokeDasharray={RING}
-                  strokeDashoffset={RING * (1 - (hasAnswered ? fraction : fraction))}
+                  strokeDashoffset={RING * (1 - fraction)}
                 />
               </svg>
               <span className="bf-ring-n">{hasAnswered && !answerResult ? '🐝' : timeLeft}</span>

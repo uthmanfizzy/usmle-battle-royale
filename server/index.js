@@ -1171,6 +1171,18 @@ function buzzFunOwnPool(lobby) {
   return pool;
 }
 
+/**
+ * How long a card stays up. Eight seconds was the whole budget whatever the
+ * card said, and a 25-word clue with four long options cannot even be READ
+ * in eight. A short card still gets ten; every 25 characters past 120 adds a
+ * second, up to eighteen. Speed still pays: the bonus is measured against
+ * this card's own clock.
+ */
+function buzzFunSeconds(q) {
+  const chars = String(q.question || '').length + (q.options || []).reduce((n, o) => n + String(o).length, 0);
+  return Math.max(10, Math.min(18, 10 + Math.ceil(Math.max(0, chars - 120) / 25)));
+}
+
 function startBuzzFun(lobby) {
   // The host's chosen questions, or Buzz Fun's own.
   const pool = matchPoolOr(lobby, buzzFunOwnPool(lobby));
@@ -1210,7 +1222,8 @@ function nextBuzzFunQuestion(lobby) {
   // Shuffle + remap once per serve on a clone in the queue slot; processBuzzFunAnswers
   // re-reads the same slot, so emit, correct-check, and bots share one order.
   const q         = lobby.questionQueue[lobby.questionIdx] = withShuffledOptions(lobby.questionQueue[lobby.questionIdx]);
-  const timeLimit = 8;
+  const timeLimit = buzzFunSeconds(q);
+  lobby.buzzTimeLimit = timeLimit;
 
   io.to(lobby.id).emit('new_question', {
     ...toPublicQuestion(q),
@@ -1244,7 +1257,7 @@ function processBuzzFunAnswers(lobby) {
     if (correct) {
       pointsEarned = 100;
       if (answerTime !== null) {
-        const speedBonus = Math.round(50 * Math.max(0, 1 - answerTime / 8000));
+        const speedBonus = Math.round(50 * Math.max(0, 1 - answerTime / ((lobby.buzzTimeLimit || 8) * 1000)));
         pointsEarned += speedBonus;
       }
       if (lobby.buzzFirstCorrect === player.id) pointsEarned += 50;
@@ -1307,6 +1320,10 @@ const MATCH_POOL_MIN = 5;
 
 async function resolveMatchPool(lobby) {
   lobby.matchPool = null;
+  // Buzz Fun always plays its own cards; only its systems can be narrowed
+  // (buzzFunOwnPool). A source left over from another mode's lobby, or sent
+  // by a hand-made request, is ignored rather than honoured.
+  if (lobby.gameMode === 'buzz_fun') return;
   // Nothing chosen at all. Not the same as choosing: the sanitizer's default
   // source is the DUEL's pool, which would be the wrong bank to hand a
   // Medathon whose host never opened the settings.
@@ -14423,6 +14440,27 @@ const seedSubjects = async () => {
   }
 };
 seedSubjects();
+
+/**
+ * GET /api/buzz-fun/subjects — the systems Buzz Fun actually has cards for,
+ * with counts, so a lobby offers only systems that can be played.
+ */
+const BUZZ_SUBJECT_NAMES = { biochemistry: 'Biochemistry', immunology: 'Immunology' };
+app.get('/api/buzz-fun/subjects', (req, res) => {
+  const counts = new Map();
+  for (const q of buzzFunOwnPool({})) {
+    const id = String(q.subject || '').toLowerCase();
+    if (id) counts.set(id, (counts.get(id) || 0) + 1);
+  }
+  const subjects = [...counts.entries()]
+    .map(([id, count]) => ({ id, count, name: BUZZ_SUBJECT_NAMES[id] || id.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) }))
+    // Only systems with enough cards for a match: narrowing to fewer than
+    // MATCH_POOL_MIN is ignored by buzzFunOwnPool, so offering one would let
+    // a host pick a system that then plays everything instead.
+    .filter(x => x.count >= MATCH_POOL_MIN)
+    .sort((a, b) => b.count - a.count);
+  res.json({ subjects });
+});
 
 app.get('/api/subjects', async (req, res) => {
   if (!supabase) return res.json({ subjects: SUBJECT_DEFAULTS });

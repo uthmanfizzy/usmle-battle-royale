@@ -80,9 +80,9 @@ const GAME_MODES = [
     shortDesc: 'Buzzwords, triads & classic HY facts',
     meta: 'Multiplayer',
     accent: '230, 126, 34',
-    tagline: 'Eight seconds',
-    facts: ['8s a card', 'Biochem + Immuno', 'Combos'],
-    longDescription: 'Eight-second flash cards of the buzzwords every exam leans on — Biochemistry and Immunology to start: vitamins, storage diseases, enzymes, immunodeficiencies, autoantibodies, HLA and more. Fast answers, the first right buzz and streaks earn the most honey. Pick a subject in the match settings, or play them all.',
+    tagline: 'Buzz first',
+    facts: ['10–18s a card', 'Biochem + Immuno', 'Combos'],
+    longDescription: 'Quick-fire flash cards of the buzzwords every exam leans on — Biochemistry and Immunology to start: vitamins, storage diseases, enzymes, immunodeficiencies, autoantibodies, HLA and more. Fast answers, the first right buzz and streaks earn the most honey. Each card gets 10 to 18 seconds depending on how much there is to read. Pick systems in the match settings, or play them all.',
     supportsSolo: false,
   },
   {
@@ -313,9 +313,24 @@ export default function PlayPage({
     return () => { cancelled = true; };
   }, [lobbyId, subjects.length]);
 
+  // Buzz Fun's playable systems, with how many cards each has.
+  const [buzzSubjects, setBuzzSubjects] = useState(null);
+  useEffect(() => {
+    if (!lobbyId || lobbyGameMode !== 'buzz_fun' || buzzSubjects) return undefined;
+    let cancelled = false;
+    authFetch('/api/buzz-fun/subjects')
+      .then(r => r.json())
+      .then(d => { if (!cancelled) setBuzzSubjects(Array.isArray(d?.subjects) ? d.subjects : []); })
+      .catch(() => { if (!cancelled) setBuzzSubjects([]); });
+    return () => { cancelled = true; };
+  }, [lobbyId, lobbyGameMode, buzzSubjects]);
+
   // A duel keeps its own pool as the default; every other mode defaults to
   // the questions it has always played.
   const isDuel = lobbyGameMode === 'pvp_duel';
+  // Buzz Fun plays only its own cards, so its lobby has no "Questions from"
+  // and offers only the systems it actually has cards for.
+  const isBuzz = lobbyGameMode === 'buzz_fun';
   const duelSource = duelOptions?.source || (isDuel ? 'pvp_duel' : 'default');
   const duelIsJourney = duelSource === DUEL_JOURNEY;
 
@@ -775,6 +790,7 @@ export default function PlayPage({
                   {isHost ? (isDuel ? 'Duel settings' : 'Match settings') : 'The host has set'}
                 </p>
 
+                {!isBuzz && (
                 <div className="lobby-duel-row">
                   <span className="lobby-duel-label">Questions from</span>
                   {isHost ? (
@@ -793,6 +809,7 @@ export default function PlayPage({
                     </span>
                   )}
                 </div>
+                )}
 
                 {/* ── Which way through the Journey ──────────────────────
                     The Journey has two question sets over the same chapters:
@@ -1018,7 +1035,7 @@ export default function PlayPage({
                       >
                         Everything
                       </button>
-                      {subjects.map(sub => {
+                      {(isBuzz ? (buzzSubjects || []) : subjects).map(sub => {
                         const on = duelSubjects.includes(sub.id);
                         return (
                           <button
@@ -1033,11 +1050,11 @@ export default function PlayPage({
                                 : [...duelSubjects, sub.id],
                             })}
                           >
-                            {sub.name}
+                            {sub.name}{isBuzz && sub.count ? <span className="lobby-duel-count"> · {sub.count}</span> : null}
                           </button>
                         );
                       })}
-                      {subjects.length === 0 && (
+                      {(isBuzz ? !buzzSubjects : subjects.length === 0) && (
                         <span className="lobby-duel-value">Loading systems…</span>
                       )}
                     </div>
@@ -1128,7 +1145,9 @@ export default function PlayPage({
                 )}
                 {!isDuel && (
                   <p className="lobby-duel-note">
-                    {duelSource === 'default'
+                    {isBuzz
+                      ? `Buzz Fun plays its own cards${buzzSubjects?.length ? ` — ${buzzSubjects.map(x => `${x.count} ${x.name}`).join(', ')}` : ''}. Pick systems above, or leave Everything on to mix them.`
+                      : duelSource === 'default'
                       ? `${lobbyModeData?.name || 'This mode'} plays its own questions. Pick another set above and the whole match is drawn from that instead.`
                       : 'Everyone in the match answers from this set. If it turns out too thin to play, the mode falls back to its usual questions.'}
                   </p>
