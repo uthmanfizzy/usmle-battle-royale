@@ -149,3 +149,34 @@ parts.forEach((p, i) => {
   console.log(`${name}  ${(Buffer.byteLength(body) / 1024).toFixed(0)} KB`);
 });
 console.log(`${rows.length} question(s), ${rows.filter(r => r.image_url).length} figure(s), ${parts.length} file(s) in ${OUT}`);
+
+// The same content as a question-bank pack, for Admin → Games → Amboss 200
+// Concepts → 📦 Import pack (QuestionBankPackImport.jsx). Same shape as a
+// Scan Master pack: pictures once under `images`, questions under `items`.
+const packImages = {};
+const pack = {
+  format: 'question-bank-pack',
+  version: 1,
+  name: 'Amboss 200 Concepts',
+  tag: TAG,
+  images: packImages,
+  items: rows.map((r) => {
+    const item = {
+      question_id: r.question_id,
+      question: r.question,
+      choices: r.choices,
+      correct: r.correct,
+      category: r.category,
+      difficulty: 'hard',
+    };
+    if (r.image_url) {
+      const key = r.question_id.toLowerCase();
+      packImages[key] = r.image_url;
+      item.image = key;
+    }
+    return item;
+  }),
+};
+const packFile = path.join(OUT, 'amboss-200-concepts-pack.json');
+fs.writeFileSync(packFile, JSON.stringify(pack));
+console.log(`Pack: ${pack.items.length} questions, ${Object.keys(pack.images).length} images, ${(fs.statSync(packFile).size / 1024).toFixed(0)} KB -> ${packFile}`);

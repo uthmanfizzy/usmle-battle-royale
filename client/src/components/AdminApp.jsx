@@ -4,6 +4,7 @@ import PlayPageAdmin from './admin/PlayPageAdmin';
 import AnKingAdmin from './admin/AnKingAdmin';
 import MedJinxAdmin from './admin/MedJinxAdmin';
 import ScanMasterAdmin from './admin/ScanMasterAdmin';
+import QuestionBankPackImport from './admin/QuestionBankPackImport';
 import JourneyMode from './JourneyMode';
 import QuestionParser from './QuestionParser';
 import { parseRichText } from '../utils/parseRichText';
@@ -11672,6 +11673,7 @@ function GamesPanel({ subjects }) {
               <GameModeSettingsPanel bankModeId={AMBOSS_200_MODE} bankLabel="Amboss 200 Concepts" />
             </ErrorBoundary>
             <ErrorBoundary>
+              <QuestionBankPackImport modeId={AMBOSS_200_MODE} modeLabel="Amboss 200 Concepts" />
               <QuestionBankSubjectsPanel modeId={AMBOSS_200_MODE} modeLabel="Amboss 200 Concepts" subjects={subjects} />
               <QuestionBankImagesPanel modeId={AMBOSS_200_MODE} modeLabel="Amboss 200 Concepts" subjects={subjects} />
               <QuestionsPanel subjects={subjects} scopeTag={AMBOSS_200_MODE} />
