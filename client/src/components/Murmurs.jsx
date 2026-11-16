@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import MurmurPanel, { ChestMap, MurmurDiagram, stopAllMurmurs } from '../murmur/MurmurPanel';
 import { MURMURS, CATEGORIES, QUIZ_STEMS, murmurById, whyNot } from '../murmur/murmurData';
 import { sfx } from '../minigameSfx';
+import { useGameSettings } from '../contexts/GameSettingsContext';
 import SfxToggle from './SfxToggle';
 import './Murmurs.css';
 
@@ -54,6 +55,11 @@ const pref = (key, fallback) => { try { return localStorage.getItem(key) ?? fall
 const savePref = (key, v) => { try { localStorage.setItem(key, v); } catch { /* not remembered */ } };
 
 export default function Murmurs({ onExit }) {
+  // Recorded clips an admin has imported ({ murmurId: url }). A murmur with
+  // one plays the recording; the rest keep their synthesised sound.
+  const { settings } = useGameSettings();
+  const recordings = settings?.murmurAudio || {};
+  const rec = (m) => recordings[m.id] || null;
   const [phase, setPhase] = useState('intro');      // intro | run | summary | library
   const [category, setCategory] = useState('all');
   const [withCase, setWithCase] = useState(() => pref('mv_murm_case', 'off') === 'on');
@@ -245,7 +251,7 @@ export default function Murmurs({ onExit }) {
         ) : (
           <div className="murm-detail">
             <h1 className="murm-title murm-title--sm">{m.answer}</h1>
-            <MurmurPanel murmur={m} seed={11} showDiagram />
+            <MurmurPanel murmur={m} seed={11} showDiagram recordingUrl={rec(m)} />
             <Teaching murmur={m} />
             <Cases murmur={m} openCase={openCase} setOpenCase={setOpenCase} allOpen />
           </div>
@@ -327,7 +333,7 @@ export default function Murmurs({ onExit }) {
         )}
 
         <div className="murm-run-panel">
-          <MurmurPanel key={`${index}-${q.seed}`} murmur={q.murmur} seed={q.seed} showDiagram={diagramOn || answered} />
+          <MurmurPanel key={`${index}-${q.seed}`} murmur={q.murmur} seed={q.seed} showDiagram={diagramOn || answered} recordingUrl={rec(q.murmur)} />
           <div className="murm-tools">
             <button type="button" className={`murm-tool${diagramOn || answered ? ' is-on' : ''}`} onClick={toggleDiagram} disabled={answered} aria-pressed={diagramOn}>
               📈 {diagramOn || answered ? 'Diagram shown' : 'Show diagram'}
@@ -406,8 +412,8 @@ export default function Murmurs({ onExit }) {
               <div className="murm-compare" ref={compareRef}>
                 <p className="murm-compare-why"><strong>Listen to both:</strong> {other.tell}</p>
                 <div className="murm-compare-grid">
-                  <MurmurPanel murmur={q.murmur} seed={q.seed} title={`✓ ${q.murmur.answer} — this sound`} tone="case" />
-                  <MurmurPanel murmur={other} seed={97} title={`${other.answer} — for comparison`} tone="other" />
+                  <MurmurPanel murmur={q.murmur} seed={q.seed} title={`✓ ${q.murmur.answer} — this sound`} tone="case" recordingUrl={rec(q.murmur)} />
+                  <MurmurPanel murmur={other} seed={97} title={`${other.answer} — for comparison`} tone="other" recordingUrl={rec(other)} />
                 </div>
               </div>
             )}

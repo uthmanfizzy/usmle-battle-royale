@@ -18,15 +18,36 @@ function audioCtx() {
 }
 export function stopAllMurmurs() { if (current) current.stop(); }
 
+// Recorded clips, decoded once per URL and shared by every panel.
+const decoded = new Map();      // url -> Promise<AudioBuffer>
+function loadRecording(ac, url) {
+  if (!decoded.has(url)) {
+    decoded.set(url, fetch(url)
+      .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.arrayBuffer(); })
+      .then((buf) => ac.decodeAudioData(buf))
+      .catch((err) => { decoded.delete(url); throw err; }));
+  }
+  return decoded.get(url);
+}
+
 /**
- * Plays a murmur spec on a loop and reports where in the loop it is, so the
+ * Plays a murmur on a loop and reports where in the loop it is, so the
  * diagram's playhead can follow the sound.
+ *
+ * With `recordingUrl` it plays that real recording instead of the synthesised
+ * spec. A recording's beats do not line up with the diagram's timeline, so
+ * `recorded` tells the panel to draw the diagram without a playhead. If the
+ * recording cannot be fetched or decoded, it falls back to the synthesised
+ * sound rather than staying silent.
  */
-function useMurmurAudio(spec, seed) {
+function useMurmurAudio(spec, seed, recordingUrl) {
   const [playing, setPlaying] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [recorded, setRecorded] = useState(Boolean(recordingUrl));
   const [pos, setPos] = useState(0);              // seconds into the loop
   const handle = useRef(null);
   const rendered = useMemo(() => renderMurmur(spec, 22050, seed), [spec, seed]);
+  useEffect(() => { setRecorded(Boolean(recordingUrl)); }, [recordingUrl]);
 
   const stop = useCallback(() => {
     const h = handle.current;
@@ -38,13 +59,28 @@ function useMurmurAudio(spec, seed) {
     setPlaying(false);
   }, []);
 
-  const play = useCallback(() => {
+  const play = useCallback(async () => {
     const ac = audioCtx();
     if (!ac) return;
     if (current) current.stop();
     if (ac.state === 'suspended') ac.resume();
-    const buf = ac.createBuffer(1, rendered.samples.length, rendered.sampleRate);
-    buf.copyToChannel(rendered.samples, 0);
+    let buf = null;
+    if (recordingUrl) {
+      setLoading(true);
+      try {
+        buf = await loadRecording(ac, recordingUrl);
+        setRecorded(true);
+      } catch (err) {
+        console.warn('[murmurs] recording failed, using the synthesised sound:', err.message);
+        setRecorded(false);
+      }
+      setLoading(false);
+    }
+    if (!buf) {
+      buf = ac.createBuffer(1, rendered.samples.length, rendered.sampleRate);
+      buf.copyToChannel(rendered.samples, 0);
+    }
+    if (current) current.stop();       // another panel may have started while this one loaded
     const src = ac.createBufferSource();
     src.buffer = buf;
     src.loop = true;
@@ -64,12 +100,12 @@ function useMurmurAudio(spec, seed) {
     handle.current = h;
     current = h;
     setPlaying(true);
-  }, [rendered, stop]);
+  }, [rendered, recordingUrl, stop]);
 
   // A new sound, or the panel going away, silences the old one.
-  useEffect(() => stop, [rendered, stop]);
+  useEffect(() => stop, [rendered, recordingUrl, stop]);
 
-  return { playing, pos, toggle: () => (playing ? stop() : play()), stop };
+  return { playing, loading, recorded, pos, toggle: () => (playing ? stop() : loading ? null : play()), stop };
 }
 
 // ── The diagram ─────────────────────────────────────────────────────────
@@ -170,26 +206,37 @@ export function ChestMap({ site, radiation }) {
  * Play button, the breathing phase, and (if shown) the diagram with a
  * playhead following the sound.
  */
-export default function MurmurPanel({ murmur, seed = 1, showDiagram = true, title, tone }) {
-  const { playing, pos, toggle } = useMurmurAudio(murmur.spec, seed);
+export default function MurmurPanel({ murmur, seed = 1, showDiagram = true, title, tone, recordingUrl = null }) {
+  const { playing, loading, recorded, pos, toggle } = useMurmurAudio(murmur.spec, seed, recordingUrl);
+  // The breath and the playhead are only known for the synthesised sound,
+  // whose beats are laid out on the diagram's own timeline.
+  const synced = !recorded;
   const breath = breathAt(pos);
   return (
     <div className={`murm-panel${tone ? ` murm-panel--${tone}` : ''}`}>
       {title && <div className="murm-panel-title">{title}</div>}
       <div className="murm-panel-bar">
-        <button type="button" className={`murm-play${playing ? ' is-on' : ''}`} onClick={toggle} aria-pressed={playing}>
-          {playing ? '❚❚ Pause' : '▶ Listen'}
+        <button type="button" className={`murm-play${playing ? ' is-on' : ''}`} onClick={toggle} aria-pressed={playing} disabled={loading}>
+          {loading ? '… Loading' : playing ? '❚❚ Pause' : '▶ Listen'}
         </button>
-        <span className={`murm-breath${playing ? '' : ' is-idle'}${breath.inspiration ? ' is-in' : ' is-out'}`}>
-          🫁 {playing ? (breath.inspiration ? 'Breathing in' : 'Breathing out') : '2 beats in · 2 beats out'}
-        </span>
+        {synced ? (
+          <span className={`murm-breath${playing ? '' : ' is-idle'}${breath.inspiration ? ' is-in' : ' is-out'}`}>
+            🫁 {playing ? (breath.inspiration ? 'Breathing in' : 'Breathing out') : '2 beats in · 2 beats out'}
+          </span>
+        ) : (
+          <span className="murm-breath is-idle murm-breath--rec">🎙 Recorded heart sound</span>
+        )}
         <span className="murm-hint">🎧 Headphones help with the low sounds</span>
       </div>
       {showDiagram ? (
-        <MurmurDiagram spec={murmur.spec} insp={playing ? breath.inspiration : true} playhead={playing ? breath.inBeat * BEAT : null} />
+        <MurmurDiagram
+          spec={murmur.spec}
+          insp={playing && synced ? breath.inspiration : true}
+          playhead={playing && synced ? breath.inBeat * BEAT : null}
+        />
       ) : (
-        <div className={`murm-scope${playing ? ' is-on' : ''}`} aria-hidden="true">
-          <span className="murm-scope-dot" key={playing ? Math.floor(pos / BEAT) : 'idle'} />
+        <div className={`murm-scope${playing ? ' is-on' : ''}${playing && !synced ? ' is-rec' : ''}`} aria-hidden="true">
+          <span className="murm-scope-dot" key={playing ? (synced ? Math.floor(pos / BEAT) : 'rec') : 'idle'} />
         </div>
       )}
     </div>

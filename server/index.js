@@ -504,6 +504,8 @@ async function nextFreeQuestionIdFromDb(subject) {
 // The skins the Minigames shelf can wear. Mirrors MINIGAMES_THEMES in
 // client/src/components/MinigamesPage.jsx.
 const MINIGAMES_THEMES = ['default', 'arcade'];
+// The Murmurs minigame's sound ids. Mirrors MURMURS in client/src/murmur/murmurData.js.
+const MURMUR_IDS = ['normal', 'as', 'hcm', 'mr', 'mvp', 'tr', 'vsd', 'asd', 'ps', 'ar', 'ms', 'pda', 's3', 's4', 'rub'];
 
 let gameSettings = {
   // legacy compat
@@ -9634,6 +9636,22 @@ app.post('/admin/settings', adminAuth, async (req, res) => {
   if (b.minigamesTheme !== undefined) {
     const t = String(b.minigamesTheme);
     gameSettings.minigamesTheme = MINIGAMES_THEMES.includes(t) ? t : 'default';
+  }
+
+  // Murmurs minigame: recorded clips that replace the synthesised sound for
+  // a murmur, as { murmurId: publicUrl }. Ids are whitelisted (they mirror
+  // client/src/murmur/murmurData.js) and only https URLs are kept, because
+  // this map is served to every player. A null removes one, putting that
+  // murmur back on its synthesised sound. Merged, so importing one clip
+  // never drops the others.
+  if (b.murmurAudio && typeof b.murmurAudio === 'object' && !Array.isArray(b.murmurAudio)) {
+    const next = { ...(gameSettings.murmurAudio || {}) };
+    for (const [id, url] of Object.entries(b.murmurAudio)) {
+      if (!MURMUR_IDS.includes(id)) continue;
+      if (url === null || url === '') delete next[id];
+      else if (typeof url === 'string' && url.length <= 600 && /^https:\/\/\S+$/.test(url)) next[id] = url;
+    }
+    gameSettings.murmurAudio = next;
   }
 
   // Hero background dimming

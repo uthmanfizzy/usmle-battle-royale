@@ -5,6 +5,7 @@ import AnKingAdmin from './admin/AnKingAdmin';
 import MedJinxAdmin from './admin/MedJinxAdmin';
 import ScanMasterAdmin from './admin/ScanMasterAdmin';
 import QuestionBankPackImport from './admin/QuestionBankPackImport';
+import MurmurAudioAdmin from './admin/MurmurAudioAdmin';
 import JourneyMode from './JourneyMode';
 import QuestionParser from './QuestionParser';
 import { parseRichText } from '../utils/parseRichText';
@@ -10185,6 +10186,13 @@ function SettingsPanel() {
             </div>
           )}
         </div>
+      </div>
+
+      {/* ── Murmurs minigame sounds ─────────────────────────────────────── */}
+      <div className="ap-settings-section">
+        <ErrorBoundary>
+          <MurmurAudioAdmin />
+        </ErrorBoundary>
       </div>
 
       {/* ── 7. UI SETTINGS ────────────────────────────────────────────── */}

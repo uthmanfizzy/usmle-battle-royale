@@ -162,6 +162,8 @@
 .murm-scope { height: 90px; display: grid; place-items: center; border-radius: 12px; background: rgba(0, 0, 0, 0.3); }
 .murm-scope-dot { width: 18px; height: 18px; border-radius: 50%; background: rgba(232, 86, 120, 0.35); }
 .murm-scope.is-on .murm-scope-dot { animation: murm-beat 0.91s ease-out; background: #f0628a; }
+.murm-scope.is-rec .murm-scope-dot { animation: murm-beat 0.9s ease-out infinite; }
+.murm-breath--rec { color: #ffb7c9; }
 @keyframes murm-beat { 0% { transform: scale(1.8); box-shadow: 0 0 30px rgba(240, 98, 138, 0.8); } 100% { transform: scale(1); box-shadow: none; } }
 
 /* ── Chest map ──────────────────────────────────────────────────────────── */
