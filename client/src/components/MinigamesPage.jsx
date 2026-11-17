@@ -209,9 +209,9 @@ export default function MinigamesPage() {
         <button
           type="button"
           className="mg-back"
-          onClick={() => { window.location.href = '/?story=1'; }}
+          onClick={() => { window.location.href = '/?play=1'; }}
         >
-          ← Story Mode
+          ← Choose Your Path
         </button>
         <h1 className="mg-title">Minigames</h1>
         <p className="mg-sub">

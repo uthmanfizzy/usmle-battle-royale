@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { cachedImageMap, rememberImageMap } from '../utils/cachedImages';
 import { authFetch, getCachedUser, setCachedUser } from '../auth';
 import './ModeSplit.css';
@@ -56,7 +56,7 @@ function PathCard({ variant, icon, title, sub, art, onClick, locked, cta }) {
 }
 
 // eslint-disable-next-line no-unused-vars
-export default function ModeSplit({ onStory, onOnline, onTraining, onBack }) {
+export default function ModeSplit({ onStory, onOnline, onTraining, onMinigames, onBack }) {
   const art = useModeArt();
   return (
     <div className="ms-screen cyp-screen">
@@ -96,6 +96,17 @@ export default function ModeSplit({ onStory, onOnline, onTraining, onBack }) {
           sub="Study by topic · Watch videos"
           art={art.path_training_art}
           locked
+        />
+        {/* Minigames — short games that drill one skill at a time. They used
+            to sit inside Story Mode; they are a path of their own now. */}
+        <PathCard
+          variant="minigames"
+          icon="🎮"
+          title="Minigames"
+          sub="Quick games that drill one skill at a time"
+          cta="Play a minigame"
+          art={art.path_minigames_art}
+          onClick={onMinigames}
         />
       </div>
 
@@ -172,6 +183,14 @@ export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld, onSaudiMLE, o
   // Whether the Flashcards deck list is expanded. Local — nothing outside this
   // menu cares which category is open.
   const [flashOpen, setFlashOpen] = useState(false);
+  // Same for First Aid Journey's two sub-modes.
+  const [faOpen, setFaOpen] = useState(false);
+  // On a wide screen the panel sits under the whole grid, out of view, so
+  // bring it on screen when it opens.
+  const faPanelRef = useRef(null);
+  useEffect(() => {
+    if (faOpen) faPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }, [faOpen]);
 
   return (
     <div className="ms-screen">
@@ -219,8 +238,15 @@ export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld, onSaudiMLE, o
             (the player's last route), and the two route buttons sit above it
             on their own layer. Nested buttons would be invalid HTML, which
             is why the card is a div with a cover rather than a button. */}
+        {/* First Aid Journey is two sub-modes now, so the card opens in place
+            (same accordion as Flashcards) to offer FA Qbank — the original
+            chapter-by-chapter journey — and FA Images, which is coming. */}
         {!isDentistry && (
-        <div className="ms-journey-card ms-journey-card--routed">
+        <button
+          className={`ms-journey-card${faOpen ? ' ms-journey-card--open' : ''}`}
+          onClick={() => setFaOpen(o => !o)}
+          aria-expanded={faOpen}
+        >
           <div className="ms-journey-art" aria-hidden="true">
             <span className="ms-journey-art-icon">🚑</span>
           </div>
@@ -229,26 +255,51 @@ export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld, onSaudiMLE, o
             <span className="ms-journey-sub">
               A field medic&apos;s first steps — march through First Aid, chapter by chapter.
             </span>
-            <div className="ms-journey-routes">
+          </div>
+          <span className="ms-flash-caret" aria-hidden="true">{faOpen ? '▾' : '▸'}</span>
+        </button>
+        )}
+
+        {!isDentistry && faOpen && (
+          <div className="ms-flash-decks" ref={faPanelRef}>
+            {/* FA Qbank keeps the two routes on it. A div with a cover button,
+                because the route buttons cannot be nested in a button. */}
+            <div className="ms-flash-deck ms-journey-card--routed">
+              <span className="ms-flash-deck-icon" aria-hidden="true">📝</span>
+              <span className="ms-flash-deck-body">
+                <span className="ms-flash-deck-name">FA QBANK</span>
+                <span className="ms-flash-deck-sub">Chapter-by-chapter questions</span>
+                <span className="ms-journey-routes">
+                  <button
+                    type="button"
+                    className="ms-route-btn"
+                    onClick={(e) => { e.stopPropagation(); onJourney('full'); }}
+                  >📖 Thorough</button>
+                  <button
+                    type="button"
+                    className="ms-route-btn ms-route-btn--rapid"
+                    onClick={(e) => { e.stopPropagation(); onJourney('rapid'); }}
+                  >⚡ Concise</button>
+                </span>
+              </span>
               <button
                 type="button"
-                className="ms-route-btn"
-                onClick={(e) => { e.stopPropagation(); onJourney('full'); }}
-              >📖 Thorough</button>
-              <button
-                type="button"
-                className="ms-route-btn ms-route-btn--rapid"
-                onClick={(e) => { e.stopPropagation(); onJourney('rapid'); }}
-              >⚡ Concise</button>
+                className="ms-journey-cover"
+                onClick={() => onJourney()}
+                aria-label="FA Qbank"
+              />
+            </div>
+
+            <div className="ms-flash-deck ms-flash-deck--disabled" aria-disabled="true" title="FA Images is coming soon">
+              <span className="ms-flash-deck-icon" aria-hidden="true">🖼️</span>
+              <span className="ms-flash-deck-body">
+                <span className="ms-flash-deck-name">
+                  FA IMAGES <span className="ms-soon-chip">COMING SOON</span>
+                </span>
+                <span className="ms-flash-deck-sub">Learn First Aid through its pictures</span>
+              </span>
             </div>
           </div>
-          <button
-            type="button"
-            className="ms-journey-cover"
-            onClick={() => onJourney()}
-            aria-label="First Aid Journey"
-          />
-        </div>
         )}
 
         {/* FLASHCARDS is a category, not a mode: it opens in place to reveal
@@ -366,22 +417,6 @@ export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld, onSaudiMLE, o
         {!isDentistry && (
           <LockedCard variant="ukmla" icon="🇬🇧" name="UKMLA / PLAB"
             sub="The UK Medical Licensing Assessment and PLAB, campaign by campaign." />
-        )}
-
-        {/* Minigames — the short, skill-shaped things that are neither a
-            question bank nor a campaign. Medicine track only. */}
-        {!isDentistry && (
-        <button className="ms-journey-card ms-journey-card--violet" onClick={onMinigames}>
-          <div className="ms-journey-art" aria-hidden="true">
-            <span className="ms-journey-art-icon">🎮</span>
-          </div>
-          <div className="ms-journey-body">
-            <span className="ms-journey-name">MINIGAMES</span>
-            <span className="ms-journey-sub">
-              Short games that drill one skill at a time — pathways, gases, strips, muscles, biostats.
-            </span>
-          </div>
-        </button>
         )}
 
         {/* Mehlman Rapid Fire — the same question-bank machine on its own

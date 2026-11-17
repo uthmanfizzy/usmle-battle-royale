@@ -57,15 +57,21 @@
    the bottom over a scrim that darkens upwards from it. */
 .cyp-list {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 16px;
   width: 100%;
-  max-width: 860px;
+  max-width: 1120px;
 }
 
 .cyp-card--story    { --cyp-rgb: 46, 184, 110;  --cyp-hi: #8ff0b8; --cyp-delay: 0.08s; }  /* green */
 .cyp-card--online   { --cyp-rgb: 214, 58, 50;   --cyp-hi: #ff8a7a; --cyp-delay: 0.16s; }
 .cyp-card--training { --cyp-rgb: 74, 144, 226;  --cyp-hi: #9cc8ff; --cyp-delay: 0.24s; }
+.cyp-card--minigames { --cyp-rgb: 150, 92, 230; --cyp-hi: #d2b4ff; --cyp-delay: 0.32s; }  /* violet */
+
+/* Four across is too narrow on a mid-size window; two up reads properly. */
+@media (min-width: 641px) and (max-width: 1000px) {
+  .cyp-list { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 620px; }
+}
 
 .cyp-card {
   --cyp-angle: 0deg;

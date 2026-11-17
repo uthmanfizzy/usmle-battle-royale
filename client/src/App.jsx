@@ -1142,6 +1142,7 @@ export default function App() {
           onStory={() => setPhase('story_menu')}
           onOnline={() => { setPlayInitialMode(null); setPhase('play_page'); }}
           onTraining={() => { setTgReturnPhase('mode_split'); setPhase('training_grounds'); }}
+          onMinigames={() => { window.location.href = '/minigames'; }}
           onBack={() => window.location.href = '/dashboard'}
         />
         </RouteErrorBoundary>

@@ -10411,6 +10411,7 @@ function HomePagePanel({ section = 'home' }) {
     path_story_art: '',
     path_online_art: '',
     path_training_art: '',
+    path_minigames_art: '',
     icon_home: '',
     icon_leaderboards: '',
     icon_clans: '',
@@ -10545,6 +10546,7 @@ function HomePagePanel({ section = 'home' }) {
     { id: 'path_story_art', label: 'Story Mode', desc: 'Wide art behind the Story Mode card (green border). Keep the detail on the right' },
     { id: 'path_online_art', label: 'Online', desc: 'Wide art behind the Online card (red border). Keep the detail on the right' },
     { id: 'path_training_art', label: 'Training Grounds', desc: 'Wide art behind the Training Grounds card (blue border). Keep the detail on the right' },
+    { id: 'path_minigames_art', label: 'Minigames', desc: 'Art behind the Minigames card (violet border). Keep the detail on the right' },
   ];
   if (section === 'path') {
     return (
