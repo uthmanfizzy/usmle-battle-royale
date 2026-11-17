@@ -14,6 +14,13 @@ function apiCall(path, options = {}) {
   });
 }
 
+// The two image banks that share this screen: Scan Master's and First Aid
+// Images'. Same row shape; FA Images keeps its chapter in `system`.
+const BANKS = {
+  scan: { base: '/admin/scan-master/images', pack: 'scan-master-pack', title: '🔬 Scan Master images', name: 'Scan Master', sys: 'System', migration: 'scan-master-migration.sql', file: 'scan' },
+  fa:   { base: '/admin/fa-images/images',   pack: 'fa-images-pack',   title: '📕 First Aid Images',   name: 'FA Images',   sys: 'Chapter', migration: 'fa-images-migration.sql', file: 'fa' },
+};
+
 const EMPTY = { system: '', modality: '', image_url: '', prompt: '', answer: '', distractors: ['', '', ''], explanation: '', active: true };
 
 /**
@@ -24,7 +31,8 @@ const EMPTY = { system: '', modality: '', image_url: '', prompt: '', answer: '',
  * Images are uploaded to the shared question-images bucket through the
  * existing /admin/upload-image route.
  */
-export default function ScanMasterAdmin() {
+export default function ScanMasterAdmin({ bank = 'scan' }) {
+  const B = BANKS[bank] || BANKS.scan;
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
   const [filter, setFilter] = useState('');
@@ -37,7 +45,7 @@ export default function ScanMasterAdmin() {
 
   function load() {
     setError('');
-    apiCall('/admin/scan-master/images')
+    apiCall(B.base)
       .then(r => r.json())
       .then(d => { setData(d); if (d.error) setError(d.error); })
       .catch(e => setError(`Could not load the image bank (${e.message}).`));
@@ -85,7 +93,7 @@ export default function ScanMasterAdmin() {
     setBusy(true);
     setFormError('');
     const body = { ...form, distractors: form.distractors.map(d => d.trim()).filter(Boolean) };
-    const res = await apiCall(form.id ? `/admin/scan-master/images/${form.id}` : '/admin/scan-master/images', {
+    const res = await apiCall(form.id ? `${B.base}/${form.id}` : B.base, {
       method: form.id ? 'PUT' : 'POST', body: JSON.stringify(body),
     }).catch(() => null);
     const d = res ? await res.json().catch(() => ({})) : {};
@@ -109,9 +117,9 @@ export default function ScanMasterAdmin() {
     e.target.value = '';
     if (!file) return;
     let pack;
-    try { pack = JSON.parse(await file.text()); } catch { setError('That file is not a Scan Master pack.'); return; }
-    if (pack?.format !== 'scan-master-pack' || !Array.isArray(pack.items) || !pack.images) { setError('That file is not a Scan Master pack.'); return; }
-    if (data?.missingTable) { setError('Create the table first (scan-master-migration.sql).'); return; }
+    try { pack = JSON.parse(await file.text()); } catch { setError(`That file is not a ${B.name} pack.`); return; }
+    if (pack?.format !== B.pack || !Array.isArray(pack.items) || !pack.images) { setError(`That file is not a ${B.name} pack.`); return; }
+    if (data?.missingTable) { setError(`Create the table first (${B.migration}).`); return; }
     if (!window.confirm(`Import "${pack.name || file.name}": ${pack.items.length} questions using ${Object.keys(pack.images).length} images?`)) return;
 
     const key = (r) => `${r.system}|${(r.prompt || '').trim().toLowerCase()}|${(r.answer || '').trim().toLowerCase()}`;
@@ -128,13 +136,13 @@ export default function ScanMasterAdmin() {
           const mime = (dataUrl.match(/^data:([^;]+);/) || [])[1] || 'image/jpeg';
           const up = await apiCall('/admin/upload-image', {
             method: 'POST',
-            body: JSON.stringify({ base64: dataUrl, filename: `scan-${it.image}.${mime.split('/')[1]}`, mimeType: mime }),
+            body: JSON.stringify({ base64: dataUrl, filename: `${B.file}-${it.image}.${mime.split('/')[1]}`, mimeType: mime }),
           });
           const ud = await up.json().catch(() => ({}));
           if (!up.ok || !ud.url) throw new Error(ud.error || 'upload failed');
           urls[it.image] = ud.url;
         }
-        const res = await apiCall('/admin/scan-master/images', {
+        const res = await apiCall(B.base, {
           method: 'POST',
           body: JSON.stringify({ ...it, image_url: urls[it.image], active: true }),
         });
@@ -154,12 +162,12 @@ export default function ScanMasterAdmin() {
 
   async function remove(im) {
     if (!window.confirm(`Delete the "${im.answer}" image? This cannot be undone.`)) return;
-    await apiCall(`/admin/scan-master/images/${im.id}`, { method: 'DELETE' });
+    await apiCall(`${B.base}/${im.id}`, { method: 'DELETE' });
     load();
   }
 
   async function toggleActive(im) {
-    await apiCall(`/admin/scan-master/images/${im.id}`, { method: 'PUT', body: JSON.stringify({ ...im, active: im.active === false }) });
+    await apiCall(`${B.base}/${im.id}`, { method: 'PUT', body: JSON.stringify({ ...im, active: im.active === false }) });
     load();
   }
 
@@ -172,10 +180,10 @@ export default function ScanMasterAdmin() {
   return (
     <div className="sma">
       <div className="sma-head">
-        <h2>🔬 Scan Master images</h2>
+        <h2>{B.title}</h2>
         <span className="sma-total">{images.filter(i => i.active !== false).length} live</span>
         <button type="button" className="ap-btn-pri" onClick={() => { setFormError(''); setForm({ ...EMPTY, distractors: ['', '', ''] }); }}>+ Add image</button>
-        <label className={`ap-btn-sec ap-btn-sm sma-import${importing && !importing.finished ? ' is-busy' : ''}`} title="Load a Scan Master question pack (.json)">
+        <label className={`ap-btn-sec ap-btn-sm sma-import${importing && !importing.finished ? ' is-busy' : ''}`} title={`Load a ${B.name} question pack (.json)`}>
           📦 Import pack
           <input type="file" accept=".json,application/json" onChange={importPack} hidden disabled={Boolean(importing && !importing.finished)} />
         </label>
@@ -197,7 +205,7 @@ export default function ScanMasterAdmin() {
 
       {error && !data?.missingTable && <p className="sma-error">{error}</p>}
       {data?.missingTable && (
-        <p className="sma-warn">Run <code>scan-master-migration.sql</code> (repo root) in the Supabase SQL editor to create the table, then reload.</p>
+        <p className="sma-warn">Run <code>{B.migration}</code> (repo root) in the Supabase SQL editor to create the table, then reload.</p>
       )}
 
       <div className="sma-systems">
@@ -247,7 +255,7 @@ export default function ScanMasterAdmin() {
                 <input className="ap-input-plain" placeholder="…or paste an image URL" value={form.image_url} onChange={e => set('image_url', e.target.value)} />
               </div>
               <div className="sma-fields">
-                <label>System
+                <label>{B.sys}
                   <select className="ap-input-plain" value={form.system} onChange={e => set('system', e.target.value)} required>
                     <option value="">Choose…</option>
                     {systems.map(s => <option key={s.id} value={s.id}>{s.icon} {s.name}</option>)}

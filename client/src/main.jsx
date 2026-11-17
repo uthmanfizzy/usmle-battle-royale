@@ -42,6 +42,7 @@ const DrugMatch         = lazy(() => import('./components/DrugMatch'));
 const Murmurs           = lazy(() => import('./components/Murmurs'));
 const LabRange          = lazy(() => import('./components/LabRange'));
 const MinigamesPage     = lazy(() => import('./components/MinigamesPage'));
+const FAImages          = lazy(() => import('./components/FAImages'));
 const UsernameSetupPage = lazy(() => import('./components/UsernameSetupPage'));
 
 function PageSpinner() {
@@ -165,6 +166,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
                 <Route path="/amboss-200-concepts" element={<RouteErrorBoundary name="Amboss200Concepts"><UWorldAdventure mode={questionBankMode('amboss_200_concepts')} /></RouteErrorBoundary>} />
                 <Route path="/hy-flashcards" element={<RouteErrorBoundary name="HYFlashcards"><HYFlashcards /></RouteErrorBoundary>} />
                 <Route path="/reels"          element={<RouteErrorBoundary name="ReelsPage"><ReelsPage /></RouteErrorBoundary>} />
+                <Route path="/fa-images" element={<RouteErrorBoundary name="FAImages"><FAImages /></RouteErrorBoundary>} />
                 <Route path="/minigames" element={<RouteErrorBoundary name="MinigamesPage"><MinigamesPage /></RouteErrorBoundary>} />
                 {/* Leaving the navigator now goes back to the shelf it was
                     launched from, not to the Journey it used to live in. */}

@@ -4641,6 +4641,12 @@ app.delete('/admin/scan-master/images/:id', adminAuth, async (req, res) => {
   res.json({ ok: true });
 });
 
+// ── First Aid Images ─────────────────────────────────────────────────────────
+// Solo figure quiz under First Aid Journey; its own bank (fa_images) and
+// routes, in server/faimages.js.
+require('./faimages')({ getSupabase: () => supabase, shuffle: (arr) => shuffle(arr) })
+  .mount(app, { rateLimit, adminAuth });
+
 /**
  * The whole bank for the admin MedJinx tab: every topic with its accepted
  * answers (and synonyms), traps, vignette and teaching points, plus the

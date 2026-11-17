@@ -11857,6 +11857,9 @@ export default function AdminApp() {
         <button className={`ap-nav-btn ${tab === 'scanmaster'    ? 'active' : ''}`} onClick={() => setTab('scanmaster')}>
           🔬 Scan Master
         </button>
+        <button className={`ap-nav-btn ${tab === 'faimages'      ? 'active' : ''}`} onClick={() => setTab('faimages')}>
+          📕 FA Images
+        </button>
         <button className={`ap-nav-btn ${tab === 'reports'       ? 'active' : ''}`} onClick={() => setTab('reports')}>
           🔍 Game Reports
         </button>
@@ -11894,7 +11897,8 @@ export default function AdminApp() {
         {tab === 'guide'         && <GuidePanel />}
         {tab === 'reports'       && <GameReportsPanel />}
         {tab === 'medjinx'       && <MedJinxAdmin />}
-        {tab === 'scanmaster'    && <ScanMasterAdmin />}
+        {tab === 'scanmaster'    && <ScanMasterAdmin key="scan" />}
+        {tab === 'faimages'      && <ScanMasterAdmin key="fa" bank="fa" />}
         {tab === 'pages'         && <PagesPanel />}
         {tab === 'settings'      && (
           <>

@@ -248,8 +248,19 @@ export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld, onSaudiMLE, o
                 />
               </div>
 
-              <LockedCard variant="violet" icon="🖼️" name="FA IMAGES" chip="COMING SOON"
-                sub="Learn First Aid through its pictures." />
+              {/* FA Images — the book's figures, named one at a time. Its own
+                  route, like UWorld Adventure. */}
+              <button className="ms-journey-card ms-journey-card--violet" onClick={() => { window.location.href = '/fa-images'; }}>
+                <div className="ms-journey-art" aria-hidden="true">
+                  <span className="ms-journey-art-icon">🖼️</span>
+                </div>
+                <div className="ms-journey-body">
+                  <span className="ms-journey-name">FA IMAGES</span>
+                  <span className="ms-journey-sub">
+                    Name the photos, slides and scans — and recall the blurred labels on its diagrams.
+                  </span>
+                </div>
+              </button>
             </>
           ) : (
             <>
