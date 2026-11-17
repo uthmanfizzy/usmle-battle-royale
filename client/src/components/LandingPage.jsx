@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getToken } from '../auth';
+import LandingHero from './LandingHero';
 import './LandingPage.css';
 
 const TRAILER_URL = ''; // TODO: paste YouTube/Vimeo embed URL here
@@ -11,14 +12,7 @@ const FEATURES = [
 ];
 
 export default function LandingPage({ onSignIn }) {
-  const [menuOpen, setMenuOpen] = useState(false);
   const [trailerOpen, setTrailerOpen] = useState(false);
-
-  useEffect(() => {
-    const fn = () => { if (window.innerWidth > 768) setMenuOpen(false); };
-    window.addEventListener('resize', fn);
-    return () => window.removeEventListener('resize', fn);
-  }, []);
 
   useEffect(() => {
     if (!trailerOpen) return;
@@ -36,77 +30,16 @@ export default function LandingPage({ onSignIn }) {
     onSignIn();
   }, [onSignIn]);
 
-  const scrollTo = useCallback((id) => {
-    setMenuOpen(false);
-    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
-  }, []);
-
-  const scrollToTop = useCallback(() => {
-    setMenuOpen(false);
+  // Header links: the logo goes to the top, the rest to their sections.
+  const navTo = useCallback((id) => {
     // The app scrolls #root (height:100%, overflow:auto), not the window
-    document.querySelector('.lp')?.scrollIntoView({ behavior: 'smooth' });
+    const el = id === 'top' ? document.querySelector('.lp') : document.getElementById(id);
+    el?.scrollIntoView({ behavior: 'smooth' });
   }, []);
 
   return (
     <div className="lp">
-      {/* ── Hero ── */}
-      <section className="lp-hero">
-        <div className="lp-hero-fade" />
-
-        <nav className="lp-nav">
-          <div className="lp-nav-left">
-            <button className="lp-logo lp-logo--img" onClick={scrollToTop} aria-label="Medvale">
-              <img src="/assets/medvale-logo.webp" alt="Medvale" />
-            </button>
-            <div className={`lp-nav-links ${menuOpen ? 'open' : ''}`}>
-              <button className="lp-nav-link" onClick={() => scrollTo('lore')}>Story</button>
-              <button className="lp-nav-link" onClick={() => scrollTo('features')}>Battle Royale</button>
-              {/* Placeholder: no community/Discord destination exists in the app yet */}
-              <button className="lp-nav-link" onClick={() => setMenuOpen(false)}>Community</button>
-            </div>
-          </div>
-          <div className="lp-nav-right">
-            <button className="lp-enter-btn" onClick={handleEnter}>▶ Enter Now</button>
-            <button
-              className={`lp-burger ${menuOpen ? 'open' : ''}`}
-              onClick={() => setMenuOpen(o => !o)}
-              aria-label="Menu"
-            >
-              <span></span>
-              <span></span>
-              <span></span>
-            </button>
-          </div>
-        </nav>
-
-        {menuOpen && <div className="lp-menu-overlay" onClick={() => setMenuOpen(false)} />}
-
-        <div className="lp-hero-content">
-          <div className="lp-eyebrow">
-            <span className="lp-eyebrow-rule" />
-            <span className="lp-eyebrow-text">DARK FANTASY MEDIC RPG · EARLY ACCESS</span>
-          </div>
-          <h1 className="lp-headline">
-            MEND THE WOUNDED.<br />
-            <span className="lp-headline-red">SURVIVE THE WAR.</span>
-          </h1>
-          <p className="lp-subcopy">
-            A medic's saga across Battle Royale, PvP Arenas, and a story-driven
-            campaign in the war-torn realm of Medvale.
-          </p>
-          <div className="lp-cta-row">
-            <button className="lp-cta-main" onClick={handleEnter}>▶ Enter Medvale</button>
-            <button
-              className="lp-trailer-circle"
-              onClick={() => setTrailerOpen(true)}
-              aria-label="Watch the Trailer"
-            >▶</button>
-            <button className="lp-trailer-label" onClick={() => setTrailerOpen(true)}>
-              Watch the Trailer
-            </button>
-          </div>
-        </div>
-      </section>
+      <LandingHero onEnter={handleEnter} onTrailer={() => setTrailerOpen(true)} onNav={navTo} />
 
       {/* ── Lore ── */}
       <section id="lore" className="lp-section lp-lore">
