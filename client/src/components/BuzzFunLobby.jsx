@@ -19,7 +19,7 @@ import './BuzzFunLobby.css';
  */
 
 const ICON = { biochemistry: '🧬', immunology: '🛡️', endocrinology: '🦋', pulmonology: '🫁', nephrology: '🫘' };
-const SECONDS_PER_CARD = 23;            // 15 s to answer + time on the explanation
+const SECONDS_PER_CARD = 28;            // 20 s to answer + time on the explanation
 const MIXED_CARDS = 30;
 const FOCUS_CARDS = 60;
 // The card-count choices. null = the default (30 mixed, up to 60 in focus);

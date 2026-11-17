@@ -1182,11 +1182,11 @@ function buzzFunOwnPool(lobby) {
 }
 
 /**
- * How long a card stays up: fifteen seconds, every card. (Eight was too short
+ * How long a card stays up: twenty seconds, every card (fifteen felt rushed). (Eight was too short
  * to read a long clue; a length-based 10–18 s made the clock unpredictable.)
  * Speed still pays: the bonus is measured against this clock.
  */
-const BUZZ_FUN_SECONDS = 15;
+const BUZZ_FUN_SECONDS = 20;
 function buzzFunSeconds() { return BUZZ_FUN_SECONDS; }
 
 // A topic-focused match plays every card in the chosen topics (up to this
