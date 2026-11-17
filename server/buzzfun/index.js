@@ -62,8 +62,9 @@ const BUZZ_BANK = build();
 const UWORLD_SOURCES = {
   pulmonology: require("./uworld/pulmonology"),
   nephrology: require("./uworld/nephrology"),
+  endocrinology: require("./uworld/endocrinology"),
 };
-const UWORLD_NAMES = { pulmonology: "Pulmonology", nephrology: "Nephrology" };
+const UWORLD_NAMES = { pulmonology: "Pulmonology", nephrology: "Nephrology", endocrinology: "Endocrinology" };
 
 function buildUworld() {
   const cards = [];
