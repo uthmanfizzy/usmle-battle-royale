@@ -1103,3 +1103,12 @@
 @media (prefers-reduced-motion: reduce) {
   .ms-route-btn:hover { transform: none; }
 }
+
+/* First Aid Journey / Flashcards sub-pages: just two cards, so a centred
+   pair rather than the four-across campaign grid. */
+@media (min-width: 900px) {
+  .ms-campaign-list.ms-campaign-list--pair {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: min(640px, 94vw);
+  }
+}

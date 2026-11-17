@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { cachedImageMap, rememberImageMap } from '../utils/cachedImages';
 import { authFetch, getCachedUser, setCachedUser } from '../auth';
 import './ModeSplit.css';
@@ -127,12 +127,12 @@ export default function ModeSplit({ onStory, onOnline, onTraining, onMinigames, 
  * it cannot be clicked or focused, and it says so — the lock chip and the
  * title attribute carry it, so it is never mistaken for a broken button.
  */
-export function LockedCard({ variant, icon, name, sub }) {
+export function LockedCard({ variant, icon, name, sub, chip = 'LOCKED' }) {
   return (
     <div
       className={`ms-journey-card ms-journey-card--${variant} is-locked`}
       aria-disabled="true"
-      title={`${name} is locked for now`}
+      title={chip === 'LOCKED' ? `${name} is locked for now` : `${name} is coming soon`}
     >
       <div className="ms-journey-art" aria-hidden="true">
         <span className="ms-journey-art-icon">{icon}</span>
@@ -140,7 +140,7 @@ export function LockedCard({ variant, icon, name, sub }) {
       <div className="ms-journey-body">
         <span className="ms-journey-name">
           {name}
-          <span className="ms-soon-chip"><span aria-hidden="true">🔒</span> LOCKED</span>
+          <span className="ms-soon-chip"><span aria-hidden="true">🔒</span> {chip}</span>
         </span>
         <span className="ms-journey-sub">{sub}</span>
       </div>
@@ -180,17 +180,106 @@ export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld, onSaudiMLE, o
       .catch(() => {});
   }
 
-  // Whether the Flashcards deck list is expanded. Local — nothing outside this
-  // menu cares which category is open.
-  const [flashOpen, setFlashOpen] = useState(false);
-  // Same for First Aid Journey's two sub-modes.
-  const [faOpen, setFaOpen] = useState(false);
-  // On a wide screen the panel sits under the whole grid, out of view, so
-  // bring it on screen when it opens.
-  const faPanelRef = useRef(null);
+  // First Aid Journey and Flashcards each open a page of their own with their
+  // sub-modes on it. A step in the browser's history too, so the phone's back
+  // gesture returns to the campaign list instead of leaving Play.
+  const [sub, setSub] = useState(null); // null | 'fa' | 'flash'
   useEffect(() => {
-    if (faOpen) faPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  }, [faOpen]);
+    const onPop = () => setSub(null);
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
+  function openSub(which) {
+    window.history.pushState({ storySub: which }, '');
+    setSub(which);
+    window.scrollTo(0, 0);
+  }
+  function closeSub() {
+    if (window.history.state?.storySub) window.history.back();
+    else setSub(null);
+  }
+
+  if (sub === 'fa' || sub === 'flash') {
+    const isFa = sub === 'fa';
+    return (
+      <div className="ms-screen">
+        <button className="ms-back-btn" onClick={closeSub}>← Story Mode</button>
+
+        <div className="ms-banner">
+          <h1 className="ms-title">{isFa ? '🚑 FIRST AID JOURNEY' : '🃏 FLASHCARDS'}</h1>
+          <p className="ms-tagline">{isFa ? 'Choose how you want to learn First Aid.' : 'Pick your deck.'}</p>
+          <div className="ms-title-rule" />
+        </div>
+
+        <div className="ms-campaign-list ms-campaign-list--pair">
+          {isFa ? (
+            <>
+              {/* FA Qbank — the original chapter-by-chapter journey. The two
+                  routes sit on the card; a transparent cover button takes the
+                  plain tap (the player's last route). The card is a div with
+                  a cover because nested buttons are invalid HTML. */}
+              <div className="ms-journey-card ms-journey-card--routed">
+                <div className="ms-journey-art" aria-hidden="true">
+                  <span className="ms-journey-art-icon">📝</span>
+                </div>
+                <div className="ms-journey-body">
+                  <span className="ms-journey-name">FA QBANK</span>
+                  <span className="ms-journey-sub">
+                    March through First Aid chapter by chapter, answering questions as you go.
+                  </span>
+                  <div className="ms-journey-routes">
+                    <button
+                      type="button"
+                      className="ms-route-btn"
+                      onClick={(e) => { e.stopPropagation(); onJourney('full'); }}
+                    >📖 Thorough</button>
+                    <button
+                      type="button"
+                      className="ms-route-btn ms-route-btn--rapid"
+                      onClick={(e) => { e.stopPropagation(); onJourney('rapid'); }}
+                    >⚡ Concise</button>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="ms-journey-cover"
+                  onClick={() => onJourney()}
+                  aria-label="FA Qbank"
+                />
+              </div>
+
+              <LockedCard variant="violet" icon="🖼️" name="FA IMAGES" chip="COMING SOON"
+                sub="Learn First Aid through its pictures." />
+            </>
+          ) : (
+            <>
+              {/* Real: 27,319 imported cards with spaced repetition. */}
+              <button className="ms-journey-card ms-journey-card--orange" onClick={onAnKing}>
+                <div className="ms-journey-art" aria-hidden="true">
+                  <span className="ms-journey-art-icon">🃏</span>
+                </div>
+                <div className="ms-journey-body">
+                  <span className="ms-journey-name">ANKING</span>
+                  <span className="ms-journey-sub">Master the AnKing deck with spaced repetition.</span>
+                </div>
+              </button>
+
+              {/* Its own hy_flashcards table + admin tab, a standalone route. */}
+              <button className="ms-journey-card ms-journey-card--yellow" onClick={() => { window.location.href = '/hy-flashcards'; }}>
+                <div className="ms-journey-art" aria-hidden="true">
+                  <span className="ms-journey-art-icon">⭐</span>
+                </div>
+                <div className="ms-journey-body">
+                  <span className="ms-journey-name">HY FLASHCARDS</span>
+                  <span className="ms-journey-sub">High-yield rapid review.</span>
+                </div>
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="ms-screen">
@@ -222,136 +311,38 @@ export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld, onSaudiMLE, o
         </div>
       </div>
 
-      {/* All four campaigns share the ms-journey-card layout so they read as
-          siblings in one list: a row of tiles on desktop (art above, text
-          below), the original wide rows stacked on a phone. Art areas carry
-          each campaign's own colour rather than a real asset — no per-campaign
-          art exists. The mockup's progress row + "Chapter X of Y" is
-          intentionally OMITTED here; the Journey page has its own per-subject
-          progress now, this list does not. */}
+      {/* Every campaign shares the ms-journey-card layout: a row of tiles on
+          desktop, wide rows stacked on a phone. Playable campaigns first, the
+          locked ones after them at the bottom. */}
       <div className="ms-campaign-list">
         {/* First Aid and the flashcard decks are medical content, so a
             dentistry student's menu is the ORE/LDS campaign alone. */}
-        {/* The two routes are on the card itself, so "I want the short one"
-            is one tap rather than open-the-map-then-switch. The card stays
-            one big target: a transparent cover button carries the plain tap
-            (the player's last route), and the two route buttons sit above it
-            on their own layer. Nested buttons would be invalid HTML, which
-            is why the card is a div with a cover rather than a button. */}
-        {/* First Aid Journey is two sub-modes now, so the card opens in place
-            (same accordion as Flashcards) to offer FA Qbank — the original
-            chapter-by-chapter journey — and FA Images, which is coming. */}
         {!isDentistry && (
-        <button
-          className={`ms-journey-card${faOpen ? ' ms-journey-card--open' : ''}`}
-          onClick={() => setFaOpen(o => !o)}
-          aria-expanded={faOpen}
-        >
+        <button className="ms-journey-card" onClick={() => openSub('fa')}>
           <div className="ms-journey-art" aria-hidden="true">
             <span className="ms-journey-art-icon">🚑</span>
           </div>
           <div className="ms-journey-body">
             <span className="ms-journey-name">FIRST AID JOURNEY</span>
             <span className="ms-journey-sub">
-              A field medic&apos;s first steps — march through First Aid, chapter by chapter.
+              A field medic&apos;s first steps — FA Qbank and FA Images.
             </span>
           </div>
-          <span className="ms-flash-caret" aria-hidden="true">{faOpen ? '▾' : '▸'}</span>
         </button>
         )}
 
-        {!isDentistry && faOpen && (
-          <div className="ms-flash-decks" ref={faPanelRef}>
-            {/* FA Qbank keeps the two routes on it. A div with a cover button,
-                because the route buttons cannot be nested in a button. */}
-            <div className="ms-flash-deck ms-journey-card--routed">
-              <span className="ms-flash-deck-icon" aria-hidden="true">📝</span>
-              <span className="ms-flash-deck-body">
-                <span className="ms-flash-deck-name">FA QBANK</span>
-                <span className="ms-flash-deck-sub">Chapter-by-chapter questions</span>
-                <span className="ms-journey-routes">
-                  <button
-                    type="button"
-                    className="ms-route-btn"
-                    onClick={(e) => { e.stopPropagation(); onJourney('full'); }}
-                  >📖 Thorough</button>
-                  <button
-                    type="button"
-                    className="ms-route-btn ms-route-btn--rapid"
-                    onClick={(e) => { e.stopPropagation(); onJourney('rapid'); }}
-                  >⚡ Concise</button>
-                </span>
-              </span>
-              <button
-                type="button"
-                className="ms-journey-cover"
-                onClick={() => onJourney()}
-                aria-label="FA Qbank"
-              />
-            </div>
-
-            <div className="ms-flash-deck ms-flash-deck--disabled" aria-disabled="true" title="FA Images is coming soon">
-              <span className="ms-flash-deck-icon" aria-hidden="true">🖼️</span>
-              <span className="ms-flash-deck-body">
-                <span className="ms-flash-deck-name">
-                  FA IMAGES <span className="ms-soon-chip">COMING SOON</span>
-                </span>
-                <span className="ms-flash-deck-sub">Learn First Aid through its pictures</span>
-              </span>
-            </div>
-          </div>
-        )}
-
-        {/* FLASHCARDS is a category, not a mode: it opens in place to reveal
-            the decks underneath. An accordion rather than a new screen because
-            there are two entries — a whole phase and a back button for that
-            would be more chrome than content. */}
         {!isDentistry && (
-        <button
-          className={`ms-journey-card ms-journey-card--orange${flashOpen ? ' ms-journey-card--open' : ''}`}
-          onClick={() => setFlashOpen(o => !o)}
-          aria-expanded={flashOpen}
-        >
+        <button className="ms-journey-card ms-journey-card--orange" onClick={() => openSub('flash')}>
           <div className="ms-journey-art" aria-hidden="true">
             <span className="ms-journey-art-icon">🃏</span>
           </div>
           <div className="ms-journey-body">
             <span className="ms-journey-name">FLASHCARDS</span>
-            <span className="ms-journey-sub">Spaced-repetition decks — pick your source.</span>
+            <span className="ms-journey-sub">Spaced-repetition decks — AnKing and HY Flashcards.</span>
           </div>
-          <span className="ms-flash-caret" aria-hidden="true">{flashOpen ? '▾' : '▸'}</span>
         </button>
         )}
 
-        {!isDentistry && flashOpen && (
-          <div className="ms-flash-decks">
-            {/* Real: 27,319 imported cards with spaced repetition. */}
-            <button className="ms-flash-deck" onClick={onAnKing}>
-              <span className="ms-flash-deck-icon" aria-hidden="true">🃏</span>
-              <span className="ms-flash-deck-body">
-                <span className="ms-flash-deck-name">ANKING</span>
-                <span className="ms-flash-deck-sub">Master the AnKing deck</span>
-              </span>
-            </button>
-
-            {/* Real: its own hy_flashcards table + admin tab, a standalone
-                route like UWorld Adventure rather than a phase. */}
-            <button className="ms-flash-deck" onClick={() => { window.location.href = '/hy-flashcards'; }}>
-              <span className="ms-flash-deck-icon" aria-hidden="true">⭐</span>
-              <span className="ms-flash-deck-body">
-                <span className="ms-flash-deck-name">HY FLASHCARDS</span>
-                <span className="ms-flash-deck-sub">High-yield rapid review</span>
-              </span>
-            </button>
-          </div>
-        )}
-
-        {/* Real and fully functional (pacing over the 708-question main bank),
-            so it gets normal active styling — no disabled class, no
-            ms-soon-chip. Unlike its siblings this is a standalone ROUTE, not a
-            phase, so onUWorld navigates rather than setting phase; the card
-            stays presentational either way. Last in the list — every entry
-            here is a playable mode now. */}
         {isDentistry && (
           <button className="ms-journey-card ms-journey-card--teal" onClick={() => { window.location.href = '/ore-lds'; }}>
             <div className="ms-journey-art" aria-hidden="true">
@@ -366,6 +357,7 @@ export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld, onSaudiMLE, o
           </button>
         )}
 
+        {/* A standalone ROUTE, not a phase, so onUWorld navigates. */}
         {!isDentistry && (
         <button className="ms-journey-card ms-journey-card--blue" onClick={onUWorld}>
           <div className="ms-journey-art" aria-hidden="true">
@@ -378,7 +370,6 @@ export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld, onSaudiMLE, o
             </span>
           </div>
         </button>
-
         )}
 
         {/* Amboss Quest — a hub of its own sub-modes (Qbank, 200 Concepts,
@@ -397,31 +388,8 @@ export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld, onSaudiMLE, o
         </button>
         )}
 
-        {/* ── Locked campaigns ───────────────────────────────────────
-            Shown, not hidden: a player should be able to see what is
-            coming. Each is a plain element rather than a button, so it can
-            not be clicked or tabbed into, and says plainly that it is
-            locked. To open one, swap <LockedCard> back for its button.
-
-            OET and the minigames are for the medicine track only — neither
-            is part of a dental course, so a dentistry student is not shown
-            them at all. */}
-        {!isDentistry && (
-          <LockedCard variant="magenta" icon="🇬🇧" name="OET"
-            sub="The Occupational English Test, worked through at your own pace." />
-        )}
-
-        <LockedCard variant="clinical" icon="🩺" name="Clinical"
-          sub="The procedures a doctor is expected to be able to do, one at a time." />
-
-        {!isDentistry && (
-          <LockedCard variant="ukmla" icon="🇬🇧" name="UKMLA / PLAB"
-            sub="The UK Medical Licensing Assessment and PLAB, campaign by campaign." />
-        )}
-
         {/* Mehlman Rapid Fire — the same question-bank machine on its own
-            tag and its own yellow. Named for the Mehlman HY material it
-            carries; the questions are short, so the block moves quickly. */}
+            tag and its own yellow. */}
         {!isDentistry && (
         <button className="ms-journey-card ms-journey-card--yellow" onClick={onMehlman}>
           <div className="ms-journey-art" aria-hidden="true">
@@ -434,6 +402,24 @@ export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld, onSaudiMLE, o
             </span>
           </div>
         </button>
+        )}
+
+        {/* ── Locked campaigns, at the bottom ─────────────────────────
+            Shown, not hidden: a player should be able to see what is
+            coming. Each is a plain element rather than a button, so it can
+            not be clicked or tabbed into. To open one, swap <LockedCard>
+            back for its button. OET, UKMLA and Saudi MLE are medicine-only. */}
+        {!isDentistry && (
+          <LockedCard variant="magenta" icon="🇬🇧" name="OET"
+            sub="The Occupational English Test, worked through at your own pace." />
+        )}
+
+        <LockedCard variant="clinical" icon="🩺" name="Clinical"
+          sub="The procedures a doctor is expected to be able to do, one at a time." />
+
+        {!isDentistry && (
+          <LockedCard variant="ukmla" icon="🇬🇧" name="UKMLA / PLAB"
+            sub="The UK Medical Licensing Assessment and PLAB, campaign by campaign." />
         )}
 
         {!isDentistry && (

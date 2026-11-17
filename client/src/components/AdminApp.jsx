@@ -10555,7 +10555,7 @@ function HomePagePanel({ section = 'home' }) {
           <div className="li-header-icon">🧭</div>
           <div>
             <h2 className="li-header-title">Choose Your Path</h2>
-            <p className="li-header-desc">Background images for the three cards shown after pressing Play. Wide images (about 3:1) work best.</p>
+            <p className="li-header-desc">Background images for the four cards shown after pressing Play (Story Mode, Online, Training Grounds, Minigames). Wide images (about 3:1) work best.</p>
           </div>
         </div>
         <div className="li-grid">
