@@ -1,0 +1,36 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   MOONLIT THEME — site-wide layer (Settings → Appearance → Moonlit)
+
+   The home screen has its own Moonlit main menu (components/moonlit). Everywhere
+   else this swaps the shared --mv-* palette for the design's night blues and
+   moonlight gold, so pages built on the tokens follow along.
+   Static rgba only — color-mix() ships broken to older browsers.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+html[data-theme="moonlit"] {
+  --mv-bg-void: #0b1233;
+  --mv-bg-base: #101a45;
+  --mv-glass: rgba(26, 38, 86, 0.82);
+  --mv-glass-strong: rgba(18, 28, 68, 0.94);
+
+  --mv-red: #c99b55;          /* primary actions → moonlight gold */
+  --mv-red-link: #f3c873;
+  --mv-gold: #f3c873;
+  --mv-gold-dim: rgba(243, 200, 115, 0.5);
+  --mv-border: rgba(132, 150, 204, 0.3);
+  --mv-border-gold: rgba(201, 165, 106, 0.55);
+  --mv-text-dim-85: rgba(243, 238, 226, 0.85);
+  --mv-text-dim-65: rgba(243, 238, 226, 0.65);
+  --mv-text-dim-45: rgba(243, 238, 226, 0.45);
+
+  /* App.css's older palette */
+  --bg: #101a45;
+  --surface: #1a2656;
+  --text-dim: #bdc1d2;
+}
+
+html[data-theme="moonlit"] body {
+  background: radial-gradient(60% 45% at 70% 0%, rgba(120, 100, 200, 0.22), rgba(120, 100, 200, 0) 100%), #101a45;
+}
+
+html[data-theme="moonlit"] ::selection { background: rgba(243, 200, 115, 0.4); color: #fff; }

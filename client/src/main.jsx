@@ -13,6 +13,7 @@ import './App.css';
 import './themes.css';
 import './study.css';
 import './styles/celestialTheme.css';
+import './styles/moonlitTheme.css';
 
 const AdminApp          = lazy(() => import('./components/AdminApp'));
 const AuthCallback      = lazy(() => import('./components/AuthCallback'));

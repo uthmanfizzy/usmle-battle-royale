@@ -12,6 +12,8 @@ import DashboardAmbient from './DashboardAmbient';
 import { useTheme } from '../theme';
 import CelestialShell from './celestial/CelestialShell';
 import CelestialHome from './celestial/CelestialHome';
+import MoonlitMenu from './moonlit/MoonlitMenu';
+import MoonlitTabFrame from './moonlit/MoonlitTabFrame';
 import './Dashboard.css';
 
 // Error Boundary to prevent black screens
@@ -884,6 +886,8 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
   // for the Celestial designs; the tabs, data and handlers are the same.
   const { theme } = useTheme() || {};
   const isCelestial = theme === 'celestial';
+  // Settings → Appearance → Moonlit: the moonlit main-menu design as home.
+  const isMoonlit = theme === 'moonlit';
   // Deep-linkable tab: /dashboard?tab=clans etc. (used by ProgressPage's
   // clan-tag link; unknown values fall back to home)
   const [dashTab,      setDashTab]      = useState(() => {
@@ -1099,6 +1103,38 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
       const m = Math.floor((diff % 3600000) / 60000);
       rewardCooldownLabel = `Next chest in ${h}h ${m}m`;
     }
+  }
+
+  if (isMoonlit) {
+    const goTab = (tab) => {
+      if (tab === 'announcements') handleAnnouncementsTab();
+      else setDashTab(tab);
+      window.scrollTo(0, 0);
+    };
+    if (dashTab === 'home') {
+      return (
+        <>
+          {showWelcome && <WelcomePopup announcement={welcomeAnn} onClose={handleWelcomeClose} />}
+          <MoonlitMenu
+            user={user}
+            announcements={annList}
+            unread={unreadCount}
+            onTab={goTab}
+            onPlay={onPlayNow}
+            onLogout={onLogout}
+          />
+        </>
+      );
+    }
+    const titles = { leaderboard: 'Leaderboards', clans: 'Clans', announcements: 'News', friends: 'Friends' };
+    return (
+      <MoonlitTabFrame title={titles[dashTab]} onBack={() => goTab('home')}>
+        {dashTab === 'friends' && <FriendsPage user={user} bannerArt={homeImages.friends_banner_art} />}
+        {dashTab === 'leaderboard' && <LeaderboardSection userId={user.id} user={user} />}
+        {dashTab === 'clans' && <UnderDevelopment title="Clans" icon="🛡️" />}
+        {dashTab === 'announcements' && <AnnouncementsSection />}
+      </MoonlitTabFrame>
+    );
   }
 
   if (isCelestial) {

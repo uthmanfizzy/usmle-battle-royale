@@ -1,0 +1,12 @@
+/* Settings → Appearance thumbnail for Moonlit (130px tall card). */
+.mlpv { background-size: cover !important; background-position: center !important; font-family: 'EB Garamond', Georgia, serif; }
+.mlpv::before { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse 70% 60% at 50% 45%, rgba(10,16,48,0) 40%, rgba(10,16,48,.45) 100%); }
+.mlpv > * { position: absolute; }
+.mlpv-chip { left: 6px; top: 6px; width: 46px; height: 13px; border-radius: 7px; background: rgba(21,37,76,.9); border: 1px solid rgba(132,150,204,.5); }
+.mlpv-chip i { position: absolute; left: -2px; top: -2px; width: 15px; height: 15px; border-radius: 50%; background: #3a5fae; border: 1px solid #f1dcae; }
+.mlpv-rounds { right: 6px; top: 7px; display: flex; gap: 3px; }
+.mlpv-rounds i { width: 9px; height: 9px; border-radius: 50%; background: rgba(21,39,78,.9); border: 1px solid rgba(132,150,204,.6); }
+.mlpv-title { left: 0; right: 0; top: 30px; text-align: center; font-size: 19px; font-weight: 700; color: #f8ecd2; text-shadow: 0 0 8px rgba(255,214,140,.7); }
+.mlpv-play { left: 50%; top: 58px; transform: translateX(-50%); padding: 1px 16px; font-size: 10px; font-weight: 700; color: #5a3820; background: linear-gradient(180deg, #fdf3d6, #f4cf93); border: 1px solid #c08a42; border-radius: 9px; box-shadow: 0 0 6px rgba(255,214,140,.8); }
+.mlpv-cards { left: 50%; bottom: 10px; transform: translateX(-50%); display: flex; gap: 4px; }
+.mlpv-cards i { width: 22px; height: 17px; border-radius: 4px; background: rgba(38,49,102,.9); border: 1px solid #c9a56a; }

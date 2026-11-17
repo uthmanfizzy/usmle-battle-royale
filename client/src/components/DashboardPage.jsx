@@ -89,7 +89,7 @@ export default function DashboardPage() {
     );
   }
 
-  const DashboardShell = useNewDashboard && theme !== 'celestial' ? DashboardNew : Dashboard;
+  const DashboardShell = useNewDashboard && theme !== 'celestial' && theme !== 'moonlit' ? DashboardNew : Dashboard;
   return (
     <DashboardShell
       user={user}

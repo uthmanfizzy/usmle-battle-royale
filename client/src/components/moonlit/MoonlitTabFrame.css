@@ -1,0 +1,21 @@
+@import url('https://fonts.googleapis.com/css2?family=EB+Garamond:wght@500;600;700&display=swap');
+
+.mlf { position: relative; min-height: 100vh; color: #f3eee2; }
+.mlf-bg {
+  position: fixed; inset: 0; z-index: 0;
+  background-size: cover; background-position: center;
+  filter: saturate(.9) brightness(.45) blur(2px);
+  transform: scale(1.03);
+}
+.mlf-bg::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(11,18,51,.55), rgba(11,18,51,.85)); }
+.mlf-head { position: relative; z-index: 1; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; padding: 20px clamp(16px, 3vw, 48px) 8px; }
+.mlf-back {
+  padding: 9px 18px; border-radius: 999px; border: 1.5px solid rgba(201,165,106,.7);
+  background: rgba(21,37,76,.85); color: #f4efe4; cursor: pointer;
+  font-family: 'EB Garamond', Georgia, serif; font-size: 18px; font-weight: 600;
+  transition: background .15s ease, color .15s ease;
+}
+.mlf-back:hover { background: rgba(36,50,96,.95); color: #ffe9b8; }
+.mlf-title { margin: 0; font-family: 'EB Garamond', Georgia, serif; font-size: clamp(26px, 3.4vw, 40px); font-weight: 700; color: #f8ecd2; text-shadow: 0 0 14px rgba(255,214,140,.35); }
+/* The tab content keeps its own styles; this only places it over the art. */
+.mlf-body.dashboard-screen { position: relative; z-index: 1; min-height: 0; background: none; }
