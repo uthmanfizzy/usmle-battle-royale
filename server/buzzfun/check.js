@@ -16,7 +16,18 @@ for (const c of BUZZ_BANK) {
   // A few high-yield points each, one per line.
   const lines = c.explanation.split('\n');
   if (lines.length < 3) { console.log('fewer than 3 HY points', where, lines.length); bad++; }
-  if (lines.some(l => l.length > 220)) { console.log('point too long', where); bad++; }
+  // UWorld cards explain in full sentences, so they get a little more room.
+  const maxPoint = c.bank === 'uworld' ? 280 : 220;
+  if (lines.some(l => l.length > maxPoint)) { console.log('point too long', where); bad++; }
+  // The right answer must not stand out from the wrong ones. (UWorld bank:
+  // the vanilla decks predate this rule.)
+  if (c.bank === 'uworld') {
+    const [answer, ...wrong] = c.options;
+    if (/[([]/.test(answer) && !wrong.some(o => /[([]/.test(o))) { console.log('answer alone has brackets', where); bad++; }
+    const longestWrong = Math.max(...wrong.map(o => o.length));
+    if (answer.length > longestWrong * 1.5 + 8) { console.log('answer much longer than the wrong options', where, answer.length, longestWrong); bad++; }
+    if (!lines.every(l => /[.!?)]$/.test(l.trim()))) { console.log('explanation point is not a full sentence', where); bad++; }
+  }
   const k = c.question.trim().toLowerCase();
   if (seen.has(k)) { console.log('duplicate clue', where, 'and', seen.get(k)); bad++; }
   seen.set(k, c.id);
