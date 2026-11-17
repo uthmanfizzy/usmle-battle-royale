@@ -1,6 +1,8 @@
 'use strict';
 // node server/buzzfun/check.js — sanity checks for the built-in bank.
-const { BUZZ_BANK, BUZZ_TYPES, BUZZ_EXTRA } = require('./index');
+const { BUZZ_BANK: VANILLA, BUZZ_UWORLD_BANK, BUZZ_TYPES, BUZZ_EXTRA } = require('./index');
+// Both banks: the vanilla decks and the UWorld cards.
+const BUZZ_BANK = [...VANILLA, ...BUZZ_UWORLD_BANK];
 let bad = 0;
 const seen = new Map();
 for (const c of BUZZ_BANK) {
@@ -25,7 +27,7 @@ for (const [deck, map] of Object.entries(BUZZ_EXTRA)) {
   for (const id of Object.keys(map)) if (!ids.has(id)) { console.log('extra for unknown card', deck, id); bad++; }
 }
 const by = {};
-for (const c of BUZZ_BANK) by[c.subject] = (by[c.subject] || 0) + 1;
+for (const c of BUZZ_BANK) { const k = (c.bank === 'uworld' ? 'uworld:' : '') + c.subject; by[k] = (by[k] || 0) + 1; }
 const topics = {};
 for (const c of BUZZ_BANK) topics[c.subject + ' · ' + c.topic] = (topics[c.subject + ' · ' + c.topic] || 0) + 1;
 console.log(by);

@@ -5,7 +5,9 @@ import './BuzzFunLobby.css';
  * Buzz Fun's own match settings, in the hive theme — in place of the generic
  * "Match settings" sheet.
  *
- * Three steps, top to bottom, the way a host thinks about it:
+ * First the bank — Vanilla (the original Buzz Fun decks) or UWorld (one card
+ * per UWorld Adventure question, cut down to the concept it teaches) — then
+ * three steps, top to bottom, the way a host thinks about it:
  *   1. Systems  — big tiles with card and topic counts.
  *   2. Cards    — Mixed (30 random) or Focus topics (pick and order them).
  *   3. Your run — the chosen topics as a queue: reorder, remove, totals.
@@ -16,11 +18,13 @@ import './BuzzFunLobby.css';
  * read-only.
  */
 
-const ICON = { biochemistry: '🧬', immunology: '🛡️', endocrinology: '🦋' };
+const ICON = { biochemistry: '🧬', immunology: '🛡️', endocrinology: '🦋', pulmonology: '🫁' };
 const SECONDS_PER_CARD = 23;            // 15 s to answer + time on the explanation
 const MIXED_CARDS = 30;
 
-export default function BuzzFunLobby({ isHost, options, onChange, subjects }) {
+export default function BuzzFunLobby({ isHost, options, onChange, subjects: vanillaSubjects, uworldSubjects }) {
+  const bank = options?.buzzBank === 'uworld' ? 'uworld' : 'vanilla';
+  const subjects = bank === 'uworld' ? uworldSubjects : vanillaSubjects;
   const chosenSubjects = Array.isArray(options?.subjects) ? options.subjects : [];
   const topics = Array.isArray(options?.topics) ? options.topics : [];
   const [focusOpen, setFocusOpen] = useState(topics.length > 0);
@@ -56,6 +60,13 @@ export default function BuzzFunLobby({ isHost, options, onChange, subjects }) {
     set({ topics: next });
   };
   const goMixed = () => { setFocusOpen(false); set({ topics: [] }); };
+  // Switching bank starts the run over: the other bank has different systems.
+  const pickBank = (next) => {
+    if (next === bank) return;
+    setFocusOpen(false);
+    set({ buzzBank: next, subjects: [], topics: [] });
+  };
+  const uworldCount = (uworldSubjects || []).reduce((n, s) => n + (s.count || 0), 0);
 
   const q = query.trim().toLowerCase();
 
@@ -72,6 +83,7 @@ export default function BuzzFunLobby({ isHost, options, onChange, subjects }) {
               : `Mixed — ${MIXED_CARDS} random cards`}
             {' · '}
             {chosenSubjects.length ? inPlay.map(s => s.name).join(' + ') : 'every system'}
+            {bank === 'uworld' ? ' · UWorld cards' : ''}
           </p>
         </div>
         <div className="bfl-stats">
@@ -79,6 +91,26 @@ export default function BuzzFunLobby({ isHost, options, onChange, subjects }) {
           <span>≈ <b>{minutes}</b> min</span>
         </div>
       </header>
+
+      {/* ── Which Buzz Fun ───────────────────────────────────────────── */}
+      <section className="bfl-step">
+        <h4>Which Buzz Fun?</h4>
+        <div className="bfl-modes bfl-banks">
+          <button type="button" className={`bfl-mode${bank === 'vanilla' ? ' is-on' : ''}`} aria-pressed={bank === 'vanilla'} onClick={() => isHost && pickBank('vanilla')} disabled={!isHost}>
+            <span className="bfl-mode-icon" aria-hidden="true">🍯</span>
+            <span className="bfl-mode-name">Vanilla</span>
+            <span className="bfl-mode-sub">The original Buzz Fun decks — buzzwords, triads and mechanisms</span>
+          </button>
+          <button type="button" className={`bfl-mode${bank === 'uworld' ? ' is-on' : ''}`} aria-pressed={bank === 'uworld'} onClick={() => isHost && pickBank('uworld')} disabled={!isHost}>
+            <span className="bfl-mode-icon" aria-hidden="true">📘</span>
+            <span className="bfl-mode-name">UWorld</span>
+            <span className="bfl-mode-sub">
+              UWorld Adventure questions cut down to the one concept each teaches
+              {uworldCount ? ` — ${uworldCount} cards` : ''}
+            </span>
+          </button>
+        </div>
+      </section>
 
       {/* ── 1. Systems ────────────────────────────────────────────────── */}
       <section className="bfl-step">

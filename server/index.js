@@ -1149,7 +1149,7 @@ function streakSnapshot(lobby) {
 
 const BUZZ_FUN_ROUNDS = 30;
 // The built-in card bank (server/buzzfun): high-yield buzzwords by subject.
-const { BUZZ_BANK } = require('./buzzfun');
+const { BUZZ_BANK, BUZZ_UWORLD_BANK, BUZZ_BANKS } = require('./buzzfun');
 
 /**
  * Buzz Fun's own pool: the built-in cards plus any an admin has tagged
@@ -1157,12 +1157,22 @@ const { BUZZ_BANK } = require('./buzzfun');
  * narrowed to the subjects the host picked — the match-settings systems row,
  * or the lobby's single subject. Narrowing is skipped if it would leave too
  * few cards for a game.
+ *
+ * With the host's bank set to "uworld" (duelOptions.buzzBank) the pool is the
+ * UWorld Buzz Fun cards instead — one per UWorld Adventure question — and
+ * admin cards are left out.
  */
 function buzzFunOwnPool(lobby) {
-  const admin = questionBank.filter(q => (q.game_modes || []).includes('buzz_fun'));
-  const seen = new Set(admin.map(q => String(q.question || '').trim().toLowerCase()));
-  let pool = [...admin, ...BUZZ_BANK.filter(c => !seen.has(c.question.trim().toLowerCase()))];
-  const chosen = lobby.duelOptions ? sanitizeDuelOptions(lobby.duelOptions).subjects : [];
+  const opts = lobby.duelOptions ? sanitizeDuelOptions(lobby.duelOptions) : null;
+  let pool;
+  if (opts && opts.buzzBank === 'uworld') {
+    pool = [...BUZZ_UWORLD_BANK];
+  } else {
+    const admin = questionBank.filter(q => (q.game_modes || []).includes('buzz_fun'));
+    const seen = new Set(admin.map(q => String(q.question || '').trim().toLowerCase()));
+    pool = [...admin, ...BUZZ_BANK.filter(c => !seen.has(c.question.trim().toLowerCase()))];
+  }
+  const chosen = opts ? opts.subjects : [];
   const want = new Set(chosen.length ? chosen : (lobby.subject && lobby.subject !== 'all' ? [String(lobby.subject).toLowerCase()] : []));
   if (want.size) {
     const narrowed = pool.filter(q => want.has(String(q.subject || '').toLowerCase()));
@@ -1867,7 +1877,10 @@ function sanitizeDuelOptions(raw) {
         .filter(t => typeof t === 'string' && t.includes('::'))
         .map(t => t.trim().slice(0, 100)))].slice(0, 40)
     : [];
-  return { source, winBy, rounds, subjects, journeySubject, chapterId, levelId, journeyTrack, powers, explanations, topics };
+  // Buzz Fun's card bank: the original ("vanilla") decks, or the cards made
+  // from UWorld Adventure questions. Anything else is vanilla.
+  const buzzBank = BUZZ_BANKS.includes(o.buzzBank) ? o.buzzBank : 'vanilla';
+  return { source, winBy, rounds, subjects, journeySubject, chapterId, levelId, journeyTrack, powers, explanations, topics, buzzBank };
 }
 
 /**
@@ -14605,12 +14618,19 @@ seedSubjects();
 /**
  * GET /api/buzz-fun/subjects — the systems Buzz Fun actually has cards for,
  * with counts, so a lobby offers only systems that can be played.
+ * `subjects` stays the vanilla list so an older client keeps working; `banks`
+ * carries both banks for the lobby's Vanilla / UWorld choice.
  */
-const BUZZ_SUBJECT_NAMES = require('./buzzfun').BUZZ_SUBJECT_NAMES;
+const { BUZZ_SUBJECT_NAMES, BUZZ_UWORLD_SUBJECT_NAMES } = require('./buzzfun');
 app.get('/api/buzz-fun/subjects', (req, res) => {
+  const vanilla = buzzSubjectsFor('vanilla');
+  res.json({ subjects: vanilla, banks: { vanilla, uworld: buzzSubjectsFor('uworld') } });
+});
+function buzzSubjectsFor(bank) {
+  const names = bank === 'uworld' ? BUZZ_UWORLD_SUBJECT_NAMES : BUZZ_SUBJECT_NAMES;
   const counts = new Map();
   const topicsBySubject = new Map();   // id -> Map(topic -> count), in bank order
-  for (const q of buzzFunOwnPool({})) {
+  for (const q of buzzFunOwnPool({ duelOptions: { buzzBank: bank } })) {
     const id = String(q.subject || '').toLowerCase();
     if (!id) continue;
     counts.set(id, (counts.get(id) || 0) + 1);
@@ -14624,14 +14644,14 @@ app.get('/api/buzz-fun/subjects', (req, res) => {
     .map(([id, count]) => ({
       id, count,
       topics: [...(topicsBySubject.get(id) || new Map()).entries()].map(([topic, n]) => ({ key: `${id}::${topic}`, topic, count: n })),
-      name: BUZZ_SUBJECT_NAMES[id] || id.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) }))
+      name: names[id] || id.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) }))
     // Only systems with enough cards for a match: narrowing to fewer than
     // MATCH_POOL_MIN is ignored by buzzFunOwnPool, so offering one would let
     // a host pick a system that then plays everything instead.
     .filter(x => x.count >= MATCH_POOL_MIN)
     .sort((a, b) => b.count - a.count);
-  res.json({ subjects });
-});
+  return subjects;
+}
 
 app.get('/api/subjects', async (req, res) => {
   if (!supabase) return res.json({ subjects: SUBJECT_DEFAULTS });

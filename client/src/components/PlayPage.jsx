@@ -316,6 +316,8 @@ export default function PlayPage({
 
   // Buzz Fun's playable systems, with how many cards each has.
   const [buzzSubjects, setBuzzSubjects] = useState(null);
+  // UWorld Buzz Fun's systems (the cards made from UWorld Adventure questions).
+  const [buzzUworldSubjects, setBuzzUworldSubjects] = useState(null);
   useEffect(() => {
     if (!lobbyId || lobbyGameMode !== 'buzz_fun' || buzzSubjects) return undefined;
     let cancelled = false;
@@ -334,8 +336,9 @@ export default function PlayPage({
         if (cancelled) return;
         const list = Array.isArray(d?.subjects) ? d.subjects : [];
         setBuzzSubjects(list.length ? list : fallback);
+        setBuzzUworldSubjects(Array.isArray(d?.banks?.uworld) ? d.banks.uworld : []);
       })
-      .catch(() => { if (!cancelled) setBuzzSubjects(fallback); });
+      .catch(() => { if (!cancelled) { setBuzzSubjects(fallback); setBuzzUworldSubjects([]); } });
     return () => { cancelled = true; };
   }, [lobbyId, lobbyGameMode, buzzSubjects]);
 
@@ -804,7 +807,7 @@ export default function PlayPage({
             ) : lobbyGameMode === 'scan_master' ? (
               <ScanMasterLobby isHost={isHost} options={scanOptions} onChange={onScanOptions} />
             ) : isBuzz ? (
-              <BuzzFunLobby isHost={isHost} options={duelOptions} onChange={onDuelOptions} subjects={buzzSubjects} />
+              <BuzzFunLobby isHost={isHost} options={duelOptions} onChange={onDuelOptions} subjects={buzzSubjects} uworldSubjects={buzzUworldSubjects} />
             ) : (
               <div className="lobby-duel-section">
                 <p className="lobby-duel-title">

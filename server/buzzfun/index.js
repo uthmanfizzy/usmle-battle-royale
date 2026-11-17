@@ -54,8 +54,48 @@ function build() {
 }
 
 const BUZZ_BANK = build();
+
+// ── UWorld Buzz Fun ─────────────────────────────────────────────────────────
+// A second bank, played instead of the one above when the host picks
+// "UWorld" in the lobby (duelOptions.buzzBank). One card per UWorld Adventure
+// question, so the id carries the source question: BFU-<question id>.
+const UWORLD_SOURCES = {
+  pulmonology: require("./uworld/pulmonology"),
+};
+const UWORLD_NAMES = { pulmonology: "Pulmonology" };
+
+function buildUworld() {
+  const cards = [];
+  for (const [subject, rows] of Object.entries(UWORLD_SOURCES)) {
+    for (const [sourceId, type, topic, clue, answer, wrong, why] of rows) {
+      cards.push({
+        id: `BFU-${sourceId}`,
+        subject,
+        difficulty: "easy",
+        question: clue,
+        options: [answer, ...wrong],
+        correct: "A",
+        explanation: (Array.isArray(why) ? why : [why]).map(p => String(p).trim()).filter(Boolean).join('\n'),
+        game_modes: ["buzz_fun"],
+        buzz_type: type,
+        topic,
+        builtin: true,
+        bank: "uworld",
+        source_question_id: sourceId,
+      });
+    }
+  }
+  return cards;
+}
+
+const BUZZ_UWORLD_BANK = buildUworld();
+const BUZZ_BANKS = ["vanilla", "uworld"];
+
 module.exports = {
   BUZZ_BANK,
+  BUZZ_UWORLD_BANK,
+  BUZZ_BANKS,
+  BUZZ_UWORLD_SUBJECT_NAMES: UWORLD_NAMES,
   BUZZ_SUBJECTS: Object.keys(SOURCES),
   BUZZ_SUBJECT_NAMES: NAMES,
   BUZZ_TYPES: TYPES,
