@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { SERVER_URL } from '../serverUrl';
 import { sfx } from '../minigameSfx';
+import { createFaMusic, musicPref, setMusicPref } from '../faMusic';
 import SfxToggle from './SfxToggle';
 import './FAImages.css';
 
@@ -106,11 +107,13 @@ function Opener({ catalog, error, chapter, setChapter, count, setCount, onStart,
 }
 
 // ── One figure ─────────────────────────────────────────────────────────────
-function FigurePage({ q, idx, total, seconds, score, streak, onAnswer, onNext, picked, flip }) {
+function FigurePage({ q, idx, total, seconds, score, streak, onAnswer, onNext, picked, flip, paused, onResume }) {
   const [msLeft, setMsLeft] = useState(seconds * 1000);
   const [zoom, setZoom] = useState(false);
   const [loaded, setLoaded] = useState(false);
-  const started = useRef(0);
+  // Time used so far, banked whenever the clock stops (a pause), so it
+  // carries on from where it was rather than from the start.
+  const used = useRef(0);
   const noteRef = useRef(null);
   const imgRef = useRef(null);
   // A figure already in the cache can finish loading before React is
@@ -121,27 +124,30 @@ function FigurePage({ q, idx, total, seconds, score, streak, onAnswer, onNext, p
   }, []);
   const answered = picked !== null;
 
-  // The clock starts once the figure has printed, not while it downloads.
+  // The clock starts once the figure has printed, not while it downloads,
+  // and stands still while the run is paused.
   useEffect(() => {
-    if (!loaded || answered) return undefined;
-    if (!started.current) started.current = performance.now();
+    if (!loaded || answered || paused) return undefined;
+    const from = performance.now();
+    let done = false;
     const t = setInterval(() => {
-      const left = Math.max(0, seconds * 1000 - (performance.now() - started.current));
+      const left = Math.max(0, seconds * 1000 - (used.current + performance.now() - from));
       setMsLeft(left);
-      if (left <= 0) { clearInterval(t); onAnswer(-1, 0); }
+      if (left <= 0 && !done) { done = true; clearInterval(t); onAnswer(-1, 0); }
     }, 100);
-    return () => clearInterval(t);
-  }, [loaded, answered, seconds, onAnswer]);
+    return () => { clearInterval(t); if (!done) used.current += performance.now() - from; };
+  }, [loaded, answered, paused, seconds, onAnswer]);
 
   useEffect(() => {
     function key(e) {
       if (zoom) { if (e.key === 'Escape') setZoom(false); return; }
+      if (paused) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onResume(); } return; }
       if (!answered && loaded && /^[1-4]$/.test(e.key)) onAnswer(Number(e.key) - 1, msLeft);
       else if (answered && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onNext(); }
     }
     window.addEventListener('keydown', key);
     return () => window.removeEventListener('keydown', key);
-  }, [answered, loaded, msLeft, onAnswer, onNext, zoom]);
+  }, [answered, loaded, msLeft, onAnswer, onNext, zoom, paused, onResume]);
 
   // Bring the explanation on screen once it appears.
   useEffect(() => {
@@ -170,6 +176,16 @@ function FigurePage({ q, idx, total, seconds, score, streak, onAnswer, onNext, p
         </div>
 
         <div className="fai-main">
+          {/* Paused: the book is shut over the figure and the options, so a
+              pause cannot be used to study the picture off the clock. */}
+          {paused && (
+            <div className="fai-paused" role="dialog" aria-label="Paused">
+              <span className="fai-paused-book" aria-hidden="true"><i /><i /></span>
+              <b>Paused</b>
+              <small>{answered ? 'Take a breather — open the book when you are ready.' : `The clock has stopped at ${Math.ceil(msLeft / 1000)} s.`}</small>
+              <button type="button" className="fai-start" onClick={onResume} autoFocus>Open the book again <span aria-hidden="true">▸</span></button>
+            </div>
+          )}
           <p className="fai-prompt">{q.prompt}</p>
           <button type="button" className={`fai-figure${loaded ? ' is-printed' : ''}`} onClick={() => setZoom(true)} aria-label="Enlarge the figure">
             <img ref={imgRef} src={q.image} alt="" onLoad={() => setLoaded(true)} onError={() => setLoaded(true)} draggable="false" />
@@ -278,6 +294,29 @@ export default function FAImages({ onExit }) {
   const [best, setBest] = useState(0);
   const [results, setResults] = useState([]);
   const [flip, setFlip] = useState(false);
+  const [paused, setPaused] = useState(false);
+  const [musicOn, setMusicOn] = useState(musicPref);
+  const music = useRef(null);
+  if (!music.current) music.current = createFaMusic();
+
+  // The study music plays during a run, while not paused, if it is switched on.
+  useEffect(() => {
+    if (phase === 'run' && !paused && musicOn) music.current.start();
+    else music.current.stop();
+  }, [phase, paused, musicOn]);
+  useEffect(() => () => music.current.stop(), []);
+
+  // P pauses and resumes from anywhere in a run.
+  useEffect(() => {
+    if (phase !== 'run') return undefined;
+    const key = (e) => { if (e.key === 'p' || e.key === 'P') setPaused(p => !p); };
+    window.addEventListener('keydown', key);
+    return () => window.removeEventListener('keydown', key);
+  }, [phase]);
+
+  function toggleMusic() {
+    setMusicOn(on => { setMusicPref(!on); return !on; });
+  }
 
   useEffect(() => {
     fetch(`${SERVER_URL}/api/fa-images/catalog`)
@@ -300,6 +339,7 @@ export default function FAImages({ onExit }) {
       if (!d.questions?.length) throw new Error(d.error || 'No figures came back.');
       // Warm the next few figures so pages turn without a wait.
       d.questions.slice(0, 4).forEach(q => { const im = new Image(); im.src = q.image; });
+      setPaused(false);
       setRun(d); setIdx(0); setPicked(null); setScore(0); setStreak(0); setBest(0); setResults([]);
       setPhase('run');
     } catch (err) {
@@ -346,7 +386,16 @@ export default function FAImages({ onExit }) {
   return (
     <div className="fai">
       <RunningHeader chapter={chapterName} page={phase === 'run' ? 330 + idx : phase === 'notes' ? 362 : 329}
-        right={phase === 'run' ? <button type="button" className="fai-run-quit" onClick={() => setPhase('notes')}>Close book</button> : null} />
+        right={phase === 'run' ? (
+          <span className="fai-run-tools">
+            <button type="button" className={`fai-run-quit${musicOn ? ' is-on' : ''}`} onClick={toggleMusic}
+              aria-pressed={musicOn} title="Background music">{musicOn ? '♫ Music on' : '♫ Music off'}</button>
+            <button type="button" className="fai-run-quit" onClick={() => setPaused(p => !p)} aria-pressed={paused}>
+              {paused ? '▶ Resume' : '❚❚ Pause'}
+            </button>
+            <button type="button" className="fai-run-quit" onClick={() => { setPaused(false); setPhase('notes'); }}>Close book</button>
+          </span>
+        ) : null} />
       <main className="fai-sheet">
         {(phase === 'opener' || phase === 'loading') && (
           <Opener catalog={catalog} error={error} chapter={chapter} setChapter={setChapter}
@@ -355,6 +404,7 @@ export default function FAImages({ onExit }) {
         {phase === 'run' && q && (
           <FigurePage key={q.id} q={q} idx={idx} total={run.questions.length} seconds={run.seconds}
             score={score} streak={streak} picked={picked} flip={flip}
+            paused={paused} onResume={() => setPaused(false)}
             onAnswer={answer} onNext={next} />
         )}
         {phase === 'notes' && (

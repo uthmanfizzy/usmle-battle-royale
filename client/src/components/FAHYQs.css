@@ -1,0 +1,38 @@
+/* FA HY Qs — the FA Images book look (FAImages.css) plus what a text
+   vignette needs: a reading-width stem, section chips and a page tag. */
+.fahq .fai-grid { grid-template-columns: 150px minmax(0, 1fr); }
+.fahq-stem {
+  margin: 0 0 16px; max-width: 760px;
+  font-size: 20px; line-height: 1.55; color: var(--fa-ink);
+  animation: fai-rise .4s .2s both;
+}
+.fahq .fai-row { font-size: 18px; }
+.fahq-hint { font-size: 11px; letter-spacing: 0; color: var(--fa-mute); text-transform: none; }
+.fahq-sec small { margin-left: 4px; font-weight: 400; font-size: 13px; opacity: .7; }
+.fahq-review {
+  display: inline-block; margin: 0 0 12px; padding: 2px 8px;
+  font-family: var(--fa-sans); font-size: 14px; letter-spacing: .04em; color: var(--fa-plum);
+  border: 1px solid rgba(122,45,90,.35); border-radius: 2px; background: rgba(122,45,90,.05);
+}
+.fai-note .fahq-review + .fai-next { display: flex; width: max-content; }
+
+/* Score by section on the Notes page: little ruled bars. */
+.fahq-sections { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; width: 100%; max-width: 240px; }
+.fahq-sections span { position: relative; display: flex; justify-content: space-between; padding-bottom: 5px; font-family: var(--fa-sans); font-size: 15px; }
+.fahq-sections i { font-style: normal; color: var(--fa-blue); }
+.fahq-sections em {
+  position: absolute; left: 0; bottom: 0; height: 3px; background: var(--fa-teal-2);
+  transform-origin: left; animation: fai-grow .7s .3s cubic-bezier(.2,.8,.2,1) both;
+}
+.fahq-sections span::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--fa-rule); z-index: -1; }
+.fahq-ruled-row { grid-template-columns: 62px 1fr; }
+.fahq-page {
+  font-family: var(--fa-sans); font-weight: 700; font-size: 15px; color: #fff; background: var(--fa-plum);
+  text-align: center; padding: 3px 0; border-radius: 2px;
+}
+
+@media (max-width: 780px) {
+  .fahq .fai-grid { grid-template-columns: 1fr; }
+  .fahq-stem { font-size: 18px; }
+  .fahq .fai-row { font-size: 16px; }
+}

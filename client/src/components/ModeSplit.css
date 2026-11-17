@@ -1112,3 +1112,11 @@
     width: min(640px, 94vw);
   }
 }
+
+/* First Aid Journey's page: three sub-modes side by side. */
+@media (min-width: 900px) {
+  .ms-campaign-list.ms-campaign-list--trio {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    width: min(960px, 94vw);
+  }
+}

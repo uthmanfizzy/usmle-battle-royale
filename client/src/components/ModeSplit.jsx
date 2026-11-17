@@ -211,7 +211,7 @@ export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld, onSaudiMLE, o
           <div className="ms-title-rule" />
         </div>
 
-        <div className="ms-campaign-list ms-campaign-list--pair">
+        <div className={`ms-campaign-list ${isFa ? 'ms-campaign-list--trio' : 'ms-campaign-list--pair'}`}>
           {isFa ? (
             <>
               {/* FA Qbank — the original chapter-by-chapter journey. The two
@@ -258,6 +258,19 @@ export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld, onSaudiMLE, o
                   <span className="ms-journey-name">FA IMAGES</span>
                   <span className="ms-journey-sub">
                     Name the photos, slides and scans — and recall the blurred labels on its diagrams.
+                  </span>
+                </div>
+              </button>
+
+              {/* FA HY Qs — high-yield vignettes built on the Qbank's facts. */}
+              <button className="ms-journey-card ms-journey-card--teal" onClick={() => { window.location.href = '/fa-hy-qs'; }}>
+                <div className="ms-journey-art" aria-hidden="true">
+                  <span className="ms-journey-art-icon">🎯</span>
+                </div>
+                <div className="ms-journey-body">
+                  <span className="ms-journey-name">FA HY QS</span>
+                  <span className="ms-journey-sub">
+                    High-yield clinical vignettes — the next step after each Qbank fact.
                   </span>
                 </div>
               </button>

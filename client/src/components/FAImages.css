@@ -386,3 +386,40 @@
   .fai *, .fai *::before, .fai *::after { animation-duration: .01ms !important; animation-delay: 0s !important; transition: none !important; }
   .fai-figure img { clip-path: none; }
 }
+
+/* ── Run tools: music, pause, close ────────────────────────────────────── */
+.fai-run-tools { display: inline-flex; gap: 8px; }
+.fai-run-quit.is-on { background: rgba(255,255,255,.14); border-color: rgba(233,243,247,.75); }
+
+/* Paused: the book shuts over the figure and its options. */
+.fai-main { position: relative; }
+.fai-paused {
+  position: absolute; inset: -6px; z-index: 5;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+  background:
+    linear-gradient(90deg, rgba(0,0,0,.18), transparent 6%, transparent 94%, rgba(0,0,0,.12)),
+    repeating-linear-gradient(0deg, #0e5a74 0 2px, #0b5672 2px 6px);
+  color: #e9f3f7; border-radius: 3px;
+  box-shadow: inset 0 0 0 6px #0a4b62, 0 10px 30px rgba(0,0,0,.25);
+  animation: fai-shut .35s cubic-bezier(.2,.8,.2,1) both;
+  transform-origin: left center;
+}
+@keyframes fai-shut { from { opacity: 0; transform: rotateY(-50deg); } to { opacity: 1; transform: none; } }
+.fai-paused b { font-family: var(--fa-sans); font-weight: 700; font-size: 34px; letter-spacing: .3em; text-transform: uppercase; }
+.fai-paused small { font-family: var(--fa-serif); font-size: 18px; opacity: .85; }
+.fai-paused .fai-start { margin-top: 8px; background: var(--fa-plum); box-shadow: 0 3px 0 #561e3f; }
+.fai-paused .fai-start:hover { background: var(--fa-plum-2); box-shadow: 0 5px 0 #561e3f; }
+/* A little closed book, its pages breathing. */
+.fai-paused-book { position: relative; width: 74px; height: 52px; }
+.fai-paused-book i {
+  position: absolute; top: 0; width: 36px; height: 52px; background: #fcfbf7; border: 2px solid #f2c3dc;
+  animation: fai-breathe 2.4s ease-in-out infinite;
+}
+.fai-paused-book i:first-child { left: 0; border-radius: 4px 0 0 4px; transform-origin: right center; }
+.fai-paused-book i:last-child  { right: 0; border-radius: 0 4px 4px 0; transform-origin: left center; animation-delay: .2s; }
+@keyframes fai-breathe { 50% { transform: rotateY(18deg); } }
+
+@media (max-width: 780px) {
+  .fai-run-tools { gap: 4px; }
+  .fai-run-tools .fai-run-quit { padding: 4px 7px; font-size: 11px; }
+}

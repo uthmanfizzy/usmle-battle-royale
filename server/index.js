@@ -4646,6 +4646,8 @@ app.delete('/admin/scan-master/images/:id', adminAuth, async (req, res) => {
 // routes, in server/faimages.js.
 require('./faimages')({ getSupabase: () => supabase, shuffle: (arr) => shuffle(arr) })
   .mount(app, { rateLimit, adminAuth });
+// FA HY Qs — high-yield vignettes per First Aid chapter (bank is code: server/fahyq).
+require('./fahyq').mount(app, { rateLimit });
 
 /**
  * The whole bank for the admin MedJinx tab: every topic with its accepted
