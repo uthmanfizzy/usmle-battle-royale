@@ -37,8 +37,25 @@ export default function BuzzFunGame({
   skipVotes = null, onSkip,
   pause = null, canPause = false, onPause,
   section = null,
+  onForfeit,
 }) {
   const paused = !!pause?.paused;
+  // Forfeit asks first. Alone, it ends the run (and pauses while deciding);
+  // with other people, it leaves the match and they play on.
+  const [confirmForfeit, setConfirmForfeit] = useState(false);
+  const solo = !(players || []).some(p => !p.isBot && p.username !== username);
+  const askForfeit = onForfeit ? () => {
+    if (canPause && !paused) onPause?.(true);
+    setConfirmForfeit(true);
+  } : null;
+  const cancelForfeit = () => {
+    setConfirmForfeit(false);
+    if (canPause) onPause?.(false);
+  };
+  const doForfeit = () => { setConfirmForfeit(false); onForfeit?.(); };
+  const forfeitDialog = confirmForfeit && (
+    <ForfeitDialog solo={solo} onCancel={cancelForfeit} onConfirm={doForfeit} />
+  );
   const limit = timeLimit || 8;
   const [timeLeft, setTimeLeft] = useState(limit);
   const [fraction, setFraction] = useState(1);
@@ -110,11 +127,12 @@ export default function BuzzFunGame({
     if (!canPause || !onPause) return undefined;
     const onKey = (e) => {
       if (e.target && /INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
+      if (confirmForfeit) return;   // the forfeit dialog owns the keys while open
       if (e.key === 'p' || e.key === 'P' || e.key === 'Escape') { e.preventDefault(); onPause(!paused); }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [canPause, onPause, paused]);
+  }, [canPause, onPause, paused, confirmForfeit]);
 
   const answer = (letter) => {
     if (hasAnswered || paused) return;
@@ -189,8 +207,8 @@ export default function BuzzFunGame({
       <div className="bf-screen">
         <Hive />
         <Hud round={round} totalRounds={totalRounds} score={myScore} streak={streak} rank={myRank} field={sorted.length}
-          canPause={canPause} paused={paused} onPause={onPause} />
-        {paused && <PauseOverlay onResume={() => onPause?.(false)} />}
+          canPause={canPause} paused={paused} onPause={onPause} onForfeit={askForfeit} />
+        {forfeitDialog || (paused && <PauseOverlay onResume={() => onPause?.(false)} />)}
         <div className={`bf-reveal${paused ? ' is-paused' : ''}`}>
           <div className="bf-reveal-card">
             <div className="bf-reveal-top">
@@ -259,8 +277,8 @@ export default function BuzzFunGame({
     <div className={`bf-screen${urgent ? ' is-urgent' : ''}`}>
       <Hive />
       <Hud round={round} totalRounds={totalRounds} score={myScore} streak={streak} rank={myRank} field={sorted.length}
-        canPause={canPause} paused={paused} onPause={onPause} />
-      {paused && <PauseOverlay onResume={() => onPause?.(false)} />}
+        canPause={canPause} paused={paused} onPause={onPause} onForfeit={askForfeit} />
+      {forfeitDialog || (paused && <PauseOverlay onResume={() => onPause?.(false)} />)}
 
       <div className={`bf-stage${paused ? ' is-paused' : ''}`}>
         <div className={`bf-card${flash ? ` is-${flash}` : ''}`} style={{ '--type': type.hue }} key={question.id}>
@@ -404,15 +422,45 @@ function PauseOverlay({ onResume }) {
   );
 }
 
-function Hud({ round, totalRounds, score, streak, rank, field, canPause, paused, onPause }) {
+function ForfeitDialog({ solo, onCancel, onConfirm }) {
+  return (
+    <div className="bf-pause" role="dialog" aria-label="Forfeit">
+      <div className="bf-pause-box">
+        <div className="bf-pause-icon" aria-hidden="true">🏳️</div>
+        <h2>{solo ? 'End this run?' : 'Leave this match?'}</h2>
+        <p>
+          {solo
+            ? 'The run stops here and you see your results so far.'
+            : 'You leave the match and go back to Online. The others keep playing.'}
+        </p>
+        <div className="bf-forfeit-actions">
+          <button type="button" className="bf-next-btn" onClick={onCancel} autoFocus>Keep playing</button>
+          <button type="button" className="bf-forfeit-confirm" onClick={onConfirm}>🏳️ Forfeit</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Above this many cards the honeycomb would overflow the header, so a plain
+// progress bar stands in for it.
+const HONEYCOMB_MAX = 40;
+
+function Hud({ round, totalRounds, score, streak, rank, field, canPause, paused, onPause, onForfeit }) {
   return (
     <header className="bf-hud">
       <div className="bf-brand"><span aria-hidden="true">🐝</span> BUZZ <b>FUN</b></div>
-      <div className="bf-honeycomb" aria-label={`Card ${round} of ${totalRounds}`}>
-        {Array.from({ length: totalRounds }, (_, i) => (
-          <span key={i} className={i + 1 < round ? 'is-done' : i + 1 === round ? 'is-now' : ''} />
-        ))}
-      </div>
+      {totalRounds > HONEYCOMB_MAX ? (
+        <div className="bf-progress" aria-label={`Card ${round} of ${totalRounds}`}>
+          <span style={{ width: `${Math.min(100, (round / Math.max(1, totalRounds)) * 100)}%` }} />
+        </div>
+      ) : (
+        <div className="bf-honeycomb" aria-label={`Card ${round} of ${totalRounds}`}>
+          {Array.from({ length: totalRounds }, (_, i) => (
+            <span key={i} className={i + 1 < round ? 'is-done' : i + 1 === round ? 'is-now' : ''} />
+          ))}
+        </div>
+      )}
       <div className="bf-hud-stats">
         <span className="bf-pill">Card <b>{round}</b>/{totalRounds}</span>
         {field > 1 && <span className="bf-pill">#{rank}</span>}
@@ -421,6 +469,11 @@ function Hud({ round, totalRounds, score, streak, rank, field, canPause, paused,
         {canPause && onPause && (
           <button type="button" className="bf-pill bf-pause-btn" onClick={() => onPause(!paused)} aria-pressed={paused} title="Pause (P)">
             {paused ? '▶ Resume' : '⏸ Pause'}
+          </button>
+        )}
+        {onForfeit && (
+          <button type="button" className="bf-pill bf-forfeit-btn" onClick={onForfeit} title="Forfeit">
+            🏳️ Forfeit
           </button>
         )}
       </div>

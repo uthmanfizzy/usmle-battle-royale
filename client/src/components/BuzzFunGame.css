@@ -333,3 +333,14 @@
 .bf-section-bar i { display: block; height: 100%; background: linear-gradient(90deg, #ffd23f, #ff8c00); animation: bf-section-fill 3.1s linear both; }
 @keyframes bf-section-fill { from { width: 0; } to { width: 100%; } }
 .bf-chip--section { color: #2a1200; background: linear-gradient(135deg, #ffd23f, #ff8c00); border-color: rgba(255, 210, 63, 0.9); }
+
+/* ── Forfeit ──────────────────────────────────────────────────────────────── */
+.bf-forfeit-btn { cursor: pointer; font: inherit; font-size: 14px; font-weight: 800; color: #ffd9d4; background: rgba(214, 64, 52, 0.18); border-color: rgba(255, 120, 100, 0.55); }
+.bf-forfeit-btn:hover { background: rgba(214, 64, 52, 0.32); color: #fff; }
+.bf-forfeit-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 6px; }
+.bf-forfeit-confirm { padding: 12px 20px; border-radius: 12px; border: 1px solid rgba(255, 120, 100, 0.7); background: rgba(214, 64, 52, 0.85); color: #fff; font: inherit; font-size: 15px; font-weight: 800; cursor: pointer; }
+.bf-forfeit-confirm:hover { background: rgb(214, 64, 52); }
+
+/* Long runs: a progress bar instead of one hexagon per card. */
+.bf-progress { flex: 1 1 160px; max-width: 420px; height: 8px; border-radius: 999px; background: rgba(255, 210, 63, 0.15); overflow: hidden; align-self: center; }
+.bf-progress span { display: block; height: 100%; background: linear-gradient(90deg, #ffd23f, #ff8c00); transition: width 0.3s ease; }

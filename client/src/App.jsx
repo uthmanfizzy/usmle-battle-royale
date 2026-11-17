@@ -337,6 +337,8 @@ export default function App() {
     socket.on('duel_skip_votes', (v) => setDuelSkipVotes(v || null));
     socket.on('buzz_pause', (d) => setBuzzPause(d ? { ...d, at: Date.now() } : null));
     socket.on('buzz_section', (d) => setBuzzSection(d || null));
+    // Forfeited while others play on: the server has dropped us, go back to Online.
+    socket.on('buzz_forfeited', () => handleBackToOnline());
 
     // The rival wants another. Shown over the results card until answered.
     socket.on('duel_rematch_offer', ({ from } = {}) => {
@@ -623,7 +625,7 @@ export default function App() {
        'player_left', 'error', 'sudden_death',
        'race_progress', 'trivia_turn', 'trivia_rolled', 'trivia_question', 'trivia_answer_result',
        'powerup_assigned', 'powerup_result', 'frozen', 'unfrozen',
-       'duel_skip_votes', 'buzz_pause', 'buzz_section', 'duel_rematch_offer', 'duel_rematch_declined',
+       'duel_skip_votes', 'buzz_pause', 'buzz_section', 'buzz_forfeited', 'duel_rematch_offer', 'duel_rematch_declined',
        'duel_rematch_accepted'].forEach(e => socket.off(e));
       socket.disconnect();
       audio.stopBgMusic();
@@ -1508,6 +1510,7 @@ export default function App() {
           section={buzzSection}
           canPause={(players?.length || 0) === 1}
           onPause={(p) => socket.emit('buzz_pause', { paused: p })}
+          onForfeit={() => socket.emit('buzz_forfeit')}
         />
         </RouteErrorBoundary>
       )}

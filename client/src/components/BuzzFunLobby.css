@@ -170,3 +170,8 @@
 .bfl-q-ctrls button:hover:not(:disabled) { border-color: #ffc233; color: #fff; }
 .bfl-q-x { color: #ffb3a8 !important; }
 .bfl-note { font-size: 12.5px; color: #ffd27a; }
+
+/* How many cards: chips plus a small custom-number box. */
+.bfl-count { align-items: center; }
+.bfl-count-input { width: 92px; padding: 7px 10px; border-radius: 999px; border: 1px solid rgba(255, 210, 63, 0.35); background: rgba(0, 0, 0, 0.3); color: #fff; font: inherit; font-size: 13px; font-weight: 700; }
+.bfl-count-input:focus { outline: none; border-color: #ffd23f; }

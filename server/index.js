@@ -1212,7 +1212,11 @@ function buzzFunSections(lobby, pool) {
     .filter(g => g.cards.length);
   if (!groups.length) return null;
   const total = groups.reduce((n, g) => n + g.cards.length, 0);
-  const scale = total > BUZZ_FUN_TOPIC_MAX ? BUZZ_FUN_TOPIC_MAX / total : 1;
+  // The host's card count caps the run (0 = every card); unset keeps the
+  // default topic cap.
+  const want = lobby.duelOptions ? sanitizeDuelOptions(lobby.duelOptions).buzzCards : null;
+  const cap = want === 0 ? Infinity : (want || BUZZ_FUN_TOPIC_MAX);
+  const scale = total > cap ? cap / total : 1;
   const queue = [];
   const list = groups.map((g, i) => {
     const take = Math.max(1, Math.floor(g.cards.length * scale));
@@ -1246,7 +1250,10 @@ function startBuzzFun(lobby) {
     lobby.buzzSections  = sections.list;
   } else {
     const shuffled = shuffle(pool);
-    lobby.questionQueue = shuffled.slice(0, Math.min(BUZZ_FUN_ROUNDS, shuffled.length));
+    // The host's card count (0 = all of them); unset keeps the default 30.
+    const want = lobby.duelOptions ? sanitizeDuelOptions(lobby.duelOptions).buzzCards : null;
+    const count = want === 0 ? shuffled.length : (want || BUZZ_FUN_ROUNDS);
+    lobby.questionQueue = shuffled.slice(0, Math.min(count, shuffled.length));
     lobby.buzzSections  = null;
   }
   lobby.questionIdx   = -1;
@@ -1880,7 +1887,13 @@ function sanitizeDuelOptions(raw) {
   // Buzz Fun's card bank: the original ("vanilla") decks, or the cards made
   // from UWorld Adventure questions. Anything else is vanilla.
   const buzzBank = BUZZ_BANKS.includes(o.buzzBank) ? o.buzzBank : 'vanilla';
-  return { source, winBy, rounds, subjects, journeySubject, chapterId, levelId, journeyTrack, powers, explanations, topics, buzzBank };
+  // Buzz Fun: how many cards the host wants. null = the default (30 mixed,
+  // up to 60 in topic focus); 0 = every card available; otherwise 5–300.
+  const bc = Number.parseInt(o.buzzCards, 10);
+  const buzzCards = o.buzzCards == null || o.buzzCards === '' || !Number.isFinite(bc)
+    ? null
+    : (bc <= 0 ? 0 : Math.max(5, Math.min(300, bc)));
+  return { source, winBy, rounds, subjects, journeySubject, chapterId, levelId, journeyTrack, powers, explanations, topics, buzzBank, buzzCards };
 }
 
 /**
@@ -3978,6 +3991,30 @@ io.on('connection', (socket) => {
       }
       socket.emit('buzz_pause', { paused: false, phase, remainingMs: remaining });
     }
+  });
+
+  /**
+   * Buzz Fun forfeit. If nobody else (no other human) is playing, the match
+   * ends now and everyone sees the results so far. Otherwise only the player
+   * who forfeited leaves; the match carries on for the others, and the
+   * leaver is told so the client can take them back to the Online page.
+   */
+  socket.on('buzz_forfeit', () => {
+    const lobby = lobbies.get(socket.lobbyId);
+    if (!lobby || lobby.gameMode !== 'buzz_fun' || !lobby.players.has(socket.id)) return;
+    if (!String(lobby.status || '').startsWith('buzz_fun_')) return;
+    const otherHumans = [...lobby.players.values()].filter(p => !p.isBot && p.id !== socket.id);
+    if (otherHumans.length === 0) {
+      clearTimer(lobby);
+      clearDuelAdvance(lobby);
+      endGame(lobby, 'forfeit');
+      return;
+    }
+    const id = socket.lobbyId;
+    socket.leave(id);
+    removeFromLobby(socket);
+    socket.lobbyId = null;
+    socket.emit('buzz_forfeited');
   });
 
   socket.on('skip_explanation', () => {

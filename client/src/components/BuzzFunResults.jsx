@@ -66,7 +66,7 @@ export default function BuzzFunResults({ gameResult, username, onPlayAgain, onOn
 
       <main className="bfr-card">
         <header className="bfr-head">
-          <div className="bfr-kicker"><span aria-hidden="true">🐝</span> Buzz Fun · {solo ? 'Solo run' : 'Match'} complete</div>
+          <div className="bfr-kicker"><span aria-hidden="true">🐝</span> Buzz Fun · {gameResult?.reason === 'forfeit' ? (solo ? 'Run ended early' : 'Match ended early') : `${solo ? 'Solo run' : 'Match'} complete`}</div>
           <h1 className="bfr-title">{title}</h1>
           <p className="bfr-sub">{sub}</p>
         </header>
