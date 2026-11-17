@@ -155,6 +155,18 @@ const MINIGAMES = [
     drills: 'Step 1 biostatistics, worked out',
   },
   {
+    id: 'lab-values',
+    name: 'Lab Values',
+    subject: 'Clinical labs',
+    icon: '🧪',
+    accent: '46, 196, 150',          // lab-bench green
+    route: '/lab-values',
+    blurb: 'A lab comes up with its unit and you type the normal range from '
+         + 'memory: electrolytes, LFTs, the CBC, coags, the blood gas, CSF. '
+         + 'Then the real range and why it matters.',
+    drills: 'Normal ranges off the NBME sheet',
+  },
+  {
     id: 'microbiology',
     name: 'Microbiology',
     subject: 'Microbiology',

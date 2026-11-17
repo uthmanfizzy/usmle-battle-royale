@@ -1,287 +1,142 @@
-/* ══ Lab Values ═══════════════════════════════════════════════════════════
-   A reference sheet, read under time pressure, in a panel 360px wide.
-   Deliberately LIGHT whatever theme the app is in: this is the one surface
-   that is a document rather than a game screen — it is read the way a
-   printed range table is read, and dark type on a dark panel at 11px was
-   the opposite of that.
+/* ── Lab Values ─────────────────────────────────────────────────────────────
+   Lab-bench green as the base; in play the card takes its category's accent
+   (--acc, "r, g, b"). Static rgba only — color-mix() ships broken to older
+   browsers. */
 
-   It is also a list rather than a table. Three columns in 360px gave the
-   test name about half the width, so a name like "Urea nitrogen (BUN)"
-   wrapped onto three lines while its range sat alone in a column of its own
-   — and the figure from the question, the thing actually being looked up,
-   had the least room of the three. One value is one block now: its name
-   across the top, and beneath it what the question said against what is
-   normal, which is the comparison being made.
-
-   Colours are fixed rather than themed. A high value has to read as high in
-   every theme, and a reference range nobody can read is worse than no
-   reference range. */
-
-.lab-values-panel {
+.lv {
+  --acc: 46, 170, 120;
+  --good: 53, 224, 161;
+  --close: 255, 196, 70;
+  --bad: 255, 92, 120;
   position: fixed;
-  width: 380px;
-  max-height: 72vh;
-  display: flex;
-  flex-direction: column;
-  background: #f7f8fa;
-  border: 1px solid #c9d2de;
-  border-radius: 14px;
-  box-shadow: 0 18px 50px rgba(12, 18, 30, 0.45);
-  z-index: 10000;
-  user-select: none;
-  color: #1b2330;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  overflow: hidden;
-}
-
-/* ── Header ──────────────────────────────────────────────────────────── */
-.lab-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 10px;
-  padding: 11px 14px;
-  background: #ffffff;
-  border-bottom: 1px solid #e2e8f0;
-  cursor: move;
-  flex-shrink: 0;
-}
-.lab-title {
-  font-size: 14.5px;
-  font-weight: 800;
-  letter-spacing: 0.01em;
-  color: #0f2a4a;
-}
-.lab-close-btn {
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border-radius: 7px;
-  border: 1px solid #d7dee8;
-  background: #f1f4f8;
-  color: #46536a;
-  font-size: 18px;
-  line-height: 1;
-  cursor: pointer;
-  flex-shrink: 0;
-}
-.lab-close-btn:hover { background: #e4e9f1; color: #16202f; }
-
-/* ── Tabs + search ───────────────────────────────────────────────────── */
-.lab-controls {
-  padding: 10px 12px;
-  background: #ffffff;
-  border-bottom: 1px solid #e2e8f0;
-  flex-shrink: 0;
-}
-.lab-toggle {
-  display: flex;
-  gap: 4px;
-  padding: 3px;
-  border-radius: 9px;
-  background: #eef1f6;
-  border: 1px solid #dfe5ee;
-}
-.lab-toggle-btn {
-  flex: 0 1 auto;
-  min-width: 0;
-  padding: 7px 13px;
-  border: 0;
-  border-radius: 7px;
-  background: transparent;
-  color: #4a5668;
-  font: inherit;
-  font-size: 12.5px;
-  font-weight: 700;
-  cursor: pointer;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.lab-toggle-btn:hover:not(:disabled):not(.active) { background: #e2e8f1; color: #1b2330; }
-.lab-toggle-btn.active {
-  background: #0f6ab4;
-  color: #fff;
-  box-shadow: 0 1px 3px rgba(15, 106, 180, 0.4);
-}
-.lab-toggle-btn:disabled { opacity: 0.4; cursor: default; }
-/* The count of what this question mentions, on its own tab. */
-.lab-tab-count {
-  display: inline-block;
-  min-width: 17px;
-  margin-left: 6px;
-  padding: 1px 5px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.28);
-  font-size: 11px;
-  font-weight: 800;
-}
-.lab-toggle-btn:not(.active) .lab-tab-count { background: #d4dce7; color: #33415a; }
-
-.lab-search {
-  width: 100%;
-  margin-top: 8px;
-  padding: 9px 11px;
-  border-radius: 8px;
-  border: 1px solid #d3dbe6;
-  background: #fff;
-  color: #1b2330;
-  font: inherit;
-  font-size: 13.5px;
+  inset: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background:
+    radial-gradient(ellipse 70% 50% at 15% -10%, rgba(var(--acc), 0.22), rgba(0, 0, 0, 0) 60%),
+    radial-gradient(ellipse 60% 45% at 100% 110%, rgba(46, 170, 120, 0.14), rgba(0, 0, 0, 0) 60%),
+    linear-gradient(175deg, #0b1a1a 0%, #081212 55%, #050a0b 100%);
+  color: #eef5f3;
+  font-family: 'Inter', system-ui, sans-serif;
+  padding: 0 16px 56px;
   box-sizing: border-box;
 }
-.lab-search::placeholder { color: #8d99ab; }
-.lab-search:focus {
-  outline: none;
-  border-color: #0f6ab4;
-  box-shadow: 0 0 0 3px rgba(15, 106, 180, 0.15);
-}
+.lv *, .lv *::before, .lv *::after { box-sizing: border-box; }
+.lv > *:not(.lv-bubbles) { position: relative; z-index: 1; }
 
-/* ── The list ────────────────────────────────────────────────────────── */
-.lab-body {
-  flex: 1 1 auto;
-  overflow-y: auto;
-  padding: 0 0 6px;
-  background: #f7f8fa;
+.lv-bubbles { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 0; }
+.lv-bubbles span {
+  position: absolute; bottom: -30px; left: calc(var(--i) * 8.3% + 2%);
+  width: calc(8px + (var(--i) * 5 % 4) * 5px); aspect-ratio: 1; border-radius: 50%;
+  border: 1px solid rgba(var(--acc), 0.5); background: rgba(var(--acc), 0.08);
+  opacity: 0.5;
+  animation: lv-rise calc(14s + (var(--i) * 3 % 7) * 1.5s) linear infinite;
+  animation-delay: calc(var(--i) * -1.7s);
 }
-.lab-group { padding: 0; }
-.lab-group-title {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  padding: 8px 14px 6px;
-  background: #eef2f7;
-  border-bottom: 1px solid #dde4ed;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: #51607a;
-}
+@keyframes lv-rise { from { transform: translateY(0); } to { transform: translateY(-115vh); } }
 
-.lab-list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.lab-item {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  padding: 10px 14px;
-  border-bottom: 1px solid #e7ecf3;
-  /* The stripe an abnormal row gets, transparent by default so every row is
-     the same width whether it is flagged or not. */
-  border-left: 3px solid transparent;
-}
-.lab-item:last-child { border-bottom: 0; }
-.lab-item-name {
-  font-size: 14px;
-  font-weight: 700;
-  line-height: 1.3;
-  color: #16202f;
-}
+.lv-top { max-width: 900px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 16px 0 12px; }
+.lv-back { padding: 7px 14px; border-radius: 999px; border: 1px solid rgba(255, 255, 255, 0.16); background: rgba(0, 0, 0, 0.3); color: rgba(238, 245, 243, 0.85); font: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; flex-shrink: 0; }
+.lv-back:hover { background: rgba(255, 255, 255, 0.1); }
+.lv-hud { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; align-items: center; }
+.lv-hud > span { padding: 6px 11px; border-radius: 999px; border: 1px solid rgba(var(--acc), 0.4); background: rgba(var(--acc), 0.1); font-size: 12.5px; color: rgba(238, 245, 243, 0.75); }
+.lv-hud b { color: #fff; font-variant-numeric: tabular-nums; }
+.lv-hud .is-hot { border-color: rgba(255, 170, 60, 0.7); background: rgba(255, 150, 40, 0.16); }
 
-/* What the question said, against what is normal. */
-.lab-item-line {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-.lab-item-given {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 5px;
-  flex-wrap: wrap;
-  min-width: 0;
-}
-.lab-given-num {
-  font-size: 16px;
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-  color: #0f2a4a;
-}
-.lab-given-unit { font-size: 12px; color: #5b6878; }
-.lab-given-none { font-size: 13px; font-style: italic; color: #93a0b2; }
+.lv-kicker { margin: 0 0 4px; font-size: 11px; font-weight: 800; letter-spacing: 0.28em; text-transform: uppercase; color: rgb(var(--acc)); }
+.lv-title { margin: 0 0 10px; font-family: var(--mv-font-display, 'Cinzel', serif); font-size: clamp(28px, 4.8vw, 44px); color: #fff; text-shadow: 0 4px 24px rgba(var(--acc), 0.45); }
+.lv-lede { margin: 0 auto 12px; max-width: 600px; font-size: 15px; line-height: 1.6; color: rgba(238, 245, 243, 0.78); }
+.lv-start { padding: 12px 22px; border-radius: 12px; border: 0; background: linear-gradient(135deg, rgb(var(--acc)), rgba(var(--acc), 0.7)); color: #fff; font: inherit; font-size: 15px; font-weight: 900; cursor: pointer; box-shadow: 0 10px 26px rgba(var(--acc), 0.35); transition: transform 0.15s ease, opacity 0.15s ease; }
+.lv-start:hover:not(:disabled) { transform: translateY(-2px); }
+.lv-start:disabled { opacity: 0.4; cursor: default; box-shadow: none; }
+.lv-ghost { padding: 12px 18px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.2); background: transparent; color: #eef5f3; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
+.lv-ghost:hover { background: rgba(255, 255, 255, 0.06); }
+.lv-fine { margin: 12px 0 0; font-size: 12.5px; line-height: 1.6; color: rgba(238, 245, 243, 0.5); }
+.lv-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 8px; }
 
-.lab-item-norm {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 5px;
-  margin-left: auto;
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
+/* Home */
+.lv-hero { max-width: 760px; margin: 0 auto 18px; text-align: center; }
+.lv-hero-icon { font-size: 44px; display: block; animation: lv-wobble 3s ease-in-out infinite; }
+@keyframes lv-wobble { 50% { transform: rotate(-12deg) scale(1.1); } }
+.lv-cats { max-width: 900px; margin: 0 auto 14px; display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
+.lv-cat {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 14px; border-radius: 14px;
+  border: 1px solid rgba(var(--acc), 0.25); background: rgba(var(--acc), 0.04);
+  color: #eef5f3; font: inherit; text-align: left; cursor: pointer; opacity: 0.55;
+  transition: transform 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
 }
-.lab-norm-label {
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #8a97a9;
-}
-.lab-norm-val { font-size: 13.5px; font-weight: 700; color: #36445c; }
-.lab-units { font-size: 11.5px; color: #76839a; }
+.lv-cat:hover { transform: translateY(-3px); }
+.lv-cat.is-on { opacity: 1; border-color: rgb(var(--acc)); background: linear-gradient(180deg, rgba(var(--acc), 0.18), rgba(var(--acc), 0.04)); box-shadow: 0 0 0 2px rgba(var(--acc), 0.3); }
+.lv-cat-icon { font-size: 24px; }
+.lv-cat-name { font-size: 14.5px; font-weight: 800; color: #fff; }
+.lv-cat-n { font-size: 12px; color: rgba(238, 245, 243, 0.6); }
+.lv-panel { max-width: 900px; margin: 0 auto 14px; padding: 16px; border-radius: 16px; border: 1px solid rgba(255, 255, 255, 0.1); background: rgba(8, 20, 20, 0.82); text-align: center; }
+.lv-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 12px; text-align: left; }
+.lv-label { font-size: 11px; font-weight: 800; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(238, 245, 243, 0.5); }
+.lv-best { margin-left: auto; font-size: 13px; color: rgba(238, 245, 243, 0.7); }
+.lv-best b { color: #fff; }
+.lv-seg { display: inline-flex; padding: 4px; gap: 4px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.12); background: rgba(0, 0, 0, 0.3); }
+.lv-seg button { padding: 7px 14px; border-radius: 9px; border: 0; background: transparent; color: rgba(238, 245, 243, 0.65); font: inherit; font-size: 13px; font-weight: 800; cursor: pointer; }
+.lv-seg button.is-on { background: rgba(var(--acc), 0.3); color: #fff; }
 
-/* ── Flags ───────────────────────────────────────────────────────────── */
-.lab-flag {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 999px;
-  font-size: 10.5px;
-  font-weight: 800;
-  letter-spacing: 0.03em;
-  white-space: nowrap;
+/* Play */
+.lv-progress { max-width: 900px; margin: 0 auto 18px; height: 6px; border-radius: 999px; background: rgba(255, 255, 255, 0.08); overflow: hidden; }
+.lv-progress span { display: block; height: 100%; background: rgb(var(--acc)); transition: width 0.3s ease; }
+.lv-card {
+  max-width: 620px; margin: 0 auto; padding: 26px 22px; border-radius: 20px; text-align: center;
+  border: 1px solid rgba(var(--acc), 0.4); background: linear-gradient(180deg, rgba(var(--acc), 0.12), rgba(8, 20, 20, 0.9) 60%);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.4);
+  animation: lv-in 0.28s ease;
 }
-.lab-flag--high    { background: #fde2dd; color: #a8301b; border: 1px solid #f6c3b8; }
-.lab-flag--low     { background: #dde9fd; color: #1a4f94; border: 1px solid #bcd3f5; }
-.lab-flag--normal  { background: #dcf3e4; color: #1d6b3d; border: 1px solid #b9e3c8; }
-.lab-flag--unknown { background: #eceff4; color: #5a6679; border: 1px solid #d9dfe8; }
+@keyframes lv-in { from { opacity: 0; transform: translateY(10px) scale(0.98); } }
+.lv-card.is-good { border-color: rgba(var(--good), 0.8); box-shadow: 0 0 0 2px rgba(var(--good), 0.25), 0 18px 50px rgba(0, 0, 0, 0.4); }
+.lv-card.is-off { animation: lv-shake 0.35s ease; }
+@keyframes lv-shake { 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+.lv-card-cat { margin: 0 0 6px; font-size: 12px; font-weight: 800; letter-spacing: 0.18em; text-transform: uppercase; color: rgb(var(--acc)); }
+.lv-card-name { margin: 0 0 6px; font-size: clamp(22px, 4vw, 30px); font-weight: 900; color: #fff; }
+.lv-card-ask { margin: 0 0 18px; color: rgba(238, 245, 243, 0.65); font-size: 14px; }
 
-/* An abnormal value is findable by its edge, before the flag is read. */
-.lab-item--high { border-left-color: #d8452a; background: #fff7f5; }
-.lab-item--low  { border-left-color: #2b6cb8; background: #f5f9ff; }
+.lv-inputs { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: center; gap: 10px; margin-bottom: 18px; }
+.lv-field { display: flex; flex-direction: column; align-items: center; gap: 5px; }
+.lv-field-label { font-size: 11px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(238, 245, 243, 0.5); }
+.lv-field-box { display: flex; align-items: center; gap: 4px; padding: 0 10px; border-radius: 12px; border: 2px solid rgba(255, 255, 255, 0.16); background: rgba(0, 0, 0, 0.35); transition: border-color 0.15s ease; }
+.lv-field-box:focus-within { border-color: rgb(var(--acc)); }
+.lv-field-prefix { font-size: 20px; font-weight: 800; color: rgba(238, 245, 243, 0.6); }
+.lv-field input { width: 120px; padding: 10px 0; border: 0; background: transparent; color: #fff; font: inherit; font-size: 22px; font-weight: 800; text-align: center; font-variant-numeric: tabular-nums; outline: none; }
+.lv-field.is-exact .lv-field-box { border-color: rgb(var(--good)); background: rgba(var(--good), 0.1); }
+.lv-field.is-close .lv-field-box { border-color: rgb(var(--close)); background: rgba(var(--close), 0.1); }
+.lv-field.is-miss .lv-field-box { border-color: rgb(var(--bad)); background: rgba(var(--bad), 0.1); }
+.lv-field-grade { font-size: 12px; font-weight: 800; }
+.lv-field.is-exact .lv-field-grade { color: rgb(var(--good)); }
+.lv-field.is-close .lv-field-grade { color: rgb(var(--close)); }
+.lv-field.is-miss .lv-field-grade { color: rgb(var(--bad)); }
+.lv-dash { align-self: center; margin-top: 18px; font-size: 22px; font-weight: 800; color: rgba(238, 245, 243, 0.5); }
+.lv-unit { align-self: center; margin-top: 18px; font-size: 15px; font-weight: 700; color: rgba(238, 245, 243, 0.75); }
 
-/* ── Empty + footer ──────────────────────────────────────────────────── */
-.lab-empty {
-  padding: 28px 18px;
-  text-align: center;
-  color: #6b7789;
-  font-size: 13.5px;
-  line-height: 1.5;
+.lv-reveal { animation: lv-in 0.25s ease; }
+.lv-answer { margin: 0 0 4px; font-size: 18px; color: rgba(238, 245, 243, 0.85); }
+.lv-answer b { color: #fff; }
+.lv-pts { margin-left: 10px; padding: 3px 9px; border-radius: 999px; background: rgba(var(--good), 0.16); color: rgb(var(--good)); font-size: 13px; font-weight: 800; }
+.lv-tol { margin: 0 0 12px; font-size: 12px; color: rgba(238, 245, 243, 0.45); }
+.lv-note { margin: 0 auto 16px; max-width: 520px; padding: 12px 14px; border-radius: 12px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.08); font-size: 14px; line-height: 1.55; text-align: left; color: rgba(238, 245, 243, 0.85); }
+
+/* Study + review */
+.lv-study-head { max-width: 900px; margin: 0 auto 14px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+.lv-study-head .lv-title { margin: 0; }
+.lv-search { flex: 1 1 220px; max-width: 340px; padding: 10px 14px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.16); background: rgba(0, 0, 0, 0.35); color: #fff; font: inherit; font-size: 14px; }
+.lv-study-cat { max-width: 900px; margin: 0 auto 16px; }
+.lv-study-cat h2, .lv-review h2 { margin: 0 0 8px; font-size: 16px; font-weight: 800; color: rgb(var(--acc)); text-align: left; }
+.lv-table { border-radius: 14px; border: 1px solid rgba(var(--acc), 0.25); background: rgba(8, 20, 20, 0.82); overflow: hidden; }
+.lv-tr { display: grid; grid-template-columns: minmax(150px, 1.1fr) minmax(120px, 0.9fr) 2fr; gap: 12px; padding: 10px 14px; border-top: 1px solid rgba(255, 255, 255, 0.06); text-align: left; font-size: 13.5px; }
+.lv-tr:first-child { border-top: 0; }
+.lv-td-name { font-weight: 700; color: #fff; }
+.lv-td-range { font-weight: 800; color: rgb(var(--acc)); font-variant-numeric: tabular-nums; }
+.lv-td-note { color: rgba(238, 245, 243, 0.65); line-height: 1.5; }
+.lv-review .lv-tr { border-top-color: rgba(255, 255, 255, 0.08); }
+
+@media (max-width: 600px) {
+  .lv-tr { grid-template-columns: 1fr auto; }
+  .lv-td-note { grid-column: 1 / -1; }
+  .lv-field input { width: 96px; font-size: 20px; }
+  .lv-card { padding: 22px 14px; }
 }
-.lab-footer-note {
-  flex-shrink: 0;
-  padding: 8px 12px;
-  background: #ffffff;
-  border-top: 1px solid #e2e8f0;
-  font-size: 10.5px;
-  color: #74808f;
-  text-align: center;
-}
-
-/* ── A phone: a sheet along the bottom, not a floating panel ─────────── */
-@media (max-width: 768px) {
-  .lab-values-panel {
-    position: fixed;
-    left: 0 !important;
-    right: 0;
-    top: auto !important;
-    bottom: 0;
-    width: 100%;
-    max-height: 82vh;
-    border-radius: 16px 16px 0 0;
-    cursor: default;
-  }
-  .lab-header { cursor: default; }
-}
-
-@media (max-width: 420px) {
-  .lab-item { padding: 9px 12px; }
-  .lab-item-name { font-size: 13.5px; }
-  .lab-given-num { font-size: 15px; }
-  .lab-toggle-btn { font-size: 11.5px; padding: 7px 5px; }
-}
-
-.lab-toggle-btn--q { flex: 1 1 auto; }

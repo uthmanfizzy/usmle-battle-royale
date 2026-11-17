@@ -60,7 +60,7 @@ const UWORLD_RATING_GROUPS = [
     items: [
       { key: 'knowledge_gap',    label: 'Knowledge Gap', icon: '🧠' },
       { key: 'careless_miss',    label: 'Careless Miss', icon: '😅' },
-      { key: 'lucky_guess',      label: 'Lucky Guess',   icon: '🍀' },
+      { key: 'lucky_guess',      label: 'Educational/Lucky Guess',   icon: '🍀' },
     ],
   },
   {
