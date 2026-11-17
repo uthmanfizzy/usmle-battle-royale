@@ -18,7 +18,7 @@ import './BuzzFunLobby.css';
  * read-only.
  */
 
-const ICON = { biochemistry: '🧬', immunology: '🛡️', endocrinology: '🦋', pulmonology: '🫁' };
+const ICON = { biochemistry: '🧬', immunology: '🛡️', endocrinology: '🦋', pulmonology: '🫁', nephrology: '🫘' };
 const SECONDS_PER_CARD = 23;            // 15 s to answer + time on the explanation
 const MIXED_CARDS = 30;
 

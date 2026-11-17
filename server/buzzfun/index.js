@@ -61,8 +61,9 @@ const BUZZ_BANK = build();
 // question, so the id carries the source question: BFU-<question id>.
 const UWORLD_SOURCES = {
   pulmonology: require("./uworld/pulmonology"),
+  nephrology: require("./uworld/nephrology"),
 };
-const UWORLD_NAMES = { pulmonology: "Pulmonology" };
+const UWORLD_NAMES = { pulmonology: "Pulmonology", nephrology: "Nephrology" };
 
 function buildUworld() {
   const cards = [];
