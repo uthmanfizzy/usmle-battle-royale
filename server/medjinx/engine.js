@@ -55,6 +55,24 @@ const SPELLING = [
   [/calcaem/g, 'calcem'], [/uraem/g, 'urem'], [/lipidaem/g, 'lipidem'],
 ];
 
+// Plain-English phrases and common abbreviations, folded to the term the
+// bank uses. Applied to both the bank and what is typed, so either form of
+// an answer matches the other. Whole words only.
+const PHRASES = [
+  [/\bhigh blood pressure\b/g, 'hypertension'], [/\blow blood pressure\b/g, 'hypotension'],
+  [/\bhigh blood sugar\b/g, 'hyperglycemia'], [/\blow blood sugar\b/g, 'hypoglycemia'],
+  [/\b(fast|rapid) heart ?(rate|beat)\b/g, 'tachycardia'], [/\bslow heart ?(rate|beat)\b/g, 'bradycardia'],
+  [/\bheart attack\b/g, 'myocardial infarction'], [/\bshortness of breath\b/g, 'dyspnea'],
+  [/\bbreathlessness\b/g, 'dyspnea'], [/\btiredness\b/g, 'fatigue'], [/\bkidneys?\b/g, 'renal'],
+];
+const ABBREV = {
+  htn: ['hypertension'], dm: ['diabetes', 'mellitus'], mi: ['myocardial', 'infarction'],
+  chf: ['heart', 'failure'], hf: ['heart', 'failure'], ckd: ['chronic', 'renal', 'disease'],
+  aki: ['acute', 'renal', 'injury'], afib: ['atrial', 'fibrillation'], copd: ['chronic', 'obstructive', 'pulmonary', 'disease'],
+  dvt: ['deep', 'vein', 'thrombosis'], uti: ['urinary', 'tract', 'infection'], sob: ['dyspnea'],
+  dka: ['diabetic', 'ketoacidosis'], gerd: ['gastroesophageal', 'reflux', 'disease'], ibd: ['inflammatory', 'bowel', 'disease'],
+};
+
 // Words that say which way a value went. All of one direction collapse to a
 // single token, so "raised TSH", "elevated TSH", "↑TSH" and "high TSH" match.
 const UP = new Set(['high', 'higher', 'elevated', 'elevation', 'increased', 'increase',
@@ -67,7 +85,23 @@ const DOWN = new Set(['low', 'lower', 'decreased', 'decrease', 'decreases', 'red
 // ("a" is not one of them: vitamin A, hepatitis A and haemophilia A are answers.)
 const STOP = new Set(['the', 'an', 'of', 'in', 'on', 'to', 'and', 'with', 'for', 'by',
   'level', 'serum', 'blood', 'plasma', 'is', 'are', 'due', 'from', 'at',
-  'positive', 'present', 'presence']);
+  'positive', 'present', 'presence', 'caused', 'causing', 'associated', 'seen', 'which', 'that', 'very']);
+
+// Generic words a player may add or leave off without changing the answer
+// ("Cushing syndrome" / "Cushing"; "Graves disease" / "Graves"). Dropped only
+// for a second, looser lookup, never from the exact one.
+const SOFT = new Set(['syndrome', 'disease', 'disorder', 'condition']);
+
+// The only words allowed around a bank answer (step 4 of matchAnswer):
+// fillers that carry no medical meaning. Anything else ("low", "non", "C4")
+// can change what the answer means, so it blocks the match.
+const FILLER = new Set(['lab', 'labs', 'test', 'tests', 'add', 'use', 'using', 'give', 'given',
+  'may', 'can', 'often', 'usually', 'typical', 'typically', 'classic', 'classically', 'common',
+  'commonly', 'also', 'both', 'rx', 'tx', 'drug', 'see', 'show', 'shows', 'showing', 'like']);
+
+// A typed answer that negates something is never matched loosely onto an
+// entry that does not ("no fever" is not "fever").
+const NEG = new Set(['no', 'not', 'without', 'absent', 'absence', 'never', 'negative', 'normal', 'lack', 'none']);
 
 function singular(w) {
   if (w.length <= 3) return w;
@@ -93,8 +127,9 @@ function tokens(raw) {
     .replace(/\b([a-z]{1,3}) (\d{1,2})\b/g, '$1$2')
     .trim();
   for (const [re, to] of SPELLING) s = s.replace(re, to);
+  for (const [re, to] of PHRASES) s = s.replace(re, to);
 
-  let out = s.split(/\s+/).filter(Boolean).map((w) => {
+  let out = s.split(/\s+/).filter(Boolean).flatMap(w => ABBREV[w] || [w]).map((w) => {
     if (UP.has(w)) return 'high';
     if (DOWN.has(w)) return 'low';
     if (w === 'abs' || w === 'ab' || w === 'autoantibody' || w === 'autoantibodies') return 'antibody';
@@ -119,7 +154,11 @@ function tokens(raw) {
 function keysOf(raw) {
   const t = tokens(raw);
   if (!t.length) return null;
-  return { plain: t.join(' '), sorted: [...t].sort().join(' ') };
+  const soft = t.filter(w => !SOFT.has(w));
+  return {
+    plain: t.join(' '), sorted: [...t].sort().join(' '), toks: t,
+    loose: soft.length && soft.length < t.length ? [...soft].sort().join(' ') : null,
+  };
 }
 
 // ── Fuzzy matching ───────────────────────────────────────────────────────────
@@ -171,6 +210,86 @@ function guard(s) {
   return (s.match(GUARD) || []).sort().join('|');
 }
 
+// Per word, the guard splits in two. The PREFIX part (hyper/hypo, high/low,
+// numbers...) must always agree. The SUFFIX part (-itis/-osis/-emia...) must
+// agree only when both words still have a recognisable ending: a misspelt
+// "hypokalimia" has lost its "-emia" and should still be read as
+// hypokalemia, while "nephritis" and "nephrosis" stay two different words.
+// Read on the folded spelling (see fold), so "bradicardia" still says brady-.
+const PREFIX_GUARD = /\d+|hiper|hipo|high|low|anti|non|bradi|tachi|macro|micro|intra|inter|extra|pre|post|alfa|beta|gama|delta|poli|olig|acid|alkal/g;
+const SUFFIX_GUARD = /(ase|osis|itis|oma|emia|uria)$/;
+const prefixGuard = (w) => (fold(w).match(PREFIX_GUARD) || []).join('|');
+
+// Spellings that sound the same: ph/f, ae/oe/e, y/i, doubled letters.
+function fold(w) {
+  return w.replace(/ph/g, 'f').replace(/ae|oe/g, 'e').replace(/(?!^)y/g, 'i').replace(/(.)\1+/g, '$1');
+}
+
+// Every word the bank uses anywhere. A typed word that IS one of these is a
+// real word the player meant, never a misspelling of a different one:
+// "infection" is not a typo of "infarction", nor "hemolytic" of "hepatic".
+let VOCAB = null;
+function vocabulary() {
+  if (VOCAB) return VOCAB;
+  VOCAB = new Set();
+  try {
+    const { TOPICS } = require('./bank');
+    const add = (t) => tokens(t).forEach(w => VOCAB.add(w));
+    for (const tp of TOPICS) {
+      add(tp.title); (tp.dx || []).forEach(add);
+      for (const a of tp.answers) { add(a.label); (a.syn || []).forEach(add); }
+      for (const tr of tp.traps || []) tr.terms.forEach(add);
+    }
+  } catch { /* no bank: typo tolerance still works, just without this check */ }
+  return VOCAB;
+}
+
+// Typo allowance for one word: none for short words, one edit up to nine
+// letters, two beyond.
+const wordAllowance = (len) => (len <= 5 ? 0 : len <= 9 ? 1 : 2);
+
+/** How far apart two words are as a typo, or Infinity if they are different words. */
+function wordDistance(a, b) {
+  if (a === b) return 0;
+  if (prefixGuard(a) !== prefixGuard(b)) return Infinity;
+  const sa = (a.match(SUFFIX_GUARD) || [])[1], sb = (b.match(SUFFIX_GUARD) || [])[1];
+  if (sa && sb && sa !== sb) return Infinity;
+  const fa = fold(a), fb = fold(b);
+  if (fa === fb && Math.min(a.length, b.length) >= 4) return 0.5;
+  // A real bank word is a different word, not a typo ("anemia" is not
+  // "anomia", "myosin" is not "miosis") — unless it only adds or drops a
+  // final s (hashimotos / hashimoto).
+  if (vocabulary().has(a)) return Math.min(a.length, b.length) >= 4 && (a === b + 's' || b === a + 's') ? 0.5 : Infinity;
+  const max = wordAllowance(b.length);   // sized on the word aimed at
+  if (!max || Math.min(a.length, b.length) <= 5) return Infinity;
+  if (fa[0] !== fb[0]) return Infinity;                // typos rarely move the first letter
+  // Folding can also move a word away ("troponn" folds to "tropon"), so take
+  // whichever spelling is closer.
+  const d = Math.min(distance(fa, fb, max), distance(a, b, max));
+  return d <= max ? d : Infinity;
+}
+
+/**
+ * Pair each word of `need` with a different word of `have`. Returns the
+ * total typo distance, or null if some word has no partner. The lists are
+ * short, so a greedy pass in order of closest pair is enough.
+ */
+function cover(need, have) {
+  const pairs = [];
+  need.forEach((n, i) => have.forEach((h, j) => {
+    const d = wordDistance(h, n);
+    if (d !== Infinity) pairs.push([d, i, j]);
+  }));
+  pairs.sort((x, y) => x[0] - y[0]);
+  const usedN = new Set(), usedH = new Set();
+  let total = 0;
+  for (const [d, i, j] of pairs) {
+    if (usedN.has(i) || usedH.has(j)) continue;
+    usedN.add(i); usedH.add(j); total += d;
+  }
+  return usedN.size === need.length ? total : null;
+}
+
 // ── Compiling a topic ────────────────────────────────────────────────────────
 
 /**
@@ -184,7 +303,8 @@ function guard(s) {
 function compileTopic(topic, variant = 'open') {
   const answers = [];
   const exact = new Map();     // key → { kind, ref }
-  const fuzzy = [];            // { key, kind, ref, g }
+  const fuzzy = [];            // { key, kind, ref, g, toks }
+  const loose = new Map();     // soft-word-free key -> { kind, ref } | null (ambiguous)
   const problems = [];
 
   function index(raw, kind, ref) {
@@ -198,8 +318,13 @@ function compileTopic(topic, variant = 'open') {
       }
       if (!had) {
         exact.set(key, { kind, ref });
-        fuzzy.push({ key, kind, ref, g: guard(key) });
+        if (key === k.plain) fuzzy.push({ key, kind, ref, g: guard(key), toks: k.toks.filter(w => !SOFT.has(w)) });
       }
+    }
+    if (k.loose) {
+      const had = loose.get(k.loose);
+      if (had === undefined) loose.set(k.loose, { kind, ref });
+      else if (had && had.ref !== ref) loose.set(k.loose, null);
     }
   }
 
@@ -228,7 +353,9 @@ function compileTopic(topic, variant = 'open') {
     for (const t of tr.terms) index(t, 'trap', trap);
   }
 
-  return { topic, variant, answers, exact, fuzzy, problems };
+  // A loose key that is also some entry's exact key belongs to that entry.
+  for (const key of [...loose.keys()]) if (exact.has(key)) loose.delete(key);
+  return { topic, variant, answers, exact, fuzzy, loose, problems };
 }
 
 /**
@@ -242,26 +369,53 @@ function matchAnswer(compiled, raw) {
   const k = keysOf(raw);
   if (!k) return { status: 'empty' };
 
+  // 1. Exactly as written in the bank (any word order).
   const hit = compiled.exact.get(k.plain) || compiled.exact.get(k.sorted);
   if (hit) return resolve(hit);
 
-  // No exact hit: allow for spelling, but only when one entry is clearly the
-  // closest. Two different entries equally near is not a match at all.
+  const typed = k.toks.filter(w => !SOFT.has(w));
+  if (!typed.length) return { status: 'unknown' };
+  const negated = typed.some(w => NEG.has(w));
+  const sortedSoft = [...typed].sort().join(' ');
+
+  // 2. The same words once generic ones ("syndrome", "disease") are dropped.
+  const lh = compiled.loose.get(sortedSoft) || compiled.exact.get(sortedSoft);
+  if (lh) return resolve(lh);
+
+  // 3. The same words, each allowed its own typo. One entry must be clearly
+  //    closest: two different entries equally near is no match at all.
   let best = null, bestD = Infinity, tie = false;
-  for (const probe of new Set([k.plain, k.sorted])) {
-    const max = allowance(probe.length);
-    if (!max) continue;
-    const g = guard(probe);
-    for (const e of compiled.fuzzy) {
-      if (e.g !== g) continue;
-      if (e.key[0] !== probe[0]) continue;          // typos rarely move the first letter
-      const d = distance(probe, e.key, Math.min(max, allowance(e.key.length)));
-      if (d > Math.min(max, allowance(e.key.length))) continue;
-      if (d < bestD) { best = e; bestD = d; tie = false; }
-      else if (d === bestD && best && e.ref !== best.ref) tie = true;
-    }
+  for (const e of compiled.fuzzy) {
+    if (e.toks.length !== typed.length || !e.toks.length) continue;
+    if (negated !== e.toks.some(w => NEG.has(w))) continue;
+    const d = cover(e.toks, typed);
+    if (d === null) continue;
+    if (d < bestD) { best = e; bestD = d; tie = false; }
+    else if (d === bestD && best && e.ref !== best.ref) tie = true;
   }
   if (best && !tie) return resolve(best);
+  if (tie) return { status: 'unknown' };
+
+  // 4. A bank answer of two or more words said with one short filler word
+  //    around it ("raised TSH on labs"). Kept narrow on purpose: one shared
+  //    medical word must never pull in a different condition ("hemolytic
+  //    anemia" is not "iron deficiency anemia"), so single-word entries,
+  //    long extra words and typos are all excluded here.
+  if (!negated) {
+    let top = null, topN = 0, topD = Infinity, draw = false;
+    for (const e of compiled.fuzzy) {
+      const n = e.toks.length;
+      if (n < 2 || n >= typed.length || typed.length - n > 1) continue;
+      const d = cover(e.toks, typed);
+      if (d === null || d > 0.5 * n) continue;           // spelled as in the bank
+      const used = new Set(e.toks);
+      if (typed.some(w => !used.has(w) && !FILLER.has(w))) continue;
+      if (d === null) continue;
+      if (n > topN || (n === topN && d < topD)) { top = e; topN = n; topD = d; draw = false; }
+      else if (n === topN && d === topD && top && e.ref !== top.ref) draw = true;
+    }
+    if (top && !draw) return resolve(top);
+  }
   return { status: 'unknown' };
 
   function resolve(e) {

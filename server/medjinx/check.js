@@ -87,8 +87,35 @@ expect('High T4', 'trap');
 expect('pretibial myxedema', 'trap');
 expect('low TSH', 'trap');                                      // must not fuzzy onto "high tsh"
 expect('hypothyroidism', 'trap');                               // the topic itself, in an open round
+// Spelling, word by word, and the sounds-alike folds.
+expect('hashimotos thyroidits', 'accepted', 'Hashimoto thyroiditis');
+expect('levothroxine', 'accepted', 'Levothyroxine');
+expect('bradicardia', 'accepted', 'Bradycardia');
+expect('hyponatrimia', 'accepted', 'Hyponatremia');
+expect('carpel tunnel', 'accepted', 'Carpal tunnel syndrome');
+expect('cold intolerence', 'accepted', 'Cold intolerance');
+// Broader: plain English, a generic word left off, a couple of extra words.
+expect('slow heart rate', 'accepted', 'Bradycardia');
+expect('tiredness', 'accepted', 'Fatigue');
+expect('elevated TSH on labs', 'accepted', 'Elevated TSH');
+// ...but never across a meaning guard or a negation.
+expect('hypernatremia', 'unknown');
+expect('hypocholesterolemia', 'unknown');
+expect('no constipation', 'unknown');
+expect('normal TSH', 'unknown');
 expect('banana', 'unknown');
 expect('', 'empty');
+
+// Cases the cross-topic sweep caught once: a real word, a direction or a
+// negation must never be read as a typo or filler of a different answer.
+for (const [id, text] of [
+  ['alzheimer', 'anemia'], ['myasthenia-gravis', 'myosin'], ['hyperparathyroidism', 'low alkaline phosphatase'],
+  ['ulcerative-colitis', 'non bloody diarrhea'], ['nephrotic', 'non hodgkin lymphoma'], ['psgn', 'low c3 and c4'],
+  ['tuberculosis', 'fasting'], ['iron-deficiency', 'los'], ['dka', 'kussmaul sign'], ['graves', 'hla dr3 dr4'],
+]) {
+  const m = E.matchAnswer(E.compileTopic(TOPICS.find(t => t.id === id), 'open'), text);
+  if (m.status === 'accepted') fail(`matcher: "${text}" in ${id} must not be accepted (got "${m.answer.label}")`);
+}
 
 const clin = E.compileTopic(TOPICS.find(t => t.id === 'hypothyroidism'), 'clinical');
 if (E.matchAnswer(clin, 'hypothyroidism').status !== 'accepted') fail('clinical: the diagnosis should be an answer');
