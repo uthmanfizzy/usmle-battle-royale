@@ -65,3 +65,5 @@
 .sma-progress button { align-self: flex-start; }
 .sma-bar { height: 6px; border-radius: 6px; background: var(--card-hi); overflow: hidden; }
 .sma-bar i { display: block; height: 100%; background: var(--gold); transition: width 0.3s; }
+.sma-reveal-label { margin-top: 6px; font-size: 13px; font-weight: 600; }
+.sma-reveal-label small { font-weight: 400; opacity: .7; }

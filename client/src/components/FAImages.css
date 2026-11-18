@@ -423,3 +423,18 @@
   .fai-run-tools { gap: 4px; }
   .fai-run-tools .fai-run-quit { padding: 4px 7px; font-size: 11px; }
 }
+
+/* The unblurred figure under the explanation, "developing" as it appears. */
+.fai-reveal { margin: 4px 0 14px; padding: 0; }
+.fai-reveal button {
+  display: block; width: 100%; padding: 6px; cursor: zoom-in;
+  background: #fff; border: 1px solid #d9dfe3; box-shadow: 0 2px 8px rgba(0,0,0,.08);
+}
+.fai-reveal img {
+  display: block; margin: 0 auto; max-width: 100%; max-height: min(44vh, 420px); object-fit: contain;
+  animation: fai-unblur .9s .2s ease-out both;
+}
+@keyframes fai-unblur { from { filter: blur(6px); opacity: .4; } to { filter: none; opacity: 1; } }
+.fai-reveal figcaption {
+  margin-top: 6px; font-family: var(--fa-sans); font-size: 13px; letter-spacing: .06em; color: var(--fa-teal);
+}

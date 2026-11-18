@@ -58,6 +58,7 @@ function cleanRow(r) {
     system: r.system,
     modality: r.modality || null,
     image_url: r.image_url,
+    reveal_image_url: r.reveal_image_url || null,   // the unblurred figure, for the explanation
     prompt: r.prompt || null,
     answer: String(r.answer).trim(),
     distractors: (Array.isArray(distractors) ? distractors : []).map(d => String(d || '').trim()).filter(Boolean),
@@ -88,6 +89,7 @@ function rowFromBody(b) {
     system: String(b?.system || ''),
     modality: b?.modality ? String(b.modality).slice(0, 40) : null,
     image_url: String(b?.image_url || '').trim(),
+    reveal_image_url: b?.reveal_image_url ? String(b.reveal_image_url).trim() : null,
     prompt: b?.prompt ? String(b.prompt).trim().slice(0, 240) : null,
     answer: String(b?.answer || '').trim().slice(0, 160),
     distractors,
@@ -158,7 +160,7 @@ module.exports = function createFaImages({ getSupabase, shuffle }) {
             chapter: CHAPTERS.find(c => c.id === q.system) || { id: q.system, name: q.system, icon: '📘' },
             modality: q.modality,
             prompt: q.prompt || 'What does this figure show?',
-            image: q.image_url, options: q.options, correct: q.correct,
+            image: q.image_url, reveal: q.reveal_image_url, options: q.options, correct: q.correct,
             answer: q.answer, explanation: q.explanation,
           })),
         });
@@ -169,6 +171,21 @@ module.exports = function createFaImages({ getSupabase, shuffle }) {
 
     // ── Admin: the same shape as Scan Master's, so its admin screen is shared.
     const supa = () => getSupabase();
+    // reveal_image_url came later (fa-images-reveal migration). Until it is
+    // added, write the row without it rather than failing the whole save.
+    const noRevealCol = (error) => /reveal_image_url/.test(error?.message || '');
+    async function write(op, row, id) {
+      const run = (r) => (op === 'insert'
+        ? supa().from(TABLE).insert(r).select().single()
+        : supa().from(TABLE).update(r).eq('id', id).select().single());
+      let out = await run(row);
+      if (out.error && noRevealCol(out.error)) {
+        const { reveal_image_url, ...rest } = row;
+        out = await run(rest);
+        if (!out.error) out.warning = 'Saved without the unblurred picture — run the reveal_image_url SQL in Supabase to keep it.';
+      }
+      return out;
+    }
     app.get('/admin/fa-images/images', adminAuth, async (req, res) => {
       if (!supa()) return res.json({ images: [], systems: CHAPTERS, modalities: MODALITIES });
       const rows = [];
@@ -191,9 +208,9 @@ module.exports = function createFaImages({ getSupabase, shuffle }) {
       if (!CHAPTER_IDS.has(row.system)) return res.status(400).json({ error: 'Pick a chapter.' });
       if (!row.image_url) return res.status(400).json({ error: 'Upload an image first.' });
       if (!row.answer) return res.status(400).json({ error: 'The correct answer is required.' });
-      const { data, error } = await supa().from(TABLE).insert(row).select().single();
+      const { data, error, warning } = await write('insert', row);
       if (error) return res.status(500).json({ error: tableMissing(error) ? TABLE_HELP : error.message });
-      res.json({ ok: true, image: data });
+      res.json({ ok: true, image: data, warning });
     });
 
     app.put('/admin/fa-images/images/:id', adminAuth, async (req, res) => {
@@ -201,9 +218,9 @@ module.exports = function createFaImages({ getSupabase, shuffle }) {
       const row = rowFromBody(req.body);
       if (!CHAPTER_IDS.has(row.system)) return res.status(400).json({ error: 'Pick a chapter.' });
       if (!row.image_url || !row.answer) return res.status(400).json({ error: 'An image and the correct answer are required.' });
-      const { data, error } = await supa().from(TABLE).update(row).eq('id', req.params.id).select().single();
+      const { data, error, warning } = await write('update', row, req.params.id);
       if (error) return res.status(500).json({ error: tableMissing(error) ? TABLE_HELP : error.message });
-      res.json({ ok: true, image: data });
+      res.json({ ok: true, image: data, warning });
     });
 
     app.delete('/admin/fa-images/images/:id', adminAuth, async (req, res) => {

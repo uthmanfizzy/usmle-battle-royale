@@ -18,10 +18,10 @@ function apiCall(path, options = {}) {
 // Images'. Same row shape; FA Images keeps its chapter in `system`.
 const BANKS = {
   scan: { base: '/admin/scan-master/images', pack: 'scan-master-pack', title: '🔬 Scan Master images', name: 'Scan Master', sys: 'System', migration: 'scan-master-migration.sql', file: 'scan' },
-  fa:   { base: '/admin/fa-images/images',   pack: 'fa-images-pack',   title: '📕 First Aid Images',   name: 'FA Images',   sys: 'Chapter', migration: 'fa-images-migration.sql', file: 'fa' },
+  fa:   { base: '/admin/fa-images/images',   pack: 'fa-images-pack',   title: '📕 First Aid Images',   name: 'FA Images',   sys: 'Chapter', migration: 'fa-images-migration.sql', file: 'fa', reveal: true },
 };
 
-const EMPTY = { system: '', modality: '', image_url: '', prompt: '', answer: '', distractors: ['', '', ''], explanation: '', active: true };
+const EMPTY = { system: '', modality: '', image_url: '', reveal_image_url: '', prompt: '', answer: '', distractors: ['', '', ''], explanation: '', active: true };
 
 /**
  * Admin → Scan Master: the picture bank the mode plays from.
@@ -68,7 +68,7 @@ export default function ScanMasterAdmin({ bank = 'scan' }) {
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const setD = (i, v) => setForm(f => ({ ...f, distractors: f.distractors.map((d, j) => (j === i ? v : d)) }));
 
-  async function upload(e) {
+  async function upload(e, field = 'image_url') {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
@@ -81,7 +81,7 @@ export default function ScanMasterAdmin({ bank = 'scan' }) {
       const res = await apiCall('/admin/upload-image', { method: 'POST', body: JSON.stringify({ base64, filename: file.name, mimeType: file.type }) });
       const d = await res.json();
       if (!res.ok) throw new Error(d.error || 'Upload failed');
-      set('image_url', d.url);
+      set(field, d.url);
     } catch (err) {
       setFormError(err.message);
     }
@@ -123,32 +123,38 @@ export default function ScanMasterAdmin({ bank = 'scan' }) {
     if (!window.confirm(`Import "${pack.name || file.name}": ${pack.items.length} questions using ${Object.keys(pack.images).length} images?`)) return;
 
     const key = (r) => `${r.system}|${(r.prompt || '').trim().toLowerCase()}|${(r.answer || '').trim().toLowerCase()}`;
-    const have = new Set(images.map(key));
-    const todo = pack.items.filter(it => !have.has(key(it)));
+    const have = new Map(images.map(r => [key(r), r]));
+    // Rows already in the bank are skipped — unless the pack brings an
+    // unblurred picture they do not have yet, which is then added to them.
+    const todo = pack.items.filter(it => !have.has(key(it)) || (B.reveal && it.reveal && !have.get(key(it)).reveal_image_url));
     const state = { name: pack.name || file.name, total: pack.items.length, done: pack.items.length - todo.length, added: 0, skipped: pack.items.length - todo.length, failed: 0, error: '' };
     setImporting({ ...state });
     const urls = {};
+    const uploadKey = async (k) => {
+      if (urls[k]) return urls[k];
+      const dataUrl = pack.images[k];
+      if (!dataUrl) throw new Error(`image ${k} missing from the pack`);
+      const mime = (dataUrl.match(/^data:([^;]+);/) || [])[1] || 'image/jpeg';
+      const up = await apiCall('/admin/upload-image', {
+        method: 'POST',
+        body: JSON.stringify({ base64: dataUrl, filename: `${B.file}-${k}.${mime.split('/')[1]}`, mimeType: mime }),
+      });
+      const ud = await up.json().catch(() => ({}));
+      if (!up.ok || !ud.url) throw new Error(ud.error || 'upload failed');
+      return (urls[k] = ud.url);
+    };
     for (const it of todo) {
       try {
-        if (!urls[it.image]) {
-          const dataUrl = pack.images[it.image];
-          if (!dataUrl) throw new Error(`image ${it.image} missing from the pack`);
-          const mime = (dataUrl.match(/^data:([^;]+);/) || [])[1] || 'image/jpeg';
-          const up = await apiCall('/admin/upload-image', {
-            method: 'POST',
-            body: JSON.stringify({ base64: dataUrl, filename: `${B.file}-${it.image}.${mime.split('/')[1]}`, mimeType: mime }),
-          });
-          const ud = await up.json().catch(() => ({}));
-          if (!up.ok || !ud.url) throw new Error(ud.error || 'upload failed');
-          urls[it.image] = ud.url;
-        }
-        const res = await apiCall(B.base, {
-          method: 'POST',
-          body: JSON.stringify({ ...it, image_url: urls[it.image], active: true }),
-        });
+        const existing = have.get(key(it));
+        const reveal = B.reveal && it.reveal ? await uploadKey(it.reveal) : null;
+        const { image, reveal: _r, ...fields } = it;
+        const res = existing
+          ? await apiCall(`${B.base}/${existing.id}`, { method: 'PUT', body: JSON.stringify({ ...existing, reveal_image_url: reveal }) })
+          : await apiCall(B.base, { method: 'POST', body: JSON.stringify({ ...fields, image_url: await uploadKey(image), ...(reveal ? { reveal_image_url: reveal } : {}), active: true }) });
         const d = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(d.error || 'save failed');
-        state.added += 1;
+        if (d.warning) state.warning = d.warning;
+        if (existing) state.updated = (state.updated || 0) + 1; else state.added += 1;
       } catch (err) {
         state.failed += 1;
         state.error = err.message;
@@ -173,7 +179,7 @@ export default function ScanMasterAdmin({ bank = 'scan' }) {
 
   const edit = (im) => setForm({
     ...EMPTY, ...im,
-    modality: im.modality || '', prompt: im.prompt || '', explanation: im.explanation || '',
+    modality: im.modality || '', prompt: im.prompt || '', explanation: im.explanation || '', reveal_image_url: im.reveal_image_url || '',
     distractors: [...(im.distractors || []), '', '', ''].slice(0, Math.max(3, (im.distractors || []).length)),
   });
 
@@ -196,8 +202,10 @@ export default function ScanMasterAdmin({ bank = 'scan' }) {
           <span className="sma-bar"><i style={{ width: `${(importing.done / importing.total) * 100}%` }} /></span>
           <small>
             {importing.done}/{importing.total} · {importing.added} added
+            {importing.updated ? ` · ${importing.updated} given their unblurred picture` : ''}
             {importing.skipped ? ` · ${importing.skipped} already in the bank` : ''}
             {importing.failed ? ` · ${importing.failed} failed (${importing.error})` : ''}
+            {importing.warning ? ` · ⚠ ${importing.warning}` : ''}
           </small>
           {importing.finished && <button type="button" className="ap-btn-sec ap-btn-sm" onClick={() => setImporting(null)}>Close</button>}
         </div>
@@ -253,6 +261,17 @@ export default function ScanMasterAdmin({ bank = 'scan' }) {
                   <input type="file" accept="image/jpeg,image/png,image/webp" onChange={upload} hidden />
                 </label>
                 <input className="ap-input-plain" placeholder="…or paste an image URL" value={form.image_url} onChange={e => set('image_url', e.target.value)} />
+                {B.reveal && (
+                  <>
+                    <span className="sma-reveal-label">Unblurred picture <small>(shown with the explanation — for figures with labels blurred)</small></span>
+                    {form.reveal_image_url && <img src={form.reveal_image_url} alt="" />}
+                    <label className="ap-btn-sec ap-btn-sm sma-upload">
+                      {form.reveal_image_url ? 'Replace unblurred picture' : 'Upload unblurred picture'}
+                      <input type="file" accept="image/jpeg,image/png,image/webp" onChange={e => upload(e, 'reveal_image_url')} hidden />
+                    </label>
+                    <input className="ap-input-plain" placeholder="…or paste its URL" value={form.reveal_image_url || ''} onChange={e => set('reveal_image_url', e.target.value)} />
+                  </>
+                )}
               </div>
               <div className="sma-fields">
                 <label>{B.sys}

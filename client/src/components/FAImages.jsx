@@ -187,7 +187,7 @@ function FigurePage({ q, idx, total, seconds, score, streak, onAnswer, onNext, p
             </div>
           )}
           <p className="fai-prompt">{q.prompt}</p>
-          <button type="button" className={`fai-figure${loaded ? ' is-printed' : ''}`} onClick={() => setZoom(true)} aria-label="Enlarge the figure">
+          <button type="button" className={`fai-figure${loaded ? ' is-printed' : ''}`} onClick={() => setZoom(q.image)} aria-label="Enlarge the figure">
             <img ref={imgRef} src={q.image} alt="" onLoad={() => setLoaded(true)} onError={() => setLoaded(true)} draggable="false" />
             <span className="fai-zoomhint">⤢ enlarge</span>
           </button>
@@ -219,6 +219,15 @@ function FigurePage({ q, idx, total, seconds, score, streak, onAnswer, onNext, p
                 {picked === -1 ? 'Out of time' : right ? 'Correct' : 'Not quite'} — {q.answer}
               </span>
               {q.explanation && <p>{q.explanation}</p>}
+              {/* The figure as the book prints it — every label showing. */}
+              {q.reveal && (
+                <figure className="fai-reveal">
+                  <button type="button" onClick={() => setZoom(q.reveal)} aria-label="Enlarge the full figure">
+                    <img src={q.reveal} alt="The full figure with every label" />
+                  </button>
+                  <figcaption>The full figure, unblurred · click to enlarge</figcaption>
+                </figure>
+              )}
               <button type="button" className="fai-next" onClick={onNext} autoFocus>
                 {idx + 1 >= total ? 'Close the book' : 'Turn the page'} <span aria-hidden="true">▸</span>
               </button>
@@ -229,7 +238,7 @@ function FigurePage({ q, idx, total, seconds, score, streak, onAnswer, onNext, p
 
       {zoom && (
         <div className="fai-zoom" role="dialog" aria-label="Figure, enlarged" onClick={() => setZoom(false)}>
-          <img src={q.image} alt="" />
+          <img src={zoom} alt="" />
           <span>Click anywhere or press Esc to close</span>
         </div>
       )}

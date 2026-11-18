@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS fa_images (
   system      TEXT        NOT NULL,
   modality    TEXT,
   image_url   TEXT        NOT NULL,
+  reveal_image_url TEXT,   -- the figure unblurred, shown with the explanation
   prompt      TEXT,
   answer      TEXT        NOT NULL,
   distractors JSONB       NOT NULL DEFAULT '[]'::jsonb,
@@ -33,6 +34,9 @@ CREATE TABLE IF NOT EXISTS fa_images (
 CREATE INDEX IF NOT EXISTS fa_images_system_idx ON fa_images (system) WHERE active;
 
 -- The server uses the service key; nothing reads this table from the browser.
+-- Added after the first release: safe to run on an existing table.
+ALTER TABLE fa_images ADD COLUMN IF NOT EXISTS reveal_image_url TEXT;
+
 ALTER TABLE fa_images ENABLE ROW LEVEL SECURITY;
 
 NOTIFY pgrst, 'reload schema';
