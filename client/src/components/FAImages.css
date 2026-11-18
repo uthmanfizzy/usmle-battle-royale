@@ -438,3 +438,28 @@
 .fai-reveal figcaption {
   margin-top: 6px; font-family: var(--fa-sans); font-size: 13px; letter-spacing: .06em; color: var(--fa-teal);
 }
+
+/* ── Recall ratings (FARatings.jsx) ────────────────────────────────────────
+   The six self-assessments, set like a margin note: teal sans labels,
+   "Didn't have it" on a pale red rule, "Had it" on a pale teal one. */
+.fai-rate { margin: 4px 0 14px; padding: 10px 12px; border: 1px dashed var(--fa-rule); background: #fff; }
+.fai-rate-head { display: block; font-family: var(--fa-sans); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; font-size: 13px; color: var(--fa-blue); margin-bottom: 6px; }
+.fai-rate-group { margin-top: 6px; }
+.fai-rate-label { display: block; font-family: var(--fa-sans); font-size: 12px; color: var(--fa-mute); margin-bottom: 4px; }
+.fai-rate-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.fai-rate-btn {
+  font-family: var(--fa-sans); font-size: 14px; font-weight: 600;
+  padding: 6px 10px; border-radius: 3px; cursor: pointer;
+  background: var(--fa-tint); color: var(--fa-ink); border: 1px solid var(--fa-rule);
+  transition: transform 0.12s, background 0.12s, border-color 0.12s;
+}
+.fai-rate-group:first-of-type .fai-rate-btn { background: #fbf1f1; border-color: #efc9cd; }
+.fai-rate-btn:hover { transform: translateY(-1px); border-color: var(--fa-teal-2); }
+.fai-rate-btn.is-on { background: var(--fa-teal); color: #fff; border-color: var(--fa-teal); }
+.fai-rate-group:first-of-type .fai-rate-btn.is-on { background: var(--fa-red); border-color: var(--fa-red); }
+.fai-rate-was { display: block; margin-top: 6px; font-family: var(--fa-sans); font-size: 13px; color: var(--fa-mute); }
+.fai-rate-warn { display: block; margin-top: 6px; font-family: var(--fa-sans); font-size: 13px; color: var(--fa-red); }
+.fai-rate-tally { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 10px 0; }
+.fai-rate-tally .fai-kicker { width: 100%; }
+.fai-rate-chip { font-family: var(--fa-sans); font-size: 13px; padding: 4px 8px; background: var(--fa-tint); border: 1px solid var(--fa-rule); border-radius: 3px; }
+.fai-rate-chip b { margin-left: 4px; color: var(--fa-blue); }

@@ -5424,6 +5424,62 @@ app.post('/api/journey-questions/:questionId/rate', requireAuth, async (req, res
 });
 
 /**
+ * FA Images + FA HY Qs recall ratings (fa-question-ratings-migration.sql).
+ *
+ *   POST /api/fa-ratings  { mode, question_id, rating }  — one row per
+ *        (user, mode, question); re-rating overwrites.
+ *   GET  /api/fa-ratings?mode=&ids=a,b,c  — { ratings: { id: rating } } for
+ *        the questions in a run, so each shows how it was rated last time.
+ *
+ * Until the table exists both answer with reason 'missing_table' so the
+ * page can say ratings are not saving rather than pretending they are.
+ */
+const FA_RATING_MODES = ['fa_images', 'fa_hy_qs'];
+const FA_QID = /^[A-Za-z0-9_-]{1,64}$/;
+
+app.post('/api/fa-ratings', requireAuth, async (req, res) => {
+  const mode = String(req.body?.mode || '');
+  const rating = String(req.body?.rating || '');
+  const questionId = String(req.body?.question_id || '');
+  if (!FA_RATING_MODES.includes(mode)) return res.status(400).json({ error: 'Unknown mode.' });
+  if (!UWORLD_RATINGS.includes(rating)) return res.status(400).json({ error: `rating must be one of: ${UWORLD_RATINGS.join(', ')}` });
+  if (!FA_QID.test(questionId)) return res.status(400).json({ error: 'Bad question id.' });
+  if (!supabase) return res.json({ ok: false, reason: 'no_supabase' });
+  try {
+    const { error } = await supabase.from('fa_question_ratings').upsert(
+      { user_id: req.userId, mode, question_id: questionId, rating, updated_at: new Date().toISOString() },
+      { onConflict: 'user_id,mode,question_id' },
+    );
+    if (!error) return res.json({ ok: true });
+    console.error('[fa rate] upsert failed —', error.code, error.message);
+    if (isMissingTable(error, 'fa_question_ratings')) return res.json({ ok: false, reason: 'missing_table' });
+    res.json({ ok: false, reason: describeRatingWriteError(error) });
+  } catch (err) {
+    console.warn('[/api/fa-ratings] failed —', err.message);
+    res.json({ ok: false, reason: 'exception' });
+  }
+});
+
+app.get('/api/fa-ratings', requireAuth, async (req, res) => {
+  const mode = String(req.query.mode || '');
+  if (!FA_RATING_MODES.includes(mode)) return res.status(400).json({ error: 'Unknown mode.' });
+  const ids = String(req.query.ids || '').split(',').filter(x => FA_QID.test(x)).slice(0, 200);
+  if (!ids.length || !supabase) return res.json({ ratings: {} });
+  try {
+    const { data, error } = await supabase.from('fa_question_ratings')
+      .select('question_id, rating').eq('user_id', req.userId).eq('mode', mode).in('question_id', ids);
+    if (error) {
+      if (isMissingTable(error, 'fa_question_ratings')) return res.json({ ratings: {}, reason: 'missing_table' });
+      return res.json({ ratings: {} });
+    }
+    res.json({ ratings: Object.fromEntries((data || []).map(r => [r.question_id, r.rating])) });
+  } catch (err) {
+    console.warn('[/api/fa-ratings GET] failed —', err.message);
+    res.json({ ratings: {} });
+  }
+});
+
+/**
  * POST /api/uworld-questions/:questionId/save-explanation   { saved }
  *
  * Put a question's explanation aside to read later, or take it back off the

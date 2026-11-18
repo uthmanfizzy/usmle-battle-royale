@@ -3,6 +3,7 @@ import { SERVER_URL } from '../serverUrl';
 import { sfx } from '../minigameSfx';
 import SfxToggle from './SfxToggle';
 import { useStudySession } from '../studySession';
+import { useFaRatings, FARatingBar, FARatingTally } from './FARatings';
 import { useStudyActivity } from '../studyPresence';
 import './FAImages.css';
 import './FAHYQs.css';
@@ -109,7 +110,7 @@ function Opener({ catalog, error, chapter, setChapter, sections, setSections, co
   );
 }
 
-function QuestionPage({ q, idx, total, correct, onAnswer, onNext, picked, flip }) {
+function QuestionPage({ q, idx, total, correct, onAnswer, onNext, picked, flip, rating }) {
   const answered = picked !== null;
   const noteRef = useRef(null);
   const [msLeft, setMsLeft] = useState(SECONDS * 1000);
@@ -185,6 +186,8 @@ function QuestionPage({ q, idx, total, correct, onAnswer, onNext, picked, flip }
               <span className="fai-note-head">{right ? 'Correct' : picked === -1 ? "Time's up" : 'Not quite'} — {q.options[q.correct]}</span>
               <p>{q.explanation}</p>
               <span className="fahq-review">Review: First Aid p. {q.page} · {q.topic}</span>
+              <FARatingBar questionId={q.id} current={rating.ratings[q.id]} onRate={rating.rate}
+                onNext={onNext} problem={rating.problem} signedIn={rating.signedIn} />
               <button type="button" className="fai-next" onClick={onNext} autoFocus>
                 {idx + 1 >= total ? 'Close the book' : 'Next question'} <span aria-hidden="true">▸</span>
               </button>
@@ -196,7 +199,7 @@ function QuestionPage({ q, idx, total, correct, onAnswer, onNext, picked, flip }
   );
 }
 
-function NotesPage({ results, onAgain, onExit }) {
+function NotesPage({ results, onAgain, onExit, tally }) {
   const right = results.filter(r => r.right).length;
   const pct = results.length ? Math.round((right / results.length) * 100) : 0;
   const bySection = {};
@@ -219,6 +222,7 @@ function NotesPage({ results, onAgain, onExit }) {
                 <em style={{ width: `${(v.right / v.total) * 100}%` }} /></span>
             ))}
           </div>
+          {tally}
           <div className="fai-notes-actions">
             <button type="button" className="fai-start" onClick={onAgain}>Another block <span aria-hidden="true">▸</span></button>
             <button type="button" className="fai-back" onClick={onExit}>← First Aid Journey</button>
@@ -295,6 +299,8 @@ export default function FAHYQs({ onExit }) {
   }
 
   const q = qs[idx];
+  // Recall ratings for this run's questions (loaded once per run).
+  const rating = useFaRatings('fa_hy_qs', phase === 'opener' ? null : qs.map(x => x.id));
   const correct = results.filter(r => r.right).length;
 
   function answer(i) {
@@ -330,9 +336,9 @@ export default function FAHYQs({ onExit }) {
         )}
         {phase === 'run' && q && (
           <QuestionPage key={q.id} q={q} idx={idx} total={qs.length} correct={correct}
-            picked={picked} flip={flip} onAnswer={answer} onNext={next} />
+            picked={picked} flip={flip} onAnswer={answer} onNext={next} rating={rating} />
         )}
-        {phase === 'notes' && <NotesPage results={results} onAgain={() => setPhase('opener')} onExit={exit} />}
+        {phase === 'notes' && <NotesPage results={results} tally={<FARatingTally ids={results.map(r => r.q.id)} ratings={rating.ratings} />} onAgain={() => setPhase('opener')} onExit={exit} />}
       </main>
     </div>
   );

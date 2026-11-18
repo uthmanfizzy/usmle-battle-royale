@@ -18,8 +18,10 @@ const sectionOf = (ch, page) => (SECTION_RANGES[ch] || []).find(([a, b]) => page
 
 function build(ch) {
   const rows = require(ch.file);
-  return rows.map(([topic, page, stem, options, explanation], i) => ({
-    id: `${ch.id}-${String(i + 1).padStart(3, '0')}`,
+  return rows.map(([topic, page, stem, options, explanation]) => ({
+    // Stable id from the stem, not the row's position, so a question keeps
+    // its id (and its ratings) when rows are added or reordered.
+    id: `${ch.id}-${require('crypto').createHash('sha1').update(stem).digest('hex').slice(0, 10)}`,
     chapter: ch.id, section: sectionOf(ch.id, page), topic, page,
     stem, answer: options[0], options, explanation,
   }));

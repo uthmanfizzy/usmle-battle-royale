@@ -4,6 +4,7 @@ import { sfx } from '../minigameSfx';
 import { createFaMusic, musicPref, setMusicPref } from '../faMusic';
 import SfxToggle from './SfxToggle';
 import { useStudySession } from '../studySession';
+import { useFaRatings, FARatingBar, FARatingTally } from './FARatings';
 import { useStudyActivity } from '../studyPresence';
 import './FAImages.css';
 
@@ -109,7 +110,7 @@ function Opener({ catalog, error, chapter, setChapter, count, setCount, onStart,
 }
 
 // ── One figure ─────────────────────────────────────────────────────────────
-function FigurePage({ q, idx, total, seconds, score, streak, onAnswer, onNext, picked, flip, paused, onResume }) {
+function FigurePage({ q, idx, total, seconds, score, streak, onAnswer, onNext, picked, flip, paused, onResume, rating }) {
   const [msLeft, setMsLeft] = useState(seconds * 1000);
   const [zoom, setZoom] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -230,6 +231,8 @@ function FigurePage({ q, idx, total, seconds, score, streak, onAnswer, onNext, p
                   <figcaption>The full figure, unblurred · click to enlarge</figcaption>
                 </figure>
               )}
+              <FARatingBar questionId={q.id} current={rating.ratings[q.id]} onRate={rating.rate}
+                onNext={onNext} problem={rating.problem} signedIn={rating.signedIn} />
               <button type="button" className="fai-next" onClick={onNext} autoFocus>
                 {idx + 1 >= total ? 'Close the book' : 'Turn the page'} <span aria-hidden="true">▸</span>
               </button>
@@ -249,7 +252,7 @@ function FigurePage({ q, idx, total, seconds, score, streak, onAnswer, onNext, p
 }
 
 // ── The Notes page at the back ─────────────────────────────────────────────
-function NotesPage({ results, score, best, onAgain, onExit }) {
+function NotesPage({ results, score, best, onAgain, onExit, tally }) {
   const right = results.filter(r => r.right).length;
   const pct = results.length ? Math.round((right / results.length) * 100) : 0;
   const missed = results.filter(r => !r.right);
@@ -262,6 +265,7 @@ function NotesPage({ results, score, best, onAgain, onExit }) {
           <b className="fai-big">{score}</b>
           <span className="fai-notes-line">{right} of {results.length} figures · {pct}%</span>
           <span className="fai-notes-line">Best streak: {best}</span>
+          {tally}
           <div className="fai-notes-actions">
             <button type="button" className="fai-start" onClick={onAgain}>Read it again <span aria-hidden="true">▸</span></button>
             <button type="button" className="fai-back" onClick={onExit}>← First Aid Journey</button>
@@ -368,6 +372,8 @@ export default function FAImages({ onExit }) {
   }
 
   const q = run?.questions[idx];
+  // Recall ratings for this run's figures (loaded once per run).
+  const rating = useFaRatings('fa_images', run ? run.questions.map(x => x.id) : null);
 
   const answer = useCallback((choice, msLeft) => {
     if (!q || picked !== null) return;
@@ -426,10 +432,11 @@ export default function FAImages({ onExit }) {
           <FigurePage key={q.id} q={q} idx={idx} total={run.questions.length} seconds={run.seconds}
             score={score} streak={streak} picked={picked} flip={flip}
             paused={paused} onResume={() => setPaused(false)}
-            onAnswer={answer} onNext={next} />
+            onAnswer={answer} onNext={next} rating={rating} />
         )}
         {phase === 'notes' && (
           <NotesPage results={results} score={score} best={best}
+            tally={<FARatingTally ids={results.map(r => r.q.id)} ratings={rating.ratings} />}
             onAgain={() => setPhase('opener')} onExit={exit} />
         )}
       </main>
