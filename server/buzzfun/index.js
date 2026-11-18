@@ -63,8 +63,9 @@ const UWORLD_SOURCES = {
   pulmonology: require("./uworld/pulmonology"),
   nephrology: require("./uworld/nephrology"),
   endocrinology: require("./uworld/endocrinology"),
+  cardiology: require("./uworld/cardiology"),
 };
-const UWORLD_NAMES = { pulmonology: "Pulmonology", nephrology: "Nephrology", endocrinology: "Endocrinology" };
+const UWORLD_NAMES = { pulmonology: "Pulmonology", nephrology: "Nephrology", endocrinology: "Endocrinology", cardiology: "Cardiology" };
 
 function buildUworld() {
   const cards = [];
