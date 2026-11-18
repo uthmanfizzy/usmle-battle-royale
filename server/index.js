@@ -1259,8 +1259,19 @@ function startBuzzFun(lobby) {
   lobby.questionIdx   = -1;
 
   for (const p of lobby.players.values()) { p.score = 0; p.alive = true; p.lives = 3; }
+  lobby.buzzLastSection = null;
+  lobby.buzzLastResults = null;
+  lobby.buzzLastAnswer  = new Map();
 
   io.to(lobby.id).emit('game_start', { gameMode: 'buzz_fun', message: 'Buzz Fun begins!' });
+  // Each human gets a private key to take their seat back after a dropped
+  // connection (see buzz_rejoin). A new socket has a new id, so without it a
+  // phone that slept for a second was out of the match for good.
+  for (const p of lobby.players.values()) {
+    if (p.isBot) continue;
+    p.rejoinKey = require('crypto').randomBytes(16).toString('hex');
+    io.sockets.sockets.get(p.id)?.emit('buzz_rejoin_key', { lobbyId: lobby.id, key: p.rejoinKey });
+  }
   setTimeout(() => nextBuzzFunQuestion(lobby), 1500);
 }
 
@@ -1277,13 +1288,15 @@ function nextBuzzFunQuestion(lobby, { headsUpShown = false } = {}) {
       && (!prev || prev.buzzSection !== cur.buzzSection)) {
     const sec = sections[cur.buzzSection];
     lobby.status = 'buzz_fun_section';
-    io.to(lobby.id).emit('buzz_section', {
+    // Kept, so a player who reconnects during the heads-up sees it too.
+    lobby.buzzLastSection = {
       index: sec.index, total: sections.length,
       topic: sec.topic, subject: sec.subject,
       subjectName: BUZZ_SUBJECT_NAMES[sec.subject] || sec.subject,
       count: sec.count,
       next: sections[sec.index + 1] ? sections[sec.index + 1].topic : null,
-    });
+    };
+    io.to(lobby.id).emit('buzz_section', lobby.buzzLastSection);
     lobby.questionIdx--;   // the same card, served after the heads-up
     lobby.timer = setTimeout(() => nextBuzzFunQuestion(lobby, { headsUpShown: true }), BUZZ_SECTION_HEADSUP_MS);
     return;
@@ -1302,7 +1315,20 @@ function nextBuzzFunQuestion(lobby, { headsUpShown = false } = {}) {
   const timeLimit = buzzFunSeconds(q);
   lobby.buzzTimeLimit = timeLimit;
 
-  io.to(lobby.id).emit('new_question', {
+  lobby.buzzLastResults = null;
+  lobby.buzzLastAnswer  = new Map();
+  io.to(lobby.id).emit('new_question', buzzQuestionPayload(lobby, timeLimit));
+
+  lobby.timerEnd = Date.now() + timeLimit * 1000;
+  lobby.timer    = setTimeout(() => processBuzzFunAnswers(lobby), timeLimit * 1000);
+  scheduleBotAnswers(lobby, q, timeLimit);
+}
+
+// The card as it goes out — also what a reconnecting player is sent again,
+// with whatever is left of the clock as its timeLimit.
+function buzzQuestionPayload(lobby, timeLimit) {
+  const q = lobby.questionQueue[lobby.questionIdx];
+  return {
     ...toPublicQuestion(q),
     round: lobby.round, timeLimit, alivePlayers: lobby.players.size,
     buzz_type: q.buzz_type || 'BUZZWORD',
@@ -1314,11 +1340,7 @@ function nextBuzzFunQuestion(lobby, { headsUpShown = false } = {}) {
     section: (lobby.buzzSections && q.buzzSection != null)
       ? { index: q.buzzSection, total: lobby.buzzSections.length, topic: lobby.buzzSections[q.buzzSection].topic }
       : null,
-  });
-
-  lobby.timerEnd = Date.now() + timeLimit * 1000;
-  lobby.timer    = setTimeout(() => processBuzzFunAnswers(lobby), timeLimit * 1000);
-  scheduleBotAnswers(lobby, q, timeLimit);
+  };
 }
 
 function processBuzzFunAnswers(lobby) {
@@ -1368,14 +1390,16 @@ function processBuzzFunAnswers(lobby) {
       ? ''
       : (q.explanation || '');
     const sock = io.sockets.sockets.get(player.id);
-    if (sock) sock.emit('answer_result', answerResultPayload({
+    const payload = answerResultPayload({
       isCorrect: correct, q,
       extras: {
         lives: 3, alive: true,
         score: player.score, explanation,
         streak: sr.streak, onFire: sr.onFire, pointsEarned,
       },
-    }));
+    });
+    if (!player.isBot && lobby.buzzLastAnswer) lobby.buzzLastAnswer.set(player.id, payload);
+    if (sock) sock.emit('answer_result', payload);
   }
 
   const snapshot = [...lobby.players.values()].map(p => ({
@@ -1386,9 +1410,10 @@ function processBuzzFunAnswers(lobby) {
   const explanation = (lobby.difficulty === 'hard' ? gameSettings.hardModeHideExplanations : gameSettings.easyModeHideExplanations)
     ? ''
     : (q.explanation || '');
-  io.to(lobby.id).emit('round_results', {
+  lobby.buzzLastResults = {
     results, correctAnswer: q.correct, explanation, eliminated: [], players: snapshot,
-  });
+  };
+  io.to(lobby.id).emit('round_results', lobby.buzzLastResults);
 
   const explanationDelay = lobby.difficulty === 'hard'
     ? (gameSettings.hardModeHideExplanations ? 2500 : 22000)  // HARDCODED: 20s explanation + 2s buffer
@@ -1406,9 +1431,63 @@ function processBuzzFunAnswers(lobby) {
   io.to(lobby.id).emit('duel_skip_votes', { votes: 0, need: buzzHumans(lobby) });
 }
 
-// The players whose vote a Buzz Fun skip needs: everyone but the bots.
+// The players whose vote a Buzz Fun skip needs: everyone but the bots, and
+// anyone whose connection has dropped (they cannot vote until they are back).
 function buzzHumans(lobby) {
-  return Math.max(1, [...lobby.players.values()].filter(p => !p.isBot).length);
+  return Math.max(1, [...lobby.players.values()].filter(p => !p.isBot && !p.disconnectedAt).length);
+}
+
+// Players who can still answer this card (a dropped connection cannot).
+function buzzConnectedCount(lobby) {
+  return [...lobby.players.values()].filter(p => !p.disconnectedAt).length;
+}
+
+const BUZZ_REJOIN_GRACE_MS = 60 * 1000;
+
+// Move a Buzz Fun seat from one socket id to another. Everything per-player
+// on the lobby is a Map or Set keyed by socket id, so all of it moves.
+function rebindBuzzPlayer(lobby, oldId, newId) {
+  const p = lobby.players.get(oldId);
+  if (!p) return;
+  lobby.players.delete(oldId);
+  p.id = newId;
+  lobby.players.set(newId, p);
+  for (const v of Object.values(lobby)) {
+    if (v === lobby.players) continue;
+    if (v instanceof Map && v.has(oldId)) { v.set(newId, v.get(oldId)); v.delete(oldId); }
+    else if (v instanceof Set && v.has(oldId)) { v.delete(oldId); v.add(newId); }
+  }
+  if (lobby.hostId === oldId) lobby.hostId = newId;
+  if (lobby.buzzFirstCorrect === oldId) lobby.buzzFirstCorrect = newId;
+  // The stored results name players by id; the client finds itself by id.
+  const r = lobby.buzzLastResults;
+  if (r) for (const list of [r.results, r.players]) for (const row of list || []) if (row.id === oldId) row.id = newId;
+}
+
+// Everything a reconnecting Buzz Fun player needs to be back where the match
+// is: the card (with what is left of its clock), the verdict and explanation,
+// or the section heads-up — and the pause, if they were paused.
+function sendBuzzState(lobby, socket) {
+  socket.emit('lobby_update', lobbyPayload(lobby));
+  const now = Date.now();
+  if (lobby.status === 'buzz_fun_section' && lobby.buzzLastSection) {
+    socket.emit('buzz_section', lobby.buzzLastSection);
+  } else if (lobby.status === 'buzz_fun_question' && lobby.questionQueue[lobby.questionIdx]) {
+    const leftMs = lobby.buzzPause ? lobby.buzzPause.remaining : Math.max(0, (lobby.timerEnd || now) - now);
+    const mine = lobby.answers.get(socket.id);
+    socket.emit('new_question', {
+      ...buzzQuestionPayload(lobby, Math.max(1, Math.ceil(leftMs / 1000))),
+      ...(mine !== undefined ? { alreadyAnswered: true, myAnswer: mine } : {}),
+    });
+  } else if (lobby.status === 'buzz_fun_reviewing' && lobby.buzzLastResults) {
+    const mine = lobby.buzzLastAnswer?.get(socket.id);
+    if (mine) socket.emit('answer_result', mine);
+    socket.emit('round_results', lobby.buzzLastResults);
+    socket.emit('duel_skip_votes', { votes: lobby.duelSkipVotes ? lobby.duelSkipVotes.size : 0, need: buzzHumans(lobby) });
+  }
+  if (lobby.buzzPause) {
+    socket.emit('buzz_pause', { paused: true, phase: lobby.buzzPause.phase, remainingMs: lobby.buzzPause.remaining });
+  }
 }
 
 /**
@@ -3959,7 +4038,9 @@ io.on('connection', (socket) => {
   // race would freeze everyone else's clock too.
   socket.on('buzz_pause', ({ paused } = {}) => {
     const lobby = lobbies.get(socket.lobbyId);
-    if (!lobby || lobby.gameMode !== 'buzz_fun' || !lobby.players.has(socket.id)) return;
+    // No seat in a live match (it ended, or the connection was lost for good):
+    // say so, rather than leaving the button silently doing nothing.
+    if (!lobby || lobby.gameMode !== 'buzz_fun' || !lobby.players.has(socket.id)) return socket.emit('buzz_lost');
     if (lobby.players.size !== 1) return socket.emit('error', { message: 'Pause is for solo games only.' });
     const now = Date.now();
     if (paused && !lobby.buzzPause) {
@@ -4001,9 +4082,11 @@ io.on('connection', (socket) => {
    */
   socket.on('buzz_forfeit', () => {
     const lobby = lobbies.get(socket.lobbyId);
-    if (!lobby || lobby.gameMode !== 'buzz_fun' || !lobby.players.has(socket.id)) return;
-    if (!String(lobby.status || '').startsWith('buzz_fun_')) return;
-    const otherHumans = [...lobby.players.values()].filter(p => !p.isBot && p.id !== socket.id);
+    // Forfeit always gets the player out, even from a match the server no
+    // longer has them in — that is when they need it most.
+    if (!lobby || lobby.gameMode !== 'buzz_fun' || !lobby.players.has(socket.id)
+        || !String(lobby.status || '').startsWith('buzz_fun_')) return socket.emit('buzz_forfeited');
+    const otherHumans = [...lobby.players.values()].filter(p => !p.isBot && !p.disconnectedAt && p.id !== socket.id);
     if (otherHumans.length === 0) {
       clearTimer(lobby);
       clearDuelAdvance(lobby);
@@ -4186,7 +4269,9 @@ io.on('connection', (socket) => {
       const q = lobby.questionQueue[lobby.questionIdx];
       if (isAnswerCorrect(answer, q) && !lobby.buzzFirstCorrect) lobby.buzzFirstCorrect = socket.id;
       const answeredCount = lobby.answers.size;
-      const totalPlayers  = lobby.players.size;
+      // A player whose connection dropped cannot answer; waiting on them
+      // would hold every card to the full clock.
+      const totalPlayers  = buzzConnectedCount(lobby);
       io.to(lobby.id).emit('answer_count', { answered: answeredCount, total: totalPlayers });
       if (answeredCount >= totalPlayers) { clearTimer(lobby); setTimeout(() => processBuzzFunAnswers(lobby), 600); }
       return;
@@ -4423,7 +4508,70 @@ io.on('connection', (socket) => {
       socket.broadcast.emit('user_status_change', { userId, online: false });
     }
 
+    // Buzz Fun holds the seat for a minute: a dropped connection (a phone
+    // that locked, a Wi-Fi blip) comes back as a NEW socket, and dropping
+    // the player at once left their screen frozen on a match they were no
+    // longer in — the next card never came and pause/forfeit went nowhere.
+    // buzz_rejoin hands the seat to the new socket.
+    const lobby = lobbies.get(socket.lobbyId);
+    const seat  = lobby?.players.get(socket.id);
+    if (lobby && seat && !seat.isBot && seat.rejoinKey && lobby.gameMode === 'buzz_fun'
+        && String(lobby.status || '').startsWith('buzz_fun_')) {
+      seat.disconnectedAt = Date.now();
+      const oldId = socket.id;
+      seat.dropTimer = setTimeout(() => {
+        const l = lobbies.get(lobby.id);
+        const p = l?.players.get(oldId);
+        if (!l || !p || !p.disconnectedAt) return;
+        removeFromLobby({ id: oldId, lobbyId: l.id });
+        // Nobody left who is actually here: stop the match rather than let
+        // bots play it out to an empty room.
+        if (lobbies.has(l.id) && ![...l.players.values()].some(x => !x.isBot && !x.disconnectedAt)) {
+          clearTimer(l);
+          clearDuelAdvance(l);
+          lobbies.delete(l.id);
+        }
+      }, BUZZ_REJOIN_GRACE_MS);
+      // Everyone still here may already have answered this card.
+      if (lobby.status === 'buzz_fun_question' && !lobby.buzzPause
+          && lobby.answers.size >= buzzConnectedCount(lobby) && lobby.answers.size > 0) {
+        clearTimer(lobby);
+        setTimeout(() => processBuzzFunAnswers(lobby), 600);
+      }
+      return;
+    }
+
     removeFromLobby(socket);
+  });
+
+  /**
+   * Take back a Buzz Fun seat after a reconnect. The key came privately with
+   * game_start (buzz_rejoin_key); the seat moves from the old socket id to
+   * this one, and whatever is on screen right now is sent again.
+   */
+  socket.on('buzz_rejoin', ({ lobbyId, key } = {}, ack) => {
+    const reply = typeof ack === 'function' ? ack : () => {};
+    const lobby = lobbies.get(lobbyId);
+    if (!lobby || lobby.gameMode !== 'buzz_fun' || !String(lobby.status || '').startsWith('buzz_fun_')
+        || typeof key !== 'string' || !key) return reply({ ok: false });
+    const entry = [...lobby.players.entries()].find(([, p]) => p.rejoinKey === key);
+    if (!entry) return reply({ ok: false });
+    const [oldId, player] = entry;
+    if (oldId !== socket.id) {
+      if (socket.lobbyId && socket.lobbyId !== lobby.id) removeFromLobby(socket);
+      rebindBuzzPlayer(lobby, oldId, socket.id);
+      // The old socket may not have noticed it is dead yet; make sure it can
+      // no longer act for this seat, or take it with it when it goes.
+      const old = io.sockets.sockets.get(oldId);
+      if (old) { old.leave(lobby.id); old.lobbyId = null; }
+    }
+    clearTimeout(player.dropTimer);
+    player.dropTimer = null;
+    player.disconnectedAt = null;
+    socket.lobbyId = lobby.id;
+    socket.join(lobby.id);
+    reply({ ok: true });
+    sendBuzzState(lobby, socket);
   });
 
   socket.on('leave_lobby', () => {

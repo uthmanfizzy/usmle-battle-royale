@@ -66,6 +66,9 @@ export default function App() {
   // later gameMode. This mirror is what they read instead.
   const gameModeRef = useRef('battle_royale');
   useEffect(() => { gameModeRef.current = gameMode; }, [gameMode]);
+  // Buzz Fun seat key ({ lobbyId, key }), sent privately at game_start, so a
+  // dropped connection can take the seat back (server: buzz_rejoin).
+  const buzzRejoinRef = useRef(null);
   // ── Rematch, as an invitation ───────────────────────────────────────────
   // rematchOffer: a rival has asked US, and is waiting on the answer.
   // rematchAsking: WE asked, and are waiting on theirs.
@@ -342,7 +345,26 @@ export default function App() {
     socket.on('buzz_pause', (d) => setBuzzPause(d ? { ...d, at: Date.now() } : null));
     socket.on('buzz_section', (d) => setBuzzSection(d || null));
     // Forfeited while others play on: the server has dropped us, go back to Online.
-    socket.on('buzz_forfeited', () => handleBackToOnline());
+    socket.on('buzz_forfeited', () => { buzzRejoinRef.current = null; handleBackToOnline(); });
+    socket.on('buzz_rejoin_key', (k) => { buzzRejoinRef.current = k || null; });
+    // The server has no seat for us any more (the match ended while we were
+    // away): leave, instead of sitting on a card that will never move.
+    const onBuzzLost = () => {
+      buzzRejoinRef.current = null;
+      showToast('Connection lost — that Buzz Fun match has ended.');
+      handleBackToOnline();
+    };
+    socket.on('buzz_lost', onBuzzLost);
+    // A reconnect is a new socket. Mid-match, ask for our seat back; the
+    // server re-sends whatever is on screen right now.
+    socket.on('connect', () => {
+      const k = buzzRejoinRef.current;
+      if (!k || gameModeRef.current !== 'buzz_fun') return;
+      socket.timeout(5000).emit('buzz_rejoin', k, (err, res) => {
+        if (err) return;              // still flaky; the next connect tries again
+        if (!res?.ok) onBuzzLost();
+      });
+    });
 
     // The rival wants another. Shown over the results card until answered.
     socket.on('duel_rematch_offer', ({ from } = {}) => {
@@ -512,8 +534,9 @@ export default function App() {
       setQuestion(data);
       setRound(data.round);
       setTimeLimit(data.timeLimit);
-      setMyAnswer(null);
-      setHasAnswered(false);
+      // A card re-sent after a reconnect says whether we had already answered.
+      setMyAnswer(data.alreadyAnswered ? (data.myAnswer ?? null) : null);
+      setHasAnswered(Boolean(data.alreadyAnswered));
       setAnsweredCount(0);
       setTotalAlive(data.alivePlayers);
       setAnswerResult(null);
@@ -559,6 +582,7 @@ export default function App() {
     });
 
     socket.on('game_over', (result) => {
+      buzzRejoinRef.current = null;
       setGameResult(result);
       setPhase('game_over');
       audio.stopGameMusic();
@@ -629,7 +653,7 @@ export default function App() {
        'player_left', 'error', 'sudden_death',
        'race_progress', 'trivia_turn', 'trivia_rolled', 'trivia_question', 'trivia_answer_result',
        'powerup_assigned', 'powerup_result', 'frozen', 'unfrozen',
-       'duel_skip_votes', 'buzz_pause', 'buzz_section', 'buzz_forfeited', 'duel_rematch_offer', 'duel_rematch_declined',
+       'duel_skip_votes', 'buzz_pause', 'buzz_section', 'buzz_forfeited', 'buzz_rejoin_key', 'buzz_lost', 'connect', 'duel_rematch_offer', 'duel_rematch_declined',
        'duel_rematch_accepted'].forEach(e => socket.off(e));
       socket.disconnect();
       audio.stopBgMusic();
