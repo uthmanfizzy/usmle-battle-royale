@@ -2478,6 +2478,63 @@ const XP_BY_PLACEMENT = { 1: 100, 2: 70, 3: 50 };
 const XP_FALLBACK     = 25;
 const XP_PER_CORRECT  = 5;
 
+/**
+ * One study session, written the way every study mode writes it: an
+ * activity_sessions row for Daily Activity plus a credit to study_time_daily
+ * (the Study Time stat). Fail soft — logged, never thrown — so a tracking
+ * failure never costs a player their XP or their result screen.
+ */
+async function logStudySession({
+  userId, gameMode, subject = null, seconds, questions = null,
+  outcomeType = null, scorePct = null, isWin = null,
+  endedAtMs = Date.now(), studyDate = null, creditStudyTime = true,
+}) {
+  if (!supabase || !userId) return;
+  const duration = Math.max(0, Math.round(seconds || 0));
+  try {
+    const { error } = await sessionWrite({
+      user_id:              userId,
+      game_mode:            gameMode,
+      subject,
+      journey_chapter_name: null,
+      journey_level_name:   null,
+      outcome_type:         outcomeType,
+      score_pct:            scorePct,
+      is_win:               isWin,
+      duration_seconds:     duration,
+      questions_answered:   questions,
+      started_at:           new Date(endedAtMs - duration * 1000).toISOString(),
+      ended_at:             new Date(endedAtMs).toISOString(),
+    }, (r) => supabase.from('activity_sessions').insert(r));
+    if (error) console.error(`[activity_sessions] ${gameMode} insert failed —`, error.message);
+  } catch (err) {
+    console.error(`[activity_sessions] ${gameMode} insert threw —`, err.message);
+  }
+  if (!creditStudyTime || duration <= 0) return;
+  try {
+    const { error } = await supabase.rpc('add_study_time', {
+      p_user_id: userId,
+      p_date:    studyDate || resolveLocalDate(null),
+      p_seconds: duration,
+    });
+    if (error) console.warn(`[${gameMode}] add_study_time failed —`, error.message);
+  } catch (err) {
+    console.warn(`[${gameMode}] add_study_time threw —`, err.message);
+  }
+}
+
+// The socket owner's local YYYY-MM-DD right now, from the timezone offset the
+// client sent on connect (getTimezoneOffset minutes); null when unknown.
+function socketLocalDate(sock) {
+  if (!sock || !Number.isFinite(sock.tzOffset)) return null;
+  return new Date(Date.now() - sock.tzOffset * 60000).toISOString().slice(0, 10);
+}
+
+// MedJinx is free-recall study, so its match time counts as study time (the
+// other live modes are games first and stay out of it). Capped at what the
+// rounds could really take: answering + intro + the reveal read.
+const MEDJINX_MAX_SECONDS_PER_ROUND = 60 + 4 + 16 + 10;
+
 async function awardXP(lobby, sorted) {
   if (!supabase) return;
 
@@ -2623,6 +2680,22 @@ async function awardXP(lobby, sorted) {
         }
       } catch (actEx) {
         console.error(`[activity_sessions] insert threw for ${player.username} —`, actEx.message);
+      }
+
+      // MedJinx: the match is study, so it also counts on Study Time.
+      if (lobby.gameMode === 'medjinx' && durationSeconds > 0) {
+        const rounds = lobby.answeredCounts?.get(player.id) || 0;
+        const credit = Math.min(durationSeconds, Math.max(1, rounds) * MEDJINX_MAX_SECONDS_PER_ROUND);
+        try {
+          const { error: stErr } = await supabase.rpc('add_study_time', {
+            p_user_id: sock.userId,
+            p_date:    resolveLocalDate(socketLocalDate(sock)),
+            p_seconds: credit,
+          });
+          if (stErr) console.warn('[medjinx] add_study_time failed —', stErr.message);
+        } catch (stEx) {
+          console.warn('[medjinx] add_study_time threw —', stEx.message);
+        }
       }
 
       console.log(`[XP] ${player.username} +${totalXp} XP (placement ${placement}, level ${newLevel})`);
@@ -3795,6 +3868,10 @@ function endTriviaPursuit(lobby, winnerId) {
 // ── Socket.io — attach userId from JWT on connect ─────────────────────────────
 
 io.use((socket, next) => {
+  // The player's timezone, so study time from a live match lands on their
+  // own calendar day (see socketLocalDate).
+  const tz = Number(socket.handshake.auth?.tzOffset);
+  if (Number.isFinite(tz) && Math.abs(tz) <= 14 * 60) socket.tzOffset = tz;
   const token = socket.handshake.auth?.token;
   if (token) {
     const decoded = verifyToken(token);
@@ -4642,6 +4719,22 @@ io.on('connection', (socket) => {
       if (lobby.players.size <= 1) endMedathon(lobby, 'forfeit');
       else emitMedathonProgress(lobby);
     } else if (lobby.status === 'medjinx') {
+      // Whoever leaves mid-match keeps what they played: their minutes and
+      // rounds go on Daily Activity and Study Time. Without this a match left
+      // early — or a solo run against bots, which simply closes when its one
+      // human goes — was never recorded at all.
+      if (socket.userId && !player.isBot && lobby.sessionStartedAt) {
+        const rounds = lobby.mjx?.history?.length || 0;
+        const elapsed = Math.round((Date.now() - lobby.sessionStartedAt) / 1000);
+        const seconds = Math.min(elapsed, Math.max(1, rounds) * MEDJINX_MAX_SECONDS_PER_ROUND);
+        if (seconds >= 15) {
+          logStudySession({
+            userId: socket.userId, gameMode: 'medjinx', subject: lobby.subject || null,
+            seconds, questions: rounds, outcomeType: 'win_loss', isWin: false,
+            studyDate: resolveLocalDate(socketLocalDate(socket)),
+          });
+        }
+      }
       medjinx.onLeave(lobby, socket.id);
     } else if (lobby.status === 'scan_master') {
       scanMaster.onLeave(lobby, socket.id);
@@ -13034,6 +13127,42 @@ app.post('/api/hy-flashcards/session-complete', requireAuth, async (req, res) =>
     console.error('[activity_sessions] hy_flashcards insert threw —', err.message);
     res.json({ ok: false });
   }
+});
+
+/**
+ * POST /api/fa-study-session  { mode, subject?, items, correct?, duration_seconds, date }
+ *
+ * The self-paced study modes with no session endpoint of their own — FA
+ * Images and FA HY Qs — report one run here (client/src/studySession.js):
+ * an activity_sessions row for Daily Activity and a study_time_daily credit,
+ * the same pair HY Flashcards and AnKing write. Seconds are ACTIVE time
+ * measured on the client, capped per question so a forged or buggy payload
+ * cannot credit hours.
+ */
+const FA_STUDY_MODES = {
+  fa_images: { perItem: 90 },     // 20 s clock + reading the explanation and figure
+  fa_hy_qs:  { perItem: 150 },    // a vignette and its explanation
+};
+app.post('/api/fa-study-session', requireAuth, async (req, res) => {
+  const mode = String(req.body?.mode || '');
+  const cfg = FA_STUDY_MODES[mode];
+  if (!cfg) return res.status(400).json({ error: 'Unknown study mode.' });
+  const items   = Math.round(Number(req.body?.items));
+  const correct = Math.round(Number(req.body?.correct));
+  const seconds = Number(req.body?.duration_seconds);
+  if (!Number.isFinite(items) || items <= 0 || items > 500) return res.status(400).json({ error: 'items must be 1–500.' });
+  if (!Number.isFinite(seconds) || seconds < 0) return res.status(400).json({ error: 'duration_seconds must be a non-negative number.' });
+  if (!supabase) return res.json({ ok: false });
+  const duration = Math.min(Math.round(seconds), items * cfg.perItem);
+  const subject = typeof req.body?.subject === 'string' ? req.body.subject.trim().slice(0, 40) || null : null;
+  const scorePct = Number.isFinite(correct) && correct >= 0 && correct <= items ? Math.round((correct / items) * 100) : null;
+  await logStudySession({
+    userId: req.userId, gameMode: mode, subject,
+    seconds: duration, questions: items,
+    outcomeType: scorePct === null ? null : 'score_pct', scorePct,
+    studyDate: resolveLocalDate(req.body?.date),
+  });
+  res.json({ ok: true });
 });
 
 app.get('/admin/videos', adminAuth, async (req, res) => {

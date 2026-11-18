@@ -36,6 +36,8 @@ const MODE_META = {
   // without these they'd fall through to the generic 🎮 "Hy Flashcards" title.
   anking:                 { icon: '🃏', label: 'AnKing Flashcards' },
   hy_flashcards:          { icon: '⭐', label: 'HY Flashcards'     },
+  fa_images:              { icon: '🖼️', label: 'FA Images'         },
+  fa_hy_qs:               { icon: '🎯', label: 'FA HY Qs'          },
   question_bank_practice: { icon: '📚', label: 'UWorld Adventure'  },
   saudi_mle_practice:     { icon: '📗', label: 'Saudi MLE'         },
   ore_lds_practice:       { icon: '🦷', label: 'ORE / LDS'         },

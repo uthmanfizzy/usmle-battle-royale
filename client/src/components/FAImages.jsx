@@ -3,6 +3,8 @@ import { SERVER_URL } from '../serverUrl';
 import { sfx } from '../minigameSfx';
 import { createFaMusic, musicPref, setMusicPref } from '../faMusic';
 import SfxToggle from './SfxToggle';
+import { useStudySession } from '../studySession';
+import { useStudyActivity } from '../studyPresence';
 import './FAImages.css';
 
 /**
@@ -305,6 +307,12 @@ export default function FAImages({ onExit }) {
   const [flip, setFlip] = useState(false);
   const [paused, setPaused] = useState(false);
   const [musicOn, setMusicOn] = useState(musicPref);
+  // Study time + Daily Activity (active seconds only — see studySession.js).
+  const study = useStudySession({ mode: 'fa_images', active: phase === 'run' && !paused, subject: chapter });
+  useStudyActivity(phase === 'run' ? 'FA Images' : null, null, 'fa_images');
+  // A finished (or closed) book is sent as one session.
+  useEffect(() => { if (phase === 'notes') study.flush(); }, [phase]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (!paused) study.touch(); }, [paused]); // eslint-disable-line react-hooks/exhaustive-deps
   const music = useRef(null);
   if (!music.current) music.current = createFaMusic();
 
@@ -349,6 +357,8 @@ export default function FAImages({ onExit }) {
       // Warm the next few figures so pages turn without a wait.
       d.questions.slice(0, 4).forEach(q => { const im = new Image(); im.src = q.image; });
       setPaused(false);
+      study.flush();
+      study.touch();
       setRun(d); setIdx(0); setPicked(null); setScore(0); setStreak(0); setBest(0); setResults([]);
       setPhase('run');
     } catch (err) {
@@ -374,10 +384,12 @@ export default function FAImages({ onExit }) {
       sfx.wrong();
     }
     setResults(rs => [...rs, { q, right }]);
-  }, [q, picked, run, streak]);
+    study.count(right);
+  }, [q, picked, run, streak, study]);
 
   const next = useCallback(() => {
     if (!run) return;
+    study.touch();
     if (idx + 1 >= run.questions.length) { sfx.fanfare(); setPhase('notes'); return; }
     sfx.next();
     setFlip(true);

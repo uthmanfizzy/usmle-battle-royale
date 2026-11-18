@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { SERVER_URL } from '../serverUrl';
 import { sfx } from '../minigameSfx';
 import SfxToggle from './SfxToggle';
+import { useStudySession } from '../studySession';
+import { useStudyActivity } from '../studyPresence';
 import './FAImages.css';
 import './FAHYQs.css';
 
@@ -242,6 +244,10 @@ export default function FAHYQs({ onExit }) {
   const [picked, setPicked] = useState(null);
   const [results, setResults] = useState([]);
   const [flip, setFlip] = useState(false);
+  // Study time + Daily Activity (active seconds only — see studySession.js).
+  const study = useStudySession({ mode: 'fa_hy_qs', active: phase === 'run', subject: chapter });
+  useStudyActivity(phase === 'run' ? 'FA HY Qs' : null, null, 'fa_hy_qs');
+  useEffect(() => { if (phase === 'notes') study.flush(); }, [phase]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     fetch(`${SERVER_URL}/api/fa-hyq/catalog`)
@@ -256,6 +262,8 @@ export default function FAHYQs({ onExit }) {
       const r = await fetch(`${SERVER_URL}/api/fa-hyq/run?chapter=${chapter}&count=${count}&sections=${encodeURIComponent(sections.join(','))}`);
       const d = await r.json();
       if (!d.questions?.length) throw new Error('No questions came back.');
+      study.flush();
+      study.touch();
       setQs(d.questions); setIdx(0); setPicked(null); setResults([]);
       setPhase('run');
       window.scrollTo(0, 0);
@@ -271,9 +279,11 @@ export default function FAHYQs({ onExit }) {
     const right = i === q.correct;
     if (right) sfx.correct(); else sfx.wrong();
     setResults(rs => [...rs, { q, right }]);
+    study.count(right);
   }
 
   function next() {
+    study.touch();
     if (idx + 1 >= qs.length) { sfx.fanfare(); setPhase('notes'); window.scrollTo(0, 0); return; }
     sfx.next();
     setFlip(true);

@@ -7,7 +7,9 @@ import { SERVER_URL } from './serverUrl';
 // identifies the player from it, never from an id the client claims.
 const socket = io(SERVER_URL, {
   autoConnect: false,
-  auth: (cb) => cb({ token: getToken() || undefined }),
+  // tzOffset lets the server put study time from a live match on the
+  // player's own calendar day.
+  auth: (cb) => cb({ token: getToken() || undefined, tzOffset: new Date().getTimezoneOffset() }),
 });
 
 export default socket;

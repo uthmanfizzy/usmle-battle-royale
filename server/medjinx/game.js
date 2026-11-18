@@ -523,7 +523,9 @@ module.exports = function createMedJinx({ io, lobbies, shuffle, awardXP, lobbyPa
 
     // What awardXP reads for every mode.
     lobby.correctCounts = new Map(sorted.map(p => [p.id, s.totals.get(p.id)?.accepted || 0]));
-    lobby.answeredCounts = new Map(sorted.map(p => [p.id, s.totals.get(p.id)?.attempts || 0]));
+    // "Questions answered" on Daily Activity = topics (rounds) played, not
+    // the number of guesses typed — 40 guesses in a 5-round match is 5 topics.
+    lobby.answeredCounts = new Map(sorted.map(p => [p.id, s.history.length]));
     lobby.questionIdx = Math.max(0, s.history.length - 1);
 
     const players = sorted.map((p, i) => {
