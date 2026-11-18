@@ -47,6 +47,11 @@ export const QUESTION_BANK_MODES = [
     // in a week. null means "no known final size — plan against whatever is
     // actually there", which is what a bank still being built needs.
     targetTotal: 3659,
+    // UWorld Adventure is now a chooser in Story Mode (UW Original, UW
+    // Concise, UWSA); this bank is UW Original, and its back pill returns to
+    // the chooser.
+    heroLabel: 'UW Original',
+    back: { route: '/?story=uw', label: 'UWorld Adventure' },
   },
   {
     id: 'saudi_mle',

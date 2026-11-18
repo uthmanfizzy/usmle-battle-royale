@@ -99,6 +99,7 @@ export default function App() {
   // Route picked on the Story Menu card ('full' | 'rapid'), or null for "use
   // whichever they last studied". Read once, when the Journey mounts.
   const [journeyTrack,    setJourneyTrack]    = useState(null);
+  const [storyInitialSub, setStoryInitialSub] = useState(null);
   const [playInitialMode, setPlayInitialMode] = useState(null); // Story→AnKing passes 'anking'; Online leaves null
 
   const [raceProgress, setRaceProgress] = useState([]);
@@ -200,7 +201,10 @@ export default function App() {
     const authError = params.get('auth_error');
     const autoPlay  = params.get('play') === '1';
     const autoTraining = params.get('training') === '1';
-    const autoStory = params.get('story') === '1';
+    // ?story=uw lands on the UWorld Adventure chooser inside Story Mode (the
+    // back pill of UW Original).
+    const autoStory = params.get('story') === '1' || params.get('story') === 'uw';
+    if (params.get('story') === 'uw') setStoryInitialSub('uw');
 
     if (authError) {
       window.history.replaceState({}, '', '/');
@@ -1163,6 +1167,7 @@ export default function App() {
           onOET={() => { window.location.href = '/oet'; }}
           onClinical={() => { window.location.href = '/clinical'; }}
           course={user?.course}
+          initialSub={storyInitialSub}
         />
         </RouteErrorBoundary>
       )}

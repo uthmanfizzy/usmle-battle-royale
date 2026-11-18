@@ -148,7 +148,7 @@ export function LockedCard({ variant, icon, name, sub, chip = 'LOCKED' }) {
   );
 }
 
-export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld, onSaudiMLE, onMehlman, onMinigames, onOET, onClinical, course }) {
+export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld, onSaudiMLE, onMehlman, onMinigames, onOET, onClinical, course, initialSub }) {
   // Dentistry students get the ORE/LDS bank in place of the medical licensing
   // ones; everything else (First Aid, flashcards) is shared, so their menu is
   // the same list with the board-exam campaign swapped. Medicine — and anyone
@@ -183,7 +183,8 @@ export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld, onSaudiMLE, o
   // First Aid Journey and Flashcards each open a page of their own with their
   // sub-modes on it. A step in the browser's history too, so the phone's back
   // gesture returns to the campaign list instead of leaving Play.
-  const [sub, setSub] = useState(null); // null | 'fa' | 'flash'
+  // UWorld Adventure does the same: UW Original, UW Concise and UWSA.
+  const [sub, setSub] = useState(initialSub || null); // null | 'fa' | 'flash' | 'uw'
   useEffect(() => {
     const onPop = () => setSub(null);
     window.addEventListener('popstate', onPop);
@@ -197,6 +198,40 @@ export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld, onSaudiMLE, o
   function closeSub() {
     if (window.history.state?.storySub) window.history.back();
     else setSub(null);
+  }
+
+  if (sub === 'uw') {
+    return (
+      <div className="ms-screen">
+        <button className="ms-back-btn" onClick={closeSub}>← Story Mode</button>
+
+        <div className="ms-banner">
+          <h1 className="ms-title">📊 UWORLD ADVENTURE</h1>
+          <p className="ms-tagline">Choose your expedition.</p>
+          <div className="ms-title-rule" />
+        </div>
+
+        <div className="ms-campaign-list ms-campaign-list--trio">
+          {/* UW Original — the full bank, worked down at a daily pace. */}
+          <button className="ms-journey-card ms-journey-card--blue" onClick={onUWorld}>
+            <div className="ms-journey-art" aria-hidden="true">
+              <span className="ms-journey-art-icon">🌍</span>
+            </div>
+            <div className="ms-journey-body">
+              <span className="ms-journey-name">UW ORIGINAL</span>
+              <span className="ms-journey-sub">
+                The full UWorld bank, subject by subject, at your own daily pace.
+              </span>
+            </div>
+          </button>
+
+          <LockedCard variant="teal" icon="⚡" name="UW CONCISE" chip="SOON"
+            sub="The bank's high-yield core, for a faster pass." />
+          <LockedCard variant="violet" icon="📝" name="UWSA" chip="SOON"
+            sub="UWorld self-assessments — timed blocks under exam conditions." />
+        </div>
+      </div>
+    );
   }
 
   if (sub === 'fa' || sub === 'flash') {
@@ -383,14 +418,14 @@ export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld, onSaudiMLE, o
 
         {/* A standalone ROUTE, not a phase, so onUWorld navigates. */}
         {!isDentistry && (
-        <button className="ms-journey-card ms-journey-card--blue" onClick={onUWorld}>
+        <button className="ms-journey-card ms-journey-card--blue" onClick={() => openSub('uw')}>
           <div className="ms-journey-art" aria-hidden="true">
             <span className="ms-journey-art-icon">📊</span>
           </div>
           <div className="ms-journey-body">
             <span className="ms-journey-name">UWORLD ADVENTURE</span>
             <span className="ms-journey-sub">
-              A high-yield board-review expedition through the wards of Medvale.
+              UW Original, UW Concise and UWSA — board review through the wards of Medvale.
             </span>
           </div>
         </button>

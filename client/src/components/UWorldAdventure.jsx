@@ -759,7 +759,7 @@ export default function UWorldAdventure({ mode = DEFAULT_QUESTION_BANK_MODE }) {
         <div className="uwa-hero-inner">
           <span className="uwa-hero-eyebrow">{mode.icon} Question bank</span>
           <h1 className="uwa-hero-title">
-            {mode.label.split(' ').map((word, i, all) => (
+            {(mode.heroLabel || mode.label).split(' ').map((word, i, all) => (
               <span key={i} className={i === all.length - 1 ? 'uwa-hero-title-accent' : undefined}>
                 {word}{i < all.length - 1 ? ' ' : ''}
               </span>
