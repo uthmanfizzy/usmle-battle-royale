@@ -71,6 +71,18 @@ const MINIGAMES = [
     drills: 'Murmurs and heart sounds by ear',
   },
   {
+    id: 'pv-loops',
+    name: 'PV Loop Lab',
+    subject: 'Cardiology',
+    icon: '🫀',
+    accent: '255, 122, 89',          // cardiology coral (red and rose are taken)
+    route: '/pv-loops',
+    blurb: 'Watch the left heart go round a pressure–volume loop, then bend it: '
+         + 'preload, afterload, contractility, stiffness — and every classic '
+         + 'valve lesion and heart failure loop to name.',
+    drills: 'Reading pressure–volume loops',
+  },
+  {
     id: 'abg',
     name: 'ABG Reader',
     subject: 'Respiratory',
