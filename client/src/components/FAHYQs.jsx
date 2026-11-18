@@ -18,6 +18,9 @@ import './FAHYQs.css';
  */
 
 const LETTERS = ['A', 'B', 'C', 'D', 'E'];
+// Each vignette gets 30 seconds — exam pace. Running out marks it wrong and
+// shows the explanation, exactly like a wrong answer.
+const SECONDS = 30;
 const COUNT_LABEL = { 0: 'All' };
 
 function RunningHeader({ chapter, page, right }) {
@@ -109,6 +112,22 @@ function Opener({ catalog, error, chapter, setChapter, sections, setSections, co
 function QuestionPage({ q, idx, total, correct, onAnswer, onNext, picked, flip }) {
   const answered = picked !== null;
   const noteRef = useRef(null);
+  const [msLeft, setMsLeft] = useState(SECONDS * 1000);
+  // The page's answer handler is a fresh function each render; the clock
+  // reads it through a ref so re-renders never restart the 30 seconds.
+  const answerRef = useRef(onAnswer);
+  answerRef.current = onAnswer;
+  useEffect(() => {
+    if (answered) return undefined;
+    const from = performance.now();
+    let done = false;
+    const t = setInterval(() => {
+      const left = Math.max(0, SECONDS * 1000 - (performance.now() - from));
+      setMsLeft(left);
+      if (left <= 0 && !done) { done = true; clearInterval(t); answerRef.current(-1); }
+    }, 100);
+    return () => clearInterval(t);
+  }, [answered]);
   useEffect(() => {
     function key(e) {
       if (!answered && /^[1-5]$/.test(e.key)) onAnswer(Number(e.key) - 1);
@@ -132,6 +151,11 @@ function QuestionPage({ q, idx, total, correct, onAnswer, onNext, picked, flip }
             <span><i>CORRECT</i><b>{correct}/{idx + (answered ? 1 : 0)}</b></span>
             <span><i>BLOCK</i><b>{idx + 1}/{total}</b></span>
             <span><i>FIRST AID</i><b>p. {q.page}</b></span>
+          </div>
+          {/* The plum ribbon from FA Images: the clock as a shortening bookmark. */}
+          <div className={`fai-ribbon${msLeft / (SECONDS * 1000) < 0.3 && !answered ? ' is-low' : ''}`} aria-label={`${Math.ceil(msLeft / 1000)} seconds left`}>
+            <span style={{ height: `${Math.max(0, msLeft / (SECONDS * 1000)) * 100}%` }} />
+            <b>{answered ? '—' : Math.ceil(msLeft / 1000)}</b>
           </div>
         </div>
         <div className="fai-main">
@@ -158,7 +182,7 @@ function QuestionPage({ q, idx, total, correct, onAnswer, onNext, picked, flip }
           </div>
           {answered && (
             <aside ref={noteRef} className={`fai-note${right ? ' is-right' : ' is-wrong'}`}>
-              <span className="fai-note-head">{right ? 'Correct' : 'Not quite'} — {q.options[q.correct]}</span>
+              <span className="fai-note-head">{right ? 'Correct' : picked === -1 ? "Time's up" : 'Not quite'} — {q.options[q.correct]}</span>
               <p>{q.explanation}</p>
               <span className="fahq-review">Review: First Aid p. {q.page} · {q.topic}</span>
               <button type="button" className="fai-next" onClick={onNext} autoFocus>
