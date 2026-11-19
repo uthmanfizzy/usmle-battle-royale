@@ -15,7 +15,7 @@ export const H = 941;
 // ── Canvas: stars, the tree's ring of lights, a shooting star, golden motes,
 //    the Play sparkle burst and falling petals ────────────────────────────────
 
-export function startScene(cv, { consumeBurst } = {}) {
+export function startScene(cv, { consumeBurst, fx, burstAt = { x: 434, y: 382 } } = {}) {
   const c = cv.getContext('2d');
   if (!c) return () => {};
   const reduce = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
@@ -44,16 +44,16 @@ export function startScene(cv, { consumeBurst } = {}) {
   };
   const petals = Array.from({ length: reduce ? 10 : 30 }, () => newPetal(true));
   const motes = Array.from({ length: reduce ? 14 : 38 }, () => ({
-    x: R() * W, y: 380 + R() * 560, vy: -(5 + R() * 12), ph: R() * 6.28,
+    x: R() * W, y: 300 + R() * 300, vy: -(5 + R() * 12), ph: R() * 6.28,
     sp: 0.8 + R() * 1.6, r: 1 + R() * 1.6, sw: 6 + R() * 14,
   }));
   const sparks = [];
-  let shoot = null, shootIn = 2.5, time = 0, last = 0, raf = 0;
+  let shoot = null, shootIn = 2.5, time = 0, last = 0, raf = 0, fxDirty = false;
 
   function burst() {
     for (let i = 0; i < 54; i++) {
-      const a = R() * 6.283, sp = 80 + R() * 300;
-      sparks.push({ x: 836 + Math.cos(a) * 60, y: 462 + Math.sin(a) * 16, vx: Math.cos(a) * sp * 1.5, vy: Math.sin(a) * sp * 0.8 - 40, life: 0, max: 0.7 + R() * 0.8, r: 1.2 + R() * 2.2 });
+      const a = R() * 6.283, sp = 80 + R() * 280;
+      sparks.push({ x: burstAt.x + Math.cos(a) * 60, y: burstAt.y + Math.sin(a) * 14, vx: Math.cos(a) * sp * 1.4, vy: Math.sin(a) * sp * 0.8 - 40, life: 0, max: 0.7 + R() * 0.8, r: 1.2 + R() * 2.2 });
     }
   }
 
@@ -115,26 +115,30 @@ export function startScene(cv, { consumeBurst } = {}) {
     // Drifting golden motes
     for (const m of motes) {
       m.y += m.vy * dt;
-      if (m.y < 330) { m.y = H + 10; m.x = R() * W; }
+      if (m.y < 160) { m.y = 600; m.x = R() * W; }
       const mx = m.x + Math.sin(t * 0.6 + m.ph) * m.sw;
-      a = (0.15 + 0.85 * Math.pow(0.5 + 0.5 * Math.sin(t * m.sp + m.ph), 3)) * Math.max(0, Math.min(1, (m.y - 330) / 120));
+      a = (0.15 + 0.85 * Math.pow(0.5 + 0.5 * Math.sin(t * m.sp + m.ph), 3)) * Math.max(0, Math.min(1, (m.y - 160) / 120)) * Math.max(0, Math.min(1, (600 - m.y) / 80));
       c.globalAlpha = a * 0.22; c.fillStyle = '#ffd27a';
       c.beginPath(); c.arc(mx, m.y, m.r * 4, 0, 6.283); c.fill();
       c.globalAlpha = a; c.fillStyle = '#fff0c0';
       c.beginPath(); c.arc(mx, m.y, m.r, 0, 6.283); c.fill();
     }
 
-    // Sparkle burst from the Play button
-    c.fillStyle = '#ffe6a6';
+    // Sparkle burst from the Play button — on its own canvas above the UI
+    // when one is given, so the sparks fly over the button and the cards.
+    const f = fx ? fx.getContext('2d') : c;
+    if (fx && (sparks.length || fxDirty)) { f.clearRect(0, 0, W, H); fxDirty = sparks.length > 0; f.globalCompositeOperation = 'lighter'; }
+    f.fillStyle = '#ffe6a6';
     for (let i = sparks.length - 1; i >= 0; i--) {
       const q = sparks[i];
       q.life += dt;
       if (q.life >= q.max) { sparks.splice(i, 1); continue; }
       q.vy += 70 * dt; q.vx *= 0.985; q.x += q.vx * dt; q.y += q.vy * dt;
       a = 1 - q.life / q.max;
-      c.globalAlpha = a * 0.25; c.beginPath(); c.arc(q.x, q.y, q.r * 3.5, 0, 6.283); c.fill();
-      c.globalAlpha = a; c.beginPath(); c.arc(q.x, q.y, q.r, 0, 6.283); c.fill();
+      f.globalAlpha = a * 0.25; f.beginPath(); f.arc(q.x, q.y, q.r * 3.5, 0, 6.283); f.fill();
+      f.globalAlpha = a; f.beginPath(); f.arc(q.x, q.y, q.r, 0, 6.283); f.fill();
     }
+    f.globalAlpha = 1;
 
     // Falling petals
     c.globalCompositeOperation = 'source-over';

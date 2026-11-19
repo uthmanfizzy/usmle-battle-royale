@@ -1,12 +1,21 @@
-/* Settings → Appearance thumbnail for Moonlit (130px tall card). */
-.mlpv { background-size: cover !important; background-position: center !important; font-family: 'EB Garamond', Georgia, serif; }
-.mlpv::before { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse 70% 60% at 50% 45%, rgba(10,16,48,0) 40%, rgba(10,16,48,.45) 100%); }
+/* Settings → Appearance thumbnail for Moonlit (130px tall card): the main
+   menu in miniature — sidebar, welcome and Play, four cards, two panels. */
+.mlpv { background-size: cover !important; background-position: 70% center !important; font-family: 'EB Garamond', Georgia, serif; }
+.mlpv::before { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(11,15,44,0) 35%, rgba(10,13,40,.85) 70%); }
 .mlpv > * { position: absolute; }
-.mlpv-chip { left: 6px; top: 6px; width: 46px; height: 13px; border-radius: 7px; background: rgba(21,37,76,.9); border: 1px solid rgba(132,150,204,.5); }
-.mlpv-chip i { position: absolute; left: -2px; top: -2px; width: 15px; height: 15px; border-radius: 50%; background: #3a5fae; border: 1px solid #f1dcae; }
-.mlpv-rounds { right: 6px; top: 7px; display: flex; gap: 3px; }
-.mlpv-rounds i { width: 9px; height: 9px; border-radius: 50%; background: rgba(21,39,78,.9); border: 1px solid rgba(132,150,204,.6); }
-.mlpv-title { left: 0; right: 0; top: 30px; text-align: center; font-size: 19px; font-weight: 700; color: #f8ecd2; text-shadow: 0 0 8px rgba(255,214,140,.7); }
-.mlpv-play { left: 50%; top: 58px; transform: translateX(-50%); padding: 1px 16px; font-size: 10px; font-weight: 700; color: #5a3820; background: linear-gradient(180deg, #fdf3d6, #f4cf93); border: 1px solid #c08a42; border-radius: 9px; box-shadow: 0 0 6px rgba(255,214,140,.8); }
-.mlpv-cards { left: 50%; bottom: 10px; transform: translateX(-50%); display: flex; gap: 4px; }
-.mlpv-cards i { width: 22px; height: 17px; border-radius: 4px; background: rgba(38,49,102,.9); border: 1px solid #c9a56a; }
+.mlpv-side { left: 0; top: 0; bottom: 0; width: 20px; background: rgba(18,25,60,.95); border-right: 1px solid rgba(201,165,106,.6); }
+.mlpv-side i { position: absolute; left: 4px; width: 12px; height: 3px; border-radius: 2px; background: rgba(214,208,194,.55); }
+.mlpv-side i:first-child { background: #d6aa62; }
+.mlpv-chips { right: 6px; top: 6px; display: flex; gap: 3px; }
+.mlpv-chips i { width: 16px; height: 7px; border-radius: 4px; background: rgba(21,37,76,.9); border: 1px solid rgba(132,150,204,.5); }
+.mlpv-chips i:last-child { width: 9px; height: 9px; margin-top: -1px; border-radius: 50%; background: #3a5fae; border-color: #f1dcae; }
+.mlpv-title { left: 30px; top: 18px; font-size: 15px; font-weight: 700; color: #f8ecd2; text-shadow: 0 0 8px rgba(255,214,140,.7); }
+.mlpv-play { left: 30px; top: 40px; padding: 0 12px; font-size: 9px; font-weight: 700; color: #5a3820; background: linear-gradient(180deg, #fdf3d6, #f4cf93); border: 1px solid #c08a42; border-radius: 8px; box-shadow: 0 0 6px rgba(255,214,140,.8); }
+.mlpv-cards { left: 26px; right: 6px; top: 68px; display: flex; gap: 3px; }
+.mlpv-cards i { flex: 1; height: 16px; border-radius: 3px; border: 1px solid #c9a56a; background: rgba(38,49,102,.85); }
+.mlpv-cards i:nth-child(2) { background: rgba(80,40,120,.85); }
+.mlpv-cards i:nth-child(3) { background: rgba(26,70,72,.85); }
+.mlpv-cards i:nth-child(4) { background: rgba(92,64,40,.85); }
+.mlpv-panels { left: 26px; right: 6px; top: 89px; bottom: 6px; display: flex; gap: 3px; }
+.mlpv-panels i { flex: 7; border-radius: 3px; border: 1px solid #c9a56a; background: rgba(20,28,66,.9); }
+.mlpv-panels i:last-child { flex: 6; }

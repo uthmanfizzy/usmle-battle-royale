@@ -5,11 +5,12 @@ import './MoonlitPreview.css';
 export default function MoonlitPreview() {
   return (
     <div className="ap-prev mlpv" aria-hidden="true" style={{ backgroundImage: `url(${ART}/scene.jpg)` }}>
-      <span className="mlpv-chip"><i /></span>
-      <span className="mlpv-rounds"><i /><i /><i /></span>
-      <span className="mlpv-title">Medvale</span>
-      <span className="mlpv-play">Play</span>
+      <span className="mlpv-side">{[14, 24, 34, 44, 54, 64].map(t => <i key={t} style={{ top: t + 24 }} />)}</span>
+      <span className="mlpv-chips"><i /><i /><i /></span>
+      <span className="mlpv-title">Welcome back</span>
+      <span className="mlpv-play">▸ Play</span>
       <span className="mlpv-cards"><i /><i /><i /><i /></span>
+      <span className="mlpv-panels"><i /><i /></span>
     </div>
   );
 }
