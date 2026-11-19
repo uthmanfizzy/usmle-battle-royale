@@ -25,7 +25,7 @@ export const BUZZ_TYPES = {
   MECHANISM:   { label: 'Mechanism',   icon: '⚙️', hue: '255, 176, 80' },
 };
 
-const SUBJECT_LABEL = { biochemistry: 'Biochemistry', immunology: 'Immunology', endocrinology: 'Endocrinology', pulmonology: 'Pulmonology', nephrology: 'Nephrology', cardiology: 'Cardiology' };
+const SUBJECT_LABEL = { biochemistry: 'Biochemistry', immunology: 'Immunology', endocrinology: 'Endocrinology', pulmonology: 'Pulmonology', nephrology: 'Nephrology', cardiology: 'Cardiology', reproductive: 'Reproductive' };
 const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F'];
 const RING = 2 * Math.PI * 44;
 
