@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS users (
   created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   last_username_change  TIMESTAMPTZ,
   study_mode            BOOLEAN     NOT NULL DEFAULT false,
-  theme_pref            TEXT        DEFAULT 'default',
+  theme_pref            TEXT        DEFAULT 'celestial',
   color_pref            TEXT        DEFAULT 'purple'
 );
 
@@ -45,7 +45,11 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS last_username_change TIMESTAMPTZ;
 
 -- Migration: UI preference columns (theme axis + accent colour + study mode)
 ALTER TABLE users ADD COLUMN IF NOT EXISTS study_mode BOOLEAN NOT NULL DEFAULT false;
-ALTER TABLE users ADD COLUMN IF NOT EXISTS theme_pref TEXT DEFAULT 'default';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS theme_pref TEXT DEFAULT 'celestial';
+-- Migration (2026-11-19): Celestial is the default appearance for everyone.
+ALTER TABLE users ALTER COLUMN theme_pref SET DEFAULT 'celestial';
+-- One-time switch of existing accounts (run once; people can switch back in Settings):
+-- UPDATE users SET theme_pref = 'celestial' WHERE theme_pref IS NULL OR theme_pref = 'default';
 ALTER TABLE users ADD COLUMN IF NOT EXISTS color_pref TEXT DEFAULT 'purple';
 
 -- Add FK from clans.created_by → users now that users exists

@@ -59,7 +59,7 @@ const ThemeCtx = createContext(null);
 export const useTheme = () => useContext(ThemeCtx);
 
 export function ThemeProvider({ children }) {
-  const [theme, setTheme] = useState(() => localStorage.getItem('mr_theme') || 'default');
+  const [theme, setTheme] = useState(() => localStorage.getItem('mr_theme') || 'celestial');
   const [color, setColor] = useState(() => localStorage.getItem('mr_color') || 'purple');
   const [study, setStudy] = useState(() => localStorage.getItem('mr_study') === 'true');
 
@@ -74,7 +74,7 @@ export function ThemeProvider({ children }) {
   useEffect(() => {
     function onSync(e) {
       const u = e.detail || {};
-      const t = typeof u.theme_pref === 'string' ? u.theme_pref : (localStorage.getItem('mr_theme') || 'default');
+      const t = typeof u.theme_pref === 'string' ? u.theme_pref : (localStorage.getItem('mr_theme') || 'celestial');
       const c = typeof u.color_pref === 'string' ? u.color_pref : (localStorage.getItem('mr_color') || 'purple');
       const s = typeof u.study_mode === 'boolean' ? u.study_mode : (localStorage.getItem('mr_study') === 'true');
       localStorage.setItem('mr_theme', t);
