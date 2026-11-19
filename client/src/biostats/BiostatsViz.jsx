@@ -97,35 +97,45 @@ export function TwoByTwo({ t, measure, reveal, instant = false }) {
  * Calls onDone('built') once every cell is right, or onDone('shown').
  */
 const CELLS = [['TP', 'Test +', 'Disease +'], ['FP', 'Test +', 'Disease −'], ['FN', 'Test −', 'Disease +'], ['TN', 'Test −', 'Disease −']];
+// The five totals, typed in too: [key, what it is, the cells it adds].
+const TOTALS = [
+  ['R1', 'Test + total', ['TP', 'FP'], 'a + b'], ['R2', 'Test − total', ['FN', 'TN'], 'c + d'],
+  ['C1', 'Disease + total', ['TP', 'FN'], 'a + c'], ['C2', 'Disease − total', ['FP', 'TN'], 'b + d'],
+  ['N', 'Grand total', ['TP', 'FP', 'FN', 'TN'], 'a + b + c + d'],
+];
+const totalOf = (t, keys) => keys.reduce((n, k) => n + t[k], 0);
+
 export function TableBuilder({ t, steps, onDone }) {
-  const [vals, setVals] = useState({ TP: '', FP: '', FN: '', TN: '' });
+  const [vals, setVals] = useState({ TP: '', FP: '', FN: '', TN: '', R1: '', R2: '', C1: '', C2: '', N: '' });
   const [checked, setChecked] = useState(null);     // null | { TP: bool, ... }
   const [state, setState] = useState('building');   // building | built | shown
   const num = (k) => (vals[k] === '' ? null : Number(vals[k]));
-  const sum = (a, b) => (num(a) == null || num(b) == null ? '' : num(a) + num(b));
-  const allIn = CELLS.every(([k]) => vals[k] !== '');
+  // All nine boxes — the four cells and the five totals — must be filled.
+  const allIn = [...CELLS, ...TOTALS].every(([k]) => vals[k] !== '');
+  const expected = (k) => { const tot = TOTALS.find(x => x[0] === k); return tot ? totalOf(t, tot[2]) : t[k]; };
 
   const check = () => {
-    const res = Object.fromEntries(CELLS.map(([k]) => [k, num(k) === t[k]]));
+    const res = Object.fromEntries([...CELLS, ...TOTALS].map(([k]) => [k, num(k) === expected(k)]));
     setChecked(res);
     if (Object.values(res).every(Boolean)) { setState('built'); onDone?.('built'); }
   };
   const show = () => {
-    setVals({ TP: String(t.TP), FP: String(t.FP), FN: String(t.FN), TN: String(t.TN) });
+    setVals(Object.fromEntries([...CELLS, ...TOTALS].map(([k]) => [k, String(expected(k))])));
     setChecked(null); setState('shown'); onDone?.('shown');
   };
   const locked = state !== 'building';
 
-  const cell = (k, label) => {
+  const cell = (k, label, tot = false) => {
     const st = checked ? (checked[k] ? ' is-ok' : ' is-bad') : '';
+    const desc = tot ? TOTALS.find(x => x[0] === k)[1] : `${CELLS.find(c => c[0] === k)[1]}, ${CELLS.find(c => c[0] === k)[2]}`;
     return (
-      <td className={`bsl-tt-cell bsl-tt-${k} bsl-tb-cell${st}${locked ? ' is-locked' : ''}`}>
+      <td className={`${tot ? 'bsl-tt-tot bsl-tb-tot' : `bsl-tt-cell bsl-tt-${k}`} bsl-tb-cell${st}${locked ? ' is-locked' : ''}`}>
         <small>{label}</small>
         <input
           type="number"
           inputMode="numeric"
           min="0"
-          aria-label={`${k} — ${CELLS.find(c => c[0] === k)[1]}, ${CELLS.find(c => c[0] === k)[2]}`}
+          aria-label={tot ? desc : `${k} — ${desc}`}
           value={vals[k]}
           disabled={locked}
           onChange={(e) => { setVals(v => ({ ...v, [k]: e.target.value.replace(/[^\d]/g, '').slice(0, 5) })); setChecked(null); }}
@@ -135,8 +145,11 @@ export function TableBuilder({ t, steps, onDone }) {
       </td>
     );
   };
-  const wrong = checked ? CELLS.filter(([k]) => !checked[k]).map(([k]) => k) : [];
-  const total = (num('TP') ?? 0) + (num('FP') ?? 0) + (num('FN') ?? 0) + (num('TN') ?? 0);
+  const wrong = checked ? [...CELLS, ...TOTALS].filter(([k]) => !checked[k]).map(([k]) => k) : [];
+  const isTot = (k) => TOTALS.some(x => x[0] === k);
+  const totLine = (k) => { const [, name, keys, f] = TOTALS.find(x => x[0] === k); return `${name} = ${f} = ${keys.map(x => t[x]).join(' + ')} = ${totalOf(t, keys)}`; };
+  const what = (k) => (isTot(k) ? TOTALS.find(x => x[0] === k)[1] + ' (' + TOTALS.find(x => x[0] === k)[3] + ')'
+    : k === 'TP' ? 'Diseased AND test positive' : k === 'FP' ? 'Healthy but test positive' : k === 'FN' ? 'Diseased but test negative' : 'Healthy AND test negative');
 
   return (
     <div className="bsl-tb">
@@ -151,13 +164,13 @@ export function TableBuilder({ t, steps, onDone }) {
             </tr>
           </thead>
           <tbody>
-            <tr><th className="bsl-tt-r">Test +</th>{cell('TP', 'TP · a')}{cell('FP', 'FP · b')}<td className="bsl-tt-tot">{sum('TP', 'FP')}</td></tr>
-            <tr><th className="bsl-tt-r">Test −</th>{cell('FN', 'FN · c')}{cell('TN', 'TN · d')}<td className="bsl-tt-tot">{sum('FN', 'TN')}</td></tr>
+            <tr><th className="bsl-tt-r">Test +</th>{cell('TP', 'TP · a')}{cell('FP', 'FP · b')}{cell('R1', 'a + b', true)}</tr>
+            <tr><th className="bsl-tt-r">Test −</th>{cell('FN', 'FN · c')}{cell('TN', 'TN · d')}{cell('R2', 'c + d', true)}</tr>
             <tr className="bsl-tt-totrow">
               <th className="bsl-tt-r">Total</th>
-              <td className="bsl-tt-tot">{sum('TP', 'FN')}</td>
-              <td className="bsl-tt-tot">{sum('FP', 'TN')}</td>
-              <td className="bsl-tt-tot">{allIn ? total : ''}</td>
+              {cell('C1', 'a + c', true)}
+              {cell('C2', 'b + d', true)}
+              {cell('N', 'N', true)}
             </tr>
           </tbody>
         </table>
@@ -170,15 +183,15 @@ export function TableBuilder({ t, steps, onDone }) {
         </div>
       )}
       {state === 'building' && !checked && (
-        <p className="bsl-tb-tip">Columns are the truth (disease), rows are the test. Fill all four, then check — the totals add up as you type.</p>
+        <p className="bsl-tb-tip">Columns are the truth (disease), rows are the test. Fill the four cells and the five totals, then check.</p>
       )}
       {wrong.length > 0 && (
         <ul className="bsl-tb-fix">
-          {wrong.map(k => <li key={k}><b>{k}</b> {k === 'TP' ? 'Diseased AND test positive' : k === 'FP' ? 'Healthy but test positive' : k === 'FN' ? 'Diseased but test negative' : 'Healthy AND test negative'} — try again{steps ? '' : '.'}</li>)}
+          {wrong.map(k => <li key={k}><b>{isTot(k) ? 'Total' : k}</b> {what(k)} — try again.</li>)}
           <li className="bsl-tb-fix-more">
             <details>
               <summary>Stuck? Show how to get the {wrong.length === 1 ? 'cell' : 'cells'}</summary>
-              {wrong.map(k => <p key={k}><b>{k}</b> {steps?.[k]}</p>)}
+              {wrong.map(k => <p key={k}>{isTot(k) ? totLine(k) : <><b>{k}</b> {steps?.[k]}</>}</p>)}
             </details>
           </li>
         </ul>
@@ -187,7 +200,7 @@ export function TableBuilder({ t, steps, onDone }) {
       {state === 'shown' && steps && (
         <div className="bsl-tb-how">
           <p>How each cell comes from the question:</p>
-          <ul>{CELLS.map(([k]) => <li key={k}><b>{k}</b> {steps[k]}</li>)}</ul>
+          <ul>{CELLS.map(([k]) => <li key={k}><b>{k}</b> {steps[k]}</li>)}{TOTALS.map(([k]) => <li key={k}>{totLine(k)}</li>)}</ul>
         </div>
       )}
     </div>
