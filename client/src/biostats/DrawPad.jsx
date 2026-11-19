@@ -20,6 +20,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 const INKS = { black: '#1c1d2b', blue: '#1f4fd1', red: '#c4223a' };
 const ASPECT = 0.62;
+// Each 'More room' adds this much paper (as a fraction of the width), up to MAX_EXTRA times.
+const EXTRA_STEP = 0.4;
+const MAX_EXTRA = 5;
+const baseHeight = (w) => Math.max(240, Math.round(w * ASPECT));
 
 export default function DrawPad({ readOnly = false, store = null }) {
   const wrapRef = useRef(null);
@@ -35,6 +39,10 @@ export default function DrawPad({ readOnly = false, store = null }) {
   const [tool, setTool] = useState('pen');
   const [ink, setInk] = useState('black');
   const [count, setCount] = useState(0);   // re-render when strokes change (undo enabled etc.)
+  // Extra paper below the first page. Kept in the store too, so the drawing
+  // shown after answering is the same size it was drawn at.
+  const [extra, setExtraState] = useState(() => (store && store.extra) || 0);
+  const setExtra = (n) => { setExtraState(n); if (store) store.extra = n; };
 
   const redraw = useCallback(() => {
     const c = canvasRef.current;
@@ -53,7 +61,7 @@ export default function DrawPad({ readOnly = false, store = null }) {
     if (!wrap || !c) return undefined;
     const layout = () => {
       const w = wrap.clientWidth;
-      const h = Math.max(240, Math.round(w * ASPECT));
+      const h = baseHeight(w) + Math.round(extra * EXTRA_STEP * w);
       const dpr = Math.min(2, window.devicePixelRatio || 1);
       c.width = Math.round(w * dpr); c.height = Math.round(h * dpr);
       c.style.width = `${w}px`; c.style.height = `${h}px`;
@@ -64,7 +72,7 @@ export default function DrawPad({ readOnly = false, store = null }) {
     const ro = new ResizeObserver(layout);
     ro.observe(wrap);
     return () => ro.disconnect();
-  }, [redraw]);
+  }, [redraw, extra]);
 
   const pos = (e) => {
     const r = canvasRef.current.getBoundingClientRect();
@@ -123,6 +131,15 @@ export default function DrawPad({ readOnly = false, store = null }) {
   });
 
   const has = strokesRef.current.length > 0;
+  // Less room never cuts off ink: the lowest stroke sets the floor.
+  const minExtra = (() => {
+    const w = sizeRef.current.w || 1;
+    let low = 0;
+    for (const st of strokesRef.current) for (const pt of st.pts) if (st.tool !== 'eraser') low = Math.max(low, pt[1] * w + 8);
+    return Math.max(0, Math.ceil((low - baseHeight(w)) / (EXTRA_STEP * w)));
+  })();
+  const more = () => setExtra(Math.min(MAX_EXTRA, extra + 1));
+  const less = () => setExtra(Math.max(minExtra, extra - 1));
   return (
     <div className={`bsl-pad${readOnly ? ' is-readonly' : ''}`} data-strokes={count}>
       {!readOnly && (
@@ -148,6 +165,10 @@ export default function DrawPad({ readOnly = false, store = null }) {
           <div className="bsl-pad-group">
             <button type="button" onClick={undo} disabled={!has} title="Undo (Ctrl+Z)">↶ Undo</button>
             <button type="button" onClick={clear} disabled={!has} title="Clear the page">Clear</button>
+          </div>
+          <div className="bsl-pad-group" aria-label="Page size">
+            <button type="button" onClick={more} disabled={extra >= MAX_EXTRA} title="Add more paper below for working">＋ More room</button>
+            {extra > 0 && <button type="button" onClick={less} disabled={extra <= minExtra} title={extra <= minExtra ? 'Your writing reaches the bottom — erase it first to shrink' : 'Remove the extra paper'}>－ Less</button>}
           </div>
         </div>
       )}
