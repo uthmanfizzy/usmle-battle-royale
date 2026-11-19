@@ -27,6 +27,9 @@ export const FA_RATING_GROUPS = [
   },
 ];
 export const FA_RATINGS = FA_RATING_GROUPS.flatMap(g => g.items);
+// Not a rating: the opener's "study by rating" chip for questions never rated.
+export const FA_UNRATED = { key: 'unrated', label: 'Unrated', icon: '○' };
+export const FA_RATING_FILTERS = [...FA_RATINGS, FA_UNRATED];
 
 const authHeaders = () => {
   const t = getToken();

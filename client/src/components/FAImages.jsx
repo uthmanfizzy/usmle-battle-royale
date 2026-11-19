@@ -4,7 +4,7 @@ import { sfx } from '../minigameSfx';
 import { createFaMusic, musicPref, setMusicPref } from '../faMusic';
 import SfxToggle from './SfxToggle';
 import { useStudySession } from '../studySession';
-import { useFaRatings, useMyFaRatings, FARatingBar, FARatingTally, FA_RATINGS } from './FARatings';
+import { useFaRatings, useMyFaRatings, FARatingBar, FARatingTally, FA_RATING_FILTERS } from './FARatings';
 import { useStudyActivity } from '../studyPresence';
 import './FAImages.css';
 
@@ -45,9 +45,11 @@ function RunningHeader({ chapter, page, right }) {
 }
 
 // ── The chapter-opener: pick a chapter and a length ─────────────────────────
-// Ids of this chapter's figures the student last rated one of `keys`.
-// (FA Images ids are row UUIDs, so the chapter's ids come from the server.)
-const ratedIds = (ratings, chapterIds, keys) => (chapterIds || []).filter(id => keys.includes(ratings?.[id]));
+// Ids of this chapter's figures the student last rated one of `keys`
+// ('unrated' = never rated). FA Images ids are row UUIDs, so the chapter's
+// ids come from the server.
+const ratedIds = (ratings, chapterIds, keys) => (chapterIds || [])
+  .filter(id => keys.includes(ratings?.[id] || 'unrated'));
 
 function Opener({ catalog, error, chapter, setChapter, count, setCount, onStart, onExit, mine, chapterIds, byRating, setByRating }) {
   const chapters = catalog?.chapters || [];
@@ -83,7 +85,7 @@ function Opener({ catalog, error, chapter, setChapter, count, setCount, onStart,
               <p className="fai-hint fai-rate-note">Ratings are not being saved yet (the database table is missing), so there is nothing to filter by.</p>
             ) : (
               <div className="fai-counts" role="group" aria-label="Study by your rating">
-                {FA_RATINGS.map(r => {
+                {FA_RATING_FILTERS.map(r => {
                   const n = countFor(r.key);
                   const on = byRating.includes(r.key);
                   return (
@@ -114,7 +116,7 @@ function Opener({ catalog, error, chapter, setChapter, count, setCount, onStart,
           <p className="fai-error">The figure bank is not set up yet — check back soon.</p>
         )}
         <button type="button" className="fai-start" disabled={!ready} onClick={onStart}>
-          {ready ? `Open the chapter — ${count && count < pool ? `${count} of ${pool}` : `all ${pool}`} ${byRating.length ? 'rated ' : ''}figures`
+          {ready ? `Open the chapter — ${count && count < pool ? `${count} of ${pool}` : `all ${pool}`} ${byRating.length ? (byRating.length === 1 && byRating[0] === 'unrated' ? 'unrated ' : 'picked ') : ''}figures`
             : !catalog ? 'Loading…' : byRating.length ? 'No figures with that rating here' : 'No figures in this chapter yet'}
           <span aria-hidden="true">▸</span>
         </button>

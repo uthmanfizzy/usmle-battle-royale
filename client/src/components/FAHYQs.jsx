@@ -3,7 +3,7 @@ import { SERVER_URL } from '../serverUrl';
 import { sfx } from '../minigameSfx';
 import SfxToggle from './SfxToggle';
 import { useStudySession } from '../studySession';
-import { useFaRatings, useMyFaRatings, FARatingBar, FARatingTally, FA_RATINGS } from './FARatings';
+import { useFaRatings, useMyFaRatings, FARatingBar, FARatingTally, FA_RATING_FILTERS } from './FARatings';
 import { useStudyActivity } from '../studyPresence';
 import './FAImages.css';
 import './FAHYQs.css';
@@ -67,6 +67,8 @@ function RunningHeader({ chapter, page, right }) {
 // Ids of this chapter's questions the student last rated one of `keys`.
 const ratedIds = (ratings, chapter, keys) => Object.entries(ratings || {})
   .filter(([id, r]) => id.startsWith(`${chapter}-`) && keys.includes(r)).map(([id]) => id);
+// Every id of this chapter the student has rated at all.
+const allRated = (ratings, chapter) => Object.keys(ratings || {}).filter(id => id.startsWith(`${chapter}-`));
 
 function Opener({ catalog, error, chapter, setChapter, sections, setSections, count, setCount, onStart, onExit, mine, byRating, setByRating }) {
   const chapters = catalog?.chapters || [];
@@ -74,11 +76,12 @@ function Opener({ catalog, error, chapter, setChapter, sections, setSections, co
   const sectionPool = picked ? (sections.length ? picked.sections.filter(s => sections.includes(s.id)).reduce((n, s) => n + s.count, 0) : picked.count) : 0;
   // With a rating filter on, the pool is the rated questions of this chapter
   // (the server intersects them with any picked sections).
-  const ratedHere = ratedIds(mine.ratings, chapter, byRating);
-  const pool = byRating.length ? Math.min(ratedHere.length, sectionPool) : sectionPool;
+  const unratedN = picked ? Math.max(0, picked.count - allRated(mine.ratings, chapter).length) : 0;
+  const ratedHere = ratedIds(mine.ratings, chapter, byRating).length + (byRating.includes('unrated') ? unratedN : 0);
+  const pool = byRating.length ? Math.min(ratedHere, sectionPool) : sectionPool;
   const toggle = (id) => { sfx.select(); setSections(s => (s.includes(id) ? s.filter(x => x !== id) : [...s, id])); };
   const toggleRating = (key) => { sfx.select(); setByRating(r => (r.includes(key) ? r.filter(x => x !== key) : [...r, key])); };
-  const countFor = (key) => ratedIds(mine.ratings, chapter, [key]).length;
+  const countFor = (key) => (key === 'unrated' ? unratedN : ratedIds(mine.ratings, chapter, [key]).length);
   return (
     <div className="fai-opener">
       <div className="fai-opener-main">
@@ -118,7 +121,7 @@ function Opener({ catalog, error, chapter, setChapter, sections, setSections, co
               <p className="fahq-hint fahq-rate-note">Ratings are not being saved yet (the database table is missing), so there is nothing to filter by.</p>
             ) : (
               <div className="fai-counts" role="group" aria-label="Study by your rating">
-                {FA_RATINGS.map(r => {
+                {FA_RATING_FILTERS.map(r => {
                   const n = countFor(r.key);
                   const on = byRating.includes(r.key);
                   return (
@@ -353,9 +356,14 @@ export default function FAHYQs({ onExit }) {
   async function start() {
     setError('');
     try {
+      const unrated = byRating.includes('unrated');
       const ids = byRating.length ? ratedIds(mine.ratings, chapter, byRating) : [];
-      if (byRating.length && !ids.length) throw new Error('No questions in this chapter have that rating yet.');
-      const r = await fetch(`${SERVER_URL}/api/fa-hyq/run?chapter=${chapter}&count=${count}&sections=${encodeURIComponent(sections.join(','))}&ids=${encodeURIComponent(ids.join(','))}`);
+      if (byRating.length && !unrated && !ids.length) throw new Error('No questions in this chapter have that rating yet.');
+      // POST: with "unrated" on, every rated id of the chapter goes along to be left out.
+      const r = await fetch(`${SERVER_URL}/api/fa-hyq/run`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chapter, count, sections, ids, unrated, rated: unrated ? allRated(mine.ratings, chapter) : [] }),
+      });
       const d = await r.json();
       if (!d.questions?.length) throw new Error(byRating.length ? 'None of the questions with that rating are in the sections you picked.' : 'No questions came back.');
       study.flush();

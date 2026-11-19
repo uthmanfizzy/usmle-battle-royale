@@ -55,11 +55,14 @@ function catalog() {
 // `ids` (optional) narrows the run to particular questions — the browser sends
 // the ones the student rated a certain way (e.g. Knowledge Gap). An empty
 // list means "no filter"; the browser never sends one when a filter is on.
-function run({ chapter, sections, count, ids }) {
+function run({ chapter, sections, count, ids, unrated, rated }) {
   const bank = BANKS[chapter] || [];
   const want = (sections || []).filter(s => sectionsOf(chapter).includes(s));
-  const only = ids && ids.length ? new Set(ids) : null;
-  const pool = bank.filter(q => (!want.length || want.includes(q.section)) && (!only || only.has(q.id)));
+  // A rating filter: the picked ids, plus (with `unrated`) every question not in `rated`.
+  const only = (ids && ids.length) || unrated ? new Set(ids || []) : null;
+  const ratedSet = new Set(rated || []);
+  const pool = bank.filter(q => (!want.length || want.includes(q.section))
+    && (!only || only.has(q.id) || (unrated && !ratedSet.has(q.id))));
   const n = COUNTS.includes(Number(count)) ? Number(count) : 20;
   const picked = shuffle(pool);
   return (n ? picked.slice(0, n) : picked).map(q => {
@@ -70,12 +73,26 @@ function run({ chapter, sections, count, ids }) {
 
 function mount(app, { rateLimit }) {
   app.get('/api/fa-hyq/catalog', rateLimit(60, 60000), (req, res) => res.json(catalog()));
+  const idList = (v) => (Array.isArray(v) ? v : String(v || '').split(','))
+    .map(String).filter(x => /^[a-z_]+-[0-9a-f]{10}$/.test(x)).slice(0, 5000);
   app.get('/api/fa-hyq/run', rateLimit(30, 60000), (req, res) => {
     res.json({ questions: run({
       chapter: String(req.query.chapter || 'endo'),
       sections: String(req.query.sections || '').split(',').filter(Boolean),
       count: req.query.count,
-      ids: String(req.query.ids || '').split(',').filter(x => /^[a-z_]+-[0-9a-f]{10}$/.test(x)).slice(0, 500),
+      ids: idList(req.query.ids),
+    }) });
+  });
+  // POST takes long id lists: the rating filter, and `unrated` + `rated` (ids to leave out).
+  app.post('/api/fa-hyq/run', rateLimit(30, 60000), (req, res) => {
+    const b = req.body || {};
+    res.json({ questions: run({
+      chapter: String(b.chapter || 'endo'),
+      sections: (Array.isArray(b.sections) ? b.sections : []).map(String),
+      count: b.count,
+      ids: idList(b.ids),
+      unrated: b.unrated === true,
+      rated: idList(b.rated),
     }) });
   });
 }
