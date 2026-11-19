@@ -323,10 +323,12 @@ export default function FAHYQs({ onExit }) {
     }, 420);
   }
 
-  const chapterName = (catalog?.chapters || []).find(c => c.id === chapter)?.name || 'Endocrine';
+  const liveChapter = (catalog?.chapters || []).find(c => c.id === chapter);
+  const chapterName = liveChapter?.name || 'Endocrine';
+  const [firstPage, lastPage] = liveChapter?.pages || [329, 362];
   return (
     <div className="fai fahq">
-      <RunningHeader chapter={chapterName} page={phase === 'run' && q ? q.page : phase === 'notes' ? 362 : 329}
+      <RunningHeader chapter={chapterName} page={phase === 'run' && q ? q.page : phase === 'notes' ? lastPage : firstPage}
         right={phase === 'run' ? <button type="button" className="fai-run-quit" onClick={() => setPhase('notes')}>Close book</button> : null} />
       <main className="fai-sheet">
         {phase === 'opener' && (

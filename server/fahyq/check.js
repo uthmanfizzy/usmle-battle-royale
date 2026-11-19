@@ -1,6 +1,6 @@
 'use strict';
 // node server/fahyq/check.js — validates every FA HY Qs bank.
-const { BANKS } = require('./index');
+const { BANKS, CHAPTERS } = require('./index');
 let problems = 0;
 const bad = (q, msg) => { problems++; console.log(`${q.id} [${q.topic}] ${msg}`); };
 for (const [ch, bank] of Object.entries(BANKS)) {
@@ -19,7 +19,9 @@ for (const [ch, bank] of Object.entries(BANKS)) {
     if (q.stem.toLowerCase().includes(q.answer.toLowerCase()) && q.answer.length > 6) bad(q, 'answer appears in the stem');
     if (stems.has(q.stem)) bad(q, 'duplicate stem');
     stems.add(q.stem);
-    if (!(q.page >= 300 && q.page <= 800)) bad(q, `odd page ${q.page}`);
+    const [lo, hi] = CHAPTERS.find(c => c.id === ch).pages;
+    if (!(q.page >= lo && q.page <= hi)) bad(q, `page ${q.page} is outside the chapter (${lo}-${hi})`);
+    if (q.section === 'Other') bad(q, `page ${q.page} has no section`);
   }
   const bySection = {};
   bank.forEach(q => { bySection[q.section] = (bySection[q.section] || 0) + 1; });

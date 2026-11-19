@@ -7,13 +7,17 @@
  */
 
 const CHAPTERS = [
-  { id: 'endo', name: 'Endocrine', icon: '🦋', file: './endocrine' },
+  { id: 'endo', name: 'Endocrine', icon: '🦋', file: './endocrine', pages: [329, 362] },
+  { id: 'immuno', name: 'Immunology', icon: '🛡️', file: './immunology', pages: [93, 119] },
 ];
 
 // The book's section for a page, so a run can be narrowed to one part.
 const SECTION_RANGES = {
   endo: [[330, 330, 'Embryology'], [331, 331, 'Anatomy'], [332, 341, 'Physiology'], [342, 357, 'Pathology'], [358, 361, 'Pharmacology']],
+  immuno: [[94, 96, 'Lymphoid Structures'], [97, 101, 'Cellular Components'], [102, 117, 'Immune Responses'], [118, 119, 'Immunosuppressants']],
 };
+// A chapter's sections, in book order.
+const sectionsOf = (ch) => (SECTION_RANGES[ch] || []).map(r => r[2]);
 const sectionOf = (ch, page) => (SECTION_RANGES[ch] || []).find(([a, b]) => page >= a && page <= b)?.[2] || 'Other';
 
 function build(ch) {
@@ -28,7 +32,6 @@ function build(ch) {
 }
 
 const BANKS = Object.fromEntries(CHAPTERS.map(c => [c.id, build(c)]));
-const SECTIONS = ['Embryology', 'Anatomy', 'Physiology', 'Pathology', 'Pharmacology'];
 const COUNTS = [10, 20, 40, 0];   // 0 = all
 
 function shuffle(a) {
@@ -41,8 +44,8 @@ function catalog() {
   return {
     chapters: CHAPTERS.map(c => {
       const bank = BANKS[c.id];
-      const sections = SECTIONS.map(s => ({ id: s, count: bank.filter(q => q.section === s).length })).filter(s => s.count);
-      return { id: c.id, name: c.name, icon: c.icon, count: bank.length, sections };
+      const sections = sectionsOf(c.id).map(s => ({ id: s, count: bank.filter(q => q.section === s).length })).filter(s => s.count);
+      return { id: c.id, name: c.name, icon: c.icon, pages: c.pages, count: bank.length, sections };
     }),
     counts: COUNTS,
   };
@@ -51,7 +54,7 @@ function catalog() {
 /** A run: shuffled questions, each with shuffled options and the correct index (solo, marked in the browser). */
 function run({ chapter, sections, count }) {
   const bank = BANKS[chapter] || [];
-  const want = (sections || []).filter(s => SECTIONS.includes(s));
+  const want = (sections || []).filter(s => sectionsOf(chapter).includes(s));
   const pool = want.length ? bank.filter(q => want.includes(q.section)) : bank;
   const n = COUNTS.includes(Number(count)) ? Number(count) : 20;
   const picked = shuffle(pool);
