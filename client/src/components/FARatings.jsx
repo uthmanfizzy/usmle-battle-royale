@@ -74,6 +74,32 @@ export function useFaRatings(mode, ids) {
   return { ratings, rate, problem, signedIn: Boolean(getToken()) };
 }
 
+/**
+ * Every rating the student has given in `mode` ({ question_id: rating }), for
+ * "study by your rating". Reloads each time `active` turns on (the opener
+ * coming back after a block), so new ratings count at once.
+ */
+export function useMyFaRatings(mode, active) {
+  const [ratings, setRatings] = useState({});
+  const [problem, setProblem] = useState(null);
+  const signedIn = Boolean(getToken());
+  useEffect(() => {
+    const h = authHeaders();
+    if (!active || !h) return undefined;
+    let live = true;
+    fetch(`${SERVER_URL}/api/fa-ratings/mine?mode=${mode}`, { headers: h })
+      .then(r => r.json())
+      .then(d => {
+        if (!live) return;
+        setRatings(d.ratings || {});
+        setProblem(d.reason === 'missing_table' ? 'missing_table' : d.reason ? 'failed' : null);
+      })
+      .catch(() => { if (live) setProblem('failed'); });
+    return () => { live = false; };
+  }, [mode, active]);
+  return { ratings, problem, signedIn };
+}
+
 /** The six buttons, under an explanation. Picking one saves it, then moves on. */
 export function FARatingBar({ questionId, current, onRate, onNext, problem, signedIn }) {
   if (!signedIn) return null;

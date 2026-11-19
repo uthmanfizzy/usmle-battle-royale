@@ -16,6 +16,23 @@
 }
 .fai-note .fahq-review + .fai-next { display: flex; width: max-content; }
 
+/* The explanation: one sentence per line with air between, so it reads like
+   notes rather than a paragraph; ==high-yield== phrases in First Aid gold. */
+.fahq-expl { margin: 4px 0 14px; max-width: 760px; }
+.fai-note .fahq-expl .fahq-line {
+  margin: 0 0 10px; font-size: 18px; line-height: 1.55;
+  animation: fai-rise .35s calc(var(--i, 0) * 70ms + 80ms) both;
+}
+.fahq-hy {
+  color: inherit; padding: 0 3px; margin: 0 -1px; border-radius: 2px;
+  background: linear-gradient(transparent 12%, rgba(242, 193, 46, .55) 12%, rgba(242, 193, 46, .55) 88%, transparent 88%);
+  box-decoration-break: clone; -webkit-box-decoration-break: clone;
+  font-weight: 600;
+}
+.fahq-rate-note { margin: 2px 0 0; font-size: 14px; max-width: 520px; }
+.fahq-ratef:disabled { opacity: .45; cursor: default; }
+.fahq-ratef span { margin-right: 2px; }
+
 /* Score by section on the Notes page: little ruled bars. */
 .fahq-sections { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; width: 100%; max-width: 240px; }
 .fahq-sections span { position: relative; display: flex; justify-content: space-between; padding-bottom: 5px; font-family: var(--fa-sans); font-size: 15px; }

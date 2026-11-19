@@ -15,6 +15,11 @@ for (const [ch, bank] of Object.entries(BANKS)) {
     if (q.stem.length < 40) bad(q, 'stem too short');
     if (!/[?.]$/.test(q.stem.trim())) bad(q, 'stem should end with ? or .');
     if (!q.explanation || q.explanation.length < 60) bad(q, 'explanation too short');
+    // Gold high-yield marks: ==phrase==, balanced, at least one per explanation.
+    const marks = q.explanation.split('==').length - 1;
+    if (marks % 2) bad(q, 'unbalanced == highlight');
+    else if (!marks) bad(q, 'no == high-yield highlight in the explanation');
+    if (/====/.test(q.explanation)) bad(q, 'empty highlight');
     if (/\b(option|choice) [A-E]\b/i.test(q.explanation)) bad(q, 'explanation refers to an option letter (they are shuffled)');
     if (q.stem.toLowerCase().includes(q.answer.toLowerCase()) && q.answer.length > 6) bad(q, 'answer appears in the stem');
     if (stems.has(q.stem)) bad(q, 'duplicate stem');

@@ -5460,6 +5460,36 @@ app.post('/api/fa-ratings', requireAuth, async (req, res) => {
   }
 });
 
+/**
+ * GET /api/fa-ratings/mine?mode=  — { ratings: { question_id: rating } } for
+ * EVERY question the student has rated in that mode, so the opener can offer
+ * "study what I rated Knowledge Gap". Paged in 1000s: the project's PostgREST
+ * caps a select at 1000 rows and truncates silently.
+ */
+app.get('/api/fa-ratings/mine', requireAuth, async (req, res) => {
+  const mode = String(req.query.mode || '');
+  if (!FA_RATING_MODES.includes(mode)) return res.status(400).json({ error: 'Unknown mode.' });
+  if (!supabase) return res.json({ ratings: {} });
+  try {
+    const out = {};
+    for (let from = 0; from < 20000; from += 1000) {
+      const { data, error } = await supabase.from('fa_question_ratings')
+        .select('question_id, rating').eq('user_id', req.userId).eq('mode', mode)
+        .order('question_id', { ascending: true }).range(from, from + 999);
+      if (error) {
+        if (isMissingTable(error, 'fa_question_ratings')) return res.json({ ratings: {}, reason: 'missing_table' });
+        return res.json({ ratings: {}, reason: 'failed' });
+      }
+      (data || []).forEach(r => { out[r.question_id] = r.rating; });
+      if (!data || data.length < 1000) break;
+    }
+    res.json({ ratings: out });
+  } catch (err) {
+    console.warn('[/api/fa-ratings/mine] failed —', err.message);
+    res.json({ ratings: {}, reason: 'failed' });
+  }
+});
+
 app.get('/api/fa-ratings', requireAuth, async (req, res) => {
   const mode = String(req.query.mode || '');
   if (!FA_RATING_MODES.includes(mode)) return res.status(400).json({ error: 'Unknown mode.' });

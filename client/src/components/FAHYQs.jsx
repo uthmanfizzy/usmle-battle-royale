@@ -3,7 +3,7 @@ import { SERVER_URL } from '../serverUrl';
 import { sfx } from '../minigameSfx';
 import SfxToggle from './SfxToggle';
 import { useStudySession } from '../studySession';
-import { useFaRatings, FARatingBar, FARatingTally } from './FARatings';
+import { useFaRatings, useMyFaRatings, FARatingBar, FARatingTally, FA_RATINGS } from './FARatings';
 import { useStudyActivity } from '../studyPresence';
 import './FAImages.css';
 import './FAHYQs.css';
@@ -24,6 +24,33 @@ const LETTERS = ['A', 'B', 'C', 'D', 'E'];
 const SECONDS = 30;
 const COUNT_LABEL = { 0: 'All' };
 
+// One sentence per line: split after . ! ? (allowing a closing quote/bracket
+// or the end of a == mark) where the next sentence starts with a capital,
+// digit, quote, bracket, Greek letter or a == mark.
+const SENTENCE_BREAK = /(?<=[.!?](?:["”')]|==)*)\s+(?=(?:==)?["“(]?[A-Z0-9α-ωΑ-Ω])/;
+
+/**
+ * The explanation, laid out to read: each sentence on its own line, and the
+ * bank's ==high-yield== phrases in First Aid gold. A mark that runs across a
+ * sentence break stays open into the next line.
+ */
+function Explanation({ text }) {
+  let open = false;
+  const lines = String(text || '').split(SENTENCE_BREAK).map(sentence => {
+    const parts = sentence.split('==');
+    const out = parts.map((p, i) => {
+      const gold = i === 0 ? open : (open = !open);
+      if (!p) return null;
+      return gold ? <mark key={i} className="fahq-hy">{p}</mark> : <span key={i}>{p}</span>;
+    });
+    return out;
+  });
+  return (
+    <div className="fahq-expl">
+      {lines.map((l, i) => <p key={i} className="fahq-line" style={{ '--i': i }}>{l}</p>)}
+    </div>
+  );
+}
 function RunningHeader({ chapter, page, right }) {
   return (
     <header className="fai-run">
@@ -37,11 +64,21 @@ function RunningHeader({ chapter, page, right }) {
   );
 }
 
-function Opener({ catalog, error, chapter, setChapter, sections, setSections, count, setCount, onStart, onExit }) {
+// Ids of this chapter's questions the student last rated one of `keys`.
+const ratedIds = (ratings, chapter, keys) => Object.entries(ratings || {})
+  .filter(([id, r]) => id.startsWith(`${chapter}-`) && keys.includes(r)).map(([id]) => id);
+
+function Opener({ catalog, error, chapter, setChapter, sections, setSections, count, setCount, onStart, onExit, mine, byRating, setByRating }) {
   const chapters = catalog?.chapters || [];
   const picked = chapters.find(c => c.id === chapter);
-  const pool = picked ? (sections.length ? picked.sections.filter(s => sections.includes(s.id)).reduce((n, s) => n + s.count, 0) : picked.count) : 0;
+  const sectionPool = picked ? (sections.length ? picked.sections.filter(s => sections.includes(s.id)).reduce((n, s) => n + s.count, 0) : picked.count) : 0;
+  // With a rating filter on, the pool is the rated questions of this chapter
+  // (the server intersects them with any picked sections).
+  const ratedHere = ratedIds(mine.ratings, chapter, byRating);
+  const pool = byRating.length ? Math.min(ratedHere.length, sectionPool) : sectionPool;
   const toggle = (id) => { sfx.select(); setSections(s => (s.includes(id) ? s.filter(x => x !== id) : [...s, id])); };
+  const toggleRating = (key) => { sfx.select(); setByRating(r => (r.includes(key) ? r.filter(x => x !== key) : [...r, key])); };
+  const countFor = (key) => ratedIds(mine.ratings, chapter, [key]).length;
   return (
     <div className="fai-opener">
       <div className="fai-opener-main">
@@ -72,6 +109,29 @@ function Opener({ catalog, error, chapter, setChapter, sections, setSections, co
             </div>
           </div>
         )}
+        {picked && (
+          <div className="fai-setup">
+            <span className="fai-setup-label">STUDY BY YOUR RATING <small className="fahq-hint">(none picked = every question)</small></span>
+            {!mine.signedIn ? (
+              <p className="fahq-hint fahq-rate-note">Sign in and rate questions under each explanation — then you can come back to just your Knowledge Gaps.</p>
+            ) : mine.problem === 'missing_table' ? (
+              <p className="fahq-hint fahq-rate-note">Ratings are not being saved yet (the database table is missing), so there is nothing to filter by.</p>
+            ) : (
+              <div className="fai-counts" role="group" aria-label="Study by your rating">
+                {FA_RATINGS.map(r => {
+                  const n = countFor(r.key);
+                  const on = byRating.includes(r.key);
+                  return (
+                    <button key={r.key} type="button" className={`fai-count fahq-sec fahq-ratef${on ? ' is-on' : ''}`}
+                      aria-pressed={on} disabled={!n && !on} onClick={() => toggleRating(r.key)}>
+                      <span aria-hidden="true">{r.icon}</span> {r.label} <small>{n}</small>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
         <div className="fai-setup">
           <span className="fai-setup-label">QUESTIONS PER BLOCK</span>
           <div className="fai-counts" role="group" aria-label="Questions per block">
@@ -86,7 +146,8 @@ function Opener({ catalog, error, chapter, setChapter, sections, setSections, co
 
         {error && <p className="fai-error">{error}</p>}
         <button type="button" className="fai-start" disabled={!pool} onClick={onStart}>
-          {pool ? `Start the block — ${count && count < pool ? count : pool} questions` : catalog ? 'No questions here yet' : 'Loading…'}
+          {pool ? `Start the block — ${byRating.length && sections.length ? 'up to ' : ''}${count && count < pool ? count : pool} questions`
+            : !catalog ? 'Loading…' : byRating.length ? 'No questions with that rating here' : 'No questions here yet'}
           <span aria-hidden="true">▸</span>
         </button>
         <SfxToggle className="fai-sfx" />
@@ -184,7 +245,7 @@ function QuestionPage({ q, idx, total, correct, onAnswer, onNext, picked, flip, 
           {answered && (
             <aside ref={noteRef} className={`fai-note${right ? ' is-right' : ' is-wrong'}`}>
               <span className="fai-note-head">{right ? 'Correct' : picked === -1 ? "Time's up" : 'Not quite'} — {q.options[q.correct]}</span>
-              <p>{q.explanation}</p>
+              <Explanation text={q.explanation} />
               <span className="fahq-review">Review: First Aid p. {q.page} · {q.topic}</span>
               <FARatingBar questionId={q.id} current={rating.ratings[q.id]} onRate={rating.rate}
                 onNext={onNext} problem={rating.problem} signedIn={rating.signedIn} />
@@ -272,6 +333,11 @@ export default function FAHYQs({ onExit }) {
   const [picked, setPicked] = useState(null);
   const [results, setResults] = useState([]);
   const [flip, setFlip] = useState(false);
+  // "Study by your rating": every rating the student has given in this mode,
+  // reloaded whenever the opener is shown so ratings from a block just
+  // finished count straight away.
+  const [byRating, setByRating] = useState([]);
+  const mine = useMyFaRatings('fa_hy_qs', phase === 'opener');
   // Study time + Daily Activity (active seconds only — see studySession.js).
   const study = useStudySession({ mode: 'fa_hy_qs', active: phase === 'run', subject: chapter });
   useStudyActivity(phase === 'run' ? 'FA HY Qs' : null, null, 'fa_hy_qs');
@@ -287,9 +353,11 @@ export default function FAHYQs({ onExit }) {
   async function start() {
     setError('');
     try {
-      const r = await fetch(`${SERVER_URL}/api/fa-hyq/run?chapter=${chapter}&count=${count}&sections=${encodeURIComponent(sections.join(','))}`);
+      const ids = byRating.length ? ratedIds(mine.ratings, chapter, byRating) : [];
+      if (byRating.length && !ids.length) throw new Error('No questions in this chapter have that rating yet.');
+      const r = await fetch(`${SERVER_URL}/api/fa-hyq/run?chapter=${chapter}&count=${count}&sections=${encodeURIComponent(sections.join(','))}&ids=${encodeURIComponent(ids.join(','))}`);
       const d = await r.json();
-      if (!d.questions?.length) throw new Error('No questions came back.');
+      if (!d.questions?.length) throw new Error(byRating.length ? 'None of the questions with that rating are in the sections you picked.' : 'No questions came back.');
       study.flush();
       study.touch();
       setQs(d.questions); setIdx(0); setPicked(null); setResults([]);
@@ -334,7 +402,7 @@ export default function FAHYQs({ onExit }) {
         {phase === 'opener' && (
           <Opener catalog={catalog} error={error} chapter={chapter} setChapter={setChapter}
             sections={sections} setSections={setSections} count={count} setCount={setCount}
-            onStart={start} onExit={exit} />
+            onStart={start} onExit={exit} mine={mine} byRating={byRating} setByRating={setByRating} />
         )}
         {phase === 'run' && q && (
           <QuestionPage key={q.id} q={q} idx={idx} total={qs.length} correct={correct}

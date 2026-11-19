@@ -52,10 +52,14 @@ function catalog() {
 }
 
 /** A run: shuffled questions, each with shuffled options and the correct index (solo, marked in the browser). */
-function run({ chapter, sections, count }) {
+// `ids` (optional) narrows the run to particular questions — the browser sends
+// the ones the student rated a certain way (e.g. Knowledge Gap). An empty
+// list means "no filter"; the browser never sends one when a filter is on.
+function run({ chapter, sections, count, ids }) {
   const bank = BANKS[chapter] || [];
   const want = (sections || []).filter(s => sectionsOf(chapter).includes(s));
-  const pool = want.length ? bank.filter(q => want.includes(q.section)) : bank;
+  const only = ids && ids.length ? new Set(ids) : null;
+  const pool = bank.filter(q => (!want.length || want.includes(q.section)) && (!only || only.has(q.id)));
   const n = COUNTS.includes(Number(count)) ? Number(count) : 20;
   const picked = shuffle(pool);
   return (n ? picked.slice(0, n) : picked).map(q => {
@@ -71,6 +75,7 @@ function mount(app, { rateLimit }) {
       chapter: String(req.query.chapter || 'endo'),
       sections: String(req.query.sections || '').split(',').filter(Boolean),
       count: req.query.count,
+      ids: String(req.query.ids || '').split(',').filter(x => /^[a-z_]+-[0-9a-f]{10}$/.test(x)).slice(0, 500),
     }) });
   });
 }
