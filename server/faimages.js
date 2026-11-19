@@ -37,7 +37,7 @@ const CHAPTER_IDS = new Set(CHAPTERS.map(c => c.id));
 const MODALITIES = ['Clinical photo', 'Histology', 'Imaging', 'Diagram', 'Graph', 'Other'];
 
 const COUNT_CHOICES = [10, 20, 30, 0];   // 0 = every figure in the chapter
-const SECONDS = 20;
+const SECONDS = 30;
 const TABLE = 'fa_images';
 const TABLE_HELP = 'The fa_images table does not exist yet — run fa-images-migration.sql in the Supabase SQL editor.';
 const tableMissing = (error) => new RegExp(TABLE).test(error?.message || '') && /(does not exist|not find|schema cache)/i.test(error?.message || '');
