@@ -16,13 +16,14 @@ const SOURCES = {
   biochemistry: require('./biochemistry'),
   immunology: require('./immunology'),
   endocrinology: require('./endocrinology'),
+  reproductive: require('./reproductive'),
 };
 const EXTRA = {
   biochemistry: require('./extra-biochemistry'),
   immunology: require('./extra-immunology'),
 };
-const PREFIX = { biochemistry: 'BIO', immunology: 'IMM', endocrinology: 'END' };
-const NAMES = { biochemistry: 'Biochemistry', immunology: 'Immunology', endocrinology: 'Endocrinology' };
+const PREFIX = { biochemistry: 'BIO', immunology: 'IMM', endocrinology: 'END', reproductive: 'REP' };
+const NAMES = { biochemistry: 'Biochemistry', immunology: 'Immunology', endocrinology: 'Endocrinology', reproductive: 'Reproductive' };
 const TYPES = ['BUZZWORD', 'TRIAD', 'ASSOCIATION', 'SIDE_EFFECT', 'DEFICIENCY', 'MECHANISM'];
 
 function build() {
