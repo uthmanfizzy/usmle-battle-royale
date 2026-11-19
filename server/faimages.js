@@ -46,7 +46,10 @@ function sanitizeOptions(raw) {
   const o = raw && typeof raw === 'object' ? raw : {};
   const chapters = Array.isArray(o.chapters) ? [...new Set(o.chapters.filter(c => CHAPTER_IDS.has(c)))] : [];
   const n = Number(o.count);
-  return { chapters, count: COUNT_CHOICES.includes(n) ? n : 10 };
+  // "Study by your rating": the figure ids (row UUIDs) the student picked.
+  const ids = Array.isArray(o.ids)
+    ? [...new Set(o.ids.map(String).filter(x => /^[0-9a-f-]{36}$/i.test(x)))].slice(0, 2000) : [];
+  return { chapters, count: COUNT_CHOICES.includes(n) ? n : 10, ids };
 }
 
 function cleanRow(r) {
@@ -131,7 +134,8 @@ module.exports = function createFaImages({ getSupabase, shuffle }) {
 
   async function buildRun(opts) {
     const { rows } = await loadBank();
-    const pool = opts.chapters.length ? rows.filter(r => opts.chapters.includes(r.system)) : rows;
+    let pool = opts.chapters.length ? rows.filter(r => opts.chapters.includes(r.system)) : rows;
+    if (opts.ids.length) { const want = new Set(opts.ids); pool = pool.filter(r => want.has(String(r.id))); }
     const picked = shuffle(pool);
     return (opts.count ? picked.slice(0, opts.count) : picked).map(item => {
       const { options, correct } = buildOptions(item, rows, shuffle);
@@ -146,12 +150,21 @@ module.exports = function createFaImages({ getSupabase, shuffle }) {
       catch (err) { res.status(500).json({ error: err.message }); }
     });
 
-    app.get('/api/fa-images/solo', rateLimit(30, 60000), async (req, res) => {
+    // Figure ids per chapter, so the opener can count the student's ratings
+    // chapter by chapter (FA Images ids are row UUIDs, not chapter-prefixed).
+    app.get('/api/fa-images/chapter-ids', rateLimit(60, 60000), async (req, res) => {
       try {
-        const opts = sanitizeOptions({
-          chapters: String(req.query.chapters || '').split(',').filter(Boolean),
-          count: req.query.count,
-        });
+        const chapter = String(req.query.chapter || '');
+        if (!CHAPTER_IDS.has(chapter)) return res.json({ ids: [] });
+        const { rows } = await loadBank();
+        res.json({ ids: rows.filter(r => r.system === chapter).map(r => String(r.id)) });
+      } catch (err) { res.status(500).json({ error: err.message, ids: [] }); }
+    });
+
+    // GET for a plain run; POST when a rating filter sends a (long) id list.
+    const solo = async (req, res, raw) => {
+      try {
+        const opts = sanitizeOptions(raw);
         const run = await buildRun(opts);
         res.json({
           seconds: SECONDS,
@@ -167,7 +180,12 @@ module.exports = function createFaImages({ getSupabase, shuffle }) {
       } catch (err) {
         res.status(500).json({ error: err.message, questions: [] });
       }
-    });
+    };
+    app.get('/api/fa-images/solo', rateLimit(30, 60000), (req, res) => solo(req, res, {
+      chapters: String(req.query.chapters || '').split(',').filter(Boolean),
+      count: req.query.count,
+    }));
+    app.post('/api/fa-images/solo', rateLimit(30, 60000), (req, res) => solo(req, res, req.body));
 
     // ── Admin: the same shape as Scan Master's, so its admin screen is shared.
     const supa = () => getSupabase();

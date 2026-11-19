@@ -463,3 +463,10 @@
 .fai-rate-tally .fai-kicker { width: 100%; }
 .fai-rate-chip { font-family: var(--fa-sans); font-size: 13px; padding: 4px 8px; background: var(--fa-tint); border: 1px solid var(--fa-rule); border-radius: 3px; }
 .fai-rate-chip b { margin-left: 4px; color: var(--fa-blue); }
+
+/* "Study by your rating" chips on the opener (same look as FA HY Qs). */
+.fai-hint { font-size: 11px; letter-spacing: 0; color: var(--fa-mute); text-transform: none; }
+.fai-rate-note { margin: 2px 0 0; font-size: 14px; max-width: 520px; }
+.fai-ratef small { margin-left: 4px; font-weight: 400; font-size: 13px; opacity: .7; }
+.fai-ratef span { margin-right: 2px; }
+.fai-ratef:disabled { opacity: .45; cursor: default; }

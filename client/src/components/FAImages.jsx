@@ -4,7 +4,7 @@ import { sfx } from '../minigameSfx';
 import { createFaMusic, musicPref, setMusicPref } from '../faMusic';
 import SfxToggle from './SfxToggle';
 import { useStudySession } from '../studySession';
-import { useFaRatings, FARatingBar, FARatingTally } from './FARatings';
+import { useFaRatings, useMyFaRatings, FARatingBar, FARatingTally, FA_RATINGS } from './FARatings';
 import { useStudyActivity } from '../studyPresence';
 import './FAImages.css';
 
@@ -45,10 +45,18 @@ function RunningHeader({ chapter, page, right }) {
 }
 
 // ── The chapter-opener: pick a chapter and a length ─────────────────────────
-function Opener({ catalog, error, chapter, setChapter, count, setCount, onStart, onExit }) {
+// Ids of this chapter's figures the student last rated one of `keys`.
+// (FA Images ids are row UUIDs, so the chapter's ids come from the server.)
+const ratedIds = (ratings, chapterIds, keys) => (chapterIds || []).filter(id => keys.includes(ratings?.[id]));
+
+function Opener({ catalog, error, chapter, setChapter, count, setCount, onStart, onExit, mine, chapterIds, byRating, setByRating }) {
   const chapters = catalog?.chapters || [];
   const picked = chapters.find(c => c.id === chapter);
-  const ready = picked && picked.count > 0;
+  // With a rating filter on, the pool is the rated figures of this chapter.
+  const pool = !picked ? 0 : byRating.length ? ratedIds(mine.ratings, chapterIds, byRating).length : picked.count;
+  const ready = pool > 0;
+  const toggleRating = (key) => { sfx.select(); setByRating(r => (r.includes(key) ? r.filter(x => x !== key) : [...r, key])); };
+  const countFor = (key) => ratedIds(mine.ratings, chapterIds, [key]).length;
   return (
     <div className="fai-opener">
       <div className="fai-opener-main">
@@ -66,6 +74,29 @@ function Opener({ catalog, error, chapter, setChapter, count, setCount, onStart,
           Answer fast for more points; answers in a row build a streak.
         </p>
 
+        {picked && picked.count > 0 && (
+          <div className="fai-setup">
+            <span className="fai-setup-label">STUDY BY YOUR RATING <small className="fai-hint">(none picked = every figure)</small></span>
+            {!mine.signedIn ? (
+              <p className="fai-hint fai-rate-note">Sign in and rate figures under each explanation — then you can come back to just your Knowledge Gaps.</p>
+            ) : mine.problem === 'missing_table' ? (
+              <p className="fai-hint fai-rate-note">Ratings are not being saved yet (the database table is missing), so there is nothing to filter by.</p>
+            ) : (
+              <div className="fai-counts" role="group" aria-label="Study by your rating">
+                {FA_RATINGS.map(r => {
+                  const n = countFor(r.key);
+                  const on = byRating.includes(r.key);
+                  return (
+                    <button key={r.key} type="button" className={`fai-count fai-ratef${on ? ' is-on' : ''}`}
+                      aria-pressed={on} disabled={!n && !on} onClick={() => toggleRating(r.key)}>
+                      <span aria-hidden="true">{r.icon}</span> {r.label} <small>{n}</small>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
         <div className="fai-setup">
           <span className="fai-setup-label">FIGURES PER RUN</span>
           <div className="fai-counts" role="group" aria-label="Figures per run">
@@ -83,7 +114,8 @@ function Opener({ catalog, error, chapter, setChapter, count, setCount, onStart,
           <p className="fai-error">The figure bank is not set up yet — check back soon.</p>
         )}
         <button type="button" className="fai-start" disabled={!ready} onClick={onStart}>
-          {ready ? `Open the chapter — ${count && count < picked.count ? `${count} of ${picked.count}` : `all ${picked.count}`} figures` : catalog ? 'No figures in this chapter yet' : 'Loading…'}
+          {ready ? `Open the chapter — ${count && count < pool ? `${count} of ${pool}` : `all ${pool}`} ${byRating.length ? 'rated ' : ''}figures`
+            : !catalog ? 'Loading…' : byRating.length ? 'No figures with that rating here' : 'No figures in this chapter yet'}
           <span aria-hidden="true">▸</span>
         </button>
         <SfxToggle className="fai-sfx" />
@@ -311,6 +343,19 @@ export default function FAImages({ onExit }) {
   const [flip, setFlip] = useState(false);
   const [paused, setPaused] = useState(false);
   const [musicOn, setMusicOn] = useState(musicPref);
+  // "Study by your rating": every rating given in this mode, reloaded whenever
+  // the opener is shown so ratings from a run just finished count straight away.
+  const [byRating, setByRating] = useState([]);
+  const mine = useMyFaRatings('fa_images', phase === 'opener');
+  const [chapterIds, setChapterIds] = useState([]);
+  useEffect(() => {
+    let live = true;
+    setChapterIds([]);
+    fetch(`${SERVER_URL}/api/fa-images/chapter-ids?chapter=${chapter}`)
+      .then(r => r.json()).then(d => { if (live) setChapterIds(d.ids || []); })
+      .catch(() => {});
+    return () => { live = false; };
+  }, [chapter]);
   // Study time + Daily Activity (active seconds only — see studySession.js).
   const study = useStudySession({ mode: 'fa_images', active: phase === 'run' && !paused, subject: chapter });
   useStudyActivity(phase === 'run' ? 'FA Images' : null, null, 'fa_images');
@@ -355,7 +400,14 @@ export default function FAImages({ onExit }) {
     setPhase('loading');
     setError('');
     try {
-      const r = await fetch(`${SERVER_URL}/api/fa-images/solo?chapters=${chapter}&count=${count}`);
+      const ids = byRating.length ? ratedIds(mine.ratings, chapterIds, byRating) : [];
+      if (byRating.length && !ids.length) throw new Error('No figures in this chapter have that rating yet.');
+      const r = ids.length
+        ? await fetch(`${SERVER_URL}/api/fa-images/solo`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chapters: [chapter], count, ids }),
+        })
+        : await fetch(`${SERVER_URL}/api/fa-images/solo?chapters=${chapter}&count=${count}`);
       const d = await r.json();
       if (!d.questions?.length) throw new Error(d.error || 'No figures came back.');
       // Warm the next few figures so pages turn without a wait.
@@ -426,7 +478,8 @@ export default function FAImages({ onExit }) {
       <main className="fai-sheet">
         {(phase === 'opener' || phase === 'loading') && (
           <Opener catalog={catalog} error={error} chapter={chapter} setChapter={setChapter}
-            count={count} setCount={setCount} onStart={start} onExit={exit} />
+            count={count} setCount={setCount} onStart={start} onExit={exit}
+            mine={mine} chapterIds={chapterIds} byRating={byRating} setByRating={setByRating} />
         )}
         {phase === 'run' && q && (
           <FigurePage key={q.id} q={q} idx={idx} total={run.questions.length} seconds={run.seconds}
