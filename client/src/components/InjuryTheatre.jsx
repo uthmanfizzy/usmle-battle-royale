@@ -30,13 +30,16 @@ const EARLY_BONUS = 5;
 // Short label for an attempt: the caption before its result, up to the "…".
 const attemptLabel = (cap) => cap.split('…')[0].split(' (')[0].replace(/^Tries to /, '').replace(/^\w/, c => c.toUpperCase());
 
+const AUTO_KEY = 'mv_theatre_auto';
+
 export default function InjuryTheatre({ onBack }) {
   const [view, setView] = useState('menu');        // menu | play | summary
   const [mystery, setMystery] = useState(true);
   const [queue, setQueue] = useState([]);
   const [si, setSi] = useState(0);
   const [bi, setBi] = useState(0);
-  const [playing, setPlaying] = useState(true);
+  // Manual by default: each beat waits for Next. Auto-play is opt-in and remembered.
+  const [playing, setPlaying] = useState(() => { try { return localStorage.getItem(AUTO_KEY) === '1'; } catch { return false; } });
   const [speed, setSpeed] = useState(1);
   const [picked, setPicked] = useState(null);
   const [score, setScore] = useState(0);
@@ -52,7 +55,7 @@ export default function InjuryTheatre({ onBack }) {
     sfx.select();
     setMystery(isMystery);
     setQueue(list);
-    setSi(0); setBi(0); setPlaying(true); setPicked(null); setScore(0); setLog([]);
+    setSi(0); setBi(0); setPicked(null); setScore(0); setLog([]);
     setView('play');
   };
 
@@ -92,7 +95,15 @@ export default function InjuryTheatre({ onBack }) {
 
   const jumpAct = (act) => {
     const i = beats.findIndex(b => b.act === act);
-    if (i >= 0) { sfx.select(); setBi(i); setPlaying(true); }
+    if (i >= 0) { sfx.select(); setBi(i); }
+  };
+
+  const step = (d) => setBi(i => Math.max(0, Math.min(beats.length - 1, i + d)));
+  const toggleAuto = () => {
+    const v = !playing;
+    try { localStorage.setItem(AUTO_KEY, v ? '1' : '0'); } catch { /* private mode */ }
+    if (v && ended) setBi(0);
+    setPlaying(v);
   };
 
   const choose = useCallback((opt) => {
@@ -111,7 +122,7 @@ export default function InjuryTheatre({ onBack }) {
       sfx.fanfare(); setView('summary'); return;
     }
     sfx.next();
-    setSi(i => i + 1); setBi(0); setPlaying(true); setPicked(null);
+    setSi(i => i + 1); setBi(0); setPicked(null);
     document.querySelector('.it')?.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -119,7 +130,9 @@ export default function InjuryTheatre({ onBack }) {
     if (view !== 'play') return undefined;
     const onKey = (e) => {
       if (/INPUT|TEXTAREA|SELECT/.test(e.target?.tagName || '')) return;
-      if (e.key === ' ') { e.preventDefault(); if (ended) { setBi(0); setPlaying(true); } else setPlaying(p => !p); }
+      if (e.key === 'ArrowRight' || (e.key === ' ' && !ended)) { e.preventDefault(); step(1); }
+      else if (e.key === 'ArrowLeft') { e.preventDefault(); step(-1); }
+      else if (e.key === ' ') { e.preventDefault(); setBi(0); }
       else if (!answered && /^[1-4]$/.test(e.key)) { const o = options[Number(e.key) - 1]; if (o) choose(o); }
       else if (answered && e.key === 'Enter') { e.preventDefault(); next(); }
     };
@@ -240,13 +253,20 @@ export default function InjuryTheatre({ onBack }) {
         </div>
 
         <div className="it-controls">
-          <button type="button" className="it-ctl" onClick={() => (ended ? (setBi(0), setPlaying(true)) : setPlaying(p => !p))}>
-            {ended ? '↺ Replay' : playing ? '❚❚ Pause' : '▶ Play'}
+          <button type="button" className="it-ctl it-ctl--ghost" onClick={() => step(-1)} disabled={bi === 0} aria-label="Previous scene" title="Previous scene (←)">◂</button>
+          <button type="button" className="it-ctl" onClick={() => (ended ? setBi(0) : step(1))} title={ended ? 'Watch again' : 'Next scene (→ or Space)'}>
+            {ended ? '↺ Replay' : 'Next ▸'}
           </button>
           <span className="it-scrub"><i style={{ width: `${((bi + 1) / beats.length) * 100}%` }} /></span>
-          <div className="it-speed">
-            {[1, 1.5, 2].map(s => <button key={s} type="button" className={speed === s ? 'is-on' : ''} onClick={() => setSpeed(s)}>{s}×</button>)}
-          </div>
+          <span className="it-step-count">{bi + 1}/{beats.length}</span>
+          <button type="button" className={`it-auto${playing ? ' is-on' : ''}`} onClick={toggleAuto} aria-pressed={playing} title="Play the scenes by themselves">
+            {playing ? '❚❚ Auto' : '▶ Auto'}
+          </button>
+          {playing && (
+            <div className="it-speed">
+              {[1, 1.5, 2].map(s => <button key={s} type="button" className={speed === s ? 'is-on' : ''} onClick={() => setSpeed(s)}>{s}×</button>)}
+            </div>
+          )}
         </div>
 
         {state.results.length > 0 && (
