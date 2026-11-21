@@ -4891,6 +4891,8 @@ require('./faimages')({ getSupabase: () => supabase, shuffle: (arr) => shuffle(a
 require('./fahyq').mount(app, { rateLimit });
 // FA Trivia — quick-fire First Aid trivia per chapter (bank is code: server/fatrivia).
 require('./fatrivia').mount(app, { rateLimit });
+// HY Arrows — Mehlman Rapid Fire's arrow tables (bank is code: server/hyarrows).
+require('./hyarrows').mount(app, { rateLimit });
 
 /**
  * The whole bank for the admin MedJinx tab: every topic with its accepted
@@ -13231,6 +13233,7 @@ const FA_STUDY_MODES = {
   fa_images: { perItem: 90 },     // 20 s clock + reading the explanation and figure
   fa_hy_qs:  { perItem: 150 },    // a vignette and its explanation
   fa_trivia: { perItem: 45 },     // a 15 s trivia question and its fun fact
+  hy_arrows: { perItem: 120 },    // an arrow table and its explanation
 };
 app.post('/api/fa-study-session', requireAuth, async (req, res) => {
   const mode = String(req.body?.mode || '');

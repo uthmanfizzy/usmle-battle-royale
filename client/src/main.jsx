@@ -46,6 +46,8 @@ const MinigamesPage     = lazy(() => import('./components/MinigamesPage'));
 const FAImages          = lazy(() => import('./components/FAImages'));
 const FAHYQs            = lazy(() => import('./components/FAHYQs'));
 const FATrivia          = lazy(() => import('./components/FATrivia'));
+const MehlmanHub        = lazy(() => import('./components/MehlmanHub'));
+const HYArrows          = lazy(() => import('./components/HYArrows'));
 const UsernameSetupPage = lazy(() => import('./components/UsernameSetupPage'));
 
 function PageSpinner() {
@@ -161,6 +163,9 @@ ReactDOM.createRoot(document.getElementById('root')).render(
                     filters on, the pace it plans and the colours it wears. */}
                 <Route path="/saudi-mle" element={<RouteErrorBoundary name="SaudiMLE"><UWorldAdventure mode={questionBankMode('saudi_mle')} /></RouteErrorBoundary>} />
                 <Route path="/ore-lds" element={<RouteErrorBoundary name="OreLds"><UWorldAdventure mode={questionBankMode('ore_lds')} /></RouteErrorBoundary>} />
+                {/* Mehlman: a hub of two drills — the Rapid Fire bank and HY Arrows. */}
+                <Route path="/mehlman" element={<RouteErrorBoundary name="MehlmanHub"><MehlmanHub /></RouteErrorBoundary>} />
+                <Route path="/hy-arrows" element={<RouteErrorBoundary name="HYArrows"><HYArrows /></RouteErrorBoundary>} />
                 <Route path="/mehlman-rapid-fire" element={<RouteErrorBoundary name="MehlmanRapidFire"><UWorldAdventure mode={questionBankMode('mehlman_rapid_fire')} /></RouteErrorBoundary>} />
                 <Route path="/clinical" element={<RouteErrorBoundary name="Clinical"><UWorldAdventure mode={questionBankMode('clinical')} /></RouteErrorBoundary>} />
                 <Route path="/oet" element={<RouteErrorBoundary name="OET"><UWorldAdventure mode={questionBankMode('oet')} /></RouteErrorBoundary>} />

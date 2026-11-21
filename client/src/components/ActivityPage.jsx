@@ -39,6 +39,7 @@ const MODE_META = {
   fa_images:              { icon: '🖼️', label: 'FA Images'         },
   fa_hy_qs:               { icon: '🎯', label: 'FA HY Qs'          },
   fa_trivia:              { icon: '🎪', label: 'FA Trivia'         },
+  hy_arrows:              { icon: '↕️', label: 'HY Arrows'         },
   question_bank_practice: { icon: '📚', label: 'UWorld Adventure'  },
   saudi_mle_practice:     { icon: '📗', label: 'Saudi MLE'         },
   ore_lds_practice:       { icon: '🦷', label: 'ORE / LDS'         },

@@ -101,6 +101,9 @@ export const QUESTION_BANK_MODES = [
     // counted as met and comes round again in a later set.
     allowSkip: true,
     activityMode: 'mehlman_rapid_fire_practice',
+    // Opened from the Mehlman hub (Rapid Fire Qbank / HY Arrows), so its
+    // back button returns there rather than to Story Mode.
+    back: { route: '/mehlman', label: 'Mehlman' },
     // No published total: the plan tracks the live count and grows as questions
     // are added, the way Saudi MLE and ORE / LDS started.
     targetTotal: null,

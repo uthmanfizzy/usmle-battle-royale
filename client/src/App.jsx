@@ -1186,7 +1186,7 @@ export default function App() {
           // links above.
           onUWorld={() => { window.location.href = '/uworld-adventure'; }}
           onSaudiMLE={() => { window.location.href = '/saudi-mle'; }}
-          onMehlman={() => { window.location.href = '/mehlman-rapid-fire'; }}
+          onMehlman={() => { window.location.href = '/mehlman'; }}
           onMinigames={() => { window.location.href = '/minigames'; }}
           onOET={() => { window.location.href = '/oet'; }}
           onClinical={() => { window.location.href = '/clinical'; }}
