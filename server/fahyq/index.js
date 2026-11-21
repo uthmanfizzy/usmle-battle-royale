@@ -9,12 +9,14 @@
 const CHAPTERS = [
   { id: 'endo', name: 'Endocrine', icon: '🦋', file: './endocrine', pages: [329, 362] },
   { id: 'immuno', name: 'Immunology', icon: '🛡️', file: './immunology', pages: [93, 119] },
+  { id: 'repro', name: 'Reproductive', icon: '🌸', file: './reproductive', pages: [629, 676] },
 ];
 
 // The book's section for a page, so a run can be narrowed to one part.
 const SECTION_RANGES = {
   endo: [[330, 330, 'Embryology'], [331, 331, 'Anatomy'], [332, 341, 'Physiology'], [342, 357, 'Pathology'], [358, 361, 'Pharmacology']],
   immuno: [[94, 96, 'Lymphoid Structures'], [97, 101, 'Cellular Components'], [102, 117, 'Immune Responses'], [118, 119, 'Immunosuppressants']],
+  repro: [[630, 641, 'Embryology'], [642, 646, 'Anatomy'], [647, 654, 'Physiology'], [655, 672, 'Pathology'], [673, 676, 'Pharmacology']],
 };
 // A chapter's sections, in book order.
 const sectionsOf = (ch) => (SECTION_RANGES[ch] || []).map(r => r[2]);
