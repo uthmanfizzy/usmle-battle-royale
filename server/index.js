@@ -1227,12 +1227,70 @@ function buzzFunSections(lobby, pool) {
   return { queue, list };
 }
 
+// ── Cards already had today ─────────────────────────────────────────────────
+// Each player's browser keeps the card ids it was shown today (client
+// buzzSeen.js) and sends them on joining a Buzz Fun lobby (buzz_seen_today);
+// the server also remembers them per signed-in account, which covers a second
+// device. In memory only: a restart forgets, the browser's copy does not.
+// "Today" is the player's own calendar day, as their browser reports it.
+const BUZZ_SEEN_MAX = 3000;
+const buzzSeenByUser = new Map();   // userId -> { day, ids: Set }
+
+function buzzDayOf(v) {
+  return typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : new Date().toISOString().slice(0, 10);
+}
+function buzzUserSeen(userId, day) {
+  if (!userId) return null;
+  let e = buzzSeenByUser.get(userId);
+  if (!e || e.day !== day) { e = { day, ids: new Set() }; buzzSeenByUser.set(userId, e); }
+  return e.ids;
+}
+function addBuzzSeen(set, id) {
+  set.add(id);
+  if (set.size > BUZZ_SEEN_MAX) set.delete(set.values().next().value);
+}
+// Every card a human in the lobby has had today, from either record.
+function buzzLobbySeen(lobby) {
+  const all = new Set();
+  for (const p of lobby.players.values()) {
+    if (p.isBot) continue;
+    for (const id of p.buzzSeen || []) all.add(id);
+    const uid = io.sockets.sockets.get(p.id)?.userId;
+    for (const id of buzzUserSeen(uid, buzzDayOf(p.buzzSeenDay)) || []) all.add(id);
+  }
+  return all;
+}
+// The card on screen now counts as had, for everyone in the room.
+function markBuzzCardSeen(lobby, q) {
+  if (!q || q.id == null) return;
+  const id = String(q.id);
+  for (const p of lobby.players.values()) {
+    if (p.isBot) continue;
+    if (!(p.buzzSeen instanceof Set)) p.buzzSeen = new Set();
+    addBuzzSeen(p.buzzSeen, id);
+    const uid = io.sockets.sockets.get(p.id)?.userId;
+    const mine = buzzUserSeen(uid, buzzDayOf(p.buzzSeenDay));
+    if (mine) addBuzzSeen(mine, id);
+  }
+}
+
 function startBuzzFun(lobby) {
   // The host's chosen questions, or Buzz Fun's own.
-  const pool = matchPoolOr(lobby, buzzFunOwnPool(lobby));
+  let pool = matchPoolOr(lobby, buzzFunOwnPool(lobby));
   if (pool.length < 1) {
     io.to(lobby.id).emit('error', { message: 'No Buzz Fun questions available. Add some via the admin panel.' });
     return;
+  }
+  // Leave out what the room has already had today (on unless the host turned
+  // it off). If that is everything, replay the lot rather than refuse to
+  // start, and say so.
+  if (!lobby.duelOptions || sanitizeDuelOptions(lobby.duelOptions).buzzSkipSeen) {
+    const seen = buzzLobbySeen(lobby);
+    if (seen.size) {
+      const fresh = pool.filter(q => !seen.has(String(q.id)));
+      if (fresh.length) pool = fresh;
+      else io.to(lobby.id).emit('buzz_notice', { message: 'You have had every card in this selection today, so they are coming round again.' });
+    }
   }
 
   lobby.status          = 'buzz_fun_question';
@@ -1318,6 +1376,7 @@ function nextBuzzFunQuestion(lobby, { headsUpShown = false } = {}) {
   lobby.buzzLastResults = null;
   lobby.buzzLastAnswer  = new Map();
   io.to(lobby.id).emit('new_question', buzzQuestionPayload(lobby, timeLimit));
+  markBuzzCardSeen(lobby, q);
 
   lobby.timerEnd = Date.now() + timeLimit * 1000;
   lobby.timer    = setTimeout(() => processBuzzFunAnswers(lobby), timeLimit * 1000);
@@ -1972,7 +2031,10 @@ function sanitizeDuelOptions(raw) {
   const buzzCards = o.buzzCards == null || o.buzzCards === '' || !Number.isFinite(bc)
     ? null
     : (bc <= 0 ? 0 : Math.max(5, Math.min(300, bc)));
-  return { source, winBy, rounds, subjects, journeySubject, chapterId, levelId, journeyTrack, powers, explanations, topics, buzzBank, buzzCards };
+  // Buzz Fun: leave out the cards the players have already had today. On
+  // unless the host turns it off, so a second run of 30 is 30 new cards.
+  const buzzSkipSeen = o.buzzSkipSeen !== false;
+  return { source, winBy, rounds, subjects, journeySubject, chapterId, levelId, journeyTrack, powers, explanations, topics, buzzBank, buzzCards, buzzSkipSeen };
 }
 
 /**
@@ -4626,6 +4688,20 @@ io.on('connection', (socket) => {
    * game_start (buzz_rejoin_key); the seat moves from the old socket id to
    * this one, and whatever is on screen right now is sent again.
    */
+  // A player's own list of the cards they have had today (see buzzLobbySeen).
+  socket.on('buzz_seen_today', ({ day, ids } = {}) => {
+    const lobby = lobbies.get(socket.lobbyId);
+    const player = lobby && lobby.players.get(socket.id);
+    if (!player || lobby.gameMode !== 'buzz_fun' || !Array.isArray(ids)) return;
+    player.buzzSeenDay = buzzDayOf(day);
+    if (!(player.buzzSeen instanceof Set)) player.buzzSeen = new Set();
+    for (const id of ids.slice(-BUZZ_SEEN_MAX)) {
+      if (typeof id === 'string' && id.length <= 80) addBuzzSeen(player.buzzSeen, id);
+    }
+    const mine = buzzUserSeen(socket.userId, player.buzzSeenDay);
+    if (mine) for (const id of player.buzzSeen) addBuzzSeen(mine, id);
+  });
+
   socket.on('buzz_rejoin', ({ lobbyId, key } = {}, ack) => {
     const reply = typeof ack === 'function' ? ack : () => {};
     const lobby = lobbies.get(lobbyId);

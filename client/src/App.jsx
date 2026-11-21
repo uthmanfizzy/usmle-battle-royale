@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
 import socket from './socket';
 import * as audio from './audio';
+import { buzzToday, buzzSeenIds, markBuzzSeen } from './buzzSeen';
 import { watchMatch } from './matchWatch';
 import { getToken, clearToken, fetchMe, getCachedUser, redirectToGoogle, getGuestName, setGuestName, clearGuestName } from './auth';
 import { SERVER_URL } from './serverUrl';
@@ -69,6 +70,8 @@ export default function App() {
   // Buzz Fun seat key ({ lobbyId, key }), sent privately at game_start, so a
   // dropped connection can take the seat back (server: buzz_rejoin).
   const buzzRejoinRef = useRef(null);
+  // Which Buzz Fun lobby we last sent our seen-today cards to (see buzzSeen.js).
+  const buzzSeenSentRef = useRef(null);
   // ── Rematch, as an invitation ───────────────────────────────────────────
   // rematchOffer: a rival has asked US, and is waiting on the answer.
   // rematchAsking: WE asked, and are waiting on theirs.
@@ -339,7 +342,14 @@ export default function App() {
       // Everyone in the lobby sees the duel's settings, not just the host who
       // set them — the other player should know what they are joining.
       if (dOpts) setDuelOptions(dOpts);
+      // In a Buzz Fun lobby, tell the server which cards we have had today so
+      // the next run can skip them. Once per lobby (keyed by its host).
+      if (gm === 'buzz_fun' && buzzSeenSentRef.current !== hostId) {
+        buzzSeenSentRef.current = hostId;
+        socket.emit('buzz_seen_today', { day: buzzToday(), ids: buzzSeenIds() });
+      }
     });
+    socket.on('buzz_notice', ({ message } = {}) => { if (message) showToast(message); });
 
     socket.on('duel_skip_votes', (v) => setDuelSkipVotes(v || null));
     socket.on('buzz_pause', (d) => setBuzzPause(d ? { ...d, at: Date.now() } : null));
@@ -385,6 +395,8 @@ export default function App() {
 
     socket.on('game_start', ({ gameMode: gm, duelOptions: dOpts, duelSource, totalRounds }) => {
       if (dOpts) setDuelOptions(dOpts);
+      // The next lobby (a rematch, a new room) gets our list again.
+      buzzSeenSentRef.current = null;
       setDuelHistory([]);
       // What the pool actually was, which is not always what was asked for.
       setDuelRun({ source: duelSource ?? null, totalRounds: totalRounds ?? null });
@@ -531,6 +543,7 @@ export default function App() {
       setDuelSkipVotes(null);
       setBuzzPause(null);
       setBuzzSection(null);
+      if (gameModeRef.current === 'buzz_fun' && data?.id != null) markBuzzSeen(String(data.id));
       setQuestion(data);
       setRound(data.round);
       setTimeLimit(data.timeLimit);
@@ -653,7 +666,7 @@ export default function App() {
        'player_left', 'error', 'sudden_death',
        'race_progress', 'trivia_turn', 'trivia_rolled', 'trivia_question', 'trivia_answer_result',
        'powerup_assigned', 'powerup_result', 'frozen', 'unfrozen',
-       'duel_skip_votes', 'buzz_pause', 'buzz_section', 'buzz_forfeited', 'buzz_rejoin_key', 'buzz_lost', 'connect', 'duel_rematch_offer', 'duel_rematch_declined',
+       'duel_skip_votes', 'buzz_pause', 'buzz_section', 'buzz_notice', 'buzz_forfeited', 'buzz_rejoin_key', 'buzz_lost', 'connect', 'duel_rematch_offer', 'duel_rematch_declined',
        'duel_rematch_accepted'].forEach(e => socket.off(e));
       socket.disconnect();
       audio.stopBgMusic();

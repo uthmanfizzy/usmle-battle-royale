@@ -53,6 +53,8 @@ export default function BuzzFunLobby({ isHost, options, onChange, subjects: vani
   const cards = available ? Math.min(wanted, available) : wanted;
   const minutes = Math.max(1, Math.round((cards * SECONDS_PER_CARD) / 60));
   const [customCards, setCustomCards] = useState('');
+  // On unless the host turns it off (the server reads it the same way).
+  const skipSeen = options?.buzzSkipSeen !== false;
   const pickCards = (n) => { setCustomCards(''); set({ buzzCards: n }); };
   const applyCustom = (raw) => {
     const n = Number.parseInt(raw, 10);
@@ -215,6 +217,29 @@ export default function BuzzFunLobby({ isHost, options, onChange, subjects: vani
         </div>
         {available > 0 && wanted > available && (
           <p className="bfl-note">Only {available} cards match these settings, so the run will be {available}.</p>
+        )}
+        <div className="bfl-chips bfl-count" role="group" aria-label="Cards already played today" style={{ marginTop: 10 }}>
+          <button
+            type="button"
+            className={`bfl-chip${skipSeen ? ' is-on' : ''}`}
+            aria-pressed={skipSeen}
+            onClick={() => isHost && set({ buzzSkipSeen: true })}
+            disabled={!isHost}
+          >
+            Skip cards done today
+          </button>
+          <button
+            type="button"
+            className={`bfl-chip${!skipSeen ? ' is-on' : ''}`}
+            aria-pressed={!skipSeen}
+            onClick={() => isHost && set({ buzzSkipSeen: false })}
+            disabled={!isHost}
+          >
+            Allow repeats
+          </button>
+        </div>
+        {skipSeen && (
+          <p className="bfl-note">Cards anyone here has already had today are left out, so another run is all new cards.</p>
         )}
       </section>
 
