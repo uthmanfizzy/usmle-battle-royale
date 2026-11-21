@@ -38,6 +38,7 @@ const MODE_META = {
   hy_flashcards:          { icon: '⭐', label: 'HY Flashcards'     },
   fa_images:              { icon: '🖼️', label: 'FA Images'         },
   fa_hy_qs:               { icon: '🎯', label: 'FA HY Qs'          },
+  fa_trivia:              { icon: '🎪', label: 'FA Trivia'         },
   question_bank_practice: { icon: '📚', label: 'UWorld Adventure'  },
   saudi_mle_practice:     { icon: '📗', label: 'Saudi MLE'         },
   ore_lds_practice:       { icon: '🦷', label: 'ORE / LDS'         },

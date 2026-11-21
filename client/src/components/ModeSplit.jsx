@@ -309,6 +309,19 @@ export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld, onSaudiMLE, o
                   </span>
                 </div>
               </button>
+
+              {/* FA Trivia — the Journey's game show: quick-fire trivia, its own stage and sounds. */}
+              <button className="ms-journey-card ms-journey-card--trivia" onClick={() => { window.location.href = '/fa-trivia'; }}>
+                <div className="ms-journey-art" aria-hidden="true">
+                  <span className="ms-journey-art-icon">🎪</span>
+                </div>
+                <div className="ms-journey-body">
+                  <span className="ms-journey-name">FA TRIVIA</span>
+                  <span className="ms-journey-sub">
+                    The First Aid game show — spin the wheel, beat the clock, build a streak.
+                  </span>
+                </div>
+              </button>
             </>
           ) : (
             <>

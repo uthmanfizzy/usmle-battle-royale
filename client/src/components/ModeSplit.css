@@ -1120,3 +1120,15 @@
     width: min(960px, 94vw);
   }
 }
+
+/* FA Trivia — marquee gold on velvet, the Journey's game show. */
+.ms-journey-card--trivia {
+  border-color: #f59e0b;
+  box-shadow: 0 0 18px rgba(255, 61, 139, 0.25);
+}
+.ms-journey-card--trivia:hover { box-shadow: 0 0 28px rgba(255, 61, 139, 0.5); }
+.ms-journey-card--trivia .ms-journey-name { color: #fde68a; }
+.ms-journey-card--trivia .ms-journey-art {
+  background: linear-gradient(150deg, rgba(255, 61, 139, 0.6), rgba(91, 13, 54, 0.55));
+}
+.ms-journey-card--trivia { --ms-accent-rgb: 245, 158, 11; }
