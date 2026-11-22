@@ -1249,16 +1249,42 @@ function addBuzzSeen(set, id) {
   set.add(id);
   if (set.size > BUZZ_SEEN_MAX) set.delete(set.values().next().value);
 }
+// Every card one player has had today, from either record.
+function buzzPlayerSeen(p, into = new Set()) {
+  for (const id of p.buzzSeen || []) into.add(id);
+  const uid = io.sockets.sockets.get(p.id)?.userId;
+  for (const id of buzzUserSeen(uid, buzzDayOf(p.buzzSeenDay)) || []) into.add(id);
+  return into;
+}
 // Every card a human in the lobby has had today, from either record.
 function buzzLobbySeen(lobby) {
   const all = new Set();
   for (const p of lobby.players.values()) {
-    if (p.isBot) continue;
-    for (const id of p.buzzSeen || []) all.add(id);
-    const uid = io.sockets.sockets.get(p.id)?.userId;
-    for (const id of buzzUserSeen(uid, buzzDayOf(p.buzzSeenDay)) || []) all.add(id);
+    if (!p.isBot) buzzPlayerSeen(p, all);
   }
   return all;
+}
+// What "the bank" means for this run, in words: the topic(s) when the host
+// focused on topics, else the system(s) the cards come from.
+function buzzScopeLabel(lobby, cards) {
+  const opts = lobby.duelOptions ? sanitizeDuelOptions(lobby.duelOptions) : null;
+  if (opts && opts.topics.length) {
+    const names = opts.topics.map(k => k.split('::')[1]).filter(Boolean);
+    return names.length === 1 ? names[0] : `these ${names.length} topics`;
+  }
+  const names = opts && opts.buzzBank === 'uworld' ? BUZZ_UWORLD_SUBJECT_NAMES : BUZZ_SUBJECT_NAMES;
+  const subs = [...new Set(cards.map(q => String(q.subject || '').toLowerCase()).filter(Boolean))];
+  if (!subs.length || subs.length > 3) return 'this selection';
+  const words = subs.map(x => names[x] || x.charAt(0).toUpperCase() + x.slice(1));
+  return words.length === 1 ? words[0] : `${words.slice(0, -1).join(', ')} and ${words[words.length - 1]}`;
+}
+// Cards in this run's bank a player has not had today (results screen).
+function buzzLeftFor(lobby, p) {
+  const sc = lobby.buzzScope;
+  if (!sc || p.isBot) return null;
+  const seen = buzzPlayerSeen(p);
+  const left = sc.ids.filter(id => !seen.has(id)).length;
+  return { left, total: sc.ids.length, label: sc.label, replay: !!sc.replay };
 }
 // The card on screen now counts as had, for everyone in the room.
 function markBuzzCardSeen(lobby, q) {
@@ -1284,12 +1310,17 @@ function startBuzzFun(lobby) {
   // Leave out what the room has already had today (on unless the host turned
   // it off). If that is everything, replay the lot rather than refuse to
   // start, and say so.
-  if (!lobby.duelOptions || sanitizeDuelOptions(lobby.duelOptions).buzzSkipSeen) {
+  // fullPool is the whole selection before today's cards come out: the
+  // "bank" the cards-left count is measured against.
+  const fullPool = pool;
+  const skipSeen = !lobby.duelOptions || sanitizeDuelOptions(lobby.duelOptions).buzzSkipSeen;
+  let replay = false;
+  if (skipSeen) {
     const seen = buzzLobbySeen(lobby);
     if (seen.size) {
       const fresh = pool.filter(q => !seen.has(String(q.id)));
       if (fresh.length) pool = fresh;
-      else io.to(lobby.id).emit('buzz_notice', { message: 'You have had every card in this selection today, so they are coming round again.' });
+      else replay = true;
     }
   }
 
@@ -1316,12 +1347,38 @@ function startBuzzFun(lobby) {
   }
   lobby.questionIdx   = -1;
 
+  // Skipping today's cards: how far through the bank this run takes the room.
+  lobby.buzzScope = null;
+  let buzzStartNotice = null;
+  if (skipSeen) {
+    const opts = lobby.duelOptions ? sanitizeDuelOptions(lobby.duelOptions) : null;
+    const topicKeys = new Set(sections && opts ? opts.topics : []);
+    const scopeCards = topicKeys.size
+      ? fullPool.filter(q => topicKeys.has(`${String(q.subject || '').toLowerCase()}::${q.topic}`))
+      : fullPool;
+    const label = buzzScopeLabel(lobby, scopeCards);
+    lobby.buzzScope = { ids: [...new Set(scopeCards.map(q => String(q.id)))], label, replay };
+    const run = lobby.questionQueue.length;
+    if (replay) {
+      buzzStartNotice = `You have already finished every card in ${label} today, so they are coming round again.`;
+    } else {
+      const seen = buzzLobbySeen(lobby);
+      const freshLeft = lobby.buzzScope.ids.filter(id => !seen.has(id)).length;
+      const after = Math.max(0, freshLeft - run);
+      buzzStartNotice = after === 0
+        ? `Last ${run} card${run === 1 ? '' : 's'} left in ${label}. Finish these and you have done the whole bank!`
+        : `${freshLeft} cards left in ${label}. This run plays ${run}, leaving ${after}.`;
+    }
+  }
+
   for (const p of lobby.players.values()) { p.score = 0; p.alive = true; p.lives = 3; }
   lobby.buzzLastSection = null;
   lobby.buzzLastResults = null;
   lobby.buzzLastAnswer  = new Map();
 
   io.to(lobby.id).emit('game_start', { gameMode: 'buzz_fun', message: 'Buzz Fun begins!' });
+  // After game_start, so it shows over the game screen.
+  if (buzzStartNotice) io.to(lobby.id).emit('buzz_notice', { message: buzzStartNotice });
   // Each human gets a private key to take their seat back after a dropped
   // connection (see buzz_rejoin). A new socket has a new id, so without it a
   // phone that slept for a second was out of the match for good.
@@ -1875,7 +1932,7 @@ function endGame(lobby, reason) {
   const leaderboard = sorted.map((p, i) => ({
     rank: i + 1, username: p.username, score: p.score, lives: p.lives, alive: p.alive,
     // Buzz Fun's own tallies (accuracy, streak, first buzzes, topics) for its results screen.
-    ...(lobby.gameMode === 'buzz_fun' && lobby.buzzStats ? { isBot: !!p.isBot, buzz: lobby.buzzStats.get(p.id) || null } : {}),
+    ...(lobby.gameMode === 'buzz_fun' && lobby.buzzStats ? { isBot: !!p.isBot, buzz: lobby.buzzStats.get(p.id) || null, buzzLeft: buzzLeftFor(lobby, p) } : {}),
   }));
 
   const globalLB = [...globalLeaderboard.entries()]

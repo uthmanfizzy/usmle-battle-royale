@@ -195,9 +195,9 @@ export default function App() {
 
   const [toast, setToast] = useState('');
 
-  const showToast = useCallback((msg) => {
+  const showToast = useCallback((msg, ms = 3000) => {
     setToast(msg);
-    setTimeout(() => setToast(''), 3000);
+    setTimeout(() => setToast(''), ms);
   }, []);
 
   // ── Auth init (runs once on mount) ────────────────────────────────────────
@@ -349,7 +349,7 @@ export default function App() {
         socket.emit('buzz_seen_today', { day: buzzToday(), ids: buzzSeenIds() });
       }
     });
-    socket.on('buzz_notice', ({ message } = {}) => { if (message) showToast(message); });
+    socket.on('buzz_notice', ({ message } = {}) => { if (message) showToast(message, 6000); });
 
     socket.on('duel_skip_votes', (v) => setDuelSkipVotes(v || null));
     socket.on('buzz_pause', (d) => setBuzzPause(d ? { ...d, at: Date.now() } : null));

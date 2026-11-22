@@ -93,6 +93,28 @@ export default function BuzzFunResults({ gameResult, username, onPlayAgain, onOn
           <div className="bfr-hex"><span aria-hidden="true">⏱️</span><b>{st.fastestMs != null ? `${(st.fastestMs / 1000).toFixed(1)}s` : '—'}</b><small>Fastest</small></div>
         </section>
 
+        {/* ── How far through the bank (only when skipping today's cards) ── */}
+        {me?.buzzLeft && me.buzzLeft.total > 0 && (
+          me.buzzLeft.left === 0 ? (
+            <section className="bfr-bank is-done" role="status">
+              <span className="bfr-bank-icon" aria-hidden="true">🏆</span>
+              <div>
+                <b>{me.buzzLeft.replay ? `You had already finished ${me.buzzLeft.label} today` : `You have finished the entire ${me.buzzLeft.label} bank!`}</b>
+                <small>All {me.buzzLeft.total} cards done today{me.buzzLeft.replay ? ', so this run was a repeat.' : '. Pick another system, or allow repeats to go round again.'}</small>
+              </div>
+            </section>
+          ) : (
+            <section className="bfr-bank" role="status">
+              <span className="bfr-bank-icon" aria-hidden="true">🍯</span>
+              <div>
+                <b>{me.buzzLeft.left} card{me.buzzLeft.left === 1 ? '' : 's'} left in {me.buzzLeft.label}</b>
+                <small>{me.buzzLeft.total - me.buzzLeft.left} of {me.buzzLeft.total} done today. Play again to keep going.</small>
+                <span className="bfr-bar"><span style={{ width: `${pct(me.buzzLeft.total - me.buzzLeft.left, me.buzzLeft.total)}%` }} /></span>
+              </div>
+            </section>
+          )
+        )}
+
         {/* ── Topic by topic ───────────────────────────────────────────── */}
         {topics.length > 0 && (
           <section className="bfr-block">

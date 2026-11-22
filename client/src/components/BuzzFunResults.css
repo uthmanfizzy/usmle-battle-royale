@@ -187,3 +187,18 @@
   .bfr-bar { grid-column: 1 / -1; grid-row: 2; }
   .bfr { padding-top: 20px; }
 }
+
+/* How far through today's bank (skip-cards-done-today runs only). */
+.bfr-bank {
+  display: flex; align-items: center; gap: 12px;
+  margin-top: 14px; padding: 12px 14px; border-radius: 14px;
+  background: rgba(255, 193, 7, 0.1); border: 1px solid rgba(255, 193, 7, 0.28);
+  animation: bfr-in 0.35s ease both;
+}
+.bfr-bank > div { display: grid; gap: 4px; flex: 1; min-width: 0; }
+.bfr-bank-icon { font-size: 26px; line-height: 1; }
+.bfr-bank b { color: #fff; font-size: 15px; font-weight: 900; }
+.bfr-bank small { color: #ffd27a; font-size: 12px; font-weight: 700; }
+.bfr-bank .bfr-bar { margin-top: 4px; height: 8px; }
+.bfr-bank .bfr-bar span { background: linear-gradient(90deg, #ffc233, #ffe066); }
+.bfr-bank.is-done { background: linear-gradient(135deg, rgba(255, 193, 7, 0.28), rgba(255, 140, 0, 0.16)); border-color: rgba(255, 210, 90, 0.6); }
