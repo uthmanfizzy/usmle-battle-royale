@@ -80,7 +80,7 @@ export default function MedJinxLobby({ isHost, options, onChange }) {
 
       <div className="lobby-duel-row">
         <span className="lobby-duel-label">Clock</span>
-        <span className="lobby-duel-value">30 seconds a round</span>
+        <span className="lobby-duel-value">30 seconds a round (40 for clinical cases)</span>
       </div>
 
       <div className="lobby-duel-row">

@@ -36,6 +36,7 @@ const GRACE_MS = 400;           // an answer sent on the buzzer still counts
 const MAX_ATTEMPTS = 90;        // per player per round
 const MAX_LEN = 80;
 const RAPID_SECONDS = 15;
+const CLINICAL_SECONDS = 40;    // a vignette takes time to read, so clinical rounds get longer
 
 const DEFAULTS = Object.freeze({
   variant: 'mixed',             // open | clinical | mixed
@@ -226,7 +227,9 @@ module.exports = function createMedJinx({ io, lobbies, shuffle, awardXP, lobbyPa
 
     s.phase = 'intro';
     s.compiled = E.compileTopic(q.topic, q.variant);
-    s.seconds = q.event === 'rapid' ? RAPID_SECONDS : s.opts.seconds;
+    s.seconds = q.event === 'rapid' ? RAPID_SECONDS
+      : q.variant === 'clinical' ? CLINICAL_SECONDS
+      : s.opts.seconds;
     s.found = new Map();
     s.tried = new Map();
     s.log = new Map();
