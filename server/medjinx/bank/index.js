@@ -24,6 +24,7 @@ const TOPICS = [
   ...require('./cardioResp'),
   ...require('./renalGiHeme'),
   ...require('./neuroMskGenPharm'),
+  ...require('./biochem'),
 ];
 
 const byId = new Map(TOPICS.map(t => [t.id, t]));
