@@ -41,6 +41,7 @@ const GeneticsRoulette  = lazy(() => import('./components/GeneticsRoulette'));
 const DrugMatch         = lazy(() => import('./components/DrugMatch'));
 const Murmurs           = lazy(() => import('./components/Murmurs'));
 const PVLoops           = lazy(() => import('./components/PVLoops'));
+const ClotCascade       = lazy(() => import('./components/ClotCascade'));
 const LabRange          = lazy(() => import('./components/LabRange'));
 const MinigamesPage     = lazy(() => import('./components/MinigamesPage'));
 const FAImages          = lazy(() => import('./components/FAImages'));
@@ -191,6 +192,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
                 <Route path="/lab-values" element={<RouteErrorBoundary name="LabRange"><LabRange onExit={() => { window.location.href = '/minigames'; }} /></RouteErrorBoundary>} />
                 <Route path="/murmurs"element={<RouteErrorBoundary name="Murmurs"><Murmurs onExit={() => { window.location.href = '/minigames'; }} /></RouteErrorBoundary>} />
                 <Route path="/pv-loops" element={<RouteErrorBoundary name="PVLoops"><PVLoops onExit={() => { window.location.href = '/minigames'; }} /></RouteErrorBoundary>} />
+                <Route path="/clot-cascade" element={<RouteErrorBoundary name="ClotCascade"><ClotCascade onExit={() => { window.location.href = '/minigames'; }} /></RouteErrorBoundary>} />
                 <Route path="/username-setup" element={<UsernameSetupPage />} />
                 <Route path="/*"              element={<App />} />
               </Routes>

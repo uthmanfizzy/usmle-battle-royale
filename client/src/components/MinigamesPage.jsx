@@ -83,6 +83,18 @@ const MINIGAMES = [
     drills: 'Reading pressure–volume loops',
   },
   {
+    id: 'clot-cascade',
+    name: 'Clot Cascade',
+    subject: 'Hematology',
+    icon: '🩸',
+    accent: '220, 38, 72',           // hematology garnet
+    route: '/clot-cascade',
+    blurb: 'A vessel tears and the patient bleeds — build the cascade factor by '
+         + 'factor before they crash, strike each anticoagulant at its target, '
+         + 'and read PT/PTT panels to name the disorder.',
+    drills: 'Coagulation, anticoagulants and coag labs',
+  },
+  {
     id: 'abg',
     name: 'ABG Reader',
     subject: 'Respiratory',
