@@ -42,8 +42,20 @@ export default function AmbossQuest() {
           </div>
         </button>
 
-        <LockedCard variant="amboss" icon="⚖️" name="HY ETHICS"
-          sub="High-yield ethics and communication questions." />
+        <button
+          className="ms-journey-card ms-journey-card--amboss"
+          onClick={() => { window.location.href = '/amboss-ethics'; }}
+        >
+          <div className="ms-journey-art" aria-hidden="true">
+            <span className="ms-journey-art-icon">⚖️</span>
+          </div>
+          <div className="ms-journey-body">
+            <span className="ms-journey-name">HY ETHICS</span>
+            <span className="ms-journey-sub">
+              The Ethics Ward — talk each patient through their dilemma and learn the rule behind it.
+            </span>
+          </div>
+        </button>
       </div>
     </div>
   );
