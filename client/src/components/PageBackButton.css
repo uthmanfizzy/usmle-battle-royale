@@ -1,0 +1,23 @@
+.page-back {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px 8px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(232, 176, 75, 0.35);
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: #e8b04b !important;
+  font-family: 'Nunito Sans', system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.page-back:hover { background: rgba(232, 176, 75, 0.16); border-color: rgba(232, 176, 75, 0.6); }
+.page-back:focus-visible { outline: 2px solid #e8b04b; outline-offset: 2px; }
+.page-back-arrow { font-size: 16px; line-height: 1; transition: transform 0.15s; }
+.page-back:hover .page-back-arrow { transform: translateX(-3px); }

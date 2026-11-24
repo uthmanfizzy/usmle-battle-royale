@@ -14,6 +14,7 @@ import CelestialHome from './celestial/CelestialHome';
 import MoonlitMenu from './moonlit/MoonlitMenu';
 import MoonlitTabFrame from './moonlit/MoonlitTabFrame';
 import LeaderboardPage from './leaderboard/LeaderboardPage';
+import NewsPage from './news/NewsPage';
 import './Dashboard.css';
 
 // Error Boundary to prevent black screens
@@ -83,23 +84,9 @@ class DashboardErrorBoundary extends React.Component {
 import { SERVER_URL } from '../serverUrl';
 const ANN_READ_KEY    = 'mrb_read_announcements';
 const ANN_WELCOME_KEY = 'mrb_welcome_v1';
-// Category tag pills for the News tab, on the shared token families (static
-// rgba tints, no color-mix). Replaces the old unused ANN_CAT_COLORS palette
-// (AdminApp.jsx keeps its own separate copy for the admin badge).
-const ANN_CAT_TAGS = {
-  Update:      { background: 'rgba(79, 209, 197, 0.2)',  color: '#4fd1c5' },
-  News:        { background: 'rgba(232, 176, 75, 0.2)',  color: '#e8b04b' },
-  Event:       { background: 'rgba(193, 41, 30, 0.25)',  color: '#e2776e' },
-  Maintenance: { background: 'rgba(255, 255, 255, 0.12)', color: 'rgba(255, 255, 255, 0.7)' },
-};
-const ANN_TAG_FALLBACK = { background: 'rgba(255, 255, 255, 0.12)', color: 'rgba(255, 255, 255, 0.7)' };
-
 function getReadIds() {
   try { return new Set(JSON.parse(localStorage.getItem(ANN_READ_KEY) || '[]')); }
   catch { return new Set(); }
-}
-function saveReadIds(ids) {
-  localStorage.setItem(ANN_READ_KEY, JSON.stringify([...ids]));
 }
 
 const SUBJECTS = [
@@ -317,8 +304,8 @@ function HomeSection({ user, bgUrl, onUserUpdate, homeImages, navCards, onViewAl
 // ── Leaderboard Section ────────────────────────────────────────────────────────
 // The page itself lives in leaderboard/LeaderboardPage.jsx; this name is kept
 // because DashboardNew and the three theme shells all mount it.
-function LeaderboardSection({ user }) {
-  return <LeaderboardPage user={user} />;
+function LeaderboardSection({ user, onBack }) {
+  return <LeaderboardPage user={user} onBack={onBack} />;
 }
 
 // ── Clan Section ───────────────────────────────────────────────────────────────
@@ -551,77 +538,10 @@ function WelcomePopup({ announcement, onClose }) {
 }
 
 // ── Announcements Section ──────────────────────────────────────────────────────
-function AnnouncementsSection() {
-  const [announcements, setAnnouncements] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetch(`${SERVER_URL}/api/announcements`)
-      .then(r => r.json())
-      .then(d => {
-        const list = d.announcements || [];
-        setAnnouncements(list);
-        const readIds = getReadIds();
-        list.forEach(a => readIds.add(String(a.id)));
-        saveReadIds(readIds);
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
-
-  if (loading) return <div className="lb-loading"><div className="spinner" /></div>;
-
-  const annDate = a =>
-    new Date(a.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-  const annTag = a => ANN_CAT_TAGS[a.category] || ANN_TAG_FALLBACK;
-
-  const [featured, ...rest] = announcements;
-
-  return (
-    <div className="ann-feed">
-      {announcements.length === 0 ? (
-        <div className="ann-card" style={{ textAlign: 'center', padding: 32 }}>
-          <p className="no-history">No announcements yet. Check back soon!</p>
-        </div>
-      ) : (
-        <>
-          {/* Most recent announcement = featured card. The art band is an
-              INERT striped placeholder (announcements have no image field). */}
-          <div className="ann-featured">
-            <div className="ann-featured-art" aria-hidden="true">article art placeholder</div>
-            <div className="ann-featured-body">
-              <div className="ann-tag-row">
-                <span className="ann-tag" style={annTag(featured)}>{(featured.category || 'News').toUpperCase()}</span>
-                <span className="ann-date">{annDate(featured)}</span>
-              </div>
-              <h3 className="ann-featured-title">{featured.title}</h3>
-              <p className="ann-featured-msg">{featured.message}</p>
-            </div>
-          </div>
-
-          {/* Older announcements = compact tagged rows */}
-          {rest.length > 0 && (
-            <div className="ann-list">
-              {rest.map(a => (
-                <div key={a.id} className="ann-card">
-                  {/* Inert striped placeholder thumb — no real image field exists */}
-                  <div className="ann-thumb" aria-hidden="true" />
-                  <div className="ann-card-body">
-                    <div className="ann-tag-row">
-                      <span className="ann-tag" style={annTag(a)}>{(a.category || 'News').toUpperCase()}</span>
-                      <span className="ann-date">{annDate(a)}</span>
-                    </div>
-                    <h4 className="ann-card-title">{a.title}</h4>
-                    <p className="ann-card-msg">{a.message}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </>
-      )}
-    </div>
-  );
+// The page itself lives in news/NewsPage.jsx. onBack is passed only by the
+// shells with no back control of their own (classic and Celestial).
+function AnnouncementsSection({ onBack }) {
+  return <NewsPage onBack={onBack} />;
 }
 
 // ── Main Dashboard ─────────────────────────────────────────────────────────────
@@ -909,9 +829,9 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
         ) : (
           <div className="dashboard-screen cs-tabhost">
             {dashTab === 'friends' && <FriendsPage user={user} bannerArt={homeImages.friends_banner_art} />}
-            {dashTab === 'leaderboard' && <LeaderboardSection userId={user.id} user={user} />}
+            {dashTab === 'leaderboard' && <LeaderboardSection userId={user.id} user={user} onBack={() => goTab('home')} />}
             {dashTab === 'clans' && <UnderDevelopment title="Clans" icon="🛡️" />}
-            {dashTab === 'announcements' && <AnnouncementsSection />}
+            {dashTab === 'announcements' && <AnnouncementsSection onBack={() => goTab('home')} />}
           </div>
         )}
       </CelestialShell>
@@ -1277,7 +1197,7 @@ function Dashboard({ user, onPlayNow, onLogout, onUserUpdate }) {
             <UnderDevelopment title="Clans" icon="🛡️" />
           </div>
         )}
-        {dashTab === 'announcements' && <AnnouncementsSection />}
+        {dashTab === 'announcements' && <AnnouncementsSection onBack={() => setDashTab('home')} />}
       </div>
     </div>
   );

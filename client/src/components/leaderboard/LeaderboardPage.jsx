@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { authFetch } from '../../auth';
 import ProfileModal, { formatStudyTime } from '../ProfileModal';
+import PageBackButton from '../PageBackButton';
 import './LeaderboardPage.css';
 
 /**
@@ -283,7 +284,7 @@ function Skeleton() {
   );
 }
 
-export default function LeaderboardPage({ user }) {
+export default function LeaderboardPage({ user, onBack }) {
   const userId = user?.id;
   const [boardId, setBoardId] = useState(() => readPref(BOARD_KEY, 'global', BOARDS.map(b => b.id)));
   const [period, setPeriod] = useState(() => readPref(PERIOD_KEY, 'week', ['week', 'month', 'all']));
@@ -353,6 +354,8 @@ export default function LeaderboardPage({ user }) {
 
   return (
     <div className="lb-page lbx">
+      <PageBackButton onBack={onBack} />
+
       <header className="lbx-hero">
         <span className="lbx-hero-kicker">Hall of Physicians</span>
         <h1 className="lbx-title">Leaderboards</h1>
