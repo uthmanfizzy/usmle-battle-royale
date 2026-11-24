@@ -47,6 +47,8 @@ const MODE_META = {
   oet_practice:           { icon: '🇬🇧', label: 'OET'               },
   clinical_practice:      { icon: '🩺', label: 'Clinical'          },
   amboss_200_concepts_practice: { icon: '🧭', label: 'Amboss 200 Concepts' },
+  amboss_hy_ethics:       { icon: '⚖️', label: 'Amboss HY Ethics'  },
+  kaplan_hy_ethics:       { icon: '🎓', label: 'Kaplan HY Ethics'  },
   solo:                   { icon: '🧠', label: 'Solo Practice'     },
 };
 export const modeMeta = (m) =>

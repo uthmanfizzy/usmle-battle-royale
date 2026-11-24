@@ -32,6 +32,8 @@ const HYFlashcards      = lazy(() => import('./components/HYFlashcards'));
 const AmbossQuest       = lazy(() => import('./components/AmbossQuest'));
 const Amboss200         = lazy(() => import('./components/Amboss200'));
 const AmbossEthics      = lazy(() => import('./components/AmbossEthics'));
+const KaplanHub         = lazy(() => import('./components/KaplanHub'));
+const KaplanEthics      = lazy(() => import('./components/KaplanEthics'));
 const ReelsPage         = lazy(() => import('./components/ReelsPage'));
 const PathwayNavigator  = lazy(() => import('./components/PathwayNavigator'));
 const ECGReader         = lazy(() => import('./components/ECGReader'));
@@ -177,6 +179,8 @@ ReactDOM.createRoot(document.getElementById('root')).render(
                 <Route path="/amboss-quest" element={<RouteErrorBoundary name="AmbossQuest"><AmbossQuest /></RouteErrorBoundary>} />
                 <Route path="/amboss-200-concepts" element={<RouteErrorBoundary name="Amboss200Concepts"><Amboss200 /></RouteErrorBoundary>} />
                 <Route path="/amboss-ethics" element={<RouteErrorBoundary name="AmbossEthics"><AmbossEthics /></RouteErrorBoundary>} />
+                <Route path="/kaplan" element={<RouteErrorBoundary name="KaplanHub"><KaplanHub /></RouteErrorBoundary>} />
+                <Route path="/kaplan-ethics" element={<RouteErrorBoundary name="KaplanEthics"><KaplanEthics /></RouteErrorBoundary>} />
                 <Route path="/hy-flashcards" element={<RouteErrorBoundary name="HYFlashcards"><HYFlashcards /></RouteErrorBoundary>} />
                 <Route path="/reels"          element={<RouteErrorBoundary name="ReelsPage"><ReelsPage /></RouteErrorBoundary>} />
                 <Route path="/fa-hy-qs" element={<RouteErrorBoundary name="FAHYQs"><FAHYQs /></RouteErrorBoundary>} />

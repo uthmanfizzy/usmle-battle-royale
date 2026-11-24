@@ -460,6 +460,22 @@ export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld, onSaudiMLE, o
         </button>
         )}
 
+        {/* Kaplan — a hub of its own sub-modes (100 HY Ethics, Qbank), so it
+            opens /kaplan rather than a game. */}
+        {!isDentistry && (
+        <button className="ms-journey-card ms-journey-card--kaplan" onClick={() => { window.location.href = '/kaplan'; }}>
+          <div className="ms-journey-art" aria-hidden="true">
+            <span className="ms-journey-art-icon">🎓</span>
+          </div>
+          <div className="ms-journey-body">
+            <span className="ms-journey-name">KAPLAN</span>
+            <span className="ms-journey-sub">
+              100 HY Ethics — The Ethics Tribunal, case by case.
+            </span>
+          </div>
+        </button>
+        )}
+
         {/* Mehlman Rapid Fire — the same question-bank machine on its own
             tag and its own yellow. */}
         {!isDentistry && (

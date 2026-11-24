@@ -1018,6 +1018,13 @@
 .ms-journey-card--amboss:hover { box-shadow: 0 0 28px rgba(132, 204, 22, 0.48); }
 .ms-journey-card--amboss .ms-journey-name { color: #c4f07a; }
 
+/* Kaplan — a deep royal purple, darker and bluer than the Minigames violet so
+   the two never read as one campaign. Shared by the Story Mode card and the
+   /kaplan hub. */
+.ms-journey-card--kaplan { --ms-accent-rgb: 109, 40, 217; border-color: #6d28d9; box-shadow: 0 0 18px rgba(109, 40, 217, 0.3); }
+.ms-journey-card--kaplan:hover { box-shadow: 0 0 28px rgba(109, 40, 217, 0.55); }
+.ms-journey-card--kaplan .ms-journey-name { color: #d8b4fe; }
+
 /* ── Locked campaigns ─────────────────────────────────────────────────────
    Visible but closed: dimmed and desaturated, no glow, no hover lift, a
    not-allowed cursor — and the 🔒 LOCKED chip in the name says it in words,

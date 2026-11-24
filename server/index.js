@@ -13605,6 +13605,7 @@ const FA_STUDY_MODES = {
   hy_arrows: { perItem: 120 },    // an arrow table and its explanation
   amboss_200_concepts_practice: { perItem: 180 }, // a long vignette and its HY explanation
   amboss_hy_ethics: { perItem: 90 },             // an ethics dilemma and its rule card
+  kaplan_hy_ethics: { perItem: 90 },             // a Kaplan ethics case file and its verdict
 };
 app.post('/api/fa-study-session', requireAuth, async (req, res) => {
   const mode = String(req.body?.mode || '');
