@@ -9822,11 +9822,91 @@ async function pageRows(build) {
   return rows;
 }
 
+// ── Leaderboard boards ────────────────────────────────────────────────────────
+// Every board answers with the same shape — { players, total, me } — so the
+// page can draw any of them with one renderer:
+//   players  the top LB_LIMIT, ranked, each with the shared identity fields
+//   total    how many players the board ranks (not just the ones sent)
+//   me       the signed-in caller's own row, even when they sit below the top
+//            LB_LIMIT (null for guests, or when they are not on that board)
+//
+// The table scans behind the Study / Journey / Saudi MLE boards read every
+// row of a users x days (or users x questions) table, so their tallies are
+// cached for LB_TTL_MS and shared between concurrent requests. Identity
+// (username, avatar, level) is looked up fresh each time — it is cheap and a
+// renamed player should not wait out the cache.
+
+const LB_LIMIT = 50;
+const LB_TTL_MS = 2 * 60 * 1000;
+const lbCache = new Map(); // key → { at, value } | { pending }
+
+async function lbCached(key, build) {
+  const hit = lbCache.get(key);
+  if (hit?.value !== undefined && Date.now() - hit.at < LB_TTL_MS) return hit.value;
+  if (hit?.pending) return hit.pending;
+  const pending = build();
+  lbCache.set(key, { pending });
+  try {
+    const value = await pending;
+    lbCache.set(key, { at: Date.now(), value });
+    return value;
+  } catch (err) {
+    lbCache.delete(key);
+    throw err;
+  }
+}
+
+// id → { id, username, avatar_url, level, xp, clan_tag, games_played, games_won }
+// Accounts that no longer exist are simply absent from the map.
+async function lbUsers(ids) {
+  const out = new Map();
+  const unique = [...new Set(ids)].filter(Boolean);
+  if (unique.length === 0) return out;
+  const { data, error } = await supabase.from('users')
+    .select('id, username, avatar_url, xp, level, clan_id, games_played, games_won')
+    .in('id', unique);
+  if (error) throw error;
+  const clanIds = [...new Set((data || []).filter(u => u.clan_id).map(u => u.clan_id))];
+  const tagMap = {};
+  if (clanIds.length > 0) {
+    const { data: clans } = await supabase.from('clans').select('id, tag').in('id', clanIds);
+    (clans || []).forEach(c => { tagMap[c.id] = c.tag; });
+  }
+  for (const u of (data || [])) {
+    out.set(u.id, {
+      id: u.id, username: u.username, avatar_url: u.avatar_url,
+      level: u.level || 1, xp: u.xp || 0,
+      clan_tag: u.clan_id ? (tagMap[u.clan_id] || null) : null,
+      games_played: u.games_played || 0,
+      games_won: u.games_won || 0,
+    });
+  }
+  return out;
+}
+
+// Turn a full ranking (every ranked user id, best first) into the board shape.
+// `extra(id)` adds the board's own numbers to each row.
+async function lbFromRanking(sortedIds, extra, meId) {
+  const top = sortedIds.slice(0, LB_LIMIT);
+  const meIdx = meId ? sortedIds.indexOf(meId) : -1;
+  const users = await lbUsers(meIdx >= LB_LIMIT ? [...top, meId] : top);
+  const players = top
+    .filter(id => users.has(id))   // a deleted account leaves its rows behind
+    .map((id, i) => ({ rank: i + 1, ...users.get(id), ...extra(id) }));
+  let me = null;
+  if (meIdx >= 0) {
+    me = players.find(p => p.id === meId)
+      || (users.has(meId) ? { rank: meIdx + 1, ...users.get(meId), ...extra(meId) } : null);
+  }
+  return { players, total: sortedIds.length, me };
+}
+
 // Total study seconds per user. Isolated so a study_time_daily failure yields
 // zeroes rather than breaking the leaderboard itself.
 async function studySecondsByUser() {
   try {
-    const rows = await pageRows(() => supabase.from('study_time_daily').select('user_id, seconds'));
+    const rows = await pageRows(() => supabase.from('study_time_daily')
+      .select('user_id, seconds').order('user_id').order('study_date'));
     const map = {};
     for (const r of rows) map[r.user_id] = (map[r.user_id] || 0) + (r.seconds || 0);
     return map;
@@ -9835,65 +9915,167 @@ async function studySecondsByUser() {
     return {};
   }
 }
+const cachedStudySeconds = () => lbCached('study-total', studySecondsByUser);
 
-app.get('/api/leaderboard/players', async (req, res) => {
+/**
+ * GET /api/leaderboard/players?sort=xp|wins
+ *
+ * xp (default) — the Global board, ranked by XP with study time as the
+ *   tie-break. Also read by the home screens and the progress page, which
+ *   only use `players`.
+ * wins — the Victories board, ranked by matches won, fewer games first on a
+ *   tie (the same wins from fewer games is the better record).
+ */
+app.get('/api/leaderboard/players', optionalAuth, async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Database not configured.' });
+  const sort = req.query.sort === 'wins' ? 'wins' : 'xp';
   try {
     // Study time first: it is one of the ways a player counts as having STARTED,
     // and XP is only ever awarded by matches and quests — never by studying — so
     // a studier with no matches has xp 0 and would otherwise be invisible on a
     // board that shows their study time.
-    const studyMap = await studySecondsByUser();
-
-    // Signing up is not playing. A fresh account has xp 0, no games and no study
-    // time, and used to sit on the board immediately.
-    const { data: played, error: pErr } = await supabase.from('users')
-      .select('id, username, avatar_url, xp, level, clan_id, games_played, games_won')
-      .or('xp.gt.0,games_played.gt.0')
-      .order('xp', { ascending: false })
-      .limit(50);
-    if (pErr) throw pErr;
-
-    const byId = new Map((played || []).map(u => [u.id, u]));
-
-    // Studiers with no matches at all, added so the STUDY column can rank them.
-    const studyOnly = Object.entries(studyMap)
-      .filter(([id, secs]) => secs > 0 && !byId.has(id))
-      .map(([id]) => id);
-    if (studyOnly.length > 0) {
-      const { data: extra } = await supabase.from('users')
-        .select('id, username, avatar_url, xp, level, clan_id, games_played, games_won')
-        .in('id', studyOnly.slice(0, 50));
-      for (const u of (extra || [])) byId.set(u.id, u);
-    }
-
-    const users = [...byId.values()]
-      // XP is the ranking, with study time breaking ties so a studier with no
-      // matches is ordered by the one number they do have.
-      .sort((a, b) => (b.xp || 0) - (a.xp || 0) || (studyMap[b.id] || 0) - (studyMap[a.id] || 0))
-      .slice(0, 50);
-    if (users.length === 0) return res.json({ players: [] });
-
-    const clanIds = [...new Set(users.filter(u => u.clan_id).map(u => u.clan_id))];
-    const tagMap = {};
-    if (clanIds.length > 0) {
-      const { data: clans } = await supabase.from('clans').select('id, tag').in('id', clanIds);
-      (clans || []).forEach(c => { tagMap[c.id] = c.tag; });
-    }
-
-    res.json({
-      players: users.map((p, i) => ({
-        rank: i + 1, id: p.id, username: p.username, avatar_url: p.avatar_url,
-        xp: p.xp, level: p.level, clan_tag: p.clan_id ? tagMap[p.clan_id] : null,
-        // Real column names. The client was reading p.wins/p.losses, which this
-        // endpoint never sent, so WINS and WIN RATE were permanently 0 for
-        // everyone.
-        games_played: p.games_played || 0,
-        games_won: p.games_won || 0,
-        total_study_seconds: studyMap[p.id] || 0,
-      })),
+    const studyMap = await cachedStudySeconds();
+    const withStudy = (u) => ({
+      ...u,
+      total_study_seconds: studyMap[u.id] || 0,
+      win_rate: u.games_played ? Math.round((u.games_won / u.games_played) * 100) : 0,
     });
+
+    let ids;
+    if (sort === 'wins') {
+      const { data, error } = await supabase.from('users')
+        .select('id').gt('games_won', 0)
+        .order('games_won', { ascending: false })
+        .order('games_played', { ascending: true })
+        .limit(LB_LIMIT);
+      if (error) throw error;
+      ids = (data || []).map(u => u.id);
+    } else {
+      // Signing up is not playing. A fresh account has xp 0, no games and no
+      // study time, and used to sit on the board immediately.
+      const { data, error } = await supabase.from('users')
+        .select('id, xp').or('xp.gt.0,games_played.gt.0')
+        .order('xp', { ascending: false })
+        .limit(LB_LIMIT);
+      if (error) throw error;
+      const xpById = new Map((data || []).map(u => [u.id, u.xp || 0]));
+      // Studiers with no matches at all, added so the study time can rank them.
+      for (const [id, secs] of Object.entries(studyMap)) {
+        if (secs > 0 && !xpById.has(id) && xpById.size < LB_LIMIT * 2) xpById.set(id, 0);
+      }
+      ids = [...xpById.keys()]
+        .sort((a, b) => xpById.get(b) - xpById.get(a) || (studyMap[b] || 0) - (studyMap[a] || 0))
+        .slice(0, LB_LIMIT);
+    }
+
+    const users = await lbUsers(ids);
+    const players = ids.filter(id => users.has(id))
+      .map((id, i) => ({ rank: i + 1, ...withStudy(users.get(id)) }));
+
+    // How many players this board ranks, counted rather than scanned.
+    const totalQ = supabase.from('users').select('id', { count: 'exact', head: true });
+    const { count: total } = sort === 'wins'
+      ? await totalQ.gt('games_won', 0)
+      : await totalQ.or('xp.gt.0,games_played.gt.0');
+
+    // The caller's own standing when they are below the top of the board:
+    // one more than the number of players strictly ahead of them.
+    let me = null;
+    if (req.userId) {
+      me = players.find(p => p.id === req.userId) || null;
+      if (!me) {
+        const mine = (await lbUsers([req.userId])).get(req.userId);
+        const ranked = mine && (sort === 'wins' ? mine.games_won > 0 : (mine.xp > 0 || mine.games_played > 0));
+        if (ranked) {
+          const aheadQ = supabase.from('users').select('id', { count: 'exact', head: true });
+          const { count: ahead } = sort === 'wins'
+            ? await aheadQ.gt('games_won', mine.games_won)
+            : await aheadQ.gt('xp', mine.xp);
+          me = { rank: (ahead || 0) + 1, ...withStudy(mine) };
+        }
+      }
+    }
+
+    res.json({ players, total: total ?? players.length, me });
   } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+/**
+ * GET /api/leaderboard/study?period=week|month|all
+ *
+ * Study time ranking from study_time_daily: seconds in the period, then days
+ * studied as the tie-break. The week and month windows are rolling (the last
+ * 7 / 30 calendar days including today), so the board never empties out at
+ * midnight on a Monday or the 1st.
+ */
+app.get('/api/leaderboard/study', optionalAuth, async (req, res) => {
+  if (!supabase) return res.json({ players: [], total: 0, me: null });
+  const period = ['week', 'month'].includes(req.query.period) ? req.query.period : 'all';
+  try {
+    const { sortedIds, tally } = await lbCached(`study:${period}`, async () => {
+      let since = null;
+      if (period !== 'all') {
+        const d = new Date();
+        d.setUTCDate(d.getUTCDate() - (period === 'week' ? 6 : 29));
+        since = d.toISOString().slice(0, 10);
+      }
+      const rows = await pageRows(() => {
+        let q = supabase.from('study_time_daily').select('user_id, seconds, study_date');
+        if (since) q = q.gte('study_date', since);
+        return q.order('user_id').order('study_date');
+      });
+      const tally = {};
+      for (const r of rows) {
+        if (!(r.seconds > 0)) continue;
+        const t = (tally[r.user_id] ||= { seconds: 0, days: 0 });
+        t.seconds += r.seconds;
+        t.days += 1;
+      }
+      const sortedIds = Object.keys(tally)
+        .sort((a, b) => tally[b].seconds - tally[a].seconds || tally[b].days - tally[a].days);
+      return { sortedIds, tally };
+    });
+    res.json(await lbFromRanking(sortedIds, (id) => ({
+      study_seconds: tally[id].seconds,
+      study_days: tally[id].days,
+    }), req.userId));
+  } catch (err) {
+    console.warn('[/api/leaderboard/study] failed —', err.message);
+    res.json({ players: [], total: 0, me: null });
+  }
+});
+
+/**
+ * GET /api/leaderboard/friends
+ *
+ * The caller and their accepted friends, ranked by XP. Built from the
+ * friends table rather than by filtering the global top 50, so a friend who
+ * is nowhere near the global top still appears.
+ */
+app.get('/api/leaderboard/friends', requireAuth, async (req, res) => {
+  if (!supabase) return res.json({ players: [], total: 0, me: null });
+  const meId = req.userId;
+  if (!UUID_RE.test(meId)) return res.status(400).json({ error: 'Invalid user.' });
+  try {
+    const { data, error } = await supabase.from('friends')
+      .select('user_id, friend_id')
+      .or(`user_id.eq.${meId},friend_id.eq.${meId}`)
+      .eq('status', 'accepted');
+    if (error) throw error;
+    const ids = [meId, ...(data || []).map(f => (f.user_id === meId ? f.friend_id : f.user_id))];
+    const [users, studyMap] = await Promise.all([lbUsers(ids), cachedStudySeconds()]);
+    const players = [...users.values()]
+      .sort((a, b) => b.xp - a.xp || (studyMap[b.id] || 0) - (studyMap[a.id] || 0))
+      .map((u, i) => ({
+        rank: i + 1, ...u,
+        total_study_seconds: studyMap[u.id] || 0,
+        win_rate: u.games_played ? Math.round((u.games_won / u.games_played) * 100) : 0,
+      }));
+    res.json({ players, total: players.length, me: players.find(p => p.id === meId) || null });
+  } catch (err) {
+    console.warn('[/api/leaderboard/friends] failed —', err.message);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 /**
@@ -9906,51 +10088,36 @@ app.get('/api/leaderboard/players', async (req, res) => {
  * journey_progress is paged, not scanned: rows are users x levels, so a plain
  * select would silently stop at 1000 and under-rank everyone above that line.
  */
-app.get('/api/leaderboard/journey', async (req, res) => {
-  if (!supabase) return res.json({ players: [] });
+app.get('/api/leaderboard/journey', optionalAuth, async (req, res) => {
+  if (!supabase) return res.json({ players: [], total: 0, me: null });
   try {
-    const rows = await pageRows(() => supabase
-      .from('journey_progress')
-      .select('user_id, level_key, completed_at, best_score_pct')
-      .not('completed_at', 'is', null));
-
-    const tally = {};
-    for (const r of rows) {
-      if (typeof r.level_key === 'string' && r.level_key.startsWith('boss:')) continue;
-      const t = (tally[r.user_id] ||= { levels: 0, scoreSum: 0 });
-      t.levels += 1;
-      t.scoreSum += r.best_score_pct || 0;
-    }
-    const ids = Object.keys(tally).filter(id => tally[id].levels > 0);
-    if (ids.length === 0) return res.json({ players: [] });
-
-    const ranked = ids
-      .sort((a, b) => tally[b].levels - tally[a].levels
-        || (tally[b].scoreSum / tally[b].levels) - (tally[a].scoreSum / tally[a].levels))
-      .slice(0, 50);
-
-    const { data: users, error: uErr } = await supabase.from('users')
-      .select('id, username, avatar_url, level').in('id', ranked);
-    if (uErr) throw uErr;
-    const userById = new Map((users || []).map(u => [u.id, u]));
-
-    res.json({
-      players: ranked
-        .filter(id => userById.has(id))   // a deleted account leaves its rows behind
-        .map((id, i) => {
-          const u = userById.get(id);
-          const t = tally[id];
-          return {
-            rank: i + 1, id, username: u.username, avatar_url: u.avatar_url,
-            level: u.level,
-            levels_completed: t.levels,
-            avg_score: Math.round(t.scoreSum / t.levels),
-          };
-        }),
+    const { sortedIds, tally } = await lbCached('journey', async () => {
+      const rows = await pageRows(() => supabase
+        .from('journey_progress')
+        .select('user_id, level_key, completed_at, best_score_pct')
+        .not('completed_at', 'is', null)
+        .order('user_id')
+        .order('level_key'));
+      const tally = {};
+      for (const r of rows) {
+        if (typeof r.level_key === 'string' && r.level_key.startsWith('boss:')) continue;
+        const t = (tally[r.user_id] ||= { levels: 0, scoreSum: 0 });
+        t.levels += 1;
+        t.scoreSum += r.best_score_pct || 0;
+      }
+      const avg = (id) => tally[id].scoreSum / tally[id].levels;
+      const sortedIds = Object.keys(tally)
+        .filter(id => tally[id].levels > 0)
+        .sort((a, b) => tally[b].levels - tally[a].levels || avg(b) - avg(a));
+      return { sortedIds, tally };
     });
+    res.json(await lbFromRanking(sortedIds, (id) => ({
+      levels_completed: tally[id].levels,
+      avg_score: Math.round(tally[id].scoreSum / tally[id].levels),
+    }), req.userId));
   } catch (err) {
     console.warn('[/api/leaderboard/journey] failed —', err.message);
-    res.json({ players: [] });
+    res.json({ players: [], total: 0, me: null });
   }
 });
 
@@ -9964,55 +10131,38 @@ app.get('/api/leaderboard/journey', async (req, res) => {
  *
  * Paged: rows are users x questions and pass 1000 almost immediately.
  */
-app.get('/api/leaderboard/saudi-mle', async (req, res) => {
-  if (!supabase) return res.json({ players: [] });
+app.get('/api/leaderboard/saudi-mle', optionalAuth, async (req, res) => {
+  if (!supabase) return res.json({ players: [], total: 0, me: null });
   try {
-    const build = () => {
-      let q = supabase
-        .from(QUESTION_SEEN_TABLE)
-        .select('user_id, correct, questions!inner(game_modes)')
-        .contains('questions.game_modes', modeJson('saudi_mle'))
-        .order('user_id')
-        .order('question_id');
-      if (hasRetirement) q = q.is('questions.retired_at', null);
-      return q;
-    };
-    const rows = await pageRows(build);
-
-    const tally = {};
-    for (const r of rows) {
-      const t = (tally[r.user_id] ||= { answered: 0, correct: 0 });
-      t.answered += 1;
-      if (r.correct) t.correct += 1;
-    }
-    const acc = (t) => (t.answered ? t.correct / t.answered : 0);
-    const ranked = Object.keys(tally)
-      .sort((a, b) => tally[b].answered - tally[a].answered || acc(tally[b]) - acc(tally[a]))
-      .slice(0, 50);
-    if (ranked.length === 0) return res.json({ players: [] });
-
-    const { data: users, error: uErr } = await supabase.from('users')
-      .select('id, username, avatar_url, level').in('id', ranked);
-    if (uErr) throw uErr;
-    const userById = new Map((users || []).map(u => [u.id, u]));
-
-    res.json({
-      players: ranked
-        .filter(id => userById.has(id))
-        .map((id, i) => {
-          const u = userById.get(id);
-          const t = tally[id];
-          return {
-            rank: i + 1, id, username: u.username, avatar_url: u.avatar_url,
-            level: u.level,
-            questions_answered: t.answered,
-            accuracy: Math.round(acc(t) * 100),
-          };
-        }),
+    const { sortedIds, tally } = await lbCached('saudi-mle', async () => {
+      const rows = await pageRows(() => {
+        let q = supabase
+          .from(QUESTION_SEEN_TABLE)
+          .select('user_id, correct, questions!inner(game_modes)')
+          .contains('questions.game_modes', modeJson('saudi_mle'))
+          .order('user_id')
+          .order('question_id');
+        if (hasRetirement) q = q.is('questions.retired_at', null);
+        return q;
+      });
+      const tally = {};
+      for (const r of rows) {
+        const t = (tally[r.user_id] ||= { answered: 0, correct: 0 });
+        t.answered += 1;
+        if (r.correct) t.correct += 1;
+      }
+      const acc = (id) => (tally[id].answered ? tally[id].correct / tally[id].answered : 0);
+      const sortedIds = Object.keys(tally)
+        .sort((a, b) => tally[b].answered - tally[a].answered || acc(b) - acc(a));
+      return { sortedIds, tally };
     });
+    res.json(await lbFromRanking(sortedIds, (id) => ({
+      questions_answered: tally[id].answered,
+      accuracy: Math.round((tally[id].correct / tally[id].answered) * 100),
+    }), req.userId));
   } catch (err) {
     console.warn('[/api/leaderboard/saudi-mle] failed —', err.message);
-    res.json({ players: [] });
+    res.json({ players: [], total: 0, me: null });
   }
 });
 
