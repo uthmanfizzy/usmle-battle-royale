@@ -5454,6 +5454,92 @@ app.get('/api/questions/unseen', requireAuth, async (req, res) => {
 });
 
 /**
+ * Amboss 200 Concepts — its own game page (/amboss-200-concepts).
+ *
+ *   GET /api/amboss200/catalog
+ *       every system that has 200 Concepts questions, with this user's
+ *       { total, seen, correct, wrong } — what the system picker shows.
+ *   GET /api/amboss200/run?subjects=a,b&count=20&scope=all|unseen|missed
+ *       a shuffled run from the chosen systems. Each question carries `hy`,
+ *       its high-yield explanation (server/amboss200/hy.js, keyed by the
+ *       AMB200-### business key).
+ *
+ * The bank is ≤ 200 rows, so both read the whole tag in one query rather
+ * than paging. `seen` is user_question_seen, keyed by questions.id (UUID).
+ */
+const AMBOSS200_TAG = JSON.stringify(['amboss_200_concepts']);
+const AMBOSS200_HY = require('./amboss200/hy');
+
+async function amboss200Rows(subjects) {
+  let q = supabase.from('questions').select('*').contains('game_modes', AMBOSS200_TAG).limit(1000);
+  if (hasRetirement) q = q.is('retired_at', null);
+  if (subjects && subjects.length) q = q.in('category', subjects);
+  const { data, error } = await q;
+  if (error) throw error;
+  return data || [];
+}
+
+async function amboss200Seen(userId, ids) {
+  const out = new Map();
+  for (let i = 0; i < ids.length; i += 300) {
+    const { data, error } = await supabase.from(QUESTION_SEEN_TABLE)
+      .select('question_id, answered, correct')
+      .eq('user_id', userId)
+      .in('question_id', ids.slice(i, i + 300));
+    if (error) throw error;
+    for (const r of data || []) out.set(r.question_id, r);
+  }
+  return out;
+}
+
+app.get('/api/amboss200/catalog', requireAuth, async (req, res) => {
+  if (!supabase) return res.json({ subjects: [] });
+  try {
+    const rows = await amboss200Rows(null);
+    const seen = await amboss200Seen(req.userId, rows.map(r => r.id));
+    const { data: subs } = await supabase.from('subjects').select('id, name');
+    const names = new Map((subs || []).map(s => [s.id, s.name]));
+    const by = new Map();
+    for (const r of rows) {
+      const s = by.get(r.category) || { id: r.category, name: names.get(r.category) || r.category, total: 0, seen: 0, correct: 0, wrong: 0 };
+      s.total += 1;
+      const sn = seen.get(r.id);
+      if (sn) { s.seen += 1; if (sn.answered) { if (sn.correct) s.correct += 1; else s.wrong += 1; } }
+      by.set(r.category, s);
+    }
+    res.json({ subjects: [...by.values()].sort((a, b) => a.name.localeCompare(b.name)) });
+  } catch (err) {
+    console.error('[/api/amboss200/catalog] failed —', err.message);
+    res.status(500).json({ error: 'Could not load the systems.' });
+  }
+});
+
+app.get('/api/amboss200/run', requireAuth, async (req, res) => {
+  if (!supabase) return res.json({ questions: [] });
+  const subjects = (req.query.subjects || '').toString().split(',').map(s => s.trim()).filter(Boolean).slice(0, 40);
+  const scope = ['unseen', 'missed'].includes(req.query.scope) ? req.query.scope : 'all';
+  const count = Math.min(200, Math.max(1, parseInt(req.query.count, 10) || 20));
+  try {
+    let rows = await amboss200Rows(subjects);
+    if (scope !== 'all') {
+      const seen = await amboss200Seen(req.userId, rows.map(r => r.id));
+      rows = rows.filter(r => {
+        const s = seen.get(r.id);
+        return scope === 'unseen' ? !s : (s && s.answered && !s.correct);
+      });
+    }
+    const picked = shuffle(rows).slice(0, count).map(r => {
+      const q = fromDb(r);
+      return { ...q, hy: AMBOSS200_HY[q.id] || null };
+    });
+    res.json({ questions: picked });
+  } catch (err) {
+    console.error('[/api/amboss200/run] failed —', err.message);
+    res.status(500).json({ error: 'Could not load questions.' });
+  }
+});
+
+/**
  * POST /api/uworld-questions/:questionId/rate   { rating }
  *
  * Self-assessment rating for a UWorld Adventure question, shown on the
@@ -13367,6 +13453,7 @@ const FA_STUDY_MODES = {
   fa_hy_qs:  { perItem: 150 },    // a vignette and its explanation
   fa_trivia: { perItem: 45 },     // a 15 s trivia question and its fun fact
   hy_arrows: { perItem: 120 },    // an arrow table and its explanation
+  amboss_200_concepts_practice: { perItem: 180 }, // a long vignette and its HY explanation
 };
 app.post('/api/fa-study-session', requireAuth, async (req, res) => {
   const mode = String(req.body?.mode || '');
