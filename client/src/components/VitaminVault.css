@@ -1,0 +1,196 @@
+/* ── Vitamin Vault ──────────────────────────────────────────────────────────
+   Nutrition orange (249, 115, 22) — the tile's colour on the Minigames
+   shelf — over a warm night-pharmacy dark. Each bottle wears its own
+   nutrient colour (--bc) everywhere it appears: shelf, cards, match.
+   Static rgba only — color-mix() ships broken to older browsers. */
+
+.vv {
+  --vv: 249, 115, 22;
+  --ok: 74, 222, 128;
+  --bad: 248, 113, 113;
+  --ink: #fdf4ea;
+  --muted: rgba(253, 244, 234, 0.62);
+  --card: rgba(30, 18, 12, 0.82);
+  position: fixed; inset: 0; overflow-y: auto; overflow-x: hidden;
+  background:
+    radial-gradient(ellipse 70% 50% at 0% -10%, rgba(var(--vv), 0.22), rgba(0, 0, 0, 0) 60%),
+    radial-gradient(ellipse 60% 40% at 100% 100%, rgba(74, 222, 128, 0.10), rgba(0, 0, 0, 0) 60%),
+    linear-gradient(175deg, #1d120b 0%, #120b07 60%, #0a0604 100%);
+  color: var(--ink); font-family: 'Inter', system-ui, sans-serif; padding: 0 16px 56px; box-sizing: border-box;
+}
+.vv *, .vv *::before, .vv *::after { box-sizing: border-box; }
+.vv button { font: inherit; color: inherit; }
+.vv h2 { margin: 6px 0 8px; font-size: 24px; font-weight: 900; }
+.vv-muted { color: var(--muted); font-size: 13px; }
+.vv-center { text-align: center; }
+
+/* Fizzing bubbles in nutrient colours. */
+.vv-bg { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
+.vv-bg i { position: absolute; bottom: -30px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.6), rgba(var(--bc), 0.5) 45%, rgba(var(--bc), 0) 70%); animation: vv-rise linear infinite; opacity: 0.5; }
+@keyframes vv-rise { 0% { transform: translate(0, 0); } 50% { transform: translate(14px, -55vh); } 100% { transform: translate(-6px, -112vh); } }
+.vv > *:not(.vv-bg) { position: relative; z-index: 1; }
+
+/* ── Top + tabs ──────────────────────────────────────────────────────────── */
+.vv-top { max-width: 1180px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 0 10px; }
+.vv-back, .vv .sfx-toggle { border: 1px solid rgba(255, 255, 255, 0.16); background: rgba(255, 255, 255, 0.06); border-radius: 999px; padding: 8px 14px; font-size: 13px; cursor: pointer; white-space: nowrap; }
+.vv-back:hover { background: rgba(var(--vv), 0.2); border-color: rgba(var(--vv), 0.5); }
+.vv-brand { display: flex; align-items: center; gap: 12px; }
+.vv-brand-ic { font-size: 34px; display: inline-block; animation: vv-wobble 3s ease-in-out infinite; filter: drop-shadow(0 0 12px rgba(var(--vv), 0.6)); }
+@keyframes vv-wobble { 0%, 100% { transform: rotate(-10deg); } 50% { transform: rotate(10deg) scale(1.06); } }
+.vv-kicker { margin: 0; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: rgb(251, 146, 60); font-weight: 800; }
+.vv-title { margin: 0; font-size: 26px; font-weight: 900; }
+.vv-tabs { max-width: 1180px; margin: 4px auto 16px; display: flex; gap: 8px; flex-wrap: wrap; }
+.vv-tab { border: 1px solid rgba(255, 255, 255, 0.12); background: rgba(255, 255, 255, 0.04); border-radius: 12px; padding: 9px 14px; font-weight: 700; font-size: 14px; cursor: pointer; transition: transform 0.15s; color: var(--muted) !important; }
+.vv-tab:hover { transform: translateY(-1px); border-color: rgba(var(--vv), 0.5); }
+.vv-tab.is-on { background: linear-gradient(135deg, rgba(var(--vv), 0.5), rgba(var(--vv), 0.2)); border-color: rgb(var(--vv)); color: #fff !important; box-shadow: 0 6px 22px rgba(var(--vv), 0.3); }
+.vv-main { max-width: 1180px; margin: 0 auto; animation: vv-in 0.35s ease-out; }
+@keyframes vv-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+/* ── Buttons, panels ─────────────────────────────────────────────────────── */
+.vv-go { border: 0; border-radius: 14px; padding: 13px 22px; cursor: pointer; font-weight: 900; font-size: 15px; color: #2a1200 !important;
+  background: linear-gradient(135deg, #fdba74, #f97316); box-shadow: 0 10px 28px rgba(var(--vv), 0.35), inset 0 -3px 0 rgba(0, 0, 0, 0.18); transition: transform 0.12s, filter 0.12s; }
+.vv-go:hover { transform: translateY(-2px); filter: brightness(1.07); }
+.vv-ghost { border: 1px solid rgba(var(--vv), 0.4); background: rgba(var(--vv), 0.08); border-radius: 12px; padding: 9px 14px; cursor: pointer; font-weight: 800; font-size: 13px; }
+.vv-panel { background: var(--card); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 22px; padding: 22px; backdrop-filter: blur(6px); }
+.vv-setup { max-width: 560px; margin: 20px auto; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; animation: vv-pop 0.45s cubic-bezier(.2, 1.4, .4, 1); }
+.vv-setup p { margin: 0; line-height: 1.5; color: var(--muted); }
+@keyframes vv-pop { from { opacity: 0; transform: scale(0.94); } to { opacity: 1; transform: none; } }
+.vv-big { font-size: 58px; animation: vv-bob 2.2s ease-in-out infinite; }
+@keyframes vv-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
+.vv-chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin: 6px 0 6px; }
+.vv-chip { border: 1px solid rgba(255, 255, 255, 0.14); background: rgba(255, 255, 255, 0.04); border-radius: 999px; padding: 8px 14px; cursor: pointer; font-weight: 700; font-size: 13.5px; color: var(--muted) !important; }
+.vv-chip.is-on { background: rgba(var(--vv), 0.22); border-color: rgb(var(--vv)); color: #fff !important; }
+.vv-stars { font-size: 38px; letter-spacing: 6px; }
+.vv-stars span { color: rgba(255, 255, 255, 0.15); display: inline-block; }
+.vv-stars span.on { color: #facc15; text-shadow: 0 0 12px rgba(250, 204, 21, 0.7); animation: vv-star 0.5s both cubic-bezier(.2, 1.8, .4, 1); }
+@keyframes vv-star { from { transform: scale(0) rotate(-90deg); } to { transform: none; } }
+
+/* ── Bottles + shelf ─────────────────────────────────────────────────────── */
+.vv-shelf { position: relative; margin-top: 14px; }
+.vv-shelf-row { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 6px 4px; padding: 0 6px; }
+@media (max-width: 700px) { .vv-shelf-row { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.vv-slot { display: flex; justify-content: center; animation: vv-drop 0.45s both cubic-bezier(.2, 1.4, .4, 1); position: relative; }
+.vv-slot::after { content: ''; position: absolute; left: 4%; right: 4%; bottom: -2px; height: 8px; border-radius: 3px; background: linear-gradient(180deg, #7c4a25, #4a2a13); box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5); z-index: -1; }
+@keyframes vv-drop { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: none; } }
+.vv-plank { display: none; }
+
+.vv-bottle { position: relative; display: flex; flex-direction: column; align-items: center; gap: 1px; border: 0; background: none; cursor: pointer; padding: 6px 2px 10px; border-radius: 14px; transition: transform 0.15s; width: 100%; }
+.vv-bottle svg { width: 52px; height: 78px; overflow: visible; filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.45)); transition: filter 0.2s; }
+.vv-bottle.is-small svg { width: 40px; height: 60px; }
+.vv-bottle:hover:not(:disabled) { transform: translateY(-6px) rotate(-3deg); }
+.vv-bottle:hover:not(:disabled) svg { filter: drop-shadow(0 0 14px rgba(var(--bc), 0.8)); }
+.vv-bottle:disabled { cursor: default; }
+.vv-glass { fill: rgba(255, 255, 255, 0.10); stroke: rgba(var(--bc), 0.9); stroke-width: 2; }
+.vv-bottle.is-sack .vv-glass { fill: rgba(var(--bc), 0.35); }
+.vv-tie { fill: none; stroke: rgba(255, 255, 255, 0.6); stroke-width: 2; }
+.vv-cap { fill: rgb(var(--bc)); stroke: rgba(0, 0, 0, 0.3); stroke-width: 1; }
+.vv-liquid { fill: rgba(var(--bc), 0.85); animation: vv-wave 2.6s linear infinite; }
+@keyframes vv-wave { from { transform: translateX(0); } to { transform: translateX(30px); } }
+.vv-shine { fill: none; stroke: rgba(255, 255, 255, 0.55); stroke-width: 3; stroke-linecap: round; }
+.vv-label { position: absolute; top: 44px; left: 50%; transform: translateX(-50%); font-weight: 900; font-size: 15px; color: #fff; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8); pointer-events: none; }
+.vv-bottle.is-small .vv-label { top: 34px; font-size: 13px; }
+.vv-name { font-size: 10.5px; color: var(--muted); font-weight: 700; text-align: center; line-height: 1.1; max-width: 76px; }
+
+.vv-bottle.is-right { animation: vv-pour 0.8s cubic-bezier(.2, 1.4, .4, 1); }
+.vv-bottle.is-right svg { filter: drop-shadow(0 0 18px rgba(var(--ok), 0.9)); }
+.vv-bottle.is-right .vv-cap { animation: vv-uncork 0.8s ease-out; }
+@keyframes vv-pour { 0% { transform: none; } 35% { transform: translateY(-14px) rotate(-18deg) scale(1.12); } 70% { transform: translateY(-8px) rotate(-12deg) scale(1.1); } 100% { transform: translateY(-4px) scale(1.06); } }
+@keyframes vv-uncork { 0% { transform: none; } 40% { transform: translateY(-10px) rotate(25deg); } 100% { transform: none; } }
+.vv-bottle.is-wrong { animation: vv-shake 0.45s; }
+.vv-bottle.is-wrong svg { filter: drop-shadow(0 0 14px rgba(var(--bad), 0.9)) grayscale(0.5); }
+@keyframes vv-shake { 0%, 100% { transform: translateX(0); } 20% { transform: translateX(-7px) rotate(-6deg); } 40% { transform: translateX(7px) rotate(6deg); } 60% { transform: translateX(-4px); } 80% { transform: translateX(3px); } }
+.vv-bottle.is-open svg { filter: drop-shadow(0 0 18px rgba(var(--bc), 1)); }
+.vv-bottle.is-open { transform: translateY(-6px); }
+
+/* ── Clinic ──────────────────────────────────────────────────────────────── */
+.vv-hud, .vv-rush-hud { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 10px; font-weight: 800; font-size: 14px; color: var(--muted); }
+.vv-hud-score { padding: 4px 12px; border-radius: 999px; background: rgba(var(--vv), 0.16); color: #fed7aa; font-weight: 900; animation: vv-pop 0.3s; }
+.vv-clinic-top { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; align-items: start; }
+@media (max-width: 860px) { .vv-clinic-top { grid-template-columns: minmax(0, 1fr); } }
+.vv-patient { display: flex; gap: 16px; align-items: flex-start; padding: 18px; border-radius: 22px; background: var(--card); border: 1px solid rgba(255, 255, 255, 0.1); animation: vv-walk 0.5s cubic-bezier(.2, 1.2, .4, 1); }
+@keyframes vv-walk { from { opacity: 0; transform: translateX(-40px); } to { opacity: 1; transform: none; } }
+.vv-pt-face { position: relative; flex: none; width: 84px; height: 84px; border-radius: 50%; display: grid; place-items: center; font-size: 46px;
+  background: radial-gradient(circle at 40% 35%, rgba(var(--vv), 0.35), rgba(0, 0, 0, 0.2)); border: 2px solid rgba(var(--vv), 0.4); animation: vv-sway 3s ease-in-out infinite; transition: filter 0.4s; }
+.vv-patient.is-wait .vv-pt-face { filter: saturate(0.6) hue-rotate(40deg); }
+@keyframes vv-sway { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
+.vv-patient.is-happy .vv-pt-face { border-color: rgb(var(--ok)); box-shadow: 0 0 30px rgba(var(--ok), 0.5); animation: vv-hop 0.6s cubic-bezier(.2, 1.6, .4, 1); filter: none; }
+.vv-patient.is-sick .vv-pt-face { border-color: rgb(var(--bad)); filter: saturate(0.3) hue-rotate(70deg); animation: vv-shake 0.5s; }
+@keyframes vv-hop { 0% { transform: none; } 40% { transform: translateY(-14px) scale(1.08); } 100% { transform: none; } }
+.vv-pt-fx { position: absolute; top: -8px; right: -6px; font-size: 26px; animation: vv-pop 0.4s cubic-bezier(.2, 1.8, .4, 1); }
+.vv-pt-body { flex: 1; min-width: 0; }
+.vv-pt-type { font-size: 11.5px; font-weight: 900; letter-spacing: 0.1em; text-transform: uppercase; padding: 3px 9px; border-radius: 999px; background: rgba(var(--vv), 0.16); color: #fdba74; }
+.vv-pt-ask { margin: 8px 0 10px; font-weight: 800; font-size: 17px; }
+.vv-clues { display: flex; flex-direction: column; gap: 7px; }
+.vv-clue { padding: 9px 12px; border-radius: 12px; background: rgba(255, 255, 255, 0.92); color: #2a1200; font-weight: 650; font-size: 14.5px; line-height: 1.4; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); animation: vv-note 0.4s both cubic-bezier(.2, 1.4, .4, 1); }
+@keyframes vv-note { from { opacity: 0; transform: translateY(8px) rotate(-2deg) scale(0.95); } to { opacity: 1; transform: none; } }
+.vv-result { display: flex; flex-direction: column; gap: 10px; animation: vv-pop 0.4s cubic-bezier(.2, 1.4, .4, 1); }
+.vv-verdict { margin: 0; font-weight: 900; font-size: 16px; padding: 10px 14px; border-radius: 14px; }
+.vv-verdict.ok { background: rgba(var(--ok), 0.14); color: rgb(var(--ok)); border: 1px solid rgba(var(--ok), 0.5); }
+.vv-verdict.bad { background: rgba(var(--bad), 0.12); color: rgb(252, 165, 165); border: 1px solid rgba(var(--bad), 0.5); }
+
+/* The nutrient card (shared by Clinic and the Vault). */
+.vv-card { padding: 16px; border-radius: 20px; background: linear-gradient(160deg, rgba(var(--bc), 0.18), rgba(30, 18, 12, 0.95) 55%); border: 1px solid rgba(var(--bc), 0.55); }
+.vv-card-head { display: flex; gap: 12px; align-items: center; }
+.vv-card-tag { flex: none; width: 52px; height: 52px; border-radius: 14px; display: grid; place-items: center; font-weight: 900; font-size: 18px; color: #fff; background: rgb(var(--bc)); box-shadow: 0 0 20px rgba(var(--bc), 0.5); text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5); }
+.vv-card h3 { margin: 0; font-size: 20px; }
+.vv-card-kind { margin: 2px 0 0; font-size: 12px; color: var(--muted); font-weight: 700; }
+.vv-card-role { margin: 12px 0 8px; font-size: 14.5px; line-height: 1.5; }
+.vv-row { margin: 8px 0 0; font-size: 13.5px; line-height: 1.45; }
+.vv-row b { display: block; font-size: 11.5px; letter-spacing: 0.1em; text-transform: uppercase; color: rgb(var(--bc)); margin-bottom: 4px; filter: brightness(1.3); }
+.vv-row ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 3px; }
+.vv-hook { margin: 12px 0 0; padding: 10px 12px; border-radius: 12px; background: rgba(250, 204, 21, 0.1); border: 1px solid rgba(250, 204, 21, 0.4); font-size: 13.5px; line-height: 1.45; }
+
+/* ── Rush ────────────────────────────────────────────────────────────────── */
+.vv-timer { flex: 1; position: relative; height: 24px; border-radius: 999px; background: rgba(255, 255, 255, 0.07); overflow: hidden; }
+.vv-timer div { height: 100%; background: linear-gradient(90deg, #f97316, #fdba74); transition: width 1s linear; }
+.vv-timer.is-low div { background: linear-gradient(90deg, #dc2626, #f87171); }
+.vv-timer.is-low { animation: vv-blink 0.6s steps(2) infinite; }
+@keyframes vv-blink { 50% { opacity: 0.55; } }
+.vv-timer span { position: absolute; inset: 0; display: grid; place-items: center; font-size: 12px; font-weight: 900; color: #fff; }
+.vv-combo { font-weight: 900; opacity: 0.6; }
+.vv-combo.hot { opacity: 1; filter: drop-shadow(0 0 8px rgba(255, 150, 40, 0.8)); }
+.vv-combo i { font-style: normal; margin-left: 4px; padding: 1px 6px; border-radius: 999px; background: #fbbf24; color: #2a1600; font-size: 12px; }
+.vv-last { margin: 10px 0 0; padding: 9px 12px; border-radius: 12px; font-size: 13.5px; line-height: 1.45; animation: vv-in 0.3s; }
+.vv-last.ok { background: rgba(var(--ok), 0.09); } .vv-last.bad { background: rgba(var(--bad), 0.1); }
+
+/* ── Match ───────────────────────────────────────────────────────────────── */
+.vv-match-grid { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 16px; margin-top: 10px; align-items: start; }
+.vv-col { display: flex; flex-direction: column; gap: 8px; }
+.vv-col-b { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.vv-enz { text-align: left; padding: 13px 14px; border-radius: 14px; border: 1.5px solid rgba(255, 255, 255, 0.12); background: var(--card); cursor: pointer; font-weight: 700; font-size: 14.5px; transition: transform 0.12s, border-color 0.12s; animation: vv-in 0.35s both; }
+.vv-enz:hover:not(:disabled) { transform: translateX(4px); border-color: rgba(var(--vv), 0.6); }
+.vv-enz.is-sel { border-color: rgb(var(--vv)); background: rgba(var(--vv), 0.18); box-shadow: 0 0 0 4px rgba(var(--vv), 0.15); animation: vv-pulse 1s ease-in-out infinite; }
+@keyframes vv-pulse { 0%, 100% { box-shadow: 0 0 0 4px rgba(var(--vv), 0.15); } 50% { box-shadow: 0 0 0 8px rgba(var(--vv), 0.05); } }
+.vv-enz.is-done { border-color: rgba(var(--bc), 0.8); background: rgba(var(--bc), 0.14); cursor: default; animation: vv-pop 0.4s; }
+.vv-enz b { color: rgb(var(--bc)); filter: brightness(1.3); }
+.vv-mslot { display: flex; justify-content: center; transition: opacity 0.4s; }
+.vv-mslot.is-done { opacity: 0.45; }
+.vv-match-done { margin-top: 18px; }
+
+/* ── Vault ───────────────────────────────────────────────────────────────── */
+.vv-facts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+@media (max-width: 900px) { .vv-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 520px) { .vv-facts { grid-template-columns: minmax(0, 1fr); } }
+.vv-fact { padding: 12px 14px; border-radius: 16px; background: var(--card); border: 1px solid rgba(var(--vv), 0.25); animation: vv-in 0.4s both; }
+.vv-fact b { font-size: 13px; color: #fdba74; }
+.vv-fact p { margin: 4px 0 0; font-size: 13px; line-height: 1.45; color: var(--muted); }
+.vv-vault-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 16px; align-items: start; margin-top: 6px; }
+@media (max-width: 900px) { .vv-vault-grid { grid-template-columns: minmax(0, 1fr); } }
+.vv-vault-card { position: sticky; top: 12px; animation: vv-flip 0.45s cubic-bezier(.2, 1.2, .4, 1); }
+@media (max-width: 900px) { .vv-vault-card { position: static; } }
+@keyframes vv-flip { from { opacity: 0; transform: perspective(900px) rotateY(-25deg); } to { opacity: 1; transform: none; } }
+
+@media (max-width: 520px) {
+  .vv-title { font-size: 19px; }
+  .vv-kicker { display: none; }
+  .vv-brand-ic { font-size: 26px; }
+  .vv-brand { gap: 8px; min-width: 0; }
+  .vv-back { padding: 7px 10px; }
+  .vv-tab { padding: 8px 10px; font-size: 13px; }
+  .vv .sfx-toggle-t { display: none; }
+  .vv-patient { flex-direction: column; align-items: center; text-align: center; }
+  .vv-match-grid { grid-template-columns: minmax(0, 1fr); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .vv *, .vv *::before, .vv *::after { animation-duration: 0.001s !important; animation-iteration-count: 1 !important; transition-duration: 0.001s !important; }
+}

@@ -47,6 +47,18 @@ const MINIGAMES = [
     drills: 'Pathways end to end',
   },
   {
+    id: 'vitamin-vault',
+    name: 'Vitamin Vault',
+    subject: 'Nutrition',
+    icon: '💊',
+    accent: '249, 115, 22',          // nutrition orange
+    route: '/vitamin-vault',
+    blurb: 'A night-shift pharmacy: patients bring symptoms, you grab the right '
+         + 'vitamin bottle off the shelf. Then wire every cofactor to its enzyme '
+         + 'and race the clock.',
+    drills: 'Vitamins, zinc and malnutrition',
+  },
+  {
     id: 'ecg',
     name: 'ECG Reader',
     subject: 'Cardiology',
