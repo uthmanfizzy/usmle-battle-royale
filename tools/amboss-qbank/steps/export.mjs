@@ -8,6 +8,8 @@ const clean = (s) => {
   let t = s
     .replace(/\bG iemsa/g, 'Giemsa')
     .replace(/\bP([Aa]) ([OC])/g, 'P$1$2') // alveolar PAO₂ / PACO₂ (subscript A)
+    // The space after a comma is often lost in decoding ("Fatigue,hematuria").
+    .replace(/([A-Za-z)\]]),(?=[A-Za-z(])/g, '$1, ')
     .replace(/\)\.([A-Z][a-z])/g, '). $1')
     .replace(/([a-z]{2}|\d|\))\.([A-Z][a-z])/g, '$1. $2')
     .replace(/[ \t]+/g, ' ')
