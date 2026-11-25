@@ -5566,7 +5566,7 @@ app.get('/api/amboss200/run', requireAuth, async (req, res) => {
  */
 const AQB_SCOPES = ['all', 'unused', 'incorrect'];
 // Systems with no row in `subjects` (AMBOSS sections that are not app subjects).
-const AQB_SYSTEM_NAMES = { general_principles: 'General Principles', multisystem: 'Multisystem Processes & Disorders' };
+const AQB_SYSTEM_NAMES = { general_principles: 'General Principles', multisystem: 'Multisystem Processes & Disorders', social_sciences: 'Social Sciences' };
 
 // Supabase stops at 1000 rows without saying so; page every full read.
 async function aqbSelectAll(build) {
