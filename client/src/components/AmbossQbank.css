@@ -178,3 +178,21 @@
   .aqb-nav { top: 52px; }
   .aqb-fig img { max-height: 240px; }
 }
+
+/* Recall ratings (the six UWorld/Journey self-assessments) */
+.aqb-rate { margin-top: 14px; padding: 12px 14px; border: 1px dashed var(--line); border-radius: 12px; background: rgba(255, 255, 255, 0.02); }
+.aqb-rate-head { display: block; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 800; color: rgb(var(--lime-lt)); margin-bottom: 4px; }
+.aqb-rate-group { margin-top: 8px; }
+.aqb-rate-label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+.aqb-rate-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.aqb-rate-btn { background: rgba(255, 255, 255, 0.05); border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; cursor: pointer; font-size: 13.5px; }
+.aqb-rate-btn:hover { border-color: rgba(var(--lime), 0.5); }
+.aqb-rate-btn.is-on { background: rgba(var(--lime), 0.18); border-color: rgb(var(--lime)); color: rgb(var(--lime-lt)) !important; font-weight: 700; }
+.aqb-rate-warn { display: block; margin-top: 8px; font-size: 12.5px; color: rgb(var(--bad)); }
+.aqb-rating-filter, .aqb-rate-tally { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.aqb-rchip { background: rgba(255, 255, 255, 0.04); border: 1px solid var(--line); border-radius: 999px; padding: 5px 11px; font-size: 13px; cursor: pointer; }
+.aqb-rchip b { margin-left: 4px; color: var(--muted); }
+.aqb-rchip.is-on { background: rgba(var(--lime), 0.16); border-color: rgb(var(--lime)); color: rgb(var(--lime-lt)); }
+.aqb-rchip.is-on b { color: inherit; }
+.aqb-rchip.is-static { cursor: default; }
+.aqb-opts > div:first-child { flex: 1 1 320px; }

@@ -5,6 +5,7 @@ import { sfx } from '../minigameSfx';
 import { useStudySession } from '../studySession';
 import { useStudyActivity } from '../studyPresence';
 import SfxToggle from './SfxToggle';
+import { FA_RATING_GROUPS as RATING_GROUPS, FA_RATINGS as RATINGS, FA_UNRATED as UNRATED } from './FARatings';
 import './AmbossQbank.css';
 
 /**
@@ -27,7 +28,9 @@ import './AmbossQbank.css';
  */
 
 const LETTERS = 'ABCDEFGHIJ';
-const SCOPES = [['all', 'All'], ['unused', 'Unused'], ['incorrect', 'Incorrect']];
+const SCOPES = [['all', 'All'], ['unused', 'Unused'], ['incorrect', 'Incorrect'], ['rating', 'By my rating']];
+const RATING_FILTERS = [...RATINGS, UNRATED];
+const ratingOf = (key) => RATINGS.find(r => r.key === key);
 const PREF_KEY = 'mv_aqb_prefs';
 const SYSTEM_ICON = { pulmonology: '🫁', cardiology: '❤️', nephrology: '🫘', gastroenterology: '🍽️', neurology: '🧠', endocrinology: '🦋', reproductive: '🤰', haematology_oncology: '🩸', musculoskeletal: '🦴', psychiatry: '🧩', immunology: '🛡️', microbiology: '🦠', biochemistry: '🧬', pharmacology: '💊', pathology: '🔬' };
 
@@ -45,11 +48,15 @@ function Figure({ src, onZoom, alt }) {
 }
 
 // ── Block picker ────────────────────────────────────────────────────────────
-function Picker({ catalog, error, setup, sys, setSys, blocks, setBlocks, scope, setScope, shuffle, setShuffle, onStart, starting, startError }) {
+function Picker({ catalog, error, setup, sys, setSys, blocks, setBlocks, scope, setScope, byRating, setByRating, shuffle, setShuffle, onStart, starting, startError }) {
   const system = (catalog || []).find(s => s.id === sys) || (catalog || [])[0];
   const list = system?.blocks || [];
   const chosen = list.filter(b => blocks.includes(b.block));
-  const pool = chosen.reduce((n, b) => n + (scope === 'unused' ? b.total - b.answered : scope === 'incorrect' ? b.answered - b.correct : b.total), 0);
+  const ratingCount = (key) => chosen.reduce((n, b) => n + ((b.ratings || {})[key] || 0), 0);
+  const pool = scope === 'rating'
+    ? byRating.reduce((n, k) => n + ratingCount(k), 0)
+    : chosen.reduce((n, b) => n + (scope === 'unused' ? b.total - b.answered : scope === 'incorrect' ? b.answered - b.correct : b.total), 0);
+  const toggleRating = (k) => { sfx.select(); setByRating(p => (p.includes(k) ? p.filter(x => x !== k) : [...p, k])); };
   const total = list.reduce((n, b) => n + b.total, 0);
   const done = list.reduce((n, b) => n + b.answered, 0);
   const right = list.reduce((n, b) => n + b.correct, 0);
@@ -129,6 +136,16 @@ function Picker({ catalog, error, setup, sys, setSys, blocks, setBlocks, scope, 
                 <button key={id} type="button" className={scope === id ? 'is-on' : ''} onClick={() => { sfx.select(); setScope(id); }}>{label}</button>
               ))}
             </div>
+            {scope === 'rating' && (
+              <div className="aqb-rating-filter" role="group" aria-label="Study by your rating">
+                {RATING_FILTERS.map(r => (
+                  <button key={r.key} type="button" className={`aqb-rchip${byRating.includes(r.key) ? ' is-on' : ''}`}
+                    aria-pressed={byRating.includes(r.key)} onClick={() => toggleRating(r.key)}>
+                    <span aria-hidden="true">{r.icon}</span> {r.label} <b>{chosen.length ? ratingCount(r.key) : '–'}</b>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           <div>
             <h2>Order</h2>
@@ -144,7 +161,7 @@ function Picker({ catalog, error, setup, sys, setSys, blocks, setBlocks, scope, 
         <div className="aqb-start">
           {startError && <p className="aqb-error">{startError}</p>}
           <button type="button" className="aqb-btn aqb-btn--go" disabled={!chosen.length || !pool || starting} onClick={onStart}>
-            {starting ? 'Loading…' : !chosen.length ? 'Pick a block' : !pool ? 'Nothing to do here' : `Start · ${pool} question${pool === 1 ? '' : 's'}`}
+            {starting ? 'Loading…' : !chosen.length ? 'Pick a block' : scope === 'rating' && !byRating.length ? 'Pick a rating' : !pool ? 'Nothing to do here' : `Start · ${pool} question${pool === 1 ? '' : 's'}`}
           </button>
         </div>
       )}
@@ -153,7 +170,7 @@ function Picker({ catalog, error, setup, sys, setSys, blocks, setBlocks, scope, 
 }
 
 // ── One question ────────────────────────────────────────────────────────────
-function Question({ q, pos, total, st, onPick, onStrike, onHint, onSubmit, onToggleExp, onZoom }) {
+function Question({ q, pos, total, st, onPick, onStrike, onHint, onSubmit, onToggleExp, onZoom, onRate, rateProblem, signedIn }) {
   const submitted = st.submitted;
   const correctIdx = LETTERS.indexOf(q.correct);
   return (
@@ -235,6 +252,26 @@ function Question({ q, pos, total, st, onPick, onStrike, onHint, onSubmit, onTog
           {st.pick === correctIdx ? 'Correct.' : `Incorrect. The answer is ${q.correct}.`}{st.hint ? ' (hint used)' : ''} Tap any choice to read its explanation.
         </p>
       )}
+      {submitted && signedIn && (
+        <div className="aqb-rate" role="group" aria-label="How well did you know this?">
+          <span className="aqb-rate-head">How well did you know it?</span>
+          {RATING_GROUPS.map(g => (
+            <div key={g.label} className="aqb-rate-group">
+              <span className="aqb-rate-label">{g.label}</span>
+              <div className="aqb-rate-row">
+                {g.items.map(it => (
+                  <button key={it.key} type="button" className={`aqb-rate-btn${st.rating === it.key ? ' is-on' : ''}`}
+                    aria-pressed={st.rating === it.key} onClick={() => onRate(it.key)}>
+                    <span aria-hidden="true">{it.icon}</span> {it.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+          {rateProblem === 'missing_column' && <span className="aqb-rate-warn">Ratings are not saving yet: the Qbank tables need the rating column (re-run amboss-qbank-migration.sql).</span>}
+          {rateProblem === 'failed' && <span className="aqb-rate-warn">That rating did not save. Check your connection and pick it again.</span>}
+        </div>
+      )}
     </article>
   );
 }
@@ -250,6 +287,13 @@ function Review({ qs, states, onOpen, onMissed, onBack }) {
         <p className="aqb-kicker">Session complete</p>
         <h1>{pct}% correct</h1>
         <p className="aqb-sub">{right} of {done.length} answered correctly{done.length < qs.length ? ` · ${qs.length - done.length} left unanswered` : ''}.</p>
+        {done.some(x => x.s.rating) && (
+          <div className="aqb-rate-tally">
+            {RATINGS.map(r => ({ ...r, n: done.filter(x => x.s.rating === r.key).length })).filter(r => r.n).map(r => (
+              <span key={r.key} className="aqb-rchip is-static"><span aria-hidden="true">{r.icon}</span> {r.label} <b>{r.n}</b></span>
+            ))}
+          </div>
+        )}
         <div className="aqb-start">
           {done.length > right && <button type="button" className="aqb-btn aqb-btn--go" onClick={onMissed}>Redo the {done.length - right} I missed</button>}
           <button type="button" className="aqb-btn" onClick={onBack}>Back to blocks</button>
@@ -266,7 +310,7 @@ function Review({ qs, states, onOpen, onMissed, onBack }) {
                 <button type="button" onClick={() => onOpen(i)}>
                   <span className={`aqb-dot ${!s?.submitted ? '' : ok ? 'ok' : 'bad'}`}>{i + 1}</span>
                   <span className="aqb-review-text">{q.stem.split('\n')[0].slice(0, 150)}…</span>
-                  <span className="aqb-review-ans">{s?.submitted ? `${LETTERS[s.pick]} → ${q.correct}` : '—'}</span>
+                  <span className="aqb-review-ans">{s?.rating && <span title={ratingOf(s.rating)?.label}>{ratingOf(s.rating)?.icon} </span>}{s?.submitted ? `${LETTERS[s.pick]} → ${q.correct}` : '—'}</span>
                 </button>
               </li>
             );
@@ -277,7 +321,8 @@ function Review({ qs, states, onOpen, onMissed, onBack }) {
   );
 }
 
-const freshState = () => ({ pick: null, struck: [], hint: false, submitted: false, open: [] });
+// rating starts as the student's saved one, so re-doing a question shows it.
+const freshState = (q) => ({ pick: null, struck: [], hint: false, submitted: false, open: [], rating: q?.last?.rating || null });
 
 export default function AmbossQbank() {
   const prefs = useMemo(loadPrefs, []);
@@ -288,6 +333,11 @@ export default function AmbossQbank() {
   const [sys, setSys] = useState(prefs.sys || null);
   const [blocks, setBlocks] = useState(prefs.blocks || []);
   const [scope, setScope] = useState(prefs.scope || 'all');
+  const [byRating, setByRating] = useState(Array.isArray(prefs.byRating) ? prefs.byRating : []);
+  const [rateProblem, setRateProblem] = useState(null);
+  // The answer POST for each question, so a rating is only sent once the row
+  // it lands on exists (rating straight after Submit would otherwise race it).
+  const answerReq = useRef({});
   const [shuffle, setShuffle] = useState(Boolean(prefs.shuffle));
   const [starting, setStarting] = useState(false);
   const [startError, setStartError] = useState('');
@@ -301,7 +351,7 @@ export default function AmbossQbank() {
   const toTop = useCallback((smooth) => rootRef.current?.scrollTo({ top: 0, behavior: smooth ? 'smooth' : 'auto' }), []);
 
   const q = qs[idx];
-  const st = states[idx] || freshState();
+  const st = states[idx] || freshState(q);
   const study = useStudySession({ mode: 'amboss_qbank', active: phase === 'run', subject: q?.system || null });
   useStudyActivity(phase === 'run' ? 'Amboss Qbank' : null, null, 'amboss_qbank');
 
@@ -320,11 +370,11 @@ export default function AmbossQbank() {
   }, []);
   useEffect(() => { loadCatalog(); }, [loadCatalog]);
   useEffect(() => {
-    try { localStorage.setItem(PREF_KEY, JSON.stringify({ sys, blocks, scope, shuffle })); } catch { /* not remembered */ }
-  }, [sys, blocks, scope, shuffle]);
+    try { localStorage.setItem(PREF_KEY, JSON.stringify({ sys, blocks, scope, byRating, shuffle })); } catch { /* not remembered */ }
+  }, [sys, blocks, scope, byRating, shuffle]);
 
   function begin(list) {
-    setQs(list); setStates(list.map(freshState)); setIdx(0);
+    setQs(list); setStates(list.map(q => freshState(q))); setIdx(0); setRateProblem(null);
     setPhase('run'); study.flush(); study.touch();
     toTop(false);
   }
@@ -332,19 +382,20 @@ export default function AmbossQbank() {
   async function start() {
     setStarting(true); setStartError('');
     try {
-      const params = new URLSearchParams({ system: sys || catalog?.[0]?.id || '', blocks: blocks.join(','), scope });
+      const params = new URLSearchParams({ system: sys || catalog?.[0]?.id || '', blocks: blocks.join(','), scope: scope === 'rating' ? 'all' : scope });
+      if (scope === 'rating') params.set('ratings', byRating.join(','));
       const r = await authFetch(`/api/amboss-qbank/questions?${params}`);
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'Could not load the questions.');
       let list = d.questions || [];
-      if (!list.length) throw new Error(scope === 'incorrect' ? 'Nothing answered incorrectly in those blocks.' : scope === 'unused' ? 'You have done every question in those blocks.' : 'No questions came back.');
+      if (!list.length) throw new Error(scope === 'rating' ? 'No questions in those blocks have that rating.' : scope === 'incorrect' ? 'Nothing answered incorrectly in those blocks.' : scope === 'unused' ? 'You have done every question in those blocks.' : 'No questions came back.');
       if (shuffle) list = [...list].sort(() => Math.random() - 0.5);
       begin(list);
     } catch (e) { setStartError(e.message); }
     setStarting(false);
   }
 
-  const patch = useCallback((fn) => setStates(ss => { const n = ss.slice(); n[idx] = fn(n[idx] || freshState()); return n; }), [idx]);
+  const patch = useCallback((fn) => setStates(ss => { const n = ss.slice(); n[idx] = fn(n[idx] || freshState(qs[idx])); return n; }), [idx, qs]);
 
   const pick = useCallback((i) => { if (st.submitted) return; sfx.select(); study.touch(); patch(s => ({ ...s, pick: i, struck: s.struck.filter(x => x !== i) })); }, [st.submitted, patch, study]);
   const strike = useCallback((i) => { if (st.submitted) return; study.touch(); patch(s => ({ ...s, struck: s.struck.includes(i) ? s.struck.filter(x => x !== i) : [...s.struck, i], pick: s.pick === i ? null : s.pick })); }, [st.submitted, patch, study]);
@@ -358,12 +409,28 @@ export default function AmbossQbank() {
     patch(s => ({ ...s, submitted: true, open: [...new Set([correctIdx, s.pick])] }));
     study.count(right);
     if (right) sfx.correct(); else sfx.wrong();
-    authFetch('/api/amboss-qbank/answer', {
+    answerReq.current[q.id] = authFetch('/api/amboss-qbank/answer', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ question_id: q.id, choice: LETTERS[st.pick], used_hint: st.hint }),
     }).catch(() => {});
   }, [q, st, patch, study]);
+
+  const rate = useCallback((key) => {
+    if (!q || !st.submitted) return;
+    sfx.select(); study.touch();
+    patch(s => ({ ...s, rating: key }));
+    const id = q.id;
+    Promise.resolve(answerReq.current[id])
+      .then(() => authFetch('/api/amboss-qbank/rate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question_id: id, rating: key }),
+      }))
+      .then(r => r.json())
+      .then(d => setRateProblem(d.ok ? null : d.reason === 'missing_column' ? 'missing_column' : 'failed'))
+      .catch(() => setRateProblem('failed'));
+  }, [q, st.submitted, patch, study]);
 
   const go = useCallback((to) => {
     if (to < 0 || to >= qs.length) return;
@@ -419,12 +486,13 @@ export default function AmbossQbank() {
       <main className="aqb-main">
         {phase === 'pick' && (
           <Picker catalog={catalog} error={error} setup={setup} sys={sys} setSys={setSys} blocks={blocks} setBlocks={setBlocks}
-            scope={scope} setScope={setScope} shuffle={shuffle} setShuffle={setShuffle} onStart={start} starting={starting} startError={startError} />
+            scope={scope} setScope={setScope} byRating={byRating} setByRating={setByRating} shuffle={shuffle} setShuffle={setShuffle} onStart={start} starting={starting} startError={startError} />
         )}
         {phase === 'run' && q && (
           <>
             <Question q={q} pos={idx} total={qs.length} st={st} onPick={pick} onStrike={strike} onHint={hint}
-              onSubmit={submit} onToggleExp={toggleExp} onZoom={setZoom} />
+              onSubmit={submit} onToggleExp={toggleExp} onZoom={setZoom}
+              onRate={rate} rateProblem={rateProblem} signedIn={Boolean(getToken())} />
             <div className="aqb-pager">
               <button type="button" className="aqb-btn" disabled={idx === 0} onClick={() => go(idx - 1)}>← Previous</button>
               {idx + 1 < qs.length

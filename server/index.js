@@ -5577,13 +5577,21 @@ async function aqbSelectAll(build) {
   }
 }
 
+// amboss_qbank_answers.rating (the six recall ratings, UWORLD_RATINGS) came
+// after the first release: read it optimistically and stop asking for good
+// once a query proves the column missing, so answers keep working meanwhile.
+let hasAqbRating = true;
+const aqbRatingMissing = (err) => /rating/.test(err?.message || '') && /(does not exist|schema cache|Could not find)/i.test(err?.message || '');
+
 async function aqbAnswers(userId, ids) {
   const out = new Map();
   for (let i = 0; i < ids.length; i += 300) {
-    const { data, error } = await supabase.from('amboss_qbank_answers')
-      .select('question_id, choice, correct, used_hint, answered_at')
+    const read = () => supabase.from('amboss_qbank_answers')
+      .select(`question_id, choice, correct, used_hint, answered_at${hasAqbRating ? ', rating' : ''}`)
       .eq('user_id', userId)
       .in('question_id', ids.slice(i, i + 300));
+    let { data, error } = await read();
+    if (error && hasAqbRating && aqbRatingMissing(error)) { hasAqbRating = false; ({ data, error } = await read()); }
     if (error) throw error;
     for (const r of data || []) out.set(r.question_id, r);
   }
@@ -5602,10 +5610,12 @@ app.get('/api/amboss-qbank/catalog', requireAuth, async (req, res) => {
     const systems = new Map();
     for (const r of rows) {
       const s = systems.get(r.system) || { id: r.system, name: names.get(r.system) || r.system, blocks: new Map() };
-      const b = s.blocks.get(r.block) || { block: r.block, total: 0, answered: 0, correct: 0 };
+      const b = s.blocks.get(r.block) || { block: r.block, total: 0, answered: 0, correct: 0, ratings: {} };
       b.total += 1;
       const a = ans.get(r.id);
       if (a) { b.answered += 1; if (a.correct) b.correct += 1; }
+      const rk = a?.rating || 'unrated';
+      b.ratings[rk] = (b.ratings[rk] || 0) + 1;
       s.blocks.set(r.block, b);
       systems.set(r.system, s);
     }
@@ -5626,6 +5636,8 @@ app.get('/api/amboss-qbank/questions', requireAuth, async (req, res) => {
   const system = String(req.query.system || '').trim();
   const blocks = String(req.query.blocks || '').split(',').map(n => parseInt(n, 10)).filter(n => Number.isInteger(n) && n > 0).slice(0, 50);
   const scope = AQB_SCOPES.includes(req.query.scope) ? req.query.scope : 'all';
+  // Optional "study by my rating": any of the six ratings and/or 'unrated'.
+  const ratingFilter = String(req.query.ratings || '').split(',').filter(k => UWORLD_RATINGS.includes(k) || k === 'unrated');
   if (!system || !blocks.length) return res.status(400).json({ error: 'Pick a system and at least one block.' });
   try {
     const rows = await aqbSelectAll(() => supabase.from('amboss_qbank')
@@ -5635,7 +5647,8 @@ app.get('/api/amboss-qbank/questions', requireAuth, async (req, res) => {
     const ans = await aqbAnswers(req.userId, rows.map(r => r.id));
     const questions = rows
       .map(r => ({ ...r, last: ans.get(r.id) || null }))
-      .filter(r => scope === 'all' || (scope === 'unused' ? !r.last : (r.last && !r.last.correct)));
+      .filter(r => scope === 'all' || (scope === 'unused' ? !r.last : (r.last && !r.last.correct)))
+      .filter(r => !ratingFilter.length || ratingFilter.includes(r.last?.rating || 'unrated'));
     res.json({ questions });
   } catch (err) {
     console.error('[/api/amboss-qbank/questions] failed —', err.message);
@@ -5662,6 +5675,30 @@ app.post('/api/amboss-qbank/answer', requireAuth, async (req, res) => {
   } catch (err) {
     console.error('[/api/amboss-qbank/answer] failed —', err.message);
     res.status(500).json({ error: 'Could not save the answer.' });
+  }
+});
+
+// POST /api/amboss-qbank/rate  { question_id, rating }  — one of the six
+// recall ratings, on the student's answer row (so a question must be answered
+// first, which is the only place the UI offers it). Re-rating overwrites.
+app.post('/api/amboss-qbank/rate', requireAuth, async (req, res) => {
+  if (!supabase) return res.json({ ok: false, reason: 'no_supabase' });
+  const id = String(req.body?.question_id || '');
+  const rating = String(req.body?.rating || '');
+  if (!/^AQB-[A-Z0-9-]+$/.test(id)) return res.status(400).json({ error: 'Bad question id.' });
+  if (!UWORLD_RATINGS.includes(rating)) return res.status(400).json({ error: `rating must be one of: ${UWORLD_RATINGS.join(', ')}` });
+  try {
+    const { data, error } = await supabase.from('amboss_qbank_answers')
+      .update({ rating }).eq('user_id', req.userId).eq('question_id', id).select('question_id');
+    if (error) {
+      if (aqbRatingMissing(error)) return res.json({ ok: false, reason: 'missing_column' });
+      throw error;
+    }
+    if (!data?.length) return res.json({ ok: false, reason: 'not_answered' });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[/api/amboss-qbank/rate] failed —', err.message);
+    res.json({ ok: false, reason: 'failed' });
   }
 });
 

@@ -20,8 +20,9 @@
 --                                               | {type:'images', images:[url]} ] }
 --   correct      the correct letter
 --
--- amboss_qbank_answers keeps each student's latest answer per question, which
--- is what the block picker's progress and "unused / incorrect" filters read.
+-- amboss_qbank_answers keeps each student's latest answer per question and
+-- their recall rating of it, which is what the block picker's progress,
+-- "unused / incorrect" and "by my rating" filters read.
 -- ─────────────────────────────────────────────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS amboss_qbank (
@@ -46,9 +47,21 @@ CREATE TABLE IF NOT EXISTS amboss_qbank_answers (
   choice      TEXT        NOT NULL,
   correct     BOOLEAN     NOT NULL,
   used_hint   BOOLEAN     NOT NULL DEFAULT FALSE,
+  rating      TEXT,
   answered_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   PRIMARY KEY (user_id, question_id)
 );
+
+-- Recall rating (added after the first release; safe on an existing table):
+-- the same six self-assessments as UWorld Adventure and the Journey.
+ALTER TABLE amboss_qbank_answers ADD COLUMN IF NOT EXISTS rating TEXT;
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'amboss_qbank_answers_rating_check') THEN
+    ALTER TABLE amboss_qbank_answers ADD CONSTRAINT amboss_qbank_answers_rating_check CHECK (rating IS NULL OR rating IN
+      ('knowledge_gap', 'careless_miss', 'lucky_guess', 'somewhat_know', 'fully_understood', 'long_term_memory'));
+  END IF;
+END $$;
 
 -- The server uses the service key; nothing reads these tables from the browser.
 ALTER TABLE amboss_qbank ENABLE ROW LEVEL SECURITY;
