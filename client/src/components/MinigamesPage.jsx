@@ -59,6 +59,18 @@ const MINIGAMES = [
     drills: 'Vitamins, zinc and malnutrition',
   },
   {
+    id: 'onco-atlas',
+    name: 'Onco Atlas',
+    subject: 'Reproductive',
+    icon: '🎗️',
+    accent: '236, 72, 153',          // reproductive pink
+    route: '/onco-atlas',
+    blurb: 'Tap an organ on the body map to see every breast and reproductive '
+         + 'tumour in women and men. Then sit on the tumour board and name each '
+         + 'case, and race the clock on slides, markers and associations.',
+    drills: 'Breast, gynaecologic and male reproductive tumours',
+  },
+  {
     id: 'ecg',
     name: 'ECG Reader',
     subject: 'Cardiology',

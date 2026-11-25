@@ -49,6 +49,7 @@ const Murmurs           = lazy(() => import('./components/Murmurs'));
 const PVLoops           = lazy(() => import('./components/PVLoops'));
 const ClotCascade       = lazy(() => import('./components/ClotCascade'));
 const VitaminVault      = lazy(() => import('./components/VitaminVault'));
+const OncoAtlas         = lazy(() => import('./components/OncoAtlas'));
 const LabRange          = lazy(() => import('./components/LabRange'));
 const MinigamesPage     = lazy(() => import('./components/MinigamesPage'));
 const FAImages          = lazy(() => import('./components/FAImages'));
@@ -205,6 +206,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
                 <Route path="/pv-loops" element={<RouteErrorBoundary name="PVLoops"><StudyTracked mode="pv_loops"><PVLoops onExit={() => { window.location.href = '/minigames'; }} /></StudyTracked></RouteErrorBoundary>} />
                 <Route path="/clot-cascade" element={<RouteErrorBoundary name="ClotCascade"><StudyTracked mode="clot_cascade"><ClotCascade onExit={() => { window.location.href = '/minigames'; }} /></StudyTracked></RouteErrorBoundary>} />
                 <Route path="/vitamin-vault" element={<RouteErrorBoundary name="VitaminVault"><StudyTracked mode="vitamin_vault"><VitaminVault onExit={() => { window.location.href = '/minigames'; }} /></StudyTracked></RouteErrorBoundary>} />
+                <Route path="/onco-atlas" element={<RouteErrorBoundary name="OncoAtlas"><StudyTracked mode="onco_atlas"><OncoAtlas onExit={() => { window.location.href = '/minigames'; }} /></StudyTracked></RouteErrorBoundary>} />
                 <Route path="/username-setup" element={<UsernameSetupPage />} />
                 <Route path="/*"              element={<App />} />
               </Routes>

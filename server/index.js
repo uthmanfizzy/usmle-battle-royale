@@ -13871,7 +13871,7 @@ const FA_STUDY_MODES = {
   ...Object.fromEntries([
     'ecg_reader', 'abg_reader', 'muscle_mapper', 'biostats_lab', 'spot_the_diagnosis',
     'genetics_roulette', 'drug_match', 'lab_range', 'murmurs', 'pv_loops',
-    'clot_cascade', 'vitamin_vault', 'pathway_navigator',
+    'clot_cascade', 'vitamin_vault', 'pathway_navigator', 'onco_atlas',
   ].map(m => [m, { perItem: 60, timeOnly: true }])),
 };
 app.post('/api/fa-study-session', requireAuth, async (req, res) => {

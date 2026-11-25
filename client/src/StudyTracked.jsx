@@ -34,6 +34,7 @@ export const MINIGAME_LABELS = {
   clot_cascade: 'Clot Cascade',
   vitamin_vault: 'Vitamin Vault',
   pathway_navigator: 'Pathway Navigator',
+  onco_atlas: 'Onco Atlas',
 };
 
 export function useTimeStudy(mode) {

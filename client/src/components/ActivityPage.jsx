@@ -67,6 +67,7 @@ const MODE_META = {
   clot_cascade:           { icon: '🩸', label: 'Clot Cascade'      },
   vitamin_vault:          { icon: '🍊', label: 'Vitamin Vault'     },
   pathway_navigator:      { icon: '🧭', label: 'Pathway Navigator' },
+  onco_atlas:             { icon: '🎗️', label: 'Onco Atlas'        },
 };
 export const modeMeta = (m) =>
   MODE_META[m] || {
