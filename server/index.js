@@ -5565,6 +5565,8 @@ app.get('/api/amboss200/run', requireAuth, async (req, res) => {
  *   GET  /admin/amboss-qbank/summary
  */
 const AQB_SCOPES = ['all', 'unused', 'incorrect'];
+// Systems with no row in `subjects` (AMBOSS sections that are not app subjects).
+const AQB_SYSTEM_NAMES = { general_principles: 'General Principles' };
 
 // Supabase stops at 1000 rows without saying so; page every full read.
 async function aqbSelectAll(build) {
@@ -5609,7 +5611,7 @@ app.get('/api/amboss-qbank/catalog', requireAuth, async (req, res) => {
     const names = new Map((subs || []).map(s => [s.id, s.name]));
     const systems = new Map();
     for (const r of rows) {
-      const s = systems.get(r.system) || { id: r.system, name: names.get(r.system) || r.system, blocks: new Map() };
+      const s = systems.get(r.system) || { id: r.system, name: names.get(r.system) || AQB_SYSTEM_NAMES[r.system] || r.system, blocks: new Map() };
       const b = s.blocks.get(r.block) || { block: r.block, total: 0, answered: 0, correct: 0, ratings: {} };
       b.total += 1;
       const a = ans.get(r.id);
