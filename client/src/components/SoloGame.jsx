@@ -3,6 +3,8 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useGameSettings } from '../contexts/GameSettingsContext';
 import { useTheme } from '../theme';
 import * as audio from '../audio';
+import { rapidSfx } from '../rapidFireSfx';
+import RapidFireDecor from './RapidFireDecor';
 import ExplanationText from './ExplanationText';
 import ExplanationHighlightToolbar from './ExplanationHighlightToolbar';
 import { parseRichText } from '../utils/parseRichText';
@@ -414,6 +416,14 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
   // journeyThemes.js and the theme blocks in SoloGameJourney.css.
   const [jmTheme, setJmTheme] = useState(loadJourneyTheme);
   const pickJourneyTheme = (id) => { saveJourneyTheme(id); setJmTheme(id); };
+
+  // Mehlman Rapid Fire: its own arcade sounds and hit effects on top of the
+  // exam skin (paint in RapidFire.css). Every other bank is untouched.
+  const rfMode = uworldSkin && examTheme?.id === 'mehlman_rapid_fire';
+  const rfModeRef = useRef(rfMode);
+  rfModeRef.current = rfMode;
+  // The last verdict, keyed so each answer replays its burst animation.
+  const [rfFx, setRfFx] = useState(null);
 
   const screenClass = `screen solo-screen${isJourney ? ' jm-vibrant' : ''}${uworldSkin ? ' uw-exam' : ''}` +
     (uworldSkin && examTheme ? ` uw-theme-${examTheme.id}` : '') +
@@ -2084,6 +2094,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
    * to keep the XP, the high score and the completion handler in step.
    */
   const finishBlock = useCallback((score, bestStreak) => {
+    if (rfModeRef.current) rapidSfx.fanfare();
     audio.stopGameMusic();
     const hi    = getHi(subject);
     const newHi = score > hi;
@@ -2167,6 +2178,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
     activeSecondsRef.current += spent;
     postStudyTimeRef.current();
     skippedCountRef.current += 1;
+    if (rfModeRef.current) rapidSfx.whoosh();
     setSkipNote('Skipped — it will come round again');
     setTimeout(() => setSkipNote(''), 2000);
 
@@ -2244,14 +2256,21 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
       newScore += 100 + bonus;
       newStreak += 1;
       if (newStreak > newBest) newBest = newStreak;
-      audio.playCorrect();
+      if (rfModeRef.current) {
+        rapidSfx.correct(newStreak);
+        if (newStreak >= 3 && (newStreak === 3 || newStreak === 5 || newStreak % 5 === 0)) rapidSfx.combo();
+        setRfFx({ id: Date.now(), kind: 'correct', streak: newStreak, points: 100 + bonus });
+      } else audio.playCorrect();
     } else {
       // A question bank is not a survival game: in the exam skin a wrong answer
       // costs nothing but the mark, and the block runs to its last item. Without
       // this, a player's daily set could end three questions in.
       if (!uworldSkin) newLives = Math.max(0, newLives - 1);
       newStreak = 0;
-      if (label !== null) audio.playWrong();
+      if (rfModeRef.current) {
+        if (label !== null) rapidSfx.wrong(); else rapidSfx.timeout();
+        setRfFx({ id: Date.now(), kind: label === null ? 'timeout' : 'wrong', streak: 0, points: 0 });
+      } else if (label !== null) audio.playWrong();
       if (newLives === 0) audio.playEliminated();
     }
 
@@ -2333,6 +2352,7 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
       if (newLives === 0 || exhausted) {
         finishBlockRef.current(newScore, newBest);
       } else {
+        if (rfModeRef.current) rapidSfx.whoosh();
         revealedRef.current = false;
         setRevealed(false);
         setSelected(null);
@@ -2363,7 +2383,9 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
       if (pausedRef.current) return; // frozen while paused — no time lost
       timeLeftRef.current -= 1;
       setTimeLeft(timeLeftRef.current);
-      if (timeLeftRef.current <= 5 && timeLeftRef.current > 0) audio.playTick();
+      if (timeLeftRef.current <= 5 && timeLeftRef.current > 0) {
+        if (rfModeRef.current) rapidSfx.tick(timeLeftRef.current); else audio.playTick();
+      }
       if (timeLeftRef.current <= 0) {
         clearInterval(timerRef.current);
         timerRef.current = null;
@@ -3034,6 +3056,19 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
 
   return (
     <div className={`${screenClass}${timeUpLock ? ' uw-timeup' : ''}`} ref={screenRef}>
+      {rfMode && <RapidFireDecor variant="game" />}
+      {rfMode && rfFx && (
+        <div key={rfFx.id} className={`rf-burst rf-burst--${rfFx.kind}`} aria-hidden="true">
+          <span className="rf-burst-flash" />
+          <span className="rf-burst-ring" />
+          <span className="rf-burst-text">
+            {rfFx.kind === 'correct' ? `+${rfFx.points}` : rfFx.kind === 'timeout' ? 'TIME!' : 'MISS'}
+          </span>
+          {rfFx.kind === 'correct' && rfFx.streak >= 2 && (
+            <span className="rf-burst-combo">{rfFx.streak >= 3 ? '🔥 ' : ''}{rfFx.streak} STREAK</span>
+          )}
+        </div>
+      )}
       {/* A cut is a write to the question bank, so it says so — and says
           when it did not land, rather than leaving the author to guess from
           text that reappears on the next question. */}
@@ -3362,6 +3397,14 @@ export default function SoloGame({ subject, username, difficulty, onBack, onTryA
             <div className="shd-right">
               {/* No hearts in the exam skin — they would be lying, since a wrong
                   answer costs nothing here. End Block replaces them. */}
+              {rfMode && (
+                <div className="rf-hud" aria-label={`Score ${score}, streak ${streak}`}>
+                  <span className="rf-hud-score"><small>Score</small><b key={score}>{score.toLocaleString()}</b></span>
+                  <span className={`rf-hud-streak${streak >= 3 ? ' is-hot' : ''}`} title={`${streak} in a row`}>
+                    <span aria-hidden="true">{streak >= 3 ? '🔥' : '⚡'}</span><b key={streak}>{streak}</b>
+                  </span>
+                </div>
+              )}
               {uworldSkin ? (
                 <button type="button" className="uw-endblock" onClick={() => setShowEndBlockConfirm(true)} title={uwaReview ? 'End this review' : 'End this block'}>
                   <span className="uw-endblock-icon" aria-hidden="true">⬢</span>

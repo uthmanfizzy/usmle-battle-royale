@@ -7,6 +7,10 @@ import { cachedImageMap, rememberImageMap } from '../utils/cachedImages';
 import { JOURNEY_SUBJECTS } from '../journeySubjects';
 import { DEFAULT_QUESTION_BANK_MODE } from '../questionBankModes';
 import './UWorldAdventure.css';
+import { rapidSfx } from '../rapidFireSfx';
+import SfxToggle from './SfxToggle';
+import RapidFireDecor from './RapidFireDecor';
+import './RapidFire.css';
 
 // Slider bounds (mockup) and the fallback pace for a subject with no saved one.
 // 15 rather than the mockup's larger number: the real pool is 708 questions
@@ -202,6 +206,10 @@ export default function UWorldAdventure({ mode = DEFAULT_QUESTION_BANK_MODE }) {
   // it wears change.
   const MODE = mode.id;
   const PACE_SCOPE = mode.paceScope;
+  // Mehlman Rapid Fire wears its own neon-storm skin (RapidFire.css) and has
+  // its own arcade sounds; every other bank is untouched by either.
+  const RF = MODE === 'mehlman_rapid_fire';
+  const rf = RF ? rapidSfx : null;
   const [user, setUser] = useState(getCachedUser);
   // Which system's option menu is open (subject id), or null. Opening it is
   // what clicking a subject does.
@@ -530,6 +538,7 @@ export default function UWorldAdventure({ mode = DEFAULT_QUESTION_BANK_MODE }) {
         return;
       }
       setReviewSession(false);
+      rf?.start();
       // set once: stable reference for SoloGame
       setSessionQuestions(questionOrder === 'random' ? shuffle(qs) : qs);
     } catch {
@@ -577,6 +586,7 @@ export default function UWorldAdventure({ mode = DEFAULT_QUESTION_BANK_MODE }) {
       setSystemModal(null);   // the session replaces the view; don't leave it queued to reopen
       setReviewLabel(label);
       setReviewSession(true);
+      rf?.start();
       setSessionQuestions(shuffle(qs)); // set once: stable reference for SoloGame
     } catch {
       setReviewError('Could not load these questions. Check your connection and try again.');
@@ -673,7 +683,8 @@ export default function UWorldAdventure({ mode = DEFAULT_QUESTION_BANK_MODE }) {
   const goalMetToday = doneToday > 0 && remainingToday === 0;
 
   return (
-    <div className={`uwa uwa--${MODE}`} style={{ '--uwa-accent-rgb': mode.accentRgb }}>
+    <div className={`uwa uwa--${MODE}${RF ? ' rf-skin' : ''}`} style={{ '--uwa-accent-rgb': mode.accentRgb }}>
+      {RF && <RapidFireDecor />}
       {/* Ambient backdrop: three drifting blurred blobs + a scatter of twinkling
           stars. Purely decorative — inert to pointers, hidden from assistive
           tech, and clipped by its own layer so the oversized blobs never add a
@@ -752,6 +763,7 @@ export default function UWorldAdventure({ mode = DEFAULT_QUESTION_BANK_MODE }) {
 
         {/* A bank that lives inside a hub (Amboss Quest's 200 Concepts) goes
             back to that hub; every other bank goes back to Story Mode. */}
+        {RF && <SfxToggle className="rf-sfx-toggle" />}
         <button type="button" className="uwa-hero-back" onClick={() => { window.location.href = mode.back?.route || '/?story=1'; }}>
           ← {mode.back?.label || 'Story Mode'}
         </button>
@@ -765,7 +777,9 @@ export default function UWorldAdventure({ mode = DEFAULT_QUESTION_BANK_MODE }) {
               </span>
             ))}
           </h1>
-          <p className="uwa-hero-sub">Choose your subject to begin your journey.</p>
+          <p className="uwa-hero-sub">{RF
+            ? `Pick a system. Beat the clock — ${mode.questionSeconds || 30} seconds a question.`
+            : 'Choose your subject to begin your journey.'}</p>
 
           {/* Where the whole bank stands, so the page opens with the one number
               a returning student actually wants. */}
@@ -800,6 +814,21 @@ export default function UWorldAdventure({ mode = DEFAULT_QUESTION_BANK_MODE }) {
           )}
         </div>
       </header>
+
+      {/* Rapid Fire only: a scrolling ticker under the hero. Decorative. */}
+      {RF && (
+        <div className="rf-ticker" aria-hidden="true">
+          <div className="rf-ticker-track">
+            {[0, 1].map(k => (
+              <span key={k} className="rf-ticker-run">
+                {['High yield', 'Rapid fire', 'Beat the clock', 'Build a streak', 'No guessing — skip it', 'One fact at a time'].map(t => (
+                  <span key={t} className="rf-ticker-item"><i>⚡</i>{t}</span>
+                ))}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="uwa-col">
         {/* ── Set your pace ───────────────────────────────────────────────
@@ -1063,7 +1092,8 @@ export default function UWorldAdventure({ mode = DEFAULT_QUESTION_BANK_MODE }) {
                 // deliberately survive the switch. Selecting also opens the
                 // system's own menu: today's set, a full redo and the rating
                 // piles are one decision about this system.
-                onClick={() => { setSelected(s.id); setSystemModal(s.id); setReviewError(''); }}
+                onClick={() => { rf?.open(); setSelected(s.id); setSystemModal(s.id); setReviewError(''); }}
+                onMouseEnter={rf ? () => rf.hover() : undefined}
                 aria-pressed={selected === s.id}
                 // The subject's own colour, fed to CSS once and used for the
                 // rail, icon badge, bar and glow alike — as Journey does.
@@ -1126,7 +1156,7 @@ export default function UWorldAdventure({ mode = DEFAULT_QUESTION_BANK_MODE }) {
           screen. In <body> it is outside every such containing block. */}
       {systemModal && createPortal(
         <div
-          className="uwa-modal-overlay"
+          className={`uwa-modal-overlay${RF ? " rf-modal" : ""}`}
           onClick={() => setSystemModal(null)}
           role="dialog"
           aria-modal="true"
