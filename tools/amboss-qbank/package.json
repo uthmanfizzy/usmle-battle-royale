@@ -1,0 +1,10 @@
+{
+  "name": "amboss-qbank-tools",
+  "private": true,
+  "description": "Builds an Amboss Qbank import pack from an AMBOSS block-export PDF (local only).",
+  "type": "module",
+  "dependencies": {
+    "@napi-rs/canvas": "0.1.65",
+    "pdfjs-dist": "4.10.38"
+  }
+}

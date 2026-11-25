@@ -26,3 +26,7 @@ client/.env.*.local
 # is the part that is committed.
 tools/amboss-200/data/
 tools/amboss-200/out/
+# AMBOSS Qbank: the decoded questions, figures and built packs stay local too.
+tools/amboss-qbank/work/
+tools/amboss-qbank/out/
+tools/amboss-qbank/node_modules/

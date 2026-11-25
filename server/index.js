@@ -5540,6 +5540,163 @@ app.get('/api/amboss200/run', requireAuth, async (req, res) => {
 });
 
 /**
+ * Amboss Quest → Qbank (/amboss-qbank). Its own tables (amboss-qbank-migration.sql)
+ * because each question carries a hint, an explanation per answer choice and
+ * figures inside those explanations, which the shared `questions` row has no
+ * place for. The content is imported by an admin from a pack built on their
+ * computer (tools/amboss-qbank); none of it is in this public repository.
+ *
+ *   GET  /api/amboss-qbank/catalog
+ *        every system → its blocks, each { block, total, answered, correct }
+ *        for this student.
+ *   GET  /api/amboss-qbank/questions?system=pulmonology&blocks=1,2&scope=all|unused|incorrect
+ *        the questions in block order, each with this student's last answer.
+ *   POST /api/amboss-qbank/answer   { question_id, choice, used_hint }
+ *        graded here against the stored key; returns { correct }.
+ *   POST /admin/amboss-qbank/import { questions: [...] }   (figures already URLs)
+ *   GET  /admin/amboss-qbank/summary
+ */
+const AQB_SCOPES = ['all', 'unused', 'incorrect'];
+
+// Supabase stops at 1000 rows without saying so; page every full read.
+async function aqbSelectAll(build) {
+  const out = [];
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await build().range(from, from + 999);
+    if (error) throw error;
+    out.push(...(data || []));
+    if (!data || data.length < 1000) return out;
+  }
+}
+
+async function aqbAnswers(userId, ids) {
+  const out = new Map();
+  for (let i = 0; i < ids.length; i += 300) {
+    const { data, error } = await supabase.from('amboss_qbank_answers')
+      .select('question_id, choice, correct, used_hint, answered_at')
+      .eq('user_id', userId)
+      .in('question_id', ids.slice(i, i + 300));
+    if (error) throw error;
+    for (const r of data || []) out.set(r.question_id, r);
+  }
+  return out;
+}
+
+const aqbMissingTable = (err) => /amboss_qbank/.test(err?.message || '') && /(does not exist|schema cache|Could not find)/i.test(err?.message || '');
+
+app.get('/api/amboss-qbank/catalog', requireAuth, async (req, res) => {
+  if (!supabase) return res.json({ systems: [] });
+  try {
+    const rows = await aqbSelectAll(() => supabase.from('amboss_qbank').select('id, system, block').order('id'));
+    const ans = await aqbAnswers(req.userId, rows.map(r => r.id));
+    const { data: subs } = await supabase.from('subjects').select('id, name');
+    const names = new Map((subs || []).map(s => [s.id, s.name]));
+    const systems = new Map();
+    for (const r of rows) {
+      const s = systems.get(r.system) || { id: r.system, name: names.get(r.system) || r.system, blocks: new Map() };
+      const b = s.blocks.get(r.block) || { block: r.block, total: 0, answered: 0, correct: 0 };
+      b.total += 1;
+      const a = ans.get(r.id);
+      if (a) { b.answered += 1; if (a.correct) b.correct += 1; }
+      s.blocks.set(r.block, b);
+      systems.set(r.system, s);
+    }
+    res.json({
+      systems: [...systems.values()]
+        .map(s => ({ id: s.id, name: s.name, blocks: [...s.blocks.values()].sort((a, b) => a.block - b.block) }))
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    });
+  } catch (err) {
+    if (aqbMissingTable(err)) return res.json({ systems: [], setup: true });
+    console.error('[/api/amboss-qbank/catalog] failed —', err.message);
+    res.status(500).json({ error: 'Could not load the Qbank.' });
+  }
+});
+
+app.get('/api/amboss-qbank/questions', requireAuth, async (req, res) => {
+  if (!supabase) return res.json({ questions: [] });
+  const system = String(req.query.system || '').trim();
+  const blocks = String(req.query.blocks || '').split(',').map(n => parseInt(n, 10)).filter(n => Number.isInteger(n) && n > 0).slice(0, 50);
+  const scope = AQB_SCOPES.includes(req.query.scope) ? req.query.scope : 'all';
+  if (!system || !blocks.length) return res.status(400).json({ error: 'Pick a system and at least one block.' });
+  try {
+    const rows = await aqbSelectAll(() => supabase.from('amboss_qbank')
+      .select('id, system, block, num, stem, stem_images, hint, choices, correct')
+      .eq('system', system).in('block', blocks)
+      .order('block').order('num'));
+    const ans = await aqbAnswers(req.userId, rows.map(r => r.id));
+    const questions = rows
+      .map(r => ({ ...r, last: ans.get(r.id) || null }))
+      .filter(r => scope === 'all' || (scope === 'unused' ? !r.last : (r.last && !r.last.correct)));
+    res.json({ questions });
+  } catch (err) {
+    console.error('[/api/amboss-qbank/questions] failed —', err.message);
+    res.status(500).json({ error: 'Could not load the questions.' });
+  }
+});
+
+app.post('/api/amboss-qbank/answer', requireAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Not available.' });
+  const id = String(req.body?.question_id || '');
+  const choice = String(req.body?.choice || '').toUpperCase();
+  if (!id || !/^[A-J]$/.test(choice)) return res.status(400).json({ error: 'question_id and choice are required.' });
+  try {
+    const { data: q, error } = await supabase.from('amboss_qbank').select('id, correct').eq('id', id).maybeSingle();
+    if (error) throw error;
+    if (!q) return res.status(404).json({ error: 'No such question.' });
+    const correct = q.correct === choice;
+    const { error: upErr } = await supabase.from('amboss_qbank_answers').upsert({
+      user_id: req.userId, question_id: id, choice, correct,
+      used_hint: Boolean(req.body?.used_hint), answered_at: new Date().toISOString(),
+    }, { onConflict: 'user_id,question_id' });
+    if (upErr) throw upErr;
+    res.json({ correct });
+  } catch (err) {
+    console.error('[/api/amboss-qbank/answer] failed —', err.message);
+    res.status(500).json({ error: 'Could not save the answer.' });
+  }
+});
+
+app.post('/admin/amboss-qbank/import', adminAuth, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+  const list = Array.isArray(req.body?.questions) ? req.body.questions : null;
+  if (!list || !list.length || list.length > 50) return res.status(400).json({ error: 'Send 1–50 questions at a time.' });
+  const rows = [];
+  for (const q of list) {
+    const choices = Array.isArray(q.choices) ? q.choices : [];
+    const ok = /^AQB-[A-Z0-9-]+$/.test(q.id || '') && q.system && Number.isInteger(q.block) && Number.isInteger(q.num)
+      && q.stem && choices.length >= 2 && choices.some(c => c.letter === q.correct)
+      && [q.stem_images || [], ...choices.flatMap(c => (c.explanation || []).filter(b => b.type === 'images').map(b => b.images))]
+        .flat().every(u => /^https?:\/\//.test(u));
+    if (!ok) return res.status(400).json({ error: `Question ${q.id || '?'} is incomplete (or still has an unuploaded figure).` });
+    rows.push({
+      id: q.id, system: q.system, block: q.block, num: q.num, stem: q.stem,
+      stem_images: q.stem_images || [], hint: q.hint || null, choices, correct: q.correct,
+      updated_at: new Date().toISOString(),
+    });
+  }
+  try {
+    const { error } = await supabase.from('amboss_qbank').upsert(rows, { onConflict: 'id' });
+    if (error) throw error;
+    res.json({ ok: true, saved: rows.length });
+  } catch (err) {
+    if (aqbMissingTable(err)) return res.status(503).json({ error: 'The amboss_qbank table does not exist yet: run amboss-qbank-migration.sql in Supabase first.' });
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/admin/amboss-qbank/summary', adminAuth, async (req, res) => {
+  if (!supabase) return res.json({ ids: [], setup: false });
+  try {
+    const rows = await aqbSelectAll(() => supabase.from('amboss_qbank').select('id, system, block').order('id'));
+    res.json({ ids: rows.map(r => r.id), rows });
+  } catch (err) {
+    if (aqbMissingTable(err)) return res.json({ ids: [], rows: [], setup: true });
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
  * POST /api/uworld-questions/:questionId/rate   { rating }
  *
  * Self-assessment rating for a UWorld Adventure question, shown on the
@@ -13605,6 +13762,7 @@ const FA_STUDY_MODES = {
   hy_arrows: { perItem: 120 },    // an arrow table and its explanation
   amboss_200_concepts_practice: { perItem: 180 }, // a long vignette and its HY explanation
   amboss_hy_ethics: { perItem: 90 },             // an ethics dilemma and its rule card
+  amboss_qbank: { perItem: 240 },                // a vignette, the hint and every choice's explanation
   kaplan_hy_ethics: { perItem: 90 },             // a Kaplan ethics case file and its verdict
 };
 app.post('/api/fa-study-session', requireAuth, async (req, res) => {

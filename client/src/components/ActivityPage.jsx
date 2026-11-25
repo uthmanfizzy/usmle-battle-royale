@@ -48,6 +48,7 @@ const MODE_META = {
   clinical_practice:      { icon: '🩺', label: 'Clinical'          },
   amboss_200_concepts_practice: { icon: '🧭', label: 'Amboss 200 Concepts' },
   amboss_hy_ethics:       { icon: '⚖️', label: 'Amboss HY Ethics'  },
+  amboss_qbank:           { icon: '🗂️', label: 'Amboss Qbank'      },
   kaplan_hy_ethics:       { icon: '🎓', label: 'Kaplan HY Ethics'  },
   solo:                   { icon: '🧠', label: 'Solo Practice'     },
 };

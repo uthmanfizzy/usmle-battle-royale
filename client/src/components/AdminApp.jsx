@@ -5,6 +5,7 @@ import AnKingAdmin from './admin/AnKingAdmin';
 import MedJinxAdmin from './admin/MedJinxAdmin';
 import ScanMasterAdmin from './admin/ScanMasterAdmin';
 import QuestionBankPackImport from './admin/QuestionBankPackImport';
+import AmbossQbankImport from './admin/AmbossQbankImport';
 import MurmurAudioAdmin from './admin/MurmurAudioAdmin';
 import JourneyMode from './JourneyMode';
 import QuestionParser from './QuestionParser';
@@ -11353,6 +11354,7 @@ const ADMIN_GAMES = [
   { id: 'oet',          icon: '🇬🇧', label: 'OET' },
   { id: 'clinical',     icon: '🩺', label: 'Clinical' },
   { id: 'amboss_200',   icon: '🧭', label: 'Amboss 200 Concepts' },
+  { id: 'amboss_qbank', icon: '🗂️', label: 'Amboss Qbank' },
   // ── Online ──
   { id: 'battle_royale',  icon: '⚔️', label: 'Battle Royale',  online: true },
   { id: 'speed_race',     icon: '⚡', label: 'Speed Race',     online: true },
@@ -11689,6 +11691,12 @@ function GamesPanel({ subjects }) {
               <QuestionsPanel subjects={subjects} scopeTag={AMBOSS_200_MODE} />
             </ErrorBoundary>
           </>
+        )}
+        {/* Amboss Quest → Qbank: its own tables; content arrives as a pack. */}
+        {game === 'amboss_qbank' && (
+          <ErrorBoundary>
+            <AmbossQbankImport />
+          </ErrorBoundary>
         )}
         {game === 'anking'       && (
           <>
