@@ -4,6 +4,8 @@
  *
  *   cd tools/amboss-qbank && npm install          # once
  *   node tools/amboss-qbank/build.mjs "<pdf>" --system pulmonology --name "Respiratory system" --code RESP
+ *   add --block-offset N when a second PDF shares a system (male repro after
+ *   female: --block-offset 3 numbers its blocks 4, 5, ...)
  *
  * Writes out/amboss-qbank-<code>.json. Import it in Admin → Amboss Qbank
  * (📦 Import pack), which uploads every figure and saves the questions to the
@@ -35,6 +37,7 @@ const pdf = args[0] && path.resolve(args[0]);
 const system = opt('system');
 const name = opt('name');
 const code = (opt('code') || '').toUpperCase();
+const blockOffset = String(Math.max(0, parseInt(opt('block-offset', '0'), 10) || 0));
 if (!pdf || !fs.existsSync(pdf) || !system || !name || !/^[A-Z0-9]+$/.test(code)) {
   console.error('usage: node build.mjs "<pdf>" --system <subject id> --name "<AMBOSS section>" --code <SHORT>');
   process.exit(1);
@@ -46,7 +49,7 @@ const out = path.join(HERE, 'out', `amboss-qbank-${code.toLowerCase()}.json`);
 
 const steps = [
   ['pass', [pdf]], ['match', []], ['align', []], ['pass2', [pdf]], ['parse', []],
-  ['export', [out, system, name, code]],
+  ['export', [out, system, name, code, blockOffset]],
 ];
 for (const [step, extra] of steps) {
   console.log(`\n── ${step}`);

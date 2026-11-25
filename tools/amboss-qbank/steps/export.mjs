@@ -1,7 +1,10 @@
 // questions.json + imgs/ → amboss-qbank pack (one JSON with the figures inline).
 import fs from 'fs';
 import path from 'path';
-const [,, outFile, system = 'respiratory', systemName = 'Respiratory system', code = 'RESP'] = process.argv;
+const [,, outFile, system = 'respiratory', systemName = 'Respiratory system', code = 'RESP', offsetArg = '0'] = process.argv;
+// Two PDFs that share one system (female + male reproductive) number their
+// blocks apart: --block-offset 3 makes the second PDF's blocks 4, 5, ...
+const blockOffset = Math.max(0, parseInt(offsetArg, 10) || 0);
 const Q = JSON.parse(fs.readFileSync('questions.json', 'utf8'));
 const clean = (s) => {
   if (!s) return '';
@@ -45,8 +48,8 @@ const img = (file) => {
 const questions = Q.map(q => {
   const correct = q.opts.find(o => o.correct).L;
   return {
-    id: `AQB-${code}-B${q.block}-Q${String(q.n).padStart(2, '0')}`,
-    system, block: q.block, num: q.n,
+    id: `AQB-${code}-B${q.block + blockOffset}-Q${String(q.n).padStart(2, '0')}`,
+    system, block: q.block + blockOffset, num: q.n,
     stem: clean(q.stem),
     stem_images: q.stemImgs.map(img),
     hint: clean(q.hint) || null,
@@ -62,7 +65,7 @@ const questions = Q.map(q => {
 });
 const pack = { format: 'amboss-qbank-pack', version: 1, system, systemName, name: `AMBOSS Qbank — ${systemName}`, images, questions };
 fs.writeFileSync(outFile, JSON.stringify(pack));
-const blocks = {}; questions.forEach(q => blocks[q.block] = (blocks[q.block] || 0) + 1);
+const blocks = {}; questions.forEach(q => { blocks[q.block] = (blocks[q.block] || 0) + 1; });
 console.log(`${questions.length} questions`, blocks, `${Object.keys(images).length} images`, `${(fs.statSync(outFile).size / 1048576).toFixed(1)} MB`);
 const bad = questions.filter(q => !q.stem || q.choices.length < 3 || q.choices.some(c => !c.text) || q.choices.some(c => !c.explanation.length));
 console.log('suspect:', bad.map(q => q.id + ':' + q.choices.filter(c => !c.text || !c.explanation.length).map(c => c.letter).join('')).join(' ') || 'none');
