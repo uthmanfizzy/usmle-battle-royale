@@ -91,7 +91,7 @@ for (const e of stream) {
     if (mode === 'ans') {
       if (e.bold && e.h >= 13 && (m = e.text.match(/^([A-J]) -\s*(.*)$/))) { opt = { L: m[1], text: m[2], correct: e.gray, blocks: [] }; q.opts.push(opt); sec = null; continue; }
       if (e.bold && e.h >= 13 && opt && !sec) { opt.text = (opt.text + ' ' + e.text).trim(); opt.correct ||= e.gray; continue; }
-      if (e.bold && (m = e.text.match(/^Explanation (Why|But)$/))) { sec = { type: m[1].toLowerCase(), text: '' }; opt.blocks.push(sec); lastY = null; continue; }
+      if (e.bold && (m = e.text.match(/^.?xplanation (Why|But)$/))) { sec = { type: m[1].toLowerCase(), text: '' }; opt.blocks.push(sec); lastY = null; continue; }
       if (e.bold && e.text === 'Image') { sec = { type: 'imgs', files: [] }; opt.blocks.push(sec); continue; }
       if (!opt) { (q.junk ||= []).push(e.text); continue; }
       if (!sec || sec.type === 'imgs') { sec = { type: 'text', text: '' }; opt.blocks.push(sec); }
@@ -108,6 +108,13 @@ for (const e of stream) {
     else if (mode === 'ans' && opt) { if (!sec || sec.type !== 'imgs') { sec = { type: 'imgs', files: [] }; opt.blocks.push(sec); } sec.files.push(e.file); }
     else (q.lostImgs ||= []).push(e.file);
   }
+}
+// An option header whose text was lost in decoding ("C -" with its "S4"
+// leaking into the next heading) takes its wording from the answer table.
+for (const q of Qs) for (const o of q.opts) {
+  if (o.text.trim()) continue;
+  const row = (q.table || []).map(r => r.match(/^([A-J]) \| (.+)$/)).find(m => m && m[1] === o.L);
+  if (row) o.text = row[2].trim();
 }
 for (const q of Qs) for (const im of q.tableImgs || []) {
   const rows = (q.rows || []).filter(r => r.page === im.page);
