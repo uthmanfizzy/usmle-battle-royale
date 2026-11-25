@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getToken, clearToken, fetchMe, getCachedUser, setCachedUser } from '../auth';
+import { getToken, clearToken, fetchMe, getCachedUser, setCachedUser, authFetch } from '../auth';
 import UsernameChangeModal from './UsernameChangeModal';
 import { useTheme, PALETTE } from '../theme';
 import { DefaultPreview, PixelPreview } from './AppearanceSection';
@@ -7,6 +7,12 @@ import CelestialPreview from './celestial/CelestialPreview';
 import MoonlitPreview from './moonlit/MoonlitPreview';
 import { useScreenComfort } from '../screenComfort';
 import './SettingsPage.css';
+
+const ACTIVITY_VISIBILITY = [
+  ['private', 'Only me', '🔒'],
+  ['friends', 'Friends', '👥'],
+  ['everyone', 'Everyone', '🌍'],
+];
 
 // Mockup-style toggle switch: red track when on, white knob, knob-right
 // when active. Disabled = coming-soon rows (no backend exists for them).
@@ -57,6 +63,25 @@ export default function SettingsPage() {
     setMusicEnabled(newValue);
     localStorage.setItem('medvale_music', newValue);
   };
+
+  const visibility = user?.activity_visibility || 'everyone';
+  const [savingVis, setSavingVis] = useState(false);
+  const [visError, setVisError] = useState('');
+  async function saveVisibility(next) {
+    if (next === visibility || !user) return;
+    const prev = user;
+    const optimistic = { ...user, activity_visibility: next };
+    setUser(optimistic); setVisError(''); setSavingVis(true);
+    try {
+      const r = await authFetch('/auth/preferences', { method: 'PUT', body: JSON.stringify({ activity_visibility: next }) });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || 'Could not save.');
+      setCachedUser(optimistic);
+    } catch (e) {
+      setUser(prev); setVisError(e.message);
+    }
+    setSavingVis(false);
+  }
 
   function handleLogout() {
     if (!window.confirm('Sign out?')) return;
@@ -145,6 +170,34 @@ export default function SettingsPage() {
           <div className="stg-row">
             <span className="stg-row-label">Background Music</span>
             <Toggle on={musicEnabled} onChange={toggleMusic} label="Background Music" />
+          </div>
+        </div>
+
+        {/* ── Privacy: who can see Daily Activity (timeline + study calendar).
+               Enforced by the server, not just hidden here. ── */}
+        <h2 className="stg-section-head">Privacy</h2>
+        <div className="stg-card">
+          <div className="stg-row stg-row--stack">
+            <span className="stg-row-label">
+              Who can see my Daily Activity
+              <small className="stg-row-hint">Your study timeline and calendar. You can always see your own.</small>
+            </span>
+            <div className="stg-seg" role="radiogroup" aria-label="Who can see my Daily Activity">
+              {ACTIVITY_VISIBILITY.map(([id, label, icon]) => (
+                <button
+                  key={id}
+                  type="button"
+                  role="radio"
+                  aria-checked={visibility === id}
+                  className={`stg-seg-btn${visibility === id ? ' stg-seg-btn--on' : ''}`}
+                  disabled={savingVis}
+                  onClick={() => saveVisibility(id)}
+                >
+                  {icon} {label}
+                </button>
+              ))}
+            </div>
+            {visError && <small className="stg-row-error">{visError}</small>}
           </div>
         </div>
 

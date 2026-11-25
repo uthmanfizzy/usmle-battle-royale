@@ -2653,6 +2653,9 @@ function socketLocalDate(sock) {
 // other live modes are games first and stay out of it). Capped at what the
 // rounds could really take: answering + intro + the reveal read.
 const MEDJINX_MAX_SECONDS_PER_ROUND = 60 + 4 + 16 + 10;
+// Study Time credit for the other live modes: a question plus its reveal.
+const ONLINE_STUDY_SECONDS_PER_QUESTION = 75;
+const ONLINE_STUDY_FALLBACK_CAP = 30 * 60;
 
 async function awardXP(lobby, sorted) {
   if (!supabase) return;
@@ -2801,19 +2804,24 @@ async function awardXP(lobby, sorted) {
         console.error(`[activity_sessions] insert threw for ${player.username} —`, actEx.message);
       }
 
-      // MedJinx: the match is study, so it also counts on Study Time.
-      if (lobby.gameMode === 'medjinx' && durationSeconds > 0) {
-        const rounds = lobby.answeredCounts?.get(player.id) || 0;
-        const credit = Math.min(durationSeconds, Math.max(1, rounds) * MEDJINX_MAX_SECONDS_PER_ROUND);
+      // Every live match is study, so it also counts on Study Time: the
+      // match's length, capped by what the player actually got through
+      // (MedJinx rounds have their own, longer cap). A mode that does not
+      // count answers is capped at ONLINE_STUDY_FALLBACK_CAP instead.
+      if (durationSeconds > 0) {
+        const answered = lobby.answeredCounts?.get(player.id);
+        const perItem = lobby.gameMode === 'medjinx' ? MEDJINX_MAX_SECONDS_PER_ROUND : ONLINE_STUDY_SECONDS_PER_QUESTION;
+        const cap = Number.isFinite(answered) ? Math.max(1, answered) * perItem : ONLINE_STUDY_FALLBACK_CAP;
+        const credit = Math.min(durationSeconds, cap);
         try {
           const { error: stErr } = await supabase.rpc('add_study_time', {
             p_user_id: sock.userId,
             p_date:    resolveLocalDate(socketLocalDate(sock)),
             p_seconds: credit,
           });
-          if (stErr) console.warn('[medjinx] add_study_time failed —', stErr.message);
+          if (stErr) console.warn(`[${lobby.gameMode}] add_study_time failed —`, stErr.message);
         } catch (stEx) {
-          console.warn('[medjinx] add_study_time threw —', stEx.message);
+          console.warn(`[${lobby.gameMode}] add_study_time threw —`, stEx.message);
         }
       }
 
@@ -7991,9 +7999,14 @@ app.put('/auth/username', requireAuth, async (req, res) => {
 app.put('/auth/preferences', requireAuth, async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Database not configured.' });
 
-  const { study_mode, theme_pref, color_pref } = req.body || {};
+  const { study_mode, theme_pref, color_pref, activity_visibility } = req.body || {};
   const updateData = {};
 
+  if (activity_visibility !== undefined) {
+    if (!ACTIVITY_VISIBILITY.includes(activity_visibility))
+      return res.status(400).json({ error: `activity_visibility must be one of ${ACTIVITY_VISIBILITY.join(', ')}.` });
+    updateData.activity_visibility = activity_visibility;
+  }
   if (study_mode !== undefined) {
     if (typeof study_mode !== 'boolean')
       return res.status(400).json({ error: 'study_mode must be a boolean.' });
@@ -8016,7 +8029,12 @@ app.put('/auth/preferences', requireAuth, async (req, res) => {
   try {
     const { error: updateErr } = await supabase
       .from('users').update(updateData).eq('id', req.userId);
-    if (updateErr) return res.status(500).json({ error: updateErr.message });
+    if (updateErr) {
+      if (updateData.activity_visibility && /activity_visibility/.test(updateErr.message || '')) {
+        return res.status(503).json({ error: 'Activity privacy is not set up yet: run activity-privacy-migration.sql in Supabase.' });
+      }
+      return res.status(500).json({ error: updateErr.message });
+    }
     res.json({ ok: true, ...updateData });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -8641,6 +8659,43 @@ app.post('/api/study-session', requireAuth, async (req, res) => {
   }
 });
 
+// ── Daily Activity privacy ────────────────────────────────────────────────────
+// users.activity_visibility (activity-privacy-migration.sql): who may see a
+// player's Daily Activity timeline and study calendar. The owner always can.
+// A database without the column behaves as before ('everyone'). Any failure
+// to check friendship hides rather than shows: private data errs closed.
+const ACTIVITY_VISIBILITY = ['everyone', 'friends', 'private'];
+let hasActivityVisibility = true;
+
+async function activityVisibilityOf(userId) {
+  if (!supabase || !hasActivityVisibility || !UUID_RE.test(userId)) return 'everyone';
+  const { data, error } = await supabase.from('users').select('activity_visibility').eq('id', userId).maybeSingle();
+  if (error) {
+    if (/activity_visibility/.test(error.message || '')) { hasActivityVisibility = false; return 'everyone'; }
+    return 'private';
+  }
+  return ACTIVITY_VISIBILITY.includes(data?.activity_visibility) ? data.activity_visibility : 'everyone';
+}
+
+async function areFriends(a, b) {
+  if (!supabase || !UUID_RE.test(a) || !UUID_RE.test(b)) return false;
+  const { data, error } = await supabase.from('friends').select('id')
+    .eq('status', 'accepted')
+    .or(`and(user_id.eq.${a},friend_id.eq.${b}),and(user_id.eq.${b},friend_id.eq.${a})`)
+    .limit(1);
+  if (error) return false;
+  return (data || []).length > 0;
+}
+
+/** { allowed, visibility } for req.userId (may be undefined) viewing ownerId. */
+async function activityAccess(viewerId, ownerId) {
+  if (viewerId && viewerId === ownerId) return { allowed: true, visibility: await activityVisibilityOf(ownerId) };
+  const visibility = await activityVisibilityOf(ownerId);
+  if (visibility === 'everyone') return { allowed: true, visibility };
+  if (visibility === 'friends' && viewerId) return { allowed: await areFriends(viewerId, ownerId), visibility };
+  return { allowed: false, visibility };
+}
+
 // Public (no auth) like /api/leaderboard/players — anyone viewing a profile
 // sees these stats. Fails soft to zeros so a profile view never breaks.
 app.get('/api/users/:userId/study-stats', async (req, res) => {
@@ -8671,7 +8726,7 @@ app.get('/api/users/:userId/study-stats', async (req, res) => {
 // heatmap calendar. Public like study-stats. Reads study_time_daily directly
 // (service-role client bypasses RLS); only days that have a row are returned,
 // the client fills the gaps. Fails soft to an empty month, never 500s.
-app.get('/api/users/:userId/study-time/calendar', async (req, res) => {
+app.get('/api/users/:userId/study-time/calendar', optionalAuth, async (req, res) => {
   // Month navigation must always hit the server — never let a browser/CDN
   // serve a cached month grid (Express's default ETag has no max-age policy).
   res.set('Cache-Control', 'no-store');
@@ -8689,6 +8744,8 @@ app.get('/api/users/:userId/study-time/calendar', async (req, res) => {
   if (!supabase) return res.json({ year, month, days: [] });
 
   try {
+    const access = await activityAccess(req.userId, req.params.userId);
+    if (!access.allowed) return res.json({ year, month, days: [], hidden: true, visibility: access.visibility });
     const { data, error } = await supabase
       .from('study_time_daily')
       .select('study_date, seconds')
@@ -8706,6 +8763,7 @@ app.get('/api/users/:userId/study-time/calendar', async (req, res) => {
       year,
       month,
       days: (data || []).map(r => ({ date: r.study_date, seconds: r.seconds || 0 })),
+      visibility: access.visibility,
     });
   } catch (err) {
     console.warn('[/api/users/:userId/study-time/calendar] unavailable —', err.message);
@@ -8871,7 +8929,7 @@ app.get('/api/users/:userId/game-stats', async (req, res) => {
 // Journey and Training Grounds, so it can drift across a midnight boundary.
 // The day window is UTC, matching the server's own "today".
 // Fail soft: bad date, query error or no rows → { date, sessions: [] } with 200.
-app.get('/api/users/:userId/activity-sessions', async (req, res) => {
+app.get('/api/users/:userId/activity-sessions', optionalAuth, async (req, res) => {
   const { userId } = req.params;
   const raw     = (req.query.date ?? '').toString();
   const utcToday = new Date().toISOString().slice(0, 10);
@@ -8883,6 +8941,8 @@ app.get('/api/users/:userId/activity-sessions', async (req, res) => {
 
   if (!supabase) return res.json({ date, sessions: [] });
   try {
+    const access = await activityAccess(req.userId, userId);
+    if (!access.allowed) return res.json({ date, sessions: [], hidden: true, visibility: access.visibility });
     const dayStart = `${date}T00:00:00.000Z`;
     const dayEnd   = new Date(Date.parse(dayStart) + 86400000).toISOString();
     // Selecting a column that is not there fails the WHOLE query, and this
@@ -8917,7 +8977,7 @@ app.get('/api/users/:userId/activity-sessions', async (req, res) => {
         ? { ...s, journey_passed: Number(s.score_pct) >= threshold }
         : s
     ));
-    res.json({ date, sessions });
+    res.json({ date, sessions, visibility: access.visibility });
   } catch (err) {
     console.warn('[/api/users/:userId/activity-sessions] unavailable —', err.message);
     res.json({ date, sessions: [] });
@@ -13764,6 +13824,16 @@ const FA_STUDY_MODES = {
   amboss_hy_ethics: { perItem: 90 },             // an ethics dilemma and its rule card
   amboss_qbank: { perItem: 240 },                // a vignette, the hint and every choice's explanation
   kaplan_hy_ethics: { perItem: 90 },             // a Kaplan ethics case file and its verdict
+  tower: { perItem: 90 },                        // a timed floor question and its explanation
+  // Minigames (client/src/StudyTracked.jsx wraps their routes): time only.
+  // They mix learning screens with play, so there is no question count to
+  // cap by; `items` is the session's active minutes, rounded up, and the
+  // credit is capped at a minute each.
+  ...Object.fromEntries([
+    'ecg_reader', 'abg_reader', 'muscle_mapper', 'biostats_lab', 'spot_the_diagnosis',
+    'genetics_roulette', 'drug_match', 'lab_range', 'murmurs', 'pv_loops',
+    'clot_cascade', 'vitamin_vault', 'pathway_navigator',
+  ].map(m => [m, { perItem: 60, timeOnly: true }])),
 };
 app.post('/api/fa-study-session', requireAuth, async (req, res) => {
   const mode = String(req.body?.mode || '');
@@ -13777,10 +13847,10 @@ app.post('/api/fa-study-session', requireAuth, async (req, res) => {
   if (!supabase) return res.json({ ok: false });
   const duration = Math.min(Math.round(seconds), items * cfg.perItem);
   const subject = typeof req.body?.subject === 'string' ? req.body.subject.trim().slice(0, 40) || null : null;
-  const scorePct = Number.isFinite(correct) && correct >= 0 && correct <= items ? Math.round((correct / items) * 100) : null;
+  const scorePct = !cfg.timeOnly && Number.isFinite(correct) && correct >= 0 && correct <= items ? Math.round((correct / items) * 100) : null;
   await logStudySession({
     userId: req.userId, gameMode: mode, subject,
-    seconds: duration, questions: items,
+    seconds: duration, questions: cfg.timeOnly ? null : items,
     outcomeType: scorePct === null ? null : 'score_pct', scorePct,
     studyDate: resolveLocalDate(req.body?.date),
   });

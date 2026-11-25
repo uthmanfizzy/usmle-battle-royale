@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { getToken, fetchMe, getCachedUser } from '../auth';
+import { getToken, fetchMe, getCachedUser, authHeaders } from '../auth';
+import { HiddenActivity, OwnVisibilityNote } from './ActivityPrivacyNote';
 import { getMasteryColor } from '../utils/masteryColors';
 import { QUESTION_BANK_MODES } from '../questionBankModes';
 import './ActivityPage.css';
@@ -51,6 +52,21 @@ const MODE_META = {
   amboss_qbank:           { icon: '🗂️', label: 'Amboss Qbank'      },
   kaplan_hy_ethics:       { icon: '🎓', label: 'Kaplan HY Ethics'  },
   solo:                   { icon: '🧠', label: 'Solo Practice'     },
+  tower:                  { icon: '🏰', label: 'Tower'             },
+  // Minigames (StudyTracked.jsx): time only, no question count.
+  ecg_reader:             { icon: '💓', label: 'ECG Reader'        },
+  abg_reader:             { icon: '🧪', label: 'ABG Reader'        },
+  muscle_mapper:          { icon: '💪', label: 'Muscle Mapper'     },
+  biostats_lab:           { icon: '📊', label: 'Biostats Lab'      },
+  spot_the_diagnosis:     { icon: '🗣️', label: 'Spot the Diagnosis' },
+  genetics_roulette:      { icon: '🧬', label: 'Genetics Roulette' },
+  drug_match:             { icon: '💊', label: 'Drug Mechanism Match' },
+  lab_range:              { icon: '🧫', label: 'Lab Range'         },
+  murmurs:                { icon: '🩺', label: 'Murmurs'           },
+  pv_loops:               { icon: '🫀', label: 'PV Loop Lab'       },
+  clot_cascade:           { icon: '🩸', label: 'Clot Cascade'      },
+  vitamin_vault:          { icon: '🍊', label: 'Vitamin Vault'     },
+  pathway_navigator:      { icon: '🧭', label: 'Pathway Navigator' },
 };
 export const modeMeta = (m) =>
   MODE_META[m] || {
@@ -575,6 +591,8 @@ export default function ActivityPage() {
   });
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading]   = useState(true);
+  const [hidden, setHidden]     = useState(null); // owner's visibility when this viewer may not see it
+  const [ownVis, setOwnVis]     = useState(null); // shown to the owner as a reminder of who can see it
   const [notes, setNotes]       = useState({});   // gap_start ISO -> note
   const [kinds, setKinds]       = useState({});   // gap_start ISO -> 'sleep'
 
@@ -603,10 +621,12 @@ export default function ActivityPage() {
     if (!viewedId) return;
     let cancelled = false;
     setLoading(true);
-    fetch(`${SERVER_URL}/api/users/${viewedId}/activity-sessions?date=${date}`)
+    fetch(`${SERVER_URL}/api/users/${viewedId}/activity-sessions?date=${date}`, { headers: authHeaders() })
       .then(r => (r.ok ? r.json() : null))
       .then(data => {
         if (cancelled) return;
+        setHidden(data?.hidden ? (data.visibility || 'private') : null);
+        setOwnVis(data?.visibility || null);
         setSessions(Array.isArray(data?.sessions) ? data.sessions : []);
         setLoading(false);
       })
@@ -793,11 +813,14 @@ export default function ActivityPage() {
           </button>
         </div>
 
+        {isOwn && ownVis && <OwnVisibilityNote visibility={ownVis} />}
         {loading ? (
           <div className="da-empty">
             <div className="da-load-ring" />
             <p className="da-empty-text">Loading activity…</p>
           </div>
+        ) : hidden ? (
+          <HiddenActivity visibility={hidden} what="daily activity" />
         ) : sessions.length === 0 ? (
           <div className="da-empty">
             <span className="da-empty-icon" aria-hidden="true">🗓️</span>

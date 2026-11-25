@@ -33,6 +33,7 @@ const AmbossQuest       = lazy(() => import('./components/AmbossQuest'));
 const Amboss200         = lazy(() => import('./components/Amboss200'));
 const AmbossEthics      = lazy(() => import('./components/AmbossEthics'));
 const AmbossQbank       = lazy(() => import('./components/AmbossQbank'));
+import StudyTracked from './StudyTracked';
 const KaplanHub         = lazy(() => import('./components/KaplanHub'));
 const KaplanEthics      = lazy(() => import('./components/KaplanEthics'));
 const ReelsPage         = lazy(() => import('./components/ReelsPage'));
@@ -191,19 +192,19 @@ ReactDOM.createRoot(document.getElementById('root')).render(
                 <Route path="/minigames" element={<RouteErrorBoundary name="MinigamesPage"><MinigamesPage /></RouteErrorBoundary>} />
                 {/* Leaving the navigator now goes back to the shelf it was
                     launched from, not to the Journey it used to live in. */}
-                <Route path="/pathway-navigator" element={<RouteErrorBoundary name="PathwayNavigator"><PathwayNavigator onExit={() => { window.location.href = '/minigames'; }} /></RouteErrorBoundary>} />
-                <Route path="/ecg-reader" element={<RouteErrorBoundary name="ECGReader"><ECGReader onExit={() => { window.location.href = '/minigames'; }} /></RouteErrorBoundary>} />
-                <Route path="/abg-reader" element={<RouteErrorBoundary name="ABGReader"><ABGReader onExit={() => { window.location.href = '/minigames'; }} /></RouteErrorBoundary>} />
-                <Route path="/muscle-mapper" element={<RouteErrorBoundary name="MuscleMapper"><MuscleMapper onExit={() => { window.location.href = '/minigames'; }} /></RouteErrorBoundary>} />
-                <Route path="/biostats-lab" element={<RouteErrorBoundary name="BiostatsLab"><BiostatsLab onExit={() => { window.location.href = '/minigames'; }} /></RouteErrorBoundary>} />
-                <Route path="/spot-the-diagnosis" element={<RouteErrorBoundary name="SpotTheDiagnosis"><SpotTheDiagnosis onExit={() => { window.location.href = '/minigames'; }} /></RouteErrorBoundary>} />
-                <Route path="/genetics-roulette" element={<RouteErrorBoundary name="GeneticsRoulette"><GeneticsRoulette onExit={() => { window.location.href = '/minigames'; }} /></RouteErrorBoundary>} />
-                <Route path="/drug-match" element={<RouteErrorBoundary name="DrugMatch"><DrugMatch onExit={() => { window.location.href = '/minigames'; }} /></RouteErrorBoundary>} />
-                <Route path="/lab-values" element={<RouteErrorBoundary name="LabRange"><LabRange onExit={() => { window.location.href = '/minigames'; }} /></RouteErrorBoundary>} />
-                <Route path="/murmurs"element={<RouteErrorBoundary name="Murmurs"><Murmurs onExit={() => { window.location.href = '/minigames'; }} /></RouteErrorBoundary>} />
-                <Route path="/pv-loops" element={<RouteErrorBoundary name="PVLoops"><PVLoops onExit={() => { window.location.href = '/minigames'; }} /></RouteErrorBoundary>} />
-                <Route path="/clot-cascade" element={<RouteErrorBoundary name="ClotCascade"><ClotCascade onExit={() => { window.location.href = '/minigames'; }} /></RouteErrorBoundary>} />
-                <Route path="/vitamin-vault" element={<RouteErrorBoundary name="VitaminVault"><VitaminVault onExit={() => { window.location.href = '/minigames'; }} /></RouteErrorBoundary>} />
+                <Route path="/pathway-navigator" element={<RouteErrorBoundary name="PathwayNavigator"><StudyTracked mode="pathway_navigator"><PathwayNavigator onExit={() => { window.location.href = '/minigames'; }} /></StudyTracked></RouteErrorBoundary>} />
+                <Route path="/ecg-reader" element={<RouteErrorBoundary name="ECGReader"><StudyTracked mode="ecg_reader"><ECGReader onExit={() => { window.location.href = '/minigames'; }} /></StudyTracked></RouteErrorBoundary>} />
+                <Route path="/abg-reader" element={<RouteErrorBoundary name="ABGReader"><StudyTracked mode="abg_reader"><ABGReader onExit={() => { window.location.href = '/minigames'; }} /></StudyTracked></RouteErrorBoundary>} />
+                <Route path="/muscle-mapper" element={<RouteErrorBoundary name="MuscleMapper"><StudyTracked mode="muscle_mapper"><MuscleMapper onExit={() => { window.location.href = '/minigames'; }} /></StudyTracked></RouteErrorBoundary>} />
+                <Route path="/biostats-lab" element={<RouteErrorBoundary name="BiostatsLab"><StudyTracked mode="biostats_lab"><BiostatsLab onExit={() => { window.location.href = '/minigames'; }} /></StudyTracked></RouteErrorBoundary>} />
+                <Route path="/spot-the-diagnosis" element={<RouteErrorBoundary name="SpotTheDiagnosis"><StudyTracked mode="spot_the_diagnosis"><SpotTheDiagnosis onExit={() => { window.location.href = '/minigames'; }} /></StudyTracked></RouteErrorBoundary>} />
+                <Route path="/genetics-roulette" element={<RouteErrorBoundary name="GeneticsRoulette"><StudyTracked mode="genetics_roulette"><GeneticsRoulette onExit={() => { window.location.href = '/minigames'; }} /></StudyTracked></RouteErrorBoundary>} />
+                <Route path="/drug-match" element={<RouteErrorBoundary name="DrugMatch"><StudyTracked mode="drug_match"><DrugMatch onExit={() => { window.location.href = '/minigames'; }} /></StudyTracked></RouteErrorBoundary>} />
+                <Route path="/lab-values" element={<RouteErrorBoundary name="LabRange"><StudyTracked mode="lab_range"><LabRange onExit={() => { window.location.href = '/minigames'; }} /></StudyTracked></RouteErrorBoundary>} />
+                <Route path="/murmurs"element={<RouteErrorBoundary name="Murmurs"><StudyTracked mode="murmurs"><Murmurs onExit={() => { window.location.href = '/minigames'; }} /></StudyTracked></RouteErrorBoundary>} />
+                <Route path="/pv-loops" element={<RouteErrorBoundary name="PVLoops"><StudyTracked mode="pv_loops"><PVLoops onExit={() => { window.location.href = '/minigames'; }} /></StudyTracked></RouteErrorBoundary>} />
+                <Route path="/clot-cascade" element={<RouteErrorBoundary name="ClotCascade"><StudyTracked mode="clot_cascade"><ClotCascade onExit={() => { window.location.href = '/minigames'; }} /></StudyTracked></RouteErrorBoundary>} />
+                <Route path="/vitamin-vault" element={<RouteErrorBoundary name="VitaminVault"><StudyTracked mode="vitamin_vault"><VitaminVault onExit={() => { window.location.href = '/minigames'; }} /></StudyTracked></RouteErrorBoundary>} />
                 <Route path="/username-setup" element={<UsernameSetupPage />} />
                 <Route path="/*"              element={<App />} />
               </Routes>

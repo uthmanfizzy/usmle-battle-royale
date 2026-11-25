@@ -3,6 +3,7 @@ import * as audio from '../audio';
 import { getToken } from '../auth';
 import './TowerMode.css';
 import { useStudyActivity } from '../studyPresence';
+import { useStudySession } from '../studySession';
 import ExplanationText from './ExplanationText';
 import { shuffleQuestionOptions } from '../utils/shuffleOptions';
 
@@ -177,6 +178,8 @@ export default function TowerMode({ username, onBack }) {
   const [unlockedFloor,   setUnlockedFloor]   = useState(saved.floor || 1);
   const [activeFloor,     setActiveFloor]     = useState(saved.floor || 1);
   const [view,            setView]            = useState('map');
+  // Study Time: active seconds while a floor is being climbed (not on the map).
+  const study = useStudySession({ mode: 'tower', active: view !== 'map' });
 
   const [questions,       setQuestions]       = useState([]);
   const [qIdx,            setQIdx]            = useState(0);
@@ -338,6 +341,7 @@ export default function TowerMode({ username, onBack }) {
     setSelected(label);
 
     const correct = label !== null && label === q.correct;
+    study.count(correct);
     const floor   = activeFloorRef.current;
     const type    = floorType(floor);
     const target  = floorTarget(floor);

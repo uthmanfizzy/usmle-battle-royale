@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { SERVER_URL } from '../../serverUrl';
+import { authHeaders } from '../../auth';
+import { HiddenActivity } from '../ActivityPrivacyNote';
 import { modeMeta, subjectLabel } from '../ActivityPage';
 import './CelestialDailyActivity.css';
 
@@ -52,9 +54,9 @@ export default function CelestialDailyActivity({ userId, anchorId }) {
     const now = Date.now();
     const dates = Array.from({ length: DAYS }, (_, i) => ymd(now - i * 86400000));
     Promise.all(dates.map(date =>
-      fetch(`${SERVER_URL}/api/users/${userId}/activity-sessions?date=${date}`)
+      fetch(`${SERVER_URL}/api/users/${userId}/activity-sessions?date=${date}`, { headers: authHeaders() })
         .then(r => (r.ok ? r.json() : { sessions: [] }))
-        .then(d => ({ date, sessions: shape(d.sessions) }))
+        .then(d => ({ date, sessions: shape(d.sessions), hidden: d.hidden ? (d.visibility || 'private') : null }))
         .catch(() => ({ date, sessions: [] })),
     )).then(list => { if (!off) setDays(list); });
     return () => { off = true; };
@@ -72,8 +74,9 @@ export default function CelestialDailyActivity({ userId, anchorId }) {
       </div>
 
       {days === null && <div className="cda-day cda-day--loading">Loading activity…</div>}
+      {days?.[0]?.hidden && <HiddenActivity visibility={days[0].hidden} what="daily activity" />}
 
-      {days && days.map(({ date, sessions }) => {
+      {days && !days[0]?.hidden && days.map(({ date, sessions }) => {
         const total = sessions.reduce((n, s) => n + s.secs, 0);
         const d = new Date(`${date}T12:00:00Z`);
         const dayName = d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' });

@@ -3,6 +3,8 @@ import { formatStudyTime } from './ProfileModal';
 import './StudyCalendar.css';
 
 import { SERVER_URL } from '../serverUrl';
+import { authHeaders } from '../auth';
+import { HiddenActivity } from './ActivityPrivacyNote';
 
 const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -46,16 +48,18 @@ export default function StudyCalendar({ userId, variant, onSeeActivity }) {
   const [dayMap, setDayMap]     = useState({});                   // 'YYYY-MM-DD' -> seconds
   const [loading, setLoading]   = useState(true);
   const [selected, setSelected] = useState(null);                 // { date, day, seconds }
+  const [hidden, setHidden]     = useState(null);                 // the owner's visibility when we may not see it
 
   useEffect(() => {
     if (!userId) return;
     let cancelled = false;
     setLoading(true);
     setSelected(null);
-    fetch(`${SERVER_URL}/api/users/${userId}/study-time/calendar?year=${year}&month=${month}`)
+    fetch(`${SERVER_URL}/api/users/${userId}/study-time/calendar?year=${year}&month=${month}`, { headers: authHeaders() })
       .then(r => (r.ok ? r.json() : { days: [] }))
       .then(d => {
         if (cancelled) return;
+        setHidden(d.hidden ? (d.visibility || 'private') : null);
         const map = {};
         for (const row of d.days || []) map[row.date] = row.seconds || 0;
         setDayMap(map);
@@ -87,6 +91,8 @@ export default function StudyCalendar({ userId, variant, onSeeActivity }) {
   const cells = [];
   for (let i = 0; i < leadBlanks; i++) cells.push(null);
   for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+
+  if (hidden) return <HiddenActivity visibility={hidden} what="study calendar" />;
 
   if (celestial) {
     // Month totals: average and "days studied" count only the days that have
