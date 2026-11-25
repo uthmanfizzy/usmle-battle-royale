@@ -150,6 +150,41 @@ function tokens(raw) {
   return out;
 }
 
+// The direction and generic words a player is likely to misspell
+// ("elevted", "incresed", "sndrome"). Matched only on what is TYPED, never
+// the bank, and only for a word that is not itself a bank word.
+const NEAR_WORDS = [
+  ...[...UP].filter(w => w.length >= 5).map(w => [w, 'high']),
+  ...[...DOWN].filter(w => w.length >= 5).map(w => [w, 'low']),
+  ...[...SOFT].map(w => [w, w]),
+];
+function nearWord(w) {
+  if (w.length < 5 || /[0-9]/.test(w)) return null;
+  if (vocabulary().has(w)) return null;
+  let best = null, bestD = Infinity;
+  for (const [form, to] of NEAR_WORDS) {
+    if (form[0] !== w[0]) continue;
+    const max = form.length >= 8 ? 2 : 1;
+    const d = distance(w, form, max);
+    if (d <= max && d < bestD) { best = to; bestD = d; }
+  }
+  return best;
+}
+
+/** keysOf for what a player typed: as keysOf, with misspelt direction and generic words read as meant. */
+function typedKeys(raw) {
+  const k = keysOf(raw);
+  if (!k) return k;
+  let changed = false;
+  const toks = k.toks.map((w) => { const n = nearWord(w); if (n && n !== w) { changed = true; return n; } return w; });
+  if (!changed) return k;
+  const soft = toks.filter(w => !SOFT.has(w));
+  return {
+    plain: toks.join(' '), sorted: [...toks].sort().join(' '), toks,
+    loose: soft.length && soft.length < toks.length ? [...soft].sort().join(' ') : null,
+  };
+}
+
 /** The two forms an answer is indexed under: as typed, and order-free. */
 function keysOf(raw) {
   const t = tokens(raw);
@@ -220,6 +255,28 @@ const PREFIX_GUARD = /\d+|hiper|hipo|high|low|anti|non|bradi|tachi|macro|micro|i
 const SUFFIX_GUARD = /(ase|osis|itis|oma|emia|uria)$/;
 const prefixGuard = (w) => (fold(w).match(PREFIX_GUARD) || []).join('|');
 
+// Prefixes that come in opposite pairs. A typo that mangles one of these
+// ("hyprcholesterolemia", "bfradycardia") leaves the typed word with no
+// prefix at all; that may still be read as the intended word, but only when
+// it is clearly closer to it than to the same word with the opposite prefix —
+// so a broken "hyper" is never quietly scored as "hypo".
+const OPPOSITE = { hiper: 'hipo', hipo: 'hiper', bradi: 'tachi', tachi: 'bradi', macro: 'micro', micro: 'macro', poli: 'olig', olig: 'poli' };
+
+/** May typed word `a` (folded `fa`) be a misspelling of `b` (folded `fb`), as far as prefixes go? */
+function prefixesAgree(a, b, fa, fb) {
+  const ga = fa.match(PREFIX_GUARD) || [], gb = fb.match(PREFIX_GUARD) || [];
+  if (ga.join('|') === gb.join('|')) return true;
+  // Only one situation is forgiven: the typed word lost exactly one of the
+  // target's paired prefixes and kept everything else.
+  if (gb.length !== ga.length + 1) return false;
+  const rest = [...gb];
+  for (const g of ga) { const i = rest.indexOf(g); if (i < 0) return false; rest.splice(i, 1); }
+  const lost = rest[0];
+  if (!OPPOSITE[lost]) return false;
+  const twin = fb.replace(lost, OPPOSITE[lost]);
+  return distance(fa, fb, 6) < distance(fa, twin, 6);
+}
+
 // Spellings that sound the same: ph/f, ae/oe/e, y/i, doubled letters.
 function fold(w) {
   return w.replace(/ph/g, 'f').replace(/ae|oe/g, 'e').replace(/(?!^)y/g, 'i').replace(/(.)\1+/g, '$1');
@@ -244,24 +301,27 @@ function vocabulary() {
   return VOCAB;
 }
 
-// Typo allowance for one word: none for short words, one edit up to nine
-// letters, two beyond.
-const wordAllowance = (len) => (len <= 5 ? 0 : len <= 9 ? 1 : 2);
+// Typo allowance for one word, sized so that most of the word must still be
+// right: one slip in a 4-5 letter word, two up to eight letters, three up to
+// twelve, four beyond. Words of three letters or fewer must be exact — at
+// that length one letter is a different word (T3/T4 aside, which the guard
+// already holds apart).
+const wordAllowance = (len) => (len <= 3 ? 0 : len <= 5 ? 1 : len <= 8 ? 2 : len <= 12 ? 3 : 4);
 
 /** How far apart two words are as a typo, or Infinity if they are different words. */
 function wordDistance(a, b) {
   if (a === b) return 0;
-  if (prefixGuard(a) !== prefixGuard(b)) return Infinity;
+  const fa = fold(a), fb = fold(b);
+  if (!prefixesAgree(a, b, fa, fb)) return Infinity;
   const sa = (a.match(SUFFIX_GUARD) || [])[1], sb = (b.match(SUFFIX_GUARD) || [])[1];
   if (sa && sb && sa !== sb) return Infinity;
-  const fa = fold(a), fb = fold(b);
   if (fa === fb && Math.min(a.length, b.length) >= 4) return 0.5;
   // A real bank word is a different word, not a typo ("anemia" is not
   // "anomia", "myosin" is not "miosis") — unless it only adds or drops a
   // final s (hashimotos / hashimoto).
   if (vocabulary().has(a)) return Math.min(a.length, b.length) >= 4 && (a === b + 's' || b === a + 's') ? 0.5 : Infinity;
   const max = wordAllowance(b.length);   // sized on the word aimed at
-  if (!max || Math.min(a.length, b.length) <= 5) return Infinity;
+  if (!max || Math.min(a.length, b.length) < 4) return Infinity;
   if (fa[0] !== fb[0]) return Infinity;                // typos rarely move the first letter
   // Folding can also move a word away ("troponn" folds to "tropon"), so take
   // whichever spelling is closer.
@@ -366,7 +426,7 @@ function compileTopic(topic, variant = 'open') {
  *   { status: 'empty' }
  */
 function matchAnswer(compiled, raw) {
-  const k = keysOf(raw);
+  const k = typedKeys(raw);
   if (!k) return { status: 'empty' };
 
   // 1. Exactly as written in the bank (any word order).
@@ -395,6 +455,36 @@ function matchAnswer(compiled, raw) {
   }
   if (best && !tie) return resolve(best);
   if (tie) return { status: 'unknown' };
+
+  // 3b. The same letters with the spaces in the wrong places — "myasthenia
+  //     gravis" typed as "myastheniagravis" — compared as one run of
+  //     letters. Only between entries of a different word count (step 3
+  //     handles equal ones). Deliberately tight, because short words carry
+  //     meaning: "vitamin D deficiency" is not "vitamin deficiency", "AL
+  //     amyloidosis" is not "AA", "troponin I" is not "troponin". So the
+  //     letters are compared as typed (no folding of doubled letters, which
+  //     would merge "vitamin d deficiency" into "vitamindeficiency"), and one
+  //     slip is forgiven only on a long phrase with no word of two letters or
+  //     fewer on either side. Negation and meaning prefixes must agree.
+  {
+    const joined = typed.join('');
+    const typedShort = typed.some(w => w.length <= 2);
+    let jb = null, jd = Infinity, jtie = false;
+    for (const e of compiled.fuzzy) {
+      if (!e.toks.length || e.toks.length === typed.length) continue;
+      if (negated !== e.toks.some(w => NEG.has(w))) continue;
+      const target = e.toks.join('');
+      if (target.length < 8 || target[0] !== joined[0]) continue;
+      if (prefixGuard(target) !== prefixGuard(joined)) continue;
+      const max = (typedShort || e.toks.some(w => w.length <= 2) || target.length < 12) ? 0 : 1;
+      if (Math.abs(target.length - joined.length) > max) continue;
+      const d = distance(joined, target, max);
+      if (d > max) continue;
+      if (d < jd) { jb = e; jd = d; jtie = false; }
+      else if (d === jd && jb && e.ref !== jb.ref) jtie = true;
+    }
+    if (jb && !jtie) return resolve(jb);
+  }
 
   // 4. A bank answer of two or more words said with one short filler word
   //    around it ("raised TSH on labs"). Kept narrow on purpose: one shared
@@ -429,7 +519,7 @@ function matchAnswer(compiled, raw) {
 const EVENTS = {
   double:  { id: 'double',  name: 'Double Points',   blurb: 'Every accepted answer is worth double.' },
   rare:    { id: 'rare',    name: 'Rare Knowledge',  blurb: 'Only Advanced and Rare answers score.' },
-  rapid:   { id: 'rapid',   name: 'Rapid Recall',    blurb: 'Fifteen seconds. Go.' },
+  rapid:   { id: 'rapid',   name: 'Rapid Recall',    blurb: 'Half the usual time. Go.' },
   reverse: { id: 'reverse', name: 'Reverse Jinx',    blurb: 'The tiers are flipped: the obvious answers pay the most.' },
   boss:    { id: 'boss',    name: 'Boss Case',       blurb: 'A hard vignette, and everything on it pays one and a half times.' },
   streak:  { id: 'streak',  name: 'Streak Round',    blurb: 'Your multiplier grows with every round in a row you found a Specific-or-better answer.' },

@@ -7,6 +7,7 @@ import { cachedImageMap, rememberImageMap } from '../utils/cachedImages';
 import AnKingMode from './AnKingMode';
 import MedJinxLobby from './MedJinxLobby';
 import MedJinxHome from './MedJinxHome';
+import MedJinxScene from './MedJinxScene';
 import ScanMasterLobby from './ScanMasterLobby';
 import BuzzFunLobby from './BuzzFunLobby';
 import ScanMasterHome from './ScanMasterHome';
@@ -744,7 +745,15 @@ export default function PlayPage({
       {/* When the MedJinx home page is up it sits on the body, outside this
           wrapper, so the lobby has to join it there to appear on top. */}
       {lobbyId && !mmSearching && ((node) => ((jinxHome || scanHome) ? createPortal(node, document.body) : node))(
-        <div className="lobby-overlay">
+        <div className={`lobby-overlay${lobbyGameMode === 'medjinx' ? ' lobby-overlay--mjx' : ''}`}>
+          {/* MedJinx's lobby is a room in the same pixel night ward as the
+              game, so the match looks the same from setup to podium. */}
+          {lobbyGameMode === 'medjinx' && (
+            <div className="mjx-lobby-bg" aria-hidden="true">
+              <MedJinxScene />
+              <div className="mjx-shade" />
+            </div>
+          )}
           {/* A duel lobby carries a whole settings sheet as well as the code,
               the players and the start button. On a wide screen it gets two
               columns instead of one tall scroll; the modifier is what the

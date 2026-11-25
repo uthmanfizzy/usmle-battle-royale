@@ -31,12 +31,16 @@ const bank = require('./bank');
 
 const MAX_PLAYERS = 20;
 const INTRO_MS = 4000;
+// A clinical case is read before the clock starts: the vignette is on screen
+// with the answer box locked for this long, so nobody loses answering time
+// to reading.
+const CLINICAL_READ_MS = 7000;
 const REVEAL_MS = 16000;        // the next round starts by itself after this (top-3 reveal ~4-8s, then a read)
 const GRACE_MS = 400;           // an answer sent on the buzzer still counts
 const MAX_ATTEMPTS = 90;        // per player per round
 const MAX_LEN = 80;
-const RAPID_SECONDS = 15;
-const CLINICAL_SECONDS = 40;    // a vignette takes time to read, so clinical rounds get longer
+// Rapid Recall is half the room's chosen clock, never under ten seconds.
+const rapidSeconds = (chosen) => Math.max(10, Math.round(chosen / 2));
 
 const DEFAULTS = Object.freeze({
   variant: 'mixed',             // open | clinical | mixed
@@ -49,7 +53,7 @@ const DEFAULTS = Object.freeze({
 
 const VARIANTS = ['open', 'clinical', 'mixed'];
 const ROUND_CHOICES = [3, 5, 7];
-const SECOND_CHOICES = [30];  // every round is 30 seconds
+const SECOND_CHOICES = [15, 20, 30, 45, 60, 90];  // the host picks the clock; 30 is the default
 const DIFFICULTIES = ['mixed', 'easy', 'intermediate', 'advanced'];
 
 // How likely a bot is to know an answer of each tier.
@@ -227,9 +231,10 @@ module.exports = function createMedJinx({ io, lobbies, shuffle, awardXP, lobbyPa
 
     s.phase = 'intro';
     s.compiled = E.compileTopic(q.topic, q.variant);
-    s.seconds = q.event === 'rapid' ? RAPID_SECONDS
-      : q.variant === 'clinical' ? CLINICAL_SECONDS
-      : s.opts.seconds;
+    // Every round answers on the host's clock; Rapid Recall halves it. A
+    // clinical case no longer needs extra seconds — it gets its own reading
+    // time before the clock starts (CLINICAL_READ_MS).
+    s.seconds = q.event === 'rapid' ? rapidSeconds(s.opts.seconds) : s.opts.seconds;
     s.found = new Map();
     s.tried = new Map();
     s.log = new Map();
@@ -245,10 +250,11 @@ module.exports = function createMedJinx({ io, lobbies, shuffle, awardXP, lobbyPa
       s.log.set(p.id, []);
     }
 
-    s.opensAt = Date.now() + INTRO_MS;
-    io.to(lobby.id).emit('medjinx_round', { ...roundPublic(lobby), phase: 'intro', msLeft: INTRO_MS, counts: counts(lobby) });
+    const introMs = q.variant === 'clinical' ? CLINICAL_READ_MS : INTRO_MS;
+    s.opensAt = Date.now() + introMs;
+    io.to(lobby.id).emit('medjinx_round', { ...roundPublic(lobby), phase: 'intro', msLeft: introMs, introMs, counts: counts(lobby) });
     clearTimeout(s.timer);
-    s.timer = setTimeout(() => openRound(lobby), INTRO_MS);
+    s.timer = setTimeout(() => openRound(lobby), introMs);
   }
 
   function openRound(lobby) {
@@ -427,8 +433,24 @@ module.exports = function createMedJinx({ io, lobbies, shuffle, awardXP, lobbyPa
       best: best ? { label: best.label, tier: best.tier, by: best.finders.map(name), each: best.each, why: best.why } : null,
     });
 
+    // Everything everyone typed this round, in the order they typed it, so
+    // the room can see what the others tried as well as what scored. Bots
+    // only ever "say" answers that are in the bank.
+    const labelOf = new Map(s.compiled.answers.map(a => [a.id, a.label]));
+    const said = [...lobby.players.values()].map((p) => {
+      const entries = p.isBot
+        ? [...(s.found.get(p.id) || new Map()).keys()].map(id => ({ text: labelOf.get(id), status: 'accepted', label: labelOf.get(id) }))
+        : (s.log.get(p.id) || []).map(e => ({
+          text: e.text,
+          status: e.status === 'accepted' ? 'accepted' : e.status === 'self' ? 'self' : e.status === 'trap' ? 'trap' : 'unknown',
+          label: e.status === 'accepted' ? labelOf.get(e.id) : undefined,
+        }));
+      return { id: p.id, username: p.username, isBot: Boolean(p.isBot), entries };
+    }).filter(p => p.entries.length);
+
     s.reveal = {
       ...roundPublic(lobby),
+      said,
       phase: 'reveal',
       msLeft: REVEAL_MS,
       isLast: s.idx >= s.queue.length - 1,

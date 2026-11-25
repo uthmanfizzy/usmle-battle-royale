@@ -156,6 +156,9 @@ function RoundPanel({ round, phase, deadline, onSubmit, acceptedCount, lastNote 
   const secs = Math.ceil(left / 1000);
   const pct = answering ? Math.max(0, Math.min(100, (left / total) * 100)) : 100;
   const urgent = answering && secs <= 10;
+  // A clinical case is read before the clock starts (7 s, set by the server).
+  const reading = phase === 'intro' && round.variant === 'clinical';
+  const readTotal = round.introMs || 7000;
 
   // Keep the cursor in the box: this is a game of typing as fast as you think.
   useEffect(() => { if (answering) inputRef.current?.focus(); }, [answering, round.round]);
@@ -198,6 +201,14 @@ function RoundPanel({ round, phase, deadline, onSubmit, acceptedCount, lastNote 
 
       <Prompt round={round} />
 
+      {reading && (
+        <div className="mjx-reading" role="timer" aria-label={`Reading time, ${secs} seconds left`}>
+          <span>Read the case</span>
+          <span className="mjx-reading-bar"><i style={{ width: `${Math.max(0, Math.min(100, (left / readTotal) * 100))}%` }} /></span>
+          <b>{Math.max(0, secs)}</b>
+        </div>
+      )}
+
       <div className={`mjx-timer${urgent ? ' is-urgent' : ''}`} role="timer" aria-label={`${secs} seconds left`}>
         <div className="mjx-timer-track"><i style={{ width: `${pct}%` }} /></div>
         <span className="mjx-timer-num">{answering ? secs : round.seconds}</span>
@@ -209,7 +220,7 @@ function RoundPanel({ round, phase, deadline, onSubmit, acceptedCount, lastNote 
           className="mjx-input"
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder={answering ? 'Your answer' : `Get ready… ${Math.max(1, secs)}`}
+          placeholder={answering ? 'Your answer' : reading ? `Reading time… ${Math.max(1, secs)}` : `Get ready… ${Math.max(1, secs)}`}
           disabled={!answering}
           maxLength={80}
           autoComplete="off"
@@ -225,8 +236,10 @@ function RoundPanel({ round, phase, deadline, onSubmit, acceptedCount, lastNote 
       <p className="mjx-hint">
         {lastNote
           || (answering
-            ? 'Type an answer and hit Enter — keep them coming. One idea per answer.'
-            : 'Read the prompt. The clock starts in a moment.')}
+            ? 'Type an answer and hit Enter — keep them coming. One idea per answer. Small spelling slips are fine.'
+            : reading
+              ? 'Take a moment to read the case. Answering opens when the bar runs out.'
+              : 'Read the prompt. The clock starts in a moment.')}
         <b>{acceptedCount} accepted</b>
       </p>
     </section>
@@ -463,6 +476,7 @@ function Breakdown({ reveal, players, socketId, isHost, ready, replay, iAmReady,
                 ['mine', `Yours (${reveal.answers.filter(a => a.finders.includes(socketId)).length})`],
                 ['found', `Found (${found.length})`],
                 ['missed', `Missed by all (${missed.length})`],
+                ['said', `Everything said (${(reveal.said || []).reduce((n, p) => n + p.entries.length, 0)})`],
               ].map(([id, label]) => (
                 <button
                   key={id} type="button" role="tab" aria-selected={filter === id}
@@ -472,8 +486,9 @@ function Breakdown({ reveal, players, socketId, isHost, ready, replay, iAmReady,
               ))}
             </div>
 
-            {groups.length === 0 && <p className="mjx-feed-empty">Nothing in this list.</p>}
-            {groups.map(g => (
+            {filter === 'said' && <Said said={reveal.said} socketId={socketId} />}
+            {filter !== 'said' && groups.length === 0 && <p className="mjx-feed-empty">Nothing in this list.</p>}
+            {filter !== 'said' && groups.map(g => (
               <div className="mjx-cat" key={g.cat}>
                 <h3>{CATEGORY_NAMES[g.cat]}</h3>
                 {g.items.map(a => {
@@ -591,6 +606,49 @@ function Chat({ chat, players, socketId, onSend }) {
 // ── After a round: the best answers, third to first ──────────────────────────
 
 const PLACE = ['1st', '2nd', '3rd'];
+
+// ── Everything said ──────────────────────────────────────────────────────────
+
+/**
+ * Every answer every player typed this round, accepted or not, once the round
+ * is over. During the round only your own answers are visible (the others are
+ * masked), so this is where the room finally sees what everyone tried.
+ */
+function Said({ said, socketId }) {
+  const list = Array.isArray(said) ? said : [];
+  if (!list.length) return <p className="mjx-said-empty">Nobody typed anything this round.</p>;
+  const ordered = [...list].sort((a, b) => (a.id === socketId ? -1 : b.id === socketId ? 1 : 0));
+  return (
+    <>
+      <p className="mjx-said-legend">
+        <span className="ok">■ accepted</span><span className="no">■ known wrong</span><span>■ not in the bank</span>
+      </p>
+      <div className="mjx-said">
+        {ordered.map((p) => {
+          const ok = p.entries.filter(e => e.status === 'accepted').length;
+          return (
+            <section className={`mjx-said-player${p.id === socketId ? ' is-me' : ''}`} key={p.id}>
+              <p className="mjx-said-who">
+                <PixelDoc seed={p.username} size={20} />
+                {p.id === socketId ? 'You' : p.username}{p.isBot ? ' · bot' : ''}
+                <small>{ok} of {p.entries.length} accepted</small>
+              </p>
+              <ul className="mjx-said-list">
+                {p.entries.map((e, i) => (
+                  <li key={i} className={`is-${e.status}`}>
+                    {e.text}
+                    {e.status === 'accepted' && e.label && e.label.toLowerCase() !== String(e.text).toLowerCase() && <em>→ {e.label}</em>}
+                    {e.status === 'self' && <em>the topic</em>}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          );
+        })}
+      </div>
+    </>
+  );
+}
 
 function BestAnswers({
   reveal, players, socketId, isHost, ready, replay, iAmReady,
@@ -714,6 +772,11 @@ function BestAnswers({
               <b>{fmt(s.total)}</b>
             </div>
           ))}
+        </section>
+
+        <section className="mjx-panel mjx-said-panel">
+          <h2 className="mjx-best-title">Everything said this round</h2>
+          <Said said={reveal.said} socketId={socketId} />
         </section>
 
         <footer className="mjx-panel mjx-board-foot">

@@ -20,6 +20,24 @@ const VARIANTS = [
   { id: 'clinical', label: 'Clinical Jinx', note: 'You are shown a vignette. Work out what it is, then name what goes with it.' },
 ];
 
+// What the two kinds of round are, said plainly to whoever opens the lobby.
+const KINDS = [
+  {
+    id: 'open', icon: '🧪', name: 'Open-Ended Jinx',
+    what: 'You see the name of a condition — say, Graves disease.',
+    how: 'Type everything you associate with it: symptoms, labs, causes, histology, drugs, complications.',
+  },
+  {
+    id: 'clinical', icon: '🩺', name: 'Clinical Jinx',
+    what: 'You see a patient vignette, never the diagnosis.',
+    how: 'You get 7 seconds to read the case first. Then name the diagnosis and everything that goes with it.',
+  },
+];
+
+// Seconds a round can run for. The server's catalogue is the authority; this
+// is only what shows before it arrives.
+const SECONDS = [15, 20, 30, 45, 60, 90];
+
 const LEVELS = [
   { id: 'mixed', label: 'Mixed' },
   { id: 'easy', label: 'Easy' },
@@ -44,6 +62,7 @@ export default function MedJinxLobby({ isHost, options, onChange }) {
   const systems = catalog?.systems || [];
   const chosen = Array.isArray(o.systems) ? o.systems : [];
   const variant = VARIANTS.find(v => v.id === o.variant) || VARIANTS[0];
+  const seconds = catalog?.choices?.seconds?.length ? catalog.choices.seconds : SECONDS;
 
   const Choice = ({ value, current, children, onPick }) => (
     <button
@@ -55,8 +74,21 @@ export default function MedJinxLobby({ isHost, options, onChange }) {
   );
 
   return (
-    <div className="lobby-duel-section">
+    <div className="lobby-duel-section mjx-lobby">
       <p className="lobby-duel-title">{isHost ? 'MedJinx settings' : 'The host has set'}</p>
+
+      <div className="mjx-lobby-kinds" aria-label="The two kinds of round">
+        {KINDS.map(k => (
+          <section
+            key={k.id}
+            className={`mjx-lobby-kind mjx-lobby-kind--${k.id}${o.variant === k.id || o.variant === 'mixed' ? ' is-in' : ''}`}
+          >
+            <h3><span aria-hidden="true">{k.icon}</span> {k.name}</h3>
+            <p>{k.what}</p>
+            <p>{k.how}</p>
+          </section>
+        ))}
+      </div>
 
       <div className="lobby-duel-row lobby-duel-row--stack">
         <span className="lobby-duel-label">Mode</span>
@@ -78,9 +110,16 @@ export default function MedJinxLobby({ isHost, options, onChange }) {
         ) : <span className="lobby-duel-value">{o.rounds}</span>}
       </div>
 
-      <div className="lobby-duel-row">
-        <span className="lobby-duel-label">Clock</span>
-        <span className="lobby-duel-value">30 seconds a round (40 for clinical cases)</span>
+      <div className="lobby-duel-row lobby-duel-row--stack">
+        <span className="lobby-duel-label">Time per round</span>
+        {isHost ? (
+          <div className="lobby-duel-choice">
+            {seconds.map(n => <Choice key={n} value={n} current={o.seconds} onPick={() => set({ seconds: n })}>{n}s</Choice>)}
+          </div>
+        ) : <span className="lobby-duel-value">{o.seconds} seconds</span>}
+        <span className="mjx-lobby-sub">
+          {o.seconds} seconds to answer each round. Clinical cases add 7 seconds of reading first; Rapid Recall rounds get half.
+        </span>
       </div>
 
       <div className="lobby-duel-row">
@@ -131,7 +170,8 @@ export default function MedJinxLobby({ isHost, options, onChange }) {
       <p className="lobby-duel-note">{variant.note}</p>
       <p className="lobby-duel-note">
         Every correct answer is worth its rarity — 1,000 for the obvious up to 8,000 for the obscure — shared
-        between everyone who gave it. Nobody sees anyone else&apos;s answers until the round ends.
+        between everyone who gave it. Nobody sees anyone else&apos;s answers until the round ends — then every answer
+        typed that round is shown. Spelling does not have to be perfect: a word that is mostly right counts.
         {o.events !== false && ' Special rounds (Double Points, Rare Knowledge, Rapid Recall, Reverse Jinx, Streak) drop in along the way, and the last round is a Boss Case.'}
         {catalog && chosen.length > 0 && (() => {
           const have = systems.filter(s => chosen.includes(s.name)).reduce((t, s) => t + s.count, 0);

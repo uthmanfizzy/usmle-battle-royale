@@ -941,3 +941,306 @@ body > .lobby-overlay { color: var(--mv-text); font-family: "Inter", "Segoe UI",
 .mjx-stage--results .mjx-foot-status { min-width: 110px; }
 .mjx-best-row--1 { min-height: 92px; }
 .mjx-wins { font-size: clamp(18px, 2.4vw, 30px); padding: 8px 12px; background: rgba(8, 8, 30, 0.72); }
+
+/* ═══ The lobby, in the night ward ══════════════════════════════════════════
+   PlayPage's shared lobby overlay, re-dressed for MedJinx (lobby-overlay--mjx
+   is added only for this mode): the same pixel room behind it, square panels
+   with hard offset shadows, Press Start 2P labels and Pixelify Sans text.
+   Every rule starts .lobby-overlay.lobby-overlay--mjx so it outranks the
+   shared lobby styles whichever stylesheet chunk happens to load last. */
+
+.lobby-overlay.lobby-overlay--mjx {
+  --ink: #05050f;
+  --panel: #0c0d22;
+  --panel-2: #14163a;
+  --edge: #3b3f9c;
+  --text: #f4f6ff;
+  --dim: #a9b0e0;
+  --lime: #9be22d;
+  --yellow: #f5e642;
+  --cyan: #48e6ff;
+  --violet: #9d7bff;
+  --red: #ff5d6c;
+  --px: 'Press Start 2P', monospace;
+  --body: 'Pixelify Sans', 'Atkinson Hyperlegible', system-ui, sans-serif;
+  background: #1a1c50;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  font-family: var(--body);
+  color: var(--text);
+}
+.lobby-overlay.lobby-overlay--mjx .mjx-lobby-bg {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.lobby-overlay.lobby-overlay--mjx .lobby-panel {
+  position: relative;
+  z-index: 1;
+  background: var(--panel);
+  border: 3px solid var(--ink);
+  border-radius: 0;
+  box-shadow: 0 0 0 3px var(--edge), 10px 10px 0 3px rgba(0, 0, 0, 0.5);
+  animation: mjx-lobby-in 0.35s steps(5) both;
+}
+@keyframes mjx-lobby-in {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: none; }
+}
+.lobby-overlay.lobby-overlay--mjx .lobby-panel-header {
+  border-bottom: 3px solid var(--edge);
+}
+.lobby-overlay.lobby-overlay--mjx .lobby-panel-title h2 {
+  font-family: var(--px);
+  font-size: clamp(14px, 2vw, 20px);
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  color: #fff;
+  text-shadow: 3px 3px 0 #1c1f5c;
+}
+.lobby-overlay.lobby-overlay--mjx .lobby-close-btn,
+.lobby-overlay.lobby-overlay--mjx .lobby-copy-btn,
+.lobby-overlay.lobby-overlay--mjx .lobby-add-bot-btn,
+.lobby-overlay.lobby-overlay--mjx .lobby-start-btn {
+  border: 3px solid var(--ink);
+  border-radius: 0;
+  font-family: var(--px);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.35), inset 0 3px 0 rgba(255, 255, 255, 0.14);
+  transition: transform 0.06s steps(2), filter 0.1s;
+}
+.lobby-overlay.lobby-overlay--mjx .lobby-close-btn { background: #3a1d3f; color: #ffb3c0; }
+.lobby-overlay.lobby-overlay--mjx .lobby-copy-btn { background: #23265e; color: var(--cyan); }
+.lobby-overlay.lobby-overlay--mjx .lobby-add-bot-btn { background: #23265e; color: var(--text); }
+.lobby-overlay.lobby-overlay--mjx .lobby-start-btn--ready { background: var(--lime); color: #12260a; }
+.lobby-overlay.lobby-overlay--mjx .lobby-start-btn--waiting { background: #2a2c55; color: var(--dim); }
+.lobby-overlay.lobby-overlay--mjx .lobby-close-btn:hover,
+.lobby-overlay.lobby-overlay--mjx .lobby-copy-btn:hover,
+.lobby-overlay.lobby-overlay--mjx .lobby-add-bot-btn:hover,
+.lobby-overlay.lobby-overlay--mjx .lobby-start-btn--ready:hover { filter: brightness(1.15); transform: translateY(-2px); }
+.lobby-overlay.lobby-overlay--mjx .lobby-close-btn:active,
+.lobby-overlay.lobby-overlay--mjx .lobby-start-btn--ready:active { transform: translateY(2px); }
+.lobby-overlay.lobby-overlay--mjx .lobby-start-btn--ready {
+  animation: mjx-lobby-blink 1.1s steps(2) infinite;
+}
+@keyframes mjx-lobby-blink {
+  50% { box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.35), inset 0 3px 0 rgba(255, 255, 255, 0.14), 0 0 0 3px var(--yellow); }
+}
+
+/* The cards: code, players, settings. */
+.lobby-overlay.lobby-overlay--mjx .lobby-code-section,
+.lobby-overlay.lobby-overlay--mjx .lobby-players-section,
+.lobby-overlay.lobby-overlay--mjx .lobby-duel-section {
+  border: 3px solid var(--ink);
+  border-radius: 0;
+  background: var(--panel-2);
+  box-shadow: 0 0 0 2px var(--edge);
+}
+.lobby-overlay.lobby-overlay--mjx .lobby-code-label,
+.lobby-overlay.lobby-overlay--mjx .lobby-players-count,
+.lobby-overlay.lobby-overlay--mjx .lobby-duel-title {
+  font-family: var(--px);
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  color: var(--violet);
+}
+.lobby-overlay.lobby-overlay--mjx .lobby-code-box {
+  border: 3px dashed var(--edge);
+  border-radius: 0;
+  background: #05050f;
+}
+.lobby-overlay.lobby-overlay--mjx .lobby-code-text {
+  font-family: var(--px);
+  font-size: 20px;
+  letter-spacing: 0.18em;
+  color: var(--yellow);
+  text-shadow: 3px 3px 0 #4a3d00;
+}
+.lobby-overlay.lobby-overlay--mjx .lobby-player-row {
+  border: 2px solid var(--ink);
+  border-radius: 0;
+  background: #1b1d4a;
+  font-family: var(--body);
+  animation: mjx-lobby-in 0.3s steps(4) both;
+}
+.lobby-overlay.lobby-overlay--mjx .lobby-player-num { font-family: var(--px); font-size: 9px; color: var(--cyan); }
+.lobby-overlay.lobby-overlay--mjx .lobby-player-name {
+  font-family: var(--body);
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  color: var(--text);
+}
+.lobby-overlay.lobby-overlay--mjx .lobby-host-badge,
+.lobby-overlay.lobby-overlay--mjx .lobby-bot-badge {
+  border: 2px solid var(--ink);
+  border-radius: 0;
+  font-family: var(--px);
+  font-size: 7px;
+  padding: 4px 6px;
+}
+.lobby-overlay.lobby-overlay--mjx .lobby-host-badge { background: var(--yellow); color: #2a2300; }
+.lobby-overlay.lobby-overlay--mjx .lobby-bot-badge { background: var(--violet); color: #14092e; }
+.lobby-overlay.lobby-overlay--mjx .lobby-waiting-msg,
+.lobby-overlay.lobby-overlay--mjx .lobby-min-players {
+  font-family: var(--body);
+  color: var(--dim);
+}
+
+/* Settings rows and chips */
+.lobby-overlay.lobby-overlay--mjx .lobby-duel-label {
+  font-family: var(--px);
+  font-size: 8px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--cyan);
+}
+.lobby-overlay.lobby-overlay--mjx .lobby-duel-value { font-size: 16px; color: var(--text); }
+.lobby-overlay.lobby-overlay--mjx .lobby-duel-chip {
+  border: 2px solid var(--ink);
+  border-radius: 0;
+  background: #23265e;
+  color: var(--dim);
+  font-family: var(--body);
+  font-size: 15px;
+  font-weight: 600;
+  box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.35);
+  transition: transform 0.06s steps(2), filter 0.1s;
+}
+.lobby-overlay.lobby-overlay--mjx .lobby-duel-chip:hover { filter: brightness(1.2); color: #fff; }
+.lobby-overlay.lobby-overlay--mjx .lobby-duel-chip.is-on {
+  background: var(--lime);
+  border-color: var(--ink);
+  color: #12260a;
+  box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.3), 0 0 0 2px var(--yellow);
+}
+.lobby-overlay.lobby-overlay--mjx .lobby-duel-note,
+.lobby-overlay.lobby-overlay--mjx .mjx-lobby-sub {
+  font-family: var(--body);
+  font-size: 15px;
+  line-height: 1.4;
+  color: var(--dim);
+}
+.lobby-overlay.lobby-overlay--mjx .mjx-lobby-sub { display: block; margin-top: 6px; font-size: 14px; }
+
+/* What an Open-Ended Jinx and a Clinical Jinx are. */
+.mjx-lobby-kinds {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin: 4px 0 14px;
+}
+.lobby-overlay.lobby-overlay--mjx .mjx-lobby-kind {
+  padding: 12px 12px 10px;
+  border: 3px solid #05050f;
+  background: #0c0d22;
+  box-shadow: 0 0 0 2px #3b3f9c, 5px 5px 0 2px rgba(0, 0, 0, 0.45);
+  opacity: 0.5;
+  transition: opacity 0.15s steps(3);
+}
+.lobby-overlay.lobby-overlay--mjx .mjx-lobby-kind.is-in { opacity: 1; }
+.lobby-overlay.lobby-overlay--mjx .mjx-lobby-kind--open.is-in { box-shadow: 0 0 0 2px #48e6ff, 5px 5px 0 2px rgba(0, 0, 0, 0.45); }
+.lobby-overlay.lobby-overlay--mjx .mjx-lobby-kind--clinical.is-in { box-shadow: 0 0 0 2px #ff8fb0, 5px 5px 0 2px rgba(0, 0, 0, 0.45); }
+.lobby-overlay.lobby-overlay--mjx .mjx-lobby-kind h3 {
+  margin: 0 0 8px;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 10px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: #48e6ff;
+}
+.lobby-overlay.lobby-overlay--mjx .mjx-lobby-kind--clinical h3 { color: #ffb3c0; }
+.lobby-overlay.lobby-overlay--mjx .mjx-lobby-kind p {
+  margin: 0 0 4px;
+  font-family: 'Pixelify Sans', 'Atkinson Hyperlegible', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.35;
+  color: #d9ddff;
+}
+
+/* ═══ Clinical reading time ═════════════════════════════════════════════════ */
+.mjx-reading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border: 3px solid var(--ink);
+  background: #3a1d3f;
+  box-shadow: 0 0 0 2px #ff8fb0;
+  font-family: var(--px);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #ffd6df;
+  animation: mjx-read-pulse 1s steps(2) infinite;
+}
+.mjx-reading b { font-size: 16px; color: #fff; min-width: 2ch; text-align: right; }
+.mjx-reading-bar {
+  flex: 1;
+  height: 10px;
+  border: 2px solid var(--ink);
+  background: #1a0e20;
+}
+.mjx-reading-bar i {
+  display: block;
+  height: 100%;
+  background: #ff8fb0;
+  transition: width 0.25s steps(2);
+}
+@keyframes mjx-read-pulse { 50% { box-shadow: 0 0 0 2px #ffd6df; } }
+
+/* ═══ Everything said this round ════════════════════════════════════════════ */
+.mjx-said { display: grid; gap: 10px; }
+.mjx-said-player {
+  padding: 10px 12px;
+  border: 3px solid var(--ink);
+  background: var(--panel-2);
+}
+.mjx-said-player.is-me { box-shadow: 0 0 0 2px var(--yellow); }
+.mjx-said-who {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  font-family: var(--px);
+  font-size: 9px;
+  color: var(--cyan);
+}
+.mjx-said-who small { margin-left: auto; font-family: var(--body); font-size: 13px; color: var(--dim); }
+.mjx-said-list { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.mjx-said-list li {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 4px 8px;
+  border: 2px solid var(--ink);
+  font-size: 15px;
+  line-height: 1.2;
+  background: #23265e;
+  color: var(--dim);
+}
+.mjx-said-list li.is-accepted { background: #1f3a10; color: #d4ff9a; box-shadow: 0 0 0 1px var(--lime); }
+.mjx-said-list li.is-trap { background: #3a1420; color: #ffb3c0; }
+.mjx-said-list li.is-self { background: #2a2c55; color: var(--dim); text-decoration: line-through; }
+.mjx-said-list li em { font-style: normal; font-size: 12px; opacity: 0.8; }
+.mjx-said-empty { color: var(--dim); font-size: 15px; margin: 0; }
+.mjx-said-legend { margin: 0 0 10px; font-size: 14px; color: var(--dim); }
+.mjx-said-legend span { margin-right: 12px; }
+.mjx-said-legend .ok { color: var(--lime); }
+.mjx-said-legend .no { color: #ffb3c0; }
+
+/* The "everything said" panel on the best-answers screen scrolls on its own. */
+.mjx-panel.mjx-said-panel { padding: 14px; max-height: 340px; overflow-y: auto; }
+
+@media (prefers-reduced-motion: reduce) {
+  .lobby-overlay.lobby-overlay--mjx .lobby-panel,
+  .lobby-overlay.lobby-overlay--mjx .lobby-player-row,
+  .lobby-overlay.lobby-overlay--mjx .lobby-start-btn--ready,
+  .mjx-reading { animation: none; }
+}
