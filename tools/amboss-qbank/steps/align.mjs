@@ -33,7 +33,12 @@ for (const pg of pages) {
       if (ch === ' ') { out += ' '; continue; }
       // resync
       let k = gi; while (k < G.length && k < gi + 60 && !(G[k].f === it.f && G[k].u === ch)) k++;
-      if (k < G.length && G[k].f === it.f && G[k].u === ch) { gi = k; out += maps[it.f][G[gi].c] ?? '?'; gi++; mism++; }
+      if (k < G.length && G[k].f === it.f && G[k].u === ch) {
+        // A code-32 letter skipped over here (pdfjs dropped it as a space,
+        // e.g. the "E" opening a paragraph) is still part of the text.
+        for (let j = gi; j < k; j++) if (G[j].f === it.f && G[j].u === ' ' && G[j].c !== 1 && /^[A-Z]$/.test(maps[it.f][G[j].c] || '')) out += maps[it.f][G[j].c];
+        gi = k; out += maps[it.f][G[gi].c] ?? '?'; gi++; mism++;
+      }
       else { out += '¿'; mism++; if (samples.length < 15) samples.push([pg.n, it.s.slice(0, 40), ch.charCodeAt(0)]); }
     }
     while (G[gi] && G[gi].f === it.f && G[gi].c !== 1 && G[gi].u !== ' ' && G[gi].u.length === 1 && /\s/.test(G[gi].u)) { out += maps[it.f][G[gi].c]; gi++; }

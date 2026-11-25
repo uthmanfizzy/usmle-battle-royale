@@ -12,6 +12,13 @@ const stream = [];
 for (const pg of P) {
   const lines = []; let cur = null;
   const items = pg.items.filter(i => i.t !== undefined && i.t !== '' && !skipFont(i.f) && !/USMLEAmboss/.test(i.t));
+  // A separated first letter ("E" of "End-tidal") can sit on the line above
+  // its word: when the next text is on another baseline, move the letter onto it.
+  for (let k = 0; k < items.length; k++) {
+    if (!items[k].glue) continue;
+    const nx = items.slice(k + 1).find(i => i.t.trim());
+    if (nx && Math.abs(nx.y - items[k].y) >= 2) { nx.t = items[k].t + nx.t.replace(/^\s+/, ''); items[k].t = ' '; items[k].glue = 0; }
+  }
   for (const it of items) {
     if (!it.t.trim()) { if (cur) cur.pendingSpace = true; continue; }
     if (cur && Math.abs(it.y - cur.y) < 7.5 && !(Math.abs(it.y - cur.y) > 2 && it.h >= cur.h)) {
@@ -20,10 +27,10 @@ for (const pg of P) {
       else { const gap = it.x - cur.xe; if (it.glue) {
         // No space glyph either way, so decide from the word before it: "an|FEV",
         // "decreased|FEV" start a new word; "Ig|E", "AC|E", "EC|G", "FEV1:|FVC" do not.
-        const tok = (cur.text.match(/(S*)$/) || ['', ''])[1];
+        const tok = (cur.text.match(/(\S*)$/) || ['', ''])[1];
         if (tok && (/^(a|A)$/.test(tok) || (/[a-z]{2}$/.test(tok) && !/^(Ig|kat)$/.test(tok)))) cur.text += ' ';
         cur.glueNext = true;
-      } else if (cur.glueNext) { t = t.replace(/^s+/, ''); } else if (gap > 12 && cur.text.trim()) { cur.text = cur.text.replace(/\s+$/, '') + ' | '; t = t.replace(/^\s+/, ''); } else if ((gap > 1.2 || cur.pendingSpace) && !/\s$/.test(cur.text) && !/^\s/.test(t)) cur.text += ' '; cur.text += t; }
+      } else if (cur.glueNext) { t = t.replace(/^\s+/, ''); } else if (gap > 12 && cur.text.trim()) { cur.text = cur.text.replace(/\s+$/, '') + ' | '; t = t.replace(/^\s+/, ''); } else if ((gap > 1.2 || cur.pendingSpace) && !/\s$/.test(cur.text) && !/^\s/.test(t)) cur.text += ' '; cur.text += t; }
       cur.xe = it.x + it.w; cur.pendingSpace = false; if (!it.glue) cur.glueNext = false; if (isBold(it.f) === false) cur.allBold = false;
     } else {
       cur = { page: pg.n, y: it.y, h: it.h, text: it.t, xe: it.x + it.w, x: it.x, allBold: isBold(it.f), pendingSpace: false, glueNext: Boolean(it.glue) };
