@@ -10,6 +10,8 @@ const clean = (s) => {
     .replace(/\bP([Aa]) ([OC])/g, 'P$1$2') // alveolar PAO₂ / PACO₂ (subscript A)
     // The space after a comma is often lost in decoding ("Fatigue,hematuria").
     .replace(/([A-Za-z)\]]),(?=[A-Za-z(])/g, '$1, ')
+    // ...and before a capitalised name after a short word ("withEpstein-Barr").
+    .replace(/\b(a|an|the|of|and|with|to|in|is|for|by|on|as)([A-Z][a-z])/g, '$1 $2')
     .replace(/\)\.([A-Z][a-z])/g, '). $1')
     .replace(/([a-z]{2}|\d|\))\.([A-Z][a-z])/g, '$1. $2')
     .replace(/[ \t]+/g, ' ')
