@@ -63,6 +63,32 @@
 .aqb-seg button { background: rgba(255, 255, 255, 0.05); border: 1px solid var(--line); border-radius: 999px; padding: 7px 14px; cursor: pointer; font-size: 14px; }
 .aqb-seg button.is-on { background: rgba(var(--lime), 0.18); border-color: rgba(var(--lime), 0.7); color: rgb(var(--lime-lt)); font-weight: 700; }
 
+/* Whole-bank progress */
+.aqb-bank { margin-top: 14px; padding: 14px 16px; background: var(--card); border: 1px solid var(--line); border-radius: 16px; }
+.aqb-bank-top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+.aqb-bank-total { color: var(--muted); font-size: 14px; }
+.aqb-bank-total b { color: var(--ink); font-size: 22px; margin-right: 2px; }
+.aqb-bank-pct { color: rgb(var(--lime-lt)); font-weight: 800; }
+.aqb-bank .aqb-bar--bank { display: block; height: 10px; }
+.aqb-bank .aqb-hero-stats { flex-wrap: wrap; }
+
+/* Systems (mixable) + blocks toggle */
+.aqb-panel-tools { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.aqb-toggle { display: inline-flex; align-items: center; gap: 8px; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px 6px 8px; cursor: pointer; font-size: 13px; font-weight: 700; margin-left: 4px; }
+.aqb-toggle-track { position: relative; width: 30px; height: 17px; border-radius: 999px; background: rgba(255, 255, 255, 0.15); transition: background 0.15s; }
+.aqb-toggle-track i { position: absolute; top: 2px; left: 2px; width: 13px; height: 13px; border-radius: 50%; background: #fff; transition: transform 0.15s; }
+.aqb-toggle.is-on { border-color: rgba(var(--lime), 0.7); color: rgb(var(--lime-lt)); }
+.aqb-toggle.is-on .aqb-toggle-track { background: rgb(var(--lime)); }
+.aqb-toggle.is-on .aqb-toggle-track i { transform: translateX(13px); }
+.aqb-note { margin: 6px 0 0; color: var(--muted); font-size: 13px; }
+.aqb-note--pad { margin-top: 14px; text-align: center; }
+.aqb-systems { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; margin-top: 12px; }
+.aqb-sys-name { font-weight: 800; font-size: 15px; padding-right: 24px; line-height: 1.25; }
+.aqb-sys .aqb-block-meta b { color: var(--ink); font-size: 15px; }
+.aqb-sys.is-part { border-style: dashed; }
+.aqb-sys.is-part .aqb-block-check { background: rgba(var(--lime), 0.5); border-color: rgb(var(--lime)); }
+@media (max-width: 520px) { .aqb-systems { grid-template-columns: 1fr 1fr; } .aqb-sys-name { font-size: 13.5px; } }
+
 .aqb-blocks { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; margin-top: 12px; }
 .aqb-block { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; text-align: left; background: rgba(255, 255, 255, 0.04); border: 1px solid var(--line); border-radius: 14px; padding: 14px; cursor: pointer; transition: border-color 0.15s, transform 0.15s, background 0.15s; }
 .aqb-block:hover { transform: translateY(-1px); border-color: rgba(var(--lime), 0.45); }

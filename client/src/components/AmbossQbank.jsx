@@ -12,9 +12,10 @@ import './AmbossQbank.css';
  * Amboss Quest → Qbank (/amboss-qbank). Worked like a real qbank, block by
  * block, in tutor mode:
  *
- *   BLOCKS   pick a system and one or more of its blocks, which questions
- *            (all / unused / incorrect) and in order or shuffled. Each block
- *            card shows how much of it is done and how much of that was right.
+ *   PICK     one or more systems (mixed in one session), optionally narrowed
+ *            to blocks ("Blocks on"), filtered by the student's own recall
+ *            rating (or All), in order or shuffled. The hero tracks progress
+ *            through the whole 2,745-question bank.
  *   SESSION  one vignette at a time with its figures. 💡 Hint opens AMBOSS's
  *            hint without giving the answer away. Strike out a choice with
  *            right-click (or its ✕), pick one, Submit. Then every choice opens
@@ -28,10 +29,11 @@ import './AmbossQbank.css';
  */
 
 const LETTERS = 'ABCDEFGHIJ';
-const SCOPES = [['all', 'All'], ['unused', 'Unused'], ['incorrect', 'Incorrect'], ['rating', 'By my rating']];
+// The whole AMBOSS bank; progress on the picker is measured against it.
+const BANK_TOTAL = 2745;
 const RATING_FILTERS = [...RATINGS, UNRATED];
 const ratingOf = (key) => RATINGS.find(r => r.key === key);
-const PREF_KEY = 'mv_aqb_prefs';
+const PREF_KEY = 'mv_aqb_prefs_v2';
 const SYSTEM_ICON = { pulmonology: '🫁', cardiology: '❤️', nephrology: '🫘', gastroenterology: '🍽️', neurology: '🧠', endocrinology: '🦋', reproductive: '🤰', haematology_oncology: '🩸', musculoskeletal: '🦴', psychiatry: '🧩', immunology: '🛡️', microbiology: '🦠', biochemistry: '🧬', pharmacology: '💊', pathology: '🔬' };
 
 function loadPrefs() {
@@ -48,30 +50,67 @@ function Figure({ src, onZoom, alt }) {
 }
 
 // ── Block picker ────────────────────────────────────────────────────────────
-function Picker({ catalog, error, setup, sys, setSys, blocks, setBlocks, scope, setScope, byRating, setByRating, shuffle, setShuffle, onStart, starting, startError }) {
-  const system = (catalog || []).find(s => s.id === sys) || (catalog || [])[0];
-  const list = system?.blocks || [];
-  const chosen = list.filter(b => blocks.includes(b.block));
+// The selection is a list of "system:block" keys, so one session can mix any
+// blocks of any systems. With blocks off (the default) a system is picked
+// whole and only its question count shows; "Blocks on" opens each picked
+// system's blocks to fine-tune it.
+const selKey = (sys, block) => `${sys}:${block}`;
+const fmt = (n) => n.toLocaleString('en-US');
+
+function Picker({ catalog, error, setup, sel, setSel, showBlocks, setShowBlocks, rateSel, setRateSel, shuffle, setShuffle, onStart, starting, startError }) {
+  const systems = catalog || [];
+  const all = systems.flatMap(s => s.blocks.map(b => ({ ...b, sys: s.id })));
+  const chosen = all.filter(b => sel.includes(selKey(b.sys, b.block)));
   const ratingCount = (key) => chosen.reduce((n, b) => n + ((b.ratings || {})[key] || 0), 0);
-  const pool = scope === 'rating'
-    ? byRating.reduce((n, k) => n + ratingCount(k), 0)
-    : chosen.reduce((n, b) => n + (scope === 'unused' ? b.total - b.answered : scope === 'incorrect' ? b.answered - b.correct : b.total), 0);
-  const toggleRating = (k) => { sfx.select(); setByRating(p => (p.includes(k) ? p.filter(x => x !== k) : [...p, k])); };
-  const total = list.reduce((n, b) => n + b.total, 0);
-  const done = list.reduce((n, b) => n + b.answered, 0);
-  const right = list.reduce((n, b) => n + b.correct, 0);
-  const toggle = (n) => { sfx.select(); setBlocks(p => p.includes(n) ? p.filter(x => x !== n) : [...p, n].sort((a, b) => a - b)); };
+  const chosenTotal = chosen.reduce((n, b) => n + b.total, 0);
+  const pool = rateSel.length ? rateSel.reduce((n, k) => n + ratingCount(k), 0) : chosenTotal;
+
+  // Whole-bank progress, measured against the full AMBOSS bank.
+  const loaded = all.reduce((n, b) => n + b.total, 0);
+  const bankTotal = Math.max(BANK_TOTAL, loaded);
+  const done = all.reduce((n, b) => n + b.answered, 0);
+  const rated = all.reduce((n, b) => n + b.total - ((b.ratings || {}).unrated || 0), 0);
+  const bankRatings = RATINGS.map(r => ({ ...r, n: all.reduce((n, b) => n + ((b.ratings || {})[r.key] || 0), 0) }));
+
+  const sysKeys = (s) => s.blocks.map(b => selKey(s.id, b.block));
+  const sysState = (s) => { const k = sysKeys(s); const n = k.filter(x => sel.includes(x)).length; return n === 0 ? 'off' : n === k.length ? 'on' : 'part'; };
+  const toggleSys = (s) => {
+    sfx.select();
+    const k = sysKeys(s);
+    const wasOn = sysState(s) === 'on';
+    setSel(p => (wasOn ? p.filter(x => !k.includes(x)) : [...new Set([...p, ...k])]));
+  };
+  const toggleBlock = (sys, block) => { sfx.select(); const k = selKey(sys, block); setSel(p => (p.includes(k) ? p.filter(x => x !== k) : [...p, k])); };
+  const toggleRating = (k) => { sfx.select(); setRateSel(p => (p.includes(k) ? p.filter(x => x !== k) : [...p, k])); };
+  const pickedSystems = systems.filter(s => sysState(s) !== 'off');
 
   return (
     <div className="aqb-picker">
       <section className="aqb-hero">
         <p className="aqb-kicker">Amboss Quest · Qbank</p>
         <h1>The AMBOSS Qbank</h1>
-        <p className="aqb-sub">Block by block, in tutor mode. Ask for a hint when you are stuck, and read why every option is right or wrong.</p>
-        {system && (
-          <div className="aqb-hero-stats">
-            <span><b>{done}</b>/{total} done</span>
-            <span><b>{done ? Math.round((right / done) * 100) : 0}%</b> correct</span>
+        <p className="aqb-sub">Pick any systems, mix them, and study by how well you know each question.</p>
+        {catalog && (
+          <div className="aqb-bank">
+            <div className="aqb-bank-top">
+              <span className="aqb-bank-total"><b>{fmt(bankTotal)}</b> questions in this Qbank</span>
+              <span className="aqb-bank-pct">{Math.round((done / bankTotal) * 100)}% complete</span>
+            </div>
+            <span className="aqb-bar aqb-bar--bank" aria-hidden="true">
+              <i className="aqb-bar-right" style={{ width: `${(done / bankTotal) * 100}%` }} />
+            </span>
+            <div className="aqb-hero-stats">
+              <span><b>{fmt(done)}</b> done</span>
+              <span><b>{fmt(rated)}</b> rated</span>
+              <span><b>{fmt(bankTotal - done)}</b> to go</span>
+            </div>
+            {rated > 0 && (
+              <div className="aqb-rate-tally">
+                {bankRatings.filter(r => r.n).map(r => (
+                  <span key={r.key} className="aqb-rchip is-static"><span aria-hidden="true">{r.icon}</span> {r.label} <b>{fmt(r.n)}</b></span>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </section>
@@ -80,46 +119,34 @@ function Picker({ catalog, error, setup, sys, setSys, blocks, setBlocks, scope, 
       {error && <p className="aqb-error">{error}</p>}
       {!catalog && !error && <div className="aqb-loading"><span /><span /><span /></div>}
 
-      {catalog && catalog.length > 1 && (
-        <section className="aqb-panel">
-          <h2>System</h2>
-          <div className="aqb-seg">
-            {catalog.map(s => (
-              <button key={s.id} type="button" className={system?.id === s.id ? 'is-on' : ''}
-                onClick={() => { sfx.select(); setSys(s.id); setBlocks([]); }}>
-                {SYSTEM_ICON[s.id] || '🗂️'} {s.name}
-              </button>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {system && (
+      {systems.length > 0 && (
         <section className="aqb-panel">
           <div className="aqb-panel-head">
-            <h2>{SYSTEM_ICON[system.id] || '🗂️'} {system.name} · blocks</h2>
-            <div>
-              <button type="button" className="aqb-link" onClick={() => { sfx.select(); setBlocks(list.map(b => b.block)); }}>Select all</button>
-              <button type="button" className="aqb-link" onClick={() => { sfx.select(); setBlocks([]); }}>Clear</button>
+            <h2>Systems &amp; subjects</h2>
+            <div className="aqb-panel-tools">
+              <button type="button" className="aqb-link" onClick={() => { sfx.select(); setSel(all.map(b => selKey(b.sys, b.block))); }}>Select all</button>
+              <button type="button" className="aqb-link" onClick={() => { sfx.select(); setSel([]); }}>Clear</button>
+              <button type="button" className={`aqb-toggle${showBlocks ? ' is-on' : ''}`} aria-pressed={showBlocks}
+                onClick={() => { sfx.select(); setShowBlocks(v => !v); }}>
+                <span className="aqb-toggle-track" aria-hidden="true"><i /></span> Blocks {showBlocks ? 'on' : 'off'}
+              </button>
             </div>
           </div>
-          <div className="aqb-blocks">
-            {list.map(b => {
-              const on = blocks.includes(b.block);
-              const pctDone = b.total ? (b.answered / b.total) * 100 : 0;
-              const pctRight = b.total ? (b.correct / b.total) * 100 : 0;
+          <p className="aqb-note">Pick one or more; mixing systems puts them in one session.</p>
+          <div className="aqb-systems">
+            {systems.map(s => {
+              const state = sysState(s);
+              const total = s.blocks.reduce((n, b) => n + b.total, 0);
+              const sdone = s.blocks.reduce((n, b) => n + b.answered, 0);
+              const picked = s.blocks.filter(b => sel.includes(selKey(s.id, b.block)));
               return (
-                <button key={b.block} type="button" className={`aqb-block${on ? ' is-on' : ''}`} aria-pressed={on} onClick={() => toggle(b.block)}>
-                  <span className="aqb-block-check" aria-hidden="true">{on ? '✓' : ''}</span>
-                  <span className="aqb-block-name">Block {b.block}</span>
-                  <span className="aqb-block-meta">{b.total} questions</span>
-                  <span className="aqb-bar" aria-hidden="true">
-                    <i className="aqb-bar-done" style={{ width: `${pctDone}%` }} />
-                    <i className="aqb-bar-right" style={{ width: `${pctRight}%` }} />
-                  </span>
-                  <span className="aqb-block-meta">
-                    {b.answered ? `${b.answered}/${b.total} done · ${Math.round((b.correct / b.answered) * 100)}% correct` : 'Not started'}
-                  </span>
+                <button key={s.id} type="button" className={`aqb-block aqb-sys${state !== 'off' ? ' is-on' : ''}${state === 'part' ? ' is-part' : ''}`}
+                  aria-pressed={state === 'on' ? true : state === 'part' ? 'mixed' : false} onClick={() => toggleSys(s)}>
+                  <span className="aqb-block-check" aria-hidden="true">{state === 'on' ? '✓' : state === 'part' ? '–' : ''}</span>
+                  <span className="aqb-sys-name"><span aria-hidden="true">{SYSTEM_ICON[s.id] || '🗂️'}</span> {s.name}</span>
+                  <span className="aqb-block-meta"><b>{total}</b> questions{state === 'part' ? ` · ${picked.reduce((n, b) => n + b.total, 0)} picked` : ''}</span>
+                  <span className="aqb-bar" aria-hidden="true"><i className="aqb-bar-right" style={{ width: `${total ? (sdone / total) * 100 : 0}%` }} /></span>
+                  <span className="aqb-block-meta">{sdone ? `${sdone}/${total} done` : 'Not started'}</span>
                 </button>
               );
             })}
@@ -127,25 +154,45 @@ function Picker({ catalog, error, setup, sys, setSys, blocks, setBlocks, scope, 
         </section>
       )}
 
-      {system && (
+      {showBlocks && pickedSystems.map(s => (
+        <section key={s.id} className="aqb-panel">
+          <div className="aqb-panel-head"><h2>{SYSTEM_ICON[s.id] || '🗂️'} {s.name} · blocks</h2></div>
+          <div className="aqb-blocks">
+            {s.blocks.map(b => {
+              const on = sel.includes(selKey(s.id, b.block));
+              return (
+                <button key={b.block} type="button" className={`aqb-block${on ? ' is-on' : ''}`} aria-pressed={on} onClick={() => toggleBlock(s.id, b.block)}>
+                  <span className="aqb-block-check" aria-hidden="true">{on ? '✓' : ''}</span>
+                  <span className="aqb-block-name">Block {b.block}</span>
+                  <span className="aqb-block-meta">{b.total} questions</span>
+                  <span className="aqb-bar" aria-hidden="true"><i className="aqb-bar-right" style={{ width: `${b.total ? (b.answered / b.total) * 100 : 0}%` }} /></span>
+                  <span className="aqb-block-meta">{b.answered ? `${b.answered}/${b.total} done` : 'Not started'}</span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      ))}
+      {showBlocks && !pickedSystems.length && systems.length > 0 && (
+        <p className="aqb-note aqb-note--pad">Pick a system above to see its blocks.</p>
+      )}
+
+      {systems.length > 0 && (
         <section className="aqb-panel aqb-opts">
           <div>
-            <h2>Questions</h2>
-            <div className="aqb-seg">
-              {SCOPES.map(([id, label]) => (
-                <button key={id} type="button" className={scope === id ? 'is-on' : ''} onClick={() => { sfx.select(); setScope(id); }}>{label}</button>
+            <h2>Questions by rating</h2>
+            <div className="aqb-rating-filter" role="group" aria-label="Which ratings to study">
+              <button type="button" className={`aqb-rchip${!rateSel.length ? ' is-on' : ''}`} aria-pressed={!rateSel.length}
+                onClick={() => { sfx.select(); setRateSel([]); }}>
+                <span aria-hidden="true">📚</span> All <b>{chosen.length ? chosenTotal : '–'}</b>
+              </button>
+              {RATING_FILTERS.map(r => (
+                <button key={r.key} type="button" className={`aqb-rchip${rateSel.includes(r.key) ? ' is-on' : ''}`}
+                  aria-pressed={rateSel.includes(r.key)} onClick={() => toggleRating(r.key)}>
+                  <span aria-hidden="true">{r.icon}</span> {r.label} <b>{chosen.length ? ratingCount(r.key) : '–'}</b>
+                </button>
               ))}
             </div>
-            {scope === 'rating' && (
-              <div className="aqb-rating-filter" role="group" aria-label="Study by your rating">
-                {RATING_FILTERS.map(r => (
-                  <button key={r.key} type="button" className={`aqb-rchip${byRating.includes(r.key) ? ' is-on' : ''}`}
-                    aria-pressed={byRating.includes(r.key)} onClick={() => toggleRating(r.key)}>
-                    <span aria-hidden="true">{r.icon}</span> {r.label} <b>{chosen.length ? ratingCount(r.key) : '–'}</b>
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
           <div>
             <h2>Order</h2>
@@ -157,11 +204,11 @@ function Picker({ catalog, error, setup, sys, setSys, blocks, setBlocks, scope, 
         </section>
       )}
 
-      {system && (
+      {systems.length > 0 && (
         <div className="aqb-start">
           {startError && <p className="aqb-error">{startError}</p>}
           <button type="button" className="aqb-btn aqb-btn--go" disabled={!chosen.length || !pool || starting} onClick={onStart}>
-            {starting ? 'Loading…' : !chosen.length ? 'Pick a block' : scope === 'rating' && !byRating.length ? 'Pick a rating' : !pool ? 'Nothing to do here' : `Start · ${pool} question${pool === 1 ? '' : 's'}`}
+            {starting ? 'Loading…' : !chosen.length ? 'Pick a system' : !pool ? 'No questions with that rating' : `Start · ${pool} question${pool === 1 ? '' : 's'}`}
           </button>
         </div>
       )}
@@ -170,14 +217,14 @@ function Picker({ catalog, error, setup, sys, setSys, blocks, setBlocks, scope, 
 }
 
 // ── One question ────────────────────────────────────────────────────────────
-function Question({ q, pos, total, st, onPick, onStrike, onHint, onSubmit, onToggleExp, onZoom, onRate, rateProblem, signedIn }) {
+function Question({ q, sysName, pos, total, st, onPick, onStrike, onHint, onSubmit, onToggleExp, onZoom, onRate, rateProblem, signedIn }) {
   const submitted = st.submitted;
   const correctIdx = LETTERS.indexOf(q.correct);
   return (
     <article className="aqb-q">
       <header className="aqb-q-head">
         <span className="aqb-q-pos">Question {pos + 1} <small>of {total}</small></span>
-        <span className="aqb-q-tag">Block {q.block} · #{q.num}</span>
+        <span className="aqb-q-tag">{sysName ? `${sysName} · ` : ''}Block {q.block} · #{q.num}</span>
       </header>
 
       <div className="aqb-stem">{renderStem(q.stem)}</div>
@@ -330,10 +377,9 @@ export default function AmbossQbank() {
   const [catalog, setCatalog] = useState(null);
   const [setup, setSetup] = useState(false);
   const [error, setError] = useState('');
-  const [sys, setSys] = useState(prefs.sys || null);
-  const [blocks, setBlocks] = useState(prefs.blocks || []);
-  const [scope, setScope] = useState(prefs.scope || 'all');
-  const [byRating, setByRating] = useState(Array.isArray(prefs.byRating) ? prefs.byRating : []);
+  const [sel, setSel] = useState(Array.isArray(prefs.sel) ? prefs.sel : []);
+  const [showBlocks, setShowBlocks] = useState(Boolean(prefs.showBlocks));
+  const [rateSel, setRateSel] = useState(Array.isArray(prefs.rateSel) ? prefs.rateSel : []);
   const [rateProblem, setRateProblem] = useState(null);
   // The answer POST for each question, so a rating is only sent once the row
   // it lands on exists (rating straight after Submit would otherwise race it).
@@ -364,14 +410,17 @@ export default function AmbossQbank() {
         setCatalog(d.systems);
         setSetup(Boolean(d.setup));
         if (!d.systems.length && !d.setup) setError('No Qbank questions have been added yet.');
-        setSys(s => (d.systems.some(x => x.id === s) ? s : d.systems[0]?.id || null));
+        // Drop remembered picks for blocks that no longer exist.
+        const live = new Set(d.systems.flatMap(s => s.blocks.map(b => `${s.id}:${b.block}`)));
+        setSel(p => p.filter(k => live.has(k)));
       })
       .catch(() => setError('Could not load the Qbank. Check your connection and try again.'));
   }, []);
   useEffect(() => { loadCatalog(); }, [loadCatalog]);
   useEffect(() => {
-    try { localStorage.setItem(PREF_KEY, JSON.stringify({ sys, blocks, scope, byRating, shuffle })); } catch { /* not remembered */ }
-  }, [sys, blocks, scope, byRating, shuffle]);
+    try { localStorage.setItem(PREF_KEY, JSON.stringify({ sel, showBlocks, rateSel, shuffle })); } catch { /* not remembered */ }
+  }, [sel, showBlocks, rateSel, shuffle]);
+  const sysNames = useMemo(() => new Map((catalog || []).map(s => [s.id, s.name])), [catalog]);
 
   function begin(list) {
     setQs(list); setStates(list.map(q => freshState(q))); setIdx(0); setRateProblem(null);
@@ -382,13 +431,13 @@ export default function AmbossQbank() {
   async function start() {
     setStarting(true); setStartError('');
     try {
-      const params = new URLSearchParams({ system: sys || catalog?.[0]?.id || '', blocks: blocks.join(','), scope: scope === 'rating' ? 'all' : scope });
-      if (scope === 'rating') params.set('ratings', byRating.join(','));
+      const params = new URLSearchParams({ sel: sel.join(',') });
+      if (rateSel.length) params.set('ratings', rateSel.join(','));
       const r = await authFetch(`/api/amboss-qbank/questions?${params}`);
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'Could not load the questions.');
       let list = d.questions || [];
-      if (!list.length) throw new Error(scope === 'rating' ? 'No questions in those blocks have that rating.' : scope === 'incorrect' ? 'Nothing answered incorrectly in those blocks.' : scope === 'unused' ? 'You have done every question in those blocks.' : 'No questions came back.');
+      if (!list.length) throw new Error(rateSel.length ? 'No questions in that selection have that rating.' : 'No questions came back.');
       if (shuffle) list = [...list].sort(() => Math.random() - 0.5);
       begin(list);
     } catch (e) { setStartError(e.message); }
@@ -485,12 +534,12 @@ export default function AmbossQbank() {
 
       <main className="aqb-main">
         {phase === 'pick' && (
-          <Picker catalog={catalog} error={error} setup={setup} sys={sys} setSys={setSys} blocks={blocks} setBlocks={setBlocks}
-            scope={scope} setScope={setScope} byRating={byRating} setByRating={setByRating} shuffle={shuffle} setShuffle={setShuffle} onStart={start} starting={starting} startError={startError} />
+          <Picker catalog={catalog} error={error} setup={setup} sel={sel} setSel={setSel} showBlocks={showBlocks} setShowBlocks={setShowBlocks}
+            rateSel={rateSel} setRateSel={setRateSel} shuffle={shuffle} setShuffle={setShuffle} onStart={start} starting={starting} startError={startError} />
         )}
         {phase === 'run' && q && (
           <>
-            <Question q={q} pos={idx} total={qs.length} st={st} onPick={pick} onStrike={strike} onHint={hint}
+            <Question q={q} sysName={sysNames.get(q.system)} pos={idx} total={qs.length} st={st} onPick={pick} onStrike={strike} onHint={hint}
               onSubmit={submit} onToggleExp={toggleExp} onZoom={setZoom}
               onRate={rate} rateProblem={rateProblem} signedIn={Boolean(getToken())} />
             <div className="aqb-pager">

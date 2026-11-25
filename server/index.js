@@ -5557,8 +5557,9 @@ app.get('/api/amboss200/run', requireAuth, async (req, res) => {
  *   GET  /api/amboss-qbank/catalog
  *        every system → its blocks, each { block, total, answered, correct }
  *        for this student.
- *   GET  /api/amboss-qbank/questions?system=pulmonology&blocks=1,2&scope=all|unused|incorrect
- *        the questions in block order, each with this student's last answer.
+ *   GET  /api/amboss-qbank/questions?sel=pulmonology:1,cardiology:2&ratings=knowledge_gap,unrated
+ *        the questions (systems mixed) in block order, each with this
+ *        student's last answer. Legacy: ?system=&blocks=&scope=.
  *   POST /api/amboss-qbank/answer   { question_id, choice, used_hint }
  *        graded here against the stored key; returns { correct }.
  *   POST /admin/amboss-qbank/import { questions: [...] }   (figures already URLs)
@@ -5635,17 +5636,33 @@ app.get('/api/amboss-qbank/catalog', requireAuth, async (req, res) => {
 
 app.get('/api/amboss-qbank/questions', requireAuth, async (req, res) => {
   if (!supabase) return res.json({ questions: [] });
-  const system = String(req.query.system || '').trim();
-  const blocks = String(req.query.blocks || '').split(',').map(n => parseInt(n, 10)).filter(n => Number.isInteger(n) && n > 0).slice(0, 50);
+  // Which blocks: `sel=pulmonology:1,cardiology:3,...` (any mix of systems),
+  // or the older `system=pulmonology&blocks=1,2` for a single system.
+  const picks = new Map();
+  const add = (sys, n) => {
+    const block = parseInt(n, 10);
+    if (!/^[a-z_]{2,40}$/.test(sys) || !Number.isInteger(block) || block < 1) return;
+    if (!picks.has(sys)) picks.set(sys, new Set());
+    picks.get(sys).add(block);
+  };
+  for (const part of String(req.query.sel || '').split(',').slice(0, 300)) {
+    const [sys, n] = part.split(':');
+    add(String(sys || '').trim(), n);
+  }
+  const legacy = String(req.query.system || '').trim();
+  if (legacy) for (const n of String(req.query.blocks || '').split(',').slice(0, 50)) add(legacy, n);
   const scope = AQB_SCOPES.includes(req.query.scope) ? req.query.scope : 'all';
   // Optional "study by my rating": any of the six ratings and/or 'unrated'.
   const ratingFilter = String(req.query.ratings || '').split(',').filter(k => UWORLD_RATINGS.includes(k) || k === 'unrated');
-  if (!system || !blocks.length) return res.status(400).json({ error: 'Pick a system and at least one block.' });
+  if (!picks.size) return res.status(400).json({ error: 'Pick at least one system or block.' });
   try {
-    const rows = await aqbSelectAll(() => supabase.from('amboss_qbank')
-      .select('id, system, block, num, stem, stem_images, hint, choices, correct')
-      .eq('system', system).in('block', blocks)
-      .order('block').order('num'));
+    const rows = [];
+    for (const [system, blocks] of picks) {
+      rows.push(...await aqbSelectAll(() => supabase.from('amboss_qbank')
+        .select('id, system, block, num, stem, stem_images, hint, choices, correct')
+        .eq('system', system).in('block', [...blocks])
+        .order('block').order('num').order('id')));
+    }
     const ans = await aqbAnswers(req.userId, rows.map(r => r.id));
     const questions = rows
       .map(r => ({ ...r, last: ans.get(r.id) || null }))
