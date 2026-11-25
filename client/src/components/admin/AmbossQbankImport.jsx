@@ -3,15 +3,27 @@ import './ScanMasterAdmin.css';
 import { SERVER_URL } from '../../serverUrl';
 
 const AUTH_KEY = 'usmle_admin_session';
-function apiCall(path, options = {}) {
-  return fetch(`${SERVER_URL}${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      'x-admin-password': localStorage.getItem(AUTH_KEY) || '',
-      ...(options.headers || {}),
-    },
-  });
+// A long import outlives short outages (a server redeploy drops requests for
+// a minute or so, which fetch reports as "Failed to fetch"), so network
+// errors and 502/503/504 are retried with a growing wait before giving up.
+const RETRY_WAITS = [3000, 8000, 20000, 45000];
+async function apiCall(path, options = {}) {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const res = await fetch(`${SERVER_URL}${path}`, {
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-password': localStorage.getItem(AUTH_KEY) || '',
+          ...(options.headers || {}),
+        },
+      });
+      if (![502, 503, 504].includes(res.status) || attempt >= RETRY_WAITS.length) return res;
+    } catch (err) {
+      if (attempt >= RETRY_WAITS.length) throw err;
+    }
+    await new Promise(r => setTimeout(r, RETRY_WAITS[attempt]));
+  }
 }
 
 const BATCH = 5;
