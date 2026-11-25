@@ -78,7 +78,9 @@ const addText = (target, key, line) => {
 for (const e of stream) {
   if (e.t === 'line') {
     let m;
-    if (e.bold && (m = e.text.match(/^Question # (\d+)$/))) {
+    // "Q" can be lost on the very first page ("uestion # 1") when the PDF has
+    // no cover page before it.
+    if (e.bold && (m = e.text.match(/^Q?uestion # (\d+)$/))) {
       const n = +m[1]; if (n === 1 || !q || n < q.n) block++;
       q = { block, n, page: e.page, stem: '', stemImgs: [], table: [], hint: '', opts: [] }; Qs.push(q); mode = 'stem'; opt = null; sec = null; lastY = null; continue;
     }
