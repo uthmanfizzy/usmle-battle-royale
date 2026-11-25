@@ -34,6 +34,7 @@ const BANK_TOTAL = 2745;
 const RATING_FILTERS = [...RATINGS, UNRATED];
 const ratingOf = (key) => RATINGS.find(r => r.key === key);
 const PREF_KEY = 'mv_aqb_prefs_v2';
+const CATALOG_KEY = 'mv_aqb_catalog';
 const SYSTEM_ICON = { pulmonology: '🫁', cardiology: '❤️', nephrology: '🫘', gastroenterology: '🍽️', neurology: '🧠', endocrinology: '🦋', reproductive: '🤰', haematology_oncology: '🩸', musculoskeletal: '🦴', psychiatry: '🧩', immunology: '🛡️', microbiology: '🦠', biochemistry: '🧬', pharmacology: '💊', pathology: '🔬' };
 
 function loadPrefs() {
@@ -374,7 +375,10 @@ const freshState = (q) => ({ pick: null, struck: [], hint: false, submitted: fal
 export default function AmbossQbank() {
   const prefs = useMemo(loadPrefs, []);
   const [phase, setPhase] = useState('pick');
-  const [catalog, setCatalog] = useState(null);
+  // The last catalog paints at once; the fresh one replaces it when it lands.
+  const [catalog, setCatalog] = useState(() => {
+    try { const c = JSON.parse(localStorage.getItem(CATALOG_KEY)); return Array.isArray(c) && c.length ? c : null; } catch { return null; }
+  });
   const [setup, setSetup] = useState(false);
   const [error, setError] = useState('');
   const [sel, setSel] = useState(Array.isArray(prefs.sel) ? prefs.sel : []);
@@ -402,12 +406,13 @@ export default function AmbossQbank() {
   useStudyActivity(phase === 'run' ? 'Amboss Qbank' : null, null, 'amboss_qbank');
 
   const loadCatalog = useCallback(() => {
-    if (!getToken()) { setError('Sign in to use the Qbank; your progress is saved to your account.'); return; }
+    if (!getToken()) { setCatalog(null); setError('Sign in to use the Qbank; your progress is saved to your account.'); return; }
     authFetch('/api/amboss-qbank/catalog')
       .then(r => r.json())
       .then(d => {
         if (!Array.isArray(d.systems)) throw new Error(d.error || 'bad');
         setCatalog(d.systems);
+        try { localStorage.setItem(CATALOG_KEY, JSON.stringify(d.systems)); } catch { /* not cached */ }
         setSetup(Boolean(d.setup));
         if (!d.systems.length && !d.setup) setError('No Qbank questions have been added yet.');
         // Drop remembered picks for blocks that no longer exist.

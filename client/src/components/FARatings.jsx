@@ -70,7 +70,7 @@ export function useFaRatings(mode, ids) {
       body: JSON.stringify({ mode, question_id: questionId, rating }),
     })
       .then(r => r.json())
-      .then(d => { setProblem(d.ok ? null : d.reason === 'missing_table' ? 'missing_table' : 'failed'); })
+      .then(d => { setProblem(d.ok ? null : ['missing_table', 'missing_mode'].includes(d.reason) ? d.reason : 'failed'); })
       .catch(() => setProblem('failed'));
   }, [mode]);
 

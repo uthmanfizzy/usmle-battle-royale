@@ -15,7 +15,7 @@
 CREATE TABLE IF NOT EXISTS fa_question_ratings (
   id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id     UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  mode        TEXT        NOT NULL CHECK (mode IN ('fa_images', 'fa_hy_qs')),
+  mode        TEXT        NOT NULL CHECK (mode IN ('fa_images', 'fa_hy_qs', 'amboss_200')),
   question_id TEXT        NOT NULL,
   rating      TEXT        NOT NULL CHECK (rating IN ('knowledge_gap', 'careless_miss', 'lucky_guess', 'somewhat_know', 'fully_understood', 'long_term_memory')),
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()

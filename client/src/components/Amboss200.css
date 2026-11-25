@@ -264,3 +264,25 @@
 @media (prefers-reduced-motion: reduce) {
   .a2 *, .a2 *::before, .a2 *::after { animation-duration: 0.001s !important; animation-iteration-count: 1 !important; transition-duration: 0.001s !important; }
 }
+
+/* Study by rating (basecamp chips, summit tally) */
+.a2-opts .a2-opt-wide { grid-column: 1 / -1; }
+.a2-rfilter { display: flex; flex-wrap: wrap; gap: 6px; }
+.a2-rchip { display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--line); background: rgba(0, 0, 0, 0.25); color: var(--ink); border-radius: 999px; padding: 7px 12px; font-size: 13px; font-weight: 600; cursor: pointer; transition: background 0.15s, border-color 0.15s; }
+.a2-rchip b { color: var(--muted); font-weight: 800; }
+.a2-rchip:hover { border-color: rgba(var(--lime), 0.5); }
+.a2-rchip.is-on { background: rgba(var(--lime), 0.2); border-color: rgb(var(--lime)); color: rgb(var(--lime-lt)); }
+.a2-rchip.is-on b { color: inherit; }
+.a2-rchip.is-static { cursor: default; }
+.a2-rtally { justify-content: center; margin-top: 14px; }
+
+/* Recall rating under the HY card */
+.a2-rate { margin: 12px 0; padding: 12px; border-radius: 14px; border: 1px solid var(--line); background: rgba(0, 0, 0, 0.22); display: flex; flex-direction: column; gap: 8px; }
+.a2-rate-head { font-weight: 800; font-size: 13.5px; }
+.a2-rate-group { display: flex; flex-direction: column; gap: 4px; }
+.a2-rate-label { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.a2-rate-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.a2-rate-btn { border: 1px solid var(--line); background: rgba(255, 255, 255, 0.04); color: var(--ink); border-radius: 10px; padding: 7px 10px; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+.a2-rate-btn:hover { border-color: rgba(var(--lime), 0.5); }
+.a2-rate-btn.is-on { background: rgb(var(--lime)); border-color: rgb(var(--lime)); color: #10200a; }
+.a2-rate-warn { font-size: 12.5px; color: #ffb4a8; }

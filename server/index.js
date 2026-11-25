@@ -5478,8 +5478,10 @@ app.get('/api/questions/unseen', requireAuth, async (req, res) => {
 const AMBOSS200_TAG = JSON.stringify(['amboss_200_concepts']);
 const AMBOSS200_HY = require('./amboss200/hy');
 
-async function amboss200Rows(subjects) {
-  let q = supabase.from('questions').select('*').contains('game_modes', AMBOSS200_TAG).limit(1000);
+// The catalog only needs these; the full rows carry data:-URI figures.
+const AMBOSS200_LIGHT = 'id, question_id, category';
+async function amboss200Rows(subjects, cols = '*') {
+  let q = supabase.from('questions').select(cols).contains('game_modes', AMBOSS200_TAG).limit(1000);
   if (hasRetirement) q = q.is('retired_at', null);
   if (subjects && subjects.length) q = q.in('category', subjects);
   const { data, error } = await q;
@@ -5503,19 +5505,24 @@ async function amboss200Seen(userId, ids) {
 app.get('/api/amboss200/catalog', requireAuth, async (req, res) => {
   if (!supabase) return res.json({ subjects: [] });
   try {
-    const rows = await amboss200Rows(null);
+    const [rows, mine, { data: subs }] = await Promise.all([
+      amboss200Rows(null, AMBOSS200_LIGHT),
+      faRatingsMine(req.userId, 'amboss_200'),
+      supabase.from('subjects').select('id, name'),
+    ]);
     const seen = await amboss200Seen(req.userId, rows.map(r => r.id));
-    const { data: subs } = await supabase.from('subjects').select('id, name');
     const names = new Map((subs || []).map(s => [s.id, s.name]));
     const by = new Map();
     for (const r of rows) {
-      const s = by.get(r.category) || { id: r.category, name: names.get(r.category) || r.category, total: 0, seen: 0, correct: 0, wrong: 0 };
+      const s = by.get(r.category) || { id: r.category, name: names.get(r.category) || r.category, total: 0, seen: 0, correct: 0, wrong: 0, ratings: {} };
       s.total += 1;
+      const rk = mine.ratings[r.question_id] || 'unrated';
+      s.ratings[rk] = (s.ratings[rk] || 0) + 1;
       const sn = seen.get(r.id);
       if (sn) { s.seen += 1; if (sn.answered) { if (sn.correct) s.correct += 1; else s.wrong += 1; } }
       by.set(r.category, s);
     }
-    res.json({ subjects: [...by.values()].sort((a, b) => a.name.localeCompare(b.name)) });
+    res.json({ subjects: [...by.values()].sort((a, b) => a.name.localeCompare(b.name)), ratingsProblem: mine.reason || null });
   } catch (err) {
     console.error('[/api/amboss200/catalog] failed —', err.message);
     res.status(500).json({ error: 'Could not load the systems.' });
@@ -5527,8 +5534,14 @@ app.get('/api/amboss200/run', requireAuth, async (req, res) => {
   const subjects = (req.query.subjects || '').toString().split(',').map(s => s.trim()).filter(Boolean).slice(0, 40);
   const scope = ['unseen', 'missed'].includes(req.query.scope) ? req.query.scope : 'all';
   const count = Math.min(200, Math.max(1, parseInt(req.query.count, 10) || 20));
+  // Optional "study by my rating": any of the six ratings and/or 'unrated'.
+  const ratingFilter = String(req.query.ratings || '').split(',').filter(k => UWORLD_RATINGS.includes(k) || k === 'unrated');
   try {
     let rows = await amboss200Rows(subjects);
+    if (ratingFilter.length) {
+      const mine = await faRatingsMine(req.userId, 'amboss_200');
+      rows = rows.filter(r => ratingFilter.includes(mine.ratings[r.question_id] || 'unrated'));
+    }
     if (scope !== 'all') {
       const seen = await amboss200Seen(req.userId, rows.map(r => r.id));
       rows = rows.filter(r => {
@@ -5586,19 +5599,48 @@ async function aqbSelectAll(build) {
 let hasAqbRating = true;
 const aqbRatingMissing = (err) => /rating/.test(err?.message || '') && /(does not exist|schema cache|Could not find)/i.test(err?.message || '');
 
-async function aqbAnswers(userId, ids) {
+// Every answer this student has given, in one paged read (a student has at
+// most the bank's ~2,700 rows), instead of looking ids up 300 at a time.
+async function aqbAnswers(userId) {
   const out = new Map();
-  for (let i = 0; i < ids.length; i += 300) {
+  for (let from = 0; from < 20000; from += 1000) {
     const read = () => supabase.from('amboss_qbank_answers')
       .select(`question_id, choice, correct, used_hint, answered_at${hasAqbRating ? ', rating' : ''}`)
       .eq('user_id', userId)
-      .in('question_id', ids.slice(i, i + 300));
+      .order('question_id').range(from, from + 999);
     let { data, error } = await read();
     if (error && hasAqbRating && aqbRatingMissing(error)) { hasAqbRating = false; ({ data, error } = await read()); }
     if (error) throw error;
     for (const r of data || []) out.set(r.question_id, r);
+    if (!data || data.length < 1000) break;
   }
   return out;
+}
+
+// The bank itself only changes when an admin imports a pack, so keep it in
+// memory: the index (id/system/block) for the catalog and each system's full
+// rows for sessions. An import clears both; a 30-minute expiry covers edits
+// made straight in Supabase.
+const AQB_TTL = 30 * 60 * 1000;
+const aqbCache = { index: null, indexAt: 0, systems: new Map() };
+function aqbInvalidate() { aqbCache.index = null; aqbCache.systems.clear(); }
+
+async function aqbIndex() {
+  if (aqbCache.index && Date.now() - aqbCache.indexAt < AQB_TTL) return aqbCache.index;
+  const rows = await aqbSelectAll(() => supabase.from('amboss_qbank').select('id, system, block').order('id'));
+  aqbCache.index = rows; aqbCache.indexAt = Date.now();
+  return rows;
+}
+
+async function aqbSystemRows(system) {
+  const hit = aqbCache.systems.get(system);
+  if (hit && Date.now() - hit.at < AQB_TTL) return hit.rows;
+  const rows = await aqbSelectAll(() => supabase.from('amboss_qbank')
+    .select('id, system, block, num, stem, stem_images, hint, choices, correct')
+    .eq('system', system)
+    .order('block').order('num').order('id'));
+  aqbCache.systems.set(system, { rows, at: Date.now() });
+  return rows;
 }
 
 const aqbMissingTable = (err) => /amboss_qbank/.test(err?.message || '') && /(does not exist|schema cache|Could not find)/i.test(err?.message || '');
@@ -5606,9 +5648,11 @@ const aqbMissingTable = (err) => /amboss_qbank/.test(err?.message || '') && /(do
 app.get('/api/amboss-qbank/catalog', requireAuth, async (req, res) => {
   if (!supabase) return res.json({ systems: [] });
   try {
-    const rows = await aqbSelectAll(() => supabase.from('amboss_qbank').select('id, system, block').order('id'));
-    const ans = await aqbAnswers(req.userId, rows.map(r => r.id));
-    const { data: subs } = await supabase.from('subjects').select('id, name');
+    const [rows, ans, { data: subs }] = await Promise.all([
+      aqbIndex(),
+      aqbAnswers(req.userId),
+      supabase.from('subjects').select('id, name'),
+    ]);
     const names = new Map((subs || []).map(s => [s.id, s.name]));
     const systems = new Map();
     for (const r of rows) {
@@ -5656,14 +5700,12 @@ app.get('/api/amboss-qbank/questions', requireAuth, async (req, res) => {
   const ratingFilter = String(req.query.ratings || '').split(',').filter(k => UWORLD_RATINGS.includes(k) || k === 'unrated');
   if (!picks.size) return res.status(400).json({ error: 'Pick at least one system or block.' });
   try {
-    const rows = [];
-    for (const [system, blocks] of picks) {
-      rows.push(...await aqbSelectAll(() => supabase.from('amboss_qbank')
-        .select('id, system, block, num, stem, stem_images, hint, choices, correct')
-        .eq('system', system).in('block', [...blocks])
-        .order('block').order('num').order('id')));
-    }
-    const ans = await aqbAnswers(req.userId, rows.map(r => r.id));
+    const sysList = [...picks.keys()];
+    const [perSystem, ans] = await Promise.all([
+      Promise.all(sysList.map(aqbSystemRows)),
+      aqbAnswers(req.userId),
+    ]);
+    const rows = perSystem.flatMap((list, i) => list.filter(r => picks.get(sysList[i]).has(r.block)));
     const questions = rows
       .map(r => ({ ...r, last: ans.get(r.id) || null }))
       .filter(r => scope === 'all' || (scope === 'unused' ? !r.last : (r.last && !r.last.correct)))
@@ -5681,8 +5723,15 @@ app.post('/api/amboss-qbank/answer', requireAuth, async (req, res) => {
   const choice = String(req.body?.choice || '').toUpperCase();
   if (!id || !/^[A-J]$/.test(choice)) return res.status(400).json({ error: 'question_id and choice are required.' });
   try {
-    const { data: q, error } = await supabase.from('amboss_qbank').select('id, correct').eq('id', id).maybeSingle();
-    if (error) throw error;
+    let q = null;
+    for (const { rows, at } of aqbCache.systems.values()) {
+      if (Date.now() - at < AQB_TTL) q = rows.find(r => r.id === id) || q;
+    }
+    if (!q) {
+      const { data, error } = await supabase.from('amboss_qbank').select('id, correct').eq('id', id).maybeSingle();
+      if (error) throw error;
+      q = data;
+    }
     if (!q) return res.status(404).json({ error: 'No such question.' });
     const correct = q.correct === choice;
     const { error: upErr } = await supabase.from('amboss_qbank_answers').upsert({
@@ -5741,6 +5790,7 @@ app.post('/admin/amboss-qbank/import', adminAuth, async (req, res) => {
   }
   try {
     const { error } = await supabase.from('amboss_qbank').upsert(rows, { onConflict: 'id' });
+    aqbInvalidate();
     if (error) throw error;
     res.json({ ok: true, saved: rows.length });
   } catch (err) {
@@ -5878,7 +5928,9 @@ app.post('/api/journey-questions/:questionId/rate', requireAuth, async (req, res
  * Until the table exists both answer with reason 'missing_table' so the
  * page can say ratings are not saving rather than pretending they are.
  */
-const FA_RATING_MODES = ['fa_images', 'fa_hy_qs'];
+// amboss_200 = Amboss 200 Concepts (ids AMB200-###); the table's CHECK needs
+// it added (amboss200-ratings-migration.sql).
+const FA_RATING_MODES = ['fa_images', 'fa_hy_qs', 'amboss_200'];
 const FA_QID = /^[A-Za-z0-9_-]{1,64}$/;
 
 app.post('/api/fa-ratings', requireAuth, async (req, res) => {
@@ -5897,6 +5949,8 @@ app.post('/api/fa-ratings', requireAuth, async (req, res) => {
     if (!error) return res.json({ ok: true });
     console.error('[fa rate] upsert failed —', error.code, error.message);
     if (isMissingTable(error, 'fa_question_ratings')) return res.json({ ok: false, reason: 'missing_table' });
+    // 23514 = CHECK violation: this mode is not in the table's list yet.
+    if (error.code === '23514' && /mode/.test(error.message || '')) return res.json({ ok: false, reason: 'missing_mode' });
     res.json({ ok: false, reason: describeRatingWriteError(error) });
   } catch (err) {
     console.warn('[/api/fa-ratings] failed —', err.message);
@@ -5910,28 +5964,29 @@ app.post('/api/fa-ratings', requireAuth, async (req, res) => {
  * "study what I rated Knowledge Gap". Paged in 1000s: the project's PostgREST
  * caps a select at 1000 rows and truncates silently.
  */
-app.get('/api/fa-ratings/mine', requireAuth, async (req, res) => {
-  const mode = String(req.query.mode || '');
-  if (!FA_RATING_MODES.includes(mode)) return res.status(400).json({ error: 'Unknown mode.' });
-  if (!supabase) return res.json({ ratings: {} });
+async function faRatingsMine(userId, mode) {
+  if (!supabase) return { ratings: {} };
   try {
     const out = {};
     for (let from = 0; from < 20000; from += 1000) {
       const { data, error } = await supabase.from('fa_question_ratings')
-        .select('question_id, rating').eq('user_id', req.userId).eq('mode', mode)
+        .select('question_id, rating').eq('user_id', userId).eq('mode', mode)
         .order('question_id', { ascending: true }).range(from, from + 999);
-      if (error) {
-        if (isMissingTable(error, 'fa_question_ratings')) return res.json({ ratings: {}, reason: 'missing_table' });
-        return res.json({ ratings: {}, reason: 'failed' });
-      }
+      if (error) return { ratings: {}, reason: isMissingTable(error, 'fa_question_ratings') ? 'missing_table' : 'failed' };
       (data || []).forEach(r => { out[r.question_id] = r.rating; });
       if (!data || data.length < 1000) break;
     }
-    res.json({ ratings: out });
+    return { ratings: out };
   } catch (err) {
-    console.warn('[/api/fa-ratings/mine] failed —', err.message);
-    res.json({ ratings: {}, reason: 'failed' });
+    console.warn('[fa ratings mine] failed —', err.message);
+    return { ratings: {}, reason: 'failed' };
   }
+}
+
+app.get('/api/fa-ratings/mine', requireAuth, async (req, res) => {
+  const mode = String(req.query.mode || '');
+  if (!FA_RATING_MODES.includes(mode)) return res.status(400).json({ error: 'Unknown mode.' });
+  res.json(await faRatingsMine(req.userId, mode));
 });
 
 app.get('/api/fa-ratings', requireAuth, async (req, res) => {

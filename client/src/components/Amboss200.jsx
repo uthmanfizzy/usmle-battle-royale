@@ -6,18 +6,20 @@ import { sfx } from '../minigameSfx';
 import { useStudySession } from '../studySession';
 import { useStudyActivity } from '../studyPresence';
 import SfxToggle from './SfxToggle';
+import { useFaRatings, FA_RATING_GROUPS, FA_RATINGS, FA_RATING_FILTERS } from './FARatings';
 import './Amboss200.css';
 
 /**
  * Amboss 200 Concepts — an expedition through the 200 concepts, played as a
  * game rather than worked down like a qbank.
  *
- *   BASECAMP   pick the systems to explore (any mix), which questions
- *              (all / not seen yet / ones I missed), how many, and timed or
- *              not. Each system tile shows how much of it has been charted.
+ *   BASECAMP   pick the systems to explore (any mix), which questions by
+ *              the student's own recall rating (or all), how many, and timed
+ *              or not. Each system tile shows how much of it has been charted.
  *   EXPEDITION one vignette at a time; answer, then the HY explanation card
- *              (concept, why, the high-yield facts, the trap). Streaks build
- *              a combo multiplier; every question is a waypoint on the trail.
+ *              (concept, why, the high-yield facts, the trap) and the six
+ *              recall ratings (fa_question_ratings, mode amboss_200). Streaks
+ *              build a combo multiplier; every question is a waypoint.
  *   SUMMIT     score, accuracy, per-system results and every missed concept
  *              to review.
  *
@@ -38,6 +40,7 @@ const LETTERS = 'ABCDEFGHIJ';
 const COUNTS = [10, 20, 40, 0]; // 0 = every question that matches
 const TIME_LIMIT = 90;
 const SEL_KEY = 'mv_amboss200_systems';
+const RATE_KEY = 'mv_amboss200_ratings';
 
 function reportSeen(q, correct) {
   if (!q?._supabase_id || !getToken()) return;
@@ -64,10 +67,13 @@ function Ring({ value, size = 44, stroke = 5, children }) {
 }
 
 // ── Basecamp ────────────────────────────────────────────────────────────────
-function Basecamp({ catalog, error, picked, setPicked, scope, setScope, count, setCount, timed, setTimed, onStart, starting, startError }) {
+function Basecamp({ catalog, error, picked, setPicked, rateSel, setRateSel, count, setCount, timed, setTimed, onStart, starting, startError }) {
   const systems = catalog || [];
   const chosen = systems.filter(s => picked.includes(s.id));
-  const pool = chosen.reduce((n, s) => n + (scope === 'unseen' ? s.total - s.seen : scope === 'missed' ? s.wrong : s.total), 0);
+  const ratingCount = (k) => chosen.reduce((n, s) => n + ((s.ratings || {})[k] || 0), 0);
+  const chosenTotal = chosen.reduce((n, s) => n + s.total, 0);
+  const pool = rateSel.length ? rateSel.reduce((n, k) => n + ratingCount(k), 0) : chosenTotal;
+  const toggleRating = (k) => { sfx.select(); setRateSel(p => (p.includes(k) ? p.filter(x => x !== k) : [...p, k])); };
   const total = systems.reduce((n, s) => n + s.total, 0);
   const charted = systems.reduce((n, s) => n + s.seen, 0);
   const toggle = (id) => { sfx.select(); setPicked(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]); };
@@ -122,11 +128,18 @@ function Basecamp({ catalog, error, picked, setPicked, scope, setScope, count, s
       </section>
 
       <section className="a2-panel a2-opts">
-        <div>
-          <h2>2 · Which questions</h2>
-          <div className="a2-seg">
-            {[['all', 'All'], ['unseen', 'Not seen yet'], ['missed', 'Ones I missed']].map(([id, label]) => (
-              <button key={id} type="button" className={scope === id ? 'is-on' : ''} onClick={() => { sfx.select(); setScope(id); }}>{label}</button>
+        <div className="a2-opt-wide">
+          <h2>2 · Which questions, by your rating</h2>
+          <div className="a2-rfilter" role="group" aria-label="Which ratings to study">
+            <button type="button" className={`a2-rchip${!rateSel.length ? ' is-on' : ''}`} aria-pressed={!rateSel.length}
+              onClick={() => { sfx.select(); setRateSel([]); }}>
+              <span aria-hidden="true">📚</span> All <b>{chosen.length ? chosenTotal : '–'}</b>
+            </button>
+            {FA_RATING_FILTERS.map(r => (
+              <button key={r.key} type="button" className={`a2-rchip${rateSel.includes(r.key) ? ' is-on' : ''}`}
+                aria-pressed={rateSel.includes(r.key)} onClick={() => toggleRating(r.key)}>
+                <span aria-hidden="true">{r.icon}</span> {r.label} <b>{chosen.length ? ratingCount(r.key) : '–'}</b>
+              </button>
             ))}
           </div>
         </div>
@@ -187,8 +200,33 @@ function HYCard({ q, right }) {
   );
 }
 
+// ── Recall rating, under the HY card ────────────────────────────────────────
+function RateBar({ current, onRate, problem }) {
+  return (
+    <div className="a2-rate" role="group" aria-label="How well did you know this?">
+      <span className="a2-rate-head">How well did you know it?</span>
+      {FA_RATING_GROUPS.map(g => (
+        <div key={g.label} className="a2-rate-group">
+          <span className="a2-rate-label">{g.label}</span>
+          <div className="a2-rate-row">
+            {g.items.map(it => (
+              <button key={it.key} type="button" className={`a2-rate-btn${current === it.key ? ' is-on' : ''}`}
+                aria-pressed={current === it.key} onClick={() => { sfx.select(); onRate(it.key); }}>
+                <span aria-hidden="true">{it.icon}</span> {it.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
+      {problem === 'missing_mode' && <span className="a2-rate-warn">Ratings are not saving yet: run amboss200-ratings-migration.sql in Supabase.</span>}
+      {problem === 'missing_table' && <span className="a2-rate-warn">Ratings are not saving yet: run fa-question-ratings-migration.sql in Supabase.</span>}
+      {problem === 'failed' && <span className="a2-rate-warn">That rating did not save. Check your connection and pick it again.</span>}
+    </div>
+  );
+}
+
 // ── Expedition ──────────────────────────────────────────────────────────────
-function Expedition({ qs, idx, results, picked, onAnswer, onNext, onQuit, timed, combo, score }) {
+function Expedition({ qs, idx, results, picked, onAnswer, onNext, onQuit, timed, combo, score, rating, onRate, rateProblem, signedIn }) {
   const q = qs[idx];
   const [time, setTime] = useState(TIME_LIMIT);
   useEffect(() => { setTime(TIME_LIMIT); }, [idx]);
@@ -280,6 +318,7 @@ function Expedition({ qs, idx, results, picked, onAnswer, onNext, onQuit, timed,
                 {right && <b>+{(100) * mult} XP</b>}
               </div>
               <HYCard q={q} right={right} />
+              {signedIn && <RateBar current={rating} onRate={onRate} problem={rateProblem} />}
               <button type="button" className="a2-go" onClick={onNext}>{idx + 1 >= qs.length ? 'Reach the summit →' : 'Next waypoint →'}</button>
             </>
           )}
@@ -290,8 +329,9 @@ function Expedition({ qs, idx, results, picked, onAnswer, onNext, onQuit, timed,
 }
 
 // ── Summit ──────────────────────────────────────────────────────────────────
-function Summit({ results, score, bestCombo, onAgain, onMissed }) {
+function Summit({ results, score, bestCombo, onAgain, onMissed, ratings }) {
   const right = results.filter(r => r.right).length;
+  const tally = FA_RATINGS.map(r => ({ ...r, n: results.filter(x => ratings[x.q.id] === r.key).length })).filter(r => r.n);
   const pct = results.length ? right / results.length : 0;
   const bySys = useMemo(() => {
     const m = new Map();
@@ -318,6 +358,11 @@ function Summit({ results, score, bestCombo, onAgain, onMissed }) {
           <div><b>🔥 {bestCombo}</b><span>Best streak</span></div>
           <div><b>{missed.length}</b><span>To review</span></div>
         </div>
+        {tally.length > 0 && (
+          <div className="a2-rfilter a2-rtally">
+            {tally.map(r => <span key={r.key} className="a2-rchip is-static"><span aria-hidden="true">{r.icon}</span> {r.label} <b>{r.n}</b></span>)}
+          </div>
+        )}
         <div className="a2-summit-actions">
           <button type="button" className="a2-go" onClick={onAgain}>New expedition</button>
           {missed.length > 0 && <button type="button" className="a2-ghost" onClick={onMissed}>Retry the {missed.length} I missed</button>}
@@ -363,7 +408,7 @@ export default function Amboss200() {
   const [catalog, setCatalog] = useState(null);
   const [error, setError] = useState('');
   const [picked, setPicked] = useState(() => { try { return JSON.parse(localStorage.getItem(SEL_KEY)) || []; } catch { return []; } });
-  const [scope, setScope] = useState('all');
+  const [rateSel, setRateSel] = useState(() => { try { const v = JSON.parse(localStorage.getItem(RATE_KEY)); return Array.isArray(v) ? v : []; } catch { return []; } });
   const [count, setCount] = useState(20);
   const [timed, setTimed] = useState(false);
   const [phase, setPhase] = useState('camp');
@@ -396,6 +441,10 @@ export default function Amboss200() {
   }, []);
   useEffect(() => { loadCatalog(); }, [loadCatalog]);
   useEffect(() => { try { localStorage.setItem(SEL_KEY, JSON.stringify(picked)); } catch { /* not remembered */ } }, [picked]);
+  useEffect(() => { try { localStorage.setItem(RATE_KEY, JSON.stringify(rateSel)); } catch { /* not remembered */ } }, [rateSel]);
+  // Ratings for this run's questions (keyed by the AMB200-### business id).
+  const runIds = useMemo(() => qs.map(x => x.id), [qs]);
+  const { ratings, rate: saveRating, problem: rateProblem, signedIn } = useFaRatings('amboss_200', runIds);
 
   const names = useMemo(() => new Map((catalog || []).map(s => [s.id, s.name])), [catalog]);
 
@@ -411,10 +460,11 @@ export default function Amboss200() {
   async function start() {
     setStarting(true); setStartError('');
     try {
-      const qsParams = new URLSearchParams({ subjects: picked.join(','), scope, count: String(count || 200) });
+      const qsParams = new URLSearchParams({ subjects: picked.join(','), count: String(count || 200) });
+      if (rateSel.length) qsParams.set('ratings', rateSel.join(','));
       const r = await authFetch(`/api/amboss200/run?${qsParams}`);
       const d = await r.json();
-      if (!d.questions?.length) throw new Error(scope === 'missed' ? 'Nothing missed in those systems yet — nice.' : scope === 'unseen' ? 'You have seen every question in those systems.' : 'No questions came back.');
+      if (!d.questions?.length) throw new Error(rateSel.length ? 'No questions in those systems have that rating.' : 'No questions came back.');
       begin(d.questions);
     } catch (e) { setStartError(e.message); }
     setStarting(false);
@@ -478,15 +528,16 @@ export default function Amboss200() {
 
       <main className="a2-main">
         {phase === 'camp' && (
-          <Basecamp catalog={catalog} error={error} picked={picked} setPicked={setPicked} scope={scope} setScope={setScope}
+          <Basecamp catalog={catalog} error={error} picked={picked} setPicked={setPicked} rateSel={rateSel} setRateSel={setRateSel}
             count={count} setCount={setCount} timed={timed} setTimed={setTimed} onStart={start} starting={starting} startError={startError} />
         )}
         {phase === 'run' && q && (
           <Expedition qs={qs} idx={idx} results={results} picked={choice} onAnswer={answer} onNext={next} onQuit={quit}
-            timed={timed} combo={combo} score={score} />
+            timed={timed} combo={combo} score={score}
+            rating={ratings[q.id] || null} onRate={(k) => saveRating(q.id, k)} rateProblem={rateProblem} signedIn={signedIn} />
         )}
         {phase === 'summit' && (
-          <Summit results={results.filter(Boolean)} score={score} bestCombo={bestCombo}
+          <Summit results={results.filter(Boolean)} score={score} bestCombo={bestCombo} ratings={ratings}
             onAgain={() => setPhase('camp')}
             onMissed={() => begin(results.filter(r => r && !r.right).map(r => r.q))} />
         )}
