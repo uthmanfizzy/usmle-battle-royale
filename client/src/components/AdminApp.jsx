@@ -13,7 +13,7 @@ import { parseRichText } from '../utils/parseRichText';
 import { parseShortUrl, thumbnailUrl as shortThumbnailUrl, PLATFORM_LABELS, PLATFORM_ICONS } from '../utils/shortEmbeds';
 import { JOURNEY_SUBJECTS, JOURNEY_SECTIONS } from '../journeySubjects';
 import { normalizeExplanationImages, MAX_EXPLANATION_IMAGES } from '../utils/explanationImages';
-import { QUESTION_BANK_MODES } from '../questionBankModes';
+import { QUESTION_BANK_MODES, subjectOwner } from '../questionBankModes';
 
 import { SERVER_URL as API } from '../serverUrl';
 const AUTH_KEY = 'usmle_admin_session';
@@ -118,6 +118,10 @@ const FOLDERS = [
   { id: 'microbiology',     label: 'Microbiology',                 icon: '🦠', prefix: 'MI',  special: false },
   { id: 'biochemistry',     label: 'Biochemistry',                 icon: '⚗️', prefix: 'BC',  special: false },
   { id: 'biostatistics',    label: 'Biostatistics',                icon: '📊', prefix: 'BS',  special: false },
+  // A subject that belongs to one bank only (see ownSubjects in
+  // questionBankModes.js): listed inside that bank's section and in the full
+  // Question Manager, never in another bank's.
+  { id: 'hy_mixed_review',  label: 'HY Mixed Reviews',             icon: '⚡', prefix: 'HX',  special: false, onlyIn: 'mehlman_rapid_fire' },
   // Coming soon
   { id: '__cs_sep__',       label: '',                             icon: '',   prefix: null,  special: true,  separator: true },
   { id: 'pulmonology',      label: 'Pulmonology',                  icon: '🫁', prefix: 'PL',  special: false, comingSoon: true },
@@ -1612,7 +1616,7 @@ function GroupModal({ group, parentName, promote, onSave, onClose, error }) {
 
 // ── Bulk Import Modal ──────────────────────────────────────────────────────────
 
-function BulkImportModal({ activeFolder, selectedTopic, selectedDifficulty, onImport, onClose }) {
+function BulkImportModal({ activeFolder, selectedTopic, selectedDifficulty, onImport, onClose, scopeTag = null, scopeLabel = '' }) {
   const curFolder   = FOLDERS.find(f => f.id === activeFolder);
   const isCatLevel  = curFolder && !curFolder.special && !curFolder.separator && activeFolder !== 'all';
   const isInTopic   = selectedTopic && selectedTopic !== 'unassigned';
@@ -1674,10 +1678,15 @@ function BulkImportModal({ activeFolder, selectedTopic, selectedDifficulty, onIm
     const importCategory = isCatLevel ? activeFolder : null;
     const importDifficulty = selectedDifficulty || 'easy';
     try {
+      // Imported from a bank's tab: every question joins that bank, on top of
+      // any modes the file already lists.
+      const questions = scopeTag
+        ? parsedData.map(q => ({ ...q, game_modes: [...new Set([...(Array.isArray(q.game_modes) ? q.game_modes : []), scopeTag])] }))
+        : parsedData;
       const res  = await apiCall('/admin/questions/bulk', {
         method: 'POST',
         body:   JSON.stringify({
-          questions: parsedData,
+          questions,
           topic_id: topicId,
           category: importCategory,
           difficulty: importDifficulty,
@@ -1726,6 +1735,12 @@ function BulkImportModal({ activeFolder, selectedTopic, selectedDifficulty, onIm
           <span className="bim-ctx-icon">{isInTopic ? '📁' : isCatLevel ? '📂' : '📋'}</span>
           <span>{ctxText}</span>
         </div>
+        {scopeTag && (
+          <div className="bim-context">
+            <span className="bim-ctx-icon">🏷️</span>
+            <span>Every question in the file is added to <b>{scopeLabel || scopeTag}</b>. A question that names its own subject (category) keeps it.</span>
+          </div>
+        )}
 
         {!file ? (
           <div
@@ -1904,6 +1919,19 @@ function RowImageDrop({ questionId, field, label, url, onUploaded, basePath = '/
  * A bank with NOTHING saved falls back to the global active flag, which is
  * exactly what it did before, so this changes nothing until it is used.
  */
+// A bank's subject list: drop subjects that belong to another bank, mark this
+// bank's own ones active, and add them if the server list lacks them (it only
+// gains new default subjects once the server has redeployed).
+function withOwnSubjects(modeId, rows) {
+  const out = rows
+    .filter(r => { const o = subjectOwner(r.id); return !o || o === modeId; })
+    .map(r => (subjectOwner(r.id) === modeId ? { ...r, active: true } : r));
+  for (const f of FOLDERS) {
+    if (f.onlyIn === modeId && !out.some(r => r.id === f.id)) out.push({ id: f.id, label: f.label, active: true });
+  }
+  return out;
+}
+
 function QuestionBankSubjectsPanel({ modeId, modeLabel, subjects }) {
   const [ids, setIds] = useState(null);        // null = still loading
   const [configured, setConfigured] = useState(false);
@@ -1913,9 +1941,9 @@ function QuestionBankSubjectsPanel({ modeId, modeLabel, subjects }) {
   const [error, setError] = useState('');
 
   // Every real subject, with the live active flag as the fallback default.
-  const rows = (Array.isArray(subjects) && subjects.length)
+  const rows = withOwnSubjects(modeId, (Array.isArray(subjects) && subjects.length)
     ? subjects.map(s => ({ id: s.id, label: s.name || s.id, active: !!s.active }))
-    : SUBJECT_OPTIONS.map(o => ({ ...o, active: true }));
+    : SUBJECT_OPTIONS.map(o => ({ ...o, active: true })));
 
   useEffect(() => {
     let alive = true;
@@ -2871,6 +2899,9 @@ function QuestionsPanel({ subjects = [], scopeTag = null }) {
             try {
               return FOLDERS.filter(f => {
                 if (f.separator || f.special) return false;
+                // A bank-only subject shows in its own bank (and the full
+                // manager) whatever its global active flag says.
+                if (f.onlyIn) return !scopeTag || scopeTag === f.onlyIn;
                 const folderSubject = Array.isArray(subjects) ? subjects.find(s =>
                   s.id === f.id || s.name?.toLowerCase() === f.id?.toLowerCase()
                 ) : null;
@@ -2928,7 +2959,7 @@ function QuestionsPanel({ subjects = [], scopeTag = null }) {
           {(() => {
             try {
               return FOLDERS.filter(f => {
-                if (f.separator || f.special) return false;
+                if (f.separator || f.special || f.onlyIn) return false;
                 const folderSubject = Array.isArray(subjects) ? subjects.find(s =>
                   s.id === f.id || s.name?.toLowerCase() === f.id?.toLowerCase()
                 ) : null;
@@ -3407,6 +3438,13 @@ function QuestionsPanel({ subjects = [], scopeTag = null }) {
                       📥 Bulk Import
                     </button>
                   </>}
+                  {/* A bank tab takes a JSON file too: everything imported
+                      here is tagged into this bank. */}
+                  {scopeTag && (
+                    <button className="ap-btn-sec" onClick={() => setImportModal(true)}>
+                      📥 Bulk Import
+                    </button>
+                  )}
                   {/* Outside the !scopeTag block above: the mode tabs are
                       exactly where a bulk paste is checked, so this is the one
                       authoring tool they do need. */}
@@ -3751,6 +3789,8 @@ function QuestionsPanel({ subjects = [], scopeTag = null }) {
 
       {importModal && (
         <BulkImportModal
+          scopeTag={scopeTag}
+          scopeLabel={scopeLabel}
           activeFolder={activeFolder}
           selectedTopic={selectedTopic}
           selectedDifficulty={selectedDifficulty}
@@ -4945,7 +4985,7 @@ function parseVideoUrlClient(url) {
   return null;
 }
 
-const VIDEO_CATEGORIES = FOLDERS.filter(f => !f.special && !f.separator && f.id !== 'all');
+const VIDEO_CATEGORIES = FOLDERS.filter(f => !f.special && !f.separator && !f.onlyIn && f.id !== 'all');
 
 function VideosPanel() {
   const [videos,   setVideos]   = useState([]);
@@ -11379,9 +11419,9 @@ const ONLINE_GAME_TAGS = Object.fromEntries(
  * for a question's stem or explanation (Developer Mode).
  */
 function QuestionBankImagesPanel({ modeId, modeLabel, subjects }) {
-  const rows = (Array.isArray(subjects) && subjects.length)
+  const rows = withOwnSubjects(modeId, (Array.isArray(subjects) && subjects.length)
     ? subjects.map(s => ({ id: s.id, label: s.name || s.id }))
-    : SUBJECT_OPTIONS.map(o => ({ id: o.id, label: o.label }));
+    : SUBJECT_OPTIONS.map(o => ({ id: o.id, label: o.label })));
   const storeKey = `mr_admin_banklib_${modeId}`;
   const [open, setOpen] = useState(false);
   const [subject, setSubject] = useState(() => {
