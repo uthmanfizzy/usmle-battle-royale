@@ -5,7 +5,7 @@ import SoloGame from './SoloGame';
 import { useStudyActivity } from '../studyPresence';
 import { cachedImageMap, rememberImageMap } from '../utils/cachedImages';
 import { JOURNEY_SUBJECTS } from '../journeySubjects';
-import { DEFAULT_QUESTION_BANK_MODE } from '../questionBankModes';
+import { DEFAULT_QUESTION_BANK_MODE, subjectOwner } from '../questionBankModes';
 import './UWorldAdventure.css';
 import { rapidSfx } from '../rapidFireSfx';
 import SfxToggle from './SfxToggle';
@@ -133,6 +133,7 @@ const SUBJECT_BLURBS = {
   biostatistics: 'Read the evidence with confidence.',
   haematology: 'Follow the blood and what goes wrong in it.',
   hematology: 'Follow the blood and what goes wrong in it.',
+  'hy mixed reviews': 'High-yield facts from every system, fired in a mix.',
   'haematology & oncology': 'Blood disorders and the cancers behind them.',
   'hematology & oncology': 'Blood disorders and the cancers behind them.',
   'heme onc': 'Blood disorders and the cancers behind them.',
@@ -332,14 +333,19 @@ export default function UWorldAdventure({ mode = DEFAULT_QUESTION_BANK_MODE }) {
         // through to what the mode ships with.
         const hiddenCfg = settings?.questionBankHiddenSubjects?.[MODE];
         const hidden = new Set(Array.isArray(hiddenCfg) ? hiddenCfg : (mode.hiddenSubjects || []));
-        const shows = (s) => !hidden.has(s.id) && (allow ? allow.has(s.id) : s.active);
+        // A subject owned by one bank shows only there (and is never "under
+        // development" anywhere else). Mirrors bankShowsSubject on the server.
+        const owned = (s) => subjectOwner(s.id);
+        const shows = (s) => (owned(s)
+          ? owned(s) === MODE && !hidden.has(s.id)
+          : !hidden.has(s.id) && (allow ? allow.has(s.id) : s.active));
         const active = (data.subjects || []).filter(shows);
         setSubjects(active);
         // "Under development" is for a subject this bank WOULD show once it is
         // ready. One taken out of the bank is not coming, so it belongs in
         // neither list — showing it greyed out would advertise a system that
         // is never going to appear here.
-        setDevSubjects((data.subjects || []).filter(s => !hidden.has(s.id) && !shows(s)));
+        setDevSubjects((data.subjects || []).filter(s => !owned(s) && !hidden.has(s.id) && !shows(s)));
         // Open on the first subject so the pace card is populated on arrival,
         // the way the mockup shows it — an empty card above a subject grid
         // reads as broken. Picking another subject just re-points it.

@@ -101,6 +101,10 @@ export const QUESTION_BANK_MODES = [
     // counted as met and comes round again in a later set.
     allowSkip: true,
     activityMode: 'mehlman_rapid_fire_practice',
+    // Subjects that exist only in this bank (stored inactive so no other mode
+    // lists them; shown here whatever the admin allow list says). Mirrors
+    // BANK_OWN_SUBJECTS in server/index.js.
+    ownSubjects: ['hy_mixed_review'],
     // Opened from the Mehlman hub (Rapid Fire Qbank / HY Arrows), so its
     // back button returns there rather than to Story Mode.
     back: { route: '/mehlman', label: 'Mehlman' },
@@ -167,3 +171,7 @@ export const questionBankMode = (id) =>
   QUESTION_BANK_MODES.find(m => m.id === id) || DEFAULT_QUESTION_BANK_MODE;
 
 export const QUESTION_BANK_MODE_IDS = QUESTION_BANK_MODES.map(m => m.id);
+
+/** The bank a subject belongs to exclusively, or null for an ordinary subject. */
+export const subjectOwner = (subjectId) =>
+  QUESTION_BANK_MODES.find(m => (m.ownSubjects || []).includes(subjectId))?.id || null;

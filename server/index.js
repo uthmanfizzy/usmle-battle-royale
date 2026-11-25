@@ -5264,7 +5264,16 @@ function bankSubjectHidden(modeId) {
 
 // One rule, used everywhere a bank's subject list is built: the include list
 // wins where it is set, then the hidden list takes its subjects out.
+// Subjects that belong to ONE bank. They are stored inactive, so no other
+// mode's picker lists them, and they are shown in their own bank whatever its
+// allow list says. Mirrors ownSubjects in client/src/questionBankModes.js.
+const BANK_OWN_SUBJECTS = {
+  hy_mixed_review: 'mehlman_rapid_fire',
+};
+
 function bankShowsSubject(modeId, subject) {
+  const owner = BANK_OWN_SUBJECTS[subject.id];
+  if (owner) return owner === modeId && !bankSubjectHidden(modeId).has(subject.id);
   const allow = bankSubjectAllowList(modeId);
   if (bankSubjectHidden(modeId).has(subject.id)) return false;
   return allow ? allow.has(subject.id) : !!subject.active;
@@ -15717,6 +15726,9 @@ const SUBJECT_DEFAULTS = [
   { id: 'ent',              name: 'ENT',                         icon: '👂', active: false },
   { id: 'genetics',         name: 'Genetics & Embryology',       icon: '🧬', active: false },
   { id: 'anatomy',          name: 'Anatomy',                     icon: '🫀', active: false },
+  // Mehlman Rapid Fire only (BANK_OWN_SUBJECTS): stored inactive so no other
+  // mode lists it.
+  { id: 'hy_mixed_review',  name: 'HY Mixed Reviews',            icon: '⚡', active: false },
 ];
 
 // Seed subjects on startup
