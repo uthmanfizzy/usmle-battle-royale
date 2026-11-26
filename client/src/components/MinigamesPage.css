@@ -239,6 +239,73 @@
   .mg-tile-icon { font-size: 28px; }
 }
 
+/* ── Folders ────────────────────────────────────────────────────────────────
+   The front page is one folder per system; the game tiles live inside. A
+   folder is a .mg-tile (so both skins style it for free) with a folder shape
+   on its art band and the list of games it holds in its body. */
+.mg-grid-folders { grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); }
+
+.mg-folder-art { height: 104px; }
+
+.mg-folder-shape {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 92px;
+  height: 64px;
+  margin-top: 10px;
+  border-radius: 4px 10px 10px 10px;
+  background: linear-gradient(170deg, rgba(var(--mg-accent), 0.95), rgba(var(--mg-accent), 0.55));
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  transition: transform 0.18s ease;
+}
+.mg-folder-tab {
+  position: absolute;
+  top: -10px;
+  left: 0;
+  width: 38px;
+  height: 12px;
+  border-radius: 5px 8px 0 0;
+  background: rgba(var(--mg-accent), 0.8);
+}
+.mg-folder-icon { font-size: 30px; line-height: 1; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.45)); }
+.mg-folder:hover .mg-folder-shape { transform: translateY(-3px) rotate(-2deg); }
+
+.mg-folder-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: 4px;
+}
+.mg-folder-item {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: rgba(236, 228, 255, 0.88);
+}
+.mg-folder-item.is-soon { color: rgba(226, 216, 255, 0.45); font-weight: 500; }
+
+/* Every game inside still being built: open-able, but quieter. */
+.mg-folder.is-quiet { border-style: dashed; border-color: rgba(var(--mg-accent), 0.32); }
+.mg-folder.is-quiet .mg-folder-shape { opacity: 0.7; }
+
+.mg[data-mg-theme="arcade"] .mg-folder-shape,
+.mg[data-mg-theme="arcade"] .mg-folder-tab { border-radius: 0; }
+.mg[data-mg-theme="arcade"] .mg-folder-item { font-family: 'Courier New', ui-monospace, monospace; }
+
+@media (max-width: 640px) {
+  .mg-grid-folders { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .mg-grid-folders .mg-tile-blurb,
+  .mg-grid-folders .mg-folder-list { display: none; }
+  .mg-folder-art { height: 84px; }
+  .mg-folder-shape { width: 70px; height: 48px; }
+  .mg-folder-icon { font-size: 24px; }
+  .mg-grid-folders .mg-tile-body { padding: 10px 12px 12px; }
+  .mg-grid-folders .mg-tile-name { font-size: 14.5px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mg-folder:hover .mg-folder-shape { transform: none; }
+}
+
 /* ══ Arcade skin ═════════════════════════════════════════════════════════════
    Admin-switchable (UI Settings → Minigames Theme). A SKIN, not a layout: the
    grid, the tiles and every game's own subject colour are untouched, so

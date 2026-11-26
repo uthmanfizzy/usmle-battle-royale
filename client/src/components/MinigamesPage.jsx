@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { useGameSettings } from '../contexts/GameSettingsContext';
 import './MinigamesPage.css';
 
@@ -240,6 +241,130 @@ const MINIGAMES = [
   },
 ];
 
+/**
+ * The shelf is sorted into FOLDERS, one per system or subject, so the page
+ * opens on a short list of systems instead of one long wall of games. Each
+ * folder wears its system's colour; every game id above must appear in exactly
+ * one folder (a game left out would simply vanish from the page).
+ *
+ * The open folder lives in the URL (?folder=cardio) so the browser's back
+ * button closes it and a shared link lands inside the folder.
+ */
+const FOLDERS = [
+  { id: 'biochem', name: 'Biochemistry', icon: '🧬', accent: '46, 170, 120',
+    blurb: 'Metabolism, nutrition and genetics.',
+    games: ['pathway-navigator', 'vitamin-vault', 'genetics-roulette'] },
+  { id: 'cardio', name: 'Cardiology', icon: '🫀', accent: '214, 54, 60',
+    blurb: 'Strips, sounds and loops.',
+    games: ['ecg', 'murmurs', 'pv-loops'] },
+  { id: 'resp', name: 'Respiratory', icon: '🫁', accent: '42, 160, 196',
+    blurb: 'Blood gases and acid–base.',
+    games: ['abg'] },
+  { id: 'heme', name: 'Hematology', icon: '🩸', accent: '220, 38, 72',
+    blurb: 'Coagulation and its drugs.',
+    games: ['clot-cascade'] },
+  { id: 'repro', name: 'Reproductive', icon: '🎗️', accent: '236, 72, 153',
+    blurb: 'Breast and reproductive tumours.',
+    games: ['onco-atlas'] },
+  { id: 'neuro', name: 'Neurology', icon: '🧠', accent: '211, 83, 158',
+    blurb: 'Tracts, nuclei and lesions.',
+    games: ['lesion-localiser'] },
+  { id: 'msk', name: 'Musculoskeletal', icon: '🦴', accent: '150, 190, 58',
+    blurb: 'Muscles, nerves and roots.',
+    games: ['muscle-mapper'] },
+  { id: 'psych', name: 'Psychiatry', icon: '🎬', accent: '150, 106, 232',
+    blurb: 'Presentations to recognise.',
+    games: ['psych-video'] },
+  { id: 'pharm', name: 'Pharmacology', icon: '💊', accent: '70, 120, 220',
+    blurb: 'Mechanisms and side effects.',
+    games: ['drug-mechanism-match'] },
+  { id: 'micro', name: 'Microbiology & Immunology', icon: '🦠', accent: '70, 190, 160',
+    blurb: 'Bugs, drugs and HIV.',
+    games: ['microbiology', 'hiv'] },
+  { id: 'biostats', name: 'Biostatistics', icon: '📊', accent: '255, 205, 90',
+    blurb: 'Tables, tests and study design.',
+    games: ['biostats-lab'] },
+  { id: 'labs', name: 'Clinical Labs', icon: '🧪', accent: '46, 196, 150',
+    blurb: 'Normal ranges from memory.',
+    games: ['lab-values'] },
+];
+
+const GAME_BY_ID = Object.fromEntries(MINIGAMES.map(g => [g.id, g]));
+
+function folderFromUrl() {
+  try {
+    const id = new URLSearchParams(window.location.search).get('folder');
+    return FOLDERS.some(f => f.id === id) ? id : null;
+  } catch { return null; }
+}
+
+function GameTile({ g }) {
+  const Tag = g.soon ? 'div' : 'button';
+  return (
+    <Tag
+      style={{ '--mg-accent': g.accent }}
+      {...(g.soon
+        ? { 'aria-disabled': 'true' }
+        : { type: 'button', onClick: () => { window.location.href = g.route; } })}
+      className={`mg-tile${g.soon ? ' is-soon' : ''}`}
+    >
+      <span className="mg-tile-art">
+        <span className="mg-tile-icon" aria-hidden="true">{g.icon}</span>
+        {g.soon && <span className="mg-tile-chip">In the works</span>}
+      </span>
+      <span className="mg-tile-body">
+        <span className="mg-tile-subject">{g.subject}</span>
+        <span className="mg-tile-name">{g.name}</span>
+        <span className="mg-tile-blurb">{g.blurb}</span>
+        <span className="mg-tile-foot">
+          <span className="mg-tile-drills">{g.drills}</span>
+          {!g.soon && <span className="mg-tile-go" aria-hidden="true">Play →</span>}
+        </span>
+      </span>
+    </Tag>
+  );
+}
+
+function FolderTile({ f, onOpen }) {
+  const games = f.games.map(id => GAME_BY_ID[id]).filter(Boolean);
+  const live = games.filter(g => !g.soon).length;
+  return (
+    <button
+      type="button"
+      style={{ '--mg-accent': f.accent }}
+      onClick={() => onOpen(f.id)}
+      className={`mg-tile mg-folder${live === 0 ? ' is-quiet' : ''}`}
+    >
+      <span className="mg-tile-art mg-folder-art">
+        <span className="mg-folder-shape" aria-hidden="true">
+          <span className="mg-folder-tab" />
+          <span className="mg-folder-icon">{f.icon}</span>
+        </span>
+        <span className="mg-tile-chip">
+          {games.length} {games.length === 1 ? 'game' : 'games'}
+        </span>
+      </span>
+      <span className="mg-tile-body">
+        <span className="mg-tile-name">{f.name}</span>
+        <span className="mg-tile-blurb">{f.blurb}</span>
+        <span className="mg-folder-list">
+          {games.map(g => (
+            <span key={g.id} className={`mg-folder-item${g.soon ? ' is-soon' : ''}`}>
+              <span aria-hidden="true">{g.icon}</span> {g.name}{g.soon ? ' · soon' : ''}
+            </span>
+          ))}
+        </span>
+        <span className="mg-tile-foot">
+          <span className="mg-tile-drills">
+            {live === 0 ? 'In the works' : `${live} ready to play`}
+          </span>
+          <span className="mg-tile-go" aria-hidden="true">Open →</span>
+        </span>
+      </span>
+    </button>
+  );
+}
+
 export default function MinigamesPage() {
   // useGameSettings returns { settings, loading } — not the settings object.
   // Reading minigamesTheme off the wrapper silently gave undefined, which the
@@ -249,6 +374,32 @@ export default function MinigamesPage() {
     ? settings.minigamesTheme
     : 'default';
 
+  const [folder, setFolder] = useState(folderFromUrl);
+  const open = FOLDERS.find(f => f.id === folder) || null;
+
+  // Back/forward move between the folder list and an open folder.
+  useEffect(() => {
+    const onPop = () => setFolder(folderFromUrl());
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
+
+  const openFolder = (id) => {
+    const url = new URL(window.location.href);
+    if (id) {
+      url.searchParams.set('folder', id);
+      window.history.pushState({ mgFolder: id }, '', url);
+    } else {
+      // Closing a folder this page opened steps back through history; one
+      // reached from a shared link has no entry of ours, so just rewrite it.
+      if (window.history.state?.mgFolder) { window.history.back(); return; }
+      url.searchParams.delete('folder');
+      window.history.replaceState(null, '', url);
+    }
+    setFolder(id);
+    window.scrollTo(0, 0);
+  };
+
   return (
     <div className="mg" data-mg-theme={theme}>
       <div className="mg-glow" aria-hidden="true" />
@@ -257,46 +408,32 @@ export default function MinigamesPage() {
         <button
           type="button"
           className="mg-back"
-          onClick={() => { window.location.href = '/?play=1'; }}
+          onClick={() => {
+            if (open) openFolder(null);
+            else window.location.href = '/?play=1';
+          }}
         >
-          ← Choose Your Path
+          {open ? '← All systems' : '← Choose Your Path'}
         </button>
-        <h1 className="mg-title">Minigames</h1>
+        <h1 className="mg-title">{open ? open.name : 'Minigames'}</h1>
         <p className="mg-sub">
-          Short games that drill one skill at a time. Nothing here counts toward a
-          plan — play one because you want to be faster at it.
+          {open
+            ? open.blurb
+            : 'Short games that drill one skill at a time, sorted by system. '
+              + 'Open a folder and pick one.'}
         </p>
       </header>
 
-      <div className="mg-grid">
-        {MINIGAMES.map(g => {
-          const Tag = g.soon ? 'div' : 'button';
-          return (
-            <Tag
-              key={g.id}
-              style={{ '--mg-accent': g.accent }}
-              {...(g.soon
-                ? { 'aria-disabled': 'true' }
-                : { type: 'button', onClick: () => { window.location.href = g.route; } })}
-              className={`mg-tile${g.soon ? ' is-soon' : ''}`}
-            >
-              <span className="mg-tile-art">
-                <span className="mg-tile-icon" aria-hidden="true">{g.icon}</span>
-                {g.soon && <span className="mg-tile-chip">In the works</span>}
-              </span>
-              <span className="mg-tile-body">
-                <span className="mg-tile-subject">{g.subject}</span>
-                <span className="mg-tile-name">{g.name}</span>
-                <span className="mg-tile-blurb">{g.blurb}</span>
-                <span className="mg-tile-foot">
-                  <span className="mg-tile-drills">{g.drills}</span>
-                  {!g.soon && <span className="mg-tile-go" aria-hidden="true">Play →</span>}
-                </span>
-              </span>
-            </Tag>
-          );
-        })}
-      </div>
+      {open ? (
+        <div className="mg-grid" key={open.id}>
+          {open.games.map(id => GAME_BY_ID[id]).filter(Boolean)
+            .map(g => <GameTile key={g.id} g={g} />)}
+        </div>
+      ) : (
+        <div className="mg-grid mg-grid-folders">
+          {FOLDERS.map(f => <FolderTile key={f.id} f={f} onOpen={openFolder} />)}
+        </div>
+      )}
 
       <p className="mg-foot">
         {theme === 'arcade' ? 'More cabinets on the way.' : 'More on the way.'}
