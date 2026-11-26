@@ -22,7 +22,14 @@ import './FATrivia.css';
 const SECONDS = 15;
 const LETTERS = ['A', 'B', 'C', 'D'];
 const TILE = ['pink', 'cyan', 'lime', 'amber'];
-const WEDGE = ['#ff3d8b', '#22d3ee', '#a3e635', '#fb923c', '#c084fc', '#facc15'];
+// Seven colours, so a seven-category chapter (Microbiology) never puts two alike side by side.
+const WEDGE = ['#ff3d8b', '#22d3ee', '#a3e635', '#fb923c', '#c084fc', '#facc15', '#60a5fa'];
+// Wheel wedges are narrow; long category names get a short label there.
+const WEDGE_LABEL = {
+  'Basic Bacteriology': 'Basic Bact', 'Clinical Bacteriology': 'Clin Bact', 'Laboratory Techniques': 'Lab Tech',
+  Parasitology: 'Parasites', Antimicrobials: 'Antimicro', Pharmacology: 'Pharm',
+};
+const wedgeLabel = (c) => { const s = WEDGE_LABEL[c] || c; return s.length > 11 ? `${s.slice(0, 10)}.` : s; };
 const ROUND_LABEL = { 10: 'Quick show', 20: 'Full show', 30: 'Marathon' };
 
 const RANKS = [
@@ -160,7 +167,7 @@ function Wheel({ categories, target, onLanded }) {
           <g key={c}>
             <path d={arc(i)} fill={WEDGE[i % WEDGE.length]} stroke="#1a0a2e" strokeWidth="2" />
             <text x="100" y="34" transform={`rotate(${(i + 0.5) * seg} 100 100)`} textAnchor="middle"
-              className="ftr-wheel-label">{c.length > 11 ? `${c.slice(0, 10)}.` : c}</text>
+              className="ftr-wheel-label">{wedgeLabel(c)}</text>
           </g>
         ))}
         {Array.from({ length: 24 }, (_, i) => {
