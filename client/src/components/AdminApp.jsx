@@ -6,6 +6,7 @@ import MedJinxAdmin from './admin/MedJinxAdmin';
 import ScanMasterAdmin from './admin/ScanMasterAdmin';
 import QuestionBankPackImport from './admin/QuestionBankPackImport';
 import AmbossQbankImport from './admin/AmbossQbankImport';
+import QuestionPicturePackImport from './admin/QuestionPicturePackImport';
 import MurmurAudioAdmin from './admin/MurmurAudioAdmin';
 import JourneyMode from './JourneyMode';
 import QuestionParser from './QuestionParser';
@@ -11648,6 +11649,7 @@ function GamesPanel({ subjects }) {
               <GameModeSettingsPanel bankModeId={UWORLD_MODE} bankLabel="UWorld Adventure" />
             </ErrorBoundary>
             <ErrorBoundary>
+            <QuestionPicturePackImport modeLabel="UWorld Adventure" />
             <QuestionBankSubjectsPanel modeId={UWORLD_MODE} modeLabel="UWorld Adventure" subjects={subjects} />
             <QuestionBankImagesPanel modeId={UWORLD_MODE} modeLabel="UWorld Adventure" subjects={subjects} />
             <QuestionsPanel subjects={subjects} scopeTag={UWORLD_MODE} />
