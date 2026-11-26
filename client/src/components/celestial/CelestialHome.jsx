@@ -1,5 +1,4 @@
-import { useEffect, useState } from 'react';
-import { authFetch } from '../../auth';
+import { useTodayGoals, fmtMinutes } from '../../planner/plan';
 import { ART, CelestialTopbar, NavIcon, PanelHead } from './CelestialShell';
 import './CelestialHome.css';
 
@@ -9,7 +8,8 @@ import './CelestialHome.css';
  *  - the four cards go to Profile, Leaderboards, Clans and News (the design's
  *    "Events" — there is no events feature, so it became News);
  *  - "Latest news" (the design's "Upcoming event") shows the newest
- *    announcement; "Top players" is the top three of the XP leaderboard.
+ *    announcement; "Today's goals" is today's share of the Week Planner
+ *    (/planner) goals plus today's tasks.
  */
 
 const CARDS = [
@@ -19,8 +19,6 @@ const CARDS = [
   { key: 'news', title: 'News', sub: 'Latest updates', art: 'card-events.jpg', tone: 'indigo', tab: 'announcements' },
 ];
 
-const CROWN = ['#f5c542', '#b3b0ee', '#ee7a4e'];
-const CROWN_NAME = ['Gold', 'Silver', 'Bronze'];
 
 function SmallCaps({ text }) {
   // The design's title treatment: a full-size first letter, the rest at .8em.
@@ -35,16 +33,7 @@ function fmtDate(s) {
 }
 
 export default function CelestialHome({ user, announcements = [], onTab, onPlay, unread = 0, reward }) {
-  const [top, setTop] = useState(null);
-
-  useEffect(() => {
-    let off = false;
-    authFetch('/api/leaderboard/players')
-      .then(r => (r.ok ? r.json() : { players: [] }))
-      .then(d => { if (!off) setTop((d.players || []).slice(0, 3)); })
-      .catch(() => { if (!off) setTop([]); });
-    return () => { off = true; };
-  }, []);
+  const today = useTodayGoals();
 
   const news = announcements.find(a => a.pinned) || announcements[0] || null;
   const name = (user?.username || 'Player').toUpperCase();
@@ -176,25 +165,40 @@ export default function CelestialHome({ user, announcements = [], onTab, onPlay,
             </div>
           </section>
 
-          {/* ── Top players ──────────────────────────────────────────── */}
+          {/* ── Today's goals (Week Planner) ──────────────────────────── */}
           <section aria-labelledby="ch-top" className="cs-panel ch-top">
             <div className="cs-panel-in ch-top-in">
-              <PanelHead id="ch-top" title="Top players" onLink={() => onTab?.('leaderboard')} />
-              <ol className="ch-top-list">
-                {top === null && <li className="ch-top-empty">Loading…</li>}
-                {top && top.length === 0 && <li className="ch-top-empty">No ranked players yet.</li>}
-                {top && top.map((p, i) => (
-                  <li key={p.id || p.username}>
-                    <span className="ch-top-rank">{i + 1}</span>
-                    <svg viewBox="0 0 24 20" role="img" aria-label={`${CROWN_NAME[i]} crown`} fill="currentColor" className="ch-crown" style={{ color: CROWN[i] }}><path d="M2 5.5 7 10l5-8 5 8 5-4.5-2.2 10H4.2z" /><path d="M4.4 17h15.2v2.2H4.4z" /></svg>
-                    {p.avatar_url
-                      ? <img className="ch-top-av" src={p.avatar_url} alt="" referrerPolicy="no-referrer" />
-                      : <span className="ch-top-av ch-top-av--l">{p.username?.[0]?.toUpperCase() || '?'}</span>}
-                    <a className="ch-top-name" href={`/progress/${p.id}`}>{p.username}</a>
-                    <span className="ch-top-xp">{(p.xp || 0).toLocaleString()}</span>
+              <PanelHead id="ch-top" title="Today's goals" link="/planner" linkLabel="Plan week" />
+              <ul className="ch-goal-list">
+                {today.loading && <li className="ch-top-empty">Loading…</li>}
+                {!today.loading && today.signedOut && <li className="ch-top-empty">Sign in to plan your week.</li>}
+                {!today.loading && !today.signedOut && today.items.length === 0 && (
+                  <li className="ch-top-empty">
+                    {today.hasPlan ? 'Nothing planned for today. Enjoy the rest day 🌙' : <>No goals yet. <a href="/planner">Plan your week →</a></>}
+                  </li>
+                )}
+                {today.items.slice(0, 5).map(it => (
+                  <li key={it.key} className={`ch-goal${it.complete ? ' is-done' : ''}`}>
+                    {it.kind === 'task' ? (
+                      <label className="ch-goal-task">
+                        <input type="checkbox" checked={it.complete} onChange={() => today.toggleTask(it.key)} />
+                        <span className="ch-goal-name">{it.label}</span>
+                      </label>
+                    ) : (
+                      <>
+                        <span className="ch-goal-icon" aria-hidden="true">{it.complete ? '✅' : it.icon}</span>
+                        <span className="ch-goal-main">
+                          <span className="ch-goal-name">{it.label}</span>
+                          <span className="ch-goal-bar" aria-hidden="true"><i style={{ width: `${Math.min(100, (it.done / it.target) * 100)}%` }} /></span>
+                        </span>
+                        <span className="ch-goal-count">{it.done}/{it.target} {it.unit}</span>
+                      </>
+                    )}
                   </li>
                 ))}
-              </ol>
+                {today.items.length > 5 && <li className="ch-top-empty"><a href="/planner">+{today.items.length - 5} more</a></li>}
+              </ul>
+              {today.leftMin >= 1 && <p className="ch-goal-foot">≈ {fmtMinutes(today.leftMin)} of study left today</p>}
             </div>
           </section>
         </div>

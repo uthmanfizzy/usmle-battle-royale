@@ -280,41 +280,51 @@ export const EventPanel = (V, w = 744) => {
   );
 };
 
-// Crown colours for 1st, 2nd and 3rd, from the design.
-const CROWNS = [
-  { crown: '#f3c06c', crownDark: '#d99a3e', glow: 'rgba(255,200,110,.6)', bg: 'linear-gradient(160deg, #3b4f9a, #1d2a5e)' },
-  { crown: '#cfd5ec', crownDark: '#9aa3c4', glow: 'rgba(200,210,255,.5)', bg: 'linear-gradient(160deg, #7a4fb3, #3a2266)' },
-  { crown: '#e0935a', crownDark: '#b0663a', glow: 'rgba(255,150,90,.5)', bg: 'linear-gradient(160deg, #2f7a76, #183e44)' },
-];
-
-// Top players: the real top three of the players leaderboard (by XP).
-export const PlayersPanel = (V, w = 636) => {
+// Today's goals: today's share of the Week Planner goals plus today's tasks
+// (replaced Top players). V.today comes from useTodayGoals().
+export const TodayPanel = (V, w = 636) => {
   const rowW = w - 60;
-  const list = V.players;
+  const t = V.today;
+  const items = t.items.slice(0, 3);
+  const more = t.items.length - items.length;
+  const msg = (text) => <span style={{ padding: "18px 6px", fontSize: "19px", color: "#cfd0dc" }}>{text}</span>;
+  const mins = t.leftMin >= 1 ? (t.leftMin < 60 ? `${Math.round(t.leftMin)}m` : `${Math.floor(t.leftMin / 60)}h ${Math.round(t.leftMin % 60)}m`) : '';
   return (
-<section aria-label="Top players" style={{ position: "absolute", left: "0", top: "0", width: `${w}px`, height: "239px", borderRadius: "14px", background: "rgba(20,28,66,.88)", backdropFilter: "blur(8px)" }}>
+<section aria-label="Today's goals" style={{ position: "absolute", left: "0", top: "0", width: `${w}px`, height: "239px", borderRadius: "14px", background: "rgba(20,28,66,.88)", backdropFilter: "blur(8px)" }}>
 <PanelFrame w={w} h={239} rule={50.5} ruleInset={30} />
 <span aria-hidden="true" style={{ position: "absolute", left: "34px", top: "21px", width: "11px", height: "11px", background: "#f0c46e", transform: "rotate(45deg)" }}></span>
-<h2 style={{ position: "absolute", left: "62px", top: "17.6px", margin: "0", fontSize: "19px", fontWeight: "600", lineHeight: "1", letterSpacing: "1.5px", color: "#f4efe4", whiteSpace: "nowrap" }}>TOP PLAYERS</h2>
-<SeeAll onClick={V.go.leaderboard} top="10px" />
+<h2 style={{ position: "absolute", left: "62px", top: "17.6px", margin: "0", fontSize: "19px", fontWeight: "600", lineHeight: "1", letterSpacing: "1.5px", color: "#f4efe4", whiteSpace: "nowrap" }}>TODAY'S GOALS</h2>
+<SeeAll onClick={V.go.planner} top="10px" label="Plan week" />
 <div style={{ position: "absolute", left: "30px", top: "57px", width: `${rowW}px`, display: "flex", flexDirection: "column" }}>
-{list === null && <span style={{ padding: "18px 6px", fontSize: "19px", color: "#cfd0dc" }}>Loading…</span>}
-{list && list.length === 0 && <span style={{ padding: "18px 6px", fontSize: "19px", color: "#cfd0dc" }}>No ranked players yet — be the first.</span>}
-{(list || []).map((p, i) => { const c = CROWNS[i] || CROWNS[2]; return (
-<button key={p.id || i} className="mv-row" onClick={V.go.leaderboard} style={{ position: "relative", width: `${rowW}px`, height: "50.5px", padding: "0", border: "none", borderBottom: "1px solid rgba(160,175,220,.16)", borderRadius: "6px", background: "none", font: "inherit", color: "#f1ece0", display: "flex", alignItems: "center", cursor: "pointer", transition: "background .15s ease" }}>
-<span style={{ width: "60px", textAlign: "center", fontSize: "22px", fontWeight: "600", lineHeight: "1", fontVariantNumeric: "lining-nums" }}>{i + 1}</span>
-<svg aria-hidden="true" width="30" height="28" style={{ marginLeft: "8px", overflow: "visible", filter: `drop-shadow(0 0 5px ${c.glow})` }}>
-<path d="M3,21 L1,6 L9,12 L15,1 L21,12 L29,6 L27,21 Z" fill={c.crown} stroke={c.crown} strokeWidth="2" strokeLinejoin="round"></path>
-<path d="M4,13 L9,15 L15,5 L21,15 L26,13" fill="none" stroke="#ffffff" strokeWidth="1.3" strokeLinejoin="round" strokeLinecap="round" opacity=".45"></path>
-<rect x="2.5" y="22.5" width="25" height="4.5" rx="1.6" fill={c.crownDark}></rect>
-</svg>
-<span style={{ marginLeft: w >= 560 ? "38px" : "18px", width: "40px", height: "40px", flex: "none", boxSizing: "border-box", borderRadius: "50%", border: "2px solid #d9bd85", background: c.bg, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", fontSize: "19px", fontWeight: "700", lineHeight: "1", color: "#fff6e4" }}>
-{p.avatar_url ? <img src={p.avatar_url} alt="" referrerPolicy="no-referrer" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : (p.username || '?')[0].toUpperCase()}
-</span>
-<span style={{ marginLeft: w >= 560 ? "24px" : "14px", flex: "1", minWidth: "0", textAlign: "left", fontSize: "20px", fontWeight: "500", lineHeight: "1", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.username}</span>
-<span style={{ width: "110px", paddingRight: "6px", textAlign: "right", fontSize: "20px", fontWeight: "600", lineHeight: "1", fontVariantNumeric: "lining-nums tabular-nums" }}>{(p.xp || 0).toLocaleString()}</span>
+{t.loading && msg('Loading…')}
+{!t.loading && t.signedOut && msg('Sign in to plan your week.')}
+{!t.loading && !t.signedOut && !t.items.length && (
+<button className="mv-row" onClick={V.go.planner} style={{ padding: "18px 6px", border: "none", background: "none", font: "inherit", fontSize: "19px", color: "#cfd0dc", textAlign: "left", cursor: "pointer", borderRadius: "6px" }}>
+{t.hasPlan ? 'Nothing planned for today. Rest day 🌙' : 'No goals yet. Plan your week →'}
 </button>
-); })}
+)}
+{items.map(it => (
+<div key={it.key} className="mv-row" style={{ position: "relative", width: `${rowW}px`, height: "50.5px", borderBottom: "1px solid rgba(160,175,220,.16)", borderRadius: "6px", color: "#f1ece0", display: "flex", alignItems: "center", gap: "14px", padding: "0 6px", boxSizing: "border-box", transition: "background .15s ease" }}>
+{it.kind === 'task' ? (
+<label style={{ display: "flex", alignItems: "center", gap: "14px", flex: "1", minWidth: "0", cursor: "pointer" }}>
+<input type="checkbox" checked={it.complete} onChange={() => t.toggleTask(it.key)} style={{ width: "20px", height: "20px", accentColor: "#d9bd85", flex: "none" }} />
+<span style={{ fontSize: "19px", fontWeight: "500", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", textDecoration: it.complete ? "line-through" : "none", opacity: it.complete ? ".65" : "1" }}>{it.label}</span>
+</label>
+) : (
+<>
+<span aria-hidden="true" style={{ width: "34px", textAlign: "center", fontSize: "22px", flex: "none" }}>{it.complete ? '✅' : it.icon}</span>
+<span style={{ flex: "1", minWidth: "0", display: "flex", flexDirection: "column", gap: "6px" }}>
+<span style={{ fontSize: "19px", fontWeight: "500", lineHeight: "1", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", opacity: it.complete ? ".7" : "1" }}>{it.label}</span>
+<span aria-hidden="true" style={{ height: "5px", borderRadius: "99px", background: "rgba(160,175,220,.18)", overflow: "hidden" }}><span style={{ display: "block", height: "100%", width: `${Math.min(100, (it.done / it.target) * 100)}%`, background: it.complete ? "#6fd3a0" : "linear-gradient(90deg,#c9a56a,#f3d08a)", borderRadius: "99px" }}></span></span>
+</span>
+<span style={{ width: "120px", textAlign: "right", fontSize: "18px", fontWeight: "600", fontVariantNumeric: "lining-nums tabular-nums", flex: "none" }}>{it.done}/{it.target} {it.unit}</span>
+</>
+)}
+</div>
+))}
+{(more > 0 || mins) && (
+<span style={{ padding: "8px 6px 0", fontSize: "15px", color: "#cfd0dc" }}>{more > 0 ? `+${more} more` : ''}{more > 0 && mins ? ' · ' : ''}{mins ? `≈ ${mins} of study left today` : ''}</span>
+)}
 </div>
 </section>
   );

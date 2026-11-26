@@ -1,0 +1,251 @@
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { authFetch, getCachedUser, getToken } from '../auth';
+
+/**
+ * Week Planner logic, shared by the /planner page and the home page's
+ * "Today's goals" panel.
+ *
+ * A goal is "N questions (or minutes) of <mode> this week, on these days".
+ * Progress comes from the server (activity_sessions, the same rows Daily
+ * Activity shows), so nothing here is self-reported except free-form tasks.
+ */
+
+// mode = activity_sessions.game_mode. secPerQ = a starting estimate of study
+// time per question; the player's own recent pace replaces it once the server
+// has 15+ questions of history for that mode. time = minutes-only minigames.
+const Q = (mode, label, icon, secPerQ, group) => ({ mode, label, icon, secPerQ, unit: 'questions', group });
+const T = (mode, label, icon) => ({ mode, label, icon, unit: 'minutes', timeOnly: true, group: 'Minigames' });
+
+export const PLANNER_MODES = [
+  { mode: '_all', label: 'Any mode', icon: '📚', secPerQ: 60, unit: 'minutes', group: 'Overall' },
+  Q('question_bank_practice', 'UWorld Adventure', '📚', 90, 'Question banks'),
+  Q('amboss_qbank', 'Amboss Qbank', '🗂️', 120, 'Question banks'),
+  Q('amboss_200_concepts_practice', 'Amboss 200 Concepts', '🧭', 120, 'Question banks'),
+  Q('mehlman_rapid_fire_practice', 'Mehlman Rapid Fire', '⚡', 30, 'Question banks'),
+  Q('saudi_mle_practice', 'Saudi MLE', '📗', 90, 'Question banks'),
+  Q('ore_lds_practice', 'ORE / LDS', '🦷', 90, 'Question banks'),
+  Q('clinical_practice', 'Clinical', '🩺', 90, 'Question banks'),
+  Q('oet_practice', 'OET', '🇬🇧', 90, 'Question banks'),
+  Q('journey', 'First Aid Journey', '🚑', 60, 'First Aid'),
+  Q('fa_hy_qs', 'FA HY Qs', '🎯', 90, 'First Aid'),
+  Q('fa_images', 'FA Images', '🖼️', 35, 'First Aid'),
+  Q('fa_trivia', 'FA Trivia', '🎪', 25, 'First Aid'),
+  Q('hy_arrows', 'HY Arrows', '↕️', 60, 'First Aid'),
+  Q('buzz_fun', 'Buzz Fun', '🔔', 25, 'Online'),
+  Q('battle_royale', 'Battle Royale', '⚔️', 30, 'Online'),
+  Q('speed_race', 'Speed Race', '⚡', 20, 'Online'),
+  Q('trivia_pursuit', 'Trivia Pursuit', '🎯', 30, 'Online'),
+  Q('medathon', 'Medathon', '🏁', 60, 'Online'),
+  Q('medjinx', 'MedJinx', '🧪', 45, 'Online'),
+  Q('pvp_duel', 'PvP Duel', '🤺', 20, 'Online'),
+  Q('scan_master', 'Scan Master', '🔬', 30, 'Online'),
+  Q('solo', 'Solo Practice', '🧠', 60, 'Practice'),
+  Q('training_grounds', 'Training Grounds', '🎯', 60, 'Practice'),
+  Q('tower', 'Tower', '🏰', 75, 'Practice'),
+  Q('anking', 'AnKing Flashcards', '🃏', 15, 'Practice'),
+  Q('hy_flashcards', 'HY Flashcards', '⭐', 15, 'Practice'),
+  Q('amboss_hy_ethics', 'Amboss HY Ethics', '⚖️', 60, 'Practice'),
+  Q('kaplan_hy_ethics', 'Kaplan HY Ethics', '🎓', 60, 'Practice'),
+  T('ecg_reader', 'ECG Reader', '💓'), T('abg_reader', 'ABG Reader', '🧪'),
+  T('muscle_mapper', 'Muscle Mapper', '💪'), T('biostats_lab', 'Biostats Lab', '📊'),
+  T('spot_the_diagnosis', 'Spot the Diagnosis', '🗣️'), T('genetics_roulette', 'Genetics Roulette', '🧬'),
+  T('drug_match', 'Drug Mechanism Match', '💊'), T('lab_range', 'Lab Range', '🧫'),
+  T('murmurs', 'Murmurs', '🩺'), T('pv_loops', 'PV Loop Lab', '🫀'),
+  T('clot_cascade', 'Clot Cascade', '🩸'), T('vitamin_vault', 'Vitamin Vault', '🍊'),
+  T('pathway_navigator', 'Pathway Navigator', '🧭'), T('onco_atlas', 'Onco Atlas', '🎗️'),
+];
+const BY_MODE = Object.fromEntries(PLANNER_MODES.map(m => [m.mode, m]));
+export const modeInfo = (mode) => BY_MODE[mode] || { mode, label: mode.replace(/_/g, ' '), icon: '🎮', secPerQ: 60, unit: 'questions' };
+
+export const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+export const ALL_DAYS = [0, 1, 2, 3, 4, 5, 6];
+export const EMPTY_PLAN = { goals: [], tasks: [], hours: [null, null, null, null, null, null, null] };
+
+const pad = (n) => String(n).padStart(2, '0');
+export const ymd = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+/** Mon = 0 … Sun = 6 */
+export const dayIndex = (d = new Date()) => (d.getDay() + 6) % 7;
+/** The local Monday of the week containing `d`, as YYYY-MM-DD. */
+export function weekOf(d = new Date()) {
+  const m = new Date(d.getFullYear(), d.getMonth(), d.getDate() - dayIndex(d));
+  return ymd(m);
+}
+export function addWeeks(week, n) {
+  const [y, mo, da] = week.split('-').map(Number);
+  return ymd(new Date(y, mo - 1, da + n * 7));
+}
+export function weekDates(week) {
+  const [y, mo, da] = week.split('-').map(Number);
+  return ALL_DAYS.map(i => new Date(y, mo - 1, da + i));
+}
+/** Which day of `week` today is: 0–6, -1 if the week is over, 7 if it has not begun. */
+export function todayIn(week) {
+  const now = weekOf();
+  if (week === now) return dayIndex();
+  return week < now ? -1 : 7;
+}
+
+export const newId = () => Math.random().toString(36).slice(2, 10);
+
+export function fmtMinutes(min) {
+  const m = Math.max(0, Math.round(min));
+  if (m < 60) return `${m}m`;
+  const h = Math.floor(m / 60), r = m % 60;
+  return r ? `${h}h ${r}m` : `${h}h`;
+}
+
+/** Seconds per question for a mode: the player's own pace if known, else the default. */
+export function secPerQ(mode, pace) {
+  if (mode === '_all') {
+    const all = Object.values(pace || {});
+    const q = all.reduce((n, p) => n + p.questions, 0);
+    return q ? Math.round(all.reduce((n, p) => n + p.secPerQ * p.questions, 0) / q) : 60;
+  }
+  return pace?.[mode]?.secPerQ || modeInfo(mode).secPerQ || 60;
+}
+
+/**
+ * Everything the planner shows about one goal this week.
+ * today: 0–6 inside the week, -1 if the week is over, 7 if it is still ahead.
+ */
+export function goalStatus(goal, progress, pace, today) {
+  const p = progress?.[goal.mode];
+  const isQ = goal.unit === 'questions';
+  const per = isQ ? secPerQ(goal.mode, pace) : 60; // seconds per unit
+  const amount = (d) => (p ? (isQ ? p.days[d].q : p.days[d].s / 60) : 0);
+  const done = ALL_DAYS.reduce((n, d) => n + amount(d), 0);
+  const days = goal.days?.length ? goal.days : ALL_DAYS;
+  const t = Math.min(Math.max(today, -1), 7);
+  const before = ALL_DAYS.filter(d => d < t).reduce((n, d) => n + amount(d), 0);
+  const todayDone = t >= 0 && t <= 6 ? amount(t) : 0;
+  const daysLeft = t === 7 ? days.length : t < 0 ? 0 : days.filter(d => d >= t).length;
+  const left = Math.max(0, goal.target - done);
+  // Today's share: what is left from the start of today, split over today and the scheduled days after it.
+  const scheduledToday = t >= 0 && t <= 6 && days.includes(t);
+  const todayTarget = scheduledToday ? Math.ceil(Math.max(0, goal.target - before) / Math.max(1, daysLeft)) : 0;
+  const expected = goal.target * (days.filter(d => d < t).length / days.length);
+
+  let status;
+  if (done >= goal.target) status = 'done';
+  else if (t === 7) status = 'upcoming';
+  else if (daysLeft === 0) status = 'missed';
+  else if (done + 0.001 >= expected) status = 'on-track';
+  else status = 'behind';
+
+  // Remaining work per scheduled day from today on (the load the rest of the week carries).
+  const load = Array(7).fill(0); // minutes still to do, per day
+  if (t >= 0 && daysLeft > 0) {
+    const remainingFromToday = Math.max(0, goal.target - before);
+    const share = remainingFromToday / daysLeft;
+    days.filter(d => d >= (t === 7 ? 0 : t)).forEach(d => {
+      const owe = d === t ? Math.max(0, share - todayDone) : share;
+      load[d] = (owe * per) / 60;
+    });
+  }
+  return {
+    isQ, per, done: Math.round(done), left: Math.round(left), pct: Math.min(100, (done / goal.target) * 100),
+    todayTarget, todayDone: Math.round(todayDone), scheduledToday,
+    perDayNeed: daysLeft ? Math.ceil(left / daysLeft) : left, daysLeft,
+    estTotalMin: (goal.target * per) / 60, estLeftMin: (left * per) / 60,
+    status, load,
+  };
+}
+
+export const STATUS_LABEL = {
+  done: 'Done', 'on-track': 'On track', behind: 'Behind', missed: 'Missed', upcoming: 'Not started',
+};
+
+// ── Loading and saving ────────────────────────────────────────────────────
+const localKey = (week) => `mv_study_plan_${getCachedUser()?.id || 'me'}_${week}`;
+function readLocal(week) {
+  try { const s = localStorage.getItem(localKey(week)); return s ? JSON.parse(s) : null; } catch { return null; }
+}
+function writeLocal(week, plan) {
+  try { localStorage.setItem(localKey(week), JSON.stringify(plan)); } catch { /* not remembered */ }
+}
+
+/**
+ * The plan and progress for one week. `save` updates at once and writes to
+ * the server shortly after (and to this browser, which is the only copy if
+ * the study_plans table has not been created yet).
+ */
+export function useWeekPlan(week) {
+  const [state, setState] = useState({ loading: true, plan: null, progress: {}, pace: {}, lastPlan: null, localOnly: false, error: '' });
+  const timer = useRef(0);
+  const pending = useRef(null);
+
+  const load = useCallback(async () => {
+    if (!getToken()) { setState(s => ({ ...s, loading: false, error: 'signin' })); return; }
+    try {
+      const r = await authFetch(`/api/study-plan?week=${week}&tz=${new Date().getTimezoneOffset()}`);
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const d = await r.json();
+      const local = readLocal(week);
+      setState({
+        loading: false, error: '',
+        plan: d.plan || local || null,
+        progress: d.progress || {}, pace: d.pace || {},
+        lastPlan: d.lastPlan || null,
+        localOnly: !!d.missingTable,
+      });
+    } catch {
+      setState(s => ({ ...s, loading: false, plan: readLocal(week), error: 'offline' }));
+    }
+  }, [week]);
+
+  useEffect(() => { setState(s => ({ ...s, loading: true, plan: null })); load(); }, [load]);
+
+  const flush = useCallback(async () => {
+    clearTimeout(timer.current);
+    const plan = pending.current;
+    if (!plan) return;
+    pending.current = null;
+    try {
+      const r = await authFetch('/api/study-plan', { method: 'PUT', body: JSON.stringify({ week, plan }) });
+      const d = await r.json();
+      if (d.missingTable) setState(s => ({ ...s, localOnly: true }));
+    } catch { /* kept in this browser */ }
+  }, [week]);
+
+  useEffect(() => () => { flush(); }, [flush]);
+
+  const save = useCallback((plan) => {
+    writeLocal(week, plan);
+    setState(s => ({ ...s, plan }));
+    pending.current = plan;
+    clearTimeout(timer.current);
+    timer.current = setTimeout(flush, 600);
+  }, [week, flush]);
+
+  return { ...state, save, reload: load };
+}
+
+/**
+ * Today's goals and tasks, for the home page panel: each goal scheduled today
+ * with today's share, then today's free-form tasks.
+ */
+export function useTodayGoals() {
+  const week = weekOf();
+  const wp = useWeekPlan(week);
+  const today = dayIndex();
+  const plan = wp.plan || EMPTY_PLAN;
+  const items = [];
+  for (const g of plan.goals) {
+    const st = goalStatus(g, wp.progress, wp.pace, today);
+    if (!st.scheduledToday || st.todayTarget <= 0) continue;
+    const info = modeInfo(g.mode);
+    items.push({
+      key: g.id, kind: 'goal', icon: info.icon, label: info.label,
+      done: Math.min(st.todayDone, st.todayTarget), target: st.todayTarget,
+      unit: g.unit === 'questions' ? 'Qs' : 'min',
+      complete: st.todayDone >= st.todayTarget,
+      estMin: Math.max(0, st.todayTarget - st.todayDone) * st.per / 60,
+    });
+  }
+  for (const t of plan.tasks.filter(x => x.day === today)) {
+    items.push({ key: t.id, kind: 'task', icon: '📝', label: t.text, complete: t.done });
+  }
+  const toggleTask = (id) => wp.save({ ...plan, tasks: plan.tasks.map(t => (t.id === id ? { ...t, done: !t.done } : t)) });
+  const leftMin = items.reduce((n, i) => n + (i.estMin || 0), 0);
+  return { loading: wp.loading, signedOut: wp.error === 'signin', hasPlan: plan.goals.length + plan.tasks.length > 0, items, leftMin, toggleTask };
+}

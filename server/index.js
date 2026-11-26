@@ -5032,6 +5032,9 @@ require('./faimages')({ getSupabase: () => supabase, shuffle: (arr) => shuffle(a
 require('./fahyq').mount(app, { rateLimit });
 // FA Trivia — quick-fire First Aid trivia per chapter (bank is code: server/fatrivia).
 require('./fatrivia').mount(app, { rateLimit });
+
+// Week Planner — weekly study goals measured against activity_sessions (server/studyplan).
+require('./studyplan').mount(app, { supabase, requireAuth, rateLimit, isMissingTable });
 // HY Arrows — Mehlman Rapid Fire's arrow tables (bank is code: server/hyarrows).
 require('./hyarrows').mount(app, { rateLimit });
 

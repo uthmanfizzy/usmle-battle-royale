@@ -1,10 +1,10 @@
 import { Fragment, useEffect, useRef, useState } from 'react';
-import { authFetch } from '../../auth';
+import { useTodayGoals } from '../../planner/plan';
 import { startScene, createMenuAudio, W, H } from './moonlitFx';
 import {
   ART, Scene, DriftC, DriftA, ShadeLeft, ShadeBottom, DriftB, Flash,
   SidebarTop, SidebarBottom, Chips, Welcome, Beat, Tagline, PlayButton,
-  EventPanel, PlayersPanel, FxCanvas, CardProfile, CardLeaderboards, CardClans, CardNews,
+  EventPanel, TodayPanel, FxCanvas, CardProfile, CardLeaderboards, CardClans, CardNews,
 } from './MoonlitDesign';
 import './MoonlitMenu.css';
 
@@ -13,7 +13,7 @@ export { ART };
 /**
  * Moonlit — the "Medvale Main Menu" design as the home screen (Settings →
  * Appearance → Moonlit): a sidebar, the moonlit painting with the welcome and
- * Play, four destination cards, the latest news and the top players.
+ * Play, four destination cards, the latest news and today's planner goals.
  *
  * The design's markup lives in MoonlitDesign.jsx, in its own 1672 × 941 px
  * space. Here it is placed in layers (see MoonlitMenu.css): the painting
@@ -22,7 +22,7 @@ export { ART };
  *
  * Honest content: the design's "Events" is News (there is no events feature),
  * its "Upcoming Event" is the newest announcement, the currencies are the
- * player's real gems and coins, and Top Players is the real leaderboard.
+ * player's real gems and coins, and Today's goals comes from the Week Planner.
  * The designer muted every click and hover sound, leaving only the ambience
  * (wind, a soft pad and distant chimes) — kept that way.
  */
@@ -85,7 +85,7 @@ export default function MoonlitMenu({ user, announcements = [], unread = 0, onTa
   const burst = useRef(false);
   const audio = useRef(null);
   const [flash, setFlash] = useState(0);
-  const [players, setPlayers] = useState(null);
+  const today = useTodayGoals();
   const reduce = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
   useEffect(() => {
@@ -101,14 +101,6 @@ export default function MoonlitMenu({ user, announcements = [], unread = 0, onTa
       consumeBurst: () => { const b = burst.current; burst.current = false; return b; },
     });
   }, [L.mobile]);
-  useEffect(() => {
-    let off = false;
-    authFetch('/api/leaderboard/players')
-      .then(r => (r.ok ? r.json() : { players: [] }))
-      .then(d => { if (!off) setPlayers((d.players || []).slice(0, 3)); })
-      .catch(() => { if (!off) setPlayers([]); });
-    return () => { off = true; };
-  }, []);
 
   const play = () => {
     burst.current = true;
@@ -123,6 +115,7 @@ export default function MoonlitMenu({ user, announcements = [], unread = 0, onTa
     leaderboard: () => onTab?.('leaderboard'),
     clans: () => onTab?.('clans'),
     news: () => onTab?.('announcements'),
+    planner: goto('/planner'),
   };
   const h = (click) => ({ enter: noop, click });
   const navItem = (key, pick) => ({ on: key === 'home' ? 'is-on' : '', cur: key === 'home' ? 'page' : 'false', enter: noop, pick });
@@ -160,7 +153,7 @@ export default function MoonlitMenu({ user, announcements = [], unread = 0, onTa
     unreadPill: unread > 0 ? <span className="mvm-pill" aria-label={`${unread} new`}>{unread > 9 ? '9+' : unread}</span> : null,
     news: latest,
     ago,
-    players,
+    today,
   };
 
   const s = L.s;
@@ -198,7 +191,7 @@ export default function MoonlitMenu({ user, announcements = [], unread = 0, onTa
                 {cards.map((C, i) => <Fragment key={i}>{C(V)}</Fragment>)}
               </nav>
               <div style={{ position: 'absolute', left: 235, top: 657 }}>{EventPanel(V)}</div>
-              <div style={{ position: 'absolute', left: 1005, top: 657 }}>{PlayersPanel(V)}</div>
+              <div style={{ position: 'absolute', left: 1005, top: 657 }}>{TodayPanel(V)}</div>
             </div>
           </div>
           <div className="mvm-fx" style={{ transform: `scale(${s})` }}>{FxCanvas(V)}</div>
@@ -224,7 +217,7 @@ export default function MoonlitMenu({ user, announcements = [], unread = 0, onTa
             ))}
           </nav>
           <Fit w={480} h={239}>{EventPanel(V, 480)}</Fit>
-          <Fit w={480} h={239}>{PlayersPanel(V, 480)}</Fit>
+          <Fit w={480} h={239}>{TodayPanel(V, 480)}</Fit>
           <Fit w={207} h={70} y={830} className="mvm-m-foot">
             <div style={{ position: 'absolute', left: 0, top: 540 }}>{SidebarBottom(V)}</div>
           </Fit>

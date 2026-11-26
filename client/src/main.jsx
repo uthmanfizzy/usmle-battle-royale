@@ -24,6 +24,7 @@ const ActivityPage      = lazy(() => import('./components/ActivityPage'));
 const GuidePage         = lazy(() => import('./components/GuidePage'));
 const SettingsPage      = lazy(() => import('./components/SettingsPage'));
 const QuestsPage        = lazy(() => import('./components/QuestsPage'));
+const WeekPlanner       = lazy(() => import('./components/WeekPlanner'));
 const ShopPage          = lazy(() => import('./components/ShopPage'));
 const UWorldAdventure   = lazy(() => import('./components/UWorldAdventure'));
 // Not lazy: a tiny config object, and the /saudi-mle route needs it at render.
@@ -166,6 +167,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
                 <Route path="/guide"          element={<RouteErrorBoundary name="GuidePage"><GuidePage /></RouteErrorBoundary>} />
                 <Route path="/settings"       element={<RouteErrorBoundary name="SettingsPage"><SettingsPage /></RouteErrorBoundary>} />
                 <Route path="/quests"         element={<RouteErrorBoundary name="QuestsPage"><QuestsPage /></RouteErrorBoundary>} />
+                <Route path="/planner"        element={<RouteErrorBoundary name="WeekPlanner"><WeekPlanner /></RouteErrorBoundary>} />
                 <Route path="/shop"           element={<RouteErrorBoundary name="ShopPage"><ShopPage /></RouteErrorBoundary>} />
                 <Route path="/uworld-adventure" element={<RouteErrorBoundary name="UWorldAdventure"><UWorldAdventure /></RouteErrorBoundary>} />
                 {/* Same component, different bank: the mode carries the tag it
