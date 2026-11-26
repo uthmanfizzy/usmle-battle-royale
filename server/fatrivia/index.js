@@ -56,10 +56,12 @@ function catalog() {
 }
 
 /** A game: shuffled questions, each with shuffled options and the correct index (marked in the browser). */
-function run({ chapter, categories, count }) {
+function run({ chapter, categories, count, exclude }) {
   const bank = BANKS[chapter] || [];
   const want = (categories || []).filter(s => sectionsOf(chapter).includes(s));
-  const pool = bank.filter(q => !want.length || want.includes(q.section));
+  // `exclude` = ids (or their hash part) the player already saw today.
+  const skip = new Set((exclude || []).map(x => String(x).split('-').pop()));
+  const pool = bank.filter(q => (!want.length || want.includes(q.section)) && !skip.has(q.id.split('-').pop()));
   const n = ROUNDS.includes(Number(count)) ? Number(count) : 10;
   return shuffle(pool).slice(0, n).map(q => {
     const options = shuffle(q.options);
@@ -74,6 +76,7 @@ function mount(app, { rateLimit }) {
       chapter: String(req.query.chapter || 'repro'),
       categories: String(req.query.categories || '').split(',').filter(Boolean),
       count: req.query.count,
+      exclude: String(req.query.exclude || '').split(',').filter(Boolean).slice(0, 2000),
     }) });
   });
 }

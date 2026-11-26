@@ -41,6 +41,29 @@ const bestKey = (ch, n) => `mv_fa_trivia_best_${ch}_${n}`;
 function readBest(ch, n) { try { return Number(localStorage.getItem(bestKey(ch, n))) || 0; } catch { return 0; } }
 function writeBest(ch, n, v) { try { localStorage.setItem(bestKey(ch, n), String(v)); } catch { /* not remembered */ } }
 
+// Questions seen today, per chapter — this browser only. Skipping them is a lobby toggle.
+const today = () => { const d = new Date(); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; };
+const SEEN_KEY = 'mv_fa_trivia_seen';
+const SKIP_KEY = 'mv_fa_trivia_skip_seen';
+function readSeen(ch) {
+  try {
+    const d = JSON.parse(localStorage.getItem(SEEN_KEY) || '{}');
+    return d.day === today() ? (d.ids?.[ch] || []) : [];
+  } catch { return []; }
+}
+function addSeen(ch, id) {
+  try {
+    let d = JSON.parse(localStorage.getItem(SEEN_KEY) || '{}');
+    if (d.day !== today() || !d.ids) d = { day: today(), ids: {} };
+    const list = d.ids[ch] || (d.ids[ch] = []);
+    const h = String(id).split('-').pop();
+    if (!list.includes(h)) list.push(h);
+    localStorage.setItem(SEEN_KEY, JSON.stringify(d));
+  } catch { /* not remembered */ }
+}
+function readSkip() { try { return localStorage.getItem(SKIP_KEY) !== '0'; } catch { return true; } }
+function writeSkip(v) { try { localStorage.setItem(SKIP_KEY, v ? '1' : '0'); } catch { /* not remembered */ } }
+
 /** The fun fact, with ==marks== in marquee gold. */
 function Fact({ text }) {
   return (
@@ -167,11 +190,12 @@ function BulbClock({ msLeft, frozen }) {
   );
 }
 
-function Lobby({ catalog, error, chapter, setChapter, cats, setCats, rounds, setRounds, onStart, onExit }) {
+function Lobby({ catalog, error, notice, chapter, setChapter, cats, setCats, rounds, setRounds, skipSeen, setSkipSeen, onStart, onExit }) {
   const chapters = catalog?.chapters || [];
   const picked = chapters.find(c => c.id === chapter);
   const pool = picked ? (cats.length ? picked.categories.filter(c => cats.includes(c.id)).reduce((n, c) => n + c.count, 0) : picked.count) : 0;
   const best = picked ? readBest(chapter, rounds) : 0;
+  const seenToday = picked ? readSeen(chapter).length : 0;
   const toggle = (id) => { triviaSfx.press(); setCats(s => (s.includes(id) ? s.filter(x => x !== id) : [...s, id])); };
   return (
     <div className="ftr-lobby">
@@ -224,6 +248,16 @@ function Lobby({ catalog, error, chapter, setChapter, cats, setCats, rounds, set
           </div>
         </div>
 
+        <div className="ftr-row">
+          <span className="ftr-label">REPEATS</span>
+          <div className="ftr-chips">
+            <button type="button" className={`ftr-chip${skipSeen ? ' is-on' : ''}`} aria-pressed={skipSeen}
+              onClick={() => { triviaSfx.press(); setSkipSeen(!skipSeen); }}>
+              {skipSeen ? '✓ ' : ''}Skip questions seen today <small>{seenToday} seen</small>
+            </button>
+          </div>
+        </div>
+
         <ul className="ftr-rules">
           <li><b>15 s</b> a question — faster answers score more</li>
           <li><b>🔥 Streaks</b> — 3 in a row doubles points, 5 triples them</li>
@@ -231,6 +265,7 @@ function Lobby({ catalog, error, chapter, setChapter, cats, setCats, rounds, set
         </ul>
 
         {error && <p className="ftr-error">{error}</p>}
+        {notice && !error && <p className="ftr-muted">{notice}</p>}
         <button type="button" className="ftr-go" disabled={!pool} onClick={onStart}>
           {pool ? `Start the show — ${Math.min(rounds, pool)} questions` : !catalog ? 'Loading…' : 'No questions here yet'}
         </button>
@@ -290,6 +325,9 @@ export default function FATrivia({ onExit }) {
   const [chapter, setChapter] = useState('repro');
   const [cats, setCats] = useState([]);
   const [rounds, setRounds] = useState(10);
+  const [skipSeen, setSkipSeenState] = useState(readSkip);
+  const setSkipSeen = (v) => { setSkipSeenState(v); writeSkip(v); };
+  const [notice, setNotice] = useState('');
   // lobby → spin → ask → (locked → reveal) → … → final
   const [phase, setPhase] = useState('lobby');
   const [qs, setQs] = useState([]);
@@ -324,13 +362,20 @@ export default function FATrivia({ onExit }) {
   const categories = useMemo(() => (catalog?.chapters || []).find(c => c.id === chapter)?.categories.map(c => c.id) || [], [catalog, chapter]);
 
   async function start() {
-    setError('');
+    setError(''); setNotice('');
     try {
       const params = new URLSearchParams({ chapter, count: String(rounds) });
       if (cats.length) params.set('categories', cats.join(','));
+      const seen = skipSeen ? readSeen(chapter) : [];
+      if (seen.length) params.set('exclude', seen.join(','));
       const r = await fetch(`${SERVER_URL}/api/fa-trivia/run?${params}`);
       const d = await r.json();
-      if (!d.questions?.length) throw new Error('No questions came back.');
+      if (!d.questions?.length) {
+        throw new Error(seen.length
+          ? 'You have already seen every question here today. Pick other categories or turn off "Skip questions seen today".'
+          : 'No questions came back.');
+      }
+      if (seen.length && d.questions.length < rounds) setNotice(`Only ${d.questions.length} unseen question${d.questions.length === 1 ? '' : 's'} left here today, so this show is shorter.`);
       study.flush(); study.touch();
       setQs(d.questions); setIdx(0); setResults([]); setScore(0); setStreak(0); setBestStreak(0);
       setLifelines({ fifty: true, freeze: true, dip: true });
@@ -370,6 +415,7 @@ export default function FATrivia({ onExit }) {
     setPicked(i);
     setPhase('reveal');
     study.count(right);
+    addSeen(chapter, q.id);
     if (right) {
       const speed = Math.round(100 * (left / (SECONDS * 1000)));
       const nextStreak = streak + 1;
@@ -387,7 +433,7 @@ export default function FATrivia({ onExit }) {
       if (i === -1) triviaSfx.buzzer(); else triviaSfx.wrong();
     }
     setResults(rs => [...rs, { q, right }]);
-  }, [q, streak, struck, study]);
+  }, [q, streak, struck, study, chapter]);
 
   const answer = useCallback((i) => {
     if (phase !== 'ask' || locked !== null || !q) return;
@@ -467,7 +513,8 @@ export default function FATrivia({ onExit }) {
 
       {phase === 'lobby' && (
         <Lobby catalog={catalog} error={error} chapter={chapter} setChapter={setChapter}
-          cats={cats} setCats={setCats} rounds={rounds} setRounds={setRounds} onStart={start} onExit={exit} />
+          cats={cats} setCats={setCats} rounds={rounds} setRounds={setRounds}
+          skipSeen={skipSeen} setSkipSeen={setSkipSeen} notice={notice} onStart={start} onExit={exit} />
       )}
 
       {inShow && q && (
