@@ -46,7 +46,43 @@ const Stars = ({ n, size = 'sm' }) => (
   </span>
 );
 
+// Lab result colour: high reads warm, low reads cool, anything else plain.
+function labTone(value) {
+  if (/\b(high|raised|elevated|positive|prolonged)\b/i.test(value)) return 'is-hi';
+  if (/\b(low|absent|deficient|none)\b/i.test(value)) return 'is-lo';
+  return '';
+}
+
+const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+
+// Shouted words in the notes ("HIGH", "NOT") stay loud.
+function Loud({ text }) {
+  const parts = text.split(/\b(HIGH|LOW|NOT|NO|ALWAYS|NEVER)\b/);
+  return parts.map((p, i) => (i % 2 ? <strong key={i}>{p}</strong> : p));
+}
+
+// A fact's lead in bold, so the list can be skimmed: the label before a
+// colon ("Chronic: alopecia..."), else the first clause ("Night blindness
+// first, then dry eyes...").
+function Fact({ text }) {
+  const colon = text.match(/^([^,;:]{2,40}):\s+(.*)$/);
+  if (colon) return <><strong>{colon[1]}:</strong> <Loud text={colon[2]} /></>;
+  const m = text.match(/^(.{3,55}?)([;,]\s)(.*)$/);
+  if (m) return <><strong>{m[1]}</strong>{m[2]}<Loud text={m[3]} /></>;
+  return <strong>{text}</strong>;
+}
+
+function LearnBlock({ icon, title, tone = 'teal', children }) {
+  return (
+    <div className={`hd-learn-block hd-learn-block--${tone}`}>
+      <h4><span className="hd-learn-icon" aria-hidden="true">{icon}</span>{title}</h4>
+      {children}
+    </div>
+  );
+}
+
 function LearnCard({ c, picked = [] }) {
+  const steps = c.learn.chain;
   return (
     <section className="hd-learn" aria-label={`About ${c.name}`}>
       <header className="hd-learn-head">
@@ -54,23 +90,46 @@ function LearnCard({ c, picked = [] }) {
         <span className="hd-chip">{INHERIT_LABEL[c.inherit] || c.inherit}</span>
       </header>
 
-      <div className="hd-learn-block">
-        <h4><span aria-hidden="true">💡</span> In plain words</h4>
-        <p className="hd-plain">{c.learn.plain}</p>
+      <div className="hd-bigidea">
+        <span className="hd-bigidea-tag">The big idea</span>
+        <p>{c.learn.plain}</p>
       </div>
 
-      <div className="hd-learn-block">
-        <h4><span aria-hidden="true">⛓️</span> What goes wrong</h4>
-        <ol className="hd-chain">
-          {c.learn.chain.map((s, i) => (
-            <li key={s} style={{ '--i': i }}><span>{s}</span></li>
+      {c.hint && (
+        <div className="hd-giveaway">
+          <span aria-hidden="true">🔑</span>
+          <p><strong>Spot it by:</strong> {c.hint}</p>
+        </div>
+      )}
+
+      <LearnBlock icon="⛓" title="How it happens" tone="blue">
+        <ol className="hd-steps">
+          {steps.map((s, i) => {
+            const last = i === steps.length - 1;
+            return (
+              <li key={s} className={i === 0 ? 'is-cause' : last ? 'is-result' : ''} style={{ '--i': i }}>
+                <span className="hd-step-dot" aria-hidden="true">{i + 1}</span>
+                <div className="hd-step-body">
+                  {(i === 0 || last) && <span className="hd-step-tag">{i === 0 ? 'Cause' : 'Result'}</span>}
+                  {s.split(' + ').map(part => <p key={part}>{cap(part)}</p>)}
+                </div>
+              </li>
+            );
+          })}
+        </ol>
+      </LearnBlock>
+
+      <LearnBlock icon="★" title="High-yield facts" tone="gold">
+        <ol className="hd-facts">
+          {c.learn.key.map((k, i) => (
+            <li key={k}><span className="hd-fact-n" aria-hidden="true">{i + 1}</span><p><Fact text={k} /></p></li>
           ))}
         </ol>
-      </div>
+      </LearnBlock>
 
       {c.confirm?.length > 0 && (
         <div className="hd-learn-block">
-          <h4><span aria-hidden="true">🧪</span> Confirmed by</h4>
+          <h4><span className="hd-learn-icon" aria-hidden="true">🧪</span>Confirmed by</h4>
           <div className="hd-confirm">
             {c.confirm.map(([text, kind]) => (
               <div key={text} className={`hd-confirm-item${kind ? ' has-inset' : ''}`}>
@@ -82,13 +141,7 @@ function LearnCard({ c, picked = [] }) {
         </div>
       )}
 
-      <div className="hd-learn-block">
-        <h4><span aria-hidden="true">✅</span> Must-know</h4>
-        <ul className="hd-key">{c.learn.key.map(k => <li key={k}>{k}</li>)}</ul>
-      </div>
-
-      <div className="hd-learn-block">
-        <h4><span aria-hidden="true">🔍</span> Don&apos;t mix it up with</h4>
+      <LearnBlock icon="✕" title="Why not the others" tone="coral">
         <div className="hd-contrast">
           {Object.entries(c.lookalikes).map(([id, why]) => (
             <div key={id} className={`hd-contrast-row${picked.includes(id) ? ' was-picked' : ''}`}>
@@ -97,11 +150,11 @@ function LearnCard({ c, picked = [] }) {
             </div>
           ))}
         </div>
-      </div>
+      </LearnBlock>
 
       <div className="hd-learn-split">
-        <div className="hd-learn-block">
-          <h4><span aria-hidden="true">💊</span> Treatment</h4>
+        <div className="hd-learn-block hd-tx">
+          <h4><span className="hd-learn-icon" aria-hidden="true">💊</span>Treatment</h4>
           <p>{c.learn.tx}</p>
         </div>
         <div className="hd-hook">
@@ -297,7 +350,7 @@ function QbankCase({ c, index, total, onSolved, onNext, onExit }) {
   const [done, setDone] = useState(false);
   const learnRef = useRef(null);
   const options = useMemo(() => shuffle([c.id, ...Object.keys(c.lookalikes)]), [c]);
-  const { stem, labs } = useMemo(() => textCase(c), [c]);
+  const { opening, history, findings, labs } = useMemo(() => textCase(c), [c]);
   const right = pick === c.id;
 
   function submit() {
@@ -319,11 +372,28 @@ function QbankCase({ c, index, total, onSolved, onNext, onExit }) {
       </div>
 
       <section className="hd-sec hd-qb-card">
-        <p className="hd-qb-stem">{stem}</p>
+        <div className="hd-qb-stem">
+          <p><strong>{opening.who}</strong>{opening.rest} {history}</p>
+          {findings.length > 0 && (
+            <p>
+              <span className="hd-qb-lead">On examination:</span>{' '}
+              {findings.map((f, i) => (
+                <span key={f}><strong>{f}</strong>{i < findings.length - 1 ? '; ' : '.'}</span>
+              ))}
+            </p>
+          )}
+        </div>
         {labs.length > 0 && (
           <div className="hd-qb-labs">
             <h4>Laboratory and other studies</h4>
-            <ul>{labs.map(l => <li key={l}>{l}</li>)}</ul>
+            <dl>
+              {labs.map(({ name, value }) => (
+                <div key={name + value} className="hd-qb-lab">
+                  {name && <dt>{name}</dt>}
+                  <dd className={labTone(value)}>{value}</dd>
+                </div>
+              ))}
+            </dl>
           </div>
         )}
         <p className="hd-qb-ask">Which of the following is the most likely diagnosis?</p>

@@ -82,7 +82,7 @@ function opening(c) {
   const child = noun === 'boy' || noun === 'girl';
   const article = /^[aeiou8]|^1[18]-/.test(age) ? 'An' : 'A';
   const who = age ? `${article} ${age} ${noun}` : `A ${noun}`;
-  return `${who} ${child ? 'is brought to the clinic' : 'comes to the clinic'}.`;
+  return { who, rest: ` ${child ? 'is brought to the clinic' : 'comes to the clinic'}.` };
 }
 
 function history(c) {
@@ -112,7 +112,19 @@ function history(c) {
   return out.join(' ');
 }
 
-/** { stem, labs[] } for one case. */
+// "Serum retinol: low" -> { name: 'Serum retinol', value: 'low' }, so the
+// result can be shown in bold. A line with no "name:" is all value.
+function splitLab(text) {
+  const i = text.indexOf(': ');
+  if (i < 1 || i > 60) return { name: '', value: text };
+  return { name: text.slice(0, i), value: text.slice(i + 2) };
+}
+
+/**
+ * The vignette's parts, kept apart so the page can bold the clues:
+ * { opening: { who, rest }, history, findings[], labs[{ name, value }] }.
+ * `stem` is the whole thing as one plain string.
+ */
 export function textCase(c) {
   const findings = [];
   const labs = [];
@@ -126,9 +138,16 @@ export function textCase(c) {
     }
   }
   labs.push(...(c.labs || []));
-  let exam = '';
+  const open = opening(c);
+  const hist = history(c);
   // "On examination:" rather than "Examination shows", since some findings
   // are fragments ("otherwise well and growing").
-  if (findings.length) exam = `On examination: ${findings.join('; ')}.`;
-  return { stem: [opening(c), history(c), exam].filter(Boolean).join(' '), labs };
+  const exam = findings.length ? `On examination: ${findings.join('; ')}.` : '';
+  return {
+    opening: open,
+    history: hist,
+    findings,
+    labs: labs.map(splitLab),
+    stem: [open.who + open.rest, hist, exam].filter(Boolean).join(' '),
+  };
 }
