@@ -88,7 +88,11 @@ function mount(app, { supabase, requireAuth, rateLimit, isMissingTable }) {
     const out = { week, plan: null, stored: false, lastPlan: null, progress: {}, pace: {}, sessions: [] };
     if (!supabase) return res.json(out);
 
-    try {
+    // The three reads are independent: run them together, not one after another.
+    await Promise.all([progressRead(), paceRead(), planRead()]);
+    res.json(out);
+
+    async function progressRead() { try {
       const rows = await readSessions(supabase, req.userId, new Date(start).toISOString(), new Date(start + 7 * DAY_MS).toISOString());
       for (const r of rows) {
         const day = Math.floor((Date.parse(r.ended_at) - start) / DAY_MS);
@@ -104,10 +108,10 @@ function mount(app, { supabase, requireAuth, rateLimit, isMissingTable }) {
       }
     } catch (err) {
       console.warn('[study-plan] progress read failed —', err.message);
-    }
+    } }
 
     // The player's own pace: seconds per question per mode over recent weeks.
-    try {
+    async function paceRead() { try {
       const now = Date.now();
       const rows = await readSessions(supabase, req.userId, new Date(now - PACE_DAYS * DAY_MS).toISOString(), new Date(now + DAY_MS).toISOString(), { desc: true });
       const sums = {};
@@ -124,9 +128,9 @@ function mount(app, { supabase, requireAuth, rateLimit, isMissingTable }) {
       }
     } catch (err) {
       console.warn('[study-plan] pace read failed —', err.message);
-    }
+    } }
 
-    try {
+    async function planRead() { try {
       const { data, error } = await supabase.from('study_plans').select('week_start, plan')
         .eq('user_id', req.userId).lte('week_start', week)
         .order('week_start', { ascending: false }).limit(2);
@@ -141,8 +145,7 @@ function mount(app, { supabase, requireAuth, rateLimit, isMissingTable }) {
       }
     } catch (err) {
       console.warn('[study-plan] plan read threw —', err.message);
-    }
-    res.json(out);
+    } }
   });
 
   app.put('/api/study-plan', requireAuth, rateLimit(60, 60000), async (req, res) => {

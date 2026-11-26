@@ -241,8 +241,31 @@ function writeLocal(week, plan) {
  * the server shortly after (and to this browser, which is the only copy if
  * the study_plans table has not been created yet).
  */
+// The last server reply per week, kept in memory and in this browser, so the
+// planner and the home panel draw at once from it while a fresh copy loads.
+const memCache = new Map();
+const snapKey = (week) => `mv_study_plan_snap_${getCachedUser()?.id || 'me'}_${week}`;
+function readSnap(week) {
+  const k = snapKey(week);
+  if (memCache.has(k)) return memCache.get(k);
+  try { const s = localStorage.getItem(k); const v = s ? JSON.parse(s) : null; if (v) memCache.set(k, v); return v; } catch { return null; }
+}
+function writeSnap(week, snap) {
+  const k = snapKey(week);
+  memCache.set(k, snap);
+  try { localStorage.setItem(k, JSON.stringify(snap)); } catch { /* memory only */ }
+}
+function initialState(week) {
+  const base = { loading: true, plan: null, progress: {}, pace: {}, sessions: null, lastPlan: null, localOnly: false, error: '' };
+  if (!getToken()) return { ...base, loading: false, error: 'signin' };
+  const snap = readSnap(week);
+  if (snap) return { ...base, ...snap, plan: readLocal(week) || snap.plan, loading: false };
+  const local = readLocal(week);
+  return local ? { ...base, plan: local, loading: false } : base;
+}
+
 export function useWeekPlan(week) {
-  const [state, setState] = useState({ loading: true, plan: null, progress: {}, pace: {}, sessions: null, lastPlan: null, localOnly: false, error: '' });
+  const [state, setState] = useState(() => initialState(week));
   const timer = useRef(0);
   const pending = useRef(null);
 
@@ -253,20 +276,28 @@ export function useWeekPlan(week) {
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const d = await r.json();
       const local = readLocal(week);
-      setState({
-        loading: false, error: '',
+      const snap = {
         plan: d.plan || local || null,
         progress: d.progress || {}, pace: d.pace || {},
         sessions: Array.isArray(d.sessions) ? d.sessions : null,
         lastPlan: d.lastPlan || null,
         localOnly: !!d.missingTable,
-      });
+      };
+      writeSnap(week, snap);
+      // An edit made while this was loading wins over the server's copy.
+      setState(s => ({ ...snap, plan: pending.current || snap.plan, loading: false, error: '' }));
     } catch {
-      setState(s => ({ ...s, loading: false, plan: readLocal(week), error: 'offline' }));
+      setState(s => ({ ...s, loading: false, plan: s.plan || readLocal(week), error: 'offline' }));
     }
   }, [week]);
 
-  useEffect(() => { setState(s => ({ ...s, loading: true, plan: null })); load(); }, [load]);
+  const first = useRef(true);
+  useEffect(() => {
+    // The first render already shows the cached copy; a week change swaps to that week's.
+    if (!first.current) setState(initialState(week));
+    first.current = false;
+    load();
+  }, [load]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const flush = useCallback(async () => {
     clearTimeout(timer.current);
