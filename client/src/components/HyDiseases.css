@@ -587,3 +587,53 @@
   .hd-screen::before, .hd-scan, .hd-confetti, .hd-typing i { animation: none; }
   .hp *, .hp-lids rect { animation: none !important; }
 }
+
+/* ── Case style switch (home) and the Qbank view ─────────────────────────── */
+.hd-style { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 14px 0 2px; max-width: 520px; }
+.hd-style button {
+  display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; text-align: left;
+  border-radius: 12px; border: 1.5px solid rgba(255, 255, 255, 0.16); background: rgba(255, 255, 255, 0.05);
+  color: #eef5f3; font: inherit; cursor: pointer; transition: background 0.2s ease, border-color 0.2s ease;
+}
+.hd-style button b { font-size: 14px; }
+.hd-style button small { font-size: 12px; line-height: 1.35; color: rgba(238, 245, 243, 0.68); }
+.hd-style button:hover { background: rgba(255, 255, 255, 0.1); }
+.hd-style button.is-on { border-color: var(--hd-gold); background: rgba(233, 185, 73, 0.12); }
+
+.hd-qb { max-width: 860px; }
+.hd-qb .hd-topbar { margin-bottom: 14px; }
+.hd-qb-card { margin-bottom: 14px; }
+.hd-qb-stem { margin: 0 0 14px; font-size: 16px; line-height: 1.7; color: var(--hd-ink); }
+.hd-qb-labs { margin: 0 0 16px; padding: 12px 14px; border-radius: 10px; background: #fff; border: 1px solid var(--hd-line); }
+.hd-qb-labs h4 { margin: 0 0 6px; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--hd-ink-2); }
+.hd-qb-labs ul { margin: 0; padding-left: 18px; }
+.hd-qb-labs li { font-size: 14.5px; line-height: 1.6; color: var(--hd-ink); }
+.hd-qb-ask { margin: 0 0 10px; font-size: 16px; font-weight: 700; color: var(--hd-ink); }
+.hd-qb-options { display: flex; flex-direction: column; gap: 8px; }
+.hd-qb-option {
+  display: flex; align-items: center; gap: 12px; width: 100%; padding: 11px 14px; text-align: left;
+  border-radius: 10px; border: 1.5px solid var(--hd-line); background: #fff; color: var(--hd-ink);
+  font: inherit; font-size: 15px; cursor: pointer; transition: border-color 0.15s ease, background 0.15s ease;
+}
+.hd-qb-option:hover:not(:disabled) { border-color: rgba(42, 157, 143, 0.6); }
+.hd-qb-option:disabled { cursor: default; }
+.hd-qb-letter {
+  display: grid; place-items: center; flex: none; width: 26px; height: 26px; border-radius: 50%;
+  border: 1.5px solid rgba(31, 45, 51, 0.3); font-size: 13px; font-weight: 800; color: var(--hd-ink-2);
+}
+.hd-qb-mark { margin-left: auto; font-weight: 900; }
+.hd-qb-option.is-picked { border-color: var(--hd-teal); background: rgba(42, 157, 143, 0.08); }
+.hd-qb-option.is-picked .hd-qb-letter { background: var(--hd-teal); border-color: var(--hd-teal); color: #fff; }
+.hd-qb-option.is-right { border-color: #2e9d57; background: rgba(46, 157, 87, 0.1); }
+.hd-qb-option.is-right .hd-qb-letter, .hd-qb-option.is-right .hd-qb-mark { color: #2e9d57; border-color: #2e9d57; }
+.hd-qb-option.is-wrong { border-color: var(--hd-coral); background: rgba(231, 111, 81, 0.1); }
+.hd-qb-option.is-wrong .hd-qb-letter, .hd-qb-option.is-wrong .hd-qb-mark { color: var(--hd-coral); border-color: var(--hd-coral); }
+.hd-qb-option.is-dim { opacity: 0.6; }
+.hd-qb-card .hd-step-btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; box-shadow: none; }
+.hd-qb-verdict { margin: 14px 0 0; padding: 10px 14px; border-radius: 10px; font-size: 14.5px; line-height: 1.55; color: var(--hd-ink); }
+.hd-qb-verdict.is-right { background: rgba(46, 157, 87, 0.12); border-left: 4px solid #2e9d57; }
+.hd-qb-verdict.is-wrong { background: rgba(231, 111, 81, 0.12); border-left: 4px solid var(--hd-coral); }
+@media (max-width: 480px) {
+  .hd-style { grid-template-columns: 1fr; }
+  .hd-qb-stem { font-size: 15px; }
+}
