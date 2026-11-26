@@ -826,7 +826,7 @@ export default function PlayPage({
       {/* ── LOBBY OVERLAY — shows when a lobby is active ───────────────────── */}
       {/* When the MedJinx home page is up it sits on the body, outside this
           wrapper, so the lobby has to join it there to appear on top. */}
-      {lobbyId && !mmSearching && ((node) => ((jinxHome || scanHome) ? createPortal(node, document.body) : node))(
+      {lobbyId && !mmSearching && ((node) => ((jinxHome || scanHome || clHome) ? createPortal(node, document.body) : node))(
         <div className={`lobby-overlay${lobbyGameMode === 'medjinx' ? ' lobby-overlay--mjx' : ''}`}>
           {/* MedJinx's lobby is a room in the same pixel night ward as the
               game, so the match looks the same from setup to podium. */}
