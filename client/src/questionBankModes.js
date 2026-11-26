@@ -124,7 +124,7 @@ export const QUESTION_BANK_MODES = [
     id: 'clinical',
     label: 'Clinical',
     icon: '🩺',
-    route: '/clinical',
+    route: '/clinical-qbank',
     tagline: 'The procedures a doctor is expected to be able to do, one at a time.',
     paceScope: '__clinical__',
     // Clinical white. Every hue Story Mode had was already spoken for — red,

@@ -38,6 +38,8 @@ import StudyTracked from './StudyTracked';
 const KaplanHub         = lazy(() => import('./components/KaplanHub'));
 const KaplanEthics      = lazy(() => import('./components/KaplanEthics'));
 const HyDiseasesHub     = lazy(() => import('./components/HyDiseasesHub'));
+const ClinicalHub       = lazy(() => import('./components/ClinicalHub'));
+const ClinicalCase      = lazy(() => import('./components/ClinicalCase'));
 const HyDiseasesBio     = lazy(() => import('./components/HyDiseasesBio'));
 const ReelsPage         = lazy(() => import('./components/ReelsPage'));
 const PathwayNavigator  = lazy(() => import('./components/PathwayNavigator'));
@@ -180,7 +182,12 @@ ReactDOM.createRoot(document.getElementById('root')).render(
                 <Route path="/mehlman" element={<RouteErrorBoundary name="MehlmanHub"><MehlmanHub /></RouteErrorBoundary>} />
                 <Route path="/hy-arrows" element={<RouteErrorBoundary name="HYArrows"><HYArrows /></RouteErrorBoundary>} />
                 <Route path="/mehlman-rapid-fire" element={<RouteErrorBoundary name="MehlmanRapidFire"><UWorldAdventure mode={questionBankMode('mehlman_rapid_fire')} /></RouteErrorBoundary>} />
-                <Route path="/clinical" element={<RouteErrorBoundary name="Clinical"><UWorldAdventure mode={questionBankMode('clinical')} /></RouteErrorBoundary>} />
+                {/* Clinical: patient cases start to finish, admin-only for now. The
+                    older Clinical question bank keeps its own address. */}
+                <Route path="/clinical" element={<RouteErrorBoundary name="Clinical"><ClinicalHub /></RouteErrorBoundary>} />
+                <Route path="/clinical/:specialty" element={<RouteErrorBoundary name="ClinicalSpecialty"><ClinicalHub /></RouteErrorBoundary>} />
+                <Route path="/clinical/:specialty/:caseId" element={<RouteErrorBoundary name="ClinicalCase"><ClinicalCase /></RouteErrorBoundary>} />
+                <Route path="/clinical-qbank" element={<RouteErrorBoundary name="ClinicalQbank"><UWorldAdventure mode={questionBankMode('clinical')} /></RouteErrorBoundary>} />
                 <Route path="/oet" element={<RouteErrorBoundary name="OET"><UWorldAdventure mode={questionBankMode('oet')} /></RouteErrorBoundary>} />
                 {/* Amboss Quest: a hub of sub-modes. 200 Concepts is a normal bank. */}
                 <Route path="/amboss-quest" element={<RouteErrorBoundary name="AmbossQuest"><AmbossQuest /></RouteErrorBoundary>} />

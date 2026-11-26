@@ -6,6 +6,7 @@ import './ModeSplit.css';
 import './ChooseYourPath.css';
 
 import { SERVER_URL } from '../serverUrl';
+import { useAdminAccess } from './useAdminAccess';
 
 // "Choose Your Path" — shown after clicking Play. Three tall art cards (Story,
 // Online, Training Grounds), each with a medallion, coloured title, call-to-
@@ -223,6 +224,7 @@ export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld, onSaudiMLE, o
   }, [course]);
 
   const isDentistry = chosen === 'dentistry';
+  const isAdmin = useAdminAccess();
 
   function switchCourse(next) {
     if (next === chosen) return;
@@ -574,8 +576,26 @@ export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld, onSaudiMLE, o
             sub="The Occupational English Test, worked through at your own pace." />
         )}
 
-        <LockedCard variant="clinical" icon="🩺" name="Clinical"
-          sub="The procedures a doctor is expected to be able to do, one at a time." />
+        {/* Clinical: open to admins only while it is being built. */}
+        {isAdmin === true ? (
+          <button className="ms-journey-card ms-journey-card--clinical" onClick={onClinical || (() => { window.location.href = '/clinical'; })}>
+            <div className="ms-journey-art" aria-hidden="true">
+              <span className="ms-journey-art-icon">🩺</span>
+            </div>
+            <div className="ms-journey-body">
+              <span className="ms-journey-name">
+                CLINICAL
+                <span className="ms-soon-chip"><span aria-hidden="true">🛠</span> ADMIN</span>
+              </span>
+              <span className="ms-journey-sub">
+                Manage a patient from the first question to the last order, as if you were on the spot.
+              </span>
+            </div>
+          </button>
+        ) : (
+          <LockedCard variant="clinical" icon="🩺" name="Clinical"
+            sub="Manage a patient from the first question to the last order, as if you were on the spot." />
+        )}
 
         {!isDentistry && (
           <LockedCard variant="ukmla" icon="🏥" name="UKMLA / PLAB"
