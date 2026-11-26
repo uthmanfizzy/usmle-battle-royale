@@ -7,6 +7,7 @@
  */
 
 const CHAPTERS = [
+  { id: 'biochem', name: 'Biochemistry', icon: '🧬', file: './biochemistry', pages: [31, 92] },
   { id: 'endo', name: 'Endocrine', icon: '🦋', file: './endocrine', pages: [329, 362] },
   { id: 'immuno', name: 'Immunology', icon: '🛡️', file: './immunology', pages: [93, 119] },
   { id: 'repro', name: 'Reproductive', icon: '🌸', file: './reproductive', pages: [629, 676] },
@@ -15,6 +16,7 @@ const CHAPTERS = [
 
 // The book's section for a page, so a run can be narrowed to one part.
 const SECTION_RANGES = {
+  biochem: [[32, 43, 'Molecular'], [44, 50, 'Cellular'], [51, 54, 'Laboratory Techniques'], [55, 62, 'Genetics'], [63, 70, 'Nutrition'], [71, 92, 'Metabolism']],
   endo: [[330, 330, 'Embryology'], [331, 331, 'Anatomy'], [332, 341, 'Physiology'], [342, 357, 'Pathology'], [358, 361, 'Pharmacology']],
   immuno: [[94, 96, 'Lymphoid Structures'], [97, 101, 'Cellular Components'], [102, 117, 'Immune Responses'], [118, 119, 'Immunosuppressants']],
   repro: [[630, 641, 'Embryology'], [642, 646, 'Anatomy'], [647, 654, 'Physiology'], [655, 672, 'Pathology'], [673, 676, 'Pharmacology']],
@@ -26,11 +28,13 @@ const sectionOf = (ch, page) => (SECTION_RANGES[ch] || []).find(([a, b]) => page
 
 function build(ch) {
   const rows = require(ch.file);
-  return rows.map(([topic, page, stem, options, explanation]) => ({
+  // An optional 6th field names the section outright, for a page the book
+  // shares between two sections (biochem p50: elastin, then PCR).
+  return rows.map(([topic, page, stem, options, explanation, section]) => ({
     // Stable id from the stem, not the row's position, so a question keeps
     // its id (and its ratings) when rows are added or reordered.
     id: `${ch.id}-${require('crypto').createHash('sha1').update(stem).digest('hex').slice(0, 10)}`,
-    chapter: ch.id, section: sectionOf(ch.id, page), topic, page,
+    chapter: ch.id, section: section || sectionOf(ch.id, page), topic, page,
     stem, answer: options[0], options, explanation,
   }));
 }
@@ -101,4 +105,4 @@ function mount(app, { rateLimit }) {
   });
 }
 
-module.exports = { BANKS, CHAPTERS, catalog, run, mount };
+module.exports = { BANKS, CHAPTERS, SECTION_RANGES, catalog, run, mount };

@@ -1,6 +1,7 @@
 'use strict';
 // node server/fahyq/check.js — validates every FA HY Qs bank.
-const { BANKS, CHAPTERS } = require('./index');
+const { BANKS, CHAPTERS, SECTION_RANGES } = require('./index');
+const SECTION_NAMES = (ch) => [...(SECTION_RANGES[ch] || []).map(r => r[2]), 'Other'];
 let problems = 0;
 const bad = (q, msg) => { problems++; console.log(`${q.id} [${q.topic}] ${msg}`); };
 for (const [ch, bank] of Object.entries(BANKS)) {
@@ -27,6 +28,7 @@ for (const [ch, bank] of Object.entries(BANKS)) {
     const [lo, hi] = CHAPTERS.find(c => c.id === ch).pages;
     if (!(q.page >= lo && q.page <= hi)) bad(q, `page ${q.page} is outside the chapter (${lo}-${hi})`);
     if (q.section === 'Other') bad(q, `page ${q.page} has no section`);
+    if (!SECTION_NAMES(ch).includes(q.section)) bad(q, `section "${q.section}" is not one of the chapter's sections`);
   }
   const bySection = {};
   bank.forEach(q => { bySection[q.section] = (bySection[q.section] || 0) + 1; });
