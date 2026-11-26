@@ -285,3 +285,27 @@
   .ch-goal-list { margin: 0 12px 10px; }
   .ch-goal-foot { margin: 0 12px 16px; }
 }
+
+/* ── Performance ─────────────────────────────────────────────────────────────
+   These animated things the browser can't just move: it had to repaint them
+   on every frame (a glowing text-shadow on a 90px title, a pulsing
+   drop-shadow filter on the Play button, and dashes running round an SVG ring
+   the size of the whole hero, each through a blur filter). The glows hold
+   still at their middle look now. Everything that moves by transform or opacity still
+   moves, and the drifting mist keeps its blur cached on its own layer. */
+.ch-name {
+  animation: none;
+  text-shadow: 0 0 18px rgba(205, 148, 255, 0.75), 0 0 48px rgba(150, 75, 255, 0.48);
+}
+.ch-play-wrap {
+  animation: none;
+  filter: drop-shadow(0 0 9px rgba(202, 130, 255, 0.8)) drop-shadow(0 0 26px rgba(145, 65, 255, 0.52));
+}
+.ch-ring-glow { animation: none; opacity: 0.5; }
+/* The running lights keep running, just without a shadow filter to redo per frame. */
+.ch-ring-a, .ch-ring-b, .ch-ring--late { filter: none; }
+.ch-mist > div { will-change: transform; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ch-art *, .ch-art *::before, .ch-art *::after { animation: none !important; }
+}

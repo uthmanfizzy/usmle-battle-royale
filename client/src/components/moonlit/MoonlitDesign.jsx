@@ -47,7 +47,7 @@ export const Flash = (V) => (
 );
 
 // The sidebar panel itself (full height; MoonlitMenu sizes it).
-export const SIDEBAR_STYLE = { position: "absolute", left: "0", top: "0", width: "207px", height: "941px", overflow: "hidden", background: "linear-gradient(180deg, rgba(22,30,70,.95), rgba(15,21,52,.97))", backdropFilter: "blur(10px)", boxShadow: "6px 0 24px rgba(4,8,30,.45)" };
+export const SIDEBAR_STYLE = { position: "absolute", left: "0", top: "0", width: "207px", height: "941px", overflow: "hidden", background: "linear-gradient(180deg, rgba(22,30,70,.95), rgba(15,21,52,.97))", boxShadow: "6px 0 24px rgba(4,8,30,.45)" };
 
 
 // Logo and the six destinations, from the top.
@@ -138,7 +138,7 @@ export const SidebarBottom = (V) => (
 
 export const Chips = (V) => (
 <div style={{ position: "absolute", left: "1226px", top: "22px", display: "flex", alignItems: "center", gap: "16px" }}>
-<div style={{ height: "42px", boxSizing: "border-box", padding: "0 6px 0 14px", borderRadius: "21px", background: "rgba(21,37,76,.78)", border: "1.5px solid rgba(132,150,204,.45)", backdropFilter: "blur(6px)", display: "flex", alignItems: "center", gap: "10px" }}>
+<div style={{ height: "42px", boxSizing: "border-box", padding: "0 6px 0 14px", borderRadius: "21px", background: "rgba(21,37,76,.88)", border: "1.5px solid rgba(132,150,204,.45)", display: "flex", alignItems: "center", gap: "10px" }}>
 <svg role="img" aria-label="Gems" width="22" height="24" viewBox="0 0 22 24" style={{ filter: "drop-shadow(0 0 5px rgba(120,190,255,.6))" }}>
 <path d="M11,1 L21,9 L11,23 L1,9 Z" fill="#5fa8f4"></path>
 <path d="M11,1 L15.5,9 L11,23 L6.5,9 Z" fill="#a8d8ff"></path>
@@ -150,7 +150,7 @@ export const Chips = (V) => (
 <svg aria-hidden="true" width="14" height="14"><path d="M7,1 V13 M1,7 H13" stroke="currentColor" strokeWidth="2" strokeLinecap="round"></path></svg>
 </button>
 </div>
-<div style={{ height: "42px", boxSizing: "border-box", padding: "0 6px 0 12px", borderRadius: "21px", background: "rgba(21,37,76,.78)", border: "1.5px solid rgba(132,150,204,.45)", backdropFilter: "blur(6px)", display: "flex", alignItems: "center", gap: "10px" }}>
+<div style={{ height: "42px", boxSizing: "border-box", padding: "0 6px 0 12px", borderRadius: "21px", background: "rgba(21,37,76,.88)", border: "1.5px solid rgba(132,150,204,.45)", display: "flex", alignItems: "center", gap: "10px" }}>
 <svg role="img" aria-label="Gold" width="24" height="24" viewBox="0 0 24 24" style={{ filter: "drop-shadow(0 0 5px rgba(255,200,110,.55))" }}>
 <circle cx="12" cy="12" r="11" fill="#f0bd5a" stroke="#b9822e" strokeWidth="1.4"></circle>
 <circle cx="12" cy="12" r="7.6" fill="none" stroke="#fbe1a2" strokeWidth="1.2"></circle>
@@ -254,7 +254,7 @@ export const EventPanel = (V, w = 744) => {
   const title = n ? (n.title || 'Announcement') : 'No news yet';
   const titleSize = title.length > 26 ? 26 : title.length > 18 ? 31 : 38;
   return (
-<section aria-label="Latest news" style={{ position: "absolute", left: "0", top: "0", width: `${w}px`, height: "239px", borderRadius: "14px", background: "rgba(20,28,66,.88)", backdropFilter: "blur(8px)" }}>
+<section aria-label="Latest news" style={{ position: "absolute", left: "0", top: "0", width: `${w}px`, height: "239px", borderRadius: "14px", background: "rgba(20,28,66,.93)" }}>
 <span style={{ position: "absolute", left: "1.5px", top: "50px", width: `${w - 3}px`, height: "187.5px", borderRadius: "0 0 13px 13px", overflow: "hidden" }}>
 <span className="mv-art-event mv-kb" style={{ position: "absolute", left: "0", top: "0", width: `${w - 3}px`, height: "188px" }}></span>
 <span className="mv-pulse" style={{ position: "absolute", left: "30px", top: "0", width: "300px", height: "188px", borderRadius: "50%", background: "radial-gradient(ellipse closest-side, rgba(120,190,255,.32), rgba(120,190,255,0) 100%)", mixBlendMode: "screen" }}></span>
@@ -290,7 +290,7 @@ export const TodayPanel = (V, w = 636) => {
   const msg = (text) => <span style={{ padding: "18px 6px", fontSize: "19px", color: "#cfd0dc" }}>{text}</span>;
   const mins = t.leftMin >= 1 ? (t.leftMin < 60 ? `${Math.round(t.leftMin)}m` : `${Math.floor(t.leftMin / 60)}h ${Math.round(t.leftMin % 60)}m`) : '';
   return (
-<section aria-label="Today's goals" style={{ position: "absolute", left: "0", top: "0", width: `${w}px`, height: "239px", borderRadius: "14px", background: "rgba(20,28,66,.88)", backdropFilter: "blur(8px)" }}>
+<section aria-label="Today's goals" style={{ position: "absolute", left: "0", top: "0", width: `${w}px`, height: "239px", borderRadius: "14px", background: "rgba(20,28,66,.93)" }}>
 <PanelFrame w={w} h={239} rule={50.5} ruleInset={30} />
 <span aria-hidden="true" style={{ position: "absolute", left: "34px", top: "21px", width: "11px", height: "11px", background: "#f0c46e", transform: "rotate(45deg)" }}></span>
 <h2 style={{ position: "absolute", left: "62px", top: "17.6px", margin: "0", fontSize: "19px", fontWeight: "600", lineHeight: "1", letterSpacing: "1.5px", color: "#f4efe4", whiteSpace: "nowrap" }}>TODAY'S GOALS</h2>

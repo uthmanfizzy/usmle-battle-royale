@@ -2426,7 +2426,8 @@
   opacity: 0.35;
   -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, #000 30%, transparent 75%);
   mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, #000 30%, transparent 75%);
-  animation: jm-dust-drift 38s linear infinite;
+  /* Held still: the frosted (backdrop-blurred) panels above it had to be
+     re-blurred on every frame while it drifted. */
 }
 @keyframes jm-dust-drift { to { transform: translate3d(34px, 34px, 0); } }
 

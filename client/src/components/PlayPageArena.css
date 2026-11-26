@@ -670,8 +670,8 @@
    order without an !important anywhere. ──────────────────────────────────── */
 .lobby-overlay {
   background: radial-gradient(70% 60% at 50% 0%, rgba(193, 41, 30, 0.18) 0%, rgba(0, 0, 0, 0.82) 60%), rgba(0, 0, 0, 0.84);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  /* No backdrop blur: the overlay is 84% black already, and blurring the
+     animated arena behind it had to be redone on every frame. */
 }
 .lobby-panel {
   background:

@@ -422,6 +422,19 @@
   pointer-events: none;
   overflow: hidden;
   border-radius: inherit;
+  -webkit-mask-image: linear-gradient(0deg, #000 0%, #000 35%, transparent 85%);
+  mask-image: linear-gradient(0deg, #000 0%, #000 35%, transparent 85%);
+  opacity: 0.7;
+}
+/* The embers live on a strip one tile taller than the card that slides up by
+   one tile: a transform the compositor moves, not a background-position the
+   browser has to repaint every frame. */
+.cyp-motes::before {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; top: 0;
+  height: calc(100% + 340px);
+  will-change: transform;
   background-image:
     radial-gradient(2px 2px at 14% 30%, rgba(var(--cyp-rgb), 0.95), transparent 70%),
     radial-gradient(1.5px 1.5px at 38% 72%, var(--cyp-hi), transparent 70%),
@@ -430,15 +443,12 @@
     radial-gradient(2px 2px at 27% 90%, rgba(var(--cyp-rgb), 0.9), transparent 70%),
     radial-gradient(1px 1px at 72% 86%, rgba(255, 255, 255, 0.8), transparent 70%);
   background-size: 100% 340px;
-  -webkit-mask-image: linear-gradient(0deg, #000 0%, #000 35%, transparent 85%);
-  mask-image: linear-gradient(0deg, #000 0%, #000 35%, transparent 85%);
-  opacity: 0.7;
   animation: cyp-embers 9s linear infinite;
   animation-delay: calc(var(--cyp-delay) * -20);
 }
 @keyframes cyp-embers {
-  from { background-position: 0 0; }
-  to   { background-position: 0 -340px; }
+  from { transform: translate3d(0, 0, 0); }
+  to   { transform: translate3d(0, -340px, 0); }
 }
 /* The light sweep that crosses the card on hover. */
 .cyp-motes::after {
@@ -519,7 +529,8 @@
 .cyp-screen .cyp-card:not(.is-locked):active { scale: 0.99; translate: 0 -4px; transition-duration: 0.1s; }
 
 /* Locked: a quieter card, embers out. */
-.cyp-screen .cyp-card.is-locked .cyp-motes { opacity: 0.25; animation-duration: 18s; }
+.cyp-screen .cyp-card.is-locked .cyp-motes { opacity: 0.25; }
+.cyp-screen .cyp-card.is-locked .cyp-motes::before { animation-duration: 18s; }
 .cyp-screen .cyp-card.is-locked .cyp-medal::after { animation: none; opacity: 0; }
 .cyp-screen .cyp-card.is-locked .cyp-art { filter: saturate(0.6) brightness(0.8); }
 .cyp-screen .cyp-card.is-locked .cyp-lock-pill { animation: cyp-lock 4s ease-in-out infinite; }
@@ -532,8 +543,8 @@
 .cyp-screen .cyp-foot { animation: cyp-rise 0.6s ease-out 0.7s both; }
 
 @media (max-width: 640px) {
-  .cyp-motes { background-size: 100% 260px; }
-  @keyframes cyp-embers { to { background-position: 0 -260px; } }
+  .cyp-motes::before { background-size: 100% 260px; height: calc(100% + 260px); }
+  @keyframes cyp-embers { to { transform: translate3d(0, -260px, 0); } }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -542,7 +553,7 @@
   .cyp-screen .cyp-ornament i,
   .cyp-screen .cyp-tagline,
   .cyp-screen .cyp-art,
-  .cyp-motes,
+  .cyp-motes::before,
   .cyp-screen .cyp-medal::after,
   .cyp-screen .cyp-medal > span,
   .cyp-screen .cyp-lock-pill { animation: none; }
@@ -741,4 +752,22 @@
 
 @media (prefers-reduced-motion: reduce) {
   .cyp-warp { display: none; }
+}
+
+/* ── Performance ─────────────────────────────────────────────────────────────
+   The border ring's spin (a registered-property conic gradient through a mask)
+   and the breathing box-shadow both made every card repaint on every frame.
+   Both hold still now at their middle look; the art drift, embers and hover
+   lift — all transforms — still move. */
+.cyp-card::before { animation: none; --cyp-angle: 40deg; }
+.cyp-card {
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55), 0 0 24px rgba(var(--cyp-rgb), 0.32);
+  animation: cyp-rise 0.5s ease-out var(--cyp-delay) both;
+}
+.cyp-screen .cyp-card { animation: cyp-card-in 0.8s cubic-bezier(0.22, 1, 0.36, 1) calc(0.15s + var(--cyp-delay)) both; }
+@media (hover: hover) {
+  .cyp-screen .cyp-card:not(.is-locked):hover {
+    animation: cyp-card-in 0.8s cubic-bezier(0.22, 1, 0.36, 1) calc(0.15s + var(--cyp-delay)) both;
+    box-shadow: 0 24px 50px rgba(0, 0, 0, 0.65), 0 0 46px rgba(var(--cyp-rgb), 0.65);
+  }
 }

@@ -41,6 +41,8 @@ export function startHeroFx(cv, getArt, { consumeBurst } = {}) {
 
   function frame(now) {
     raf = requestAnimationFrame(frame);
+    // 30 fps is enough for drifting particles; it halves the full-screen redraw cost.
+    if (last && now - last < 31) return;
     const w = cv.clientWidth, h = cv.clientHeight;
     if (!w || !h) return;
     const dpr = Math.min(2, window.devicePixelRatio || 1);

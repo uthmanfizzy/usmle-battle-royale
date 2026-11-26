@@ -59,6 +59,9 @@ export function startScene(cv, { consumeBurst, fx, burstAt = { x: 434, y: 382 } 
 
   function frame(now) {
     raf = requestAnimationFrame(frame);
+    // 30 fps is plenty for slow stars and petals, and halves the cost of
+    // redrawing and compositing a full-screen canvas on high-refresh screens.
+    if (last && now - last < 31) return;
     if (!last) last = now;
     let dt = Math.min(0.05, (now - last) / 1000);
     last = now;
