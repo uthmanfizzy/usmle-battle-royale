@@ -14,12 +14,14 @@
 const crypto = require('crypto');
 
 const CHAPTERS = [
+  { id: 'biochem', name: 'Biochemistry', icon: '🧬', file: './biochemistry', pages: [31, 92] },
   { id: 'repro', name: 'Reproductive', icon: '🌸', file: './reproductive', pages: [629, 676] },
   { id: 'resp', name: 'Respiratory', icon: '🫁', file: './respiratory', pages: [677, 706] },
 ];
 
 // The book's sections become the game's categories.
 const SECTION_RANGES = {
+  biochem: [[32, 43, 'Molecular'], [44, 50, 'Cellular'], [51, 54, 'Laboratory Techniques'], [55, 62, 'Genetics'], [63, 70, 'Nutrition'], [71, 92, 'Metabolism']],
   repro: [[630, 641, 'Embryology'], [642, 646, 'Anatomy'], [647, 654, 'Physiology'], [655, 672, 'Pathology'], [673, 676, 'Pharmacology']],
   resp: [[678, 679, 'Embryology'], [680, 681, 'Anatomy'], [682, 689, 'Physiology'], [690, 703, 'Pathology'], [704, 706, 'Pharmacology']],
 };
@@ -27,10 +29,11 @@ const sectionsOf = (ch) => (SECTION_RANGES[ch] || []).map(r => r[2]);
 const sectionOf = (ch, page) => (SECTION_RANGES[ch] || []).find(([a, b]) => page >= a && page <= b)?.[2] || 'Other';
 
 function build(ch) {
-  return require(ch.file).map(([topic, page, question, options, fact]) => ({
+  // An optional 6th field names the category for a page two sections share.
+  return require(ch.file).map(([topic, page, question, options, fact, category]) => ({
     // Stable id from the question text, never the row's position.
     id: `${ch.id}-${crypto.createHash('sha1').update(question).digest('hex').slice(0, 10)}`,
-    chapter: ch.id, section: sectionOf(ch.id, page), topic, page,
+    chapter: ch.id, section: category || sectionOf(ch.id, page), topic, page,
     question, answer: options[0], options, fact,
   }));
 }
