@@ -202,11 +202,11 @@ export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld, onSaudiMLE, o
 
   if (sub === 'uw') {
     return (
-      <div className="ms-screen">
+      <div className="ms-screen ms-story">
         <button className="ms-back-btn" onClick={closeSub}>← Story Mode</button>
 
         <div className="ms-banner">
-          <h1 className="ms-title">📊 UWORLD ADVENTURE</h1>
+          <h1 className="ms-title"><span className="ms-title-icon" aria-hidden="true">📊</span> <span className="ms-title-text">UWORLD ADVENTURE</span></h1>
           <p className="ms-tagline">Choose your expedition.</p>
           <div className="ms-title-rule" />
         </div>
@@ -237,11 +237,11 @@ export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld, onSaudiMLE, o
   if (sub === 'fa' || sub === 'flash') {
     const isFa = sub === 'fa';
     return (
-      <div className="ms-screen">
+      <div className="ms-screen ms-story">
         <button className="ms-back-btn" onClick={closeSub}>← Story Mode</button>
 
         <div className="ms-banner">
-          <h1 className="ms-title">{isFa ? '🚑 FIRST AID JOURNEY' : '🃏 FLASHCARDS'}</h1>
+          <h1 className="ms-title"><span className="ms-title-icon" aria-hidden="true">{isFa ? '🚑' : '🃏'}</span> <span className="ms-title-text">{isFa ? 'FIRST AID JOURNEY' : 'FLASHCARDS'}</span></h1>
           <p className="ms-tagline">{isFa ? 'Choose how you want to learn First Aid.' : 'Pick your deck.'}</p>
           <div className="ms-title-rule" />
         </div>
@@ -354,11 +354,11 @@ export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld, onSaudiMLE, o
   }
 
   return (
-    <div className="ms-screen">
+    <div className="ms-screen ms-story">
       <button className="ms-back-btn" onClick={onBack}>← Back</button>
 
       <div className="ms-banner">
-        <h1 className="ms-title">📖 STORY MODE</h1>
+        <h1 className="ms-title"><span className="ms-title-icon" aria-hidden="true">📖</span> <span className="ms-title-text">STORY MODE</span></h1>
         <p className="ms-tagline">Choose your campaign.</p>
         <div className="ms-title-rule" />
 
@@ -498,7 +498,7 @@ export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld, onSaudiMLE, o
             not be clicked or tabbed into. To open one, swap <LockedCard>
             back for its button. OET, UKMLA and Saudi MLE are medicine-only. */}
         {!isDentistry && (
-          <LockedCard variant="magenta" icon="🇬🇧" name="OET"
+          <LockedCard variant="magenta" icon="💬" name="OET"
             sub="The Occupational English Test, worked through at your own pace." />
         )}
 
@@ -506,7 +506,7 @@ export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld, onSaudiMLE, o
           sub="The procedures a doctor is expected to be able to do, one at a time." />
 
         {!isDentistry && (
-          <LockedCard variant="ukmla" icon="🇬🇧" name="UKMLA / PLAB"
+          <LockedCard variant="ukmla" icon="🏥" name="UKMLA / PLAB"
             sub="The UK Medical Licensing Assessment and PLAB, campaign by campaign." />
         )}
 
