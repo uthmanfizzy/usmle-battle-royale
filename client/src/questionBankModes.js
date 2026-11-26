@@ -104,7 +104,7 @@ export const QUESTION_BANK_MODES = [
     // Subjects that exist only in this bank (stored inactive so no other mode
     // lists them; shown here whatever the admin allow list says). Mirrors
     // BANK_OWN_SUBJECTS in server/index.js.
-    ownSubjects: ['hy_mixed_review', 'hy_obgyn'],
+    ownSubjects: ['hy_mixed_review', 'hy_obgyn', 'hy_genetics'],
     // Split by exam: the student picks Step 1 or Step 2 CK on the page, and
     // each is its own pool (its own game_modes tag) with its own pace. Step 1
     // keeps the bank's original tag, so everything already in the bank is

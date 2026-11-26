@@ -131,6 +131,7 @@ const FOLDERS = [
   // Question Manager, never in another bank's.
   { id: 'hy_mixed_review',  label: 'HY Mixed Reviews',             icon: '⚡', prefix: 'HX',  special: false, onlyIn: 'mehlman_rapid_fire' },
   { id: 'hy_obgyn',         label: 'HY Obgyn',                     icon: '🤰', prefix: 'HO',  special: false, onlyIn: 'mehlman_rapid_fire' },
+  { id: 'hy_genetics',      label: 'HY Genetics',                  icon: '🧬', prefix: 'HG',  special: false, onlyIn: 'mehlman_rapid_fire' },
   // Coming soon
   { id: '__cs_sep__',       label: '',                             icon: '',   prefix: null,  special: true,  separator: true },
   { id: 'pulmonology',      label: 'Pulmonology',                  icon: '🫁', prefix: 'PL',  special: false, comingSoon: true },

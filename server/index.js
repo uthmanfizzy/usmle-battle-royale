@@ -5280,6 +5280,7 @@ function bankSubjectHidden(modeId) {
 const BANK_OWN_SUBJECTS = {
   hy_mixed_review: 'mehlman_rapid_fire',
   hy_obgyn: 'mehlman_rapid_fire',
+  hy_genetics: 'mehlman_rapid_fire',
 };
 
 function bankShowsSubject(modeId, subject) {
@@ -15754,6 +15755,7 @@ const SUBJECT_DEFAULTS = [
   // mode lists it.
   { id: 'hy_mixed_review',  name: 'HY Mixed Reviews',            icon: '⚡', active: false },
   { id: 'hy_obgyn',         name: 'HY Obgyn',                    icon: '🤰', active: false },
+  { id: 'hy_genetics',      name: 'HY Genetics',                 icon: '🧬', active: false },
 ];
 
 // Seed subjects on startup
