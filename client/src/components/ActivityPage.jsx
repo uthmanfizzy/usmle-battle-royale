@@ -59,6 +59,7 @@ const MODE_META = {
   muscle_mapper:          { icon: '💪', label: 'Muscle Mapper'     },
   biostats_lab:           { icon: '📊', label: 'Biostats Lab'      },
   spot_the_diagnosis:     { icon: '🗣️', label: 'Spot the Diagnosis' },
+  hy_diseases:            { icon: '🩺', label: 'HY Diseases'       },
   genetics_roulette:      { icon: '🧬', label: 'Genetics Roulette' },
   drug_match:             { icon: '💊', label: 'Drug Mechanism Match' },
   lab_range:              { icon: '🧫', label: 'Lab Range'         },

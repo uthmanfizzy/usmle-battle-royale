@@ -53,6 +53,7 @@ export const PLANNER_MODES = [
   T('murmurs', 'Murmurs', '🩺'), T('pv_loops', 'PV Loop Lab', '🫀'),
   T('clot_cascade', 'Clot Cascade', '🩸'), T('vitamin_vault', 'Vitamin Vault', '🍊'),
   T('pathway_navigator', 'Pathway Navigator', '🧭'), T('onco_atlas', 'Onco Atlas', '🎗️'),
+  T('hy_diseases', 'HY Diseases', '🩺'),
 ];
 const BY_MODE = Object.fromEntries(PLANNER_MODES.map(m => [m.mode, m]));
 export const modeInfo = (mode) => BY_MODE[mode] || { mode, label: mode.replace(/_/g, ' '), icon: '🎮', secPerQ: 60, unit: 'questions' };

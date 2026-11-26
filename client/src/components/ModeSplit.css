@@ -1025,6 +1025,12 @@
 .ms-journey-card--kaplan:hover { box-shadow: 0 0 28px rgba(109, 40, 217, 0.55); }
 .ms-journey-card--kaplan .ms-journey-name { color: #d8b4fe; }
 
+/* HY Diseases — a calm clinic teal, set apart from ORE/LDS teal by its
+   greener hue. Shared by the Story Mode card and the /hy-diseases hub. */
+.ms-journey-card--hyd { --ms-accent-rgb: 42, 190, 160; border-color: #2abea0; box-shadow: 0 0 18px rgba(42, 190, 160, 0.24); }
+.ms-journey-card--hyd:hover { box-shadow: 0 0 28px rgba(42, 190, 160, 0.5); }
+.ms-journey-card--hyd .ms-journey-name { color: #9ff0dc; }
+
 /* ── Locked campaigns ─────────────────────────────────────────────────────
    Visible but closed: dimmed and desaturated, no glow, no hover lift, a
    not-allowed cursor — and the 🔒 LOCKED chip in the name says it in words,

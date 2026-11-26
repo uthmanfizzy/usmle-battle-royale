@@ -532,6 +532,22 @@ export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld, onSaudiMLE, o
         </button>
         )}
 
+        {/* HY Diseases: high-yield diseases taught as patients to diagnose.
+            A hub of subjects (/hy-diseases); Biochemistry is open. */}
+        {!isDentistry && (
+        <button className="ms-journey-card ms-journey-card--hyd" onClick={() => { window.location.href = '/hy-diseases'; }}>
+          <div className="ms-journey-art" aria-hidden="true">
+            <span className="ms-journey-art-icon">🩺</span>
+          </div>
+          <div className="ms-journey-body">
+            <span className="ms-journey-name">HY DISEASES</span>
+            <span className="ms-journey-sub">
+              Meet animated patients and diagnose them: history, exam, look-alikes, explained simply.
+            </span>
+          </div>
+        </button>
+        )}
+
         {/* Mehlman Rapid Fire — the same question-bank machine on its own
             tag and its own yellow. */}
         {!isDentistry && (

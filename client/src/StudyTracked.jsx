@@ -35,6 +35,7 @@ export const MINIGAME_LABELS = {
   vitamin_vault: 'Vitamin Vault',
   pathway_navigator: 'Pathway Navigator',
   onco_atlas: 'Onco Atlas',
+  hy_diseases: 'HY Diseases',
 };
 
 export function useTimeStudy(mode) {

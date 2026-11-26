@@ -37,6 +37,8 @@ const AmbossQbank       = lazy(() => import('./components/AmbossQbank'));
 import StudyTracked from './StudyTracked';
 const KaplanHub         = lazy(() => import('./components/KaplanHub'));
 const KaplanEthics      = lazy(() => import('./components/KaplanEthics'));
+const HyDiseasesHub     = lazy(() => import('./components/HyDiseasesHub'));
+const HyDiseasesBio     = lazy(() => import('./components/HyDiseasesBio'));
 const ReelsPage         = lazy(() => import('./components/ReelsPage'));
 const PathwayNavigator  = lazy(() => import('./components/PathwayNavigator'));
 const ECGReader         = lazy(() => import('./components/ECGReader'));
@@ -187,6 +189,9 @@ ReactDOM.createRoot(document.getElementById('root')).render(
                 <Route path="/amboss-qbank" element={<RouteErrorBoundary name="AmbossQbank"><AmbossQbank /></RouteErrorBoundary>} />
                 <Route path="/kaplan" element={<RouteErrorBoundary name="KaplanHub"><KaplanHub /></RouteErrorBoundary>} />
                 <Route path="/kaplan-ethics" element={<RouteErrorBoundary name="KaplanEthics"><KaplanEthics /></RouteErrorBoundary>} />
+                {/* HY Diseases: a hub of subjects; Biochemistry is "Clinic Rounds". */}
+                <Route path="/hy-diseases" element={<RouteErrorBoundary name="HyDiseasesHub"><HyDiseasesHub /></RouteErrorBoundary>} />
+                <Route path="/hy-diseases/biochem" element={<RouteErrorBoundary name="HyDiseasesBio"><StudyTracked mode="hy_diseases"><HyDiseasesBio onExit={() => { window.location.href = '/hy-diseases'; }} /></StudyTracked></RouteErrorBoundary>} />
                 <Route path="/hy-flashcards" element={<RouteErrorBoundary name="HYFlashcards"><HYFlashcards /></RouteErrorBoundary>} />
                 <Route path="/reels"          element={<RouteErrorBoundary name="ReelsPage"><ReelsPage /></RouteErrorBoundary>} />
                 <Route path="/fa-hy-qs" element={<RouteErrorBoundary name="FAHYQs"><FAHYQs /></RouteErrorBoundary>} />
