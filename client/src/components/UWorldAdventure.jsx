@@ -201,12 +201,37 @@ function subjectArt(s) {
   return { '--uwa-art-rgb': subjectRgb(s) };
 }
 
+// A bank split by exam (Mehlman Rapid Fire: Step 1 / Step 2 CK) keeps the
+// chosen step here and remounts the page under it, so every count, pace and
+// session below belongs to that step's pool and nothing carries across.
+const STEP_KEY = 'mr_bank_step_';
 export default function UWorldAdventure({ mode = DEFAULT_QUESTION_BANK_MODE }) {
+  const steps = mode.steps || null;
+  const [step, setStepState] = useState(() => {
+    if (!steps) return null;
+    try {
+      const saved = localStorage.getItem(STEP_KEY + mode.id);
+      return steps.some(s => s.id === saved) ? saved : steps[0].id;
+    } catch { return steps[0].id; }
+  });
+  const setStep = (id) => {
+    setStepState(id);
+    try { localStorage.setItem(STEP_KEY + mode.id, id); } catch { /* per-viewer nicety only */ }
+  };
+  return <UWorldAdventurePage key={step || 'all'} mode={mode} steps={steps} step={step} setStep={setStep} />;
+}
+
+function UWorldAdventurePage({ mode, steps, step, setStep }) {
   // Which bank this page is working through. Everything below is the same
   // machine — only the tag it filters on, the pace it plans and the colours
   // it wears change.
   const MODE = mode.id;
-  const PACE_SCOPE = mode.paceScope;
+  // The tag the pool is filtered on. Normally the bank's own id; a step of a
+  // split bank has its own tag (and its own pace), while settings, skin and
+  // clocks stay the bank's.
+  const stepDef = steps?.find(s => s.id === step) || null;
+  const TAG = stepDef?.tag || MODE;
+  const PACE_SCOPE = mode.paceScope + (stepDef?.paceSuffix || '');
   // Mehlman Rapid Fire wears its own neon-storm skin (RapidFire.css) and has
   // its own arcade sounds; every other bank is untouched by either.
   const RF = MODE === 'mehlman_rapid_fire';
@@ -357,7 +382,7 @@ export default function UWorldAdventure({ mode = DEFAULT_QUESTION_BANK_MODE }) {
 
   const loadProgress = useCallback(async (subjectId) => {
     if (!user?.id) return null;
-    const res = await authFetch(`/api/users/${user.id}/question-bank-progress?subject=${encodeURIComponent(subjectId)}&mode=${MODE}`);
+    const res = await authFetch(`/api/users/${user.id}/question-bank-progress?subject=${encodeURIComponent(subjectId)}&mode=${TAG}`);
     return res.json();
   }, [user?.id]);
 
@@ -375,7 +400,7 @@ export default function UWorldAdventure({ mode = DEFAULT_QUESTION_BANK_MODE }) {
       local_date: now.toLocaleDateString('en-CA'),
       tz_offset:  String(now.getTimezoneOffset()),
     });
-    const res = await authFetch(`/api/users/${user.id}/question-bank-progress?${params}&mode=${MODE}`);
+    const res = await authFetch(`/api/users/${user.id}/question-bank-progress?${params}&mode=${TAG}`);
     return res.json();
   }, [user?.id]);
 
@@ -388,12 +413,25 @@ export default function UWorldAdventure({ mode = DEFAULT_QUESTION_BANK_MODE }) {
     // Per-subject counts for the grid. One request for every subject — the
     // page used to know only the SELECTED subject's remaining count, so the
     // number appeared on a card only after you clicked it.
-    authFetch(`/api/question-bank-progress/by-subject?mode=${MODE}`)
+    authFetch(`/api/question-bank-progress/by-subject?mode=${TAG}`)
       .then(r => r.json())
       .then(d => { if (!cancelled && d && typeof d.subjects === 'object') setSubjectCounts(d.subjects); })
       .catch(() => {});   // the grid is still usable without counts
     return () => { cancelled = true; };
   }, [user?.id, loadOverall, MODE]);
+
+  // A split bank lists only the systems its step actually has questions in:
+  // Step 2 CK starts with a single system, and a grid of empty ones would read
+  // as a bank that is broken rather than one that is growing. Waits for real
+  // counts, so a failed count request never empties the grid.
+  useEffect(() => {
+    if (!steps || !Object.keys(subjectCounts).length || !subjects.length) return;
+    const keep = subjects.filter(s => (subjectCounts[s.id]?.total || 0) > 0);
+    if (!keep.length || keep.length === subjects.length) return;
+    setSubjects(keep);
+    setDevSubjects([]);
+    setSelected(sel => (keep.some(k => k.id === sel) ? sel : keep[0].id));
+  }, [steps, subjectCounts, subjects]);
 
   // Rating-pile counts for "Review Rated Questions" — scoped to the OPEN
   // SUBJECT. Revision is per system: a pile mixing biochemistry with
@@ -401,7 +439,7 @@ export default function UWorldAdventure({ mode = DEFAULT_QUESTION_BANK_MODE }) {
   // stays adventure-wide; that one genuinely is a whole-adventure number.)
   const loadRatingCounts = useCallback(async (subjectId) => {
     if (!user?.id || !subjectId) return null;
-    const res = await authFetch(`/api/uworld-questions/rating-counts?subject=${encodeURIComponent(subjectId)}&mode=${MODE}`);
+    const res = await authFetch(`/api/uworld-questions/rating-counts?subject=${encodeURIComponent(subjectId)}&mode=${TAG}`);
     return res.json();
   }, [user?.id]);
 
@@ -535,7 +573,7 @@ export default function UWorldAdventure({ mode = DEFAULT_QUESTION_BANK_MODE }) {
     setStarting(true);
     setStartError('');
     try {
-      const res = await authFetch(`/api/questions/unseen?subject=${encodeURIComponent(selected)}&limit=${blockSize}&mode=${MODE}`);
+      const res = await authFetch(`/api/questions/unseen?subject=${encodeURIComponent(selected)}&limit=${blockSize}&mode=${TAG}`);
       const data = await res.json();
       const qs = data.questions || [];
       if (qs.length === 0) {
@@ -575,7 +613,7 @@ export default function UWorldAdventure({ mode = DEFAULT_QUESTION_BANK_MODE }) {
         : '';
       const res = await authFetch(
         `/api/uworld-questions/by-rating?rating=${encodeURIComponent(ratingKey)}` +
-        `&subject=${encodeURIComponent(selected)}&limit=${UWORLD_REVIEW_LIMIT}&mode=${MODE}${fresh}`
+        `&subject=${encodeURIComponent(selected)}&limit=${UWORLD_REVIEW_LIMIT}&mode=${TAG}${fresh}`
       );
       const data = await res.json();
       const qs = data.questions || [];
@@ -611,7 +649,7 @@ export default function UWorldAdventure({ mode = DEFAULT_QUESTION_BANK_MODE }) {
       // block of forty ended after six is six questions of work, and that is
       // what the day should show.
       body: JSON.stringify({
-        subject: selected, pct, seconds: activeSeconds, mode: MODE, questions: total,
+        subject: selected, pct, seconds: activeSeconds, mode: TAG, questions: total,
       }),
     }).catch(() => {});
   }
@@ -629,7 +667,7 @@ export default function UWorldAdventure({ mode = DEFAULT_QUESTION_BANK_MODE }) {
     loadOverall().then(o => { if (o) setOverall(o); }).catch(() => {});
     // ...and so did the grid's "N left" badges. Without this they would keep
     // showing the pre-session number until the page was reloaded.
-    authFetch(`/api/question-bank-progress/by-subject?mode=${MODE}`)
+    authFetch(`/api/question-bank-progress/by-subject?mode=${TAG}`)
       .then(r => r.json())
       .then(d => { if (d && typeof d.subjects === 'object') setSubjectCounts(d.subjects); })
       .catch(() => {});
@@ -783,6 +821,17 @@ export default function UWorldAdventure({ mode = DEFAULT_QUESTION_BANK_MODE }) {
               </span>
             ))}
           </h1>
+          {steps && (
+            <div className="uwa-step-toggle" role="tablist" aria-label="Exam">
+              {steps.map(s => (
+                <button key={s.id} type="button" role="tab" aria-selected={s.id === step}
+                  className={s.id === step ? 'on' : undefined}
+                  onClick={() => { if (s.id !== step) { rf?.select(); setStep(s.id); } }}>
+                  {s.label}
+                </button>
+              ))}
+            </div>
+          )}
           <p className="uwa-hero-sub">{RF
             ? `Pick a system. Beat the clock — ${mode.questionSeconds || 30} seconds a question.`
             : 'Choose your subject to begin your journey.'}</p>

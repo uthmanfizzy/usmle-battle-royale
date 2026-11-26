@@ -310,6 +310,35 @@ html[data-study="on"] .screen.solo-screen.uw-exam.uw-theme-mehlman_rapid_fire {
 }
 .uwa.rf-skin .uwa-hero-back:hover { background: rgba(255, 210, 63, 0.18); color: #fff; }
 
+/* Exam switch (Step 1 / Step 2 CK): two pills under the title. */
+.uwa .uwa-step-toggle {
+  display: inline-flex;
+  gap: 4px;
+  margin: 10px 0 4px;
+  padding: 4px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(8, 5, 26, 0.55);
+}
+.uwa .uwa-step-toggle button {
+  border: 0;
+  border-radius: 999px;
+  padding: 8px 18px;
+  min-height: 36px;
+  background: transparent;
+  color: rgba(244, 240, 255, 0.7);
+  font: 700 13px var(--rf-ui, 'Inter', system-ui, sans-serif);
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+}
+.uwa .uwa-step-toggle button:hover { color: #fff; }
+.uwa .uwa-step-toggle button.on {
+  background: var(--rf-volt, #ffd23f);
+  color: #1a1030;
+  box-shadow: 0 0 18px rgba(255, 210, 63, 0.45);
+}
+
 /* Sound switch, top-right of the hero. */
 .uwa.rf-skin .rf-sfx-toggle {
   position: absolute;

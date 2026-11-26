@@ -5231,7 +5231,14 @@ const UWORLD_MODE_JSON = JSON.stringify([UWORLD_MODE]);
 // Whitelisted, never passed through: this string goes straight into a
 // game_modes containment filter, so an arbitrary one from the query would let a
 // caller scope these endpoints to any tag they liked.
-const QUESTION_BANK_MODE_IDS = ['uworld_adventure', 'saudi_mle', 'ore_lds', 'mehlman_rapid_fire', 'oet', 'clinical', 'amboss_200_concepts'];
+const QUESTION_BANK_MODE_IDS = ['uworld_adventure', 'saudi_mle', 'ore_lds', 'mehlman_rapid_fire', 'mehlman_rapid_fire_step2', 'oet', 'clinical', 'amboss_200_concepts'];
+
+// Mehlman Rapid Fire is split by exam. Step 1 questions carry the bank's own
+// tag and Step 2 CK questions carry mehlman_rapid_fire_step2, so each step is
+// its own pool on every endpoint above with no new filter. Settings (subject
+// lists, owned subjects) are shared: the step tag is configured as its bank.
+const BANK_CONFIG_MODE = { mehlman_rapid_fire_step2: 'mehlman_rapid_fire' };
+const bankConfigMode = (m) => BANK_CONFIG_MODE[m] || m;
 
 function modeTagFrom(req) {
   const m = (req.query.mode || '').toString();
@@ -5252,7 +5259,7 @@ const modeJson = (tag) => JSON.stringify([tag]);
 // an empty page with no way back through the player UI.
 function bankSubjectAllowList(modeId) {
   const cfg = gameSettings.questionBankSubjects;
-  const list = cfg && cfg[modeId];
+  const list = cfg && cfg[bankConfigMode(modeId)];
   return Array.isArray(list) && list.length ? new Set(list.map(String)) : null;
 }
 
@@ -5261,7 +5268,7 @@ function bankSubjectAllowList(modeId) {
 // rather than null, and only an absent entry falls through to the default.
 function bankSubjectHidden(modeId) {
   const cfg = gameSettings.questionBankHiddenSubjects;
-  const list = cfg && cfg[modeId];
+  const list = cfg && cfg[bankConfigMode(modeId)];
   return Array.isArray(list) ? new Set(list.map(String)) : new Set();
 }
 
@@ -5272,11 +5279,12 @@ function bankSubjectHidden(modeId) {
 // allow list says. Mirrors ownSubjects in client/src/questionBankModes.js.
 const BANK_OWN_SUBJECTS = {
   hy_mixed_review: 'mehlman_rapid_fire',
+  hy_obgyn: 'mehlman_rapid_fire',
 };
 
 function bankShowsSubject(modeId, subject) {
   const owner = BANK_OWN_SUBJECTS[subject.id];
-  if (owner) return owner === modeId && !bankSubjectHidden(modeId).has(subject.id);
+  if (owner) return owner === bankConfigMode(modeId) && !bankSubjectHidden(modeId).has(subject.id);
   const allow = bankSubjectAllowList(modeId);
   if (bankSubjectHidden(modeId).has(subject.id)) return false;
   return allow ? allow.has(subject.id) : !!subject.active;
@@ -5287,6 +5295,7 @@ const QUESTION_BANK_ACTIVITY_MODE = {
   saudi_mle:        'saudi_mle_practice',
   ore_lds:          'ore_lds_practice',
   mehlman_rapid_fire: 'mehlman_rapid_fire_practice',
+  mehlman_rapid_fire_step2: 'mehlman_rapid_fire_practice',
   oet:              'oet_practice',
   // Clinical was missing here, so its sessions were logged as UWorld.
   clinical:         'clinical_practice',
@@ -15744,6 +15753,7 @@ const SUBJECT_DEFAULTS = [
   // Mehlman Rapid Fire only (BANK_OWN_SUBJECTS): stored inactive so no other
   // mode lists it.
   { id: 'hy_mixed_review',  name: 'HY Mixed Reviews',            icon: '⚡', active: false },
+  { id: 'hy_obgyn',         name: 'HY Obgyn',                    icon: '🤰', active: false },
 ];
 
 // Seed subjects on startup

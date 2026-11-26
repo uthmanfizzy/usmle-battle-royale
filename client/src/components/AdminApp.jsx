@@ -58,6 +58,8 @@ const GAME_MODES = [
   { id: 'uworld_adventure', label: 'UWorld Adventure', icon: '🌍', color: '#3f7fd6' },
   { id: 'saudi_mle',        label: 'Saudi MLE',        icon: '🇸🇦', color: '#16895a' },
   { id: 'mehlman_rapid_fire', label: 'Mehlman Rapid Fire', icon: '⚡', color: '#e2aa20' },
+  // Rapid Fire's Step 2 CK pool. The plain tag above is Step 1.
+  { id: 'mehlman_rapid_fire_step2', label: 'Mehlman Rapid Fire · Step 2 CK', icon: '⚡', color: '#c98a10' },
   // The duel pool is built from questions carrying this tag (startPvpDuel in
   // server/index.js). It was missing here, so there was no way to put a
   // question into PvP Arenas at all.
@@ -76,6 +78,11 @@ const OET_MODE = 'oet';
 const CLINICAL_MODE = 'clinical';
 const AMBOSS_200_MODE = 'amboss_200_concepts';
 const MEHLMAN_MODE = 'mehlman_rapid_fire';
+// A bank split into steps lists every step's questions in its tab, and an
+// import into the tab keeps a question's own step tag rather than adding the
+// bank's (which would put a Step 2 CK question into Step 1 as well).
+const BANK_TAG_FAMILY = { mehlman_rapid_fire: ['mehlman_rapid_fire', 'mehlman_rapid_fire_step2'] };
+const inBankScope = (q, tag) => (q.game_modes || []).some(t => (BANK_TAG_FAMILY[tag] || [tag]).includes(t));
 // Folders that scope by game_modes TAG rather than by subject/category.
 // Anything true of one is true of the other, so they are listed once here
 // instead of being special-cased separately at each site below.
@@ -123,6 +130,7 @@ const FOLDERS = [
   // questionBankModes.js): listed inside that bank's section and in the full
   // Question Manager, never in another bank's.
   { id: 'hy_mixed_review',  label: 'HY Mixed Reviews',             icon: '⚡', prefix: 'HX',  special: false, onlyIn: 'mehlman_rapid_fire' },
+  { id: 'hy_obgyn',         label: 'HY Obgyn',                     icon: '🤰', prefix: 'HO',  special: false, onlyIn: 'mehlman_rapid_fire' },
   // Coming soon
   { id: '__cs_sep__',       label: '',                             icon: '',   prefix: null,  special: true,  separator: true },
   { id: 'pulmonology',      label: 'Pulmonology',                  icon: '🫁', prefix: 'PL',  special: false, comingSoon: true },
@@ -1682,7 +1690,8 @@ function BulkImportModal({ activeFolder, selectedTopic, selectedDifficulty, onIm
       // Imported from a bank's tab: every question joins that bank, on top of
       // any modes the file already lists.
       const questions = scopeTag
-        ? parsedData.map(q => ({ ...q, game_modes: [...new Set([...(Array.isArray(q.game_modes) ? q.game_modes : []), scopeTag])] }))
+        ? parsedData.map(q => (inBankScope(q, scopeTag) ? q
+          : { ...q, game_modes: [...new Set([...(Array.isArray(q.game_modes) ? q.game_modes : []), scopeTag])] }))
         : parsedData;
       const res  = await apiCall('/admin/questions/bulk', {
         method: 'POST',
@@ -2731,7 +2740,7 @@ function QuestionsPanel({ subjects = [], scopeTag = null }) {
     || scopeTag;
 
   const scoped = scopeTag
-    ? questions.filter(q => (q.game_modes || []).includes(scopeTag))
+    ? questions.filter(q => inBankScope(q, scopeTag))
     : questions;
 
   const folderCounts = FOLDERS.reduce((acc, f) => {

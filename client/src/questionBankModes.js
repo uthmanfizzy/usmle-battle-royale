@@ -104,7 +104,15 @@ export const QUESTION_BANK_MODES = [
     // Subjects that exist only in this bank (stored inactive so no other mode
     // lists them; shown here whatever the admin allow list says). Mirrors
     // BANK_OWN_SUBJECTS in server/index.js.
-    ownSubjects: ['hy_mixed_review'],
+    ownSubjects: ['hy_mixed_review', 'hy_obgyn'],
+    // Split by exam: the student picks Step 1 or Step 2 CK on the page, and
+    // each is its own pool (its own game_modes tag) with its own pace. Step 1
+    // keeps the bank's original tag, so everything already in the bank is
+    // Step 1. Mirrors BANK_CONFIG_MODE in server/index.js.
+    steps: [
+      { id: 'step1', label: 'Step 1',    tag: 'mehlman_rapid_fire' },
+      { id: 'step2', label: 'Step 2 CK', tag: 'mehlman_rapid_fire_step2', paceSuffix: 'step2__' },
+    ],
     // Opened from the Mehlman hub (Rapid Fire Qbank / HY Arrows), so its
     // back button returns there rather than to Story Mode.
     back: { route: '/mehlman', label: 'Mehlman' },
