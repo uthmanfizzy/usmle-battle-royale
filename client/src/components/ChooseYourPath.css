@@ -319,3 +319,235 @@
   text-transform: uppercase;
 }
 .tg-locked-sub { margin: 0; font-family: 'Crimson Text', Georgia, serif; font-size: 17px; color: rgba(241, 237, 228, 0.72); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Choose Your Path: polish + motion. The screen also carries .ms-story, so it
+   shares Story Mode's aurora, drifting dust and glass Back button
+   (ModeSplit.css). Hover effects use the individual `translate` / `scale`
+   properties so they stack on top of the entrance animation's `transform`
+   instead of fighting it.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Title: the gold gradient keeps its depth, and a bright band glides across. */
+.cyp-screen .cyp-title {
+  background:
+    linear-gradient(100deg, transparent 40%, rgba(255, 250, 230, 0.95) 50%, transparent 60%) no-repeat,
+    linear-gradient(180deg, #fff1c9 0%, #e8b04b 55%, #a8741e 100%);
+  background-size: 250% 100%, 100% 100%;
+  background-position: 160% 0, 0 0;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: cyp-title-shine 6.5s ease-in-out 0.8s infinite;
+}
+@keyframes cyp-title-shine {
+  0%, 12%   { background-position: 160% 0, 0 0; }
+  50%, 100% { background-position: -60% 0, 0 0; }
+}
+
+/* Ornament: lines draw outward from the crown, which glows softly. */
+.cyp-screen .cyp-ornament span {
+  transform-origin: right center;
+  animation: cyp-line-in 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.25s both;
+}
+.cyp-screen .cyp-ornament span:last-child { transform-origin: left center; }
+.cyp-screen .cyp-ornament i {
+  display: inline-block;
+  animation: cyp-crown 3.2s ease-in-out infinite;
+}
+@keyframes cyp-line-in {
+  from { transform: scaleX(0); opacity: 0; }
+  to   { transform: scaleX(1); opacity: 1; }
+}
+@keyframes cyp-crown {
+  0%, 100% { text-shadow: 0 0 4px rgba(232, 176, 75, 0.4); translate: 0 0; }
+  50%      { text-shadow: 0 0 14px rgba(255, 214, 120, 0.95); translate: 0 -2px; }
+}
+.cyp-screen .cyp-tagline { animation: cyp-tag-in 1s ease-out 0.35s both; }
+@keyframes cyp-tag-in {
+  from { opacity: 0; letter-spacing: 0.32em; }
+  to   { opacity: 1; letter-spacing: 0.16em; }
+}
+
+/* Cards: a deeper entrance, staggered by each card's own --cyp-delay. */
+.cyp-screen .cyp-list { perspective: 1400px; }
+.cyp-screen .cyp-card {
+  animation:
+    cyp-card-in 0.8s cubic-bezier(0.22, 1, 0.36, 1) calc(0.15s + var(--cyp-delay)) both,
+    cyp-glow 3.2s ease-in-out var(--cyp-delay) infinite;
+  transition:
+    translate 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    scale 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    filter 0.35s ease;
+}
+@keyframes cyp-card-in {
+  from { opacity: 0; transform: translate3d(0, 46px, 0) rotateX(14deg) scale(0.94); }
+  to   { opacity: 1; transform: none; }
+}
+.cyp-screen .cyp-card:hover { transform: none; }   /* the old lift fought the entrance */
+
+@media (hover: hover) {
+  .cyp-screen .cyp-card:not(.is-locked):hover {
+    translate: 0 -10px;
+    scale: 1.025;
+    animation:
+      cyp-card-in 0.8s cubic-bezier(0.22, 1, 0.36, 1) calc(0.15s + var(--cyp-delay)) both,
+      cyp-glow-hot 1.6s ease-in-out infinite;
+  }
+  /* Spotlight: the cards you are not pointing at step back a little. */
+  .cyp-screen .cyp-list:hover .cyp-card:not(:hover) { filter: brightness(0.62) saturate(0.8); }
+}
+@keyframes cyp-glow-hot {
+  0%, 100% { box-shadow: 0 24px 50px rgba(0, 0, 0, 0.65), 0 0 34px rgba(var(--cyp-rgb), 0.5); }
+  50%      { box-shadow: 0 24px 50px rgba(0, 0, 0, 0.65), 0 0 54px rgba(var(--cyp-rgb), 0.75); }
+}
+
+/* Art: a slow Ken Burns drift at rest, a push-in on hover. */
+.cyp-screen .cyp-art {
+  animation: cyp-kenburns 22s ease-in-out infinite alternate;
+  animation-delay: calc(var(--cyp-delay) * -40);
+  transition: scale 0.8s cubic-bezier(0.22, 1, 0.36, 1), filter 0.5s ease;
+}
+@keyframes cyp-kenburns {
+  from { transform: scale(1.04) translate3d(-1.2%, 0.8%, 0); }
+  to   { transform: scale(1.12) translate3d(1.2%, -1.2%, 0); }
+}
+.cyp-screen .cyp-card:not(.is-locked):hover .cyp-art { scale: 1.07; filter: brightness(1.12) saturate(1.1); }
+
+/* Embers in the card's colour, rising out of the dark at the bottom. */
+.cyp-motes {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+  border-radius: inherit;
+  background-image:
+    radial-gradient(2px 2px at 14% 30%, rgba(var(--cyp-rgb), 0.95), transparent 70%),
+    radial-gradient(1.5px 1.5px at 38% 72%, var(--cyp-hi), transparent 70%),
+    radial-gradient(2.5px 2.5px at 61% 18%, rgba(var(--cyp-rgb), 0.85), transparent 70%),
+    radial-gradient(1.5px 1.5px at 83% 55%, var(--cyp-hi), transparent 70%),
+    radial-gradient(2px 2px at 27% 90%, rgba(var(--cyp-rgb), 0.9), transparent 70%),
+    radial-gradient(1px 1px at 72% 86%, rgba(255, 255, 255, 0.8), transparent 70%);
+  background-size: 100% 340px;
+  -webkit-mask-image: linear-gradient(0deg, #000 0%, #000 35%, transparent 85%);
+  mask-image: linear-gradient(0deg, #000 0%, #000 35%, transparent 85%);
+  opacity: 0.7;
+  animation: cyp-embers 9s linear infinite;
+  animation-delay: calc(var(--cyp-delay) * -20);
+}
+@keyframes cyp-embers {
+  from { background-position: 0 0; }
+  to   { background-position: 0 -340px; }
+}
+/* The light sweep that crosses the card on hover. */
+.cyp-motes::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -70%;
+  width: 50%;
+  background: linear-gradient(105deg, transparent, rgba(255, 255, 255, 0.07) 40%, rgba(255, 255, 255, 0.2) 50%, transparent 62%);
+  transform: skewX(-14deg);
+  opacity: 0;
+}
+.cyp-screen .cyp-card:not(.is-locked):hover .cyp-motes::after {
+  opacity: 1;
+  animation: cyp-sweep 1s ease forwards;
+}
+@keyframes cyp-sweep {
+  from { left: -70%; }
+  to   { left: 140%; }
+}
+.cyp-screen .cyp-body { position: relative; z-index: 1; }
+
+/* Medallion: a ring that ripples outward, an icon that bobs, and a spin-up
+   on hover. */
+.cyp-screen .cyp-medal {
+  position: relative;
+  transition: scale 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
+}
+.cyp-screen .cyp-medal::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(var(--cyp-rgb), 0.8);
+  animation: cyp-ripple 2.8s ease-out infinite;
+  animation-delay: calc(var(--cyp-delay) * 4);
+  pointer-events: none;
+}
+@keyframes cyp-ripple {
+  0%        { transform: scale(1);   opacity: 0.85; }
+  70%, 100% { transform: scale(1.7); opacity: 0; }
+}
+.cyp-screen .cyp-medal > span {
+  display: inline-block;
+  animation: cyp-bob 3.6s ease-in-out infinite;
+  animation-delay: calc(var(--cyp-delay) * -6);
+  transition: rotate 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes cyp-bob {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-3px); }
+}
+.cyp-screen .cyp-card:not(.is-locked):hover .cyp-medal {
+  scale: 1.14;
+  box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.45), 0 0 0 5.5px rgba(var(--cyp-rgb), 0.8), 0 0 30px rgba(var(--cyp-rgb), 0.85);
+}
+.cyp-screen .cyp-card:not(.is-locked):hover .cyp-medal > span { rotate: 360deg; }
+
+/* Title and CTA wake up on hover; the chevron slides out. */
+.cyp-screen .cyp-name { transition: text-shadow 0.3s ease, letter-spacing 0.4s ease; }
+.cyp-screen .cyp-card:not(.is-locked):hover .cyp-name {
+  letter-spacing: 0.08em;
+  text-shadow: 0 0 24px rgba(var(--cyp-rgb), 0.85), 0 2px 6px rgba(0, 0, 0, 0.7);
+}
+.cyp-screen .cyp-cta {
+  position: relative;
+  overflow: hidden;
+  transition: background 0.25s ease, box-shadow 0.25s ease, gap 0.3s ease;
+}
+.cyp-screen .cyp-cta span { transition: translate 0.3s ease; }
+.cyp-screen .cyp-card:not(.is-locked):hover .cyp-cta { gap: 16px; }
+.cyp-screen .cyp-card:not(.is-locked):hover .cyp-cta span { animation: cyp-nudge 0.9s ease-in-out infinite; }
+@keyframes cyp-nudge {
+  0%, 100% { translate: 0 0; }
+  50%      { translate: 4px 0; }
+}
+.cyp-screen .cyp-card:not(.is-locked):active { scale: 0.99; translate: 0 -4px; transition-duration: 0.1s; }
+
+/* Locked: a quieter card, embers out. */
+.cyp-screen .cyp-card.is-locked .cyp-motes { opacity: 0.25; animation-duration: 18s; }
+.cyp-screen .cyp-card.is-locked .cyp-medal::after { animation: none; opacity: 0; }
+.cyp-screen .cyp-card.is-locked .cyp-art { filter: saturate(0.6) brightness(0.8); }
+.cyp-screen .cyp-card.is-locked .cyp-lock-pill { animation: cyp-lock 4s ease-in-out infinite; }
+@keyframes cyp-lock {
+  0%, 100% { border-color: rgba(255, 255, 255, 0.22); }
+  50%      { border-color: rgba(224, 87, 75, 0.6); }
+}
+
+/* Footer crown shares the header ornament's glow. */
+.cyp-screen .cyp-foot { animation: cyp-rise 0.6s ease-out 0.7s both; }
+
+@media (max-width: 640px) {
+  .cyp-motes { background-size: 100% 260px; }
+  @keyframes cyp-embers { to { background-position: 0 -260px; } }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cyp-screen .cyp-title,
+  .cyp-screen .cyp-ornament span,
+  .cyp-screen .cyp-ornament i,
+  .cyp-screen .cyp-tagline,
+  .cyp-screen .cyp-art,
+  .cyp-motes,
+  .cyp-screen .cyp-medal::after,
+  .cyp-screen .cyp-medal > span,
+  .cyp-screen .cyp-lock-pill { animation: none; }
+  .cyp-screen .cyp-card { animation: none; }
+  .cyp-screen .cyp-card:not(.is-locked):hover { translate: none; scale: none; animation: none; }
+  .cyp-screen .cyp-card:not(.is-locked):hover .cyp-art { scale: none; }
+  .cyp-screen .cyp-card:not(.is-locked):hover .cyp-medal > span { rotate: none; }
+}

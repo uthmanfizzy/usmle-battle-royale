@@ -38,6 +38,7 @@ function PathCard({ variant, icon, title, sub, art, onClick, locked, cta }) {
       className={`cyp-card cyp-card--${variant}${locked ? ' is-locked' : ''}${art ? ' has-art' : ''}`}
     >
       {art && <img className="cyp-art" src={art} alt="" />}
+      <span className="cyp-motes" aria-hidden="true" />
       <span className="cyp-body">
         <span className="cyp-medal" aria-hidden="true"><span>{icon}</span></span>
         <span className="cyp-name">{title}</span>
@@ -59,7 +60,7 @@ function PathCard({ variant, icon, title, sub, art, onClick, locked, cta }) {
 export default function ModeSplit({ onStory, onOnline, onTraining, onMinigames, onBack }) {
   const art = useModeArt();
   return (
-    <div className="ms-screen cyp-screen">
+    <div className="ms-screen ms-story cyp-screen">
       <button className="ms-back-btn" onClick={onBack}>← Back</button>
 
       <header className="cyp-head">
