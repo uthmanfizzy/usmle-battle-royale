@@ -89,6 +89,21 @@
 .cs-cur-add:hover { color: #fff !important; }
 .cs-cur-add svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
 
+/* Notifications + Settings: round buttons beside the avatar, each opening the
+   shared panels (NotificationsDropdown / SettingsDropdown) under it. */
+.cs-tb-wrap { position: relative; }
+.cs-tb-btn {
+  position: relative; width: 44px; height: 44px; display: grid; place-items: center; padding: 0; cursor: pointer;
+  border-radius: 50%; border: 1px solid #35207a; background: rgba(19, 14, 51, 0.72); color: #c9b3ff;
+  transition: color .15s ease, border-color .15s ease, box-shadow .15s ease;
+}
+.cs-tb-btn:hover, .cs-tb-btn.is-on { color: #fff; border-color: #b565ff; box-shadow: 0 0 10px rgba(181, 101, 255, 0.45); }
+.cs-tb-btn:focus-visible { outline: 2px solid #e6a8ff; outline-offset: 2px; }
+.cs-tb-btn svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.cs-tb-dot { position: absolute; top: 9px; right: 10px; width: 9px; height: 9px; border-radius: 50%; background: #e052ff; box-shadow: 0 0 8px #e052ff; border: 1.5px solid #130c2e; }
+.cs-tb-drop { position: absolute; top: calc(100% + 12px); right: -8px; z-index: 60; width: max-content; animation: nd-in 0.18s ease-out; }
+.cs-tb-drop .nd-panel { width: min(360px, calc(100vw - 20px)); }
+
 .cs-acct { position: relative; margin-left: 8px; }
 .cs-acct-btn { display: flex; align-items: center; gap: 13px; height: 48px; background: none; border: 0; padding: 0; cursor: pointer; color: #9d7cf0; }
 .cs-acct-btn:hover { color: #fff; }
@@ -161,6 +176,12 @@
   .cs-topbar { gap: 2px 10px; right: 8px; }
   .cs-cur { font-size: 14px; gap: 6px; }
   .cs-cur-add { width: 22px; }
+  .cs-tb-btn { width: 38px; height: 38px; }
+  .cs-tb-btn svg { width: 18px; height: 18px; }
+  .cs-tb-dot { top: 7px; right: 8px; }
+  /* Keep the panels on screen: hang them from the bar's right edge. */
+  .cs-tb-wrap { position: static; }
+  .cs-tb-drop { right: 0; top: calc(100% + 6px); }
   /* Dashboard.css sizes every h1/h2 with !important on phones. */
   .cs-ph h2 { font-size: 14px !important; }
 }

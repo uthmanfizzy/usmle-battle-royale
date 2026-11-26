@@ -108,7 +108,7 @@ export default function CelestialHome({ user, announcements = [], onTab, onPlay,
           </div>
         </div>
 
-        <CelestialTopbar user={user} reward={reward} />
+        <CelestialTopbar user={user} reward={reward} onNews={() => onTab?.('announcements')} />
       </section>
 
       <div className="ch-body">

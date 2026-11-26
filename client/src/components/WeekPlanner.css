@@ -107,6 +107,7 @@
 .wp-goal-name small { color: var(--wp-dim); font-size: 12px; }
 .wp-pill { font-size: 12px; padding: 3px 9px; border-radius: 999px; background: rgba(255, 255, 255, 0.07); color: var(--wp-dim); white-space: nowrap; }
 .wp-pill--done { background: rgba(90, 209, 154, 0.16); color: var(--wp-done); }
+.wp-pill--done-today { background: rgba(90, 209, 154, 0.16); color: var(--wp-done); }
 .wp-pill--on-track { background: rgba(139, 123, 255, 0.18); color: #c7bfff; }
 .wp-pill--behind { background: rgba(245, 163, 92, 0.16); color: var(--wp-warn); }
 .wp-pill--missed { background: rgba(239, 111, 127, 0.16); color: var(--wp-bad); }
@@ -128,6 +129,9 @@
 .wp-daychips { display: flex; gap: 4px; }
 .wp-daychip { width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--wp-line); background: #0f0d2b; color: var(--wp-dim); font: inherit; font-size: 13px; cursor: pointer; }
 .wp-daychip.is-on { background: var(--wp-todo); border-color: var(--wp-todo); color: #fff; }
+.wp-today-only { align-self: flex-start; padding: 2px 0; font-size: 12px; }
+.wp-goal--done-today .wp-bar i { background: var(--wp-done); }
+.wp-goal--done-today { border-color: rgba(90, 209, 154, 0.5); }
 .wp-fine { font-size: 12px; color: var(--wp-dim); margin: 12px 2px 0; line-height: 1.5; }
 
 @media (max-width: 720px) {

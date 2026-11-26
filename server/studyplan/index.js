@@ -12,9 +12,13 @@
  * in the browser and this endpoint still answers with the progress.
  *
  * Plan shape (validated by cleanPlan):
- *   goals: [{ id, mode, unit: 'questions'|'minutes', target, days: [0..6] }]
+ *   goals: [{ id, mode, unit: 'questions'|'minutes', target, days: [0..6],
+ *             period: 'week'|'day', since }]
  *          mode is an activity_sessions.game_mode, or '_all' for any mode;
- *          days are Mon = 0 … Sun = 6, the days the goal is worked on.
+ *          days are Mon = 0 … Sun = 6, the days the goal is worked on (only
+ *          those days count toward it); period 'day' = target on EACH of those
+ *          days; since = ISO instant the goal starts counting from (when it
+ *          was added, or restarted), so earlier work never pre-fills it.
  *   tasks: [{ id, day, text, done }]  free-form to-dos for a day
  *   hours: [7 × hours available, or null]
  */
@@ -37,10 +41,13 @@ function cleanPlan(raw) {
     const target = clampInt(g?.target, 1, 5000);
     if (!/^[a-z0-9_]{1,60}$/.test(mode) || !target) return null;
     const days = [...new Set((Array.isArray(g.days) ? g.days : []).map(Number).filter(d => Number.isInteger(d) && d >= 0 && d <= 6))].sort();
+    const since = typeof g.since === 'string' && !Number.isNaN(Date.parse(g.since)) ? new Date(g.since).toISOString() : null;
     return {
       id: String(g.id || '').slice(0, 40) || Math.random().toString(36).slice(2, 10),
       mode, unit: g.unit === 'minutes' ? 'minutes' : 'questions', target,
       days: days.length ? days : [0, 1, 2, 3, 4, 5, 6],
+      period: g.period === 'day' ? 'day' : 'week',
+      ...(since ? { since } : {}),
     };
   }).filter(Boolean);
   const tasks = (Array.isArray(p.tasks) ? p.tasks : []).slice(0, 100).map(t => {
@@ -76,7 +83,9 @@ function mount(app, { supabase, requireAuth, rateLimit, isMissingTable }) {
     // getTimezoneOffset(): minutes to ADD to local time to reach UTC.
     const tz = clampInt(req.query.tz, -840, 840) ?? 0;
     const start = Date.parse(`${week}T00:00:00Z`) + tz * 60000;
-    const out = { week, plan: null, stored: false, lastPlan: null, progress: {}, pace: {} };
+    // sessions: the week's sessions, compact, so the client can count each goal
+    // from its own start time and on its own days.
+    const out = { week, plan: null, stored: false, lastPlan: null, progress: {}, pace: {}, sessions: [] };
     if (!supabase) return res.json(out);
 
     try {
@@ -84,6 +93,7 @@ function mount(app, { supabase, requireAuth, rateLimit, isMissingTable }) {
       for (const r of rows) {
         const day = Math.floor((Date.parse(r.ended_at) - start) / DAY_MS);
         if (day < 0 || day > 6) continue;
+        out.sessions.push({ m: r.game_mode, t: Date.parse(r.ended_at), q: Number(r.questions_answered) || 0, s: Number(r.duration_seconds) || 0 });
         for (const mode of [r.game_mode, '_all']) {
           const m = out.progress[mode] || (out.progress[mode] = { questions: 0, seconds: 0, days: Array.from({ length: 7 }, () => ({ q: 0, s: 0 })) });
           const qn = Number(r.questions_answered) || 0;

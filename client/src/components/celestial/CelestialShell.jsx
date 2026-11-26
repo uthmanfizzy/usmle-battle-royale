@@ -1,6 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
 import { clearToken } from '../../auth';
+import { SERVER_URL } from '../../serverUrl';
+import NotificationsDropdown from '../NotificationsDropdown';
+import SettingsDropdown from '../SettingsDropdown';
 import './CelestialShell.css';
+
+// Same read-state store NotificationsDropdown and the News page use.
+const READ_KEY = 'mrb_read_announcements';
+function countUnread(list) {
+  let read;
+  try { read = new Set(JSON.parse(localStorage.getItem(READ_KEY) || '[]')); } catch { read = new Set(); }
+  return list.filter(a => !read.has(String(a.id))).length;
+}
 
 /**
  * The Celestial theme's page frame (Settings → Appearance → Celestial): the
@@ -47,15 +58,37 @@ function logout() {
 }
 
 /** Gems, coins and the avatar menu — top right of the home hero and the profile banner. */
-export function CelestialTopbar({ user, reward }) {
-  const [open, setOpen] = useState(false);
+export function CelestialTopbar({ user, reward, onNews }) {
+  // Which drop-down is open: 'acct' | 'notif' | 'settings' | null.
+  const [menu, setMenu] = useState(null);
+  const open = menu === 'acct';
+  const setOpen = (fn) => setMenu(m => ((typeof fn === 'function' ? fn(m === 'acct') : fn) ? 'acct' : null));
+  const toggle = (k) => setMenu(m => (m === k ? null : k));
   const ref = useRef(null);
+  const notifRef = useRef(null);
+  const setRef = useRef(null);
+  const [unread, setUnread] = useState(0);
   useEffect(() => {
-    if (!open) return undefined;
-    const close = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    if (!menu) return undefined;
+    const close = (e) => {
+      const box = menu === 'acct' ? ref : menu === 'notif' ? notifRef : setRef;
+      if (box.current && !box.current.contains(e.target)) setMenu(null);
+    };
+    const esc = (e) => { if (e.key === 'Escape') setMenu(null); };
     document.addEventListener('mousedown', close);
-    return () => document.removeEventListener('mousedown', close);
-  }, [open]);
+    document.addEventListener('keydown', esc);
+    return () => { document.removeEventListener('mousedown', close); document.removeEventListener('keydown', esc); };
+  }, [menu]);
+  // The bell's dot, without opening the panel.
+  useEffect(() => {
+    let off = false;
+    fetch(`${SERVER_URL}/api/announcements`)
+      .then(r => r.json())
+      .then(d => { if (!off) setUnread(countUnread(d.announcements || [])); })
+      .catch(() => {});
+    return () => { off = true; };
+  }, []);
+  const openNews = () => { if (onNews) onNews(); else window.location.href = '/dashboard?tab=announcements'; };
 
   return (
     <div className="cs-topbar">
@@ -84,6 +117,29 @@ export function CelestialTopbar({ user, reward }) {
         <svg viewBox="0 0 24 24" role="img" aria-label="Coins" className="cs-cur-coin"><circle cx="12" cy="12" r="11" fill="#f5a623" /><circle cx="12" cy="12" r="8" fill="#ffc94d" stroke="#c97a10" strokeWidth="1.4" /><text x="12" y="16.4" textAnchor="middle" style={{ font: "700 12px 'Nunito Sans', sans-serif", fill: '#9a5200' }}>S</text></svg>
         <span>{(user?.coins || 0).toLocaleString()}</span>
         <a className="cs-cur-add" href="/shop" aria-label="Get coins"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.5v13M1.5 8h13" /></svg></a>
+      </div>
+      <div className="cs-tb-wrap notif-wrapper" ref={notifRef}>
+        <button type="button" className={`cs-tb-btn${menu === 'notif' ? ' is-on' : ''}`} aria-label={unread ? `Notifications, ${unread} unread` : 'Notifications'}
+          aria-expanded={menu === 'notif'} title="Notifications" onClick={() => toggle('notif')}>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9.5a6 6 0 0 1 12 0c0 4.2 1.6 6.3 2.4 7.2.3.3.1.8-.3.8H3.9c-.4 0-.6-.5-.3-.8C4.4 15.8 6 13.7 6 9.5Z" /><path d="M9.8 20.2a2.4 2.4 0 0 0 4.4 0" /></svg>
+          {unread > 0 && <span className="cs-tb-dot" aria-hidden="true" />}
+        </button>
+        {menu === 'notif' && (
+          <div className="cs-tb-drop">
+            <NotificationsDropdown onClose={() => setMenu(null)} onUnreadChange={setUnread} onViewAll={openNews} />
+          </div>
+        )}
+      </div>
+      <div className="cs-tb-wrap settings-wrapper" ref={setRef}>
+        <button type="button" className={`cs-tb-btn${menu === 'settings' ? ' is-on' : ''}`} aria-label="Settings"
+          aria-expanded={menu === 'settings'} title="Settings" onClick={() => toggle('settings')}>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.2" /><path d="M19.4 13.5a7.6 7.6 0 0 0 0-3l2-1.6-2-3.4-2.4 1a7.5 7.5 0 0 0-2.6-1.5L14 2.5h-4l-.4 2.5A7.5 7.5 0 0 0 7 6.5l-2.4-1-2 3.4 2 1.6a7.6 7.6 0 0 0 0 3l-2 1.6 2 3.4 2.4-1a7.5 7.5 0 0 0 2.6 1.5l.4 2.5h4l.4-2.5a7.5 7.5 0 0 0 2.6-1.5l2.4 1 2-3.4z" /></svg>
+        </button>
+        {menu === 'settings' && (
+          <div className="cs-tb-drop">
+            <SettingsDropdown onClose={() => setMenu(null)} />
+          </div>
+        )}
       </div>
       <div className="cs-acct" ref={ref}>
         <button type="button" className="cs-acct-btn" aria-label="Account menu" aria-expanded={open} onClick={() => setOpen(v => !v)}>

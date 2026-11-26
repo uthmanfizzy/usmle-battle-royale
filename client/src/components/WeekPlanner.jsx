@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import {
   PLANNER_MODES, DAYS, ALL_DAYS, EMPTY_PLAN, STATUS_LABEL,
-  modeInfo, weekOf, addWeeks, weekDates, todayIn, newId, fmtMinutes, goalStatus, secPerQ, useWeekPlan,
+  modeInfo, weekOf, dayIndex, addWeeks, weekDates, todayIn, newId, fmtMinutes, goalStatus, secPerQ, useWeekPlan,
 } from '../planner/plan';
 import './WeekPlanner.css';
 
@@ -42,13 +42,15 @@ function AddGoal({ onAdd }) {
   const [unit, setUnit] = useState('questions');
   const [target, setTarget] = useState('40');
   const [days, setDays] = useState(ALL_DAYS);
+  const [period, setPeriod] = useState('week');
   const u = info.timeOnly ? 'minutes' : unit;
   const canQuestions = !info.timeOnly;
   const submit = (e) => {
     e.preventDefault();
     const n = Math.round(Number(target));
     if (!n || n < 1 || n > 5000) return;
-    onAdd({ id: newId(), mode, unit: u, target: n, days });
+    // Counts from now: work done before the goal existed never pre-fills it.
+    onAdd({ id: newId(), mode, unit: u, target: n, days, period, since: new Date().toISOString() });
   };
   return (
     <form className="wp-add" onSubmit={submit}>
@@ -77,9 +79,17 @@ function AddGoal({ onAdd }) {
           <option value="minutes">minutes</option>
         </select>
       </label>
+      <label className="wp-field wp-field--unit">
+        <span>Target is</span>
+        <select value={period} onChange={e => setPeriod(e.target.value)}>
+          <option value="week">for the week</option>
+          <option value="day">for each day</option>
+        </select>
+      </label>
       <div className="wp-field wp-field--days">
         <span>Days</span>
         <DayChips days={days} onChange={setDays} />
+        <button type="button" className="wp-link wp-today-only" onClick={() => setDays([dayIndex()])}>Today only</button>
       </div>
       <button type="submit" className="wp-btn wp-btn--gold">Add goal</button>
     </form>
@@ -98,7 +108,7 @@ function GoalCard({ goal, st, onChange, onRemove, pace }) {
         <div className="wp-goal-name">
           <b>{info.label}</b>
           <small>
-            {goal.days.length === 7 ? 'Every day' : goal.days.map(d => DAYS[d]).join(' · ')}
+            {goal.period === 'day' ? `${goal.target} ${unitWord} ` : ''}{goal.days.length === 7 ? 'every day' : (goal.period === 'day' ? 'on ' : '') + goal.days.map(d => DAYS[d]).join(' · ')}
             {goal.unit === 'questions' && <> · ~{Math.round(st.per)} s per question{own ? ' (your pace)' : ''}</>}
           </small>
         </div>
@@ -111,11 +121,16 @@ function GoalCard({ goal, st, onChange, onRemove, pace }) {
       </div>
 
       <div className="wp-goal-nums">
-        <span><b>{st.done.toLocaleString()}</b> / {goal.target.toLocaleString()} {unitWord}</span>
-        <span>≈ {fmtMinutes(st.estTotalMin)} total{st.left > 0 ? ` · ${fmtMinutes(st.estLeftMin)} left` : ''}</span>
+        {st.period === 'day'
+          ? <span>{st.scheduledToday ? <>Today <b>{st.done.toLocaleString()}</b> / {goal.target.toLocaleString()} {unitWord}</> : 'Not scheduled today'}</span>
+          : <span><b>{st.done.toLocaleString()}</b> / {goal.target.toLocaleString()} {unitWord}</span>}
+        <span>≈ {fmtMinutes(st.estTotalMin)} {st.period === 'day' ? 'this week' : 'total'}{st.estLeftMin >= 1 ? ` · ${fmtMinutes(st.estLeftMin)} left` : ''}</span>
       </div>
+      {st.period === 'day' && st.daysTotal > 0 && (
+        <p className="wp-goal-need">Days hit: <b>{st.daysMet}</b> / {st.daysTotal}</p>
+      )}
 
-      {st.status !== 'done' && st.daysLeft > 0 && st.status !== 'upcoming' && (
+      {st.period !== 'day' && st.status !== 'done' && st.daysLeft > 0 && st.status !== 'upcoming' && (
         <p className="wp-goal-need">
           {st.scheduledToday && st.todayDone >= st.todayTarget
             ? <>✓ Today's share done ({st.todayDone}/{st.todayTarget} {unitWord})</>
@@ -124,7 +139,7 @@ function GoalCard({ goal, st, onChange, onRemove, pace }) {
             : <>Next: ~<b>{st.perDayNeed}</b> {unitWord} a day over {st.daysLeft} day{st.daysLeft === 1 ? '' : 's'}</>}
         </p>
       )}
-      {st.status === 'upcoming' && (
+      {st.period !== 'day' && st.status === 'upcoming' && (
         <p className="wp-goal-need">~<b>{Math.ceil(goal.target / goal.days.length)}</b> {unitWord} on each of {goal.days.length} day{goal.days.length === 1 ? '' : 's'}</p>
       )}
 
@@ -139,9 +154,20 @@ function GoalCard({ goal, st, onChange, onRemove, pace }) {
             <input type="number" min="1" max="5000" value={goal.target}
               onChange={e => { const n = Math.round(Number(e.target.value)); if (n >= 1 && n <= 5000) onChange({ ...goal, target: n }); }} />
           </label>
+          <label className="wp-field wp-field--unit">
+            <span>Target is</span>
+            <select value={goal.period === 'day' ? 'day' : 'week'} onChange={e => onChange({ ...goal, period: e.target.value })}>
+              <option value="week">for the week</option>
+              <option value="day">for each day</option>
+            </select>
+          </label>
           <div className="wp-field">
             <span>Days</span>
             <DayChips days={goal.days} onChange={days => onChange({ ...goal, days })} />
+          </div>
+          <div className="wp-field">
+            <span>Counting from {goal.since ? new Date(goal.since).toLocaleString(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit' }) : 'the start of the week'}</span>
+            <button type="button" className="wp-btn" onClick={() => onChange({ ...goal, since: new Date().toISOString() })}>Restart count from now</button>
           </div>
         </div>
       )}
@@ -151,13 +177,13 @@ function GoalCard({ goal, st, onChange, onRemove, pace }) {
 
 export default function WeekPlanner() {
   const [week, setWeek] = useState(weekOf());
-  const { loading, plan: saved, progress, pace, lastPlan, localOnly, error, save } = useWeekPlan(week);
+  const { loading, plan: saved, progress, pace, sessions, lastPlan, localOnly, error, save } = useWeekPlan(week);
   const plan = saved || EMPTY_PLAN;
   const today = todayIn(week);
   const dates = weekDates(week);
   const [taskDraft, setTaskDraft] = useState({});
 
-  const stats = useMemo(() => plan.goals.map(g => goalStatus(g, progress, pace, today)), [plan.goals, progress, pace, today]);
+  const stats = useMemo(() => plan.goals.map(g => goalStatus(g, { week, progress, sessions }, pace, today)), [plan.goals, week, progress, sessions, pace, today]);
 
   const update = (patch) => save({ ...plan, ...patch });
   const setGoal = (i, g) => update({ goals: plan.goals.map((x, j) => (j === i ? g : x)) });
@@ -174,7 +200,7 @@ export default function WeekPlanner() {
 
   let verdict;
   if (!plan.goals.length) verdict = { tone: 'idle', text: 'Add a goal to start planning this week.' };
-  else if (counts.done === plan.goals.length) verdict = { tone: 'good', text: 'Every goal is done this week. 🎉' };
+  else if ((counts.done || 0) === plan.goals.length) verdict = { tone: 'good', text: 'Every goal is done this week. 🎉' };
   else if (today === -1) verdict = { tone: 'bad', text: `This week is over: ${counts.done || 0} of ${plan.goals.length} goals done.` };
   else if (overDays.length) verdict = { tone: 'warn', text: `Too much for the time you have on ${overDays.map(d => DAYS[d]).join(', ')}. Spread those goals over more days, lower a target or add hours.` };
   else if (counts.behind || counts.missed) verdict = { tone: 'warn', text: `${(counts.behind || 0) + (counts.missed || 0)} goal${(counts.behind || 0) + (counts.missed || 0) === 1 ? ' is' : 's are'} behind pace. Your daily shares have gone up to catch up.` };

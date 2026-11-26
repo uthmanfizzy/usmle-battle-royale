@@ -105,25 +105,98 @@ export function secPerQ(mode, pace) {
 }
 
 /**
- * Everything the planner shows about one goal this week.
- * today: 0–6 inside the week, -1 if the week is over, 7 if it is still ahead.
+ * How much of a goal's mode was done on each day of the week, counting only
+ * the goal's own days and only sessions that ended after the goal started
+ * (goal.since). `data` = { week, progress, sessions } from the server; an
+ * older server without `sessions` falls back to the per-day totals.
  */
-export function goalStatus(goal, progress, pace, today) {
-  const p = progress?.[goal.mode];
+function goalDays(goal, data) {
+  const isQ = goal.unit === 'questions';
+  const days = goal.days?.length ? goal.days : ALL_DAYS;
+  const out = Array(7).fill(0);
+  const since = goal.since ? Date.parse(goal.since) : 0;
+  if (Array.isArray(data?.sessions)) {
+    const bounds = weekDates(data.week).map(d => d.getTime());
+    bounds.push(weekDates(addWeeks(data.week, 1))[0].getTime());
+    for (const x of data.sessions) {
+      if (goal.mode !== '_all' && x.m !== goal.mode) continue;
+      if (x.t < since) continue;
+      let d = -1;
+      for (let i = 0; i < 7; i++) if (x.t >= bounds[i] && x.t < bounds[i + 1]) { d = i; break; }
+      if (d < 0 || !days.includes(d)) continue;
+      out[d] += isQ ? x.q : x.s / 60;
+    }
+    return out;
+  }
+  const p = data?.progress?.[goal.mode];
+  if (p) days.forEach(d => { out[d] = isQ ? p.days[d].q : p.days[d].s / 60; });
+  return out;
+}
+
+/** The day of `week` a goal began counting on: 0 if it began before the week (or has no start), 7 if after. */
+function sinceDay(goal, week) {
+  if (!goal.since) return 0;
+  const t = Date.parse(goal.since);
+  const dates = weekDates(week);
+  if (t < dates[0].getTime()) return 0;
+  for (let i = 6; i >= 0; i--) if (t >= dates[i].getTime()) return i;
+  return 7;
+}
+
+/**
+ * Everything the planner shows about one goal this week.
+ * data: { week, progress, sessions } from the server.
+ * today: 0–6 inside the week, -1 if the week is over, 7 if it is still ahead.
+ *
+ * period 'week': the target is for the whole week, spread over the goal's days
+ * (what's left is rebalanced over the days still to come).
+ * period 'day': the target is for EACH of the goal's days.
+ * Either way only the goal's own days count, and only from when it was added.
+ */
+export function goalStatus(goal, data, pace, today) {
   const isQ = goal.unit === 'questions';
   const per = isQ ? secPerQ(goal.mode, pace) : 60; // seconds per unit
-  const amount = (d) => (p ? (isQ ? p.days[d].q : p.days[d].s / 60) : 0);
-  const done = ALL_DAYS.reduce((n, d) => n + amount(d), 0);
-  const days = goal.days?.length ? goal.days : ALL_DAYS;
+  const amt = goalDays(goal, data);
+  const start = data?.week ? sinceDay(goal, data.week) : 0;
+  // The goal's days that fall on or after the day it was added.
+  const days = (goal.days?.length ? goal.days : ALL_DAYS).filter(d => d >= start);
   const t = Math.min(Math.max(today, -1), 7);
-  const before = ALL_DAYS.filter(d => d < t).reduce((n, d) => n + amount(d), 0);
-  const todayDone = t >= 0 && t <= 6 ? amount(t) : 0;
-  const daysLeft = t === 7 ? days.length : t < 0 ? 0 : days.filter(d => d >= t).length;
-  const left = Math.max(0, goal.target - done);
-  // Today's share: what is left from the start of today, split over today and the scheduled days after it.
+  const todayDone = t >= 0 && t <= 6 ? amt[t] : 0;
   const scheduledToday = t >= 0 && t <= 6 && days.includes(t);
+  const daysLeft = t === 7 ? days.length : t < 0 ? 0 : days.filter(d => d >= t).length;
+  const load = Array(7).fill(0); // minutes still to do, per day
+  const from = t === 7 ? 0 : t;
+
+  if (goal.period === 'day') {
+    const target = goal.target;
+    const past = days.filter(d => d < t && t !== 7);
+    const missed = past.filter(d => amt[d] < target).length;
+    const met = days.filter(d => (d < t || d === t) && amt[d] >= target).length;
+    if (t >= 0) days.filter(d => d >= from).forEach(d => { load[d] = Math.max(0, target - (d === t ? todayDone : 0)) * per / 60; });
+    let status;
+    if (t === 7) status = 'upcoming';
+    else if (t === -1) status = days.length && missed === 0 ? 'done' : 'missed';
+    else if (scheduledToday && todayDone >= target) status = 'done-today';
+    else if (!scheduledToday) status = missed ? 'behind' : 'rest';
+    else status = missed ? 'behind' : 'on-track';
+    const left = scheduledToday ? Math.max(0, target - todayDone) : 0;
+    return {
+      period: 'day', isQ, per,
+      done: Math.round(scheduledToday ? todayDone : 0), target, left: Math.round(left),
+      pct: scheduledToday ? Math.min(100, (todayDone / target) * 100) : 0,
+      todayTarget: scheduledToday ? target : 0, todayDone: Math.round(todayDone), scheduledToday,
+      daysMet: met, daysTotal: days.length, daysLeft, perDayNeed: target,
+      estTotalMin: (target * days.length * per) / 60,
+      estLeftMin: load.reduce((a, b) => a + b, 0),
+      status, load,
+    };
+  }
+
+  const done = amt.reduce((a, b) => a + b, 0);
+  const before = amt.reduce((n, v, d) => (d < t ? n + v : n), 0);
+  const left = Math.max(0, goal.target - done);
   const todayTarget = scheduledToday ? Math.ceil(Math.max(0, goal.target - before) / Math.max(1, daysLeft)) : 0;
-  const expected = goal.target * (days.filter(d => d < t).length / days.length);
+  const expected = days.length ? goal.target * (days.filter(d => d < t).length / days.length) : goal.target;
 
   let status;
   if (done >= goal.target) status = 'done';
@@ -132,18 +205,16 @@ export function goalStatus(goal, progress, pace, today) {
   else if (done + 0.001 >= expected) status = 'on-track';
   else status = 'behind';
 
-  // Remaining work per scheduled day from today on (the load the rest of the week carries).
-  const load = Array(7).fill(0); // minutes still to do, per day
   if (t >= 0 && daysLeft > 0) {
-    const remainingFromToday = Math.max(0, goal.target - before);
-    const share = remainingFromToday / daysLeft;
-    days.filter(d => d >= (t === 7 ? 0 : t)).forEach(d => {
+    const share = Math.max(0, goal.target - before) / daysLeft;
+    days.filter(d => d >= from).forEach(d => {
       const owe = d === t ? Math.max(0, share - todayDone) : share;
       load[d] = (owe * per) / 60;
     });
   }
   return {
-    isQ, per, done: Math.round(done), left: Math.round(left), pct: Math.min(100, (done / goal.target) * 100),
+    period: 'week', isQ, per, done: Math.round(done), target: goal.target, left: Math.round(left),
+    pct: Math.min(100, (done / goal.target) * 100),
     todayTarget, todayDone: Math.round(todayDone), scheduledToday,
     perDayNeed: daysLeft ? Math.ceil(left / daysLeft) : left, daysLeft,
     estTotalMin: (goal.target * per) / 60, estLeftMin: (left * per) / 60,
@@ -152,7 +223,7 @@ export function goalStatus(goal, progress, pace, today) {
 }
 
 export const STATUS_LABEL = {
-  done: 'Done', 'on-track': 'On track', behind: 'Behind', missed: 'Missed', upcoming: 'Not started',
+  done: 'Done', 'done-today': 'Done today', 'on-track': 'On track', behind: 'Behind', missed: 'Missed', upcoming: 'Not started', rest: 'Rest day',
 };
 
 // ── Loading and saving ────────────────────────────────────────────────────
@@ -170,7 +241,7 @@ function writeLocal(week, plan) {
  * the study_plans table has not been created yet).
  */
 export function useWeekPlan(week) {
-  const [state, setState] = useState({ loading: true, plan: null, progress: {}, pace: {}, lastPlan: null, localOnly: false, error: '' });
+  const [state, setState] = useState({ loading: true, plan: null, progress: {}, pace: {}, sessions: null, lastPlan: null, localOnly: false, error: '' });
   const timer = useRef(0);
   const pending = useRef(null);
 
@@ -185,6 +256,7 @@ export function useWeekPlan(week) {
         loading: false, error: '',
         plan: d.plan || local || null,
         progress: d.progress || {}, pace: d.pace || {},
+        sessions: Array.isArray(d.sessions) ? d.sessions : null,
         lastPlan: d.lastPlan || null,
         localOnly: !!d.missingTable,
       });
@@ -217,7 +289,7 @@ export function useWeekPlan(week) {
     timer.current = setTimeout(flush, 600);
   }, [week, flush]);
 
-  return { ...state, save, reload: load };
+  return { ...state, week, save, reload: load };
 }
 
 /**
@@ -231,7 +303,7 @@ export function useTodayGoals() {
   const plan = wp.plan || EMPTY_PLAN;
   const items = [];
   for (const g of plan.goals) {
-    const st = goalStatus(g, wp.progress, wp.pace, today);
+    const st = goalStatus(g, wp, wp.pace, today);
     if (!st.scheduledToday || st.todayTarget <= 0) continue;
     const info = modeInfo(g.mode);
     items.push({
