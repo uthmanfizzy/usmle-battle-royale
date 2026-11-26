@@ -28,6 +28,7 @@ const MODE_META = {
   trivia_pursuit:   { icon: '🎯', label: 'Trivia Pursuit'  },
   buzz_fun:         { icon: '🔔', label: 'Buzz Fun'        },
   scan_master:      { icon: '🔬', label: 'Scan Master'     },
+  clue_ladder:      { icon: '🪜', label: 'Clue Ladder'     },
   pvp_duel:         { icon: '🤺', label: 'PvP Duel'        },
   medathon:         { icon: '🏁', label: 'Medathon'        },
   medjinx:          { icon: '🧪', label: 'MedJinx'         },
@@ -139,7 +140,7 @@ const BANK_SUMMARY_MODES = QUESTION_BANK_MODES.map(m => ({
 // come from MODE_META so this list and the timeline rows cannot drift.
 const LIVE_SUMMARY_MODE_IDS = [
   'pvp_duel', 'medathon', 'medjinx', 'battle_royale', 'speed_race',
-  'trivia_pursuit', 'buzz_fun', 'scan_master',
+  'trivia_pursuit', 'buzz_fun', 'scan_master', 'clue_ladder',
 ];
 
 const SUMMARY_MODES = [

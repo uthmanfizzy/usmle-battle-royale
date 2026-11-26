@@ -20,6 +20,7 @@ const GAME_MODES = [
   { id: 'speed_race', name: 'SPEED RACE', icon: '🏁' },
   { id: 'trivia_pursuit', name: 'TRIVIA PURSUIT', icon: '🎯' },
   { id: 'scan_master', name: 'SCAN MASTER', icon: '🔬' },
+  { id: 'clue_ladder', name: 'CLUE LADDER', icon: '🪜' },
   { id: 'buzz_fun', name: 'BUZZ FUN', icon: '⚡' },
   { id: 'tower', name: 'THE TOWER', icon: '🏰' },
   { id: 'training_grounds', name: 'TRAINING GROUNDS', icon: '📚' },

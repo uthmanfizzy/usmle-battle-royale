@@ -110,6 +110,7 @@ const MODE_META = {
   trivia_pursuit:  { icon: '🎯', label: 'Trivia Pursuit' },
   buzz_fun:        { icon: '🔔', label: 'Buzz Fun'       },
   scan_master:     { icon: '🔬', label: 'Scan Master'    },
+  clue_ladder:     { icon: '🪜', label: 'Clue Ladder'    },
 };
 function getModeMeta(mode) {
   return MODE_META[mode] || { icon: '⚔️', label: 'Battle Royale' };

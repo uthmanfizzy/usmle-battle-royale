@@ -11,6 +11,7 @@ import MedJinxScene from './MedJinxScene';
 import ScanMasterLobby from './ScanMasterLobby';
 import BuzzFunLobby from './BuzzFunLobby';
 import ScanMasterHome from './ScanMasterHome';
+import ClueLadderHome, { ClueLadderLobby } from './ClueLadderHome';
 
 // Where a duel can draw its questions from. The ids are game_modes tags and
 // are whitelisted server-side — this list is the menu, not the authority.
@@ -73,6 +74,18 @@ const GAME_MODES = [
     tagline: 'Read the film',
     facts: ['Pick your systems', 'Speed points', 'Streak bonus'],
     longDescription: 'High-yield USMLE images — ECGs, X-rays, histology, smears and skin. Pick the systems, read each image and choose the answer before the clock runs out. Play solo, or race friends: fast right answers and streaks earn the most points.',
+    supportsSolo: false,
+  },
+  {
+    id: 'clue_ladder',
+    name: 'CLUE LADDER',
+    icon: '🪜',
+    shortDesc: 'Name the disease in the fewest clues',
+    meta: 'Solo or 2–20 players',
+    accent: '245, 185, 63',
+    tagline: 'Vague to obvious',
+    facts: ['Six clues a case', 'Wrong guess = next clue', 'Fewest attempts wins'],
+    longDescription: 'Each case opens with a brief, vague history. Guess the diagnosis — every wrong guess unlocks a sharper clue. Whoever names it in the fewest attempts wins. Reproductive system first, every disease in First Aid.',
     supportsSolo: false,
   },
   {
@@ -153,6 +166,7 @@ export default function PlayPage({
   duelOptions, onDuelOptions,
   medjinxOptions, onMedjinxOptions,
   scanOptions, onScanOptions,
+  clOptions, onClOptions,
   onStartGame, onAddBot, onRemoveBot, onToggleQuickJoin, onLeaveLobby,
   initialMode
 }) {
@@ -242,6 +256,33 @@ export default function PlayPage({
     setTimeout(() => onStartGame(), 600);
     return undefined;
   }, [scanQuick, scanPending, error, lobbyId, isHost, lobbyGameMode]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Clue Ladder's front door, the same pattern as Scan Master. The case count
+  // and clock chosen there are applied once the room exists (clPending);
+  // Quick play then adds two bots and starts, Solo starts with nobody else.
+  const [clHome, setClHome] = useState(false);
+  const [clPending, setClPending] = useState(null);
+  const [clQuick, setClQuick] = useState(null);   // 'bots' | 'solo' | null
+  const clGo = (action, opts, extra = {}) => {
+    if (onClearError) onClearError();
+    setSelectedMode('clue_ladder');
+    if (action === 'create') setClPending(opts || null);
+    onModeSelect({ mode: 'clue_ladder', action, squadSize, fillTeam, exam: selectedExam, step: selectedStep, ...extra });
+  };
+  useEffect(() => {
+    if (error) { setClQuick(null); setClPending(null); return undefined; }
+    if (!lobbyId || !isHost || lobbyGameMode !== 'clue_ladder') return undefined;
+    if (clPending) {
+      onClOptions?.(clPending);
+      setClPending(null);
+    }
+    if (!clQuick) return undefined;
+    const how = clQuick;
+    setClQuick(null);
+    if ((lobbyPlayers?.length || 1) > 1) return undefined;
+    if (how === 'bots') { onAddBot('hard'); onAddBot('easy'); }
+    setTimeout(() => onStartGame(), 600);
+    return undefined;
+  }, [clQuick, clPending, error, lobbyId, isHost, lobbyGameMode]); // eslint-disable-line react-hooks/exhaustive-deps
   const [joinError, setJoinError] = useState('');
 
   // The lobby overlay titles itself from the lobby's OWN mode, not whatever is
@@ -360,7 +401,8 @@ export default function PlayPage({
   // and offers only the systems it actually has cards for.
   const isBuzz = lobbyGameMode === 'buzz_fun';
   // Buzz Fun can be played alone; every other mode needs a second player.
-  const minPlayers = isBuzz ? 1 : 2;
+  // Buzz Fun and Clue Ladder can be played alone (the server agrees: minPlayersFor).
+  const minPlayers = isBuzz || lobbyGameMode === 'clue_ladder' ? 1 : 2;
   // Topics picked, in order, as "subject::Topic" keys.
   const buzzTopics = Array.isArray(duelOptions?.topics) ? duelOptions.topics : [];
   const playerCount = lobbyPlayers?.length || 1;
@@ -591,6 +633,7 @@ export default function PlayPage({
                       setSelectedMode(mode.id);
                       if (mode.id === 'medjinx') setJinxHome(true);
                       if (mode.id === 'scan_master') setScanHome(true);
+                      if (mode.id === 'clue_ladder') setClHome(true);
                     }}
                     aria-pressed={active}
                     disabled={!isEnabled}
@@ -632,7 +675,8 @@ export default function PlayPage({
                         : active
                           ? <><span aria-hidden="true">✓</span> Selected — deploy below</>
                           : mode.id === 'medjinx' ? 'Enter MedJinx ›'
-                            : mode.id === 'scan_master' ? 'Enter Scan Master ›' : 'Choose this battlefield'}
+                            : mode.id === 'scan_master' ? 'Enter Scan Master ›'
+                              : mode.id === 'clue_ladder' ? 'Enter Clue Ladder ›' : 'Choose this battlefield'}
                     </span>
                   </button>
                 );
@@ -708,6 +752,21 @@ export default function PlayPage({
       )}
 
       {/* ── The Scan Master front door, portalled for the same reason. ── */}
+      {/* ── The Clue Ladder front door, portalled like the others. ── */}
+      {clHome && createPortal(
+        <ClueLadderHome
+          username={username}
+          error={lobbyId ? '' : error}
+          busy={Boolean(clQuick)}
+          onBack={() => { setClHome(false); if (onClearError) onClearError(); }}
+          onCreate={(opts) => clGo('create', opts)}
+          onJoin={(code) => clGo('join', null, { lobbyCode: code })}
+          onQuickPlay={(opts) => { setClQuick('bots'); clGo('create', opts); }}
+          onSolo={(opts) => { setClQuick('solo'); clGo('create', opts); }}
+        />,
+        document.body,
+      )}
+
       {scanHome && createPortal(
         <ScanMasterHome
           username={username}
@@ -811,7 +870,7 @@ export default function PlayPage({
             {/* Players */}
             <div className="lobby-players-section">
               <p className="lobby-players-count">
-                {lobbyPlayers?.length || 1} / {lobbyGameMode === 'medjinx' || lobbyGameMode === 'scan_master' ? 20 : '∞'} players joined
+                {lobbyPlayers?.length || 1} / {['medjinx', 'scan_master', 'clue_ladder'].includes(lobbyGameMode) ? 20 : '∞'} players joined
               </p>
               <div className="lobby-players-list">
                 {(lobbyPlayers || [{ username: username, isHost: true }]).map((player, i) => (
@@ -838,6 +897,8 @@ export default function PlayPage({
               <MedJinxLobby isHost={isHost} options={medjinxOptions} onChange={onMedjinxOptions} />
             ) : lobbyGameMode === 'scan_master' ? (
               <ScanMasterLobby isHost={isHost} options={scanOptions} onChange={onScanOptions} />
+            ) : lobbyGameMode === 'clue_ladder' ? (
+              <ClueLadderLobby isHost={isHost} options={clOptions} onChange={onClOptions} />
             ) : isBuzz ? (
               <BuzzFunLobby isHost={isHost} options={duelOptions} onChange={onDuelOptions} subjects={buzzSubjects} uworldSubjects={buzzUworldSubjects} />
             ) : (

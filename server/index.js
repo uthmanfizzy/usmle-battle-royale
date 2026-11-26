@@ -784,6 +784,14 @@ const scanMaster = require('./scanmaster/game')({
   getSupabase:  () => supabase,
   getSeconds:   () => gameSettings.timerScanMaster,
 });
+// Clue Ladder: name the disease in as few clues as you can. Its own
+// directory (server/clueladder) — the bank is code, run its check.js.
+const clueLadder = require('./clueladder/game')({
+  io, lobbies,
+  shuffle:      (arr) => shuffle(arr),
+  awardXP:      (lobby, sorted) => awardXP(lobby, sorted),
+  lobbyPayload: (lobby) => lobbyPayload(lobby),
+});
 const globalLeaderboard = new Map(); // username → { wins, gamesPlayed, highScore }
 
 // ── Admin auth ─────────────────────────────────────────────────────────────────
@@ -1052,6 +1060,10 @@ function lobbyPayload(lobby) {
     // Scan Master: which systems, how many pictures.
     scanOptions:     lobby.gameMode === 'scan_master'
       ? scanMaster.sanitizeOptions(lobby.scanOptions)
+      : null,
+    // Clue Ladder: which systems, how many cases, how long a case lasts.
+    clOptions:       lobby.gameMode === 'clue_ladder'
+      ? clueLadder.sanitizeOptions(lobby.clOptions)
       : null,
     players:         [...lobby.players.values()].map(p => ({
       id: p.id, username: p.username, clanTag: p.clanTag || null,
@@ -1685,7 +1697,8 @@ function startGame(lobby) {
 
 // Buzz Fun can be played solo; every other mode needs a second player (a
 // bot counts).
-const minPlayersFor = (lobby) => (lobby.gameMode === 'buzz_fun' ? 1 : 2);
+// Clue Ladder can be played alone too: the score is your own attempt count.
+const minPlayersFor = (lobby) => (lobby.gameMode === 'buzz_fun' || lobby.gameMode === 'clue_ladder' ? 1 : 2);
 
 function startGameWithPool(lobby) {
   lobby.starting = false;
@@ -1698,6 +1711,7 @@ function startGameWithPool(lobby) {
   if (lobby.gameMode === 'medathon')       return startMedathon(lobby);
   if (lobby.gameMode === 'medjinx')        return medjinx.start(lobby);
   if (lobby.gameMode === 'scan_master')    return scanMaster.start(lobby);
+  if (lobby.gameMode === 'clue_ladder')    return clueLadder.start(lobby);
 
   // ── Battle Royale & Scan Master ────────────────────────────────────────────
   // Guard: Scan Master needs image questions
@@ -2655,6 +2669,8 @@ function socketLocalDate(sock) {
 const MEDJINX_MAX_SECONDS_PER_ROUND = 60 + 4 + 16 + 10;
 // Study Time credit for the other live modes: a question plus its reveal.
 const ONLINE_STUDY_SECONDS_PER_QUESTION = 75;
+// A Clue Ladder case: the longest clock (180 s) plus its intro and reveal.
+const CLUE_LADDER_MAX_SECONDS_PER_CASE = 180 + 3 + 11;
 const ONLINE_STUDY_FALLBACK_CAP = 30 * 60;
 
 async function awardXP(lobby, sorted) {
@@ -2810,7 +2826,9 @@ async function awardXP(lobby, sorted) {
       // count answers is capped at ONLINE_STUDY_FALLBACK_CAP instead.
       if (durationSeconds > 0) {
         const answered = lobby.answeredCounts?.get(player.id);
-        const perItem = lobby.gameMode === 'medjinx' ? MEDJINX_MAX_SECONDS_PER_ROUND : ONLINE_STUDY_SECONDS_PER_QUESTION;
+        const perItem = lobby.gameMode === 'medjinx' ? MEDJINX_MAX_SECONDS_PER_ROUND
+          : lobby.gameMode === 'clue_ladder' ? CLUE_LADDER_MAX_SECONDS_PER_CASE
+          : ONLINE_STUDY_SECONDS_PER_QUESTION;
         const cap = Number.isFinite(answered) ? Math.max(1, answered) * perItem : ONLINE_STUDY_FALLBACK_CAP;
         const credit = Math.min(durationSeconds, cap);
         try {
@@ -4116,6 +4134,8 @@ io.on('connection', (socket) => {
       return ack({ ok: false, error: 'This MedJinx room is full.' });
     if (lobby.gameMode === 'scan_master' && lobby.players.size >= scanMaster.MAX_PLAYERS)
       return ack({ ok: false, error: 'This Scan Master room is full.' });
+    if (lobby.gameMode === 'clue_ladder' && lobby.players.size >= clueLadder.MAX_PLAYERS)
+      return ack({ ok: false, error: 'This Clue Ladder room is full.' });
 
     const taken = [...lobby.players.values()].some(
       p => p.username.toLowerCase() === name.toLowerCase()
@@ -4176,6 +4196,7 @@ io.on('connection', (socket) => {
       l.players.size >= 1 &&
       !(l.gameMode === 'pvp_duel' && l.players.size >= PVP_DUEL_MAX_PLAYERS) &&
       !(l.gameMode === 'medjinx' && l.players.size >= medjinx.MAX_PLAYERS) &&
+      !(l.gameMode === 'clue_ladder' && l.players.size >= clueLadder.MAX_PLAYERS) &&
       ![...l.players.values()].some(p => p.username.toLowerCase() === name.toLowerCase());
 
     const open = [...lobbies.values()].filter(joinable);
@@ -4426,6 +4447,8 @@ io.on('connection', (socket) => {
   medjinx.attach(socket);
   // set_scan_options, scan_answer, scan_sync — see server/scanmaster/game.js.
   scanMaster.attach(socket);
+  // set_cl_options, cl_guess, cl_pass, cl_sync — see server/clueladder/game.js.
+  clueLadder.attach(socket);
 
   socket.on('start_game', () => {
     const lobby = lobbies.get(socket.lobbyId);
@@ -4681,6 +4704,7 @@ io.on('connection', (socket) => {
     clearDuelAdvance(lobby);
     medjinx.reset(lobby);
     scanMaster.reset(lobby);
+    clueLadder.reset(lobby);
 
     for (const p of lobby.players.values()) {
       p.lives = gameSettings.startingLives; p.score = 0; p.alive = true;
@@ -4879,6 +4903,8 @@ io.on('connection', (socket) => {
       medjinx.onLeave(lobby, socket.id);
     } else if (lobby.status === 'scan_master') {
       scanMaster.onLeave(lobby, socket.id);
+    } else if (lobby.status === 'clue_ladder') {
+      clueLadder.onLeave(lobby, socket.id);
     } else if (lobby.status === 'trivia_question') {
       if (lobby.players.size <= 1) {
         endTriviaPursuit(lobby, [...lobby.players.keys()][0]);
@@ -4902,6 +4928,11 @@ io.on('connection', (socket) => {
  * tiers and the special rounds — for the lobby's settings. Never the answers:
  * those leave the server one topic at a time, after its round has closed.
  */
+// Clue Ladder's systems, case counts and the lobby choices.
+app.get('/api/clue-ladder/catalog', rateLimit(60, 60000), (req, res) => {
+  res.json(clueLadder.catalog());
+});
+
 app.get('/api/medjinx/catalog', rateLimit(60, 60000), (req, res) => {
   res.json(medjinx.catalog());
 });

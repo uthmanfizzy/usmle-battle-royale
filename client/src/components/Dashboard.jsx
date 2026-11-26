@@ -105,6 +105,7 @@ const GAME_MODE_ICONS = {
   trivia_pursuit: '🎯',
   buzz_fun: '🐝',
   scan_master: '🔬',
+  clue_ladder: '🪜',
 };
 const GAME_MODE_LABELS = {
   battle_royale: 'Battle Royale',
@@ -113,6 +114,7 @@ const GAME_MODE_LABELS = {
   trivia_pursuit: 'Trivia Pursuit',
   buzz_fun: 'Buzz Fun',
   scan_master: 'Scan Master',
+  clue_ladder: 'Clue Ladder',
 };
 
 function cap(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : ''; }
