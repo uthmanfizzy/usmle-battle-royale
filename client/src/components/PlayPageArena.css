@@ -883,3 +883,294 @@
     radial-gradient(70% 60% at 88% 100%, rgba(155, 226, 45, 0.16), rgba(0, 0, 0, 0));
 }
 .arena-card[data-mode="medjinx"] .arena-card-medal { border-radius: 14px 14px 50% 50%; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Arena v2: the whole wall on one screen, eight faces that look like eight
+   different games, locked modes that look locked, and a landing for players
+   who arrive through the Choose Your Path "dragged in" transition.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Fit: four across, compact cards, deploy + code on one row ─────────── */
+.arena-head { gap: 3px; margin-bottom: clamp(10px, 1.6vh, 16px); }
+.arena-title { font-size: clamp(28px, 4.2vw, 42px); }
+
+@media (min-width: 1100px) {
+  .arena-col { max-width: min(1340px, 100%); }
+  .arena-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+    margin-bottom: 14px;
+  }
+  .arena-card { padding: 14px 15px 12px; gap: 7px; }
+  .arena-card-medal { width: 44px; height: 44px; font-size: 22px; }
+  .arena-card-name { font-size: 15.5px; }
+  .arena-card-tag { font-size: 12.5px; }
+  .arena-card-desc {
+    font-size: 12px;
+    line-height: 1.5;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    overflow: hidden;
+  }
+  .arena-card-fact { padding: 3px 8px; font-size: 10px; }
+  .arena-card-foot { padding-top: 9px; font-size: 10px; }
+
+  .arena-deploy {
+    grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.9fr) minmax(0, 1.25fr);
+    align-items: stretch;
+  }
+  .arena-deploy .arena-code { margin: 0; display: flex; flex-direction: column; justify-content: center; }
+}
+/* Short desktop windows: drop a line of description and some air. */
+@media (min-width: 1100px) and (max-height: 860px) {
+  .play-page-wrapper:has(.arena-col) { padding-top: 12px; }
+  .arena-kicker { display: none; }
+  .arena-title { font-size: 32px; }
+  .arena-card-desc { -webkit-line-clamp: 2; line-clamp: 2; }
+  .arena-card-medal { width: 38px; height: 38px; font-size: 19px; }
+  .arena-go { padding: 11px 18px; }
+  .arena-quick { padding: 10px 14px; }
+}
+/* Below four-across the code field takes a row of its own under the buttons. */
+.arena-deploy .arena-code { margin-bottom: 0; }
+@media (max-width: 1099px) {
+  .arena-deploy .arena-code { grid-column: 1 / -1; }
+  .arena-deploy { margin-bottom: 26px; }
+}
+
+/* ── Faces: each card is its own game ─────────────────────────────────── */
+.arena-card {
+  background:
+    radial-gradient(120% 80% at 50% -20%, rgba(var(--ac), 0.34) 0%, rgba(0, 0, 0, 0) 62%),
+    radial-gradient(80% 60% at 100% 110%, rgba(var(--ac), 0.16) 0%, rgba(0, 0, 0, 0) 70%),
+    linear-gradient(165deg, rgba(22, 19, 24, 0.94), rgba(8, 7, 10, 0.97));
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.2s ease, box-shadow 0.3s ease;
+  /* backwards, not both: a held end state pins transform and swallowed the
+     hover lift (it never showed). */
+  animation-fill-mode: backwards;
+}
+.arena-card:hover:not(:disabled) {
+  transform: translateY(-6px) scale(1.015);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.55), 0 0 34px rgba(var(--ac), 0.35);
+}
+.arena-card-art { opacity: 0.85; }
+.arena-card:hover:not(:disabled) .arena-card-art,
+.arena-card.is-active .arena-card-art { opacity: 1; }
+
+/* Name lit in the card colour. */
+.arena-card-name {
+  background: linear-gradient(180deg, #fffaf0 15%, rgba(var(--ac), 1) 130%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 0 10px rgba(var(--ac), 0.35));
+}
+
+/* A huge faded emblem in the corner, the quickest tell between cards. */
+.arena-card-mark {
+  position: absolute;
+  right: -14px;
+  bottom: -22px;
+  z-index: -1;
+  font-size: 128px;
+  line-height: 1;
+  opacity: 0.11;
+  rotate: -14deg;
+  pointer-events: none;
+  filter: saturate(1.4) drop-shadow(0 0 30px rgba(var(--ac), 0.8));
+  transition: rotate 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), scale 0.5s ease, opacity 0.3s ease;
+}
+.arena-card:hover:not(:disabled) .arena-card-mark { rotate: -4deg; scale: 1.1; opacity: 0.2; }
+.arena-card[data-mode="speed_race"] .arena-card-mark     { rotate: 12deg; right: -6px; }
+.arena-card[data-mode="medathon"] .arena-card-mark       { rotate: 8deg; }
+.arena-card[data-mode="trivia_pursuit"] .arena-card-mark { right: -10px; bottom: -14px; rotate: 20deg; }
+.arena-card[data-mode="pvp_duel"] .arena-card-mark       { right: 50%; translate: 50% 0; bottom: -30px; rotate: 0deg; }
+
+/* Medal: breathes at rest, pops on hover. */
+.arena-card-medal {
+  transition: scale 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
+  animation: arena-medal 3.8s ease-in-out infinite;
+  animation-delay: calc(var(--d, 0s) * -8);
+}
+@keyframes arena-medal {
+  0%, 100% { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 6px 16px rgba(0, 0, 0, 0.35), 0 0 0 rgba(var(--ac), 0); }
+  50%      { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 6px 16px rgba(0, 0, 0, 0.35), 0 0 18px rgba(var(--ac), 0.55); }
+}
+.arena-card:hover:not(:disabled) .arena-card-medal { scale: 1.12; }
+
+/* Per-mode motion: every face moves differently. */
+.arena-card[data-mode="battle_royale"] .arena-card-art { animation: arena-br 4s ease-in-out infinite; transform-origin: 78% 18%; }
+@keyframes arena-br { 50% { transform: scale(0.94); filter: brightness(1.3); } }
+
+.arena-card[data-mode="speed_race"] .arena-card-art { animation: arena-speed 0.9s linear infinite; }
+@keyframes arena-speed { to { background-position: -60px 0; } }
+
+.arena-card[data-mode="buzz_fun"] .arena-card-art { overflow: hidden; }
+.arena-card[data-mode="buzz_fun"] .arena-card-art::after {
+  content: "";
+  position: absolute;
+  left: 88%;
+  top: 8%;
+  width: 260%;
+  aspect-ratio: 1;
+  translate: -50% -50%;
+  background: repeating-conic-gradient(rgba(230, 126, 34, 0.12) 0deg 4deg, rgba(230, 126, 34, 0) 4deg 14deg);
+  animation: arena-spin 40s linear infinite;
+}
+@keyframes arena-spin { to { rotate: 360deg; } }
+
+.arena-card[data-mode="medathon"] .arena-card-art { animation: arena-flag 6s linear infinite; }
+@keyframes arena-flag { to { background-position: 56px 0, 0 calc(100% - 20px); } }
+
+.arena-card[data-mode="medjinx"] .arena-card-art::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 20% 30%, rgba(155, 226, 45, 0.35) 0 3px, rgba(0, 0, 0, 0) 4px),
+    radial-gradient(circle at 70% 60%, rgba(155, 226, 45, 0.3) 0 4px, rgba(0, 0, 0, 0) 5px),
+    radial-gradient(circle at 45% 85%, rgba(200, 255, 120, 0.3) 0 2px, rgba(0, 0, 0, 0) 3px),
+    radial-gradient(circle at 88% 15%, rgba(155, 226, 45, 0.25) 0 3px, rgba(0, 0, 0, 0) 4px);
+  background-size: 100% 140px;
+  -webkit-mask-image: linear-gradient(0deg, #000, transparent 90%);
+  mask-image: linear-gradient(0deg, #000, transparent 90%);
+  animation: arena-bubbles 5s linear infinite;
+}
+@keyframes arena-bubbles { to { background-position: 0 -140px; } }
+
+.arena-card[data-mode="trivia_pursuit"] .arena-card-art { animation: arena-wheel 7s ease-in-out infinite; }
+@keyframes arena-wheel { 50% { filter: hue-rotate(60deg) brightness(1.2); } }
+
+.arena-card[data-mode="pvp_duel"] .arena-card-art { animation: arena-clash 3s ease-in-out infinite; }
+@keyframes arena-clash {
+  0%, 70%, 100% { filter: none; transform: none; }
+  76% { filter: brightness(2.2); transform: scale(1.03); }
+  84% { filter: brightness(1.2); transform: none; }
+}
+
+/* ── Locked: plainly not playable ─────────────────────────────────────── */
+.arena-card.is-locked {
+  opacity: 1;
+  cursor: not-allowed;
+  border-style: dashed;
+  border-color: rgba(255, 255, 255, 0.2);
+  box-shadow: none;
+  background: linear-gradient(165deg, rgba(18, 17, 20, 0.96), rgba(6, 6, 8, 0.98));
+}
+.arena-card.is-locked > :not(.arena-card-lockveil) { filter: grayscale(1) brightness(0.5); }
+.arena-card.is-locked .arena-card-art,
+.arena-card.is-locked .arena-card-art::after,
+.arena-card.is-locked .arena-card-medal { animation: none; }
+.arena-card.is-locked .arena-card-rail { opacity: 0.25; }
+
+.arena-card-lockveil {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0) 0 12px, rgba(255, 255, 255, 0.035) 12px 24px),
+    radial-gradient(60% 50% at 50% 50%, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.15));
+}
+.arena-card-lockbadge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 22px 12px;
+  border-radius: 14px;
+  background: rgba(8, 7, 10, 0.86);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  font-family: var(--mv-font-display, 'Cinzel', serif);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: rgba(241, 236, 228, 0.82);
+}
+.arena-card-lockicon {
+  font-size: 30px;
+  letter-spacing: 0;
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.6));
+  transform-origin: 50% 20%;
+}
+.arena-card.is-locked:hover .arena-card-lockicon { animation: arena-lock-rattle 0.5s ease; }
+@keyframes arena-lock-rattle {
+  20% { rotate: -14deg; } 40% { rotate: 12deg; } 60% { rotate: -8deg; } 80% { rotate: 4deg; }
+}
+/* A corner ribbon in the mode colour, so locked cards still tell apart. */
+.arena-card-lockribbon {
+  position: absolute;
+  top: 20px;
+  right: -46px;
+  width: 170px;
+  padding: 5px 0;
+  rotate: 45deg;
+  text-align: center;
+  background: linear-gradient(90deg, rgba(var(--ac), 0.75), rgba(var(--ac), 1), rgba(var(--ac), 0.75));
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: #120c08;
+}
+
+/* ── Landing: out of the black the warp ended on ───────────────────────── */
+.play-page-wrapper > .arena-land-fx {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+}
+.arena-land-fx span { position: absolute; }
+.arena-land-fx span:first-child {
+  inset: 0;
+  background: radial-gradient(circle at 50% 45%, rgba(255, 90, 60, 0.55), #050000 55%);
+  animation: arena-land-black 0.9s ease-out both;
+}
+.arena-land-fx span:last-child {
+  left: 50%;
+  top: 45%;
+  width: 40px;
+  height: 40px;
+  margin: -20px 0 0 -20px;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 140, 100, 0.9);
+  box-shadow: 0 0 30px rgba(255, 80, 50, 0.9), inset 0 0 20px rgba(255, 80, 50, 0.7);
+  animation: arena-shockwave 0.9s cubic-bezier(0.2, 0.8, 0.3, 1) 0.15s both;
+}
+@keyframes arena-land-black {
+  0%   { opacity: 1; }
+  100% { opacity: 0; }
+}
+@keyframes arena-shockwave {
+  0%   { transform: scale(0.2); opacity: 1; }
+  100% { transform: scale(60); opacity: 0; border-width: 1px; }
+}
+.arena-landing .arena-col,
+.arena-landing .arena-top { animation: arena-land 0.95s cubic-bezier(0.16, 1, 0.3, 1) both; }
+@keyframes arena-land {
+  0%   { transform: scale(1.35); filter: blur(12px) brightness(2); opacity: 0; }
+  45%  { transform: scale(0.985); filter: blur(0) brightness(1.1); opacity: 1; }
+  55%  { transform: scale(1.005) translate(-3px, 2px); }
+  65%  { transform: translate(3px, -2px); }
+  75%  { transform: translate(-1px, 1px); }
+  100% { transform: none; filter: none; opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .arena-card-art,
+  .arena-card-art::after,
+  .arena-card-medal,
+  .arena-landing .arena-col,
+  .arena-landing .arena-top,
+  .arena-land-fx span { animation: none !important; }
+  .arena-land-fx { display: none; }
+  .arena-card:hover:not(:disabled) { transform: none; }
+}

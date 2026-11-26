@@ -551,3 +551,194 @@
   .cyp-screen .cyp-card:not(.is-locked):hover .cyp-art { scale: none; }
   .cyp-screen .cyp-card:not(.is-locked):hover .cyp-medal > span { rotate: none; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Online: "dragged into the arena" (ModeSplit goOnline, 1.75 s, then the page
+   changes and PlayPage's .arena-landing picks up from the dark).
+   0–0.35 s  the wall flinches back, the Online card flares
+   0.35–1.3  it is pulled in: zoom into the card, streaks converge, shake
+   1.3–1.75  red flash, then black
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* The wall: zooms into the Online card (origin set from the click). */
+.cyp-screen.is-warping { pointer-events: none; overflow: hidden; animation: cyp-shake 1.75s linear both; }
+.cyp-screen.is-warping .cyp-list {
+  transform-origin: var(--wox, 50%) var(--woy, 50%);
+  animation: cyp-pull-in 1.6s cubic-bezier(0.55, 0, 0.85, 0.35) both;
+}
+.cyp-screen.is-warping .cyp-head,
+.cyp-screen.is-warping .cyp-foot,
+.cyp-screen.is-warping .ms-back-btn { animation: cyp-flee 0.9s cubic-bezier(0.5, 0, 0.75, 0) 0.15s both; }
+.cyp-screen.is-warping .cyp-foot { --flee-y: 60px; }
+.cyp-screen.is-warping .cyp-card:not(.cyp-card--online) {
+  animation: cyp-scatter 0.9s cubic-bezier(0.5, 0, 0.75, 0) 0.2s both;
+}
+.cyp-screen.is-warping .cyp-card--online {
+  animation: cyp-flare 1.6s ease-in both;
+}
+.cyp-screen.is-warping .cyp-card--online .cyp-medal { animation: cyp-medal-charge 1.2s ease-in both; }
+
+@keyframes cyp-pull-in {
+  0%   { transform: scale(1);    filter: none; }
+  20%  { transform: scale(0.95); filter: none; }
+  70%  { transform: scale(2.4);  filter: blur(1px) brightness(1.2); }
+  100% { transform: scale(7);    filter: blur(8px) brightness(1.6); opacity: 0.2; }
+}
+@keyframes cyp-flee {
+  to { transform: translateY(var(--flee-y, -60px)) scale(0.9); opacity: 0; filter: blur(6px); }
+}
+@keyframes cyp-scatter {
+  0%   { opacity: 1; }
+  100% { opacity: 0; filter: blur(10px) grayscale(1); transform: scale(0.75); }
+}
+@keyframes cyp-flare {
+  0%   { box-shadow: 0 0 22px rgba(214, 58, 50, 0.3); }
+  25%  { box-shadow: 0 0 60px rgba(255, 80, 60, 0.9), 0 0 0 2px rgba(255, 140, 120, 0.9); }
+  100% { box-shadow: 0 0 140px rgba(255, 60, 40, 1), 0 0 0 3px rgba(255, 200, 180, 1); }
+}
+@keyframes cyp-medal-charge {
+  0%   { scale: 1; }
+  25%  { scale: 1.35; box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.45), 0 0 40px rgba(255, 90, 60, 1); }
+  100% { scale: 1.6; box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.45), 0 0 80px rgba(255, 90, 60, 1); }
+}
+@keyframes cyp-shake {
+  0%, 30%  { translate: 0 0; }
+  34% { translate: -3px 2px; }  38% { translate: 4px -2px; }
+  42% { translate: -5px -3px; } 46% { translate: 5px 3px; }
+  50% { translate: -6px 2px; }  54% { translate: 6px -4px; }
+  58% { translate: -7px 3px; }  62% { translate: 7px -2px; }
+  66% { translate: -8px -3px; } 70% { translate: 6px 4px; }
+  74% { translate: -4px 2px; }  78%, 100% { translate: 0 0; }
+}
+
+/* The overlay, centred on the Online card. */
+.cyp-warp {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  pointer-events: all;
+  overflow: hidden;
+  cursor: progress;
+}
+.cyp-warp > span { position: absolute; pointer-events: none; }
+
+/* Streaks rushing INTO the card: a ring of lines that shrinks onto it. */
+.cyp-warp-lines {
+  left: var(--wx);
+  top: var(--wy);
+  width: 300vmax;
+  height: 300vmax;
+  margin: -150vmax 0 0 -150vmax;
+  border-radius: 50%;
+  background: repeating-conic-gradient(from 0deg,
+    rgba(255, 120, 90, 0) 0deg 4deg,
+    rgba(255, 150, 120, 0.55) 4deg 4.6deg,
+    rgba(255, 120, 90, 0) 4.6deg 9deg,
+    rgba(255, 235, 220, 0.35) 9deg 9.3deg,
+    rgba(255, 120, 90, 0) 9.3deg 13deg);
+  -webkit-mask-image: radial-gradient(circle, transparent 6%, #000 22%, #000 48%, transparent 70%);
+  mask-image: radial-gradient(circle, transparent 6%, #000 22%, #000 48%, transparent 70%);
+  animation: cyp-converge 1.3s cubic-bezier(0.6, 0, 0.9, 0.4) 0.2s both;
+}
+.cyp-warp-lines--b {
+  animation-duration: 1.1s;
+  animation-delay: 0.45s;
+  rotate: 4deg;
+  filter: hue-rotate(-20deg);
+}
+@keyframes cyp-converge {
+  0%   { transform: scale(1.4) rotate(0deg);   opacity: 0; }
+  20%  { opacity: 1; }
+  100% { transform: scale(0.05) rotate(40deg); opacity: 0.9; }
+}
+
+/* A dark red vortex swirling around the card. */
+.cyp-warp-vortex {
+  left: var(--wx);
+  top: var(--wy);
+  width: 240vmax;
+  height: 240vmax;
+  margin: -120vmax 0 0 -120vmax;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg,
+    rgba(120, 10, 10, 0.0), rgba(170, 20, 15, 0.45), rgba(40, 0, 0, 0.0),
+    rgba(170, 20, 15, 0.45), rgba(120, 10, 10, 0.0));
+  -webkit-mask-image: radial-gradient(circle, transparent 3%, #000 30%);
+  mask-image: radial-gradient(circle, transparent 3%, #000 30%);
+  animation: cyp-vortex 1.75s cubic-bezier(0.5, 0, 0.8, 0.5) both;
+}
+@keyframes cyp-vortex {
+  0%   { transform: rotate(0deg) scale(1.3); opacity: 0; }
+  25%  { opacity: 0.7; }
+  100% { transform: rotate(-260deg) scale(0.6); opacity: 1; }
+}
+
+/* The edges close in until only the card is lit, then that goes too. */
+.cyp-warp-vignette {
+  inset: 0;
+  background: radial-gradient(circle at var(--wx) var(--wy),
+    rgba(0, 0, 0, 0) 0, rgba(0, 0, 0, 0) var(--hole, 120vmax),
+    rgba(20, 0, 0, 0.9) calc(var(--hole, 120vmax) + 22vmax), #050000 100%);
+  animation: cyp-close 1.75s cubic-bezier(0.6, 0, 0.9, 0.5) both;
+}
+@property --hole { syntax: '<length>'; inherits: false; initial-value: 120vmax; }
+@keyframes cyp-close {
+  0%   { --hole: 120vmax; }
+  70%  { --hole: 8vmax; }
+  100% { --hole: 0vmax; }
+}
+
+.cyp-warp-text {
+  left: 50%;
+  top: 50%;
+  translate: -50% -50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+  white-space: nowrap;
+  color: #fff3ea;
+  font-family: 'Cinzel', serif;
+  /* A dark band behind the words so they never fight the card zooming
+     underneath them. */
+  padding: 22px 18vw;
+  background: linear-gradient(90deg, rgba(8, 0, 0, 0), rgba(8, 0, 0, 0.82) 25%, rgba(8, 0, 0, 0.82) 75%, rgba(8, 0, 0, 0));
+  animation: cyp-warp-text 1.75s ease both;
+}
+.cyp-warp-text i { font-style: normal; font-size: 40px; color: #ff6a50; filter: drop-shadow(0 0 16px rgba(255, 70, 40, 0.9)); }
+.cyp-warp-text b {
+  font-size: clamp(24px, 4.4vw, 48px);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  text-shadow: 0 0 24px rgba(255, 70, 40, 0.9), 0 0 60px rgba(200, 20, 10, 0.7);
+}
+.cyp-warp-text small {
+  font-size: 12px;
+  letter-spacing: 0.5em;
+  text-transform: uppercase;
+  color: rgba(255, 200, 180, 0.75);
+}
+@keyframes cyp-warp-text {
+  0%, 22% { opacity: 0; scale: 1.8; letter-spacing: 0.6em; filter: blur(10px); }
+  45%     { opacity: 1; scale: 1;   filter: blur(0); }
+  80%     { opacity: 1; scale: 0.96; }
+  100%    { opacity: 0; scale: 0.6; filter: blur(4px); }
+}
+
+/* Flash, then black — the arena page fades in from the same black. */
+.cyp-warp-flash {
+  inset: 0;
+  background: radial-gradient(circle at var(--wx) var(--wy), #fff2e6 0%, #ff5a3c 25%, #3a0402 60%, #050000 100%);
+  animation: cyp-flash 1.75s linear both;
+}
+@keyframes cyp-flash {
+  0%, 74% { opacity: 0; }
+  80%     { opacity: 1; }
+  100%    { opacity: 1; background: #050000; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cyp-warp { display: none; }
+}

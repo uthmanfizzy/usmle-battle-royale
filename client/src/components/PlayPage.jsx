@@ -158,6 +158,16 @@ export default function PlayPage({
 }) {
   // Default preserves the existing behavior exactly (Online passes no initialMode)
   const [selectedMode, setSelectedMode] = useState(initialMode || 'battle_royale');
+  // Arrived through Choose Your Path's "dragged into the arena" transition:
+  // land out of the same black it ended on. Read once, then cleared.
+  // Cleared in an effect, not the initializer: StrictMode runs initializers
+  // twice, and the second run would find the flag already gone.
+  const [landing] = useState(() => {
+    try { return sessionStorage.getItem('arenaWarp') === '1'; } catch { return false; }
+  });
+  useEffect(() => {
+    try { sessionStorage.removeItem('arenaWarp'); } catch { /* private mode */ }
+  }, []);
   // Party sizes are gone from the page, so every room is a solo entry. Kept as
   // a value rather than dropped so the lobby payload's shape is unchanged.
   const squadSize = 'solo';
@@ -485,7 +495,7 @@ export default function PlayPage({
   // clipped anything past the fold — the deploy row and the join-by-code
   // field, on a short window. Everything here scrolls now; the modifier
   // outranks that rule (see .play-page-wrapper--scroll in PlayPage.css).
-  const wrapperClass = 'play-page-wrapper play-page-wrapper--scroll';
+  const wrapperClass = `play-page-wrapper play-page-wrapper--scroll${landing ? ' arena-landing' : ''}`;
 
   return (
     <div
@@ -499,6 +509,7 @@ export default function PlayPage({
     >
       {/* ── The arena: embers over a vignette, drawn in CSS so the page
              still weighs nothing. ─────────────────────────────────────── */}
+      {landing && <div className="arena-land-fx" aria-hidden="true"><span /><span /></div>}
       <div className="arena-bg" aria-hidden="true">
         <span className="arena-glow" />
         <span className="arena-floor" />
@@ -560,10 +571,13 @@ export default function PlayPage({
                    its colour, its emblem and the art behind it (data-mode in
                    PlayPageArena.css). ─────────────────────────────────── */}
             <div className="arena-grid">
-              {GAME_MODES.map((mode, i) => {
+              {GAME_MODES
                 // Admin config wins; a mode it says nothing about falls back
-                // to its own comingSoon flag.
-                const isEnabled = gameModesConfig[mode.id]?.enabled ?? !mode.comingSoon;
+                // to its own comingSoon flag. Playable modes first, the
+                // locked ones at the end of the wall.
+                .map(mode => ({ mode, isEnabled: gameModesConfig[mode.id]?.enabled ?? !mode.comingSoon }))
+                .sort((a, b) => Number(b.isEnabled) - Number(a.isEnabled))
+                .map(({ mode, isEnabled }, i) => {
                 const active = selectedMode === mode.id;
                 return (
                   <button
@@ -580,6 +594,7 @@ export default function PlayPage({
                     }}
                     aria-pressed={active}
                     disabled={!isEnabled}
+                    title={isEnabled ? mode.longDescription : `${mode.name} is locked — coming soon`}
                   >
                     <span className="arena-card-art" aria-hidden="true" />
                     <span className="arena-card-sheen" aria-hidden="true" />
@@ -587,7 +602,16 @@ export default function PlayPage({
                     {/* Locked is said with a badge, not by draining the card's
                         colour — greying five of six made the whole wall look
                         like one repeated card. */}
-                    {!isEnabled && <span className="arena-card-soon">Soon</span>}
+                    <span className="arena-card-mark" aria-hidden="true">{mode.icon}</span>
+                    {!isEnabled && (
+                      <span className="arena-card-lockveil" aria-hidden="true">
+                        <span className="arena-card-lockbadge">
+                          <span className="arena-card-lockicon">🔒</span>
+                          <span>Locked</span>
+                        </span>
+                        <span className="arena-card-lockribbon">Coming soon</span>
+                      </span>
+                    )}
                     <span className="arena-card-head">
                       <span className="arena-card-medal" aria-hidden="true">{mode.icon}</span>
                       <span className="arena-card-titles">
@@ -629,35 +653,34 @@ export default function PlayPage({
                 <span aria-hidden="true">🔍</span> QUICK JOIN
                 <small>Drop into the first open room</small>
               </button>
+              <div className="arena-code">
+                <label className="arena-code-label" htmlFor="arena-code-input">Join by code</label>
+                <div className="arena-code-row">
+                  <input
+                    id="arena-code-input"
+                    className="arena-code-input"
+                    placeholder="ABC123"
+                    value={lobbyCode}
+                    onChange={e => {
+                      setLobbyCode(e.target.value.toUpperCase());
+                      setJoinError('');
+                      if (onClearError) onClearError();
+                    }}
+                    maxLength={8}
+                    onKeyDown={e => e.key === 'Enter' && lobbyCode.trim() && handleJoinLobby()}
+                  />
+                  <button
+                    type="button"
+                    className="arena-code-btn"
+                    onClick={handleJoinLobby}
+                    disabled={!lobbyCode.trim()}
+                  >JOIN →</button>
+                </div>
+                {joinError && <p className="join-lobby-error">{joinError}</p>}
+              </div>
             </div>
 
             {error && <p className="pp-error">{error}</p>}
-
-            <div className="arena-code">
-              <label className="arena-code-label" htmlFor="arena-code-input">Join by code</label>
-              <div className="arena-code-row">
-                <input
-                  id="arena-code-input"
-                  className="arena-code-input"
-                  placeholder="ABC123"
-                  value={lobbyCode}
-                  onChange={e => {
-                    setLobbyCode(e.target.value.toUpperCase());
-                    setJoinError('');
-                    if (onClearError) onClearError();
-                  }}
-                  maxLength={8}
-                  onKeyDown={e => e.key === 'Enter' && lobbyCode.trim() && handleJoinLobby()}
-                />
-                <button
-                  type="button"
-                  className="arena-code-btn"
-                  onClick={handleJoinLobby}
-                  disabled={!lobbyCode.trim()}
-                >JOIN →</button>
-              </div>
-              {joinError && <p className="join-lobby-error">{joinError}</p>}
-            </div>
           </>
         )}
       </div>

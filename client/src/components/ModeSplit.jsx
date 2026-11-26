@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { cachedImageMap, rememberImageMap } from '../utils/cachedImages';
 import { authFetch, getCachedUser, setCachedUser } from '../auth';
 import './ModeSplit.css';
@@ -59,8 +60,62 @@ function PathCard({ variant, icon, title, sub, art, onClick, locked, cta }) {
 // eslint-disable-next-line no-unused-vars
 export default function ModeSplit({ onStory, onOnline, onTraining, onMinigames, onBack }) {
   const art = useModeArt();
+
+  // Pressing Online plays a short "pulled into the arena" transition before
+  // the page changes: the wall zooms into the Online card, streaks converge
+  // on it, the screen shakes and goes dark. The arena page picks up from the
+  // dark (sessionStorage 'arenaWarp', read once by PlayPage) and lands.
+  const [warp, setWarp] = useState(null); // null | { x, y, ox, oy }
+  useEffect(() => {
+    if (!warp) return undefined;
+    const t = setTimeout(onOnline, 1750);
+    return () => clearTimeout(t);
+  }, [warp, onOnline]);
+  function goOnline(e) {
+    if (warp) return;
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const card = e?.currentTarget;
+    if (reduce || !card) { onOnline(); return; }
+    // Warm the arena's chunk while the animation runs, so no loading
+    // fallback flashes between the two screens.
+    import('./PlayPage').catch(() => {});
+    try { sessionStorage.setItem('arenaWarp', '1'); } catch { /* private mode */ }
+    const r = card.getBoundingClientRect();
+    const lr = card.parentElement.getBoundingClientRect();
+    setWarp({
+      x: r.left + r.width / 2,
+      y: r.top + r.height / 2,
+      ox: r.left + r.width / 2 - lr.left,
+      oy: r.top + r.height / 2 - lr.top,
+    });
+  }
+
   return (
-    <div className="ms-screen ms-story cyp-screen">
+    <div
+      className={`ms-screen ms-story cyp-screen${warp ? ' is-warping' : ''}`}
+      style={warp ? {
+        '--wox': `${warp.ox}px`, '--woy': `${warp.oy}px`,
+      } : undefined}
+    >
+      {warp && createPortal(
+        <div
+          className="cyp-warp"
+          role="status"
+          style={{ '--wx': `${warp.x}px`, '--wy': `${warp.y}px` }}
+        >
+          <span className="cyp-warp-vortex" />
+          <span className="cyp-warp-lines" />
+          <span className="cyp-warp-lines cyp-warp-lines--b" />
+          <span className="cyp-warp-vignette" />
+          <span className="cyp-warp-text">
+            <i aria-hidden="true">⚔</i>
+            <b>Entering the Arena</b>
+            <small>Steel yourself</small>
+          </span>
+          <span className="cyp-warp-flash" />
+        </div>,
+        document.body,
+      )}
       <button className="ms-back-btn" onClick={onBack}>← Back</button>
 
       <header className="cyp-head">
@@ -88,7 +143,7 @@ export default function ModeSplit({ onStory, onOnline, onTraining, onMinigames, 
           sub="Battle other doctors live"
           cta="Enter the arena"
           art={art.path_online_art}
-          onClick={onOnline}
+          onClick={goOnline}
         />
         <PathCard
           variant="training"
