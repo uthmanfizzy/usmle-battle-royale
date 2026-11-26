@@ -379,7 +379,7 @@ function renderPiece(p, key) {
 //
 // With nothing covering it the BARE string comes back, so the common path is
 // byte-identical to the original renderer.
-function renderTokenText(tok, segments, keyBase) {
+export function renderTokenText(tok, segments, keyBase) {
   const marks = tok.marks || [];
   const covering = (segments || []).filter(seg => seg.end > tok.start && seg.start < tok.end);
   if (!covering.length && !marks.length) return tok.text;

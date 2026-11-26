@@ -1,7 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { authFetch, getToken } from '../auth';
 import { SERVER_URL } from '../serverUrl';
-import { renderStem } from '../utils/renderStem';
+import { renderStem, toStemVisibleText, parseStemInline, renderTokenText } from '../utils/renderStem';
+import { resolveHighlights, offsetsToSegments } from '../utils/explanationHighlights';
+import ExplanationHighlightToolbar from './ExplanationHighlightToolbar';
+import { useHighlightRights, useQuestionHighlights } from './useQuestionHighlights';
 import { sfx } from '../minigameSfx';
 import { useStudySession } from '../studySession';
 import { useStudyActivity } from '../studyPresence';
@@ -38,7 +41,10 @@ const SYSTEM_ICON = {
 const iconFor = (id) => SYSTEM_ICON[id] || '🧭';
 const LETTERS = 'ABCDEFGHIJ';
 const COUNTS = [10, 20, 40, 0]; // 0 = every question that matches
-const TIME_LIMIT = 90;
+// The UWorld Adventure clocks: 80 s to answer, 85 s on the explanation.
+const TIME_LIMIT = 80;
+const EXPL_LIMIT = 85;
+const TIMED_KEY = 'mv_amboss200_timed';
 const SEL_KEY = 'mv_amboss200_systems';
 const RATE_KEY = 'mv_amboss200_ratings';
 
@@ -155,7 +161,7 @@ function Basecamp({ catalog, error, picked, setPicked, rateSel, setRateSel, coun
           <h2>4 · Pace</h2>
           <div className="a2-seg">
             <button type="button" className={!timed ? 'is-on' : ''} onClick={() => { sfx.select(); setTimed(false); }}>Untimed</button>
-            <button type="button" className={timed ? 'is-on' : ''} onClick={() => { sfx.select(); setTimed(true); }}>⏱ {TIME_LIMIT}s each</button>
+            <button type="button" className={timed ? 'is-on' : ''} onClick={() => { sfx.select(); setTimed(true); }}>⏱ Timed · {TIME_LIMIT}s + {EXPL_LIMIT}s review</button>
           </div>
         </div>
       </section>
@@ -175,9 +181,41 @@ function Basecamp({ catalog, error, picked, setPicked, rateSel, setRateSel, coun
 }
 
 // ── The HY explanation card ─────────────────────────────────────────────────
-function HYCard({ q, right }) {
+//
+// The card's body is one text model, like a stem: every piece knows where it
+// starts in the card's visible text, so highlights (saved as offsets into
+// that text) land on the same words every time. The rendered body's
+// textContent must equal `visible` exactly, which is why the "Trap: " label
+// is a token too and the list bullets are CSS.
+//
+// **bold** written into hy.js is honoured; a fact that opens with a label
+// ("Acute: nausea…") gets the label in bold automatically.
+function hyModel(q) {
+  let at = 0;
+  const tok = (raw, autoLead = false) => {
+    const { text, marks } = parseStemInline(raw);
+    const m = autoLead && !marks.length ? text.match(/^([^:.]{2,45}):\s/) : null;
+    const t = { text, start: at, end: at + text.length, marks: m ? [{ start: 0, end: m[1].length + 1, bold: true }] : marks };
+    at += text.length;
+    return t;
+  };
+  const hy = q.hy;
+  if (!hy) {
+    const w = q.explanation ? tok(q.explanation) : null;
+    return { w, facts: [], trap: null, visible: w ? w.text : '' };
+  }
+  const w = tok(hy.w);
+  const facts = hy.hy.map(f => tok(f, true));
+  const trap = hy.t ? [tok('Trap: '), tok(hy.t)] : null;
+  const visible = [w, ...facts, ...(trap || [])].map(t => t.text).join('');
+  return { w, facts, trap, visible };
+}
+
+function HYCard({ q, right, bodyRef = null, segments = [] }) {
   const hy = q.hy;
   const answerText = q.options?.[LETTERS.indexOf(q.correct)];
+  const model = useMemo(() => hyModel(q), [q]);
+  const R = (t, k) => renderTokenText(t, segments, k);
   return (
     <div className={`a2-hy ${right ? 'is-right' : 'is-wrong'}`}>
       <div className="a2-hy-top">
@@ -187,15 +225,15 @@ function HYCard({ q, right }) {
           <h3 className="a2-hy-title">{hy?.c || answerText}</h3>
         </div>
       </div>
-      {hy ? (
-        <>
-          <p className="a2-hy-why">{hy.w}</p>
+      <div className="a2-hy-body" ref={bodyRef}>
+        {model.w && <p className="a2-hy-why">{R(model.w, 'w')}</p>}
+        {hy && (
           <ul className="a2-hy-list">
-            {hy.hy.map((f, i) => <li key={i} style={{ animationDelay: `${120 + i * 90}ms` }}>{f}</li>)}
+            {model.facts.map((f, i) => <li key={i} style={{ animationDelay: `${120 + i * 90}ms` }}>{R(f, `f${i}`)}</li>)}
           </ul>
-          {hy.t && <p className="a2-hy-trap"><b>Trap:</b> {hy.t}</p>}
-        </>
-      ) : q.explanation ? <p className="a2-hy-why">{q.explanation}</p> : null}
+        )}
+        {model.trap && <p className="a2-hy-trap"><b>{R(model.trap[0], 'tl')}</b>{R(model.trap[1], 't')}</p>}
+      </div>
     </div>
   );
 }
@@ -228,14 +266,47 @@ function RateBar({ current, onRate, problem }) {
 // ── Expedition ──────────────────────────────────────────────────────────────
 function Expedition({ qs, idx, results, picked, onAnswer, onNext, onQuit, timed, combo, score, rating, onRate, rateProblem, signedIn }) {
   const q = qs[idx];
+  // Two clocks, as in UWorld Adventure: the question's, then the
+  // explanation's. The explanation clock can be paused; when it runs out an
+  // unrated question waits for a rating (rating is what moves you on), and
+  // anyone who cannot rate is moved on.
   const [time, setTime] = useState(TIME_LIMIT);
-  useEffect(() => { setTime(TIME_LIMIT); }, [idx]);
+  const [explTime, setExplTime] = useState(EXPL_LIMIT);
+  const [explPaused, setExplPaused] = useState(false);
+  const [rated, setRated] = useState(false);
+  useEffect(() => { setTime(TIME_LIMIT); setExplTime(EXPL_LIMIT); setExplPaused(false); setRated(false); }, [idx]);
   useEffect(() => {
     if (!timed || picked !== null) return undefined;
     if (time <= 0) { onAnswer(-1); return undefined; }
     const t = setTimeout(() => setTime(x => x - 1), 1000);
     return () => clearTimeout(t);
   }, [timed, time, picked, onAnswer]);
+  const mustRate = signedIn && !rating;
+  const explExpired = timed && picked !== null && explTime <= 0;
+  useEffect(() => {
+    if (!timed || picked === null || explPaused || rated) return undefined;
+    if (explTime <= 0) { if (!mustRate) onNext(); return undefined; }
+    const t = setTimeout(() => setExplTime(x => x - 1), 1000);
+    return () => clearTimeout(t);
+  }, [timed, picked, explPaused, explTime, rated, mustRate, onNext]);
+  function rateAndGo(k) {
+    onRate(k);
+    if (!timed || rated) return;
+    setRated(true);
+    setTimeout(onNext, 700);
+  }
+
+  // Highlighting, as in UWorld Adventure.
+  const rights = useHighlightRights();
+  const hl = useQuestionHighlights(q?.id, rights);
+  const stemRef = useRef(null);
+  const hyRef = useRef(null);
+  const stemVisible = useMemo(() => toStemVisibleText(q.question || ''), [q]);
+  const hyVisible = useMemo(() => hyModel(q).visible, [q]);
+  const stemShown = useMemo(() => resolveHighlights(stemVisible, hl.rows.filter(h => h.region === 'question')), [stemVisible, hl.rows]);
+  const hyShown = useMemo(() => resolveHighlights(hyVisible, hl.rows.filter(h => (h.region || 'explanation') === 'explanation')), [hyVisible, hl.rows]);
+  const hySegments = useMemo(() => offsetsToSegments(hyVisible, hyShown), [hyVisible, hyShown]);
+  const canMarkExpl = rights.loggedIn || rights.isAdmin;
 
   useEffect(() => {
     function key(e) {
@@ -277,16 +348,36 @@ function Expedition({ qs, idx, results, picked, onAnswer, onNext, onQuit, timed,
         </div>
       </div>
       {timed && picked === null && (
-        <div className={`a2-timer${time <= 15 ? ' is-low' : ''}`}><div style={{ width: `${(time / TIME_LIMIT) * 100}%` }} /><span>{time}s</span></div>
+        <div className={`a2-timer${time <= 5 ? ' is-low' : time <= 10 ? ' is-mid' : ''}`}><div style={{ width: `${(time / TIME_LIMIT) * 100}%` }} /><span>{time}s</span></div>
       )}
+      {hl.error && <p className="a2-hl-error" role="alert">{hl.error}</p>}
 
       <div className="a2-qgrid">
         <article className="a2-qcard" key={q.id}>
           <div className="a2-qmeta">
             <span className="a2-qsys">{iconFor(q.subject)} {q.subjectName}</span>
             <span className="a2-qno">Waypoint {idx + 1} / {qs.length}</span>
+            {rights.isAdmin && (
+              <button type="button" className={`a2-dev${rights.devMode ? ' is-on' : ''}`} aria-pressed={rights.devMode}
+                onClick={() => rights.setDevMode(!rights.devMode)}
+                title="Developer Mode: select words in the question or the HY card to bold, italicise or highlight them for everyone">
+                🛠 {rights.devMode ? 'Editing on' : 'Edit highlights'}
+              </button>
+            )}
           </div>
-          <div className="a2-stem stem-text">{renderStem(q.question)}</div>
+          <div className="a2-stem">
+            <div className="stem-text" ref={stemRef}>{renderStem(q.question, { highlights: stemShown })}</div>
+          </div>
+          {rights.authoringOfficial && (
+            <ExplanationHighlightToolbar
+              containerRef={stemRef}
+              highlights={stemShown}
+              onCreate={(p) => hl.create('question', p)}
+              onRemoveRange={(s, e) => hl.removeRange('question', stemShown, stemVisible, s, e)}
+              allowFormat
+              rejectSelector=".lab-values-box, .stem-table"
+            />
+          )}
           {q.image_url && <img className="a2-fig" src={q.image_url} alt="Figure for this question" loading="lazy" />}
           <div className="a2-choices">
             {q.options.map((o, i) => {
@@ -317,8 +408,32 @@ function Expedition({ qs, idx, results, picked, onAnswer, onNext, onQuit, timed,
                 <span>{right ? (combo >= 3 ? `🔥 ${combo} in a row!` : '✓ Correct') : picked === -1 ? '⏱ Out of time' : '✕ Not quite'}</span>
                 {right && <b>+{(100) * mult} XP</b>}
               </div>
-              <HYCard q={q} right={right} />
-              {signedIn && <RateBar current={rating} onRate={onRate} problem={rateProblem} />}
+              {timed && (
+                <div className={`a2-expl-clock${explExpired ? ' is-out' : explPaused ? ' is-held' : ''}`} aria-live="polite">
+                  {rated ? <span>✓ Rated — moving on…</span>
+                    : explExpired ? <span>⏱ Time’s up — rate your recall to continue</span>
+                      : (
+                        <>
+                          <span className="a2-expl-left">⏱ {explTime}s</span>
+                          <span className="a2-expl-track"><span style={{ width: `${(explTime / EXPL_LIMIT) * 100}%` }} /></span>
+                          <button type="button" onClick={() => setExplPaused(p => !p)} aria-pressed={explPaused}>
+                            {explPaused ? '▶ Resume' : '⏸ Pause timer'}
+                          </button>
+                        </>
+                      )}
+                </div>
+              )}
+              <HYCard q={q} right={right} bodyRef={hyRef} segments={hySegments} />
+              {canMarkExpl && (
+                <ExplanationHighlightToolbar
+                  containerRef={hyRef}
+                  highlights={hyShown}
+                  onCreate={(p) => hl.create('explanation', p)}
+                  onRemoveRange={(s, e) => hl.removeRange('explanation', hyShown, hyVisible, s, e)}
+                  allowFormat={rights.authoringOfficial}
+                />
+              )}
+              {signedIn && <RateBar current={rating} onRate={rateAndGo} problem={rateProblem} />}
               <button type="button" className="a2-go" onClick={onNext}>{idx + 1 >= qs.length ? 'Reach the summit →' : 'Next waypoint →'}</button>
             </>
           )}
@@ -410,7 +525,8 @@ export default function Amboss200() {
   const [picked, setPicked] = useState(() => { try { return JSON.parse(localStorage.getItem(SEL_KEY)) || []; } catch { return []; } });
   const [rateSel, setRateSel] = useState(() => { try { const v = JSON.parse(localStorage.getItem(RATE_KEY)); return Array.isArray(v) ? v : []; } catch { return []; } });
   const [count, setCount] = useState(20);
-  const [timed, setTimed] = useState(false);
+  const [timed, setTimed] = useState(() => { try { return localStorage.getItem(TIMED_KEY) !== '0'; } catch { return true; } });
+  useEffect(() => { try { localStorage.setItem(TIMED_KEY, timed ? '1' : '0'); } catch { /* not remembered */ } }, [timed]);
   const [phase, setPhase] = useState('camp');
   const [qs, setQs] = useState([]);
   const [idx, setIdx] = useState(0);
