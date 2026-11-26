@@ -9,8 +9,8 @@ import './CelestialDailyActivity.css';
  * The Profile design's "Daily activity": the last seven days, each as a
  * 24-hour track with the study sessions laid on it and one chip per session.
  *
- * Days are the player's local dates (the server buckets each date by UTC, as
- * the full Daily Activity page does). Bars sit at the local clock time.
+ * Days are the player's local dates; the tz sent with each request makes the
+ * server window them by local midnight too. Bars sit at the local clock time.
  * Each day links through to the full Daily Activity page.
  */
 
@@ -54,7 +54,7 @@ export default function CelestialDailyActivity({ userId, anchorId }) {
     const now = Date.now();
     const dates = Array.from({ length: DAYS }, (_, i) => ymd(now - i * 86400000));
     Promise.all(dates.map(date =>
-      fetch(`${SERVER_URL}/api/users/${userId}/activity-sessions?date=${date}`, { headers: authHeaders() })
+      fetch(`${SERVER_URL}/api/users/${userId}/activity-sessions?date=${date}&tz=${new Date().getTimezoneOffset()}`, { headers: authHeaders() })
         .then(r => (r.ok ? r.json() : { sessions: [] }))
         .then(d => ({ date, sessions: shape(d.sessions), hidden: d.hidden ? (d.visibility || 'private') : null }))
         .catch(() => ({ date, sessions: [] })),

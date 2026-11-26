@@ -9066,8 +9066,7 @@ app.get('/api/users/:userId/activity-sessions', optionalAuth, async (req, res) =
   try {
     const access = await activityAccess(req.userId, userId);
     if (!access.allowed) return res.json({ date, sessions: [], hidden: true, visibility: access.visibility });
-    const dayStart = `${date}T00:00:00.000Z`;
-    const dayEnd   = new Date(Date.parse(dayStart) + 86400000).toISOString();
+    const { dayStart, dayEnd } = localDayWindow(date, req.query.tz);
     // Selecting a column that is not there fails the WHOLE query, and this
     // endpoint answers a failure with an empty list — so naming
     // questions_answered before its migration has run would not cost the
@@ -9146,6 +9145,20 @@ function isMissingTable(error, table = null) {
 
 const GAP_NOTE_MAX = 500;
 
+/**
+ * The UTC window of one LOCAL calendar day. `tz` is the client's
+ * getTimezoneOffset() (minutes to add to local time to reach UTC). Without
+ * it the day was read as UTC midnight to midnight, so anyone away from UTC
+ * saw late-evening sessions on the next day (or early ones on the day before).
+ * A missing or impossible offset falls back to UTC, as before.
+ */
+function localDayWindow(date, tz) {
+  const off = Number(tz);
+  const shift = Number.isFinite(off) && Math.abs(off) <= 840 ? Math.round(off) * 60000 : 0;
+  const startMs = Date.parse(`${date}T00:00:00Z`) + shift;
+  return { dayStart: new Date(startMs).toISOString(), dayEnd: new Date(startMs + 86400000).toISOString() };
+}
+
 app.get('/api/activity/gap-notes', requireAuth, async (req, res) => {
   const raw = (req.query.date ?? '').toString();
   const valid = /^\d{4}-\d{2}-\d{2}$/.test(raw)
@@ -9155,8 +9168,7 @@ app.get('/api/activity/gap-notes', requireAuth, async (req, res) => {
 
   if (!supabase || !hasGapNotes) return res.json({ date, notes: {}, kinds: {} });
   try {
-    const dayStart = `${date}T00:00:00.000Z`;
-    const dayEnd   = new Date(Date.parse(dayStart) + 86400000).toISOString();
+    const { dayStart, dayEnd } = localDayWindow(date, req.query.tz);
     const read = (withKind) => supabase
       .from('activity_gap_notes')
       .select(withKind ? 'gap_start, note, kind' : 'gap_start, note')

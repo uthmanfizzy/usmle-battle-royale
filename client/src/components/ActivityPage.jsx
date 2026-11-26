@@ -149,7 +149,9 @@ const SUMMARY_MODES = [
   ...LIVE_SUMMARY_MODE_IDS.map(id => ({ mode: id, ...modeMeta(id) })),
 ];
 
-const todayUTC = () => new Date().toISOString().slice(0, 10);
+// The player's LOCAL date: the server windows each day by the offset sent with it.
+const todayLocal = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+const tzParam = () => `tz=${new Date().getTimezoneOffset()}`;
 
 // Shift a YYYY-MM-DD string by whole days without tripping over local timezones.
 function shiftDate(ymd, days) {
@@ -588,7 +590,7 @@ export default function ActivityPage() {
         if (!Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === q) return q;
       }
     } catch { /* no URL access — fall through to today */ }
-    return todayUTC();
+    return todayLocal();
   });
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading]   = useState(true);
@@ -622,7 +624,7 @@ export default function ActivityPage() {
     if (!viewedId) return;
     let cancelled = false;
     setLoading(true);
-    fetch(`${SERVER_URL}/api/users/${viewedId}/activity-sessions?date=${date}`, { headers: authHeaders() })
+    fetch(`${SERVER_URL}/api/users/${viewedId}/activity-sessions?date=${date}&${tzParam()}`, { headers: authHeaders() })
       .then(r => (r.ok ? r.json() : null))
       .then(data => {
         if (cancelled) return;
@@ -642,7 +644,7 @@ export default function ActivityPage() {
     const token = getToken();
     if (!token) { setNotes({}); setKinds({}); return; }
     let cancelled = false;
-    fetch(`${SERVER_URL}/api/activity/gap-notes?date=${date}`, {
+    fetch(`${SERVER_URL}/api/activity/gap-notes?date=${date}&${tzParam()}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(r => (r.ok ? r.json() : null))
@@ -702,7 +704,7 @@ export default function ActivityPage() {
     }
   }
 
-  const isToday = date === todayUTC();
+  const isToday = date === todayLocal();
   const totalSeconds = sessions.reduce((a, s) => a + (Number(s.duration_seconds) || 0), 0);
 
   // Journey levels finished today. Counted by level, not by session: a level
