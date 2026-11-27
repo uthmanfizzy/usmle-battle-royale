@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import socket from '../socket';
-import * as audio from '../audio';
+import { clueSfx } from '../clueSfx';
+import { ClueTicket, ClueSection } from './ClueLadderHome';
 import './ClueLadder.css';
 
 /**
@@ -82,6 +83,11 @@ export default function ClueLadderGame({ players = [], username, gameResult, onL
   const msTotal = (round?.seconds || 90) * 1000;
   const msLeft = phase === 'playing' ? Math.max(0, deadline - now) : phase === 'intro' ? msTotal : 0;
 
+  // The clock ticks out loud for the last ten seconds while you are still climbing.
+  const secsLeft = fmtSecs(msLeft);
+  const tickAt = phase === 'playing' && secsLeft > 0 && secsLeft <= 10 && !me?.solved && !me?.out ? secsLeft : -1;
+  useEffect(() => { if (tickAt > 0) clueSfx.tick(tickAt % 2 === 0); }, [tickAt]);
+
   useEffect(() => {
     setNames(cur => {
       const next = { ...cur };
@@ -105,18 +111,20 @@ export default function ClueLadderGame({ players = [], username, gameResult, onL
       } else {
         setPhase('intro');
         setOpenAt(Date.now() + (d.msToOpen || 2600));
-        audio.playScanSweep();
+        clueSfx.intro();
       }
     };
     const onOpen = (d) => {
       setPhase('playing');
       setDeadline(Date.now() + (d.msLeft || 0));
+      clueSfx.open();
       setTimeout(() => inputRef.current?.focus(), 60);
     };
     const onMe = (d) => setMe(d);
     const onProgress = (d) => setProgress(d.players || []);
     const onReveal = (d) => {
       setReveal(d);
+      clueSfx.reveal();
       setRevealEnds(Date.now() + (d.msLeft || 11000));
       setPhase('reveal');
       setNames(cur => {
@@ -140,7 +148,27 @@ export default function ClueLadderGame({ players = [], username, gameResult, onL
     };
   }, []);
 
-  useEffect(() => { if (gameResult) setPhase('final'); }, [gameResult]);
+  useEffect(() => {
+    if (!gameResult) return;
+    setPhase('final');
+    clueSfx.fanfare(gameResult.players?.[0]?.username === username);
+  }, [gameResult]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // A clue prints (not the first one: the bell rings when the case opens).
+  const clueCount = me?.clues?.length || 0;
+  const lastClues = useRef(0);
+  useEffect(() => {
+    if (phase === 'playing' && clueCount > 1 && clueCount > lastClues.current && !me?.solved && !me?.out) clueSfx.clue();
+    lastClues.current = clueCount;
+  }, [clueCount]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // A far-off bell when someone else climbs to the answer.
+  const othersSolved = progress.filter(p => p.solved && p.id !== socket.id).length;
+  const lastSolved = useRef(0);
+  useEffect(() => {
+    if (othersSolved > lastSolved.current) clueSfx.other();
+    lastSolved.current = othersSolved;
+  }, [othersSolved]);
 
   // Keep the newest clue in view as the ladder grows.
   useEffect(() => { ladderEnd.current?.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' }); }, [me?.clues?.length]);
@@ -156,12 +184,14 @@ export default function ClueLadderGame({ players = [], username, gameResult, onL
       if (tried.has(norm(a.name))) continue;
       const keys = [norm(a.name), ...(a.aliases || [])];
       let best = 99;
-      for (const k of keys) {
-        if (k === q) best = Math.min(best, 0);
-        else if (k.startsWith(q)) best = Math.min(best, 1);
-        else if (k.split(' ').some(w => w.startsWith(q))) best = Math.min(best, 2);
-        else if (k.includes(q)) best = Math.min(best, 3);
-      }
+      // The diagnosis's own name outranks an alias that matches equally well.
+      keys.forEach((k, i) => {
+        const alias = i > 0 ? 1 : 0;
+        if (k === q) best = Math.min(best, 0 + alias);
+        else if (k.startsWith(q)) best = Math.min(best, 2 + alias);
+        else if (k.split(' ').some(w => w.startsWith(q))) best = Math.min(best, 4 + alias);
+        else if (k.includes(q)) best = Math.min(best, 6 + alias);
+      });
       if (best < 99) scored.push({ a, best });
     }
     return scored.sort((x, y) => x.best - y.best || x.a.name.localeCompare(y.a.name)).slice(0, 7).map(x => x.a);
@@ -182,13 +212,13 @@ export default function ClueLadderGame({ players = [], username, gameResult, onL
     if (res.result === 'repeat') { setMsg({ kind: 'warn', text: 'You already tried that one.' }); return; }
     if (res.reason === 'closed') { setMsg({ kind: 'warn', text: 'Time is up for this case.' }); return; }
     if (res.result === 'correct') {
-      audio.playScanCorrect(1);
+      clueSfx.correct(res.me?.attempts || 3);
       setMsg({ kind: 'win', text: `Correct! ${res.name} on attempt ${res.me?.attempts}.` });
     } else if (res.result === 'wrong') {
-      audio.playScanWrong();
+      if (res.me?.out) clueSfx.out(); else clueSfx.wrong();
       setMsg({ kind: res.me?.out ? 'lose' : 'miss', text: res.me?.out ? `${guessed} is wrong, and that was your last clue.` : `${guessed} is wrong. Next clue unlocked.` });
     } else if (res.result === 'pass') {
-      audio.playScanLock();
+      if (res.me?.out) clueSfx.out(); else clueSfx.pass();
       setMsg({ kind: res.me?.out ? 'lose' : 'miss', text: res.me?.out ? 'That was your last clue.' : 'Next clue unlocked.' });
     }
   }
@@ -220,16 +250,22 @@ export default function ClueLadderGame({ players = [], username, gameResult, onL
     const mine = rows.find(r => r.username === username);
     return (
       <div className="cl cl--final">
-        <div className="cl-bg" aria-hidden="true" />
         <div className="cl-final">
-          <p className="cl-eyebrow">Clue Ladder · results</p>
-          <h1 className="cl-final-title">{rows[0]?.username === username ? 'You climbed it best!' : `${rows[0]?.username || '—'} wins`}</h1>
+          <ClueTicket
+            kicker="END OF SHIFT"
+            title={rows[0]?.username === username ? 'TOP DOC!' : 'SHIFT OVER'}
+            tagline={rows[0]?.username === username ? 'You climbed it best.' : `${rows[0]?.username || '—'} climbed it best.`}
+            stub={[`${gameResult.total || rows[0]?.played || 0} CASES`, 'FEWEST WINS']}
+            cells={[['DOC', username || 'Guest'], ['PLACE', mine ? `#${mine.place} of ${rows.length}` : '—']]}
+          />
           {mine && (
             <p className="cl-final-sub">
               You used <b>{mine.attempts}</b> attempts and solved <b>{mine.solved}</b> of {mine.played} cases.
             </p>
           )}
           <Podium rows={rows} me={username} />
+          <ClueSection letter="A" title="Leaderboard" />
+          <div className="clt-panel">
           <table className="cl-table">
             <thead><tr><th>#</th><th>Player</th><th>Attempts</th><th>Solved</th><th>Time</th></tr></thead>
             <tbody>
@@ -241,7 +277,8 @@ export default function ClueLadderGame({ players = [], username, gameResult, onL
               ))}
             </tbody>
           </table>
-          <h2 className="cl-recap-title">The cases</h2>
+          </div>
+          <ClueSection letter="B" title="The case files" />
           <ol className="cl-recap">
             {(gameResult.history || []).map(h => (
               <li key={h.index}>
@@ -251,7 +288,7 @@ export default function ClueLadderGame({ players = [], username, gameResult, onL
             ))}
           </ol>
           <div className="cl-final-actions">
-            {isHost && <button type="button" className="cl-btn cl-btn--go" onClick={onPlayAgain}>Play again ▶</button>}
+            {isHost && <button type="button" className="clt-cta" onClick={onPlayAgain}><span>Play again</span><i aria-hidden="true">→</i></button>}
             <button type="button" className="cl-btn" onClick={onLeave}>Leave</button>
           </div>
           <p className="cl-note">Fewest attempts wins. A case you do not solve counts as 7.</p>
@@ -269,24 +306,24 @@ export default function ClueLadderGame({ players = [], username, gameResult, onL
 
   return (
     <div className="cl">
-      <div className="cl-bg" aria-hidden="true" />
-
-      <header className="cl-top">
-        <button type="button" className="cl-btn cl-btn--mini" onClick={onLeave}>✕ Leave</button>
-        <div className="cl-title">
-          <span className="cl-logo" aria-hidden="true">🪜</span>
-          <span>CLUE LADDER</span>
-        </div>
-        <button type="button" className="cl-btn cl-btn--mini" onClick={onToggleMute} aria-label={muted ? 'Unmute' : 'Mute'}>{muted ? '🔇' : '🔊'}</button>
-      </header>
+      <div className="cl-top">
+        <button type="button" className="cl-link" onClick={onLeave}>✕ Leave</button>
+        <button type="button" className="cl-link" onClick={onToggleMute} aria-label={muted ? 'Unmute' : 'Mute'}>{muted ? '🔇 Sound off' : '🔊 Sound on'}</button>
+      </div>
 
       {round && (
-        <div className="cl-status">
-          <span className="cl-case">Case {round.index} <small>of {round.total}</small></span>
-          <span className="cl-chip">{round.system?.icon} {round.group}</span>
-          <span className={`cl-clock${lowTime ? ' is-low' : ''}`}>
-            <span className="cl-clock-bar"><i style={{ width: `${(msLeft / msTotal) * 100}%` }} /></span>
-            <b>{phase === 'intro' ? '…' : fmtSecs(msLeft)}s</b>
+        <div className="cl-head">
+          <ClueTicket
+            kicker={`CASE ${round.index} OF ${round.total}`}
+            title="CLUE LADDER"
+            tagline={<>{round.system?.icon} {round.system?.name} · <b>{round.group}</b></>}
+            stub={[
+              <b key="t" className={`cl-stub-time${lowTime ? ' is-low' : ''}`}>{phase === 'intro' ? '--' : fmtSecs(msLeft)}s</b>,
+              `ATTEMPTS ${me?.attempts || 0}/${round.maxAttempts || 6}`,
+            ]}
+          />
+          <span className={`cl-clock${lowTime ? ' is-low' : ''}`} aria-hidden="true">
+            <i style={{ width: `${(phase === 'intro' ? 1 : msLeft / msTotal) * 100}%` }} />
           </span>
         </div>
       )}
@@ -307,6 +344,7 @@ export default function ClueLadderGame({ players = [], username, gameResult, onL
           <div className="cl-reveal-card">
             <p className="cl-eyebrow">Case {reveal.index} of {reveal.total} · {reveal.group}</p>
             <h2 className="cl-reveal-answer">{reveal.answer}</h2>
+            <span className="cl-stamp" aria-hidden="true">Diagnosed</span>
             <table className="cl-table cl-table--compact">
               <thead><tr><th>Player</th><th>Attempts</th><th>Guesses</th></tr></thead>
               <tbody>
@@ -326,6 +364,7 @@ export default function ClueLadderGame({ players = [], username, gameResult, onL
       {(phase === 'playing' || phase === 'reveal') && (
         <main className="cl-main">
           <section className="cl-ladder-wrap" aria-label="Your clues">
+            <ClueSection letter="A" title="The case file" meta={phase === 'reveal' ? 'All clues' : `${clues.length} of ${max} open`} />
             <ol className="cl-ladder">
               {Array.from({ length: max }, (_, i) => {
                 const clue = (phase === 'reveal' ? reveal?.clues?.[i] : clues[i]);
@@ -334,12 +373,13 @@ export default function ClueLadderGame({ players = [], username, gameResult, onL
                 return (
                   <li key={i} className={`cl-rung${open ? ' is-open' : ''}${newest ? ' is-new' : ''}`} ref={newest ? ladderEnd : undefined}>
                     <span className="cl-rung-n">{i + 1}</span>
-                    <span className="cl-rung-text">{open ? clue : 'Locked — a wrong guess or “Next clue” opens it'}</span>
+                    <span className="cl-rung-text">{open ? clue : 'Locked. A wrong guess or "Next clue" opens it.'}</span>
                   </li>
                 );
               })}
             </ol>
 
+            {phase === 'playing' && <ClueSection letter="B" title="Your diagnosis" />}
             {phase === 'playing' && (
               <div className="cl-guess">
                 <div className="cl-attempts">
@@ -357,7 +397,7 @@ export default function ClueLadderGame({ players = [], username, gameResult, onL
                         ref={inputRef}
                         className="cl-input"
                         value={text}
-                        onChange={e => setText(e.target.value)}
+                        onChange={e => { setText(e.target.value); clueSfx.key(); }}
                         onKeyDown={onKey}
                         placeholder="Type a diagnosis…"
                         aria-label="Your diagnosis"
@@ -381,7 +421,7 @@ export default function ClueLadderGame({ players = [], username, gameResult, onL
                       )}
                     </div>
                     <div className="cl-guess-actions">
-                      <button type="button" className="cl-btn cl-btn--go" disabled={!canAct || !text.trim()} onClick={() => submit()}>Guess</button>
+                      <button type="button" className="clt-cta" disabled={!canAct || !text.trim()} onClick={() => submit()}><span>Diagnose</span><i aria-hidden="true">→</i></button>
                       <button type="button" className="cl-btn" disabled={!canAct} onClick={pass} title="Costs one attempt">Next clue ↓</button>
                     </div>
                   </>
@@ -399,7 +439,7 @@ export default function ClueLadderGame({ players = [], username, gameResult, onL
           </section>
 
           <aside className="cl-side" aria-label="Players">
-            <h3>Climbers</h3>
+            <ClueSection letter="C" title="On shift" />
             <ul className="cl-players">
               {rows.map(p => (
                 <li key={p.id} className={p.id === socket.id ? 'is-me' : ''}>

@@ -10,7 +10,11 @@
  */
 const SYSTEMS = [
   { id: 'repro', name: 'Reproductive', icon: '👶', rows: [...require('./repro1'), ...require('./repro2'), ...require('./repro3')] },
+  { id: 'heme', name: 'Hematology', icon: '🩸', rows: [...require('./heme1'), ...require('./heme2'), ...require('./heme3')] },
 ];
+
+// Diagnoses skipped by "HY only" (they stay guessable, they just never come up).
+const LOW_YIELD = require('./lowyield');
 
 const CLUE_COUNT = 6;
 
@@ -39,7 +43,7 @@ for (const sys of SYSTEMS) {
       answers.set(key, a);
     }
     for (const x of [name, ...(aka || [])]) a.aliases.add(norm(x));
-    cases.push({ id: `${sys.id}-${i + 1}`, system: sys.id, group, answer: key, clues: clues.slice(0, CLUE_COUNT) });
+    cases.push({ id: `${sys.id}-${i + 1}`, system: sys.id, group, answer: key, hy: !LOW_YIELD.has(name), clues: clues.slice(0, CLUE_COUNT) });
   });
 }
 
@@ -87,6 +91,6 @@ function answerList(systemIds) {
 }
 
 module.exports = {
-  SYSTEMS: SYSTEMS.map(({ rows, ...s }) => ({ ...s, cases: rows.length })),
-  CLUE_COUNT, cases, answers, norm, resolve, answerList,
+  SYSTEMS: SYSTEMS.map(({ rows, ...s }) => ({ ...s, cases: rows.length, hyCases: rows.filter(r => !LOW_YIELD.has(r[0])).length })),
+  LOW_YIELD, CLUE_COUNT, cases, answers, norm, resolve, answerList,
 };

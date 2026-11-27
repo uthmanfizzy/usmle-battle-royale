@@ -33,9 +33,13 @@ for (const c of bank.cases) {
   });
 }
 
+const names = new Set([...bank.answers.values()].map(a => a.name));
+for (const n of bank.LOW_YIELD) if (!names.has(n)) problems.push(`lowyield.js names "${n}", which is not in the bank`);
+
 const per = {};
 for (const c of bank.cases) per[c.group] = (per[c.group] || 0) + 1;
-console.log(`${bank.cases.length} cases, ${bank.answers.size} diagnoses`);
+console.log(`${bank.cases.length} cases (${bank.cases.filter(c => c.hy).length} HY), ${bank.answers.size} diagnoses`);
+for (const s of bank.SYSTEMS) console.log(`  ${s.name}: ${s.cases} cases, ${s.hyCases} HY`);
 console.log(Object.entries(per).map(([g, n]) => `${g} ${n}`).join(' · '));
 if (problems.length) {
   console.log(`\n${problems.length} problem(s):\n- ${problems.join('\n- ')}`);

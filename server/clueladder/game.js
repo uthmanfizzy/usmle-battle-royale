@@ -34,7 +34,7 @@ const bank = require('./bank');
 
 const COUNT_CHOICES = [5, 10, 15, 20];
 const SECOND_CHOICES = [60, 90, 120, 180];
-const DEFAULTS = Object.freeze({ systems: [], count: 10, seconds: 90 });
+const DEFAULTS = Object.freeze({ systems: [], count: 10, seconds: 90, hyOnly: true });
 const MAX_PLAYERS = 20;
 const MAX_ATTEMPTS = bank.CLUE_COUNT;      // one guess per clue
 const FAIL_ATTEMPTS = MAX_ATTEMPTS + 1;    // what an unsolved case counts
@@ -57,6 +57,8 @@ function sanitizeOptions(raw) {
     systems: Array.isArray(o.systems) ? [...new Set(o.systems.filter(s => SYSTEM_IDS.has(s)))] : [],
     count: COUNT_CHOICES.includes(Number(o.count)) ? Number(o.count) : DEFAULTS.count,
     seconds: SECOND_CHOICES.includes(Number(o.seconds)) ? Number(o.seconds) : DEFAULTS.seconds,
+    // HY only skips the low-yield diagnoses (bank/lowyield.js) as cases.
+    hyOnly: typeof o.hyOnly === 'boolean' ? o.hyOnly : DEFAULTS.hyOnly,
   };
 }
 
@@ -73,11 +75,12 @@ module.exports = function createClueLadder({ io, lobbies, shuffle, awardXP, lobb
       seconds: SECOND_CHOICES,
       clues: bank.CLUE_COUNT,
       total: bank.cases.length,
+      hyTotal: bank.cases.filter(c => c.hy).length,
     };
   }
 
   function buildRun(opts) {
-    const pool = opts.systems.length ? bank.cases.filter(c => opts.systems.includes(c.system)) : bank.cases;
+    const pool = bank.cases.filter(c => (!opts.systems.length || opts.systems.includes(c.system)) && (!opts.hyOnly || c.hy));
     return shuffle([...pool]).slice(0, opts.count);
   }
 
@@ -206,8 +209,8 @@ module.exports = function createClueLadder({ io, lobbies, shuffle, awardXP, lobb
     const c = s.queue[s.idx];
     const fails = Math.random() < prof.fail;
     const target = fails ? FAIL_ATTEMPTS : prof.from + Math.floor(Math.random() * (prof.to - prof.from + 1));
-    const sameGroup = shuffle(bank.cases.filter(x => x.group === c.group && x.answer !== c.answer).map(x => x.answer));
-    const anyOther = shuffle([...bank.answers.keys()].filter(k => k !== c.answer));
+    const sameGroup = shuffle(bank.cases.filter(x => x.system === c.system && x.group === c.group && x.answer !== c.answer).map(x => x.answer));
+    const anyOther = shuffle([...bank.answers.values()].filter(a => a.key !== c.answer && a.system === c.system).map(a => a.key));
     const wrongs = [...new Set([...sameGroup, ...anyOther])];
     let at = 0;
     for (let k = 1; k <= Math.min(target, MAX_ATTEMPTS); k++) {
