@@ -310,3 +310,90 @@
 .a2-hy-body mark.hl-blue { background: #74b9ff; }
 .a2-hy-body mark.hl-purple { background: #a29bfe; }
 .a2-stem mark.hl strong { color: #1a1a2e; }
+
+/* ── Reading colours (question + HY card) ─────────────────────────────────────
+   The picker sets rd-<theme> on .a2-qgrid (and the summit review list). Only
+   the reading surfaces change. Forest is the original look. Light themes
+   (sepia, paper) flip the ink to dark, so every hard-coded light colour on
+   these surfaces is routed through a variable here. Static colours only. */
+.a2-themes { display: flex; align-items: center; justify-content: flex-end; gap: 7px; margin-top: 10px; }
+.a2-themes-label { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); font-weight: 800; margin-right: 2px; }
+.a2-swatch { width: 24px; height: 24px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.35); cursor: pointer; padding: 0; transition: transform 0.12s; }
+.a2-swatch:hover { transform: scale(1.12); }
+.a2-swatch.is-on { border-color: rgb(var(--lime)); box-shadow: 0 0 0 3px rgba(var(--lime), 0.35); }
+.a2-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+.rd-forest {
+  --rd-card: rgba(14, 24, 16, 0.82); --rd-hy: linear-gradient(160deg, rgba(132, 204, 22, 0.12), rgba(14, 24, 16, 0.92) 55%);
+  --rd-hy-wrong: linear-gradient(160deg, rgba(255, 190, 90, 0.1), rgba(14, 24, 16, 0.92) 55%);
+  --rd-ink: #eef6e4; --rd-muted: rgba(238, 246, 228, 0.62); --rd-line: rgba(196, 240, 122, 0.16);
+  --rd-soft: rgba(0, 0, 0, 0.22); --rd-strong: #ffffff; --rd-accent: rgb(132, 204, 22); --rd-accent-lt: rgb(196, 240, 122);
+  --rd-choice: rgba(255, 255, 255, 0.03); --rd-choice-line: rgba(255, 255, 255, 0.1); --rd-letter: rgba(132, 204, 22, 0.14);
+  --rd-warn: rgb(255, 200, 110); --rd-trap: rgba(255, 107, 107, 0.1); --rd-trap-line: rgba(255, 107, 107, 0.35); --rd-cell: rgba(255, 255, 255, 0.12);
+}
+.rd-midnight {
+  --rd-card: #141b2e; --rd-hy: linear-gradient(160deg, rgba(99, 140, 255, 0.14), #121a2c 55%);
+  --rd-hy-wrong: linear-gradient(160deg, rgba(255, 190, 90, 0.12), #121a2c 55%);
+  --rd-ink: #e6ecfa; --rd-muted: rgba(230, 236, 250, 0.62); --rd-line: rgba(140, 170, 255, 0.22);
+  --rd-soft: rgba(0, 0, 0, 0.25); --rd-strong: #ffffff; --rd-accent: rgb(129, 161, 255); --rd-accent-lt: rgb(176, 196, 255);
+  --rd-choice: rgba(255, 255, 255, 0.04); --rd-choice-line: rgba(255, 255, 255, 0.12); --rd-letter: rgba(129, 161, 255, 0.18);
+  --rd-warn: rgb(255, 200, 110); --rd-trap: rgba(255, 107, 107, 0.12); --rd-trap-line: rgba(255, 107, 107, 0.4); --rd-cell: rgba(255, 255, 255, 0.14);
+}
+.rd-slate {
+  --rd-card: #2a2f36; --rd-hy: linear-gradient(160deg, rgba(255, 255, 255, 0.06), #262b31 55%);
+  --rd-hy-wrong: linear-gradient(160deg, rgba(255, 190, 90, 0.1), #262b31 55%);
+  --rd-ink: #eceff3; --rd-muted: rgba(236, 239, 243, 0.62); --rd-line: rgba(255, 255, 255, 0.14);
+  --rd-soft: rgba(0, 0, 0, 0.2); --rd-strong: #ffffff; --rd-accent: rgb(163, 214, 94); --rd-accent-lt: rgb(205, 236, 160);
+  --rd-choice: rgba(255, 255, 255, 0.04); --rd-choice-line: rgba(255, 255, 255, 0.14); --rd-letter: rgba(255, 255, 255, 0.1);
+  --rd-warn: rgb(255, 200, 110); --rd-trap: rgba(255, 107, 107, 0.12); --rd-trap-line: rgba(255, 107, 107, 0.4); --rd-cell: rgba(255, 255, 255, 0.16);
+}
+.rd-sepia {
+  --rd-card: #f6ecd8; --rd-hy: #f3e7cf; --rd-hy-wrong: #f6e6cc;
+  --rd-ink: #3b2f22; --rd-muted: rgba(59, 47, 34, 0.68); --rd-line: rgba(120, 90, 50, 0.25);
+  --rd-soft: rgba(120, 90, 50, 0.08); --rd-strong: #1f160d; --rd-accent: rgb(110, 120, 20); --rd-accent-lt: rgb(84, 96, 12);
+  --rd-choice: rgba(255, 255, 255, 0.45); --rd-choice-line: rgba(120, 90, 50, 0.25); --rd-letter: rgba(110, 120, 20, 0.15);
+  --rd-warn: rgb(156, 86, 0); --rd-trap: rgba(200, 60, 40, 0.08); --rd-trap-line: rgba(200, 60, 40, 0.35); --rd-cell: rgba(120, 90, 50, 0.3);
+}
+.rd-paper {
+  --rd-card: #ffffff; --rd-hy: #fbfcf8; --rd-hy-wrong: #fffaf0;
+  --rd-ink: #1d2330; --rd-muted: rgba(29, 35, 48, 0.62); --rd-line: rgba(29, 35, 48, 0.14);
+  --rd-soft: rgba(29, 35, 48, 0.05); --rd-strong: #000000; --rd-accent: rgb(77, 124, 15); --rd-accent-lt: rgb(63, 98, 18);
+  --rd-choice: #ffffff; --rd-choice-line: rgba(29, 35, 48, 0.16); --rd-letter: rgba(77, 124, 15, 0.12);
+  --rd-warn: rgb(161, 98, 7); --rd-trap: rgba(220, 38, 38, 0.06); --rd-trap-line: rgba(220, 38, 38, 0.3); --rd-cell: rgba(29, 35, 48, 0.2);
+}
+
+.a2-read .a2-qcard { background: var(--rd-card); border-color: var(--rd-line); color: var(--rd-ink); }
+.a2-read .a2-qno { color: var(--rd-muted); }
+.a2-read .a2-qsys { background: var(--rd-letter); color: var(--rd-accent-lt); }
+.a2-read .a2-stem td, .a2-read .a2-stem th { border-color: var(--rd-cell); }
+.a2-read .a2-choice { background: var(--rd-choice); border-color: var(--rd-choice-line); color: var(--rd-ink); }
+.a2-read .a2-letter { background: var(--rd-letter); color: var(--rd-accent-lt); }
+.a2-read .a2-choice:hover:not(:disabled) { border-color: var(--rd-accent); }
+.a2-read .a2-choice.is-right { border-color: rgb(var(--ok)); background: rgba(var(--ok), 0.16); }
+.a2-read .a2-choice.is-wrong { border-color: rgb(var(--bad)); background: rgba(var(--bad), 0.14); }
+.a2-read .a2-choice.is-right .a2-letter { background: rgb(var(--ok)); color: #062012; }
+.a2-read .a2-choice.is-wrong .a2-letter { background: rgb(var(--bad)); color: #2a0606; }
+.a2-read .a2-hy { background: var(--rd-hy); color: var(--rd-ink); }
+.a2-read .a2-hy.is-wrong { background: var(--rd-hy-wrong); }
+.a2-read .a2-hy-kicker { color: var(--rd-accent); }
+.a2-read .a2-hy.is-wrong .a2-hy-kicker { color: var(--rd-warn); }
+.a2-read .a2-hy-list li { background: var(--rd-soft); }
+.a2-read .a2-hy-list li::before { color: var(--rd-accent); }
+.a2-read .a2-hy-trap { background: var(--rd-trap); border-color: var(--rd-trap-line); }
+.a2-read .a2-stem strong, .a2-read .a2-hy-body strong, .a2-read .a2-hy-body b { color: var(--rd-strong); }
+.a2-read .a2-rate { background: var(--rd-card); border-color: var(--rd-line); color: var(--rd-ink); }
+.a2-read .a2-rate-label { color: var(--rd-muted); }
+.a2-read .a2-rate-btn { color: var(--rd-ink); border-color: var(--rd-line); background: var(--rd-choice); }
+.a2-read .a2-rate-btn.is-on { background: rgb(var(--lime)); border-color: rgb(var(--lime)); color: #10200a; }
+.rd-sepia .a2-rev, .rd-paper .a2-rev { background: var(--rd-card); border-color: var(--rd-line); color: var(--rd-ink); }
+
+/* Section headings on the HY card. Generated text, so it is not part of the
+   card's textContent and highlight offsets are unaffected. */
+.a2-hy-why::before, .a2-hy-list::before { display: block; font-size: 10.5px; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 800; opacity: 0.7; margin-bottom: 5px; }
+.a2-hy-why::before { content: 'Why this is the answer'; }
+.a2-hy-list::before { content: 'Key points to remember'; }
+.a2-hy-why { font-size: 15px; line-height: 1.6; }
+.a2-hy-list li { font-size: 14.5px; line-height: 1.55; }
+/* renderStem paragraphs carry the global .question-text class, which sets a
+   fixed light colour; the reading theme owns the stem's ink. */
+.a2-read .a2-stem .question-text { color: var(--rd-ink); }

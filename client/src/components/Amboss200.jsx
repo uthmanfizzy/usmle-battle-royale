@@ -47,6 +47,41 @@ const EXPL_LIMIT = 85;
 const TIMED_KEY = 'mv_amboss200_timed';
 const SEL_KEY = 'mv_amboss200_systems';
 const RATE_KEY = 'mv_amboss200_ratings';
+const THEME_KEY = 'mv_amboss200_theme';
+
+// Reading colours for the question and the HY card. Only the reading surfaces
+// change; the page around them keeps the expedition look. The swatch is what
+// the button shows.
+const READ_THEMES = [
+  { id: 'forest', label: 'Forest', swatch: '#14251a' },
+  { id: 'midnight', label: 'Midnight', swatch: '#141b2e' },
+  { id: 'slate', label: 'Slate', swatch: '#2a2f36' },
+  { id: 'sepia', label: 'Sepia', swatch: '#f3e7cf' },
+  { id: 'paper', label: 'Paper', swatch: '#ffffff' },
+];
+
+function useReadTheme() {
+  const [theme, setTheme] = useState(() => {
+    try { const v = localStorage.getItem(THEME_KEY); return READ_THEMES.some(t => t.id === v) ? v : 'forest'; } catch { return 'forest'; }
+  });
+  useEffect(() => { try { localStorage.setItem(THEME_KEY, theme); } catch { /* not remembered */ } }, [theme]);
+  return [theme, setTheme];
+}
+
+function ThemePicker({ theme, setTheme }) {
+  return (
+    <div className="a2-themes" role="radiogroup" aria-label="Question and explanation colours">
+      <span className="a2-themes-label">Colours</span>
+      {READ_THEMES.map(t => (
+        <button key={t.id} type="button" role="radio" aria-checked={theme === t.id} title={t.label}
+          className={`a2-swatch${theme === t.id ? ' is-on' : ''}`} style={{ background: t.swatch }}
+          onClick={() => { sfx.select(); setTheme(t.id); }}>
+          <span className="a2-sr">{t.label}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
 
 function reportSeen(q, correct) {
   if (!q?._supabase_id || !getToken()) return;
@@ -206,7 +241,7 @@ function hyModel(q) {
   }
   const w = tok(hy.w);
   const facts = hy.hy.map(f => tok(f, true));
-  const trap = hy.t ? [tok('Trap: '), tok(hy.t)] : null;
+  const trap = hy.t ? [tok('Common trap: '), tok(hy.t)] : null;
   const visible = [w, ...facts, ...(trap || [])].map(t => t.text).join('');
   return { w, facts, trap, visible };
 }
@@ -331,6 +366,7 @@ function Expedition({ qs, idx, results, picked, onAnswer, onNext, onQuit, timed,
   const correctIdx = LETTERS.indexOf(q.correct);
   const right = picked !== null && picked === correctIdx;
   const mult = combo >= 5 ? 3 : combo >= 3 ? 2 : 1;
+  const [theme, setTheme] = useReadTheme();
 
   return (
     <div className="a2-run">
@@ -352,7 +388,8 @@ function Expedition({ qs, idx, results, picked, onAnswer, onNext, onQuit, timed,
       )}
       {hl.error && <p className="a2-hl-error" role="alert">{hl.error}</p>}
 
-      <div className="a2-qgrid">
+      <ThemePicker theme={theme} setTheme={setTheme} />
+      <div className={`a2-qgrid a2-read rd-${theme}`}>
         <article className="a2-qcard" key={q.id}>
           <div className="a2-qmeta">
             <span className="a2-qsys">{iconFor(q.subject)} {q.subjectName}</span>
@@ -460,6 +497,7 @@ function Summit({ results, score, bestCombo, onAgain, onMissed, ratings }) {
   }, [results]);
   const missed = results.filter(r => !r.right);
   const [open, setOpen] = useState(null);
+  const [theme] = useReadTheme();
   const rank = pct >= 0.9 ? ['🏔️', 'Summit legend'] : pct >= 0.75 ? ['⛰️', 'Peak climber'] : pct >= 0.5 ? ['🥾', 'Trail blazer'] : ['🏕️', 'Basecamp scout'];
 
   return (
@@ -500,7 +538,7 @@ function Summit({ results, score, bestCombo, onAgain, onMissed, ratings }) {
       {missed.length > 0 && (
         <section className="a2-panel">
           <h2>Concepts to review</h2>
-          <div className="a2-review">
+          <div className={`a2-review a2-read rd-${theme}`}>
             {missed.map(({ q }) => (
               <div key={q.id} className={`a2-rev${open === q.id ? ' is-open' : ''}`}>
                 <button type="button" className="a2-rev-head" onClick={() => { sfx.select(); setOpen(open === q.id ? null : q.id); }}>
