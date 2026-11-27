@@ -1,0 +1,134 @@
+/* Clinical · the animated baby (clb), the parent (clp), the history
+   conversation and the examination. Motion is transform/opacity only. */
+
+/* ── The animated baby ──────────────────────────────────────────────── */
+.clb { display: block; width: 100%; height: auto; overflow: visible; }
+.clb--sm { max-width: 200px; }
+.clb--lg { max-width: 360px; margin: 0 auto; }
+.clb-couch { fill: #dfe7ef; }
+.clb-blanket { fill: #fbe7ef; }
+.clb-blanket-dots circle { fill: #f3c6d6; }
+.clb-limb { fill: none; stroke-width: 22; stroke-linecap: round; }
+.clb-suit { fill: #9cc8ee; }
+.clb-nappy { fill: #ffffff; opacity: 0.95; }
+.clb-ribs path { fill: none; stroke: rgba(40, 80, 120, 0.25); stroke-width: 2; }
+.clb-hair { fill: #8a6a4a; opacity: 0.85; }
+.clb-fontanelle { fill: rgba(0, 0, 0, 0.05); }
+.clb-eyes path { fill: none; stroke: #4a3426; stroke-width: 2.6; stroke-linecap: round; }
+.clb-cheek { fill: #f19a9a; opacity: 0.35; }
+.clb-nostrils ellipse { fill: #6a4636; }
+.clb-snot { fill: rgba(220, 240, 255, 0.9); stroke: rgba(160, 200, 230, 0.9); stroke-width: 1; }
+.clb-probe { fill: #e84a4a; }
+.clb-recession { fill: none; stroke: rgba(70, 40, 60, 0.55); stroke-width: 3; stroke-linecap: round; opacity: 0; }
+
+/* Breathing: one cycle per breath (--breath = 60 / rate). */
+.clb-body { transform-box: fill-box; transform-origin: 50% 0%; animation: clb-breathe var(--breath) ease-in-out infinite; }
+@keyframes clb-breathe { 0%, 100% { transform: scale(1, 1); } 45% { transform: scale(1.035, 1.045); } }
+.clb-recession { animation: clb-recess var(--breath) ease-in-out infinite; }
+@keyframes clb-recess { 0%, 100% { opacity: 0; } 40% { opacity: 1; } 60% { opacity: 0.2; } }
+.clb-head.is-bobbing { transform-box: fill-box; transform-origin: 50% 100%; animation: clb-bob var(--breath) ease-in-out infinite; }
+@keyframes clb-bob { 0%, 100% { transform: translateY(0); } 45% { transform: translateY(-2.5px); } }
+.clb-nostrils ellipse { transform-box: fill-box; transform-origin: center; }
+.clb-nostrils.is-flaring ellipse { animation: clb-flare var(--breath) ease-in-out infinite; }
+@keyframes clb-flare { 0%, 100% { transform: scale(1); } 40% { transform: scale(1.8, 1.4); } }
+.clb-mouth { transform-box: fill-box; transform-origin: center; animation: clb-mouth var(--breath) ease-in-out infinite; }
+@keyframes clb-mouth { 0%, 100% { transform: scaleY(0.7); } 45% { transform: scaleY(1.3); } }
+.clb-snot { transform-box: fill-box; transform-origin: top center; animation: clb-snot 3.2s ease-in-out infinite; }
+@keyframes clb-snot { 0%, 100% { transform: scaleY(0.8); } 50% { transform: scaleY(1.2); } }
+.clb-eyes { transform-box: fill-box; transform-origin: center; animation: clb-blink 5s ease-in-out infinite; }
+@keyframes clb-blink { 0%, 92%, 100% { transform: scaleY(1); } 95% { transform: scaleY(0.2); } }
+
+/* Hotspots */
+.clb-hot { fill: transparent; stroke: transparent; stroke-width: 2; }
+.clb-hot.is-off { pointer-events: none; }
+.clb-hot.is-armed { cursor: pointer; stroke: rgba(47, 116, 192, 0.35); stroke-dasharray: 4 4; }
+.clb-hot.is-armed:hover, .clb-hot.is-armed:focus-visible { fill: rgba(47, 116, 192, 0.16); stroke: rgba(47, 116, 192, 0.9); stroke-dasharray: none; outline: none; }
+.clb-mark circle { fill: #ffffff; stroke: #2f74c0; stroke-width: 2; }
+.clb-mark text { font-size: 12px; }
+.clb-mark { animation: clb-pop 0.3s ease both; }
+@keyframes clb-pop { from { opacity: 0; } to { opacity: 1; } }
+
+/* ── The parent ─────────────────────────────────────────────────────── */
+.clp { display: block; width: 100%; max-width: 150px; height: auto; }
+.clp-eyes ellipse { fill: #3a2a22; }
+.clp-brow { stroke: #3a2a22; stroke-width: 3; stroke-linecap: round; }
+.clp-mouth { fill: #a5524f; transform-box: fill-box; transform-origin: center; transform: scaleY(0.5); }
+.clp.is-talking .clp-mouth { animation: clp-talk 0.28s ease-in-out infinite alternate; }
+@keyframes clp-talk { from { transform: scaleY(0.4); } to { transform: scaleY(1.5); } }
+.clp-head { transform-box: fill-box; transform-origin: 50% 100%; animation: clp-sway 4s ease-in-out infinite; }
+@keyframes clp-sway { 0%, 100% { transform: rotate(-1.2deg); } 50% { transform: rotate(1.2deg); } }
+.clp-eyes { transform-box: fill-box; transform-origin: center; animation: clb-blink 4.4s ease-in-out infinite; }
+
+/* ── History scene and conversation ─────────────────────────────────── */
+.cl-scene { display: flex; align-items: flex-end; justify-content: center; gap: 24px; padding: 14px 14px 6px; margin-bottom: 12px; border-radius: 16px; background: linear-gradient(180deg, #e9f1f8 0%, #f6f9fb 70%); border: 1px solid var(--cl-line); }
+.cl-scene-parent, .cl-scene-baby { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.cl-scene-parent { width: 150px; }
+.cl-scene-baby { width: 170px; }
+.cl-scene span { font-size: 12px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--cl-ink-2); }
+.cl-convo { display: flex; flex-direction: column; gap: 8px; max-height: 340px; overflow-y: auto; padding: 4px 2px 8px; margin-bottom: 14px; }
+.cl-say-pair { display: flex; flex-direction: column; gap: 8px; }
+.cl-say { max-width: 80%; padding: 9px 13px; border-radius: 16px; animation: cl-in 0.3s ease both; }
+.cl-say b { font-size: 11.5px; letter-spacing: 0.04em; }
+.cl-say p { margin: 2px 0 0; font-size: 15px; line-height: 1.5; }
+.cl-say--parent { align-self: flex-start; background: #fff; border: 1px solid var(--cl-line); border-top-left-radius: 4px; }
+.cl-say--parent b { color: #a5524f; }
+.cl-say--you { align-self: flex-end; background: var(--cl-blue); color: #fff; border-top-right-radius: 4px; }
+.cl-say--you b { color: #d6e7fa; }
+.cl-typing { display: flex; gap: 4px; padding: 12px 14px; }
+.cl-typing span { width: 7px; height: 7px; border-radius: 50%; background: #b9c6d2; animation: cl-dot 1s ease-in-out infinite; }
+.cl-typing span:nth-child(2) { animation-delay: 0.15s; }
+.cl-typing span:nth-child(3) { animation-delay: 0.3s; }
+@keyframes cl-dot { 0%, 100% { opacity: 0.3; transform: translateY(0); } 50% { opacity: 1; transform: translateY(-3px); } }
+.cl-ask { display: grid; gap: 14px; }
+.cl-ask-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.cl-ask-head h3 { margin: 0; font-size: 17px; }
+.cl-ask .cl-stage-hint { margin: -8px 0 0; }
+.cl-toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; color: var(--cl-ink-2); cursor: pointer; }
+.cl-toggle input { width: 16px; height: 16px; accent-color: var(--cl-blue); }
+.cl-qchips { display: flex; flex-wrap: wrap; gap: 8px; }
+.cl-qchip { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 9px 13px; border-radius: 999px; border: 1.5px solid var(--cl-line); background: #fff; color: var(--cl-ink); font: inherit; font-size: 14px; font-weight: 600; text-align: left; cursor: pointer; transition: border-color 0.15s ease; }
+.cl-qchip:hover:not(:disabled) { border-color: var(--cl-blue); }
+.cl-qchip:disabled { cursor: default; }
+.cl-qchip.is-done { background: var(--cl-blue-bg); border-color: rgba(47, 116, 192, 0.5); color: #24476b; }
+.cl-qchip.is-extra { background: var(--cl-amber-bg); border-color: rgba(183, 121, 31, 0.55); }
+.cl-qchip.is-harm { background: var(--cl-red-bg); border-color: rgba(194, 65, 45, 0.6); }
+.cl-rec { padding: 2px 8px; border-radius: 999px; background: #fff3cf; color: #8a6a1a; font-size: 11px; font-weight: 800; }
+
+/* ── Examination ────────────────────────────────────────────────────── */
+.cl-tools { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.cl-tool { display: inline-flex; align-items: center; gap: 7px; padding: 9px 14px; border-radius: 12px; border: 1.5px solid var(--cl-line); background: #fff; color: var(--cl-ink); font: inherit; font-size: 14px; font-weight: 800; cursor: pointer; }
+.cl-tool span { font-size: 18px; }
+.cl-tool:hover { border-color: var(--cl-blue); }
+.cl-tool.is-on { background: var(--cl-blue); border-color: var(--cl-blue); color: #fff; box-shadow: 0 6px 14px rgba(47, 116, 192, 0.35); }
+.cl-exam { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 16px; align-items: start; margin-bottom: 14px; }
+.cl-exam-stage { padding: 10px; border-radius: 18px; background: linear-gradient(180deg, #eef4f9, #f7f9fb); border: 1px solid var(--cl-line); }
+.cl-exam-stage.is-locked { opacity: 0.75; }
+.cl-exam-tip { margin: 8px 0 2px; text-align: center; font-size: 14px; color: var(--cl-ink-2); }
+.cl-exam-side { display: grid; gap: 14px; }
+.cl-choices--one { grid-template-columns: 1fr; }
+.cl-finding { padding: 12px 14px; border-radius: 12px; background: var(--cl-blue-bg); border-left: 4px solid var(--cl-blue); animation: cl-in 0.3s ease both; }
+.cl-finding.is-extra { background: var(--cl-amber-bg); border-left-color: var(--cl-amber); }
+.cl-finding.is-harm { background: var(--cl-red-bg); border-left-color: var(--cl-red); }
+.cl-finding-head { display: block; font-size: 13px; font-weight: 800; color: var(--cl-ink-2); }
+.cl-finding p { margin: 4px 0 0; font-size: 15px; line-height: 1.5; }
+.cl-finding .cl-finding-why { font-size: 14px; color: #7a5413; }
+.cl-done-list h3 { margin: 0 0 6px; font-size: 12.5px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--cl-ink-2); }
+.cl-done-list ul { margin: 0; padding-left: 18px; display: grid; gap: 3px; font-size: 13.5px; }
+.cl-done-list li.is-extra { color: var(--cl-amber); }
+
+.cl-brief-baby { width: 120px; flex: none; }
+.cl-guidelines { margin: 12px 0 0; font-size: 13px; color: var(--cl-ink-2); font-style: italic; }
+
+@media (max-width: 880px) {
+  .cl-exam { grid-template-columns: 1fr; }
+}
+@media (max-width: 480px) {
+  .cl-scene { gap: 10px; }
+  .cl-scene-parent { width: 110px; }
+  .cl-scene-baby { width: 130px; }
+  .cl-say { max-width: 92%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .clb-body, .clb-recession, .clb-head.is-bobbing, .clb-nostrils.is-flaring ellipse, .clb-mouth, .clb-snot, .clb-eyes, .clp-head, .clp.is-talking .clp-mouth, .clp-eyes { animation: none; }
+  .clb-recession { opacity: 0.8; }
+}

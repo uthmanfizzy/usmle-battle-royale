@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { caseById, specialtyById, saveBest, loadBest } from '../clinical';
+import { Baby, Parent, BABY_REGIONS } from '../clinical/ClinicalScene';
 import { AdminOnly } from './ClinicalHub';
 import { sfx } from '../minigameSfx';
 import SfxToggle from './SfxToggle';
@@ -12,33 +13,76 @@ import './Clinical.css';
  *   Handover → History → Examination → Investigations → Diagnosis →
  *   Management → Debrief
  *
+ * History is a conversation: the parent tells the story, then you choose
+ * what to ask. Recommended questions can be shown with a ★.
+ * Examination is technique × body part on the animated patient: pick
+ * Inspect, Palpate, Stethoscope, Percuss or Measure, then a part of the
+ * body. A useless pair is allowed, and the senior says why it was useless.
+ *
  * Every pick is final, as on a real shift. Picking something not needed
- * (tier extra) or something that should not be done (tier harm) gets the
- * senior's comment straight away. Finishing a step with a must-do (tier key)
- * left out stops you: the senior says what was missed and why, and the
- * missing findings go into the notes so the next step is still playable.
- * The debrief scores it and walks through each step again.
+ * (tier extra) or harmful (tier harm) gets the senior's comment at once.
+ * Finishing a step with a recommended item (tier key) left out lists what was
+ * missed, and the missing findings go into the notes so the case goes on.
  */
 
 const STEPS = [
-  { id: 'history', label: 'History', icon: '💬', verb: 'Ask' },
-  { id: 'exam', label: 'Examination', icon: '🩺', verb: 'Examine' },
-  { id: 'tests', label: 'Investigations', icon: '🧪', verb: 'Order' },
+  { id: 'history', label: 'History', icon: '💬' },
+  { id: 'exam', label: 'Examination', icon: '🩺' },
+  { id: 'tests', label: 'Investigations', icon: '🧪' },
   { id: 'dx', label: 'Diagnosis', icon: '🎯' },
-  { id: 'mgmt', label: 'Management', icon: '💊', verb: 'Do' },
+  { id: 'mgmt', label: 'Management', icon: '💊' },
   { id: 'debrief', label: 'Debrief', icon: '📋' },
 ];
+const TOOLS = [
+  { id: 'inspect', label: 'Inspect', icon: '👁️', mark: '👁️', hint: 'Look' },
+  { id: 'palpate', label: 'Palpate', icon: '✋', mark: '✋', hint: 'Feel' },
+  { id: 'listen', label: 'Stethoscope', icon: '🩺', mark: '🩺', hint: 'Listen' },
+  { id: 'percuss', label: 'Percuss', icon: '👆', mark: '👆', hint: 'Tap' },
+  { id: 'measure', label: 'Measure', icon: '📟', mark: '📟', hint: 'Devices' },
+];
+const toolById = (id) => TOOLS.find(t => t.id === id);
+const regionLabel = (id) => BABY_REGIONS.find(r => r.id === id)?.label || id;
 const go = (path) => { window.location.href = path; };
 
-// The pickable items of a step, in one shape: { id, label, group, tier, why, result }.
+// ── Items: every pickable thing of a step in one shape ───────────────────
+// { id, label, group?, tier, why, result, vital?, abcde?, tool?, region? }
+function examItems(c) {
+  const acts = c.exam.actions.map(a => ({
+    ...a,
+    id: `${a.tool}:${a.region}`,
+    label: `${toolById(a.tool).label}: ${regionLabel(a.region).toLowerCase()}`,
+    result: a.finding,
+  }));
+  const meas = (c.exam.measure || []).map(m => ({ ...m, id: `measure:${m.id}`, tool: 'measure', region: m.mark || null, result: m.finding }));
+  return [...acts, ...meas];
+}
 function itemsFor(c, step) {
   if (step === 'history') return c.history.questions.map(q => ({ ...q, label: q.ask, result: q.answer }));
-  if (step === 'exam') return c.exam.items.map(x => ({ ...x, result: x.finding }));
+  if (step === 'exam') return examItems(c);
   if (step === 'tests') return c.tests.items;
   if (step === 'mgmt') return c.management.items.map(x => ({ ...x, result: null }));
   return [];
 }
-const groupsFor = (c, step) => ({ history: c.history.groups, exam: c.exam.groups, tests: c.tests.groups, mgmt: c.management.groups }[step] || []);
+// A technique on a body part the case did not list: allowed, and useless.
+function fallbackItem(c, id) {
+  const [tool, region] = id.split(':');
+  return {
+    id, tool, region, tier: 'extra',
+    label: `${toolById(tool)?.label || tool}: ${regionLabel(region).toLowerCase()}`,
+    result: 'Nothing useful found.',
+    why: c.exam.fallback?.[tool] || 'Not useful here.',
+  };
+}
+function resolveItem(c, step, id) {
+  const found = itemsFor(c, step).find(i => i.id === id);
+  return found || (step === 'exam' ? fallbackItem(c, id) : null);
+}
+// The listed items plus any useless extras the player actually picked.
+function allItems(c, step, pickedIds) {
+  const base = itemsFor(c, step);
+  const extra = pickedIds.filter(id => !base.some(i => i.id === id)).map(id => resolveItem(c, step, id)).filter(Boolean);
+  return [...base, ...extra];
+}
 
 const TIER_NOTE = {
   extra: { cls: 'is-extra', icon: '⚠️', head: 'Not needed here' },
@@ -48,29 +92,36 @@ const TIER_NOTE = {
 function score(c, picked, dxFirstTry) {
   let keys = 0; let got = 0; let extra = 0; let harm = 0;
   for (const step of ['history', 'exam', 'tests', 'mgmt']) {
-    for (const it of itemsFor(c, step)) {
+    for (const it of allItems(c, step, picked[step])) {
       const on = picked[step].includes(it.id);
       if (it.tier === 'key') { keys += 1; if (on) got += 1; }
       if (on && it.tier === 'extra') extra += 1;
       if (on && it.tier === 'harm') harm += 1;
     }
   }
-  const raw = (keys ? (80 * got) / keys : 80) + (dxFirstTry ? 20 : 0) - 4 * extra - 12 * harm;
+  const raw = (keys ? (80 * got) / keys : 80) + (dxFirstTry ? 20 : 0) - 3 * extra - 12 * harm;
   return { total: Math.max(0, Math.min(100, Math.round(raw))), keys, got, extra, harm };
 }
 
 // ── Pieces ───────────────────────────────────────────────────────────────
-function Monitor({ c, examined }) {
-  const vitals = c.exam.items.filter(x => x.vital);
+const VITAL_ORDER = ['RR', 'SpO₂', 'HR', 'Temp', 'BP'];
+function Monitor({ c, examIds }) {
+  const items = examItems(c);
+  const seen = {};
+  for (const it of items) if (it.vital && !(it.vital[0] in seen)) seen[it.vital[0]] = null;
+  for (const id of examIds) {
+    const it = items.find(i => i.id === id);
+    if (it?.vital) seen[it.vital[0]] = it.vital;
+  }
+  const names = VITAL_ORDER.filter(n => n in seen);
   return (
     <div className="cl-monitor" aria-label="Bedside monitor">
-      {vitals.map(v => {
-        const on = examined.includes(v.id);
-        const [name, value, unit, tone] = v.vital;
+      {names.map(n => {
+        const v = seen[n];
         return (
-          <div key={v.id} className={`cl-vital ${on ? `is-${tone}` : 'is-off'}`}>
-            <span className="cl-vital-name">{name}</span>
-            <span className="cl-vital-val">{on ? value : '--'}<small>{unit}</small></span>
+          <div key={n} className={`cl-vital ${v ? `is-${v[3]}` : 'is-off'}`}>
+            <span className="cl-vital-name">{n}</span>
+            <span className="cl-vital-val">{v ? v[1] : '--'}<small>{v ? v[2] : ''}</small></span>
           </div>
         );
       })}
@@ -80,10 +131,12 @@ function Monitor({ c, examined }) {
 
 function Notes({ c, picked, reviewed }) {
   const section = (step, title) => {
-    const items = itemsFor(c, step);
-    const mine = picked[step].map(id => items.find(i => i.id === id)).filter(Boolean);
-    const missed = reviewed[step] ? items.filter(i => i.tier === 'key' && !picked[step].includes(i.id)) : [];
-    const rows = [...mine, ...missed].filter(i => i.result);
+    // What was asked, found or resulted, in order; a technique the case does
+    // not list found nothing, so it has no line in the notes.
+    const listed = itemsFor(c, step);
+    const mine = picked[step].map(id => listed.find(i => i.id === id)).filter(i => i && i.result);
+    const missed = reviewed[step] || [];
+    const rows = [...mine, ...missed.filter(i => i.result)];
     if (!rows.length) return null;
     return (
       <div className="cl-notes-sec">
@@ -92,7 +145,7 @@ function Notes({ c, picked, reviewed }) {
           {rows.map(i => (
             <li key={i.id} className={missed.includes(i) ? 'is-missed' : ''}>
               {step === 'history' ? <><b>Q:</b> {i.label}<br /><span>{i.result}</span></> : <><b>{i.label}:</b> {i.result}</>}
-              {missed.includes(i) && <em> (senior)</em>}
+              {missed.includes(i) && <em> (from your senior)</em>}
             </li>
           ))}
         </ul>
@@ -117,7 +170,7 @@ function Feed({ feed }) {
   if (!feed.length) return null;
   return (
     <div className="cl-feed" aria-live="polite">
-      {feed.slice().reverse().slice(0, 4).map(f => (
+      {feed.slice().reverse().slice(0, 3).map(f => (
         <div key={f.key} className={`cl-feed-item ${TIER_NOTE[f.tier].cls}`}>
           <span className="cl-feed-icon" aria-hidden="true">{TIER_NOTE[f.tier].icon}</span>
           <div>
@@ -130,11 +183,226 @@ function Feed({ feed }) {
   );
 }
 
-function ChoiceStep({ c, step, picked, onPick, onDone, missed, onContinue }) {
-  const items = itemsFor(c, step);
+// "Done" for a step, and once pressed, the senior's list of what was missed.
+function StepFooter({ c, step, pickedCount, missed, onDone, onContinue }) {
   const meta = STEPS.find(s => s.id === step);
-  const groups = groupsFor(c, step);
+  if (!missed) {
+    return (
+      <div className="cl-step-foot">
+        {step === 'tests' && pickedCount === 0 && (
+          <button type="button" className="cl-btn cl-btn--ghost" onClick={onDone}>No investigations needed →</button>
+        )}
+        <button type="button" className="cl-btn" onClick={onDone}>
+          {step === 'mgmt' ? 'Finish the case →' : `Done with ${meta.label.toLowerCase()} →`}
+        </button>
+      </div>
+    );
+  }
+  return (
+    <div className="cl-missed">
+      {missed.length ? (
+        <>
+          <h3>🧑‍⚕️ Your senior: you missed {missed.length === 1 ? 'one thing' : `${missed.length} things`} that are recommended</h3>
+          <ul>
+            {missed.map(i => (
+              <li key={i.id}>
+                <b>{i.label}</b>
+                {i.result && <span className="cl-missed-res">{i.result}</span>}
+                <p>{i.why}</p>
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : (
+        <h3>🧑‍⚕️ Your senior: nothing important missed. {step === 'tests' && pickedCount === 0 ? c.tests.noneNeededNote : 'Well done.'}</h3>
+      )}
+      {step === 'tests' && pickedCount > 0 && !missed.length && <p className="cl-missed-note">{c.tests.noneNeededNote}</p>}
+      <button type="button" className="cl-btn" onClick={onContinue}>Continue →</button>
+    </div>
+  );
+}
+
+// ── History: meet the parent ─────────────────────────────────────────────
+function HistoryStep({ c, picked, onPick, footer }) {
+  const items = itemsFor(c, 'history');
+  const [shown, setShown] = useState(0);         // opening lines told so far
+  const [hints, setHints] = useState(true);       // show ★ Recommended
+  const [talking, setTalking] = useState(false);
+  const logRef = useRef(null);
+  const opening = c.history.opening;
+  const told = shown >= opening.length;
+
+  useEffect(() => {
+    if (told) return undefined;
+    setTalking(true);
+    const t = setTimeout(() => { setShown(s => s + 1); sfx.bubble?.(); }, shown === 0 ? 600 : 1500);
+    return () => clearTimeout(t);
+  }, [shown, told]);
+  useEffect(() => {
+    if (!talking) return undefined;
+    const t = setTimeout(() => setTalking(false), 1300);
+    return () => clearTimeout(t);
+  }, [talking, shown, picked.length]);
+  useEffect(() => { logRef.current?.scrollTo({ top: logRef.current.scrollHeight, behavior: 'smooth' }); }, [shown, picked.length]);
+
+  function ask(q) { onPick(q); setTalking(true); }
+
+  return (
+    <>
+      <div className="cl-scene">
+        <div className="cl-scene-parent"><Parent who={c.patient.parent || 'mum'} talking={talking} /><span>{c.history.opening[0][0]}</span></div>
+        <div className="cl-scene-baby"><Baby look={c.patient.look} size="sm" /><span>{c.patient.name}</span></div>
+      </div>
+      <div className="cl-convo" ref={logRef}>
+        {opening.slice(0, shown).map(([who, line]) => (
+          <div key={line} className="cl-say cl-say--parent"><b>{who}</b><p>{line}</p></div>
+        ))}
+        {!told && <div className="cl-say cl-say--parent cl-typing" aria-label="Mum is talking"><span /><span /><span /></div>}
+        {picked.map(id => {
+          const q = items.find(i => i.id === id);
+          return (
+            <div key={id} className="cl-say-pair">
+              <div className="cl-say cl-say--you"><b>You</b><p>{q.ask}</p></div>
+              <div className="cl-say cl-say--parent"><b>{opening[0][0]}</b><p>{q.answer}</p></div>
+            </div>
+          );
+        })}
+      </div>
+      {told && (
+        <div className="cl-ask">
+          <div className="cl-ask-head">
+            <h3>What would you like to ask?</h3>
+            <label className="cl-toggle">
+              <input type="checkbox" checked={hints} onChange={e => setHints(e.target.checked)} />
+              <span>Show recommended questions</span>
+            </label>
+          </div>
+          <p className="cl-stage-hint">Not every question is needed. Ask what will change your assessment.</p>
+          {c.history.groups.map(g => {
+            const list = items.filter(i => i.group === g);
+            return (
+              <div key={g} className="cl-group">
+                <h3>{g}</h3>
+                <div className="cl-qchips">
+                  {list.map(q => {
+                    const on = picked.includes(q.id);
+                    const tone = on ? (q.tier === 'extra' ? ' is-extra' : q.tier === 'harm' ? ' is-harm' : ' is-done') : '';
+                    return (
+                      <button key={q.id} type="button" className={`cl-qchip${tone}`} disabled={on || footer.props.missed} onClick={() => ask(q)}>
+                        {q.ask}
+                        {hints && q.tier === 'key' && <span className="cl-rec">★ Recommended</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+          {footer}
+        </div>
+      )}
+    </>
+  );
+}
+
+// ── Examination: technique × body part ───────────────────────────────────
+function ExamStep({ c, picked, onPick, footer }) {
+  const [tool, setTool] = useState('inspect');
+  const [last, setLast] = useState(null);
+  const marks = {};
+  for (const id of picked) {
+    const it = resolveItem(c, 'exam', id);
+    if (it?.region) marks[it.region] = toolById(it.tool)?.mark;
+  }
+  function doIt(id) {
+    const it = resolveItem(c, 'exam', id);
+    setLast(it);
+    if (!picked.includes(id)) onPick(it);
+  }
+  const offBody = BABY_REGIONS.filter(r => r.offBody);
+  const locked = !!footer.props.missed;
+  const t = toolById(tool);
+
+  return (
+    <>
+      <div className="cl-tools" role="toolbar" aria-label="Examination technique">
+        {TOOLS.map(x => (
+          <button key={x.id} type="button" className={`cl-tool${tool === x.id ? ' is-on' : ''}`} onClick={() => setTool(x.id)} aria-pressed={tool === x.id}>
+            <span aria-hidden="true">{x.icon}</span>{x.label}
+          </button>
+        ))}
+      </div>
+      <div className="cl-exam">
+        <div className={`cl-exam-stage${locked ? ' is-locked' : ''}`}>
+          {tool !== 'measure' ? (
+            <Baby look={c.patient.look} onRegion={locked ? null : (r) => doIt(`${tool}:${r}`)} active={tool} marks={marks} />
+          ) : (
+            <Baby look={c.patient.look} marks={marks} />
+          )}
+          <p className="cl-exam-tip">
+            {tool === 'measure' ? 'Choose a device on the right.' : <>{t.icon} <b>{t.label}</b>: tap a part of {c.patient.name}.</>}
+          </p>
+        </div>
+        <div className="cl-exam-side">
+          {tool === 'measure' ? (
+            <div className="cl-group">
+              <h3>Devices</h3>
+              <div className="cl-choices cl-choices--one">
+                {c.exam.measure.map(m => {
+                  const id = `measure:${m.id}`;
+                  const on = picked.includes(id);
+                  const tone = on ? (m.tier === 'extra' ? ' is-extra' : m.tier === 'harm' ? ' is-harm' : ' is-done') : '';
+                  return (
+                    <button key={id} type="button" className={`cl-choice${tone}`} disabled={locked} onClick={() => doIt(id)}>
+                      <span className="cl-choice-label">{m.label}</span>
+                      {on && <span className="cl-choice-result">{m.finding}</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            <div className="cl-group">
+              <h3>Or {t.label.toLowerCase()}…</h3>
+              <div className="cl-choices cl-choices--one">
+                {offBody.map(r => (
+                  <button key={r.id} type="button" className="cl-choice" disabled={locked} onClick={() => doIt(`${tool}:${r.id}`)}>
+                    <span className="cl-choice-label">{r.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {last && (
+            <div className={`cl-finding${last.tier === 'extra' ? ' is-extra' : last.tier === 'harm' ? ' is-harm' : ''}`} key={last.id}>
+              <span className="cl-finding-head">{toolById(last.tool)?.icon} {last.label}</span>
+              <p>{last.result}</p>
+              {(last.tier === 'extra' || last.tier === 'harm') && <p className="cl-finding-why"><b>Not useful:</b> {last.why}</p>}
+            </div>
+          )}
+          <div className="cl-done-list">
+            <h3>Done so far ({picked.length})</h3>
+            {picked.length === 0 ? <p className="cl-stage-hint">Start the way you would on the ward.</p> : (
+              <ul>
+                {picked.map(id => {
+                  const it = resolveItem(c, 'exam', id);
+                  return <li key={id} className={it.tier === 'extra' || it.tier === 'harm' ? 'is-extra' : ''}>{it.label}</li>;
+                })}
+              </ul>
+            )}
+          </div>
+        </div>
+      </div>
+      {footer}
+    </>
+  );
+}
+
+function ChoiceStep({ c, step, picked, onPick, footer }) {
+  const items = itemsFor(c, step);
+  const groups = step === 'tests' ? c.tests.groups : c.management.groups;
   const latest = picked[picked.length - 1];
+  const locked = !!footer.props.missed;
   return (
     <div className="cl-step">
       {groups.map(g => {
@@ -149,10 +417,9 @@ function ChoiceStep({ c, step, picked, onPick, onDone, missed, onContinue }) {
                 const toneCls = on ? (i.tier === 'harm' ? ' is-harm' : i.tier === 'extra' ? ' is-extra' : ' is-done') : '';
                 return (
                   <button key={i.id} type="button" className={`cl-choice${toneCls}${latest === i.id ? ' is-latest' : ''}`}
-                    disabled={on || !!missed} onClick={() => onPick(i)}>
+                    disabled={on || locked} onClick={() => onPick(i)}>
                     <span className="cl-choice-label">{i.label}</span>
-                    {on && i.result && <span className="cl-choice-result">{i.result}</span>}
-                    {on && !i.result && <span className="cl-choice-result">{step === 'mgmt' ? 'Done.' : ''}</span>}
+                    {on && <span className="cl-choice-result">{i.result || 'Done.'}</span>}
                   </button>
                 );
               })}
@@ -160,37 +427,7 @@ function ChoiceStep({ c, step, picked, onPick, onDone, missed, onContinue }) {
           </div>
         );
       })}
-      {!missed ? (
-        <div className="cl-step-foot">
-          {step === 'tests' && picked.length === 0 && (
-            <button type="button" className="cl-btn cl-btn--ghost" onClick={onDone}>No investigations needed →</button>
-          )}
-          <button type="button" className="cl-btn" onClick={onDone}>
-            {step === 'mgmt' ? 'Finish the case →' : `Done with ${meta.label.toLowerCase()} →`}
-          </button>
-        </div>
-      ) : (
-        <div className="cl-missed">
-          {missed.length ? (
-            <>
-              <h3>🧑‍⚕️ Your senior: you missed {missed.length === 1 ? 'one thing' : `${missed.length} things`}</h3>
-              <ul>
-                {missed.map(i => (
-                  <li key={i.id}>
-                    <b>{i.label}</b>
-                    {i.result && <span className="cl-missed-res">{i.result}</span>}
-                    <p>{i.why}</p>
-                  </li>
-                ))}
-              </ul>
-            </>
-          ) : (
-            <h3>🧑‍⚕️ Your senior: nothing important missed. {step === 'tests' && picked.length === 0 ? c.tests.noneNeededNote : 'Well done.'}</h3>
-          )}
-          {step === 'tests' && picked.length > 0 && !missed.length && <p className="cl-missed-note">{c.tests.noneNeededNote}</p>}
-          <button type="button" className="cl-btn" onClick={onContinue}>Continue →</button>
-        </div>
-      )}
+      {footer}
     </div>
   );
 }
@@ -227,8 +464,8 @@ function DiagnosisStep({ c, tries, onPick, onContinue }) {
 
 function Debrief({ c, picked, dxTries, onAgain, onBack }) {
   const s = score(c, picked, dxTries.length === 1);
-  const firstExam = c.exam.items.find(x => x.id === picked.exam[0]);
-  const abcdeFirst = firstExam?.group === c.exam.abcdeGroup;
+  const firstExam = picked.exam[0] ? resolveItem(c, 'exam', picked.exam[0]) : null;
+  const abcdeFirst = !!firstExam?.abcde;
   const grade = s.total >= 85 ? ['🏅', 'Safe and efficient'] : s.total >= 65 ? ['👍', 'Safe, with gaps'] : ['📚', 'Needs supervision'];
   useEffect(() => { saveBest(c.id, s.total); }, [c.id, s.total]);
   return (
@@ -238,17 +475,17 @@ function Debrief({ c, picked, dxTries, onAgain, onBack }) {
         <div>
           <p className="cl-kicker">Debrief</p>
           <h2>{grade[1]}</h2>
-          <p className="cl-score-line"><b>{s.total}</b>/100 · {s.got}/{s.keys} essentials · {s.extra} not needed · {s.harm} harmful</p>
+          <p className="cl-score-line"><b>{s.total}</b>/100 · {s.got}/{s.keys} recommended · {s.extra} not needed · {s.harm} harmful</p>
         </div>
       </section>
       <div className="cl-debrief-approach">
         {abcdeFirst
-          ? <p>✓ You started the examination with the ABCDE first look. That is the right first step in an unwell child.</p>
-          : <p>⚠️ Your first examination step was <b>{firstExam?.label || 'not recorded'}</b>. In an unwell child, start with the ABCDE first look and decide how sick they are.</p>}
+          ? <p>✓ You began the examination with a first-look (ABCDE) step: <b>{firstExam.label}</b>. That is the right way to start with an unwell child.</p>
+          : <p>⚠️ Your first examination step was <b>{firstExam?.label || 'not recorded'}</b>. With an unwell child, start with the first look: general appearance, breathing, colour and saturations, before anything else.</p>}
         {dxTries.length > 1 && <p>⚠️ The diagnosis took {dxTries.length} tries.</p>}
       </div>
       {['history', 'exam', 'tests', 'mgmt'].map(step => {
-        const items = itemsFor(c, step);
+        const items = allItems(c, step, picked[step]);
         const missed = items.filter(i => i.tier === 'key' && !picked[step].includes(i.id));
         const wasted = items.filter(i => (i.tier === 'extra' || i.tier === 'harm') && picked[step].includes(i.id));
         const good = items.filter(i => (i.tier === 'key' || i.tier === 'useful') && picked[step].includes(i.id));
@@ -257,7 +494,7 @@ function Debrief({ c, picked, dxTries, onAgain, onBack }) {
           <section key={step} className="cl-debrief-step">
             <h3><span aria-hidden="true">{meta.icon}</span> {meta.label}</h3>
             {good.length > 0 && <p className="cl-debrief-good">✓ {good.map(i => i.label).join(' · ')}</p>}
-            {missed.map(i => <div key={i.id} className="cl-debrief-row is-missed"><b>Missed: {i.label}</b><p>{i.why}</p></div>)}
+            {missed.map(i => <div key={i.id} className="cl-debrief-row is-missed"><b>Recommended, missed: {i.label}</b><p>{i.why}</p></div>)}
             {wasted.map(i => <div key={i.id} className={`cl-debrief-row ${i.tier === 'harm' ? 'is-harm' : 'is-extra'}`}><b>{i.tier === 'harm' ? 'Should not be done' : 'Not needed'}: {i.label}</b><p>{i.why}</p></div>)}
             {!missed.length && !wasted.length && <p className="cl-debrief-clean">Nothing missed and nothing wasted.</p>}
           </section>
@@ -290,10 +527,10 @@ function CaseRun({ c, spec }) {
   const topRef = useRef(null);
   const best = useMemo(() => loadBest()[c.id], [c.id]);
 
-  useEffect(() => { topRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, [stage]);
+  useEffect(() => { topRef.current?.scrollTo({ top: 0, behavior: 'smooth' }); }, [stage]);
 
   function pick(step, item) {
-    setPicked(p => ({ ...p, [step]: [...p[step], item.id] }));
+    setPicked(p => (p[step].includes(item.id) ? p : { ...p, [step]: [...p[step], item.id] }));
     if (item.tier === 'extra' || item.tier === 'harm') {
       setFeed(f => [...f, { key: `${step}-${item.id}`, tier: item.tier, label: item.label, why: item.why }]);
       sfx.wrong?.();
@@ -311,8 +548,17 @@ function CaseRun({ c, spec }) {
     setStage('brief'); setPicked({ history: [], exam: [], tests: [], mgmt: [] });
     setReviewed({}); setDxTries([]); setFeed([]);
   }
+  const footer = (step) => (
+    <StepFooter c={c} step={step} pickedCount={picked[step].length} missed={reviewed[step]}
+      onDone={() => done(step)} onContinue={() => { sfx.next?.(); setStage(nextOf[step]); }} />
+  );
 
   const stepIndex = STEPS.findIndex(s => s.id === stage);
+  const hint = {
+    exam: 'Choose a technique, then the part of the body. Start as you would with any unwell child.',
+    tests: 'Order only what will change what you do.',
+    mgmt: 'Decide where he goes and what he needs. Pick everything you would do.',
+  }[stage];
   return (
     <div className="cl-screen" ref={topRef}>
       <header className="cl-top">
@@ -335,7 +581,7 @@ function CaseRun({ c, spec }) {
         <section className="cl-brief">
           <p className="cl-kicker">{c.setting}</p>
           <div className="cl-brief-patient">
-            <span className="cl-brief-avatar" aria-hidden="true">{c.patient.icon}</span>
+            <div className="cl-brief-baby"><Baby look={c.patient.look} size="sm" /></div>
             <div>
               <h1>{c.patient.name}, {c.patient.age}</h1>
               <p>Weight {c.patient.weight}</p>
@@ -346,13 +592,14 @@ function CaseRun({ c, spec }) {
             <p>{c.triage}</p>
           </div>
           <ul className="cl-brief-rules">
-            <li>Work through it as you would on the ward: history, examination, tests, diagnosis, management.</li>
+            <li>Meet the family, take the history, examine, choose tests, make the diagnosis and treat.</li>
             <li>Every choice is final. Your senior tells you at once if something was not needed.</li>
-            <li>When you finish a step, anything essential you left out is pointed out.</li>
+            <li>When you finish a step, anything recommended that you left out is pointed out.</li>
           </ul>
+          <p className="cl-guidelines">Follows {c.guidelines}.</p>
           <div className="cl-step-foot">
             {best != null && <span className="cl-best">Best: <b>{best}</b>/100</span>}
-            <button type="button" className="cl-btn" onClick={() => { sfx.next?.(); setStage('history'); }}>See the patient →</button>
+            <button type="button" className="cl-btn" onClick={() => { sfx.next?.(); setStage('history'); }}>Meet the family →</button>
           </div>
         </section>
       )}
@@ -364,33 +611,25 @@ function CaseRun({ c, spec }) {
               <span className="cl-patient-avatar" aria-hidden="true">{c.patient.icon}</span>
               <div><b>{c.patient.name}</b><span>{c.patient.age} · {c.patient.weight}</span></div>
             </div>
-            <Monitor c={c} examined={[...picked.exam, ...(reviewed.exam || []).map(i => i.id)]} />
+            <Monitor c={c} examIds={[...picked.exam, ...(reviewed.exam || []).map(i => i.id)]} />
             <Notes c={c} picked={picked} reviewed={reviewed} />
           </aside>
           <main className="cl-main">
             <h2 className="cl-stage-title">
-              <span aria-hidden="true">{STEPS[stepIndex].icon}</span> {STEPS[stepIndex].label}
+              <span aria-hidden="true">{STEPS[stepIndex].icon}</span> {stage === 'history' ? 'Meet the family' : STEPS[stepIndex].label}
             </h2>
-            {stage === 'history' && (
-              <div className="cl-chat">
-                {c.history.opening.map(([who, line]) => (
-                  <div key={line} className="cl-bubble"><b>{who}</b><p>{line}</p></div>
-                ))}
-                <p className="cl-chat-prompt">What do you want to ask?</p>
-              </div>
+            {hint && <p className="cl-stage-hint">{hint}</p>}
+            {/* The examination explains a useless step in its own findings card. */}
+            {stage !== 'exam' && <Feed feed={feed.filter(f => f.key.startsWith(`${stage}-`))} />}
+            {stage === 'history' && <HistoryStep c={c} picked={picked.history} onPick={(i) => pick('history', i)} footer={footer('history')} />}
+            {stage === 'exam' && <ExamStep c={c} picked={picked.exam} onPick={(i) => pick('exam', i)} footer={footer('exam')} />}
+            {(stage === 'tests' || stage === 'mgmt') && (
+              <ChoiceStep key={stage} c={c} step={stage} picked={picked[stage]} onPick={(i) => pick(stage, i)} footer={footer(stage)} />
             )}
-            {stage === 'exam' && <p className="cl-stage-hint">Choose what to examine, in the order you would do it.</p>}
-            {stage === 'tests' && <p className="cl-stage-hint">Order only what will change what you do.</p>}
-            {stage === 'mgmt' && <p className="cl-stage-hint">Decide where he goes and what he needs. Pick everything you would do.</p>}
-            <Feed feed={feed.filter(f => f.key.startsWith(`${stage}-`))} />
-            {stage === 'dx' ? (
+            {stage === 'dx' && (
               <DiagnosisStep c={c} tries={dxTries}
                 onPick={(id) => { setDxTries(t => [...t, id]); if (id === c.diagnosis.answer) sfx.correct?.(); else sfx.wrong?.(); }}
                 onContinue={() => setStage('mgmt')} />
-            ) : (
-              <ChoiceStep key={stage} c={c} step={stage} picked={picked[stage]}
-                onPick={(i) => pick(stage, i)} onDone={() => done(stage)}
-                missed={reviewed[stage]} onContinue={() => { sfx.next?.(); setStage(nextOf[stage]); }} />
             )}
           </main>
         </div>
