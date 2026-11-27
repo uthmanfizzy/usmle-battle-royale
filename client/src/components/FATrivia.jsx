@@ -22,13 +22,19 @@ import './FATrivia.css';
 const SECONDS = 15;
 const LETTERS = ['A', 'B', 'C', 'D'];
 const TILE = ['pink', 'cyan', 'lime', 'amber'];
-// Seven colours, so a seven-category chapter (Microbiology) never puts two alike side by side.
-const WEDGE = ['#ff3d8b', '#22d3ee', '#a3e635', '#fb923c', '#c084fc', '#facc15', '#60a5fa'];
+// Eight colours, so an eight-category chapter (Step 2 Obstetrics) never puts two alike side by side.
+const WEDGE = ['#ff3d8b', '#22d3ee', '#a3e635', '#fb923c', '#c084fc', '#facc15', '#60a5fa', '#f87171'];
 // Wheel wedges are narrow; long category names get a short label there.
 const WEDGE_LABEL = {
   'Basic Bacteriology': 'Basic Bact', 'Clinical Bacteriology': 'Clin Bact', 'Laboratory Techniques': 'Lab Tech',
   Parasitology: 'Parasites', Antimicrobials: 'Antimicro', Pharmacology: 'Pharm',
+  'Basics of Pregnancy': 'Basics', 'Prenatal Care & Testing': 'Prenatal', 'Maternal Complications': 'Maternal',
+  'Obstetric Complications': 'Obstetric', 'Normal Labor & Delivery': 'Labor', 'Abnormal Labor & Delivery': 'Hard labor',
 };
+// Which book: ?step=2 is First Aid for the Step 2 CK (First Aid Journey's
+// Step 2 tab links here with it); anything else is the Step 1 book.
+const readStep = () => (new URLSearchParams(window.location.search).get('step') === '2' ? 2 : 1);
+const STEP_DEFAULT_CHAPTER = { 1: 'repro', 2: 'ob' };
 const wedgeLabel = (c) => { const s = WEDGE_LABEL[c] || c; return s.length > 11 ? `${s.slice(0, 10)}.` : s; };
 const ROUND_LABEL = { 10: 'Quick show', 20: 'Full show', 30: 'Marathon' };
 
@@ -327,9 +333,10 @@ function Final({ results, score, bestStreak, best, isRecord, onAgain, onExit }) 
 
 export default function FATrivia({ onExit }) {
   const exit = onExit || (() => { window.location.href = '/?story=fa'; });
+  const [step] = useState(readStep);
   const [catalog, setCatalog] = useState(null);
   const [error, setError] = useState('');
-  const [chapter, setChapter] = useState('repro');
+  const [chapter, setChapter] = useState(STEP_DEFAULT_CHAPTER[step]);
   const [cats, setCats] = useState([]);
   const [rounds, setRounds] = useState(10);
   const [skipSeen, setSkipSeenState] = useState(readSkip);
@@ -361,7 +368,7 @@ export default function FATrivia({ onExit }) {
   useEffect(() => {
     fetch(`${SERVER_URL}/api/fa-trivia/catalog`)
       .then(r => r.json())
-      .then(setCatalog)
+      .then(d => setCatalog({ ...d, chapters: (d.chapters || []).filter(c => (c.step || 1) === step) }))
       .catch(() => setError('The stage lights would not come on — check your connection and try again.'));
   }, []);
 

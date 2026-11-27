@@ -9,6 +9,9 @@
  * `node server/fatrivia/check.js` after editing.
  *
  * Row: [topic, FA page, question, [correct, ...three wrong], fun fact]
+ *
+ * Each chapter belongs to a step: 1 is First Aid for Step 1, 2 is First Aid
+ * for the Step 2 CK (its own page numbers). /fa-trivia?step=2 lists step 2.
  */
 
 const crypto = require('crypto');
@@ -19,7 +22,9 @@ const CHAPTERS = [
   { id: 'micro', name: 'Microbiology', icon: '🦠', file: './microbiology', pages: [121, 200] },
   { id: 'repro', name: 'Reproductive', icon: '🌸', file: './reproductive', pages: [629, 676] },
   { id: 'resp', name: 'Respiratory', icon: '🫁', file: './respiratory', pages: [677, 706] },
-];
+  // ── Step 2 CK ──
+  { id: 'ob', name: 'Obstetrics', icon: '🤰', file: './obstetrics', pages: [427, 466], step: 2 },
+].map(c => ({ step: 1, ...c }));
 
 // The book's sections become the game's categories.
 const SECTION_RANGES = {
@@ -28,6 +33,11 @@ const SECTION_RANGES = {
   micro: [[122, 131, 'Basic Bacteriology'], [132, 148, 'Clinical Bacteriology'], [149, 151, 'Mycology'], [152, 158, 'Parasitology'], [159, 173, 'Virology'], [174, 182, 'Systems'], [183, 200, 'Antimicrobials']],
   repro: [[630, 641, 'Embryology'], [642, 646, 'Anatomy'], [647, 654, 'Physiology'], [655, 672, 'Pathology'], [673, 676, 'Pharmacology']],
   resp: [[678, 679, 'Embryology'], [680, 681, 'Anatomy'], [682, 689, 'Physiology'], [690, 703, 'Pathology'], [704, 706, 'Pharmacology']],
+  // Step 2 CK Obstetrics: same eight sections as the FA HY Qs bank. Rows on
+  // shared pages (430, 436, 438, 445, 462) name their category.
+  ob: [[428, 429, 'Basics of Pregnancy'], [430, 435, 'Prenatal Care & Testing'], [436, 437, 'Abortion'],
+    [438, 444, 'Maternal Complications'], [445, 453, 'Obstetric Complications'], [454, 456, 'Normal Labor & Delivery'],
+    [457, 461, 'Abnormal Labor & Delivery'], [462, 466, 'Puerperium']],
 };
 const sectionsOf = (ch) => (SECTION_RANGES[ch] || []).map(r => r[2]);
 const sectionOf = (ch, page) => (SECTION_RANGES[ch] || []).find(([a, b]) => page >= a && page <= b)?.[2] || 'Other';
@@ -56,7 +66,7 @@ function catalog() {
     chapters: CHAPTERS.map(c => {
       const bank = BANKS[c.id];
       const categories = sectionsOf(c.id).map(s => ({ id: s, count: bank.filter(q => q.section === s).length })).filter(s => s.count);
-      return { id: c.id, name: c.name, icon: c.icon, pages: c.pages, count: bank.length, categories };
+      return { id: c.id, name: c.name, icon: c.icon, pages: c.pages, step: c.step, count: bank.length, categories };
     }),
     rounds: ROUNDS,
   };

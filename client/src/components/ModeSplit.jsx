@@ -344,8 +344,17 @@ export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld, onSaudiMLE, o
                 sub="First Aid for the Step 2 CK, chapter by chapter." />
               <LockedCard variant="violet" icon="🖼️" name="FA IMAGES" chip="SOON"
                 sub="The Step 2 CK book's photos, scans and tracings." />
-              <LockedCard variant="trivia" icon="🎪" name="FA TRIVIA" chip="SOON"
-                sub="The game show, with Step 2 CK questions." />
+              <button className="ms-journey-card ms-journey-card--trivia" onClick={() => { window.location.href = '/fa-trivia?step=2'; }}>
+                <div className="ms-journey-art" aria-hidden="true">
+                  <span className="ms-journey-art-icon">🎪</span>
+                </div>
+                <div className="ms-journey-body">
+                  <span className="ms-journey-name">FA TRIVIA</span>
+                  <span className="ms-journey-sub">
+                    The First Aid game show, with Step 2 CK questions.
+                  </span>
+                </div>
+              </button>
             </>
           ) : isFa ? (
             <>
