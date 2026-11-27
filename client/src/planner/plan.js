@@ -28,6 +28,7 @@ export const PLANNER_MODES = [
   Q('oet_practice', 'OET', '🇬🇧', 90, 'Question banks'),
   Q('journey', 'First Aid Journey', '🚑', 60, 'First Aid'),
   Q('fa_hy_qs', 'FA HY Qs', '🎯', 90, 'First Aid'),
+  Q('inner_circle', 'Inner Circle', '⭕', 90, 'Question banks'),
   Q('fa_images', 'FA Images', '🖼️', 35, 'First Aid'),
   Q('fa_trivia', 'FA Trivia', '🎪', 25, 'First Aid'),
   Q('hy_arrows', 'HY Arrows', '↕️', 60, 'First Aid'),

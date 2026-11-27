@@ -249,6 +249,8 @@ export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld, onSaudiMLE, o
   // Step 2 CK is the Step 2 CK book. Remembered on this device so the back
   // link from a mode lands on the same step.
   const [faStep, setFaStep] = useState(() => { try { return localStorage.getItem(FA_STEP_KEY) === '2' ? 2 : 1; } catch { return 1; } });
+  // Story Mode's Step 2 CK list (medicine only).
+  const step2 = !isDentistry && faStep === 2;
   function pickFaStep(n) {
     setFaStep(n);
     try { localStorage.setItem(FA_STEP_KEY, String(n)); } catch { /* not remembered */ }
@@ -490,12 +492,41 @@ export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld, onSaudiMLE, o
             <span aria-hidden="true">🦷</span> Dentistry
           </button>
         </div>
+
+        {/* Which exam: Step 1 shows every campaign built so far; Step 2 CK
+            shows Inner Circle and the campaigns with Step 2 CK content. The
+            same remembered choice as First Aid Journey's own switch. */}
+        {!isDentistry && (
+          <div className="ms-course ms-course--step" role="group" aria-label="Exam">
+            <button type="button" className={`ms-course-btn${faStep === 1 ? ' is-on' : ''}`} aria-pressed={faStep === 1} onClick={() => pickFaStep(1)}>
+              <span aria-hidden="true">📘</span> Step 1
+            </button>
+            <button type="button" className={`ms-course-btn${faStep === 2 ? ' is-on' : ''}`} aria-pressed={faStep === 2} onClick={() => pickFaStep(2)}>
+              <span aria-hidden="true">🩺</span> Step 2 CK
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Every campaign shares the ms-journey-card layout: a row of tiles on
           desktop, wide rows stacked on a phone. Playable campaigns first, the
           locked ones after them at the bottom. */}
       <div className="ms-campaign-list">
+        {/* Inner Circle — the Step 2 CK campaign; its Qbank is /inner-circle. */}
+        {step2 && (
+        <button className="ms-journey-card ms-journey-card--innercircle" onClick={() => { window.location.href = '/inner-circle'; }}>
+          <div className="ms-journey-art" aria-hidden="true">
+            <span className="ms-journey-art-icon">⭕</span>
+          </div>
+          <div className="ms-journey-body">
+            <span className="ms-journey-name">INNER CIRCLE</span>
+            <span className="ms-journey-sub">
+              The Step 2 CK Qbank — every high-yield concept, topic by topic, explained in plain sentences.
+            </span>
+          </div>
+        </button>
+        )}
+
         {/* First Aid and the flashcard decks are medical content, so a
             dentistry student's menu is the ORE/LDS campaign alone. */}
         {!isDentistry && (
@@ -506,13 +537,13 @@ export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld, onSaudiMLE, o
           <div className="ms-journey-body">
             <span className="ms-journey-name">FIRST AID JOURNEY</span>
             <span className="ms-journey-sub">
-              A field medic&apos;s first steps — FA Qbank and FA Images.
+              {step2 ? 'First Aid for the Step 2 CK — FA HY Qs and FA Trivia.' : <>A field medic&apos;s first steps — FA Qbank and FA Images.</>}
             </span>
           </div>
         </button>
         )}
 
-        {!isDentistry && (
+        {!isDentistry && !step2 && (
         <button className="ms-journey-card ms-journey-card--orange" onClick={() => openSub('flash')}>
           <div className="ms-journey-art" aria-hidden="true">
             <span className="ms-journey-art-icon">🃏</span>
@@ -539,7 +570,7 @@ export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld, onSaudiMLE, o
         )}
 
         {/* A standalone ROUTE, not a phase, so onUWorld navigates. */}
-        {!isDentistry && (
+        {!isDentistry && !step2 && (
         <button className="ms-journey-card ms-journey-card--blue" onClick={() => openSub('uw')}>
           <div className="ms-journey-art" aria-hidden="true">
             <span className="ms-journey-art-icon">📊</span>
@@ -555,7 +586,7 @@ export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld, onSaudiMLE, o
 
         {/* Amboss Quest — a hub of its own sub-modes (Qbank, 200 Concepts,
             HY Ethics), so it opens /amboss-quest rather than a bank. */}
-        {!isDentistry && (
+        {!isDentistry && !step2 && (
         <button className="ms-journey-card ms-journey-card--amboss" onClick={() => { window.location.href = '/amboss-quest'; }}>
           <div className="ms-journey-art" aria-hidden="true">
             <span className="ms-journey-art-icon">🧭</span>
@@ -571,7 +602,7 @@ export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld, onSaudiMLE, o
 
         {/* Kaplan — a hub of its own sub-modes (100 HY Ethics, Qbank), so it
             opens /kaplan rather than a game. */}
-        {!isDentistry && (
+        {!isDentistry && !step2 && (
         <button className="ms-journey-card ms-journey-card--kaplan" onClick={() => { window.location.href = '/kaplan'; }}>
           <div className="ms-journey-art" aria-hidden="true">
             <span className="ms-journey-art-icon">🎓</span>
@@ -587,7 +618,7 @@ export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld, onSaudiMLE, o
 
         {/* HY Diseases: high-yield diseases taught as patients to diagnose.
             A hub of subjects (/hy-diseases); Biochemistry is open. */}
-        {!isDentistry && (
+        {!isDentistry && !step2 && (
         <button className="ms-journey-card ms-journey-card--hyd" onClick={() => { window.location.href = '/hy-diseases'; }}>
           <div className="ms-journey-art" aria-hidden="true">
             <span className="ms-journey-art-icon">🩺</span>

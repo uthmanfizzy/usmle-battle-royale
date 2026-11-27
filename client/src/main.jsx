@@ -59,6 +59,7 @@ const LabRange          = lazy(() => import('./components/LabRange'));
 const MinigamesPage     = lazy(() => import('./components/MinigamesPage'));
 const FAImages          = lazy(() => import('./components/FAImages'));
 const FAHYQs            = lazy(() => import('./components/FAHYQs'));
+const InnerCircle       = lazy(() => import('./components/InnerCircle'));
 const FATrivia          = lazy(() => import('./components/FATrivia'));
 const MehlmanHub        = lazy(() => import('./components/MehlmanHub'));
 const HYArrows          = lazy(() => import('./components/HYArrows'));
@@ -202,6 +203,8 @@ ReactDOM.createRoot(document.getElementById('root')).render(
                 <Route path="/hy-flashcards" element={<RouteErrorBoundary name="HYFlashcards"><HYFlashcards /></RouteErrorBoundary>} />
                 <Route path="/reels"          element={<RouteErrorBoundary name="ReelsPage"><ReelsPage /></RouteErrorBoundary>} />
                 <Route path="/fa-hy-qs" element={<RouteErrorBoundary name="FAHYQs"><FAHYQs /></RouteErrorBoundary>} />
+                {/* Inner Circle — Story Mode's Step 2 CK campaign; its Qbank, system by system. */}
+                <Route path="/inner-circle" element={<RouteErrorBoundary name="InnerCircle"><InnerCircle /></RouteErrorBoundary>} />
                 <Route path="/fa-trivia" element={<RouteErrorBoundary name="FATrivia"><FATrivia /></RouteErrorBoundary>} />
                 <Route path="/fa-images" element={<RouteErrorBoundary name="FAImages"><FAImages /></RouteErrorBoundary>} />
                 <Route path="/minigames" element={<RouteErrorBoundary name="MinigamesPage"><MinigamesPage /></RouteErrorBoundary>} />

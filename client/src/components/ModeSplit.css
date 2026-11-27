@@ -1024,6 +1024,13 @@
 .ms-journey-card--kaplan { --ms-accent-rgb: 109, 40, 217; border-color: #6d28d9; box-shadow: 0 0 18px rgba(109, 40, 217, 0.3); }
 .ms-journey-card--kaplan:hover { box-shadow: 0 0 28px rgba(109, 40, 217, 0.55); }
 .ms-journey-card--kaplan .ms-journey-name { color: #d8b4fe; }
+/* Inner Circle — midnight indigo ringed in gold, like its logo. */
+.ms-journey-card--innercircle { --ms-accent-rgb: 212, 167, 59; border-color: #d4a73b; background: linear-gradient(160deg, rgba(63, 60, 187, 0.28), rgba(17, 21, 42, 0.6)); box-shadow: 0 0 18px rgba(212, 167, 59, 0.28); }
+.ms-journey-card--innercircle:hover { box-shadow: 0 0 28px rgba(212, 167, 59, 0.5); }
+.ms-journey-card--innercircle .ms-journey-name { color: #f3d27a; }
+/* The Step 1 / Step 2 CK switch sits beside the course switch. */
+.ms-course--step { margin-left: 8px; }
+@media (max-width: 560px) { .ms-course--step { margin-left: 0; margin-top: 8px; } }
 
 /* HY Diseases — a calm clinic teal, set apart from ORE/LDS teal by its
    greener hue. Shared by the Story Mode card and the /hy-diseases hub. */

@@ -40,6 +40,7 @@ const MODE_META = {
   hy_flashcards:          { icon: '⭐', label: 'HY Flashcards'     },
   fa_images:              { icon: '🖼️', label: 'FA Images'         },
   fa_hy_qs:               { icon: '🎯', label: 'FA HY Qs'          },
+  inner_circle:           { icon: '⭕', label: 'Inner Circle'      },
   fa_trivia:              { icon: '🎪', label: 'FA Trivia'         },
   hy_arrows:              { icon: '↕️', label: 'HY Arrows'         },
   question_bank_practice: { icon: '📚', label: 'UWorld Adventure'  },

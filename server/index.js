@@ -5062,6 +5062,8 @@ require('./faimages')({ getSupabase: () => supabase, shuffle: (arr) => shuffle(a
   .mount(app, { rateLimit, adminAuth });
 // FA HY Qs — high-yield vignettes per First Aid chapter (bank is code: server/fahyq).
 require('./fahyq').mount(app, { rateLimit });
+// Inner Circle — the Step 2 CK Story Mode campaign; its Qbank banks are code (server/innercircle).
+require('./innercircle').mount(app, { rateLimit });
 // FA Trivia — quick-fire First Aid trivia per chapter (bank is code: server/fatrivia).
 require('./fatrivia').mount(app, { rateLimit });
 
@@ -5997,7 +5999,8 @@ app.post('/api/journey-questions/:questionId/rate', requireAuth, async (req, res
  */
 // amboss_200 = Amboss 200 Concepts (ids AMB200-###); the table's CHECK needs
 // it added (amboss200-ratings-migration.sql).
-const FA_RATING_MODES = ['fa_images', 'fa_hy_qs', 'amboss_200'];
+// inner_circle needs inner-circle-ratings-migration.sql (widens the mode CHECK).
+const FA_RATING_MODES = ['fa_images', 'fa_hy_qs', 'amboss_200', 'inner_circle'];
 const FA_QID = /^[A-Za-z0-9_-]{1,64}$/;
 
 app.post('/api/fa-ratings', requireAuth, async (req, res) => {
@@ -14009,6 +14012,7 @@ app.post('/api/hy-flashcards/session-complete', requireAuth, async (req, res) =>
 const FA_STUDY_MODES = {
   fa_images: { perItem: 90 },     // 20 s clock + reading the explanation and figure
   fa_hy_qs:  { perItem: 150 },    // a vignette and its explanation
+  inner_circle: { perItem: 150 }, // an Inner Circle Step 2 CK vignette and its explanation
   fa_trivia: { perItem: 45 },     // a 15 s trivia question and its fun fact
   hy_arrows: { perItem: 120 },    // an arrow table and its explanation
   amboss_200_concepts_practice: { perItem: 180 }, // a long vignette and its HY explanation
