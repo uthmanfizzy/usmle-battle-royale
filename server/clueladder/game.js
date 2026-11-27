@@ -34,12 +34,27 @@ const bank = require('./bank');
 
 const COUNT_CHOICES = [5, 10, 15, 20];
 const SECOND_CHOICES = [60, 90, 120, 180];
-const DEFAULTS = Object.freeze({ systems: [], count: 10, seconds: 90, hyOnly: true });
+// Skip diseases a human in the room has had within this many days (0 = off,
+// 1 = today only). Each player's browser sends its own record (cl_seen);
+// the server also remembers per signed-in account, in memory.
+const SKIP_CHOICES = [0, 1, 3, 7];
+const DEFAULTS = Object.freeze({ systems: [], count: 10, seconds: 90, hyOnly: true, skipDays: 1 });
 const MAX_PLAYERS = 20;
 const MAX_ATTEMPTS = bank.CLUE_COUNT;      // one guess per clue
 const FAIL_ATTEMPTS = MAX_ATTEMPTS + 1;    // what an unsolved case counts
 const INTRO_MS = 2600;
-const REVEAL_MS = 11000;
+// Long enough to read the answer's brief, not just the scores.
+const REVEAL_MS = 20000;
+const SEEN_KEEP_DAYS = 14;
+const SEEN_MAX = 2000;
+
+/** 'YYYY-MM-DD' → a day number (days since the epoch), or null. */
+function dayNum(s) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(s || ''));
+  if (!m) return null;
+  return Math.floor(Date.UTC(+m[1], +m[2] - 1, +m[3]) / 86400000);
+}
+const utcToday = () => Math.floor(Date.now() / 86400000);
 const GRACE_MS = 400;
 
 // Bots: which attempt they solve on, and how often they never get it.
@@ -59,6 +74,7 @@ function sanitizeOptions(raw) {
     seconds: SECOND_CHOICES.includes(Number(o.seconds)) ? Number(o.seconds) : DEFAULTS.seconds,
     // HY only skips the low-yield diagnoses (bank/lowyield.js) as cases.
     hyOnly: typeof o.hyOnly === 'boolean' ? o.hyOnly : DEFAULTS.hyOnly,
+    skipDays: SKIP_CHOICES.includes(Number(o.skipDays)) ? Number(o.skipDays) : DEFAULTS.skipDays,
   };
 }
 
@@ -73,15 +89,88 @@ module.exports = function createClueLadder({ io, lobbies, shuffle, awardXP, lobb
       systems: bank.SYSTEMS,
       counts: COUNT_CHOICES,
       seconds: SECOND_CHOICES,
+      skipDays: SKIP_CHOICES,
       clues: bank.CLUE_COUNT,
       total: bank.cases.length,
       hyTotal: bank.cases.filter(c => c.hy).length,
     };
   }
 
-  function buildRun(opts) {
+  // ── Diseases already had ──────────────────────────────────────────────────
+  // socket.clSeen: Map(answerKey -> day number), from the player's browser,
+  // with socket.clToday their own calendar day. byUser: the same per account.
+  const byUser = new Map();   // userId -> Map(answerKey -> day number)
+
+  function trimSeen(m, today) {
+    for (const [k, d] of m) if (today - d > SEEN_KEEP_DAYS) m.delete(k);
+    while (m.size > SEEN_MAX) m.delete(m.keys().next().value);
+  }
+
+  /** Every disease any human in the room has had within `days` days. */
+  function seenBy(lobby, days) {
+    const out = new Set();
+    if (!days) return out;
+    for (const p of humans(lobby)) {
+      const sock = io.sockets.sockets.get(p.id);
+      const today = sock?.clToday ?? utcToday();
+      for (const m of [sock?.clSeen, sock?.userId ? byUser.get(sock.userId) : null]) {
+        if (!m) continue;
+        for (const [k, d] of m) if (today - d < days) out.add(k);
+      }
+    }
+    return out;
+  }
+
+  /** This case's disease now counts as had, for every human in the room. */
+  function markSeen(lobby, key) {
+    for (const p of humans(lobby)) {
+      const sock = io.sockets.sockets.get(p.id);
+      if (!sock) continue;
+      const today = sock.clToday ?? utcToday();
+      if (!(sock.clSeen instanceof Map)) sock.clSeen = new Map();
+      sock.clSeen.delete(key);
+      sock.clSeen.set(key, today);
+      if (sock.userId) {
+        let m = byUser.get(sock.userId);
+        if (!m) { m = new Map(); byUser.set(sock.userId, m); }
+        m.delete(key);
+        m.set(key, today);
+        trimSeen(m, today);
+      }
+    }
+  }
+
+  /**
+   * The cases for a match: the pool the host chose, one case per disease,
+   * diseases nobody has had lately first. If there are not enough fresh ones
+   * the run is topped up with seen ones (and the room is told), rather than
+   * coming up short.
+   */
+  function buildRun(opts, lobby) {
     const pool = bank.cases.filter(c => (!opts.systems.length || opts.systems.includes(c.system)) && (!opts.hyOnly || c.hy));
-    return shuffle([...pool]).slice(0, opts.count);
+    const seen = seenBy(lobby, opts.skipDays);
+    const pick = (list, taken) => {
+      const out = [];
+      for (const c of shuffle([...list])) if (!taken.has(c.answer)) { taken.add(c.answer); out.push(c); }
+      return out;
+    };
+    const taken = new Set();
+    const fresh = pick(pool.filter(c => !seen.has(c.answer)), taken);
+    const stale = pick(pool.filter(c => seen.has(c.answer)), taken);
+    const queue = [...fresh, ...stale].slice(0, opts.count);
+    const span = opts.skipDays === 1 ? 'today' : `in the last ${opts.skipDays} days`;
+    let notice = null;
+    if (opts.skipDays && seen.size) {
+      const skipped = new Set(pool.filter(c => seen.has(c.answer)).map(c => c.answer)).size;
+      if (fresh.length >= queue.length) {
+        notice = `Skipping ${skipped} disease${skipped === 1 ? '' : 's'} you have had ${span}. ${fresh.length - queue.length} new ones left after this match.`;
+      } else if (fresh.length) {
+        notice = `Only ${fresh.length} new disease${fresh.length === 1 ? '' : 's'} left in this selection, so ${queue.length - fresh.length} you have had ${span} are coming round again.`;
+      } else {
+        notice = `You have had every disease in this selection ${span}, so they are coming round again.`;
+      }
+    }
+    return { queue, notice };
   }
 
   // ── State helpers ─────────────────────────────────────────────────────────
@@ -130,14 +219,14 @@ module.exports = function createClueLadder({ io, lobbies, shuffle, awardXP, lobb
 
   function start(lobby) {
     const opts = sanitizeOptions(lobby.clOptions);
-    const queue = buildRun(opts);
+    const { queue, notice } = buildRun(opts, lobby);
     if (!queue.length) {
       io.to(lobby.id).emit('error', { message: 'No Clue Ladder cases for that choice yet.' });
       return;
     }
     lobby.status = 'clue_ladder';
     lobby.cl = {
-      opts, queue, idx: -1, phase: 'intro', seconds: opts.seconds,
+      opts, queue, notice, idx: -1, phase: 'intro', seconds: opts.seconds,
       answers: bank.answerList(opts.systems).map(a => ({ name: a.name, aliases: a.aliases })),
       runs: new Map(), totals: new Map(), timer: null, botTimers: [],
       opensAt: 0, endsAt: 0, reveal: null, revealAt: 0, history: [],
@@ -161,6 +250,7 @@ module.exports = function createClueLadder({ io, lobbies, shuffle, awardXP, lobb
       seconds: s.seconds,
       maxAttempts: MAX_ATTEMPTS,
       answers: s.answers,
+      notice: s.idx === 0 ? s.notice : null,
     };
   }
 
@@ -305,7 +395,10 @@ module.exports = function createClueLadder({ io, lobbies, shuffle, awardXP, lobb
       solvedBy: results.filter(r => r.solved).length,
       best: results[0]?.solved ? results[0].attempts : null,
     });
+    markSeen(lobby, c.answer);
     s.reveal = {
+      answerKey: c.answer,
+      brief: bank.answers.get(c.answer)?.brief || null,
       index: s.idx + 1, total: s.queue.length,
       answer: nameOf(c.answer), group: c.group, clues: c.clues,
       results, standings: standings(lobby),
@@ -406,6 +499,25 @@ module.exports = function createClueLadder({ io, lobbies, shuffle, awardXP, lobb
     socket.on('cl_guess', (payload, ack) => onGuess(socket, payload, ack));
     socket.on('cl_pass', (_payload, ack) => onPass(socket, typeof _payload === 'function' ? _payload : ack));
     socket.on('cl_sync', () => sync(socket));
+    // The player's own record of diseases had lately: { today, seen: { key: 'YYYY-MM-DD' } }.
+    socket.on('cl_seen', (payload) => {
+      const today = dayNum(payload?.today);
+      const raw = payload && typeof payload.seen === 'object' && payload.seen ? payload.seen : {};
+      if (today == null) return;
+      const m = new Map();
+      for (const [k, v] of Object.entries(raw).slice(-SEEN_MAX)) {
+        const d = dayNum(v);
+        if (d != null && bank.answers.has(k) && today - d >= 0 && today - d <= SEEN_KEEP_DAYS) m.set(k, d);
+      }
+      socket.clToday = today;
+      socket.clSeen = m;
+      if (socket.userId) {
+        let mine = byUser.get(socket.userId);
+        if (!mine) { mine = new Map(); byUser.set(socket.userId, mine); }
+        for (const [k, d] of m) if (!mine.has(k) || mine.get(k) < d) mine.set(k, d);
+        trimSeen(mine, today);
+      }
+    });
   }
 
   return {

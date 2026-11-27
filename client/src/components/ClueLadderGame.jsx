@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import socket from '../socket';
 import { clueSfx } from '../clueSfx';
+import { markClSeen, sendClSeen } from '../clueSeen';
 import { ClueTicket, ClueSection } from './ClueLadderHome';
 import './ClueLadder.css';
 
@@ -125,6 +126,7 @@ export default function ClueLadderGame({ players = [], username, gameResult, onL
     const onReveal = (d) => {
       setReveal(d);
       clueSfx.reveal();
+      markClSeen(d.answerKey);
       setRevealEnds(Date.now() + (d.msLeft || 11000));
       setPhase('reveal');
       setNames(cur => {
@@ -139,6 +141,7 @@ export default function ClueLadderGame({ players = [], username, gameResult, onL
     socket.on('cl_progress', onProgress);
     socket.on('cl_reveal', onReveal);
     socket.emit('cl_sync');
+    sendClSeen(socket);
     return () => {
       socket.off('cl_round', onRound);
       socket.off('cl_open', onOpen);
@@ -335,6 +338,7 @@ export default function ClueLadderGame({ players = [], username, gameResult, onL
           <p className="cl-eyebrow">Case {round.index}</p>
           <h2>{round.group}</h2>
           <p>Starts vague. Every wrong guess unlocks a sharper clue. Fewest attempts wins.</p>
+          {round.notice && <p className="cl-notice">{round.notice}</p>}
           <b className="cl-intro-count">{fmtSecs(Math.max(0, openAt - now))}</b>
         </div>
       )}
@@ -345,6 +349,13 @@ export default function ClueLadderGame({ players = [], username, gameResult, onL
             <p className="cl-eyebrow">Case {reveal.index} of {reveal.total} · {reveal.group}</p>
             <h2 className="cl-reveal-answer">{reveal.answer}</h2>
             <span className="cl-stamp" aria-hidden="true">Diagnosed</span>
+            {reveal.brief && (
+              <div className="cl-brief">
+                <span className="cl-brief-tag">Study note</span>
+                <p className="cl-brief-what">{reveal.brief.what}</p>
+                <ul>{reveal.brief.points.map(p => <li key={p}>{p}</li>)}</ul>
+              </div>
+            )}
             <table className="cl-table cl-table--compact">
               <thead><tr><th>Player</th><th>Attempts</th><th>Guesses</th></tr></thead>
               <tbody>

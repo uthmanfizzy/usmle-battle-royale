@@ -34,6 +34,8 @@ for (const c of bank.cases) {
 }
 
 const names = new Set([...bank.answers.values()].map(a => a.name));
+for (const a of bank.answers.values()) if (!a.brief) problems.push(`${a.name} has no brief (bank/briefs-*.js)`);
+for (const n of Object.keys(bank.BRIEFS)) if (!names.has(n)) problems.push(`a brief names "${n}", which is not in the bank`);
 for (const n of bank.LOW_YIELD) if (!names.has(n)) problems.push(`lowyield.js names "${n}", which is not in the bank`);
 
 const per = {};

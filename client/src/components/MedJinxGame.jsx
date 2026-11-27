@@ -363,6 +363,7 @@ function Breakdown({ reveal, players, socketId, isHost, ready, replay, iAmReady,
         </span>
         <h1 className="mjx-title">{reveal.topic.title}</h1>
         <p className="mjx-desc">{reveal.topic.description}</p>
+        <LearnPanel topic={reveal.topic} />
         {reveal.topic.vignette && (
           <details className="mjx-case">
             <summary>The case</summary>
@@ -650,6 +651,26 @@ function Said({ said, socketId }) {
   );
 }
 
+/** The after-round study brief: what the condition is and how it presents. */
+function LearnPanel({ topic }) {
+  if (!topic?.learn) return null;
+  return (
+    <section className="mjx-panel mjx-learn" aria-label="Study brief">
+      <h2 className="mjx-best-title">📖 Learn it</h2>
+      <div className="mjx-learn-grid">
+        <div>
+          <h3>What it is</h3>
+          <p>{topic.learn.what}</p>
+        </div>
+        <div>
+          <h3>How it presents</h3>
+          <p>{topic.learn.presents}</p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function BestAnswers({
   reveal, players, socketId, isHost, ready, replay, iAmReady,
   onReady, onReplay, onFull, deadline, chat, onChat,
@@ -699,6 +720,8 @@ function BestAnswers({
           <span className="mjx-round-meta">Round {reveal.round} of {reveal.total} <i>•</i> {reveal.system}</span>
           <b>{reveal.topic.title}</b>
         </header>
+
+        <LearnPanel topic={reveal.topic} />
 
         <div className="mjx-awards">
           <section className="mjx-panel mjx-award">

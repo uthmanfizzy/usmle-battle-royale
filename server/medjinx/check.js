@@ -140,6 +140,14 @@ if (E.matchAnswer(clin, 'hyperthyroidism').status === 'accepted') fail('clinical
   if (E.scoreRound(hypo, found, 'reverse').players.get('p1').points !== 2000 + 8000) fail('scoring: reverse jinx');
 }
 
+// Every topic has its after-round brief (bank/learn.js), and no brief is stray.
+{
+  const { LEARN } = require('./bank');
+  for (const t of TOPICS) if (!t.learn || !t.learn.what || !t.learn.presents) fail(`${t.id}: no learn brief in bank/learn.js`);
+  const ids = new Set(TOPICS.map(t => t.id));
+  for (const id of Object.keys(LEARN)) if (!ids.has(id)) fail(`learn.js has "${id}", which is not a topic`);
+}
+
 console.log(`${TOPICS.length} topics, ${answerCount} answers.`);
 if (failed) { console.error(`${failed} problem(s).`); process.exit(1); }
 console.log('All checks passed.');

@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { SERVER_URL } from '../serverUrl';
+import socket from '../socket';
 import { clueSfx } from '../clueSfx';
+import { sendClSeen } from '../clueSeen';
 import './ClueLadder.css';
 
 /** The systems and lobby choices, from the server. */
@@ -78,6 +80,10 @@ export function ClueSection({ letter, title, meta }) {
   );
 }
 
+/** [days, label] — 0 = off. Matches SKIP_CHOICES in server/clueladder/game.js. */
+export const SKIP_CHOICES = [[1, 'Today'], [3, 'Last 3 days'], [7, 'Last 7 days'], [0, 'Off']];
+export const skipLabel = (n) => (n === 0 ? 'Off' : n === 1 ? 'Seen today' : `Seen in the last ${n} days`);
+
 const shiftDate = () => new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 
 /** Toggle one system in a "[] means all" list. */
@@ -99,8 +105,10 @@ export default function ClueLadderHome({ username, error, busy, onBack, onCreate
   const [seconds, setSeconds] = useState(90);
   const [systems, setSystems] = useState([]);       // [] = every system
   const [hyOnly, setHyOnly] = useState(true);
+  const [skipDays, setSkipDays] = useState(1);
   const [code, setCode] = useState('');
-  const opts = { systems, count, seconds, hyOnly };
+  const opts = { systems, count, seconds, hyOnly, skipDays };
+  useEffect(() => { sendClSeen(socket); }, []);
   const counts = catalog?.counts || [5, 10, 15, 20];
   const secs = catalog?.seconds || [60, 90, 120, 180];
   const sys = catalog?.systems || [];
@@ -148,6 +156,15 @@ export default function ClueLadderHome({ username, error, busy, onBack, onCreate
           <button type="button" className={!hyOnly ? 'is-on' : ''} aria-pressed={!hyOnly} onClick={tap(() => setHyOnly(false))}>
             <b>Every disease</b><small>Low-yield zebras too</small>
           </button>
+        </div>
+
+        <div className="clt-panel clt-skip">
+          <span className="clt-label">Skip diseases you have already had</span>
+          <div className="clt-chips">
+            {SKIP_CHOICES.map(([n, label]) => (
+              <button key={n} type="button" className={`clt-chip clt-chip--word${skipDays === n ? ' is-on' : ''}`} aria-pressed={skipDays === n} onClick={tap(() => setSkipDays(n))}>{label}</button>
+            ))}
+          </div>
         </div>
 
         <ClueSection letter="B" title="Shift length" />
@@ -215,7 +232,8 @@ export default function ClueLadderHome({ username, error, busy, onBack, onCreate
 /** The host's settings inside the shared lobby panel (lobby-duel-* look). */
 export function ClueLadderLobby({ isHost, options, onChange }) {
   const catalog = useClueCatalog();
-  const o = { systems: [], count: 10, seconds: 90, hyOnly: true, ...(options || {}) };
+  const o = { systems: [], count: 10, seconds: 90, hyOnly: true, skipDays: 1, ...(options || {}) };
+  useEffect(() => { sendClSeen(socket); }, []);
   const set = (patch) => onChange?.({ ...o, ...patch });
   const counts = catalog?.counts || [5, 10, 15, 20];
   const secs = catalog?.seconds || [60, 90, 120, 180];
@@ -249,6 +267,16 @@ export function ClueLadderLobby({ isHost, options, onChange }) {
         ) : <span className="lobby-duel-value">{o.hyOnly ? 'HY only' : 'Every disease'}</span>}
       </div>
       <div className="lobby-duel-row">
+        <span className="lobby-duel-label">Skip</span>
+        {isHost ? (
+          <div className="lobby-duel-choice">
+            {SKIP_CHOICES.map(([n, label]) => (
+              <button key={n} type="button" className={`lobby-duel-chip${o.skipDays === n ? ' is-on' : ''}`} aria-pressed={o.skipDays === n} onClick={() => set({ skipDays: n })}>{label}</button>
+            ))}
+          </div>
+        ) : <span className="lobby-duel-value">{o.skipDays ? `Diseases ${skipLabel(o.skipDays).toLowerCase()}` : 'Nothing skipped'}</span>}
+      </div>
+      <div className="lobby-duel-row">
         <span className="lobby-duel-label">Cases</span>
         {isHost ? (
           <div className="lobby-duel-choice">
@@ -270,7 +298,7 @@ export function ClueLadderLobby({ isHost, options, onChange }) {
       </div>
       <p className="lobby-duel-note">
         Each case starts vague and gets sharper with every wrong guess. Six clues, six attempts.
-        Fewest total attempts wins; an unsolved case counts as 7.
+        Fewest total attempts wins; an unsolved case counts as 7. Skipping looks at what everyone in the room has had.
       </p>
     </div>
   );

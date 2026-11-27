@@ -401,3 +401,200 @@
   .cl-podium-col { width: 96px; }
   .cl-stub-time { font-size: 22px; }
 }
+
+/* ── After-round study note and the skip notice ───────────────────────────── */
+.cl-brief {
+  margin: 0 0 14px;
+  padding: 14px 14px 10px;
+  background: var(--cl-paper);
+  border: 1.5px solid var(--cl-ink);
+  border-left: 6px solid var(--cl-red);
+}
+.cl-brief-tag {
+  display: inline-block; margin-bottom: 6px;
+  padding: 2px 8px; background: var(--cl-ink); color: var(--cl-paper);
+  font: 700 10.5px var(--cl-mono); letter-spacing: 0.12em; text-transform: uppercase;
+}
+.cl-brief-what { margin: 0 0 8px; font: 600 16px/1.45 var(--cl-sans); color: var(--cl-ink); }
+.cl-brief ul { margin: 0; padding-left: 18px; font: 400 13.5px/1.55 var(--cl-mono); color: var(--cl-ink-2); }
+.cl-brief li + li { margin-top: 4px; }
+.cl-intro .cl-notice { margin: 14px 0 0; padding: 8px 10px; border: 1.5px dashed var(--cl-ink); background: var(--cl-paper); font: 500 12.5px/1.5 var(--cl-mono); color: var(--cl-ink); }
+.clt-skip { margin-top: 12px; padding: 12px 14px; }
+.clt-chip--word { font: 700 13px var(--cl-mono); padding: 6px 12px; }
+
+/* ═══ The lobby, as a case ticket ═══════════════════════════════════════════
+   PlayPage's shared lobby overlay, re-dressed for Clue Ladder
+   (lobby-overlay--cl is added only for this mode): graph paper, navy ink,
+   hard offset shadows, the mono "typed" voice. Every rule starts
+   .lobby-overlay.lobby-overlay--cl so it outranks the shared lobby styles
+   whichever stylesheet chunk loads last. */
+.lobby-overlay.lobby-overlay--cl {
+  --cl-paper: #fffdf8;
+  --cl-ink: #1b2230;
+  --cl-ink-2: #3a4255;
+  --cl-red: #c0392b;
+  --cl-yellow: #faf0c4;
+  --cl-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --cl-sans: 'Archivo', 'Inter', system-ui, sans-serif;
+  background-color: #f3f0e8;
+  background-image:
+    linear-gradient(rgba(27, 34, 48, 0.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(27, 34, 48, 0.055) 1px, transparent 1px);
+  background-size: 22px 22px;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  color: var(--cl-ink);
+  font-family: var(--cl-sans);
+}
+.lobby-overlay.lobby-overlay--cl .lobby-panel {
+  background: var(--cl-paper);
+  border: 1.5px solid var(--cl-ink);
+  border-radius: 0;
+  box-shadow: 6px 6px 0 var(--cl-ink);
+  color: var(--cl-ink);
+  animation: cl-rise 0.3s ease both;
+}
+.lobby-overlay.lobby-overlay--cl .lobby-panel-header { border-bottom: 1.5px dashed var(--cl-ink); }
+.lobby-overlay.lobby-overlay--cl .lobby-panel-title h2 {
+  font: 900 26px/1 var(--cl-sans);
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+  color: var(--cl-ink);
+  text-shadow: none;
+  background: none;
+  -webkit-text-fill-color: currentColor;
+}
+.lobby-overlay.lobby-overlay--cl .lobby-panel-title h2::before {
+  content: "ROOM";
+  display: block;
+  margin-bottom: 2px;
+  font: 800 12px var(--cl-sans);
+  letter-spacing: 0.12em;
+  color: var(--cl-red);
+  -webkit-text-fill-color: var(--cl-red);
+}
+
+/* Buttons */
+.lobby-overlay.lobby-overlay--cl .lobby-close-btn,
+.lobby-overlay.lobby-overlay--cl .lobby-copy-btn,
+.lobby-overlay.lobby-overlay--cl .lobby-add-bot-btn {
+  border: 1.5px solid var(--cl-ink);
+  border-radius: 0;
+  background: var(--cl-paper);
+  color: var(--cl-ink);
+  font: 800 14px var(--cl-sans);
+  box-shadow: 3px 3px 0 var(--cl-ink);
+  text-transform: none;
+  letter-spacing: 0;
+}
+.lobby-overlay.lobby-overlay--cl .lobby-close-btn:hover,
+.lobby-overlay.lobby-overlay--cl .lobby-copy-btn:hover,
+.lobby-overlay.lobby-overlay--cl .lobby-add-bot-btn:hover { background: var(--cl-yellow); }
+.lobby-overlay.lobby-overlay--cl .lobby-close-btn:active,
+.lobby-overlay.lobby-overlay--cl .lobby-copy-btn:active,
+.lobby-overlay.lobby-overlay--cl .lobby-add-bot-btn:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--cl-ink); }
+.lobby-overlay.lobby-overlay--cl .lobby-start-btn {
+  border: 0;
+  border-radius: 0;
+  min-height: 54px;
+  font: 800 18px var(--cl-sans);
+  text-transform: none;
+  letter-spacing: 0;
+  box-shadow: 5px 5px 0 var(--cl-red);
+  transition: transform 0.08s, box-shadow 0.08s;
+}
+.lobby-overlay.lobby-overlay--cl .lobby-start-btn--ready { background: var(--cl-ink); color: var(--cl-paper); animation: none; }
+.lobby-overlay.lobby-overlay--cl .lobby-start-btn--ready:hover { transform: translate(-1px, -1px); box-shadow: 6px 6px 0 var(--cl-red); }
+.lobby-overlay.lobby-overlay--cl .lobby-start-btn--ready:active { transform: translate(3px, 3px); box-shadow: 2px 2px 0 var(--cl-red); }
+.lobby-overlay.lobby-overlay--cl .lobby-start-btn--waiting { background: #d9d5ca; color: var(--cl-ink-2); box-shadow: 5px 5px 0 #b9b3a4; }
+
+/* The cards: code, players, settings, boxed with a hard shadow. */
+.lobby-overlay.lobby-overlay--cl .lobby-code-section,
+.lobby-overlay.lobby-overlay--cl .lobby-players-section,
+.lobby-overlay.lobby-overlay--cl .lobby-duel-section {
+  border: 1.5px solid var(--cl-ink);
+  border-radius: 0;
+  background: var(--cl-paper);
+  box-shadow: 4px 4px 0 var(--cl-ink);
+  color: var(--cl-ink);
+}
+.lobby-overlay.lobby-overlay--cl .lobby-code-label,
+.lobby-overlay.lobby-overlay--cl .lobby-players-count,
+.lobby-overlay.lobby-overlay--cl .lobby-duel-title {
+  font: 700 11.5px var(--cl-mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--cl-ink);
+}
+.lobby-overlay.lobby-overlay--cl .lobby-duel-title {
+  display: inline-block;
+  padding: 3px 8px;
+  background: var(--cl-ink);
+  color: var(--cl-paper);
+}
+.lobby-overlay.lobby-overlay--cl .lobby-code-box {
+  border: 1.5px dashed var(--cl-ink);
+  border-radius: 0;
+  background: var(--cl-yellow);
+}
+.lobby-overlay.lobby-overlay--cl .lobby-code-text {
+  font: 700 26px var(--cl-mono);
+  letter-spacing: 0.24em;
+  color: var(--cl-ink);
+  text-shadow: none;
+  background: none;
+  -webkit-text-fill-color: currentColor;
+}
+.lobby-overlay.lobby-overlay--cl .lobby-player-row {
+  border: 0;
+  border-radius: 0;
+  border-bottom: 1.5px solid var(--cl-ink);
+  background: transparent;
+  color: var(--cl-ink);
+}
+.lobby-overlay.lobby-overlay--cl .lobby-player-row:last-child { border-bottom: 0; }
+.lobby-overlay.lobby-overlay--cl .lobby-player-num { font: 600 12px var(--cl-mono); color: var(--cl-ink-2); }
+.lobby-overlay.lobby-overlay--cl .lobby-player-name {
+  font: 800 16px var(--cl-sans);
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--cl-ink);
+}
+.lobby-overlay.lobby-overlay--cl .lobby-host-badge,
+.lobby-overlay.lobby-overlay--cl .lobby-bot-badge {
+  border: 1.5px solid var(--cl-ink);
+  border-radius: 0;
+  font: 700 10px var(--cl-mono);
+  letter-spacing: 0.08em;
+  padding: 2px 6px;
+  box-shadow: none;
+}
+.lobby-overlay.lobby-overlay--cl .lobby-host-badge { background: var(--cl-ink); color: var(--cl-paper); }
+.lobby-overlay.lobby-overlay--cl .lobby-bot-badge { background: var(--cl-yellow); color: var(--cl-ink); }
+.lobby-overlay.lobby-overlay--cl .lobby-waiting-msg,
+.lobby-overlay.lobby-overlay--cl .lobby-min-players { font: 500 12.5px var(--cl-mono); color: var(--cl-ink-2); }
+
+/* Settings rows and chips */
+.lobby-overlay.lobby-overlay--cl .lobby-duel-label {
+  font: 700 11px var(--cl-mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--cl-ink-2);
+}
+.lobby-overlay.lobby-overlay--cl .lobby-duel-value { font: 700 15px var(--cl-sans); color: var(--cl-ink); }
+.lobby-overlay.lobby-overlay--cl .lobby-duel-chip {
+  border: 1.5px solid var(--cl-ink);
+  border-radius: 0;
+  background: var(--cl-paper);
+  color: var(--cl-ink);
+  font: 700 13.5px var(--cl-mono);
+  box-shadow: none;
+}
+.lobby-overlay.lobby-overlay--cl .lobby-duel-chip:hover { background: var(--cl-yellow); }
+.lobby-overlay.lobby-overlay--cl .lobby-duel-chip.is-on {
+  background: var(--cl-ink);
+  border-color: var(--cl-ink);
+  color: var(--cl-paper);
+  box-shadow: 3px 3px 0 var(--cl-red);
+}
+.lobby-overlay.lobby-overlay--cl .lobby-duel-note { font: 400 12.5px/1.55 var(--cl-mono); color: var(--cl-ink-2); }

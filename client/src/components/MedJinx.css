@@ -800,6 +800,14 @@
 .mjx-res-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 10px 14px; }
 .mjx-res-head b { font-family: var(--px); font-weight: 400; font-size: 12px; color: #fff; }
 
+/* After-round study brief: what it is / how it presents. */
+.mjx-learn { padding: 12px 14px; border-color: var(--cyan, #48e6ff); }
+.mjx-learn-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+.mjx-learn h3 { margin: 0 0 6px; font-family: var(--px); font-weight: 400; font-size: 9px; text-transform: uppercase; color: var(--cyan, #48e6ff); }
+.mjx-learn p { margin: 0; font-size: 16.5px; line-height: 1.45; color: #fff; }
+.mjx-board-head .mjx-learn { margin-top: 12px; }
+@media (max-width: 720px) { .mjx-learn-grid { grid-template-columns: 1fr; } }
+
 .mjx-awards { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .mjx-award { display: flex; align-items: center; gap: 12px; padding: 10px 14px; min-width: 0; }
 .mjx-award > div { min-width: 0; }

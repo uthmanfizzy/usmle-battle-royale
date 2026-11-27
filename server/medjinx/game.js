@@ -35,7 +35,7 @@ const INTRO_MS = 4000;
 // with the answer box locked for this long, so nobody loses answering time
 // to reading.
 const CLINICAL_READ_MS = 7000;
-const REVEAL_MS = 16000;        // the next round starts by itself after this (top-3 reveal ~4-8s, then a read)
+const REVEAL_MS = 22000;        // the next round starts by itself after this (top-3 reveal ~4-8s, then the study brief)
 const GRACE_MS = 400;           // an answer sent on the buzzer still counts
 const MAX_ATTEMPTS = 90;        // per player per round
 const MAX_LEN = 80;
@@ -457,7 +457,7 @@ module.exports = function createMedJinx({ io, lobbies, shuffle, awardXP, lobbyPa
       topic: {
         id: q.topic.id, title: q.topic.title, description: q.topic.description,
         vignette: q.variant === 'clinical' ? q.topic.vignette : null,
-        source: q.topic.source, takeaways: q.topic.takeaways,
+        source: q.topic.source, takeaways: q.topic.takeaways, learn: q.topic.learn || null,
       },
       answers: scored.perAnswer.map(a => ({
         id: a.id, label: a.label, tier: a.tier, category: a.category, why: a.why,

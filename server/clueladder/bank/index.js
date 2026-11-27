@@ -16,6 +16,9 @@ const SYSTEMS = [
 // Diagnoses skipped by "HY only" (they stay guessable, they just never come up).
 const LOW_YIELD = require('./lowyield');
 
+// The brief shown after each reveal: { what, points: [..] } per diagnosis name.
+const BRIEFS = { ...require('./briefs-repro'), ...require('./briefs-heme') };
+
 const CLUE_COUNT = 6;
 
 /** Lower-case, accents off, punctuation to spaces, Greek alpha spelled out. */
@@ -39,7 +42,8 @@ for (const sys of SYSTEMS) {
     const key = slug(name);
     let a = answers.get(key);
     if (!a) {
-      a = { key, name, system: sys.id, aliases: new Set() };
+      const b = BRIEFS[name];
+      a = { key, name, system: sys.id, aliases: new Set(), brief: b ? { what: b[0], points: b.slice(1) } : null };
       answers.set(key, a);
     }
     for (const x of [name, ...(aka || [])]) a.aliases.add(norm(x));
@@ -92,5 +96,5 @@ function answerList(systemIds) {
 
 module.exports = {
   SYSTEMS: SYSTEMS.map(({ rows, ...s }) => ({ ...s, cases: rows.length, hyCases: rows.filter(r => !LOW_YIELD.has(r[0])).length })),
-  LOW_YIELD, CLUE_COUNT, cases, answers, norm, resolve, answerList,
+  LOW_YIELD, BRIEFS, CLUE_COUNT, cases, answers, norm, resolve, answerList,
 };

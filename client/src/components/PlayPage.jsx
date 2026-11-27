@@ -85,7 +85,7 @@ const GAME_MODES = [
     accent: '245, 185, 63',
     tagline: 'Vague to obvious',
     facts: ['Six clues a case', 'Wrong guess = next clue', 'Fewest attempts wins'],
-    longDescription: 'Each case opens with a brief, vague history. Guess the diagnosis — every wrong guess unlocks a sharper clue. Whoever names it in the fewest attempts wins. Reproductive system first, every disease in First Aid.',
+    longDescription: 'Each case opens with a brief, vague history. Guess the diagnosis — every wrong guess unlocks a sharper clue. Whoever names it in the fewest attempts wins. Reproductive and Hematology, every disease in First Aid, with a study note after each case.',
     supportsSolo: false,
   },
   {
@@ -827,7 +827,7 @@ export default function PlayPage({
       {/* When the MedJinx home page is up it sits on the body, outside this
           wrapper, so the lobby has to join it there to appear on top. */}
       {lobbyId && !mmSearching && ((node) => ((jinxHome || scanHome || clHome) ? createPortal(node, document.body) : node))(
-        <div className={`lobby-overlay${lobbyGameMode === 'medjinx' ? ' lobby-overlay--mjx' : ''}`}>
+        <div className={`lobby-overlay${lobbyGameMode === 'medjinx' ? ' lobby-overlay--mjx' : ''}${lobbyGameMode === 'clue_ladder' ? ' lobby-overlay--cl' : ''}`}>
           {/* MedJinx's lobby is a room in the same pixel night ward as the
               game, so the match looks the same from setup to podium. */}
           {lobbyGameMode === 'medjinx' && (
@@ -1294,7 +1294,7 @@ export default function PlayPage({
                 >
                   {playerCount < minPlayers
                     ? '⏳ Waiting for players...'
-                    : isBuzz && playerCount === 1 ? '▶ Play solo' : '⚔️ Start Game!'}
+                    : lobbyGameMode === 'clue_ladder' ? (playerCount === 1 ? 'Start solo shift →' : 'Start the shift →') : isBuzz && playerCount === 1 ? '▶ Play solo' : '⚔️ Start Game!'}
                 </button>
               ) : (
                 <div className="lobby-waiting-msg">

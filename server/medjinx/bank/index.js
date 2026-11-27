@@ -29,6 +29,10 @@ const TOPICS = [
   ...require('./biochem3'),
 ];
 
+// The after-round teaching brief: [what it is, how it presents] by topic id.
+const LEARN = require('./learn');
+for (const t of TOPICS) if (LEARN[t.id]) t.learn = { what: LEARN[t.id][0], presents: LEARN[t.id][1] };
+
 const byId = new Map(TOPICS.map(t => [t.id, t]));
 
 /** What the lobby may know about the bank: its shape, never its answers. */
@@ -46,4 +50,4 @@ function catalog() {
   };
 }
 
-module.exports = { TOPICS, byId, catalog };
+module.exports = { TOPICS, byId, catalog, LEARN };
