@@ -5270,6 +5270,19 @@ const QUESTION_BANK_MODE_IDS = ['uworld_adventure', 'saudi_mle', 'ore_lds', 'meh
 // lists, owned subjects) are shared: the step tag is configured as its bank.
 const BANK_CONFIG_MODE = { mehlman_rapid_fire_step2: 'mehlman_rapid_fire' };
 const bankConfigMode = (m) => BANK_CONFIG_MODE[m] || m;
+// A question sits in exactly one step of a split bank. When an import brings
+// one step's tag, the question's other step tags are dropped, so re-importing
+// a pack with a question retagged moves it instead of putting it in both.
+const STEP_TAG_FAMILIES = [['mehlman_rapid_fire', 'mehlman_rapid_fire_step2']];
+function mergeGameModes(existing, incoming) {
+  const inc = incoming || [];
+  const drop = new Set();
+  for (const fam of STEP_TAG_FAMILIES) {
+    const hit = fam.filter(t => inc.includes(t));
+    if (hit.length) fam.forEach(t => { if (!hit.includes(t)) drop.add(t); });
+  }
+  return [...new Set([...(existing || []).filter(t => !drop.has(t)), ...inc])];
+}
 
 function modeTagFrom(req) {
   const m = (req.query.mode || '').toString();
@@ -11318,7 +11331,7 @@ app.post('/admin/questions/bulk', adminAuth, async (req, res) => {
             // MERGE the modes, never replace them. Replacing meant re-importing a
             // question into Saudi MLE silently removed it from UWorld Adventure
             // (or any other bank it was in) — while reporting "tagged".
-            game_modes: [...new Set([...(existingByText.game_modes || []), ...(gameModes || [])])],
+            game_modes: mergeGameModes(existingByText.game_modes, gameModes),
             // Only overwrite when this import actually supplies one. The parser
             // sends image_url '' and no topic, so `raw.image_url || null` WIPED
             // any image an admin had attached, and the topic went with it.
