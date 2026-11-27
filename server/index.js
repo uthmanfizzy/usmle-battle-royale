@@ -10,6 +10,7 @@ const passport   = require('passport');
 const { Strategy: GoogleStrategy } = require('passport-google-oauth20');
 const jwt        = require('jsonwebtoken');
 const fs         = require('fs');
+const { shrinkImage, BACKGROUND: BG_IMAGE } = require('./imageShrink');
 const path       = require('path');
 const multer     = require('multer');
 const AdmZip     = require('adm-zip');
@@ -11459,14 +11460,14 @@ app.post('/admin/upload-image', moderatorAuth, async (req, res) => {
     const buffer  = Buffer.from(b64Data, 'base64');
     if (buffer.length > 5 * 1024 * 1024) return res.status(400).json({ error: 'Image must be under 5MB.' });
 
-    const ext        = mimeType === 'image/jpeg' ? 'jpg' : mimeType.split('/')[1];
+    const img        = await shrinkImage(buffer, mimeType, mimeType === 'image/jpeg' ? 'jpg' : mimeType.split('/')[1]);
     const safeName   = filename.replace(/[^a-zA-Z0-9._-]/g, '_').split('.')[0];
-    const uniqueName = `${Date.now()}-${safeName}.${ext}`;
+    const uniqueName = `${Date.now()}-${safeName}.${img.ext}`;
 
     const { error: uploadError } = await supabase.storage
       .from('question-images')
       // filename embeds Date.now(), so keys are write-once: a 1-year cache is safe.
-      .upload(uniqueName, buffer, { contentType: mimeType, upsert: false, cacheControl: '31536000' });
+      .upload(uniqueName, img.buffer, { contentType: img.mimeType, upsert: false, cacheControl: '31536000' });
     if (uploadError) throw uploadError;
 
     const { data: urlData } = supabase.storage.from('question-images').getPublicUrl(uniqueName);
@@ -12201,14 +12202,14 @@ app.post('/admin/landing-images', adminAuth, async (req, res) => {
       return res.status(400).json({ error: 'Image must be under 5MB.' });
     }
 
-    const ext        = mimeType === 'image/jpeg' ? 'jpg' : mimeType.split('/')[1];
-    const uniqueName = `landing/${slot_name}-${Date.now()}.${ext}`;
+    const img        = await shrinkImage(buffer, mimeType, mimeType === 'image/jpeg' ? 'jpg' : mimeType.split('/')[1], BG_IMAGE);
+    const uniqueName = `landing/${slot_name}-${Date.now()}.${img.ext}`;
 
     // Upload to landing-images bucket
     const { error: uploadError } = await supabase.storage
       .from('landing-images')
       // filename embeds Date.now(), so keys are write-once: a 1-year cache is safe.
-      .upload(uniqueName, buffer, { contentType: mimeType, upsert: false, cacheControl: '31536000' });
+      .upload(uniqueName, img.buffer, { contentType: img.mimeType, upsert: false, cacheControl: '31536000' });
     if (uploadError) throw uploadError;
 
     const { data: urlData } = supabase.storage.from('landing-images').getPublicUrl(uniqueName);
@@ -12304,8 +12305,8 @@ app.post('/admin/home-images', adminAuth, async (req, res) => {
     const buffer = Buffer.from(base64Data, 'base64');
 
     // Generate unique filename
-    const ext = filename.split('.').pop();
-    const uniqueName = `${slot_name}_${Date.now()}.${ext}`;
+    const img = await shrinkImage(buffer, mimeType, filename.split('.').pop(), BG_IMAGE);
+    const uniqueName = `${slot_name}_${Date.now()}.${img.ext}`;
     const filePath = `home/${uniqueName}`;
 
     // Delete old image if exists
@@ -12325,8 +12326,8 @@ app.post('/admin/home-images', adminAuth, async (req, res) => {
     // filename embeds Date.now(), so keys are write-once: a 1-year cache is safe.
     const { error: uploadError } = await supabase.storage
       .from('home-images')
-      .upload(filePath, buffer, {
-        contentType: mimeType,
+      .upload(filePath, img.buffer, {
+        contentType: img.mimeType,
         upsert: true,
         cacheControl: '31536000'
       });
@@ -12476,15 +12477,16 @@ app.post('/admin/page-bg/:slot', adminAuth, async (req, res) => {
     const buffer = Buffer.from(base64Data, 'base64');
     // The extension is taken from the name but not trusted as a path: a
     // filename like "../x" must not be able to escape the folder.
-    const ext = (filename.split('.').pop() || 'png').replace(/[^a-z0-9]/gi, '').slice(0, 5) || 'png';
-    const filePath = `${slot.folder}/${slot.prefix}_${Date.now()}.${ext}`;
+    const img = await shrinkImage(buffer, mimeType,
+      (filename.split('.').pop() || 'png').replace(/[^a-z0-9]/gi, '').slice(0, 5) || 'png', BG_IMAGE);
+    const filePath = `${slot.folder}/${slot.prefix}_${Date.now()}.${img.ext}`;
 
     await removeStoredBg(slot);
 
     // filePath embeds Date.now(), so keys are write-once: a 1-year cache is safe.
     const { error: uploadError } = await supabase.storage
       .from('home-images')
-      .upload(filePath, buffer, { contentType: mimeType, upsert: true, cacheControl: '31536000' });
+      .upload(filePath, img.buffer, { contentType: img.mimeType, upsert: true, cacheControl: '31536000' });
     if (uploadError) throw uploadError;
 
     const { data: urlData } = supabase.storage.from('home-images').getPublicUrl(filePath);
@@ -12547,8 +12549,8 @@ app.post('/admin/play-page-bg', adminAuth, async (req, res) => {
     const buffer = Buffer.from(base64Data, 'base64');
 
     // Generate unique filename
-    const ext = filename.split('.').pop();
-    const uniqueName = `play_page_bg_${Date.now()}.${ext}`;
+    const img = await shrinkImage(buffer, mimeType, filename.split('.').pop(), BG_IMAGE);
+    const uniqueName = `play_page_bg_${Date.now()}.${img.ext}`;
     const filePath = `play-page/${uniqueName}`;
 
     // Delete old image if exists
@@ -12568,8 +12570,8 @@ app.post('/admin/play-page-bg', adminAuth, async (req, res) => {
     // filename embeds Date.now(), so keys are write-once: a 1-year cache is safe.
     const { error: uploadError } = await supabase.storage
       .from('home-images')
-      .upload(filePath, buffer, {
-        contentType: mimeType,
+      .upload(filePath, img.buffer, {
+        contentType: img.mimeType,
         upsert: true,
         cacheControl: '31536000'
       });
@@ -12647,16 +12649,16 @@ app.post('/admin/game-mode-image', adminAuth, async (req, res) => {
     const buffer = Buffer.from(base64Data, 'base64');
 
     // Generate unique filename
-    const ext = filename.split('.').pop();
-    const uniqueName = `game_mode_${mode_id}_${Date.now()}.${ext}`;
+    const img = await shrinkImage(buffer, mimeType, filename.split('.').pop(), BG_IMAGE);
+    const uniqueName = `game_mode_${mode_id}_${Date.now()}.${img.ext}`;
     const filePath = `game-modes/${uniqueName}`;
 
     // Upload new image
     // filename embeds Date.now(), so keys are write-once: a 1-year cache is safe.
     const { error: uploadError } = await supabase.storage
       .from('home-images')
-      .upload(filePath, buffer, {
-        contentType: mimeType,
+      .upload(filePath, img.buffer, {
+        contentType: img.mimeType,
         upsert: true,
         cacheControl: '31536000'
       });
