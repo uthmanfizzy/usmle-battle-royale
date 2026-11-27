@@ -329,7 +329,7 @@ function NotesPage({ results, score, best, onAgain, onExit, tally }) {
 }
 
 export default function FAImages({ onExit }) {
-  const exit = onExit || (() => { window.location.href = '/?story=1'; });
+  const exit = onExit || (() => { window.location.href = '/?story=fa'; });
   const [catalog, setCatalog] = useState(null);
   const [error, setError] = useState('');
   const [chapter, setChapter] = useState('endo');

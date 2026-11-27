@@ -212,8 +212,10 @@ export default function App() {
     const autoTraining = params.get('training') === '1';
     // ?story=uw lands on the UWorld Adventure chooser inside Story Mode (the
     // back pill of UW Original).
-    const autoStory = params.get('story') === '1' || params.get('story') === 'uw';
+    // ?story=fa does the same for First Aid Journey (the back link of its modes).
+    const autoStory = params.get('story') === '1' || params.get('story') === 'uw' || params.get('story') === 'fa';
     if (params.get('story') === 'uw') setStoryInitialSub('uw');
+    if (params.get('story') === 'fa') setStoryInitialSub('fa');
 
     if (authError) {
       window.history.replaceState({}, '', '/');

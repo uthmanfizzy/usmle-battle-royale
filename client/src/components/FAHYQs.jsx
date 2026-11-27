@@ -51,10 +51,10 @@ function Explanation({ text }) {
     </div>
   );
 }
-function RunningHeader({ chapter, page, right }) {
+function RunningHeader({ chapter, page, right, step = 1 }) {
   return (
     <header className="fai-run">
-      <span className="fai-run-tab"><b>{page}</b><i>SECTION III</i></span>
+      <span className="fai-run-tab"><b>{page}</b><i>{step === 2 ? 'SECTION II' : 'SECTION III'}</i></span>
       <span className="fai-run-band">
         <b>{(chapter || 'First Aid').toUpperCase()}</b>
         <span className="fai-run-sub">▸ HIGH-YIELD QUESTIONS</span>
@@ -70,7 +70,7 @@ const ratedIds = (ratings, chapter, keys) => Object.entries(ratings || {})
 // Every id of this chapter the student has rated at all.
 const allRated = (ratings, chapter) => Object.keys(ratings || {}).filter(id => id.startsWith(`${chapter}-`));
 
-function Opener({ catalog, error, chapter, setChapter, sections, setSections, count, setCount, onStart, onExit, mine, byRating, setByRating }) {
+function Opener({ catalog, error, chapter, setChapter, sections, setSections, count, setCount, onStart, onExit, mine, byRating, setByRating, step = 1 }) {
   const chapters = catalog?.chapters || [];
   const picked = chapters.find(c => c.id === chapter);
   const sectionPool = picked ? (sections.length ? picked.sections.filter(s => sections.includes(s.id)).reduce((n, s) => n + s.count, 0) : picked.count) : 0;
@@ -86,18 +86,26 @@ function Opener({ catalog, error, chapter, setChapter, sections, setSections, co
     <div className="fai-opener">
       <div className="fai-opener-main">
         <button type="button" className="fai-back" onClick={onExit}>← First Aid Journey</button>
-        <p className="fai-kicker">HIGH-YIELD QUESTIONS</p>
+        <p className="fai-kicker">{step === 2 ? 'STEP 2 CK · HIGH-YIELD QUESTIONS' : 'HIGH-YIELD QUESTIONS'}</p>
         <div className="fai-kicker-rule" />
         <h1 className="fai-title">{picked ? picked.name : 'FA HY Qs'}</h1>
         <blockquote className="fai-quote">
           “Know the fact. Then know what it means for the patient.”
           <cite>—the step after the Qbank</cite>
         </blockquote>
-        <p className="fai-lede">
-          Clinical vignettes built on the facts you drilled in the FA Qbank — the mechanism behind a finding,
-          the test that confirms it, the drug and its catch. Five options, one best answer; every question
-          tells you which First Aid page to go back to.
-        </p>
+        {step === 2 ? (
+          <p className="fai-lede">
+            Step 2 CK vignettes from First Aid for the Step 2 CK — the next best step, the best initial and the
+            most accurate test, and how to manage the patient in front of you. Five options, one best answer;
+            every question tells you which First Aid page to go back to.
+          </p>
+        ) : (
+          <p className="fai-lede">
+            Clinical vignettes built on the facts you drilled in the FA Qbank — the mechanism behind a finding,
+            the test that confirms it, the drug and its catch. Five options, one best answer; every question
+            tells you which First Aid page to go back to.
+          </p>
+        )}
 
         {picked && (
           <div className="fai-setup">
@@ -322,12 +330,25 @@ const ALL_CHAPTERS = [
   ['heme_onc', 'Hematology & Oncology'], ['msk', 'Musculoskeletal & Skin'], ['neuro', 'Neurology'],
   ['psych', 'Psychiatry'], ['renal', 'Renal'], ['repro', 'Reproductive'], ['resp', 'Respiratory'],
 ].map(([id, name]) => ({ id, name }));
+// First Aid for the Step 2 CK, Section II.
+const ALL_CHAPTERS_STEP2 = [
+  ['cardio2', 'Cardiovascular'], ['derm2', 'Dermatology'], ['endo2', 'Endocrinology'], ['epi2', 'Epidemiology'],
+  ['ethics2', 'Ethics & Patient Safety'], ['gi2', 'Gastrointestinal'], ['gyn2', 'Gynecology'],
+  ['heme2', 'Hematology & Oncology'], ['id2', 'Infectious Disease'], ['msk2', 'Musculoskeletal'],
+  ['neuro2', 'Neurology'], ['ob', 'Obstetrics'], ['peds2', 'Pediatrics'], ['psych2', 'Psychiatry'],
+  ['pulm2', 'Pulmonary'], ['renal2', 'Renal & Genitourinary'],
+].map(([id, name]) => ({ id, name }));
+// Which book: ?step=2 is First Aid for the Step 2 CK (First Aid Journey's
+// Step 2 tab links here with it); anything else is the Step 1 book.
+const readStep = () => (new URLSearchParams(window.location.search).get('step') === '2' ? 2 : 1);
+const STEP_DEFAULTS = { 1: { chapter: 'endo', name: 'Endocrine', pages: [329, 362] }, 2: { chapter: 'ob', name: 'Obstetrics', pages: [427, 466] } };
 
 export default function FAHYQs({ onExit }) {
-  const exit = onExit || (() => { window.location.href = '/?story=1'; });
+  const [step] = useState(readStep);
+  const exit = onExit || (() => { window.location.href = '/?story=fa'; });
   const [catalog, setCatalog] = useState(null);
   const [error, setError] = useState('');
-  const [chapter, setChapter] = useState('endo');
+  const [chapter, setChapter] = useState(STEP_DEFAULTS[step].chapter);
   const [sections, setSections] = useState([]);
   const [count, setCount] = useState(20);
   const [phase, setPhase] = useState('opener');
@@ -349,9 +370,9 @@ export default function FAHYQs({ onExit }) {
   useEffect(() => {
     fetch(`${SERVER_URL}/api/fa-hyq/catalog`)
       .then(r => r.json())
-      .then(d => setCatalog({ ...d, allChapters: ALL_CHAPTERS }))
+      .then(d => setCatalog({ ...d, chapters: (d.chapters || []).filter(c => (c.step || 1) === step), allChapters: step === 2 ? ALL_CHAPTERS_STEP2 : ALL_CHAPTERS }))
       .catch(() => setError('Could not reach the library. Check your connection and try again.'));
-  }, []);
+  }, [step]);
 
   async function start() {
     setError('');
@@ -400,17 +421,17 @@ export default function FAHYQs({ onExit }) {
   }
 
   const liveChapter = (catalog?.chapters || []).find(c => c.id === chapter);
-  const chapterName = liveChapter?.name || 'Endocrine';
-  const [firstPage, lastPage] = liveChapter?.pages || [329, 362];
+  const chapterName = liveChapter?.name || STEP_DEFAULTS[step].name;
+  const [firstPage, lastPage] = liveChapter?.pages || STEP_DEFAULTS[step].pages;
   return (
     <div className="fai fahq">
-      <RunningHeader chapter={chapterName} page={phase === 'run' && q ? q.page : phase === 'notes' ? lastPage : firstPage}
+      <RunningHeader step={step} chapter={chapterName} page={phase === 'run' && q ? q.page : phase === 'notes' ? lastPage : firstPage}
         right={phase === 'run' ? <button type="button" className="fai-run-quit" onClick={() => setPhase('notes')}>Close book</button> : null} />
       <main className="fai-sheet">
         {phase === 'opener' && (
           <Opener catalog={catalog} error={error} chapter={chapter} setChapter={setChapter}
             sections={sections} setSections={setSections} count={count} setCount={setCount}
-            onStart={start} onExit={exit} mine={mine} byRating={byRating} setByRating={setByRating} />
+            onStart={start} onExit={exit} mine={mine} byRating={byRating} setByRating={setByRating} step={step} />
         )}
         {phase === 'run' && q && (
           <QuestionPage key={q.id} q={q} idx={idx} total={qs.length} correct={correct}

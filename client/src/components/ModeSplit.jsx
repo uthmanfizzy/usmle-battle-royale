@@ -184,6 +184,8 @@ export default function ModeSplit({ onStory, onOnline, onTraining, onMinigames, 
  * it cannot be clicked or focused, and it says so — the lock chip and the
  * title attribute carry it, so it is never mistaken for a broken button.
  */
+const FA_STEP_KEY = 'mv_fa_step';
+
 export function LockedCard({ variant, icon, name, sub, chip = 'LOCKED' }) {
   return (
     <div
@@ -243,6 +245,14 @@ export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld, onSaudiMLE, o
   // gesture returns to the campaign list instead of leaving Play.
   // UWorld Adventure does the same: UW Original, UW Concise and UWSA.
   const [sub, setSub] = useState(initialSub || null); // null | 'fa' | 'flash' | 'uw'
+  // First Aid Journey is split by exam: Step 1 is everything built so far,
+  // Step 2 CK is the Step 2 CK book. Remembered on this device so the back
+  // link from a mode lands on the same step.
+  const [faStep, setFaStep] = useState(() => { try { return localStorage.getItem(FA_STEP_KEY) === '2' ? 2 : 1; } catch { return 1; } });
+  function pickFaStep(n) {
+    setFaStep(n);
+    try { localStorage.setItem(FA_STEP_KEY, String(n)); } catch { /* not remembered */ }
+  }
   useEffect(() => {
     const onPop = () => setSub(null);
     window.addEventListener('popstate', onPop);
@@ -302,10 +312,42 @@ export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld, onSaudiMLE, o
           <h1 className="ms-title"><span className="ms-title-icon" aria-hidden="true">{isFa ? '🚑' : '🃏'}</span> <span className="ms-title-text">{isFa ? 'FIRST AID JOURNEY' : 'FLASHCARDS'}</span></h1>
           <p className="ms-tagline">{isFa ? 'Choose how you want to learn First Aid.' : 'Pick your deck.'}</p>
           <div className="ms-title-rule" />
+          {isFa && (
+            <div className="ms-course" role="group" aria-label="Exam">
+              <button type="button" className={`ms-course-btn${faStep === 1 ? ' is-on' : ''}`} aria-pressed={faStep === 1} onClick={() => pickFaStep(1)}>
+                <span aria-hidden="true">📘</span> Step 1
+              </button>
+              <button type="button" className={`ms-course-btn${faStep === 2 ? ' is-on' : ''}`} aria-pressed={faStep === 2} onClick={() => pickFaStep(2)}>
+                <span aria-hidden="true">🩺</span> Step 2 CK
+              </button>
+            </div>
+          )}
         </div>
 
         <div className={`ms-campaign-list ${isFa ? 'ms-campaign-list--trio' : 'ms-campaign-list--pair'}`}>
-          {isFa ? (
+          {isFa && faStep === 2 ? (
+            <>
+              {/* Step 2 CK: FA HY Qs is the first mode with Step 2 content
+                  (First Aid for the Step 2 CK chapters); the rest follow. */}
+              <button className="ms-journey-card ms-journey-card--teal" onClick={() => { window.location.href = '/fa-hy-qs?step=2'; }}>
+                <div className="ms-journey-art" aria-hidden="true">
+                  <span className="ms-journey-art-icon">🎯</span>
+                </div>
+                <div className="ms-journey-body">
+                  <span className="ms-journey-name">FA HY QS</span>
+                  <span className="ms-journey-sub">
+                    Step 2 CK vignettes — the next best step, the right test and the management.
+                  </span>
+                </div>
+              </button>
+              <LockedCard variant="blue" icon="📝" name="FA QBANK" chip="SOON"
+                sub="First Aid for the Step 2 CK, chapter by chapter." />
+              <LockedCard variant="violet" icon="🖼️" name="FA IMAGES" chip="SOON"
+                sub="The Step 2 CK book's photos, scans and tracings." />
+              <LockedCard variant="trivia" icon="🎪" name="FA TRIVIA" chip="SOON"
+                sub="The game show, with Step 2 CK questions." />
+            </>
+          ) : isFa ? (
             <>
               {/* FA Qbank — the original chapter-by-chapter journey. The two
                   routes sit on the card; a transparent cover button takes the

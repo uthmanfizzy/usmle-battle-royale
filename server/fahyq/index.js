@@ -4,6 +4,10 @@
  * FA HY Qs — high-yield vignettes for First Aid Journey, one bank per First
  * Aid chapter. The banks are code (original wording), so a change ships with
  * a commit; run check.js after editing.
+ *
+ * Each chapter belongs to a step: 1 is First Aid for Step 1 (book pages run
+ * 31-706), 2 is First Aid for Step 2 CK (its own page numbers). The page
+ * lists them under the step the student picked in First Aid Journey.
  */
 
 const CHAPTERS = [
@@ -13,7 +17,9 @@ const CHAPTERS = [
   { id: 'immuno', name: 'Immunology', icon: '🛡️', file: './immunology', pages: [93, 119] },
   { id: 'repro', name: 'Reproductive', icon: '🌸', file: './reproductive', pages: [629, 676] },
   { id: 'resp', name: 'Respiratory', icon: '🫁', file: './respiratory', pages: [677, 706] },
-];
+  // ── Step 2 CK ──
+  { id: 'ob', name: 'Obstetrics', icon: '🤰', file: './obstetrics', pages: [427, 466], step: 2 },
+].map(c => ({ step: 1, ...c }));
 
 // The book's section for a page, so a run can be narrowed to one part.
 const SECTION_RANGES = {
@@ -23,6 +29,11 @@ const SECTION_RANGES = {
   immuno: [[94, 96, 'Lymphoid Structures'], [97, 101, 'Cellular Components'], [102, 117, 'Immune Responses'], [118, 119, 'Immunosuppressants']],
   repro: [[630, 641, 'Embryology'], [642, 646, 'Anatomy'], [647, 654, 'Physiology'], [655, 672, 'Pathology'], [673, 676, 'Pharmacology']],
   resp: [[678, 679, 'Embryology'], [680, 681, 'Anatomy'], [682, 689, 'Physiology'], [690, 703, 'Pathology'], [704, 706, 'Pharmacology']],
+  // Step 2 CK Obstetrics. Pages two sections share (430, 436, 438, 445, 462)
+  // name the section on the row itself.
+  ob: [[428, 429, 'Basics of Pregnancy'], [430, 435, 'Prenatal Care & Testing'], [436, 437, 'Abortion'],
+    [438, 444, 'Maternal Complications'], [445, 453, 'Obstetric Complications'], [454, 456, 'Normal Labor & Delivery'],
+    [457, 461, 'Abnormal Labor & Delivery'], [462, 466, 'Puerperium']],
 };
 // A chapter's sections, in book order.
 const sectionsOf = (ch) => (SECTION_RANGES[ch] || []).map(r => r[2]);
@@ -55,7 +66,7 @@ function catalog() {
     chapters: CHAPTERS.map(c => {
       const bank = BANKS[c.id];
       const sections = sectionsOf(c.id).map(s => ({ id: s, count: bank.filter(q => q.section === s).length })).filter(s => s.count);
-      return { id: c.id, name: c.name, icon: c.icon, pages: c.pages, count: bank.length, sections };
+      return { id: c.id, name: c.name, icon: c.icon, pages: c.pages, step: c.step, count: bank.length, sections };
     }),
     counts: COUNTS,
   };
