@@ -15,6 +15,7 @@ const crypto = require('crypto');
 
 const CHAPTERS = [
   { id: 'biochem', name: 'Biochemistry', icon: '🧬', file: './biochemistry', pages: [31, 92] },
+  { id: 'cardio', name: 'Cardiovascular', icon: '🫀', file: './cardiovascular', pages: [283, 328] },
   { id: 'micro', name: 'Microbiology', icon: '🦠', file: './microbiology', pages: [121, 200] },
   { id: 'repro', name: 'Reproductive', icon: '🌸', file: './reproductive', pages: [629, 676] },
   { id: 'resp', name: 'Respiratory', icon: '🫁', file: './respiratory', pages: [677, 706] },
@@ -23,6 +24,7 @@ const CHAPTERS = [
 // The book's sections become the game's categories.
 const SECTION_RANGES = {
   biochem: [[32, 43, 'Molecular'], [44, 50, 'Cellular'], [51, 54, 'Laboratory Techniques'], [55, 62, 'Genetics'], [63, 70, 'Nutrition'], [71, 92, 'Metabolism']],
+  cardio: [[284, 286, 'Embryology'], [287, 287, 'Anatomy'], [288, 299, 'Physiology'], [300, 320, 'Pathology'], [321, 328, 'Pharmacology']],
   micro: [[122, 131, 'Basic Bacteriology'], [132, 148, 'Clinical Bacteriology'], [149, 151, 'Mycology'], [152, 158, 'Parasitology'], [159, 173, 'Virology'], [174, 182, 'Systems'], [183, 200, 'Antimicrobials']],
   repro: [[630, 641, 'Embryology'], [642, 646, 'Anatomy'], [647, 654, 'Physiology'], [655, 672, 'Pathology'], [673, 676, 'Pharmacology']],
   resp: [[678, 679, 'Embryology'], [680, 681, 'Anatomy'], [682, 689, 'Physiology'], [690, 703, 'Pathology'], [704, 706, 'Pharmacology']],
