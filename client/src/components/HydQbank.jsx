@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { BIO_CASES, BIO_BY_ID, BIO_CHAPTERS, INHERIT_LABEL } from '../hyd/bioCases';
 import QB from '../hyd/qbank/bioQbank';
+import { IMMUNO_CASES, IMMUNO_BY_ID, IMMUNO_CHAPTERS } from '../hyd/immuno/immunoCases';
 import { hydSfx } from '../hydSfx';
 import { createHydMusic, hydMusicPref, setHydMusicPref } from '../hydMusic';
 import './HydQbank.css';
@@ -29,7 +30,7 @@ const READ_S = 30;
 // Subjects. Only Biochemistry has cases so far; the rest show as "soon".
 const SUBJECTS = [
   { id: 'biochem', name: 'Biochemistry', icon: '⚗️', open: true },
-  { id: 'immuno', name: 'Immunology', icon: '🛡️' },
+  { id: 'immuno', name: 'Immunology', icon: '🛡️', open: true },
   { id: 'micro', name: 'Microbiology', icon: '🦠' },
   { id: 'heme', name: 'Haematology', icon: '🩸' },
   { id: 'neuro', name: 'Neurology', icon: '🧠' },
@@ -37,6 +38,24 @@ const SUBJECTS = [
   { id: 'endo', name: 'Endocrinology', icon: '🦋' },
   { id: 'resp', name: 'Respiratory', icon: '🫁' },
 ];
+
+// Each open subject's cases and wards. Ids are unique across subjects (the
+// Immunology ones start im_), so one lookup serves every subject.
+const DATA = {
+  biochem: { cases: BIO_CASES, chapters: BIO_CHAPTERS },
+  immuno: { cases: IMMUNO_CASES, chapters: IMMUNO_CHAPTERS },
+};
+const dataFor = (subject) => DATA[subject] || DATA.biochem;
+const BY_ID = { ...BIO_BY_ID, ...IMMUNO_BY_ID };
+const CHAPTERS = [...BIO_CHAPTERS, ...IMMUNO_CHAPTERS];
+// The Qbank card: Biochemistry keeps its cards in bioQbank.js (its cases also
+// drive the Clinic); Immunology cases carry the card fields themselves.
+const cardOf = (c) => QB[c.id] || c;
+// vs is [id, text] (Biochemistry) or just an id whose why-not line is the text.
+function contrastOf(c, q) {
+  if (Array.isArray(q?.vs)) return q.vs;
+  return q?.vs ? [q.vs, c.lookalikes[q.vs]] : [];
+}
 
 const today = () => { const d = new Date(); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; };
 function readSeen() {
@@ -54,9 +73,10 @@ function readSetup() {
   const base = { subject: 'biochem', size: 10, skip: true, chapters: [] };
   try { return { ...base, ...JSON.parse(localStorage.getItem(SETUP_KEY) || '{}') }; } catch { return base; }
 }
-function poolFor({ skip, chapters }) {
+function poolFor({ subject, skip, chapters }) {
   const seen = readSeen();
-  const inWards = BIO_CASES.filter(c => !chapters.length || chapters.includes(c.chapter));
+  const { cases } = dataFor(subject);
+  const inWards = cases.filter(c => !chapters.length || chapters.includes(c.chapter));
   return { inWards, pool: skip ? inWards.filter(c => !seen.has(c.id)) : inWards, seen };
 }
 // The app scrolls inside #root, not the window, so scroll the page's own
@@ -124,6 +144,7 @@ function Setup({ onStart, onExit, clinic, onClinic, progress, musicOn, toggleMus
   const [custom, setCustom] = useState(SIZES.includes(cfg.size) || cfg.size === 0 ? '' : String(cfg.size));
   const save = (next) => { setCfg(next); try { localStorage.setItem(SETUP_KEY, JSON.stringify(next)); } catch { /* fine */ } };
 
+  const { cases, chapters } = dataFor(cfg.subject);
   const { inWards, pool, seen } = poolFor(cfg);
   const want = cfg.size === 0 ? pool.length : Math.min(cfg.size, pool.length);
   const doneToday = inWards.filter(c => seen.has(c.id)).length;
@@ -148,14 +169,14 @@ function Setup({ onStart, onExit, clinic, onClinic, progress, musicOn, toggleMus
         <h1>Name the <em>disease</em>.</h1>
         <p>Short, high-yield cases against the clock. Tap a diagnosis to lock it in, then tap the highlighted clues to see why they happen.</p>
         <div className="hq-hero-stats">
-          <span><b>{BIO_CASES.length}</b> cases</span>
+          <span><b>{cases.length}</b> cases</span>
           <span><b>{learned}</b> seen ever</span>
           <span><b>{seen.size}</b> done today</span>
           <span><b>{ANSWER_S}s</b> per question</span>
         </div>
       </header>
 
-      {clinic && (
+      {clinic && cfg.subject === 'biochem' && (
         <div className="hq-modes" role="radiogroup" aria-label="Style">
           <button type="button" role="radio" aria-checked="true" className="hq-mode is-on">
             <b>📝 Qbank</b><small>condensed HY vignettes</small>
@@ -174,13 +195,13 @@ function Setup({ onStart, onExit, clinic, onClinic, progress, musicOn, toggleMus
               key={sub.id}
               type="button"
               className={`hq-subject${cfg.subject === sub.id ? ' is-on' : ''}${sub.open ? '' : ' is-locked'}`}
-              onClick={sub.open ? () => { save({ ...cfg, subject: sub.id }); hydSfx.tap(); } : undefined}
+              onClick={sub.open ? () => { if (sub.id !== cfg.subject) save({ ...cfg, subject: sub.id, chapters: [] }); hydSfx.tap(); } : undefined}
               disabled={!sub.open}
               aria-pressed={cfg.subject === sub.id}
             >
               <span className="hq-subject-icon" aria-hidden="true">{sub.icon}</span>
               <span className="hq-subject-name">{sub.name}</span>
-              <small>{sub.open ? `${BIO_CASES.length} cases` : '🔒 Soon'}</small>
+              <small>{sub.open ? `${dataFor(sub.id).cases.length} cases` : '🔒 Soon'}</small>
             </button>
           ))}
         </div>
@@ -190,10 +211,10 @@ function Setup({ onStart, onExit, clinic, onClinic, progress, musicOn, toggleMus
         <h2><span>2</span> Wards</h2>
         <div className="hq-chips">
           <button type="button" className={`hq-chip${cfg.chapters.length ? '' : ' is-on'}`} onClick={() => { save({ ...cfg, chapters: [] }); hydSfx.tap(); }}>
-            ✨ All <small>{BIO_CASES.length}</small>
+            ✨ All <small>{cases.length}</small>
           </button>
-          {BIO_CHAPTERS.map(ch => {
-            const n = BIO_CASES.filter(c => c.chapter === ch.id).length;
+          {chapters.map(ch => {
+            const n = cases.filter(c => c.chapter === ch.id).length;
             return (
               <button key={ch.id} type="button" style={{ '--t': ch.tint }} className={`hq-chip${cfg.chapters.includes(ch.id) ? ' is-on' : ''}`} onClick={() => toggleWard(ch.id)}>
                 {ch.icon} {ch.name} <small>{n}</small>
@@ -215,7 +236,7 @@ function Setup({ onStart, onExit, clinic, onClinic, progress, musicOn, toggleMus
             <input
               type="number"
               min="1"
-              max={BIO_CASES.length}
+              max={cases.length}
               inputMode="numeric"
               placeholder="#"
               value={custom}
@@ -223,7 +244,7 @@ function Setup({ onStart, onExit, clinic, onClinic, progress, musicOn, toggleMus
                 const v = e.target.value.replace(/\D/g, '').slice(0, 3);
                 setCustom(v);
                 const n = parseInt(v, 10);
-                if (n > 0) save({ ...cfg, size: Math.min(n, BIO_CASES.length) });
+                if (n > 0) save({ ...cfg, size: Math.min(n, cases.length) });
               }}
             />
           </label>
@@ -325,7 +346,7 @@ function Stem({ text, notes, live, open, setOpen }) {
 }
 
 function Question({ c, index, total, streak, score, onAnswer, onNext, onQuit, musicOn, toggleMusic, paused, setPaused }) {
-  const q = QB[c.id];
+  const q = cardOf(c);
   const options = useMemo(() => shuffle([c.id, ...Object.keys(c.lookalikes)]), [c]);
   const [pick, setPick] = useState(null);       // id, or 'timeout'
   const [open, setOpen] = useState(null);       // open clue index
@@ -335,8 +356,8 @@ function Question({ c, index, total, streak, score, onAnswer, onNext, onQuit, mu
   const done = pick !== null;
   const timedOut = pick === 'timeout';
   const right = pick === c.id;
-  const chapter = BIO_CHAPTERS.find(ch => ch.id === c.chapter);
-  const [vsId, vsText] = q?.vs || [];
+  const chapter = CHAPTERS.find(ch => ch.id === c.chapter);
+  const [vsId, vsText] = contrastOf(c, q);
 
   useEffect(() => { hydSfx.card(); }, []);
 
@@ -439,7 +460,7 @@ function Question({ c, index, total, streak, score, onAnswer, onNext, onQuit, mu
                   disabled={done || paused}
                 >
                   <span className="hq-opt-l">{'ABCD'[i]}</span>
-                  <span className="hq-opt-t">{BIO_BY_ID[id].name}</span>
+                  <span className="hq-opt-t">{BY_ID[id].name}</span>
                   {done && id === c.id && <span className="hq-opt-m" aria-hidden="true">✓</span>}
                   {done && id === pick && !right && <span className="hq-opt-m" aria-hidden="true">✕</span>}
                   {done && id === c.id && right && <Burst k={c.id} />}
@@ -458,7 +479,7 @@ function Question({ c, index, total, streak, score, onAnswer, onNext, onQuit, mu
                 <small>{right ? 'Correct' : timedOut ? 'Time’s up: the answer is' : 'Not quite: the answer is'}</small>
                 <strong>{c.name}</strong>
               </div>
-              <span className="hq-tag hq-tag--dim hq-verdict-inherit">{INHERIT_LABEL[c.inherit] || c.inherit}</span>
+              <span className="hq-tag hq-tag--dim hq-verdict-inherit">{INHERIT_LABEL[c.inherit] || c.inherit || c.tag}</span>
             </div>
 
             <p className="hq-x">{q?.x || c.learn.plain}</p>
@@ -472,13 +493,13 @@ function Question({ c, index, total, streak, score, onAnswer, onNext, onQuit, mu
 
             {vsId && (
               <div className="hq-vs">
-                <span className="hq-vs-tag">⚖ How it differs from {BIO_BY_ID[vsId]?.name}</span>
+                <span className="hq-vs-tag">⚖ How it differs from {BY_ID[vsId]?.name}</span>
                 <p>{vsText}</p>
               </div>
             )}
             {!right && !timedOut && pick !== vsId && c.lookalikes[pick] && (
               <div className="hq-vs hq-vs--picked">
-                <span className="hq-vs-tag">Why not {BIO_BY_ID[pick]?.name}</span>
+                <span className="hq-vs-tag">Why not {BY_ID[pick]?.name}</span>
                 <p>{c.lookalikes[pick]}</p>
               </div>
             )}
@@ -518,7 +539,7 @@ function Summary({ log, bestStreak, onAgain, onSetup, onExit }) {
         {log.map((r, i) => (
           <li key={r.id} className={r.right ? 'is-right' : 'is-wrong'} style={{ '--i': i }}>
             <span aria-hidden="true">{r.right ? '✓' : '✕'}</span>
-            {BIO_BY_ID[r.id].name}
+            {BY_ID[r.id].name}
           </li>
         ))}
       </ul>
