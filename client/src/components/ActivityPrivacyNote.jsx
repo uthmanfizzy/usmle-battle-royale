@@ -36,7 +36,7 @@ const OWN = {
 export function OwnVisibilityNote({ visibility }) {
   return (
     <p className="apn-own">
-      {OWN[visibility] || OWN.everyone}{' '}
+      {OWN[visibility] || OWN.private}{' '}
       <a href="/settings">Change</a>
     </p>
   );

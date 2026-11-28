@@ -8346,7 +8346,7 @@ app.put('/auth/preferences', requireAuth, async (req, res) => {
       .from('users').update(updateData).eq('id', req.userId);
     if (updateErr) {
       if (updateData.activity_visibility && /activity_visibility/.test(updateErr.message || '')) {
-        return res.status(503).json({ error: 'Activity privacy is not set up yet: run activity-privacy-migration.sql in Supabase.' });
+        return res.status(503).json({ error: 'Activity privacy is not set up yet: run activity-private-default-migration.sql in Supabase.' });
       }
       return res.status(500).json({ error: updateErr.message });
     }
@@ -8977,19 +8977,22 @@ app.post('/api/study-session', requireAuth, async (req, res) => {
 // ── Daily Activity privacy ────────────────────────────────────────────────────
 // users.activity_visibility (activity-privacy-migration.sql): who may see a
 // player's Daily Activity timeline and study calendar. The owner always can.
-// A database without the column behaves as before ('everyone'). Any failure
-// to check friendship hides rather than shows: private data errs closed.
+// Private by default (activity-private-default-migration.sql): a player who
+// never chose, or a database without the column, shows nothing to others.
+// Any failure to check friendship hides rather than shows: private data errs
+// closed.
 const ACTIVITY_VISIBILITY = ['everyone', 'friends', 'private'];
+const ACTIVITY_VISIBILITY_DEFAULT = 'private';
 let hasActivityVisibility = true;
 
 async function activityVisibilityOf(userId) {
-  if (!supabase || !hasActivityVisibility || !UUID_RE.test(userId)) return 'everyone';
+  if (!supabase || !hasActivityVisibility || !UUID_RE.test(userId)) return ACTIVITY_VISIBILITY_DEFAULT;
   const { data, error } = await supabase.from('users').select('activity_visibility').eq('id', userId).maybeSingle();
   if (error) {
-    if (/activity_visibility/.test(error.message || '')) { hasActivityVisibility = false; return 'everyone'; }
+    if (/activity_visibility/.test(error.message || '')) { hasActivityVisibility = false; return ACTIVITY_VISIBILITY_DEFAULT; }
     return 'private';
   }
-  return ACTIVITY_VISIBILITY.includes(data?.activity_visibility) ? data.activity_visibility : 'everyone';
+  return ACTIVITY_VISIBILITY.includes(data?.activity_visibility) ? data.activity_visibility : ACTIVITY_VISIBILITY_DEFAULT;
 }
 
 async function areFriends(a, b) {

@@ -64,7 +64,8 @@ export default function SettingsPage() {
     localStorage.setItem('medvale_music', newValue);
   };
 
-  const visibility = user?.activity_visibility || 'everyone';
+  // Private unless the player chose otherwise (the server reads it the same way).
+  const visibility = user?.activity_visibility || 'private';
   const [savingVis, setSavingVis] = useState(false);
   const [visError, setVisError] = useState('');
   async function saveVisibility(next) {
