@@ -1,0 +1,405 @@
+/**
+ * HY Diseases · Microbiology — protozoa, helminths and ectoparasites. Case
+ * format: see hyd/immuno/immunoCases.js. Original wording.
+ */
+export default [
+  // ── Protozoa ───────────────────────────────────────────────────────────
+  {
+    id: 'mb_giardia', name: 'Giardiasis', chapter: 'parasite', tag: 'Giardia lamblia',
+    s: 'After **drinking from mountain streams on a camping trip**, a hiker has bloating, **foul-smelling, greasy, floating stools** and lots of gas, without blood or fever. Stool shows **pear-shaped trophozoites with two nuclei, like a face**.',
+    w: {
+      'drinking from mountain streams on a camping trip': 'Giardia cysts survive in cold fresh water contaminated by animals.',
+      'foul-smelling, greasy, floating stools': 'The parasite coats the small bowel lining and blocks fat absorption (steatorrhoea).',
+      'pear-shaped trophozoites with two nuclei, like a face': 'Giardia trophozoites have two nuclei that look like eyes.',
+    },
+    x: 'Giardia lamblia is a protozoan spread by cysts in contaminated water. It attaches to the small intestine and causes fat malabsorption with bloating and greasy diarrhoea. People with IgA deficiency or CVID are prone to it.',
+    hy: ['Giardia: cysts in water, steatorrhoea, worse in IgA deficiency; treat with metronidazole (or tinidazole, nitazoxanide).'],
+    lookalikes: {
+      mb_entamoeba: 'Entamoeba causes BLOODY diarrhoea and liver abscesses.',
+      mb_cryptosporidium: 'Cryptosporidium causes severe watery diarrhoea in AIDS, with acid-fast oocysts.',
+      mb_etec: 'ETEC causes acute watery travellers\' diarrhoea without greasy stools.',
+    },
+    vs: 'mb_cryptosporidium',
+  },
+  {
+    id: 'mb_entamoeba', name: 'Amebic liver abscess', chapter: 'parasite', tag: 'Entamoeba histolytica',
+    s: 'A man back from Mexico had **bloody diarrhoea** a month ago and now has fever and **right upper quadrant pain**. CT shows a liver abscess containing **brown "anchovy paste" fluid**. Colon biopsy shows **flask-shaped ulcers** with trophozoites that have **swallowed red cells**.',
+    w: {
+      'bloody diarrhoea': 'The amoebae invade the colon wall, causing dysentery.',
+      'right upper quadrant pain': 'They travel via the portal vein to the liver, forming an abscess.',
+      'brown "anchovy paste" fluid': 'Liquefied liver tissue in the abscess looks like anchovy paste.',
+      'flask-shaped ulcers': 'They burrow under the colon lining and spread out, making flask-shaped ulcers.',
+      'swallowed red cells': 'Trophozoites ingesting red cells are diagnostic of E histolytica.',
+    },
+    x: 'Entamoeba histolytica spreads by cysts in food and water. It invades the colon, causing bloody diarrhoea and flask-shaped ulcers, and can travel to the liver to form an abscess. It is treated with metronidazole, then a drug to clear cysts from the gut.',
+    hy: ['Entamoeba: trophozoites with ingested RBCs, flask-shaped ulcers, liver abscess with anchovy-paste fluid; treat with metronidazole then iodoquinol or paromomycin.'],
+    lookalikes: {
+      mb_giardia: 'Giardia causes GREASY non-bloody diarrhoea and no liver abscess.',
+      mb_shigella: 'Shigella causes bloody dysentery in day-care outbreaks, without liver abscesses.',
+      mb_echinococcus: 'Echinococcus forms a calcified hydatid cyst in the liver after dog contact.',
+    },
+    vs: 'mb_shigella',
+  },
+  {
+    id: 'mb_cryptosporidium', name: 'Cryptosporidiosis', chapter: 'parasite', tag: 'Cryptosporidium',
+    s: 'A man with **AIDS (CD4 count 60)** has weeks of **severe watery diarrhoea** and weight loss. Stool shows **small oocysts that stain acid-fast**.',
+    w: {
+      'AIDS (CD4 count 60)': 'Healthy people clear it in days; with low CD4 counts it becomes chronic and severe.',
+      'severe watery diarrhoea': 'The parasite infects the small bowel lining, causing large-volume watery diarrhoea.',
+      'small oocysts that stain acid-fast': 'Cryptosporidium oocysts are partially acid-fast.',
+    },
+    x: 'Cryptosporidium is a protozoan spread by oocysts in water, which resist chlorine. It causes mild self-limited diarrhoea in healthy people but severe chronic diarrhoea in people with AIDS. Filtering water prevents it.',
+    hy: ['Cryptosporidium: acid-fast oocysts, chlorine-resistant, severe diarrhoea in AIDS; treat with nitazoxanide in immunocompetent people.'],
+    lookalikes: {
+      mb_giardia: 'Giardia causes greasy, foul stools in hikers, with pear-shaped trophozoites.',
+      mb_cmv: 'CMV colitis in AIDS causes bloody diarrhoea with "owl\'s eye" inclusions.',
+      mb_cholera: 'Cholera causes massive rice-water diarrhoea in outbreaks.',
+    },
+    vs: 'mb_giardia',
+  },
+  {
+    id: 'mb_toxoplasma', name: 'Cerebral toxoplasmosis', chapter: 'parasite', tag: 'Toxoplasma gondii',
+    s: 'A man with **AIDS (CD4 count 70)** who has **cats** has headache, fever and a new seizure. MRI shows **several ring-enhancing lesions** in the basal ganglia. His Toxoplasma IgG is positive.',
+    w: {
+      'AIDS (CD4 count 70)': 'Latent cysts reactivate when CD4 falls below about 100.',
+      'cats': 'Toxoplasma is spread through cat faeces and undercooked meat.',
+      'several ring-enhancing lesions': 'Multiple ring-enhancing abscesses favour toxoplasmosis; a single one suggests lymphoma.',
+    },
+    x: 'Toxoplasma gondii is a protozoan spread by cat faeces and undercooked meat. In healthy people it is usually silent, but in AIDS it reactivates to cause multiple brain abscesses. In pregnancy it can cross the placenta, causing chorioretinitis, hydrocephalus and calcifications.',
+    hy: ['Toxoplasmosis: multiple ring-enhancing lesions in AIDS; congenital triad of chorioretinitis, hydrocephalus and diffuse intracranial calcifications; treat with sulfadiazine plus pyrimethamine; TMP-SMX prophylaxis when CD4 <100.'],
+    lookalikes: {
+      mb_pml: 'PML causes NON-enhancing white matter lesions in AIDS from JC virus.',
+      mb_cryptococcus: 'Cryptococcal meningitis gives headache and high CSF pressure without focal ring lesions.',
+      mb_cysticercosis: 'Neurocysticercosis gives cystic brain lesions with seizures after pork tapeworm eggs.',
+    },
+    vs: 'mb_pml',
+  },
+  {
+    id: 'mb_chagas', name: 'Chagas disease', chapter: 'parasite', tag: 'Trypanosoma cruzi',
+    s: 'A 45-year-old from **rural Bolivia** has heart failure from a **dilated cardiomyopathy** and has trouble swallowing from **megaoesophagus**. As a child, his eyelid swelled after an insect bite.',
+    w: {
+      'rural Bolivia': 'T cruzi is spread by the reduviid ("kissing") bug in South and Central America.',
+      'dilated cardiomyopathy': 'Chronic infection destroys heart muscle and its nerves.',
+      'megaoesophagus': 'Destruction of the enteric nerve plexus causes achalasia-like megaoesophagus and megacolon.',
+    },
+    x: 'Chagas disease is caused by Trypanosoma cruzi, passed in the faeces of the reduviid bug, which bites near the eyes or mouth. Acute infection may cause one-sided eyelid swelling (Romaña sign). Decades later, it causes dilated cardiomyopathy, megaoesophagus and megacolon.',
+    hy: ['Chagas: reduviid (kissing) bug, Romaña sign, dilated cardiomyopathy with apical aneurysm, megacolon and megaoesophagus; treat with benznidazole or nifurtimox.'],
+    lookalikes: {
+      mb_sleeping: 'African sleeping sickness causes fever, neck lymph nodes and sleepiness after a tsetse fly bite.',
+      mb_leish: 'Visceral leishmaniasis causes fever, a huge spleen and pancytopenia after a sandfly bite.',
+      mb_lyme: 'Lyme carditis causes heart block after a tick bite, not cardiomyopathy and megaoesophagus.',
+    },
+    vs: 'mb_sleeping',
+  },
+  {
+    id: 'mb_sleeping', name: 'African sleeping sickness', chapter: 'parasite', tag: 'Trypanosoma brucei',
+    s: 'A traveller to **East Africa bitten by a tsetse fly** has recurring fevers and **swollen nodes at the back of the neck**, and months later becomes **sleepy during the day** and confused.',
+    w: {
+      'East Africa bitten by a tsetse fly': 'The tsetse fly carries T brucei, with a painful bite.',
+      'swollen nodes at the back of the neck': 'Posterior cervical lymphadenopathy (Winterbottom sign).',
+      'sleepy during the day': 'The parasite invades the brain, causing somnolence and coma.',
+    },
+    x: 'African sleeping sickness is caused by Trypanosoma brucei, spread by tsetse flies. The parasite changes its surface glycoprotein repeatedly, so fevers come in waves. It later invades the brain, causing sleepiness, coma and death.',
+    hy: ['African trypanosomiasis: tsetse fly, antigenic variation causing recurrent fevers, cervical lymphadenopathy, somnolence; treat with suramin (blood stage) and melarsoprol (CNS).'],
+    lookalikes: {
+      mb_chagas: 'Chagas disease causes cardiomyopathy and megaoesophagus in Latin America.',
+      mb_falciparum: 'Falciparum malaria causes cyclic fevers with ring forms after a mosquito bite.',
+      mb_leish: 'Visceral leishmaniasis causes fever, a huge spleen and darkened skin after a sandfly bite.',
+    },
+    vs: 'mb_chagas',
+  },
+  {
+    id: 'mb_falciparum', name: 'Falciparum malaria', chapter: 'parasite', tag: 'Plasmodium falciparum',
+    s: 'Two weeks after a **trip to sub-Saharan Africa without prophylaxis**, a man has high fevers, anaemia and then **confusion and seizures**. The blood smear shows **many red cells with multiple small rings and banana-shaped gametocytes**.',
+    w: {
+      'trip to sub-Saharan Africa without prophylaxis': 'Anopheles mosquitoes transmit P falciparum; prophylaxis prevents it.',
+      'confusion and seizures': 'Infected red cells stick to brain capillaries, blocking them (cerebral malaria).',
+      'many red cells with multiple small rings and banana-shaped gametocytes': 'Crescent-shaped gametocytes and multiple ring forms per cell are typical of P falciparum.',
+    },
+    x: 'P falciparum is the most dangerous malaria parasite. Infected red cells stick to small vessel walls and block them in the brain, kidneys and lungs. It causes severe anaemia, cerebral malaria and death if not treated promptly.',
+    hy: ['P falciparum: banana-shaped gametocytes, multiple rings per RBC, cerebral malaria; no dormant liver stage; sickle cell trait, G6PD deficiency and Duffy-negative (for P vivax) offer protection.'],
+    lookalikes: {
+      mb_vivax: 'P vivax causes fevers every 48 hours and can relapse from dormant liver hypnozoites.',
+      mb_babesia: 'Babesiosis gives haemolysis with "Maltese cross" ring forms after a tick bite in the northeast US.',
+      mb_typhoid: 'Typhoid gives a step-ladder fever with rose spots and a slow pulse.',
+    },
+    vs: 'mb_vivax',
+  },
+  {
+    id: 'mb_vivax', name: 'Vivax malaria (relapse)', chapter: 'parasite', tag: 'Plasmodium vivax',
+    s: 'A man treated for malaria after a trip to India **feels well for months, then has fevers again every 48 hours**. His red cells are **enlarged with stippling**. The parasite **hides as dormant forms in the liver**.',
+    w: {
+      'feels well for months, then has fevers again every 48 hours': 'Dormant forms in the liver wake up and release parasites, causing relapse; the cycle of red cell rupture repeats every 48 hours.',
+      'enlarged with stippling': 'P vivax prefers young red cells, which become large with Schüffner dots.',
+      'hides as dormant forms in the liver': 'Hypnozoites persist in liver cells and are not killed by chloroquine.',
+    },
+    x: 'P vivax (and P ovale) can form dormant liver stages called hypnozoites that cause relapses months after the first illness. They cause fevers every 48 hours. Primaquine (or tafenoquine) is needed to kill the hypnozoites, after testing for G6PD deficiency.',
+    hy: ['P vivax and P ovale: 48-hour fever cycle and dormant hypnozoites; add primaquine (check G6PD first); P malariae has a 72-hour cycle.'],
+    lookalikes: {
+      mb_falciparum: 'P falciparum causes severe, irregular fevers with cerebral malaria and no dormant liver stage.',
+      mb_babesia: 'Babesiosis gives haemolysis after a tick bite with "Maltese cross" ring forms.',
+      mb_brucella: 'Brucellosis gives undulant fever after unpasteurised dairy.',
+    },
+    vs: 'mb_falciparum',
+  },
+  {
+    id: 'mb_babesia', name: 'Babesiosis', chapter: 'parasite', tag: 'Babesia microti (Ixodes tick)',
+    s: 'A man **without a spleen** who lives in **Massachusetts** has fever, fatigue and dark urine after a tick bite. His smear shows **ring forms and tetrads that look like a Maltese cross** inside red cells.',
+    w: {
+      'without a spleen': 'Asplenia allows severe, high-level parasitaemia.',
+      'Massachusetts': 'Babesia is spread by the same Ixodes tick as Lyme disease in the northeastern US.',
+      'ring forms and tetrads that look like a Maltese cross': 'Babesia forms rings and tetrads in red cells; there is no pigment, unlike malaria.',
+    },
+    x: 'Babesiosis is caused by the protozoan Babesia, spread by Ixodes ticks in the northeastern US. It infects red cells and causes fever and haemolytic anaemia, severe in people without a spleen. It is treated with atovaquone plus azithromycin.',
+    hy: ['Babesia: Ixodes tick (also carries Lyme), "Maltese cross" tetrads, haemolysis; severe in asplenia; treat with atovaquone plus azithromycin.'],
+    lookalikes: {
+      mb_falciparum: 'Falciparum malaria shows banana-shaped gametocytes after travel to the tropics.',
+      mb_lyme: 'Lyme disease causes a bull\'s-eye rash and arthritis, not haemolysis.',
+      mb_vivax: 'P vivax causes 48-hour fevers with enlarged red cells after tropical travel.',
+    },
+    vs: 'mb_falciparum',
+  },
+  {
+    id: 'mb_leish', name: 'Visceral leishmaniasis (kala-azar)', chapter: 'parasite', tag: 'Leishmania donovani',
+    s: 'A man from **India bitten by sandflies** has months of fever, weight loss, **a huge spleen**, darkening skin and **low counts of all blood cells**. Marrow biopsy shows **macrophages packed with tiny amastigotes**.',
+    w: {
+      'India bitten by sandflies': 'Leishmania is spread by sandflies in India, East Africa and Brazil.',
+      'a huge spleen': 'Infected macrophages fill the spleen and liver.',
+      'low counts of all blood cells': 'Marrow involvement and splenic sequestration cause pancytopenia.',
+      'macrophages packed with tiny amastigotes': 'Leishmania lives as amastigotes inside macrophages.',
+    },
+    x: 'Leishmania is a protozoan spread by sandflies that lives inside macrophages. The visceral form (kala-azar) causes fever, weight loss, massive splenomegaly, pancytopenia and skin darkening. The cutaneous form causes skin ulcers.',
+    hy: ['Leishmaniasis: sandfly, amastigotes in macrophages; visceral = hepatosplenomegaly and pancytopenia; treat with amphotericin B or sodium stibogluconate.'],
+    lookalikes: {
+      mb_histoplasma: 'Histoplasmosis also shows tiny organisms in macrophages, after bat or bird droppings in the US.',
+      mb_falciparum: 'Falciparum malaria causes cyclic fevers with ring forms in red cells.',
+      mb_chagas: 'Chagas disease causes cardiomyopathy and megaoesophagus.',
+    },
+    vs: 'mb_histoplasma',
+  },
+  {
+    id: 'mb_trichomonas', name: 'Trichomoniasis', chapter: 'parasite', tag: 'Trichomonas vaginalis',
+    s: 'A 26-year-old has itching and a **frothy, yellow-green, foul-smelling discharge**. The cervix has **tiny red spots like a strawberry**. Wet mount shows **pear-shaped organisms swimming with flagella**.',
+    w: {
+      'frothy, yellow-green, foul-smelling discharge': 'The flagellated protozoan causes inflammation with a frothy discharge.',
+      'tiny red spots like a strawberry': 'Punctate haemorrhages on the cervix ("strawberry cervix").',
+      'pear-shaped organisms swimming with flagella': 'Motile trophozoites seen on a wet mount.',
+    },
+    x: 'Trichomonas vaginalis is a sexually transmitted flagellated protozoan. It causes vaginitis with a frothy yellow-green discharge, itching and a strawberry cervix, while men are often silent. Both partners need metronidazole.',
+    hy: ['Trichomoniasis: motile trophozoites on wet mount, strawberry cervix, pH >4.5; treat both partners with metronidazole.'],
+    lookalikes: {
+      mb_gardnerella: 'Bacterial vaginosis gives a thin grey fishy discharge without inflammation, with clue cells.',
+      mb_candida: 'Candida gives thick white "cottage cheese" discharge with normal pH.',
+      mb_gonorrhea: 'Gonorrhoea causes purulent cervicitis with gram-negative diplococci.',
+    },
+    vs: 'mb_gardnerella',
+  },
+
+  // ── Helminths ──────────────────────────────────────────────────────────
+  {
+    id: 'mb_enterobius', name: 'Pinworm infection', chapter: 'parasite', tag: 'Enterobius vermicularis',
+    s: 'A 6-year-old wakes at night with **intense itching around the anus**. Her sister has the same. A **clear sticky tape pressed on the perianal skin** in the morning shows eggs.',
+    w: {
+      'intense itching around the anus': 'Female worms crawl out at night to lay eggs on the perianal skin.',
+      'clear sticky tape pressed on the perianal skin': 'The "tape test" picks up the eggs.',
+    },
+    x: 'Pinworm (Enterobius vermicularis) is the most common worm infection in children in the US. Female worms lay eggs around the anus at night, causing itching. Scratching spreads eggs from fingers to mouth and to others.',
+    hy: ['Enterobius: night-time anal itching, tape test; treat with albendazole or pyrantel pamoate, treating the whole household.'],
+    lookalikes: {
+      mb_ascaris: 'Ascaris is a large roundworm that can block the bowel and cause Löffler syndrome.',
+      mb_giardia: 'Giardia causes greasy diarrhoea after drinking stream water.',
+      mb_scabies: 'Scabies causes itchy burrows between the fingers that are worse at night.',
+    },
+    vs: 'mb_scabies',
+  },
+  {
+    id: 'mb_ascaris', name: 'Ascariasis', chapter: 'parasite', tag: 'Ascaris lumbricoides',
+    s: 'A child in a rural tropical area had a **dry cough with wheeze and eosinophils in the lungs** weeks ago. Now he has **colicky pain and bowel obstruction**, and passes a **long worm**. Stool shows **knobby-coated oval eggs**.',
+    w: {
+      'dry cough with wheeze and eosinophils in the lungs': 'Larvae migrate through the lungs (Löffler syndrome) before being swallowed.',
+      'colicky pain and bowel obstruction': 'A mass of adult worms can block the bowel, often at the ileocaecal valve.',
+      'long worm': 'Adult Ascaris is the largest intestinal roundworm.',
+      'knobby-coated oval eggs': 'Ascaris eggs have a thick, bumpy coat.',
+    },
+    x: 'Ascaris lumbricoides is a large roundworm spread by eggs in contaminated food and soil. Larvae migrate through the lungs, causing Löffler syndrome, then mature in the gut. Heavy infection can block the bowel or bile ducts.',
+    hy: ['Ascaris: faecal-oral, Löffler syndrome (pulmonary eosinophilia), bowel or biliary obstruction; treat with albendazole.'],
+    lookalikes: {
+      mb_strongyloides: 'Strongyloides larvae enter through the skin and can cause hyperinfection in immunosuppressed people.',
+      mb_enterobius: 'Pinworm causes anal itching in children, not obstruction.',
+      mb_trichinella: 'Trichinella causes muscle pain and swelling around the eyes after undercooked pork.',
+    },
+    vs: 'mb_strongyloides',
+  },
+  {
+    id: 'mb_strongyloides', name: 'Strongyloides hyperinfection', chapter: 'parasite', tag: 'Strongyloides stercoralis',
+    s: 'A man from Jamaica who **walked barefoot as a child** is given **high-dose steroids**. He then develops gram-negative sepsis, diarrhoea and cough with many larvae in his sputum and stool.',
+    w: {
+      'walked barefoot as a child': 'Larvae in soil penetrate the skin of bare feet.',
+      'high-dose steroids': 'Steroids suppress immunity and allow the worm to multiply unchecked through autoinfection (hyperinfection).',
+    },
+    x: 'Strongyloides larvae enter through the skin, travel through the lungs and live in the small intestine. Uniquely, the worm can reinfect the same host (autoinfection) and persist for decades. With steroids or HTLV-1, huge numbers spread through the body, carrying gut bacteria and causing sepsis.',
+    hy: ['Strongyloides: skin penetration, autoinfection, rhabditiform larvae in stool; hyperinfection with steroids; treat with ivermectin.'],
+    lookalikes: {
+      mb_ascaris: 'Ascaris is swallowed as eggs and causes bowel obstruction, without autoinfection.',
+      mb_enterobius: 'Pinworm causes anal itching in children.',
+      mb_schisto: 'Schistosoma enters the skin in fresh water and damages the liver or bladder.',
+    },
+    vs: 'mb_ascaris',
+  },
+  {
+    id: 'mb_trichinella', name: 'Trichinosis', chapter: 'parasite', tag: 'Trichinella spiralis',
+    s: 'A week after eating **undercooked wild boar sausage**, a man has fever, **swelling around his eyes** and **severe muscle pain**. Eosinophils are high, and CK is raised.',
+    w: {
+      'undercooked wild boar sausage': 'Larvae encysted in pork or wild game survive undercooking.',
+      'swelling around his eyes': 'Periorbital oedema is a classic sign.',
+      'severe muscle pain': 'Larvae migrate through the blood and encyst in striated muscle (myositis).',
+    },
+    x: 'Trichinella spiralis is a roundworm caught from undercooked pork or game. Larvae enter the blood and encyst in skeletal muscle, causing fever, periorbital oedema, muscle pain and eosinophilia.',
+    hy: ['Trichinosis: undercooked pork or game, fever, periorbital oedema, myalgia, eosinophilia; treat with albendazole.'],
+    lookalikes: {
+      mb_cysticercosis: 'Neurocysticercosis gives seizures from brain cysts after pork tapeworm eggs.',
+      mb_ascaris: 'Ascaris causes bowel obstruction and Löffler syndrome.',
+      mb_influenza: 'Influenza causes fever and muscle aches without eyelid swelling or eosinophilia.',
+    },
+    vs: 'mb_cysticercosis',
+  },
+  {
+    id: 'mb_onchocerca', name: 'Onchocerciasis (river blindness)', chapter: 'parasite', tag: 'Onchocerca volvulus',
+    s: 'A man living near **fast-flowing rivers in West Africa**, bitten often by **black flies**, has **itchy skin with dark, thickened patches** and lumps under the skin, and is **losing his vision**.',
+    w: {
+      'fast-flowing rivers in West Africa': 'Black flies breed near rivers, hence "river blindness".',
+      'black flies': 'The female black fly transmits the larvae.',
+      'itchy skin with dark, thickened patches': 'Microfilariae in the skin cause intense itching and skin damage.',
+      'losing his vision': 'Microfilariae enter the eye; dying worms cause inflammation and blindness.',
+    },
+    x: 'Onchocerca volvulus is a filarial worm spread by black flies near rivers. Microfilariae migrate through the skin and eyes, causing itching, skin nodules and blindness. Ivermectin treats it.',
+    hy: ['Onchocerciasis: female black fly, skin nodules and "river blindness"; treat with ivermectin ("ivermectin for river blindness").'],
+    lookalikes: {
+      mb_filariasis: 'Lymphatic filariasis (Wuchereria) causes elephantiasis after mosquito bites.',
+      mb_scabies: 'Scabies causes itchy burrows between the fingers, without vision loss.',
+      mb_leish: 'Leishmaniasis causes skin ulcers or a huge spleen after sandfly bites.',
+    },
+    vs: 'mb_filariasis',
+  },
+  {
+    id: 'mb_filariasis', name: 'Lymphatic filariasis (elephantiasis)', chapter: 'parasite', tag: 'Wuchereria bancrofti',
+    s: 'A man from **coastal India** has **massive swelling and thickened skin of one leg and the scrotum** that developed over years. He was bitten by **mosquitoes** for many years.',
+    w: {
+      'coastal India': 'Lymphatic filariasis is common in tropical Asia and Africa.',
+      'massive swelling and thickened skin of one leg and the scrotum': 'Adult worms block the lymphatics, causing lymphoedema and fibrosis (elephantiasis).',
+      'mosquitoes': 'Female mosquitoes transmit the larvae.',
+    },
+    x: 'Wuchereria bancrofti is a filarial worm spread by mosquitoes. Adult worms live in the lymphatics, where they cause inflammation and blockage. Over months to years, the legs and genitals become hugely swollen.',
+    hy: ['Wuchereria bancrofti: female mosquito, worms in the lymphatics, elephantiasis after 9 months to a year; treat with diethylcarbamazine.'],
+    lookalikes: {
+      mb_onchocerca: 'Onchocerciasis causes itchy skin and blindness after black fly bites.',
+      mb_schisto: 'Schistosomiasis causes liver fibrosis or bladder disease from fresh water exposure.',
+      mb_trichinella: 'Trichinosis causes muscle pain and eyelid swelling after undercooked pork.',
+    },
+    vs: 'mb_onchocerca',
+  },
+  {
+    id: 'mb_cysticercosis', name: 'Neurocysticercosis', chapter: 'parasite', tag: 'Taenia solium (eggs)',
+    s: 'A young man from **rural Mexico** has **new seizures**. Brain CT shows **multiple small cysts, some calcified, with a dot inside (the scolex)**.',
+    w: {
+      'rural Mexico': 'T solium is common where pigs and people live closely and sanitation is poor.',
+      'new seizures': 'Neurocysticercosis is a leading cause of acquired epilepsy worldwide.',
+      'multiple small cysts, some calcified, with a dot inside (the scolex)': 'Larval cysts lodge in the brain; the scolex appears as a dot.',
+    },
+    x: 'Neurocysticercosis happens when a person swallows Taenia solium EGGS from food contaminated by human faeces. The larvae form cysts in the brain, causing seizures. Eating undercooked pork with larvae instead causes an intestinal tapeworm.',
+    hy: ['Taenia solium: eating larvae in pork gives an intestinal tapeworm; eating EGGS (faecal contamination) gives cysticercosis; treat neurocysticercosis with albendazole (plus steroids).'],
+    lookalikes: {
+      mb_toxoplasma: 'Cerebral toxoplasmosis gives ring-enhancing lesions in AIDS after cat exposure.',
+      mb_echinococcus: 'Echinococcus forms large hydatid cysts in the liver and lungs after dog contact.',
+      mb_trichinella: 'Trichinosis causes muscle pain and eyelid swelling after undercooked pork.',
+    },
+    vs: 'mb_toxoplasma',
+  },
+  {
+    id: 'mb_diphyllo', name: 'Diphyllobothrium latum infection', chapter: 'parasite', tag: 'Fish tapeworm',
+    s: 'A man from Scandinavia who loves **raw freshwater fish** has fatigue, a **macrocytic anaemia with hypersegmented neutrophils** and numb feet. Stool shows tapeworm eggs.',
+    w: {
+      'raw freshwater fish': 'The larvae live in raw or undercooked freshwater fish.',
+      'macrocytic anaemia with hypersegmented neutrophils': 'The tapeworm absorbs vitamin B12 in the gut, causing B12 deficiency.',
+    },
+    x: 'Diphyllobothrium latum is the fish tapeworm, caught from raw freshwater fish. It competes for vitamin B12 in the intestine, causing a megaloblastic anaemia and sometimes nerve damage. Praziquantel treats it.',
+    hy: ['"DiphylloB12 latum": the fish tapeworm causes B12 deficiency and megaloblastic anaemia; treat with praziquantel.'],
+    lookalikes: {
+      mb_cysticercosis: 'Taenia solium eggs cause brain cysts and seizures.',
+      mb_giardia: 'Giardia causes greasy diarrhoea and bloating, not B12 deficiency.',
+      mb_echinococcus: 'Echinococcus forms liver cysts after contact with dogs.',
+    },
+    vs: 'mb_giardia',
+  },
+  {
+    id: 'mb_echinococcus', name: 'Hydatid cyst disease', chapter: 'parasite', tag: 'Echinococcus granulosus',
+    s: 'A **sheep farmer with working dogs** has a large **liver cyst with an eggshell-like calcified rim** and daughter cysts inside. During surgery, **spilling the cyst contents could cause shock**.',
+    w: {
+      'sheep farmer with working dogs': 'Dogs carry the adult worm; sheep (and accidentally humans) swallow eggs from dog faeces.',
+      'liver cyst with an eggshell-like calcified rim': 'Hydatid cysts grow slowly in the liver and lungs and calcify at the edge.',
+      'spilling the cyst contents could cause shock': 'Cyst fluid is highly antigenic; spillage can cause anaphylaxis.',
+    },
+    x: 'Echinococcus granulosus is a dog tapeworm. Humans swallow eggs from dog faeces, and larvae form slow-growing hydatid cysts in the liver and lungs. Rupture of a cyst can cause anaphylaxis, so it is removed carefully after injecting a scolicide.',
+    hy: ['Echinococcus granulosus: dogs (definitive host), sheep (intermediate), eggshell calcification; rupture causes anaphylaxis; treat with albendazole and careful surgery.'],
+    lookalikes: {
+      mb_entamoeba: 'An amoebic liver abscess contains anchovy-paste pus after bloody diarrhoea.',
+      mb_cysticercosis: 'Neurocysticercosis forms small brain cysts after pork tapeworm eggs.',
+      mb_clonorchis: 'Clonorchis infects the bile ducts after raw fish, causing gallstones and cholangiocarcinoma.',
+    },
+    vs: 'mb_entamoeba',
+  },
+  {
+    id: 'mb_schisto', name: 'Schistosomiasis (S haematobium)', chapter: 'parasite', tag: 'Blood fluke',
+    s: 'A man from **Egypt who swam in the Nile** has **painless blood in his urine** for years. Urine shows **eggs with a spine at one end**. Years later he develops **squamous cell carcinoma of the bladder**.',
+    w: {
+      'Egypt who swam in the Nile': 'Freshwater snails release cercariae, which penetrate human skin in water.',
+      'painless blood in his urine': 'S haematobium lives in the bladder veins and lays eggs into the bladder wall.',
+      'eggs with a spine at one end': 'S haematobium eggs have a terminal spine (S mansoni has a lateral spine).',
+      'squamous cell carcinoma of the bladder': 'Chronic inflammation from eggs causes squamous metaplasia and cancer.',
+    },
+    x: 'Schistosomes are blood flukes whose larvae penetrate the skin in fresh water with infected snails. S haematobium lives in bladder veins and causes haematuria, fibrosis and bladder squamous cell carcinoma. S mansoni and S japonicum live in the gut veins and cause liver fibrosis and portal hypertension.',
+    hy: ['Schistosoma: snails as intermediate host, skin penetration; S haematobium = bladder SCC (terminal spine); S mansoni = liver fibrosis (lateral spine); treat with praziquantel.'],
+    lookalikes: {
+      mb_clonorchis: 'Clonorchis is a liver fluke from raw fish causing cholangiocarcinoma.',
+      mb_strongyloides: 'Strongyloides enters the skin from soil and lives in the gut.',
+      mb_proteus: 'Proteus causes UTIs with struvite stones, not eggs in the urine.',
+    },
+    vs: 'mb_clonorchis',
+  },
+  {
+    id: 'mb_clonorchis', name: 'Clonorchiasis', chapter: 'parasite', tag: 'Clonorchis sinensis (liver fluke)',
+    s: 'A man from southern China who regularly eats **raw freshwater fish** has recurrent biliary pain from **pigmented gallstones**. Years later he develops **cancer of the bile ducts**.',
+    w: {
+      'raw freshwater fish': 'The fluke\'s larvae live in raw or undercooked freshwater fish.',
+      'pigmented gallstones': 'Flukes in the bile ducts cause inflammation and stasis, leading to pigment stones.',
+      'cancer of the bile ducts': 'Chronic biliary inflammation leads to cholangiocarcinoma.',
+    },
+    x: 'Clonorchis sinensis is a liver fluke caught from raw freshwater fish in East Asia. The flukes live in the bile ducts, causing inflammation, pigment stones and, eventually, cholangiocarcinoma. Praziquantel treats it.',
+    hy: ['Clonorchis sinensis: undercooked fish, biliary inflammation, pigmented gallstones, cholangiocarcinoma; treat with praziquantel.'],
+    lookalikes: {
+      mb_schisto: 'Schistosoma haematobium causes haematuria and bladder cancer after fresh water swimming.',
+      mb_diphyllo: 'The fish tapeworm causes B12 deficiency, not biliary disease.',
+      mb_echinococcus: 'Echinococcus forms a calcified liver cyst after contact with dogs.',
+    },
+    vs: 'mb_schisto',
+  },
+
+  // ── Ectoparasites ──────────────────────────────────────────────────────
+  {
+    id: 'mb_scabies', name: 'Scabies', chapter: 'parasite', tag: 'Sarcoptes scabiei',
+    s: 'Several residents of a **nursing home** have **intense itching that is worst at night**. There are **thin, wavy, raised lines between the fingers** and on the wrists.',
+    w: {
+      'nursing home': 'Scabies spreads by close skin contact in crowded places such as care homes, prisons and schools.',
+      'intense itching that is worst at night': 'Itching is a hypersensitivity reaction to the mites and their eggs and faeces.',
+      'thin, wavy, raised lines between the fingers': 'Burrows made by female mites in the stratum corneum.',
+    },
+    x: 'Scabies is caused by the mite Sarcoptes scabiei, which burrows into the outer skin. It causes intense night-time itching with burrows, especially between the fingers and toes and on the wrists. Permethrin cream treats it, and close contacts and bedding must be treated too.',
+    hy: ['Scabies: burrows between fingers, nocturnal itch, skin-to-skin spread; treat with permethrin cream or oral ivermectin, and wash bedding.'],
+    lookalikes: {
+      mb_enterobius: 'Pinworm causes ANAL itching at night in children.',
+      mb_onchocerca: 'Onchocerciasis causes itchy, thickened skin and blindness after black fly bites in Africa.',
+      mb_shingles: 'Shingles causes a painful blistering rash in one dermatome.',
+    },
+    vs: 'mb_enterobius',
+  },
+];

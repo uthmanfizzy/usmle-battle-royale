@@ -6,6 +6,7 @@ import { hydSfx } from '../hydSfx';
 import { createHydMusic, hydMusicPref, setHydMusicPref } from '../hydMusic';
 import { HEME_CASES, HEME_BY_ID, HEME_CHAPTERS } from '../hyd/heme/hemeCases';
 import { REPRO_CASES, REPRO_BY_ID, REPRO_CHAPTERS } from '../hyd/repro/reproCases';
+import { MICRO_CASES, MICRO_BY_ID, MICRO_CHAPTERS } from '../hyd/micro/microCases';
 import { useStudySession } from '../studySession';
 import { useStudyActivity } from '../studyPresence';
 import './HydQbank.css';
@@ -37,7 +38,7 @@ const SUBJECTS = [
   { id: 'immuno', name: 'Immunology', icon: '🛡️', open: true },
   { id: 'heme', name: 'Heme & Onc', icon: '🩸', open: true },
   { id: 'repro', name: 'Reproductive', icon: '🤰', open: true },
-  { id: 'micro', name: 'Microbiology', icon: '🦠' },
+  { id: 'micro', name: 'Microbiology', icon: '🦠', open: true },
   { id: 'neuro', name: 'Neurology', icon: '🧠' },
   { id: 'cardio', name: 'Cardiology', icon: '🫀' },
   { id: 'endo', name: 'Endocrinology', icon: '🦋' },
@@ -50,12 +51,13 @@ const DATA = {
   immuno: { cases: IMMUNO_CASES, chapters: IMMUNO_CHAPTERS },
   heme: { cases: HEME_CASES, chapters: HEME_CHAPTERS },
   repro: { cases: REPRO_CASES, chapters: REPRO_CHAPTERS },
+  micro: { cases: MICRO_CASES, chapters: MICRO_CHAPTERS },
 };
 const dataFor = (subject) => DATA[subject] || DATA.biochem;
-const BY_ID = { ...BIO_BY_ID, ...IMMUNO_BY_ID, ...HEME_BY_ID, ...REPRO_BY_ID };
-const CHAPTERS = [...BIO_CHAPTERS, ...IMMUNO_CHAPTERS, ...HEME_CHAPTERS, ...REPRO_CHAPTERS];
+const BY_ID = { ...BIO_BY_ID, ...IMMUNO_BY_ID, ...HEME_BY_ID, ...REPRO_BY_ID, ...MICRO_BY_ID };
+const CHAPTERS = [...BIO_CHAPTERS, ...IMMUNO_CHAPTERS, ...HEME_CHAPTERS, ...REPRO_CHAPTERS, ...MICRO_CHAPTERS];
 // The subject name sent to Daily Activity and shown on study presence.
-const SUBJECT_NAME = { biochem: 'Biochemistry', immuno: 'Immunology', heme: 'Haematology & Oncology', repro: 'Reproductive' };
+const SUBJECT_NAME = { biochem: 'Biochemistry', immuno: 'Immunology', heme: 'Haematology & Oncology', repro: 'Reproductive', micro: 'Microbiology' };
 // The Qbank card: Biochemistry keeps its cards in bioQbank.js (its cases also
 // drive the Clinic); Immunology cases carry the card fields themselves.
 const cardOf = (c) => QB[c.id] || c;
