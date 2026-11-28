@@ -62,6 +62,20 @@ const SYSTEMS = [
       ['Chest Surgery & Trauma', './pulm/surgery'],
     ],
   },
+  {
+    id: 'cardio', name: 'Cardiology', icon: '🫀', pages: [163, 275],
+    sections: [
+      ['Hypertension & Lipids', './cardio/htn'],
+      ['Endocarditis & Rheumatic Fever', './cardio/endocarditis'],
+      ['Aorta & Carotids', './cardio/aorta'],
+      ['Coronary Disease', './cardio/coronary'],
+      ['Murmurs & Valves', './cardio/valves'],
+      ['Arrhythmias & Arrest', './cardio/arrhythmia'],
+      ['Heart Failure & Pericardium', './cardio/heartfailure'],
+      ['Vascular, Shock & Drugs', './cardio/vascular'],
+      ['Pediatric, Surgery & Trauma', './cardio/peds_surgery'],
+    ],
+  },
 ];
 
 const picture = (sys, name) => (name ? `/inner-circle/${sys}/${name}.webp` : null);

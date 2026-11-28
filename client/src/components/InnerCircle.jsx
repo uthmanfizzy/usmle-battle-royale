@@ -577,8 +577,11 @@ export default function InnerCircle({ onExit }) {
   const rating = useFaRatings(RATING_MODE, phase === 'opener' ? null : qs.map(x => x.id));
   // Study time counts only while a question or its explanation is on screen
   // and not paused.
-  const study = useStudySession({ mode: RATING_MODE, active: phase === 'run' && !paused, subject: systemId });
-  useStudyActivity(phase === 'run' ? 'Inner Circle' : null, null, RATING_MODE);
+  // Daily Activity: one session per block, labelled with the system's name
+  // (eg 'Nephrology'), flushed on results, on leaving a block and on page exit.
+  const systemName = catalog?.systems.find(s => s.id === systemId)?.name || null;
+  const study = useStudySession({ mode: RATING_MODE, active: phase === 'run' && !paused, subject: systemName });
+  useStudyActivity(phase === 'run' ? 'Inner Circle' : null, systemName, RATING_MODE);
   useEffect(() => { if (phase === 'results') study.flush(); }, [phase]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -642,11 +645,23 @@ export default function InnerCircle({ onExit }) {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [idx, qs.length, study]);
 
-  const sysName = catalog?.systems.find(s => s.id === systemId)?.name || 'Endocrinology';
+  const sysName = systemName || 'Endocrinology';
+  // Back: from a block (or its results) to the topic list, from the topic list to Story Mode.
+  const goBack = () => {
+    sfx.select();
+    if (phase === 'opener') { exit(); return; }
+    if (phase === 'run') study.flush();
+    setPhase('opener'); setPaused(false); window.scrollTo(0, 0);
+  };
   return (
     <div className={`ic ic-theme--${prefs.theme} ic-size--${prefs.size}`}>
       <header className="ic-bar-top">
-        <button type="button" className="ic-brand" onClick={phase === 'opener' ? exit : () => setPhase('opener')}
+        <button type="button" className="ic-back" onClick={goBack}
+          aria-label={phase === 'opener' ? 'Back to Story Mode' : 'Back to the topic list'}
+          title={phase === 'opener' ? 'Back to Story Mode' : 'Back to the topic list'}>
+          <span aria-hidden="true">←</span> <span className="ic-back-t">{phase === 'opener' ? 'Story Mode' : 'Topics'}</span>
+        </button>
+        <button type="button" className="ic-brand" onClick={goBack}
           title={phase === 'opener' ? 'Back to Story Mode' : 'Back to the topic list'}>
           <span className="ic-logo" aria-hidden="true"><i /><i /><i /></span>
           <span className="ic-brand-t"><b>INNER CIRCLE</b><small>Step 2 CK · {sysName}</small></span>
@@ -655,7 +670,7 @@ export default function InnerCircle({ onExit }) {
           <ReadingPrefs prefs={prefs} setPrefs={setPrefs} />
           <SfxToggle className="ic-sfx" />
           {phase === 'run' && (
-            <button type="button" className="ic-ghost ic-end" onClick={() => { if (results.length) setPhase('results'); else setPhase('opener'); }}>
+            <button type="button" className="ic-ghost ic-end" onClick={() => { if (results.length) setPhase('results'); else goBack(); }}>
               End block
             </button>
           )}
