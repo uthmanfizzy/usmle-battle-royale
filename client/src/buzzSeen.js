@@ -53,3 +53,53 @@ export function markBuzzSeen(id) {
     }));
   } catch { /* ignore */ }
 }
+
+/**
+ * The cards this browser got wrong (or let time out) recently, for the
+ * "review wrong cards" run (duelOptions.buzzWrongDays). Kept 14 days;
+ * answering a card right takes it off. { [id]: { at, s: subject, b: bank } }
+ */
+const WRONG_KEY = 'buzz_wrong';
+const WRONG_KEEP_MS = 14 * 86400000;
+
+function readWrong() {
+  try {
+    const v = JSON.parse(localStorage.getItem(WRONG_KEY) || 'null');
+    if (!v || typeof v !== 'object') return {};
+    const cutoff = Date.now() - WRONG_KEEP_MS;
+    const out = {};
+    for (const [id, e] of Object.entries(v)) if (e && Number(e.at) >= cutoff) out[id] = e;
+    return out;
+  } catch { return {}; }
+}
+
+export function noteBuzzResult(card, correct) {
+  if (!card || !card.id) return;
+  const all = readWrong();
+  if (correct) delete all[card.id];
+  else all[card.id] = { at: Date.now(), s: card.subject || '', b: card.bank || 'vanilla' };
+  const ids = Object.keys(all);
+  if (ids.length > MAX) {
+    ids.sort((a, b) => all[a].at - all[b].at).slice(0, ids.length - MAX).forEach(id => delete all[id]);
+  }
+  try { localStorage.setItem(WRONG_KEY, JSON.stringify(all)); } catch { /* ignore */ }
+}
+
+// [[id, missedAt], ...] to send to the server.
+export function buzzWrongList() {
+  return Object.entries(readWrong()).map(([id, e]) => [id, Number(e.at)]);
+}
+
+// How many cards this browser missed in the last `days` days, in a bank,
+// optionally only in some systems; plus the count per system.
+export function buzzWrongCounts(days, bank) {
+  const cutoff = Date.now() - days * 86400000;
+  const bySubject = {};
+  let total = 0;
+  for (const e of Object.values(readWrong())) {
+    if (Number(e.at) < cutoff || (e.b || 'vanilla') !== bank) continue;
+    total++;
+    bySubject[e.s] = (bySubject[e.s] || 0) + 1;
+  }
+  return { total, bySubject };
+}

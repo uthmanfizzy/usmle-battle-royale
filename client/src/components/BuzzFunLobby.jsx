@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { buzzWrongCounts } from '../buzzSeen';
 import './BuzzFunLobby.css';
 
 /**
@@ -25,6 +26,9 @@ const FOCUS_CARDS = 60;
 // The card-count choices. null = the default (30 mixed, up to 60 in focus);
 // 0 = every card available. The server clamps a custom number to 5–300.
 const CARD_CHOICES = [10, 20, 30, 50, 100];
+// "Review wrong cards": how far back to look (the server accepts the same).
+const WRONG_DAY_CHOICES = [1, 3, 7, 14];
+const DEFAULT_WRONG_DAYS = 3;
 
 export default function BuzzFunLobby({ isHost, options, onChange, subjects: vanillaSubjects, uworldSubjects }) {
   const bank = options?.buzzBank === 'uworld' ? 'uworld' : 'vanilla';
@@ -43,13 +47,26 @@ export default function BuzzFunLobby({ isHost, options, onChange, subjects: vani
     return m;
   }, [list]);
 
+  // Reviewing the cards missed in the last N days (0 = a normal run).
+  const wrongDays = WRONG_DAY_CHOICES.includes(Number(options?.buzzWrongDays)) ? Number(options.buzzWrongDays) : 0;
+  const reviewing = wrongDays > 0;
+  // This browser's own misses; the server adds everyone else's in the room.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const wrong = useMemo(() => buzzWrongCounts(wrongDays || DEFAULT_WRONG_DAYS, bank), [wrongDays, bank, options]);
+  const wrongInPlay = chosenSubjects.length
+    ? chosenSubjects.reduce((n, id) => n + (wrong.bySubject[id] || 0), 0)
+    : wrong.total;
+
   const runCards = topics.reduce((n, k) => n + (topicInfo.get(k)?.count || 0), 0);
-  const poolCards = inPlay.reduce((n, s) => n + (s.count || 0), 0);
+  const poolCards = reviewing ? wrongInPlay : inPlay.reduce((n, s) => n + (s.count || 0), 0);
   // How many cards the host asked for (null = default, 0 = all).
   const cardsOpt = options?.buzzCards == null ? null : Number(options.buzzCards);
   const focusing = focus && topics.length > 0;
   const available = focusing ? runCards : poolCards;
-  const wanted = cardsOpt === 0 ? available : (cardsOpt || (focusing ? FOCUS_CARDS : MIXED_CARDS));
+  // A review plays every missed card unless the host picked a number.
+  const wanted = cardsOpt === 0 || (reviewing && cardsOpt == null)
+    ? available
+    : (cardsOpt || (focusing ? FOCUS_CARDS : MIXED_CARDS));
   const cards = available ? Math.min(wanted, available) : wanted;
   const minutes = Math.max(1, Math.round((cards * SECONDS_PER_CARD) / 60));
   const [customCards, setCustomCards] = useState('');
@@ -97,9 +114,11 @@ export default function BuzzFunLobby({ isHost, options, onChange, subjects: vani
         <div className="bfl-head-text">
           <h3>{isHost ? 'Build your run' : 'The host’s run'}</h3>
           <p>
-            {focus && topics.length
-              ? `${topics.length} topic${topics.length === 1 ? '' : 's'}, played in order`
-              : `Mixed — ${cards} random cards`}
+            {reviewing
+              ? `Review — cards missed in the last ${wrongDays === 1 ? 'day' : `${wrongDays} days`}`
+              : focus && topics.length
+                ? `${topics.length} topic${topics.length === 1 ? '' : 's'}, played in order`
+                : `Mixed — ${cards} random cards`}
             {' · '}
             {chosenSubjects.length ? inPlay.map(s => s.name).join(' + ') : 'every system'}
             {bank === 'uworld' ? ' · UWorld cards' : ''}
@@ -131,6 +150,47 @@ export default function BuzzFunLobby({ isHost, options, onChange, subjects: vani
         </div>
       </section>
 
+      {/* ── All cards, or the ones got wrong lately ───────────────────── */}
+      <section className="bfl-step">
+        <h4>What to play?</h4>
+        <div className="bfl-modes">
+          <button type="button" className={`bfl-mode${!reviewing ? ' is-on' : ''}`} aria-pressed={!reviewing} onClick={() => isHost && set({ buzzWrongDays: 0 })} disabled={!isHost}>
+            <span className="bfl-mode-icon" aria-hidden="true">🐝</span>
+            <span className="bfl-mode-name">All cards</span>
+            <span className="bfl-mode-sub">A normal run through the bank</span>
+          </button>
+          <button type="button" className={`bfl-mode${reviewing ? ' is-on' : ''}`} aria-pressed={reviewing} onClick={() => isHost && set({ buzzWrongDays: wrongDays || DEFAULT_WRONG_DAYS })} disabled={!isHost}>
+            <span className="bfl-mode-icon" aria-hidden="true">🔁</span>
+            <span className="bfl-mode-name">Cards I got wrong</span>
+            <span className="bfl-mode-sub">Only the cards missed lately — pick Everything or one system below</span>
+          </button>
+        </div>
+        {reviewing && (
+          <>
+            <div className="bfl-chips bfl-count" role="group" aria-label="How far back" style={{ marginTop: 10 }}>
+              {WRONG_DAY_CHOICES.map(d => (
+                <button
+                  key={d}
+                  type="button"
+                  className={`bfl-chip${wrongDays === d ? ' is-on' : ''}`}
+                  aria-pressed={wrongDays === d}
+                  onClick={() => isHost && set({ buzzWrongDays: d })}
+                  disabled={!isHost}
+                >
+                  {d === 1 ? 'Last 24 h' : `Last ${d} days`}
+                </button>
+              ))}
+            </div>
+            <p className="bfl-note">
+              {wrongInPlay
+                ? `You missed ${wrongInPlay} card${wrongInPlay === 1 ? '' : 's'} here in that time`
+                : 'You have no missed cards here in that time'}
+              {' '}(wrong or timed out). Everyone else’s misses are added in too. Get a card right and it leaves the list.
+            </p>
+          </>
+        )}
+      </section>
+
       {/* ── 1. Systems ────────────────────────────────────────────────── */}
       <section className="bfl-step">
         <h4><span className="bfl-num">1</span> Systems</h4>
@@ -143,7 +203,7 @@ export default function BuzzFunLobby({ isHost, options, onChange, subjects: vani
           >
             <span className="bfl-sys-icon" aria-hidden="true">🍯</span>
             <span className="bfl-sys-name">Everything</span>
-            <span className="bfl-sys-meta">{list.reduce((n, s) => n + (s.count || 0), 0)} cards</span>
+            <span className="bfl-sys-meta">{reviewing ? `${wrong.total} missed` : `${list.reduce((n, s) => n + (s.count || 0), 0)} cards`}</span>
           </button>
           {list.map(s => {
             const on = chosenSubjects.includes(s.id);
@@ -158,7 +218,7 @@ export default function BuzzFunLobby({ isHost, options, onChange, subjects: vani
               >
                 <span className="bfl-sys-icon" aria-hidden="true">{ICON[s.id] || '📚'}</span>
                 <span className="bfl-sys-name">{s.name}</span>
-                <span className="bfl-sys-meta">{s.count} cards · {(s.topics || []).length} topics</span>
+                <span className="bfl-sys-meta">{reviewing ? `${wrong.bySubject[s.id] || 0} missed` : `${s.count} cards · ${(s.topics || []).length} topics`}</span>
                 {on && <span className="bfl-check" aria-hidden="true">✓</span>}
               </button>
             );
@@ -220,7 +280,7 @@ export default function BuzzFunLobby({ isHost, options, onChange, subjects: vani
         {available > 0 && wanted > available && (
           <p className="bfl-note">Only {available} cards match these settings, so the run will be {available}.</p>
         )}
-        <div className="bfl-chips bfl-count" role="group" aria-label="Cards already played today" style={{ marginTop: 10 }}>
+        <div className="bfl-chips bfl-count" role="group" aria-label="Cards already played today" style={{ marginTop: 10, display: reviewing ? 'none' : undefined }}>
           <button
             type="button"
             className={`bfl-chip${skipSeen && !skipYesterday ? ' is-on' : ''}`}
@@ -249,7 +309,7 @@ export default function BuzzFunLobby({ isHost, options, onChange, subjects: vani
             Allow repeats
           </button>
         </div>
-        {skipSeen && (
+        {skipSeen && !reviewing && (
           <p className="bfl-note">
             {skipYesterday
               ? 'Cards anyone here has had today or yesterday are left out, so the run is cards none of you has seen in two days.'

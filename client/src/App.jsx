@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
 import socket from './socket';
 import * as audio from './audio';
-import { buzzToday, buzzYesterday, buzzSeenIds, buzzSeenYesterdayIds, markBuzzSeen } from './buzzSeen';
+import { buzzToday, buzzYesterday, buzzSeenIds, buzzSeenYesterdayIds, markBuzzSeen, noteBuzzResult, buzzWrongList } from './buzzSeen';
 import { watchMatch } from './matchWatch';
 import { getToken, clearToken, fetchMe, getCachedUser, redirectToGoogle, getGuestName, setGuestName, clearGuestName } from './auth';
 import { SERVER_URL } from './serverUrl';
@@ -355,6 +355,7 @@ export default function App() {
         socket.emit('buzz_seen_today', {
           day: buzzToday(), ids: buzzSeenIds(),
           prevDay: buzzYesterday(), prevIds: buzzSeenYesterdayIds(),
+          wrong: buzzWrongList(),
         });
       }
     });
@@ -583,8 +584,12 @@ export default function App() {
         setStreaks(prev => ({ ...prev, [socket.id]: result.streak }));
       }
       if (result.onFire) showToast('🔥 You\'re on fire!');
-      // Buzz Fun plays its own sounds (buzzSfx.js) from its screen.
-      if (gameModeRef.current === 'buzz_fun') return;
+      // Buzz Fun plays its own sounds (buzzSfx.js) from its screen; it also
+      // keeps the list of missed cards for the "review wrong cards" run.
+      if (gameModeRef.current === 'buzz_fun') {
+        if (result.buzzCard) noteBuzzResult(result.buzzCard, !!result.correct);
+        return;
+      }
       if (result.correct) audio.playCorrect();
       else {
         audio.playWrong();

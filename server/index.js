@@ -1194,6 +1194,74 @@ function buzzFunOwnPool(lobby) {
   return pool;
 }
 
+// ── Cards got wrong recently ────────────────────────────────────────────────
+// A card counts as missed when a player answered it wrong or let the clock
+// run out; answering it right later clears it. Each browser keeps its own
+// list (client buzzSeen.js, sent with buzz_seen_today) and the server keeps
+// one per signed-in account (in memory, like the seen-today lists). The
+// "review wrong cards" run (duelOptions.buzzWrongDays) plays the cards anyone
+// in the room missed in the last N days.
+const BUZZ_WRONG_DAY_CHOICES = [1, 3, 7, 14];
+const BUZZ_WRONG_KEEP_MS = 14 * 86400000;
+const BUZZ_WRONG_MAX = 3000;
+const buzzWrongByUser = new Map();   // userId -> Map(cardId -> missedAt ms)
+
+function buzzWrongPrune(map) {
+  const cutoff = Date.now() - BUZZ_WRONG_KEEP_MS;
+  for (const [id, at] of map) if (at < cutoff) map.delete(id);
+  while (map.size > BUZZ_WRONG_MAX) map.delete(map.keys().next().value);
+}
+function buzzUserWrong(userId) {
+  if (!userId) return null;
+  let m = buzzWrongByUser.get(userId);
+  if (!m) { m = new Map(); buzzWrongByUser.set(userId, m); }
+  return m;
+}
+// After a card: remember a miss, or clear it on a right answer.
+function buzzNoteResult(p, id, correct) {
+  if (p.isBot || id == null) return;
+  const key = String(id);
+  if (!(p.buzzWrong instanceof Map)) p.buzzWrong = new Map();
+  const mine = buzzUserWrong(io.sockets.sockets.get(p.id)?.userId);
+  for (const m of [p.buzzWrong, mine]) {
+    if (!m) continue;
+    if (correct) m.delete(key);
+    else { m.delete(key); m.set(key, Date.now()); buzzWrongPrune(m); }
+  }
+}
+// Every card a human in the lobby missed in the last `days` days.
+function buzzLobbyWrong(lobby, days) {
+  const cutoff = Date.now() - days * 86400000;
+  const all = new Set();
+  for (const p of lobby.players.values()) {
+    if (p.isBot) continue;
+    const mine = buzzUserWrong(io.sockets.sockets.get(p.id)?.userId);
+    for (const m of [p.buzzWrong, mine]) {
+      if (!(m instanceof Map)) continue;
+      for (const [id, at] of m) if (at >= cutoff) all.add(id);
+    }
+  }
+  return all;
+}
+// The review pool: this bank's cards (strictly the chosen systems, if any)
+// that someone here missed recently.
+function buzzFunWrongPool(lobby, days) {
+  const opts = lobby.duelOptions ? sanitizeDuelOptions(lobby.duelOptions) : null;
+  const wrong = buzzLobbyWrong(lobby, days);
+  if (!wrong.size) return [];
+  let pool;
+  if (opts && opts.buzzBank === 'uworld') {
+    pool = [...BUZZ_UWORLD_BANK];
+  } else {
+    const admin = questionBank.filter(q => (q.game_modes || []).includes('buzz_fun'));
+    const seen = new Set(admin.map(q => String(q.question || '').trim().toLowerCase()));
+    pool = [...admin, ...BUZZ_BANK.filter(c => !seen.has(c.question.trim().toLowerCase()))];
+  }
+  const chosen = new Set(opts ? opts.subjects : []);
+  return pool.filter(q => wrong.has(String(q.id))
+    && (!chosen.size || chosen.has(String(q.subject || '').toLowerCase())));
+}
+
 /**
  * How long a card stays up: twenty seconds, every card (fifteen felt rushed). (Eight was too short
  * to read a long clue; a length-based 10–18 s made the clock unpredictable.)
@@ -1334,10 +1402,16 @@ function markBuzzCardSeen(lobby, q) {
 }
 
 function startBuzzFun(lobby) {
+  // Reviewing the cards missed in the last few days, or a normal run.
+  const wrongDays = lobby.duelOptions ? sanitizeDuelOptions(lobby.duelOptions).buzzWrongDays : 0;
   // The host's chosen questions, or Buzz Fun's own.
-  let pool = matchPoolOr(lobby, buzzFunOwnPool(lobby));
+  let pool = wrongDays ? buzzFunWrongPool(lobby, wrongDays) : matchPoolOr(lobby, buzzFunOwnPool(lobby));
   if (pool.length < 1) {
-    io.to(lobby.id).emit('error', { message: 'No Buzz Fun questions available. Add some via the admin panel.' });
+    io.to(lobby.id).emit('error', {
+      message: wrongDays
+        ? `No cards got wrong in the last ${wrongDays} days${lobby.duelOptions?.subjects?.length ? ' in these systems' : ''}. Pick another system or a longer window.`
+        : 'No Buzz Fun questions available. Add some via the admin panel.',
+    });
     return;
   }
   // Leave out what the room has already had today (on unless the host turned
@@ -1346,7 +1420,8 @@ function startBuzzFun(lobby) {
   // fullPool is the whole selection before today's cards come out: the
   // "bank" the cards-left count is measured against.
   const fullPool = pool;
-  const skipSeen = !lobby.duelOptions || sanitizeDuelOptions(lobby.duelOptions).buzzSkipSeen;
+  // A review run plays the missed cards even if they came up today.
+  const skipSeen = !wrongDays && (!lobby.duelOptions || sanitizeDuelOptions(lobby.duelOptions).buzzSkipSeen);
   // Also leave out yesterday's cards (off unless the host turns it on).
   const withYesterday = skipSeen && !!lobby.duelOptions && sanitizeDuelOptions(lobby.duelOptions).buzzSkipYesterday;
   const whenWords = withYesterday ? 'today or yesterday' : 'today';
@@ -1377,7 +1452,8 @@ function startBuzzFun(lobby) {
     const shuffled = shuffle(pool);
     // The host's card count (0 = all of them); unset keeps the default 30.
     const want = lobby.duelOptions ? sanitizeDuelOptions(lobby.duelOptions).buzzCards : null;
-    const count = want === 0 ? shuffled.length : (want || BUZZ_FUN_ROUNDS);
+    // A review run plays every missed card unless the host set a number.
+    const count = want === 0 || (wrongDays && want == null) ? shuffled.length : (want || BUZZ_FUN_ROUNDS);
     lobby.questionQueue = shuffled.slice(0, Math.min(count, shuffled.length));
     lobby.buzzSections  = null;
   }
@@ -1386,6 +1462,12 @@ function startBuzzFun(lobby) {
   // Skipping today's cards: how far through the bank this run takes the room.
   lobby.buzzScope = null;
   let buzzStartNotice = null;
+  if (wrongDays) {
+    const run = lobby.questionQueue.length;
+    buzzStartNotice = run < pool.length
+      ? `Reviewing ${run} of the ${pool.length} cards missed in the last ${wrongDays} days.`
+      : `Reviewing the ${run} card${run === 1 ? '' : 's'} missed in the last ${wrongDays} days. Get one right and it leaves the list.`;
+  }
   if (skipSeen) {
     const opts = lobby.duelOptions ? sanitizeDuelOptions(lobby.duelOptions) : null;
     const topicKeys = new Set(sections && opts ? opts.topics : []);
@@ -1537,6 +1619,7 @@ function processBuzzFunAnswers(lobby) {
       lobby.buzzStats.set(player.id, st);
     }
     trackPlayerAnswer(player.id, q, { answered: answer !== undefined, correct });
+    buzzNoteResult(player, q.id, correct);
 
     const explanation = (lobby.difficulty === 'hard' ? gameSettings.hardModeHideExplanations : gameSettings.easyModeHideExplanations)
       ? ''
@@ -1548,6 +1631,8 @@ function processBuzzFunAnswers(lobby) {
         lives: 3, alive: true,
         score: player.score, explanation,
         streak: sr.streak, onFire: sr.onFire, pointsEarned,
+        // So the browser can keep its own list of missed cards.
+        buzzCard: { id: q.id == null ? null : String(q.id), subject: String(q.subject || '').toLowerCase(), bank: lobby.duelOptions?.buzzBank === 'uworld' ? 'uworld' : 'vanilla' },
       },
     });
     if (!player.isBot && lobby.buzzLastAnswer) lobby.buzzLastAnswer.set(player.id, payload);
@@ -2131,7 +2216,9 @@ function sanitizeDuelOptions(raw) {
   const buzzSkipSeen = o.buzzSkipSeen !== false;
   // ...and yesterday's as well. Off unless the host turns it on.
   const buzzSkipYesterday = buzzSkipSeen && o.buzzSkipYesterday === true;
-  return { source, winBy, rounds, subjects, journeySubject, chapterId, levelId, journeyTrack, powers, explanations, topics, buzzBank, buzzCards, buzzSkipSeen, buzzSkipYesterday };
+  // Buzz Fun: play only the cards missed in the last N days (0 = a normal run).
+  const buzzWrongDays = BUZZ_WRONG_DAY_CHOICES.includes(Number(o.buzzWrongDays)) ? Number(o.buzzWrongDays) : 0;
+  return { source, winBy, rounds, subjects, journeySubject, chapterId, levelId, journeyTrack, powers, explanations, topics, buzzBank, buzzCards, buzzSkipSeen, buzzSkipYesterday, buzzWrongDays };
 }
 
 /**
@@ -4804,7 +4891,7 @@ io.on('connection', (socket) => {
    * this one, and whatever is on screen right now is sent again.
    */
   // A player's own list of the cards they have had today (see buzzLobbySeen).
-  socket.on('buzz_seen_today', ({ day, ids, prevIds } = {}) => {
+  socket.on('buzz_seen_today', ({ day, ids, prevIds, wrong } = {}) => {
     const lobby = lobbies.get(socket.lobbyId);
     const player = lobby && lobby.players.get(socket.id);
     if (!player || lobby.gameMode !== 'buzz_fun' || !Array.isArray(ids)) return;
@@ -4824,6 +4911,19 @@ io.on('connection', (socket) => {
     }
     const minePrev = buzzUserSeenYesterday(socket.userId, player.buzzSeenDay);
     if (minePrev) for (const id of player.buzzSeenPrev) addBuzzSeen(minePrev, id);
+    // The cards this browser missed recently: [[id, missedAt ms], ...].
+    if (Array.isArray(wrong)) {
+      if (!(player.buzzWrong instanceof Map)) player.buzzWrong = new Map();
+      const now = Date.now();
+      for (const row of wrong.slice(-BUZZ_WRONG_MAX)) {
+        if (!Array.isArray(row)) continue;
+        const [id, at] = row;
+        const t = Number(at);
+        if (typeof id !== 'string' || id.length > 80 || !Number.isFinite(t)) continue;
+        if (!player.buzzWrong.has(id)) player.buzzWrong.set(id, Math.min(t, now));
+      }
+      buzzWrongPrune(player.buzzWrong);
+    }
   });
 
   socket.on('buzz_rejoin', ({ lobbyId, key } = {}, ack) => {
