@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { BIO_CASES, BIO_BY_ID, BIO_CHAPTERS, INHERIT_LABEL } from '../hyd/bioCases';
 import HydPatient from '../hyd/HydPatient';
 import ExamInset from '../hyd/ExamInset';
-import { textCase } from '../hyd/textCase';
+import HydQbank from './HydQbank';
+import { useAdminAccess } from './useAdminAccess';
 import { sfx } from '../minigameSfx';
 import SfxToggle from './SfxToggle';
 import './HyDiseases.css';
@@ -45,13 +46,6 @@ const Stars = ({ n, size = 'sm' }) => (
     {[1, 2, 3].map(i => <span key={i} className={i <= n ? 'is-on' : ''}>★</span>)}
   </span>
 );
-
-// Lab result colour: high reads warm, low reads cool, anything else plain.
-function labTone(value) {
-  if (/\b(high|raised|elevated|positive|prolonged)\b/i.test(value)) return 'is-hi';
-  if (/\b(low|absent|deficient|none)\b/i.test(value)) return 'is-lo';
-  return '';
-}
 
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
@@ -340,110 +334,8 @@ function CaseView({ c, index, total, onSolved, onNext, onExit }) {
   );
 }
 
-/**
- * The same case as a plain question-bank item: one written vignette, the
- * tests, "most likely diagnosis?" with A–D, one try, then the explanation.
- * No animation, no chat. A right answer is 3 stars, a wrong one 1 (seen).
- */
-function QbankCase({ c, index, total, onSolved, onNext, onExit }) {
-  const [pick, setPick] = useState(null);
-  const [done, setDone] = useState(false);
-  const learnRef = useRef(null);
-  const options = useMemo(() => shuffle([c.id, ...Object.keys(c.lookalikes)]), [c]);
-  const { opening, history, findings, labs } = useMemo(() => textCase(c), [c]);
-  const right = pick === c.id;
-
-  function submit() {
-    if (!pick || done) return;
-    setDone(true);
-    if (right) sfx.correct(); else sfx.wrong();
-    onSolved(right ? 3 : 1, right ? [] : [pick]);
-  }
-  useEffect(() => {
-    if (done) learnRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }, [done]);
-
-  return (
-    <div className="hd-case hd-qb">
-      <div className="hd-topbar">
-        <button type="button" className="hd-back" onClick={onExit}>← Clinic</button>
-        <span className="hd-top-title">Question {index + 1} of {total}</span>
-        <SfxToggle className="hd-sfx" />
-      </div>
-
-      <section className="hd-sec hd-qb-card">
-        <div className="hd-qb-stem">
-          <p><strong>{opening.who}</strong>{opening.rest} {history}</p>
-          {findings.length > 0 && (
-            <p>
-              <span className="hd-qb-lead">On examination:</span>{' '}
-              {findings.map((f, i) => (
-                <span key={f}><strong>{f}</strong>{i < findings.length - 1 ? '; ' : '.'}</span>
-              ))}
-            </p>
-          )}
-        </div>
-        {labs.length > 0 && (
-          <div className="hd-qb-labs">
-            <h4>Laboratory and other studies</h4>
-            <dl>
-              {labs.map(({ name, value }) => (
-                <div key={name + value} className="hd-qb-lab">
-                  {name && <dt>{name}</dt>}
-                  <dd className={labTone(value)}>{value}</dd>
-                </div>
-              ))}
-            </dl>
-          </div>
-        )}
-        <p className="hd-qb-ask">Which of the following is the most likely diagnosis?</p>
-        <div className="hd-qb-options" role="radiogroup" aria-label="Answer choices">
-          {options.map((id, i) => {
-            const state = !done ? (pick === id ? ' is-picked' : '')
-              : id === c.id ? ' is-right' : id === pick ? ' is-wrong' : ' is-dim';
-            return (
-              <button
-                key={id}
-                type="button"
-                role="radio"
-                aria-checked={pick === id}
-                className={`hd-qb-option${state}`}
-                onClick={() => { if (!done) { setPick(id); sfx.select(); } }}
-                disabled={done}
-              >
-                <span className="hd-qb-letter">{'ABCD'[i]}</span>
-                <span>{BIO_BY_ID[id].name}</span>
-                {done && id === c.id && <span className="hd-qb-mark" aria-hidden="true">✓</span>}
-                {done && id === pick && !right && <span className="hd-qb-mark" aria-hidden="true">✕</span>}
-              </button>
-            );
-          })}
-        </div>
-        {!done && (
-          <button type="button" className="hd-step-btn" onClick={submit} disabled={!pick}>Submit</button>
-        )}
-        {done && (
-          <p className={`hd-qb-verdict${right ? ' is-right' : ' is-wrong'}`}>
-            {right ? <><strong>Correct.</strong> {c.name}.</> : <><strong>Incorrect.</strong> The answer is {c.name}. {c.lookalikes[pick]}</>}
-          </p>
-        )}
-      </section>
-
-      {done && (
-        <section className="hd-sec hd-sec--learn" ref={learnRef} style={{ scrollMarginTop: 8 }}>
-          <h3 className="hd-sec-title"><span>✎</span> Explanation</h3>
-          <LearnCard c={c} picked={right ? [] : [pick]} />
-          <button type="button" className="hd-step-btn hd-step-btn--next" onClick={onNext}>
-            {index + 1 < total ? <>Next question <span aria-hidden="true">→</span></> : <>Finish block <span aria-hidden="true">✓</span></>}
-          </button>
-        </section>
-      )}
-    </div>
-  );
-}
-
 const STYLE_KEY = 'mv_hyd_style';
-const loadStyle = () => { try { return localStorage.getItem(STYLE_KEY) === 'qbank' ? 'qbank' : 'clinic'; } catch { return 'clinic'; } };
+const loadStyle = () => { try { return localStorage.getItem(STYLE_KEY) === 'clinic' ? 'clinic' : 'qbank'; } catch { return 'qbank'; } };
 
 export default function HyDiseasesBio({ onExit }) {
   const [style, setStyleState] = useState(loadStyle);
@@ -455,6 +347,8 @@ export default function HyDiseasesBio({ onExit }) {
   const [log, setLog] = useState([]);
   const [bookOpen, setBookOpen] = useState(null);
 
+  // The animated Clinic is admin-only for now; everyone else gets the Qbank.
+  const isAdmin = useAdminAccess() === true;
   const totalStars = Object.values(progress).reduce((a, b) => a + b, 0);
   const learned = Object.keys(progress).length;
 
@@ -482,12 +376,26 @@ export default function HyDiseasesBio({ onExit }) {
     else { setScreen('summary'); sfx.complete(); }
   }
 
+  if (!isAdmin || style === 'qbank') {
+    return (
+      <HydQbank
+        onExit={onExit}
+        clinic={isAdmin}
+        onClinic={() => setStyle('clinic')}
+        progress={progress}
+        onResult={(id, right) => setProgress(p => {
+          const nextP = { ...p, [id]: Math.max(p[id] || 0, right ? 3 : 1) };
+          saveProgress(nextP);
+          return nextP;
+        })}
+      />
+    );
+  }
+
   if (screen === 'case' && queue[index]) {
     return (
       <div className="hd-screen">
-        {style === 'qbank'
-          ? <QbankCase key={queue[index].id} c={queue[index]} index={index} total={queue.length} onSolved={solved} onNext={next} onExit={() => setScreen('home')} />
-          : <CaseView key={queue[index].id} c={queue[index]} index={index} total={queue.length} onSolved={solved} onNext={next} onExit={() => setScreen('home')} />}
+        <CaseView key={queue[index].id} c={queue[index]} index={index} total={queue.length} onSolved={solved} onNext={next} onExit={() => setScreen('home')} />
       </div>
     );
   }
@@ -578,11 +486,11 @@ export default function HyDiseasesBio({ onExit }) {
                 <b>🩺 Clinic</b><small>animated patient, history and exam step by step</small>
               </button>
               <button type="button" role="radio" aria-checked={style === 'qbank'} className={style === 'qbank' ? 'is-on' : ''} onClick={() => setStyle('qbank')}>
-                <b>📝 Qbank</b><small>written vignette, A–D, one try, explanation</small>
+                <b>📝 Qbank</b><small>condensed HY vignettes, tap to answer</small>
               </button>
             </div>
             <div className="hd-hero-actions">
-              <button type="button" className="hd-step-btn" onClick={() => start(BIO_CASES)}>{style === 'qbank' ? 'Start mixed block' : 'Start mixed rounds'} <span aria-hidden="true">→</span></button>
+              <button type="button" className="hd-step-btn" onClick={() => start(BIO_CASES)}>Start mixed rounds <span aria-hidden="true">→</span></button>
               <button type="button" className="hd-ghost" onClick={() => setScreen('book')}>Open the casebook</button>
             </div>
           </div>

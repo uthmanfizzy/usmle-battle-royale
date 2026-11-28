@@ -93,6 +93,26 @@ for (const l of heldLabs) if (!allLabs.has(l)) errs.push(`held-back lab not foun
 for (const k of heldInsets) if (!INSETS.includes(k)) errs.push(`held-back inset kind unknown: ${k}`);
 for (const c of cases) if (!c.exam.some(([, k]) => !heldInsets.includes(k))) errs.push(`${c.id}: exam empty once confirmations are held back`);
 
+// Qbank cards (hyd/qbank/bioQbank.js): one per case, condensed, and the
+// stem must not give the answer away.
+const qb = (await import(pathToFileURL(path.join(dir, 'qbank', 'bioQbank.js')).href)).default;
+for (const id of Object.keys(qb)) if (!ids.has(id)) errs.push(`qbank: ${id} is not a case`);
+for (const c of cases) {
+  const at = (m) => errs.push(`qbank ${c.id}: ${m}`);
+  const q = qb[c.id];
+  if (!q) { at('missing'); continue; }
+  if (!q.s || q.s.length > 420) at(`stem missing or too long (${q.s?.length})`);
+  if ((q.s.match(/\*\*/g) || []).length % 2) at('unbalanced ** in stem');
+  const bare = q.s.replace(/\*\*/g, '').toLowerCase();
+  const head = c.name.toLowerCase().replace(/\s*\(.*\)$/, '');
+  if (bare.includes(head)) at('stem names the disease');
+  if (!Array.isArray(q.hy) || q.hy.length !== 3) at('needs exactly 3 hy points');
+  for (const h of q.hy || []) if (h.length > 130) at(`hy point too long: ${h.slice(0, 40)}…`);
+  if (!Array.isArray(q.vs) || q.vs.length !== 2) at('vs must be [id, text]');
+  else if (!Object.keys(c.lookalikes).includes(q.vs[0])) at(`vs ${q.vs[0]} is not one of its lookalikes`);
+  if (/[‘’“”]/.test(JSON.stringify(q))) at('smart quotes present');
+}
+
 const byChapter =Object.fromEntries(CHAPTERS.map(ch => [ch, cases.filter(c => c.chapter === ch).length]));
 console.log(`${cases.length} cases`, byChapter);
 console.log(`patient vocab: ${MOTIONS.length} motions, ${SIGNS.length} signs, ${FACES.length} faces; ${INSETS.length} inset kinds`);
