@@ -48,6 +48,20 @@ const SYSTEMS = [
       ['GU Trauma & Surgery', './renal/trauma'],
     ],
   },
+  {
+    id: 'pulm', name: 'Pulmonology', icon: '🫁', pages: [63, 161],
+    sections: [
+      ['Physiology & Toxic Gases', './pulm/physiology'],
+      ['Head, Neck & Nose', './pulm/ent'],
+      ['Obstructive Disease', './pulm/obstructive'],
+      ['Restrictive & Pulmonary Vascular', './pulm/restrictive'],
+      ['Pneumonia & Pleura', './pulm/pneumonia'],
+      ['Embolism & ARDS', './pulm/embolism'],
+      ['Lung & Head-Neck Cancer', './pulm/cancer'],
+      ['Pediatric Pulmonology', './pulm/peds'],
+      ['Chest Surgery & Trauma', './pulm/surgery'],
+    ],
+  },
 ];
 
 const picture = (sys, name) => (name ? `/inner-circle/${sys}/${name}.webp` : null);
