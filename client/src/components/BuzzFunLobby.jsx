@@ -55,6 +55,8 @@ export default function BuzzFunLobby({ isHost, options, onChange, subjects: vani
   const [customCards, setCustomCards] = useState('');
   // On unless the host turns it off (the server reads it the same way).
   const skipSeen = options?.buzzSkipSeen !== false;
+  // Also skip yesterday's cards: off unless the host turns it on.
+  const skipYesterday = skipSeen && options?.buzzSkipYesterday === true;
   const pickCards = (n) => { setCustomCards(''); set({ buzzCards: n }); };
   const applyCustom = (raw) => {
     const n = Number.parseInt(raw, 10);
@@ -221,25 +223,38 @@ export default function BuzzFunLobby({ isHost, options, onChange, subjects: vani
         <div className="bfl-chips bfl-count" role="group" aria-label="Cards already played today" style={{ marginTop: 10 }}>
           <button
             type="button"
-            className={`bfl-chip${skipSeen ? ' is-on' : ''}`}
-            aria-pressed={skipSeen}
-            onClick={() => isHost && set({ buzzSkipSeen: true })}
+            className={`bfl-chip${skipSeen && !skipYesterday ? ' is-on' : ''}`}
+            aria-pressed={skipSeen && !skipYesterday}
+            onClick={() => isHost && set({ buzzSkipSeen: true, buzzSkipYesterday: false })}
             disabled={!isHost}
           >
             Skip cards done today
           </button>
           <button
             type="button"
+            className={`bfl-chip${skipYesterday ? ' is-on' : ''}`}
+            aria-pressed={skipYesterday}
+            onClick={() => isHost && set({ buzzSkipSeen: true, buzzSkipYesterday: true })}
+            disabled={!isHost}
+          >
+            Skip today + yesterday
+          </button>
+          <button
+            type="button"
             className={`bfl-chip${!skipSeen ? ' is-on' : ''}`}
             aria-pressed={!skipSeen}
-            onClick={() => isHost && set({ buzzSkipSeen: false })}
+            onClick={() => isHost && set({ buzzSkipSeen: false, buzzSkipYesterday: false })}
             disabled={!isHost}
           >
             Allow repeats
           </button>
         </div>
         {skipSeen && (
-          <p className="bfl-note">Cards anyone here has already had today are left out, so another run is all new cards.</p>
+          <p className="bfl-note">
+            {skipYesterday
+              ? 'Cards anyone here has had today or yesterday are left out, so the run is cards none of you has seen in two days.'
+              : 'Cards anyone here has already had today are left out, so another run is all new cards.'}
+          </p>
         )}
       </section>
 

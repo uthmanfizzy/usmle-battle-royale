@@ -99,8 +99,8 @@ export default function BuzzFunResults({ gameResult, username, onPlayAgain, onOn
             <section className="bfr-bank is-done" role="status">
               <span className="bfr-bank-icon" aria-hidden="true">🏆</span>
               <div>
-                <b>{me.buzzLeft.replay ? `You had already finished ${me.buzzLeft.label} today` : `You have finished the entire ${me.buzzLeft.label} bank!`}</b>
-                <small>All {me.buzzLeft.total} cards done today{me.buzzLeft.replay ? ', so this run was a repeat.' : '. Pick another system, or allow repeats to go round again.'}</small>
+                <b>{me.buzzLeft.replay ? `You had already finished ${me.buzzLeft.label} ${me.buzzLeft.withYesterday ? "today or yesterday" : "today"}` : `You have finished the entire ${me.buzzLeft.label} bank!`}</b>
+                <small>All {me.buzzLeft.total} cards done {me.buzzLeft.withYesterday ? 'today or yesterday' : 'today'}{me.buzzLeft.replay ? ', so this run was a repeat.' : '. Pick another system, or allow repeats to go round again.'}</small>
               </div>
             </section>
           ) : (
@@ -108,7 +108,7 @@ export default function BuzzFunResults({ gameResult, username, onPlayAgain, onOn
               <span className="bfr-bank-icon" aria-hidden="true">🍯</span>
               <div>
                 <b>{me.buzzLeft.left} card{me.buzzLeft.left === 1 ? '' : 's'} left in {me.buzzLeft.label}</b>
-                <small>{me.buzzLeft.total - me.buzzLeft.left} of {me.buzzLeft.total} done today. Play again to keep going.</small>
+                <small>{me.buzzLeft.total - me.buzzLeft.left} of {me.buzzLeft.total} done {me.buzzLeft.withYesterday ? 'today or yesterday' : 'today'}. Play again to keep going.</small>
                 <span className="bfr-bar"><span style={{ width: `${pct(me.buzzLeft.total - me.buzzLeft.left, me.buzzLeft.total)}%` }} /></span>
               </div>
             </section>

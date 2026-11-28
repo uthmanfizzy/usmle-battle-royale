@@ -1247,33 +1247,53 @@ function buzzFunSections(lobby, pool) {
 // device. In memory only: a restart forgets, the browser's copy does not.
 // "Today" is the player's own calendar day, as their browser reports it.
 const BUZZ_SEEN_MAX = 3000;
-const buzzSeenByUser = new Map();   // userId -> { day, ids: Set }
+// userId -> { day, ids: Set, prevDay, prevIds: Set } (today and yesterday)
+const buzzSeenByUser = new Map();
 
 function buzzDayOf(v) {
   return typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : new Date().toISOString().slice(0, 10);
 }
-function buzzUserSeen(userId, day) {
+// The calendar day before a YYYY-MM-DD day.
+function buzzDayBefore(day) {
+  const d = new Date(`${day}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() - 1);
+  return d.toISOString().slice(0, 10);
+}
+function buzzUserEntry(userId, day) {
   if (!userId) return null;
   let e = buzzSeenByUser.get(userId);
-  if (!e || e.day !== day) { e = { day, ids: new Set() }; buzzSeenByUser.set(userId, e); }
-  return e.ids;
+  if (!e || e.day !== day) {
+    // A new day: yesterday's list is kept as "yesterday", older ones go.
+    const prev = e && e.day === buzzDayBefore(day) ? e.ids : new Set();
+    e = { day, ids: new Set(), prevDay: buzzDayBefore(day), prevIds: prev };
+    buzzSeenByUser.set(userId, e);
+  }
+  return e;
 }
+function buzzUserSeen(userId, day) { return buzzUserEntry(userId, day)?.ids || null; }
+function buzzUserSeenYesterday(userId, day) { return buzzUserEntry(userId, day)?.prevIds || null; }
 function addBuzzSeen(set, id) {
   set.add(id);
   if (set.size > BUZZ_SEEN_MAX) set.delete(set.values().next().value);
 }
-// Every card one player has had today, from either record.
-function buzzPlayerSeen(p, into = new Set()) {
+// Every card one player has had today (and yesterday too, when asked), from
+// either record.
+function buzzPlayerSeen(p, into = new Set(), withYesterday = false) {
   for (const id of p.buzzSeen || []) into.add(id);
   const uid = io.sockets.sockets.get(p.id)?.userId;
-  for (const id of buzzUserSeen(uid, buzzDayOf(p.buzzSeenDay)) || []) into.add(id);
+  const day = buzzDayOf(p.buzzSeenDay);
+  for (const id of buzzUserSeen(uid, day) || []) into.add(id);
+  if (withYesterday) {
+    for (const id of p.buzzSeenPrev || []) into.add(id);
+    for (const id of buzzUserSeenYesterday(uid, day) || []) into.add(id);
+  }
   return into;
 }
-// Every card a human in the lobby has had today, from either record.
-function buzzLobbySeen(lobby) {
+// Every card a human in the lobby has had today (and yesterday, when asked).
+function buzzLobbySeen(lobby, withYesterday = false) {
   const all = new Set();
   for (const p of lobby.players.values()) {
-    if (!p.isBot) buzzPlayerSeen(p, all);
+    if (!p.isBot) buzzPlayerSeen(p, all, withYesterday);
   }
   return all;
 }
@@ -1295,9 +1315,9 @@ function buzzScopeLabel(lobby, cards) {
 function buzzLeftFor(lobby, p) {
   const sc = lobby.buzzScope;
   if (!sc || p.isBot) return null;
-  const seen = buzzPlayerSeen(p);
+  const seen = buzzPlayerSeen(p, new Set(), !!sc.withYesterday);
   const left = sc.ids.filter(id => !seen.has(id)).length;
-  return { left, total: sc.ids.length, label: sc.label, replay: !!sc.replay };
+  return { left, total: sc.ids.length, label: sc.label, replay: !!sc.replay, withYesterday: !!sc.withYesterday };
 }
 // The card on screen now counts as had, for everyone in the room.
 function markBuzzCardSeen(lobby, q) {
@@ -1327,9 +1347,12 @@ function startBuzzFun(lobby) {
   // "bank" the cards-left count is measured against.
   const fullPool = pool;
   const skipSeen = !lobby.duelOptions || sanitizeDuelOptions(lobby.duelOptions).buzzSkipSeen;
+  // Also leave out yesterday's cards (off unless the host turns it on).
+  const withYesterday = skipSeen && !!lobby.duelOptions && sanitizeDuelOptions(lobby.duelOptions).buzzSkipYesterday;
+  const whenWords = withYesterday ? 'today or yesterday' : 'today';
   let replay = false;
   if (skipSeen) {
-    const seen = buzzLobbySeen(lobby);
+    const seen = buzzLobbySeen(lobby, withYesterday);
     if (seen.size) {
       const fresh = pool.filter(q => !seen.has(String(q.id)));
       if (fresh.length) pool = fresh;
@@ -1370,12 +1393,12 @@ function startBuzzFun(lobby) {
       ? fullPool.filter(q => topicKeys.has(`${String(q.subject || '').toLowerCase()}::${q.topic}`))
       : fullPool;
     const label = buzzScopeLabel(lobby, scopeCards);
-    lobby.buzzScope = { ids: [...new Set(scopeCards.map(q => String(q.id)))], label, replay };
+    lobby.buzzScope = { ids: [...new Set(scopeCards.map(q => String(q.id)))], label, replay, withYesterday };
     const run = lobby.questionQueue.length;
     if (replay) {
-      buzzStartNotice = `You have already finished every card in ${label} today, so they are coming round again.`;
+      buzzStartNotice = `You have already finished every card in ${label} ${whenWords}, so they are coming round again.`;
     } else {
-      const seen = buzzLobbySeen(lobby);
+      const seen = buzzLobbySeen(lobby, withYesterday);
       const freshLeft = lobby.buzzScope.ids.filter(id => !seen.has(id)).length;
       const after = Math.max(0, freshLeft - run);
       buzzStartNotice = after === 0
@@ -2106,7 +2129,9 @@ function sanitizeDuelOptions(raw) {
   // Buzz Fun: leave out the cards the players have already had today. On
   // unless the host turns it off, so a second run of 30 is 30 new cards.
   const buzzSkipSeen = o.buzzSkipSeen !== false;
-  return { source, winBy, rounds, subjects, journeySubject, chapterId, levelId, journeyTrack, powers, explanations, topics, buzzBank, buzzCards, buzzSkipSeen };
+  // ...and yesterday's as well. Off unless the host turns it on.
+  const buzzSkipYesterday = buzzSkipSeen && o.buzzSkipYesterday === true;
+  return { source, winBy, rounds, subjects, journeySubject, chapterId, levelId, journeyTrack, powers, explanations, topics, buzzBank, buzzCards, buzzSkipSeen, buzzSkipYesterday };
 }
 
 /**
@@ -4779,7 +4804,7 @@ io.on('connection', (socket) => {
    * this one, and whatever is on screen right now is sent again.
    */
   // A player's own list of the cards they have had today (see buzzLobbySeen).
-  socket.on('buzz_seen_today', ({ day, ids } = {}) => {
+  socket.on('buzz_seen_today', ({ day, ids, prevIds } = {}) => {
     const lobby = lobbies.get(socket.lobbyId);
     const player = lobby && lobby.players.get(socket.id);
     if (!player || lobby.gameMode !== 'buzz_fun' || !Array.isArray(ids)) return;
@@ -4790,6 +4815,15 @@ io.on('connection', (socket) => {
     }
     const mine = buzzUserSeen(socket.userId, player.buzzSeenDay);
     if (mine) for (const id of player.buzzSeen) addBuzzSeen(mine, id);
+    // Yesterday's list (older clients send none).
+    if (!(player.buzzSeenPrev instanceof Set)) player.buzzSeenPrev = new Set();
+    if (Array.isArray(prevIds)) {
+      for (const id of prevIds.slice(-BUZZ_SEEN_MAX)) {
+        if (typeof id === 'string' && id.length <= 80) addBuzzSeen(player.buzzSeenPrev, id);
+      }
+    }
+    const minePrev = buzzUserSeenYesterday(socket.userId, player.buzzSeenDay);
+    if (minePrev) for (const id of player.buzzSeenPrev) addBuzzSeen(minePrev, id);
   });
 
   socket.on('buzz_rejoin', ({ lobbyId, key } = {}, ack) => {

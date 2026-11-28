@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
 import socket from './socket';
 import * as audio from './audio';
-import { buzzToday, buzzSeenIds, markBuzzSeen } from './buzzSeen';
+import { buzzToday, buzzYesterday, buzzSeenIds, buzzSeenYesterdayIds, markBuzzSeen } from './buzzSeen';
 import { watchMatch } from './matchWatch';
 import { getToken, clearToken, fetchMe, getCachedUser, redirectToGoogle, getGuestName, setGuestName, clearGuestName } from './auth';
 import { SERVER_URL } from './serverUrl';
@@ -352,7 +352,10 @@ export default function App() {
       // the next run can skip them. Once per lobby (keyed by its host).
       if (gm === 'buzz_fun' && buzzSeenSentRef.current !== hostId) {
         buzzSeenSentRef.current = hostId;
-        socket.emit('buzz_seen_today', { day: buzzToday(), ids: buzzSeenIds() });
+        socket.emit('buzz_seen_today', {
+          day: buzzToday(), ids: buzzSeenIds(),
+          prevDay: buzzYesterday(), prevIds: buzzSeenYesterdayIds(),
+        });
       }
     });
     socket.on('buzz_notice', ({ message } = {}) => { if (message) showToast(message, 6000); });
