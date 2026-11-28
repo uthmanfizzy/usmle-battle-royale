@@ -5,6 +5,7 @@ import { IMMUNO_CASES, IMMUNO_BY_ID, IMMUNO_CHAPTERS } from '../hyd/immuno/immun
 import { hydSfx } from '../hydSfx';
 import { createHydMusic, hydMusicPref, setHydMusicPref } from '../hydMusic';
 import { HEME_CASES, HEME_BY_ID, HEME_CHAPTERS } from '../hyd/heme/hemeCases';
+import { REPRO_CASES, REPRO_BY_ID, REPRO_CHAPTERS } from '../hyd/repro/reproCases';
 import { useStudySession } from '../studySession';
 import { useStudyActivity } from '../studyPresence';
 import './HydQbank.css';
@@ -34,12 +35,12 @@ const READ_S = 30;
 const SUBJECTS = [
   { id: 'biochem', name: 'Biochemistry', icon: '⚗️', open: true },
   { id: 'immuno', name: 'Immunology', icon: '🛡️', open: true },
-  { id: 'micro', name: 'Microbiology', icon: '🦠' },
   { id: 'heme', name: 'Heme & Onc', icon: '🩸', open: true },
+  { id: 'repro', name: 'Reproductive', icon: '🤰', open: true },
+  { id: 'micro', name: 'Microbiology', icon: '🦠' },
   { id: 'neuro', name: 'Neurology', icon: '🧠' },
   { id: 'cardio', name: 'Cardiology', icon: '🫀' },
   { id: 'endo', name: 'Endocrinology', icon: '🦋' },
-  { id: 'resp', name: 'Respiratory', icon: '🫁' },
 ];
 
 // Each open subject's cases and wards. Ids are unique across subjects (the
@@ -48,12 +49,13 @@ const DATA = {
   biochem: { cases: BIO_CASES, chapters: BIO_CHAPTERS },
   immuno: { cases: IMMUNO_CASES, chapters: IMMUNO_CHAPTERS },
   heme: { cases: HEME_CASES, chapters: HEME_CHAPTERS },
+  repro: { cases: REPRO_CASES, chapters: REPRO_CHAPTERS },
 };
 const dataFor = (subject) => DATA[subject] || DATA.biochem;
-const BY_ID = { ...BIO_BY_ID, ...IMMUNO_BY_ID, ...HEME_BY_ID };
-const CHAPTERS = [...BIO_CHAPTERS, ...IMMUNO_CHAPTERS, ...HEME_CHAPTERS];
+const BY_ID = { ...BIO_BY_ID, ...IMMUNO_BY_ID, ...HEME_BY_ID, ...REPRO_BY_ID };
+const CHAPTERS = [...BIO_CHAPTERS, ...IMMUNO_CHAPTERS, ...HEME_CHAPTERS, ...REPRO_CHAPTERS];
 // The subject name sent to Daily Activity and shown on study presence.
-const SUBJECT_NAME = { biochem: 'Biochemistry', immuno: 'Immunology', heme: 'Haematology & Oncology' };
+const SUBJECT_NAME = { biochem: 'Biochemistry', immuno: 'Immunology', heme: 'Haematology & Oncology', repro: 'Reproductive' };
 // The Qbank card: Biochemistry keeps its cards in bioQbank.js (its cases also
 // drive the Clinic); Immunology cases carry the card fields themselves.
 const cardOf = (c) => QB[c.id] || c;

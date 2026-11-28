@@ -160,6 +160,7 @@ async function checkSubject(label, file, casesKey, chaptersKey, prefix) {
 }
 await checkSubject('immuno', 'immuno/immunoCases.js', 'IMMUNO_CASES', 'IMMUNO_CHAPTERS', 'im_');
 await checkSubject('heme', 'heme/hemeCases.js', 'HEME_CASES', 'HEME_CHAPTERS', 'hm_');
+await checkSubject('repro', 'repro/reproCases.js', 'REPRO_CASES', 'REPRO_CHAPTERS', 'rp_');
 
 const byChapter =Object.fromEntries(CHAPTERS.map(ch => [ch, cases.filter(c => c.chapter === ch).length]));
 console.log(`${cases.length} cases`, byChapter);

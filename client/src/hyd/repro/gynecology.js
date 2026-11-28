@@ -1,0 +1,385 @@
+/**
+ * HY Diseases · Reproductive — uterus, cervix, vulva and vagina; ovary and
+ * the menstrual cycle. Case format: see hyd/immuno/immunoCases.js.
+ * Original wording.
+ */
+export default [
+  // ── Uterus, cervix, vulva and vagina ───────────────────────────────────
+  {
+    id: 'rp_adenomyosis', name: 'Adenomyosis', chapter: 'uterus', tag: 'Endometrium within myometrium',
+    s: 'A 44-year-old mother of three has heavy, very **painful periods**. On exam the uterus is **diffusely enlarged, soft ("boggy") and tender**, without separate lumps.',
+    w: {
+      'painful periods': 'Endometrial tissue inside the muscle bleeds each cycle within the uterine wall, causing pain.',
+      'diffusely enlarged, soft ("boggy") and tender': 'Glands scattered through the whole muscle make it uniformly bulky and soft, unlike the firm lumps of fibroids.',
+    },
+    x: 'In adenomyosis, endometrial glands and stroma grow inside the myometrium. They respond to the cycle and bleed within the muscle, causing heavy, painful periods. The uterus is uniformly enlarged, soft and tender.',
+    hy: ['Adenomyosis: abnormal uterine bleeding, dysmenorrhoea and a diffusely enlarged "globular", boggy, tender uterus; leiomyomas give a firm, nodular uterus.'],
+    lookalikes: {
+      rp_leiomyoma: 'Leiomyomas give a FIRM, NODULAR (irregular) uterus from distinct smooth muscle tumours.',
+      rp_endometriosis: 'Endometriosis is tissue OUTSIDE the uterus with a normal-sized uterus, causing pain with sex and infertility.',
+      rp_endometrial_ca: 'Endometrial carcinoma causes postmenopausal bleeding in an older woman.',
+    },
+    vs: 'rp_leiomyoma',
+  },
+  {
+    id: 'rp_endometriosis', name: 'Endometriosis', chapter: 'uterus', tag: 'Endometrium outside the uterus',
+    s: 'A 29-year-old woman has **cyclic pelvic pain that starts before her period**, **pain during sex** and two years of infertility. Laparoscopy shows **"powder-burn" spots** on the peritoneum and an ovarian cyst full of **dark brown fluid**.',
+    w: {
+      'cyclic pelvic pain that starts before her period': 'Endometrial tissue outside the uterus responds to hormones and bleeds each cycle, irritating the peritoneum.',
+      'pain during sex': 'Implants on the uterosacral ligaments and pouch of Douglas are pressed during intercourse.',
+      '"powder-burn" spots': 'Old blood in implants leaves yellow-brown or black spots.',
+      'dark brown fluid': 'An endometrioma fills with old blood, giving a "chocolate cyst".',
+    },
+    x: 'Endometriosis is endometrial glands and stroma growing outside the uterus, often from retrograde menstruation. The implants bleed each cycle, causing pain, scarring and infertility. The ovaries and pelvic peritoneum are the most common sites.',
+    hy: ['Endometriosis: dysmenorrhoea, dyspareunia, infertility; "powder-burn" lesions and ovarian "chocolate cysts" (endometriomas); the exam is often normal.'],
+    lookalikes: {
+      rp_adenomyosis: 'Adenomyosis is endometrium INSIDE the uterine muscle, giving a big, boggy uterus.',
+      rp_pcos: 'PCOS causes infertility with irregular periods, hirsutism and obesity, not cyclic pain.',
+      rp_ectopic: 'An ectopic pregnancy has a positive pregnancy test with one-sided pain.',
+    },
+    vs: 'rp_adenomyosis',
+  },
+  {
+    id: 'rp_endometritis', name: 'Endometritis', chapter: 'uterus', tag: 'Postpartum polymicrobial infection',
+    s: 'Three days after a **C-section**, a woman has a fever of 39 °C, a **very tender uterus** and **foul-smelling discharge**.',
+    w: {
+      'C-section': 'Sutures and dead tissue in the uterus give vaginal bacteria a place to grow; C-section is the biggest risk factor.',
+      'very tender uterus': 'The lining of the uterus is infected and inflamed.',
+      'foul-smelling discharge': 'Infected lochia (postpartum discharge) is purulent and smells bad.',
+    },
+    x: 'Endometritis is infection of the uterine lining, usually after delivery. Vaginal bacteria get into the uterus, especially after a C-section. The mother has fever, uterine tenderness and foul discharge, treated with broad-spectrum antibiotics.',
+    hy: ['Postpartum endometritis is polymicrobial; C-section is the most important risk factor; treat with clindamycin plus gentamicin.'],
+    lookalikes: {
+      rp_pph: 'Uterine atony causes heavy bleeding with a boggy uterus right after delivery, without fever.',
+      rp_mastitis: 'Lactational mastitis is a red, painful breast with fever while breastfeeding.',
+      rp_asherman: 'Asherman syndrome is scarring inside the uterus causing scant periods and infertility.',
+    },
+    vs: 'rp_pph',
+  },
+  {
+    id: 'rp_asherman', name: 'Asherman syndrome', chapter: 'uterus', tag: 'Intrauterine adhesions',
+    s: 'Since a **dilation and curettage** for a miscarriage, a 32-year-old woman has had **very light or absent periods** and cannot get pregnant. Hormone levels are normal and a **progesterone challenge produces no bleeding**.',
+    w: {
+      'dilation and curettage': 'Scraping too deeply damages the basal layer of the endometrium, which then scars instead of regrowing.',
+      'very light or absent periods': 'Scar tissue replaces the lining, so there is little endometrium to shed.',
+      'progesterone challenge produces no bleeding': 'Hormones are fine, but the scarred lining cannot respond.',
+    },
+    x: 'Asherman syndrome is scarring and adhesions inside the uterus after damage to the basal endometrium, usually from a D&C. The lining cannot regrow properly. Women have scant or absent periods, infertility and recurrent miscarriage.',
+    hy: ['Asherman syndrome (intrauterine adhesions) follows endometrial basal layer damage, usually from dilation and curettage, causing amenorrhoea with normal hormones.'],
+    lookalikes: {
+      rp_fha: 'Functional hypothalamic amenorrhoea has LOW oestrogen from stress or weight loss.',
+      rp_poi: 'Primary ovarian insufficiency has HIGH FSH and menopausal symptoms.',
+      rp_pcos: 'PCOS causes irregular periods with hirsutism and polycystic ovaries.',
+    },
+    vs: 'rp_fha',
+  },
+  {
+    id: 'rp_leiomyoma', name: 'Leiomyoma (fibroid)', chapter: 'uterus', tag: 'Benign smooth muscle tumour',
+    s: 'A 40-year-old Black woman has heavy periods and **pelvic pressure with urinary frequency**. Her uterus is **enlarged, firm and lumpy**. Biopsy of one lump shows **whorled bundles of smooth muscle** with sharp borders.',
+    w: {
+      'pelvic pressure with urinary frequency': 'A large uterus presses on the bladder.',
+      'enlarged, firm and lumpy': 'Several separate round tumours give the uterus an irregular, nodular outline.',
+      'whorled bundles of smooth muscle': 'This is the typical benign pattern of a fibroid, well demarcated from normal muscle.',
+    },
+    x: 'Leiomyomas (fibroids) are benign tumours of uterine smooth muscle and the most common gynaecological tumour. They are oestrogen-sensitive, so they grow in pregnancy and shrink after menopause. Many are silent, but they can cause heavy bleeding, pressure and fertility problems.',
+    hy: ['Leiomyoma: the most common gynaecological tumour, more common in Black women, oestrogen-sensitive, usually multiple; malignant change to leiomyosarcoma is very rare.'],
+    lookalikes: {
+      rp_adenomyosis: 'Adenomyosis gives a uniformly enlarged, SOFT, tender uterus.',
+      rp_endometrial_ca: 'Endometrial carcinoma causes bleeding after menopause in an older woman.',
+      rp_endometriosis: 'Endometriosis gives cyclic pelvic pain with a normal-sized uterus.',
+    },
+    vs: 'rp_adenomyosis',
+  },
+  {
+    id: 'rp_endometrial_ca', name: 'Endometrial carcinoma', chapter: 'uterus', tag: 'Unopposed oestrogen',
+    s: 'A 62-year-old woman with **obesity and diabetes** who **never had children** has **bleeding 10 years after menopause**. Biopsy shows crowded endometrial glands with **no stroma between them**.',
+    w: {
+      'obesity and diabetes': 'Fat converts androgens to oestrone, giving years of oestrogen exposure without progesterone.',
+      'never had children': 'Nulliparity means more lifetime oestrogen without the protection of pregnancy.',
+      'bleeding 10 years after menopause': 'Any postmenopausal bleeding must be investigated; this is the classic presentation.',
+      'no stroma between them': 'Back-to-back malignant glands are typical of endometrioid carcinoma.',
+    },
+    x: 'Endometrial carcinoma is the most common gynaecological cancer in resource-rich countries. The commonest type (endometrioid) grows from hyperplasia driven by oestrogen without progesterone. It usually presents early as postmenopausal bleeding.',
+    hy: ['Endometrial cancer risk factors: obesity, nulliparity, anovulation (PCOS), unopposed oestrogen therapy, tamoxifen and Lynch syndrome.'],
+    lookalikes: {
+      rp_leiomyoma: 'A leiomyoma is a benign lumpy uterus in a woman of reproductive age.',
+      rp_granulosa: 'A granulosa cell tumour is an ovarian mass making oestrogen, which can cause the same bleeding.',
+      rp_cervical_ca: 'Cervical carcinoma causes bleeding after sex, linked to HPV.',
+    },
+    vs: 'rp_granulosa',
+  },
+  {
+    id: 'rp_cervical_ca', name: 'Cervical carcinoma', chapter: 'uterus', tag: 'HPV 16 and 18',
+    s: 'A 38-year-old woman who **smokes** and has **never had a Pap smear** has **bleeding after sex**. Biopsy shows invasive squamous cells, with **cells that have wrinkled nuclei and a clear halo** nearby.',
+    w: {
+      'smokes': 'Smoking, many partners, early sex and immune suppression all raise the risk.',
+      'never had a Pap smear': 'Screening finds dysplasia years before it becomes invasive.',
+      'bleeding after sex': 'A fragile tumour on the cervix bleeds when touched.',
+      'cells that have wrinkled nuclei and a clear halo': 'These are koilocytes, the hallmark of HPV infection.',
+    },
+    x: 'Cervical cancer develops from HPV-driven dysplasia at the transformation zone. HPV 16 and 18 make E6 and E7 proteins that disable p53 and Rb. Untreated dysplasia (CIN) can progress slowly to invasive squamous cell carcinoma.',
+    hy: ['HPV E6 inhibits p53 and E7 inhibits Rb ("6 before 7, P before R"); screen with Pap smear and HPV testing.', 'Lateral invasion can block the ureters, causing hydronephrosis and kidney failure.'],
+    lookalikes: {
+      rp_endometrial_ca: 'Endometrial carcinoma causes bleeding after menopause, driven by unopposed oestrogen.',
+      rp_clear_cell: 'Clear cell adenocarcinoma of the vagina occurs after diethylstilbestrol exposure in the womb.',
+      rp_lichen: 'Lichen sclerosus is itchy white vulval plaques, not cervical bleeding.',
+    },
+    vs: 'rp_endometrial_ca',
+  },
+  {
+    id: 'rp_lichen', name: 'Lichen sclerosus', chapter: 'uterus', tag: 'Chronic vulvar inflammation',
+    s: 'A 60-year-old woman has **intense vulvar itching** and pain with sex. Examination shows **thin, porcelain-white plaques** around the vulva and anus in a **figure-of-eight**.',
+    w: {
+      'intense vulvar itching': 'Chronic inflammation of the skin causes severe itch.',
+      'thin, porcelain-white plaques': 'The skin becomes thin and pale as the dermis scars.',
+      'figure-of-eight': 'The lesions surround both the vulva and the anus.',
+    },
+    x: 'Lichen sclerosus is a chronic inflammatory skin disease of the vulva. The skin becomes thin, white and fragile, and very itchy. It is most common before puberty and after menopause and slightly raises the risk of vulvar squamous cell carcinoma.',
+    hy: ['Lichen sclerosus: porcelain-white thin plaques with a figure-of-eight pattern, slightly increased risk of vulvar SCC; lichen simplex chronicus is thick leathery skin with no cancer risk.'],
+    lookalikes: {
+      rp_bartholin: 'A Bartholin cyst is a painful lump at the vaginal opening, not white plaques.',
+      rp_cervical_ca: 'Cervical cancer causes bleeding after sex, not vulvar itching.',
+      rp_paget: 'Paget disease of the nipple is an eczema-like rash of the nipple.',
+    },
+    vs: 'rp_bartholin',
+  },
+  {
+    id: 'rp_bartholin', name: 'Bartholin cyst and abscess', chapter: 'uterus', tag: 'Blocked gland duct',
+    s: 'A 24-year-old woman has a **painful, swollen lump on one side of the vaginal opening**, near the 4 o\'clock position. It is warm, red and fluctuant.',
+    w: {
+      'painful, swollen lump on one side of the vaginal opening': 'The Bartholin glands sit on either side of the vaginal opening. If the duct blocks, fluid builds up; if infected, it becomes an abscess.',
+    },
+    x: 'A Bartholin cyst forms when the duct of one of the Bartholin glands is blocked and fluid collects. If it becomes infected, it forms a painful abscess. It mostly affects women of reproductive age.',
+    hy: ['Bartholin cyst or abscess: a unilateral lump at the 4 or 8 o\'clock position of the vaginal opening in reproductive-age women.'],
+    lookalikes: {
+      rp_lichen: 'Lichen sclerosus is itchy, thin white plaques, not a lump.',
+      rp_botryoides: 'Sarcoma botryoides is a grape-like mass from the vagina in a girl under 4.',
+      rp_hymen: 'Imperforate hymen is a bulging blue membrane with cyclic pain.',
+    },
+    vs: 'rp_lichen',
+  },
+  {
+    id: 'rp_botryoides', name: 'Sarcoma botryoides', chapter: 'uterus', tag: 'Embryonal rhabdomyosarcoma',
+    s: 'A **3-year-old girl** has a **clear, grape-like mass protruding from her vagina**. Biopsy shows spindle-shaped tumour cells that **stain for desmin**.',
+    w: {
+      '3-year-old girl': 'This tumour almost always affects girls under 4.',
+      'clear, grape-like mass protruding from her vagina': 'The tumour grows as soft polyps under the vaginal lining ("botryoides" means grape-like).',
+      'stain for desmin': 'Desmin is a muscle protein, showing the tumour comes from skeletal muscle cells (rhabdomyosarcoma).',
+    },
+    x: 'Sarcoma botryoides is a variant of embryonal rhabdomyosarcoma, a malignant tumour of immature skeletal muscle. In young girls it grows from the vagina as a grape-like cluster. The cells are spindle-shaped and desmin-positive.',
+    hy: ['Sarcoma botryoides: embryonal rhabdomyosarcoma in girls under 4, a grape-like vaginal mass with desmin-positive spindle cells.'],
+    lookalikes: {
+      rp_clear_cell: 'Clear cell adenocarcinoma of the vagina is in a young woman exposed to DES in the womb.',
+      rp_complete_mole: 'A complete mole is a "cluster of grapes" in the uterus in a pregnant woman.',
+      rp_bartholin: 'A Bartholin cyst is a lump beside the vaginal opening in an adult.',
+    },
+    vs: 'rp_clear_cell',
+  },
+  {
+    id: 'rp_clear_cell', name: 'Clear cell adenocarcinoma of the vagina', chapter: 'uterus', tag: 'In-utero DES exposure',
+    s: 'A 22-year-old woman whose **mother took a synthetic oestrogen during pregnancy** has abnormal bleeding. The upper vagina shows **glandular tissue where there should be squamous lining**, and a tumour arising from it.',
+    w: {
+      'mother took a synthetic oestrogen during pregnancy': 'Diethylstilbestrol (DES) exposure in the womb disturbs development of the Müllerian structures.',
+      'glandular tissue where there should be squamous lining': 'Vaginal adenosis: columnar glandular epithelium persists in the upper vagina, from which the cancer arises.',
+    },
+    x: 'Clear cell adenocarcinoma of the vagina is a rare cancer in young women exposed to diethylstilbestrol in the womb. DES left glandular (columnar) tissue in the upper vagina, called adenosis, and the cancer grows from it.',
+    hy: ['DES exposure in utero causes vaginal adenosis and clear cell adenocarcinoma, plus uterine and cervical malformations.'],
+    lookalikes: {
+      rp_botryoides: 'Sarcoma botryoides is a grape-like vaginal mass in a girl under 4.',
+      rp_cervical_ca: 'Cervical squamous carcinoma is linked to HPV and smoking.',
+      rp_endometrial_ca: 'Endometrial carcinoma causes postmenopausal bleeding from unopposed oestrogen.',
+    },
+    vs: 'rp_botryoides',
+  },
+
+  // ── Ovary and the menstrual cycle ──────────────────────────────────────
+  {
+    id: 'rp_pcos', name: 'Polycystic ovary syndrome', chapter: 'ovary', tag: 'High LH:FSH, hyperandrogenism',
+    s: 'A 24-year-old woman with obesity has **periods every 2–3 months**, **acne and excess facial hair**, and **dark velvety skin in her neck folds**. Ultrasound shows **enlarged ovaries with many small cysts**.',
+    w: {
+      'periods every 2–3 months': 'Follicles start growing but do not mature and release an egg, so ovulation is rare.',
+      'acne and excess facial hair': 'High LH drives the theca cells to make extra androgens.',
+      'dark velvety skin in her neck folds': 'Acanthosis nigricans is a sign of insulin resistance, which also fuels androgen production.',
+      'enlarged ovaries with many small cysts': 'Unruptured follicles stay in the ovary as small cysts.',
+    },
+    x: 'PCOS is a disorder of ovarian hormone production with a high LH:FSH ratio and excess androgens. Follicles do not mature, so ovulation is rare and the ovaries fill with small cysts. It is linked to obesity and insulin resistance and is a common cause of infertility.',
+    hy: ['PCOS raises the risk of endometrial cancer from unopposed oestrogen; treat with weight loss, OCPs, ovulation induction (letrozole or clomiphene) and spironolactone for hirsutism.'],
+    lookalikes: {
+      rp_sertoli_leydig: 'A Sertoli-Leydig cell tumour causes rapid virilisation (deep voice, clitoral enlargement) from a single ovarian mass.',
+      rp_fha: 'Functional hypothalamic amenorrhoea is a thin athlete with LOW LH, FSH and oestrogen.',
+      rp_poi: 'Primary ovarian insufficiency has HIGH FSH and menopausal symptoms before 40.',
+    },
+    vs: 'rp_sertoli_leydig',
+  },
+  {
+    id: 'rp_poi', name: 'Primary ovarian insufficiency', chapter: 'ovary', tag: 'Premature ovarian failure',
+    s: 'A 34-year-old woman has had **no periods for 8 months**, with **hot flushes and night sweats**. Her **FSH and LH are high** and oestrogen is low. Her brother has **fragile X syndrome**.',
+    w: {
+      'no periods for 8 months': 'The ovarian follicles have run out early, so there is no ovulation or oestrogen.',
+      'hot flushes and night sweats': 'Falling oestrogen causes menopausal symptoms, here before 40.',
+      'FSH and LH are high': 'With no oestrogen or inhibin feedback, the pituitary pushes out more FSH and LH.',
+      'fragile X syndrome': 'The fragile X premutation (and Turner syndrome and autoimmunity) is linked to early ovarian failure.',
+    },
+    x: 'Primary ovarian insufficiency is early loss of ovarian follicles in a woman under 40. The ovaries stop making oestrogen, so periods stop and menopausal symptoms begin, while FSH and LH rise. It is often idiopathic but can be linked to chromosomal problems or autoimmunity.',
+    hy: ['Primary ovarian insufficiency: menopause signs before 40 with low oestrogen and HIGH FSH and LH; check the karyotype (Turner, fragile X premutation).'],
+    lookalikes: {
+      rp_fha: 'Functional hypothalamic amenorrhoea has LOW FSH and LH from stress, weight loss or exercise.',
+      rp_turner: 'Turner syndrome never starts puberty and is short with a webbed neck.',
+      rp_asherman: 'Asherman syndrome has normal hormones with scarring inside the uterus.',
+    },
+    vs: 'rp_fha',
+  },
+  {
+    id: 'rp_fha', name: 'Functional hypothalamic amenorrhea', chapter: 'ovary', tag: 'Reduced GnRH pulsatility',
+    s: 'A 19-year-old **long-distance runner** who **eats very little** has had no periods for 6 months. She recently had a **stress fracture**. FSH, LH and oestrogen are all **low**.',
+    w: {
+      'long-distance runner': 'Heavy exercise and stress raise cortisol and lower leptin, which suppress GnRH pulses.',
+      'eats very little': 'Low energy intake and low body fat lower leptin, which the hypothalamus needs to release GnRH.',
+      'stress fracture': 'Low oestrogen causes bone loss, part of the "female athlete triad".',
+      'low': 'All three are low, showing the problem starts in the hypothalamus, not the ovary.',
+    },
+    x: 'Functional hypothalamic amenorrhoea happens when stress, too little food or too much exercise switch off GnRH pulses. LH, FSH and oestrogen all fall, so periods stop. Low oestrogen also thins the bones.',
+    hy: ['Female athlete triad: low energy availability, low bone mineral density and menstrual dysfunction; leptin is low and cortisol high.'],
+    lookalikes: {
+      rp_poi: 'Primary ovarian insufficiency has HIGH FSH and LH from failing ovaries.',
+      rp_kallmann: 'Kallmann syndrome never starts puberty and has anosmia.',
+      rp_pcos: 'PCOS has irregular periods with high androgens and high LH:FSH.',
+    },
+    vs: 'rp_poi',
+  },
+  {
+    id: 'rp_teratoma', name: 'Mature cystic teratoma', chapter: 'ovary', tag: 'Benign germ cell tumour (dermoid cyst)',
+    s: 'A 25-year-old woman has sudden pelvic pain from a twisted ovary. The removed ovarian cyst contains **hair, greasy sebum and a tooth**. A small part of it is made of **thyroid tissue**.',
+    w: {
+      'hair, greasy sebum and a tooth': 'This germ cell tumour makes tissue from all three germ layers, including skin structures and teeth.',
+      'thyroid tissue': 'When thyroid tissue dominates (struma ovarii), it can make thyroid hormone and cause hyperthyroidism.',
+    },
+    x: 'A mature cystic teratoma (dermoid cyst) is a benign germ cell tumour that contains tissues from all three germ layers, such as skin, hair, teeth and fat. It is the most common ovarian tumour in young women. It can twist the ovary or, rarely, turn into squamous cell carcinoma.',
+    hy: ['Mature cystic teratoma (dermoid) is the most common ovarian tumour in young women; struma ovarii (thyroid tissue) can cause hyperthyroidism; immature teratoma (neural tissue) is malignant.'],
+    lookalikes: {
+      rp_dysgerminoma: 'A dysgerminoma is malignant sheets of "fried-egg" cells making hCG and LDH.',
+      rp_torsion_adnexal: 'Adnexal torsion is the twisting itself; the question here is what the mass is.',
+      rp_serous_ca: 'Serous carcinoma is a malignant tumour in an older woman with psammoma bodies and high CA-125.',
+    },
+    vs: 'rp_dysgerminoma',
+  },
+  {
+    id: 'rp_dysgerminoma', name: 'Dysgerminoma', chapter: 'ovary', tag: 'Malignant germ cell tumour',
+    s: 'A 17-year-old girl has a solid ovarian mass. Histology shows **sheets of uniform cells with clear cytoplasm and central nuclei ("fried eggs")**. Serum **hCG and LDH are raised**.',
+    w: {
+      'sheets of uniform cells with clear cytoplasm and central nuclei ("fried eggs")': 'This is the same picture as testicular seminoma, its male counterpart.',
+      'hCG and LDH are raised': 'These are the tumour markers; LDH reflects the tumour bulk.',
+    },
+    x: 'Dysgerminoma is a malignant ovarian germ cell tumour, the female counterpart of testicular seminoma. It occurs mostly in adolescents and young women. It is made of uniform "fried egg" cells and can raise hCG and LDH.',
+    hy: ['Dysgerminoma = ovarian equivalent of seminoma: "fried egg" cells, raised hCG and LDH, in adolescents; very sensitive to radiation and chemotherapy.'],
+    lookalikes: {
+      rp_teratoma: 'A mature cystic teratoma is benign and full of hair, sebum and teeth.',
+      rp_granulosa: 'A granulosa cell tumour makes oestrogen and raises inhibin, with Call-Exner bodies.',
+      rp_seminoma: 'Seminoma is the identical tumour in the TESTIS of a young man.',
+    },
+    vs: 'rp_teratoma',
+  },
+  {
+    id: 'rp_serous_ca', name: 'Serous carcinoma of the ovary', chapter: 'ovary', tag: 'Most common malignant ovarian tumour',
+    s: 'A 66-year-old woman with a **BRCA1 mutation** has bloating, early fullness and ascites. She has bilateral ovarian masses with **tiny round calcified bodies** on histology, and **CA-125 is high**.',
+    w: {
+      'BRCA1 mutation': 'BRCA1/2 mutations (and Lynch syndrome) strongly raise ovarian cancer risk.',
+      'tiny round calcified bodies': 'These are psammoma bodies: layered calcium deposits typical of papillary serous tumours.',
+      'CA-125 is high': 'CA-125 is used to follow response to treatment, though it is not a good screening test.',
+    },
+    x: 'Serous carcinoma is the most common malignant ovarian tumour. It comes from epithelium like that of the fallopian tube, is often bilateral, and is usually found late after spreading through the abdomen. Risk rises with age, BRCA mutations and more lifetime ovulations.',
+    hy: ['Serous carcinoma: psammoma bodies, often bilateral, follow with CA-125; risk falls with pregnancy, breastfeeding, OCPs and tubal ligation (fewer ovulations).'],
+    lookalikes: {
+      rp_mucinous: 'Mucinous tumours are large, mucus-filled and can cause pseudomyxoma peritonei.',
+      rp_meigs: 'An ovarian fibroma with ascites and a pleural effusion (Meigs syndrome) is benign.',
+      rp_granulosa: 'A granulosa cell tumour makes oestrogen and causes postmenopausal bleeding.',
+    },
+    vs: 'rp_meigs',
+  },
+  {
+    id: 'rp_mucinous', name: 'Mucinous ovarian tumor (pseudomyxoma peritonei)', chapter: 'ovary', tag: 'Mucinous epithelium',
+    s: 'A 55-year-old woman has a **very large multiloculated ovarian cyst** and a swollen abdomen. At surgery the abdomen is filled with **thick, jelly-like material**. An **appendiceal tumour** is also found.',
+    w: {
+      'very large multiloculated ovarian cyst': 'Mucinous tumours are lined by mucus-secreting cells and can grow huge with many chambers.',
+      'thick, jelly-like material': 'Mucus spreading through the peritoneum is called pseudomyxoma peritonei.',
+      'appendiceal tumour': 'Many mucinous ovarian cancers with pseudomyxoma are actually spread from an appendiceal or GI tumour.',
+    },
+    x: 'Mucinous ovarian tumours are lined by mucus-making epithelium like the cervix or gut. Most are benign cystadenomas, which can grow very large. Mucinous carcinoma is rare and is often metastatic from the appendix or GI tract, causing pseudomyxoma peritonei.',
+    hy: ['Mucinous carcinoma can be metastatic from the appendix or GI tract and can cause pseudomyxoma peritonei ("jelly belly").'],
+    lookalikes: {
+      rp_serous_ca: 'Serous carcinoma has psammoma bodies and high CA-125, without mucinous material.',
+      rp_meigs: 'An ovarian fibroma with ascites and pleural effusion is Meigs syndrome.',
+      rp_teratoma: 'A mature cystic teratoma contains hair, sebum and teeth.',
+    },
+    vs: 'rp_serous_ca',
+  },
+  {
+    id: 'rp_granulosa', name: 'Granulosa cell tumor', chapter: 'ovary', tag: 'Oestrogen-making sex cord stromal tumour',
+    s: 'A 55-year-old woman has **bleeding after menopause** and tender breasts, with an ovarian mass. Biopsy of the endometrium shows **hyperplasia**. The tumour shows cells around small pink fluid pools (**Call-Exner bodies**), and **inhibin is high**.',
+    w: {
+      'bleeding after menopause': 'The tumour makes oestrogen, which stimulates the endometrium to grow and bleed.',
+      'hyperplasia': 'Excess oestrogen without progesterone makes the endometrium thicken.',
+      'Call-Exner bodies': 'Granulosa cells arrange around small pools of fluid, like tiny primitive follicles.',
+      'inhibin is high': 'Granulosa cells normally make inhibin, so it is the tumour marker.',
+    },
+    x: 'A granulosa cell tumour is the most common malignant sex cord stromal tumour of the ovary, usually in women in their 50s. It makes oestrogen, causing postmenopausal bleeding, endometrial hyperplasia and breast tenderness, or early puberty in girls. Inhibin is the tumour marker.',
+    hy: ['Granulosa cell tumour: oestrogen-producing, Call-Exner bodies, raised inhibin ("Give Granny a Call"); can cause endometrial hyperplasia or carcinoma.'],
+    lookalikes: {
+      rp_sertoli_leydig: 'A Sertoli-Leydig cell tumour makes ANDROGENS, causing virilisation.',
+      rp_endometrial_ca: 'Endometrial carcinoma causes the same bleeding, but without an ovarian mass making oestrogen.',
+      rp_meigs: 'An ovarian fibroma is hormonally inactive, with ascites and pleural effusion.',
+    },
+    vs: 'rp_sertoli_leydig',
+  },
+  {
+    id: 'rp_sertoli_leydig', name: 'Sertoli-Leydig cell tumor', chapter: 'ovary', tag: 'Androgen-making sex cord stromal tumour',
+    s: 'Over 6 months, a 30-year-old woman develops **a deeper voice, male-pattern hair loss and clitoral enlargement**, and her periods stop. She has a **solid, yellow-brown ovarian mass**. Testosterone is very high.',
+    w: {
+      'a deeper voice, male-pattern hair loss and clitoral enlargement': 'The tumour makes androgens, causing true virilisation, which is more severe and faster than PCOS.',
+      'solid, yellow-brown ovarian mass': 'The tumour resembles testicular tissue, with Sertoli cells in tubules and Leydig cells between them.',
+    },
+    x: 'A Sertoli-Leydig cell tumour is a usually benign ovarian sex cord stromal tumour that looks like testicular tissue. It can make androgens, causing rapid virilisation: hirsutism, voice change, hair loss and clitoral enlargement.',
+    hy: ['Sertoli-Leydig cell tumour: androgen-producing ovarian tumour causing virilisation; rapid virilisation suggests a tumour rather than PCOS.'],
+    lookalikes: {
+      rp_pcos: 'PCOS causes mild, slowly developing hirsutism and acne with many small cysts, not a deep voice or clitoral enlargement.',
+      rp_granulosa: 'A granulosa cell tumour makes OESTROGEN, causing bleeding and breast tenderness.',
+      rp_aromatase: 'Aromatase deficiency virilises a mother during pregnancy and her female baby.',
+    },
+    vs: 'rp_pcos',
+  },
+  {
+    id: 'rp_meigs', name: 'Ovarian fibroma (Meigs syndrome)', chapter: 'ovary', tag: 'Benign sex cord stromal tumour',
+    s: 'A 58-year-old woman has a **solid ovarian mass**, **ascites** and a **right-sided pleural effusion**. Histology shows bundles of **spindle-shaped fibroblasts**. After removal of the mass, the fluid disappears.',
+    w: {
+      'solid ovarian mass': 'The fibroma is a firm benign tumour of ovarian stroma.',
+      'ascites': 'The tumour leaks fluid into the abdomen.',
+      'right-sided pleural effusion': 'Fluid passes from the abdomen through diaphragm openings, usually into the right chest.',
+      'spindle-shaped fibroblasts': 'The tumour is made of benign fibrous stromal cells.',
+    },
+    x: 'An ovarian fibroma is a benign tumour of spindle-shaped fibroblasts. Some cause Meigs syndrome: the fibroma, ascites and a pleural effusion. Removing the tumour cures the fluid build-up, so it should not be mistaken for an advanced cancer.',
+    hy: ['Meigs syndrome = ovarian fibroma + ascites + pleural effusion; it resolves after removal of the tumour.'],
+    lookalikes: {
+      rp_serous_ca: 'Serous carcinoma with ascites is malignant, with psammoma bodies and high CA-125.',
+      rp_granulosa: 'A granulosa cell tumour makes oestrogen and causes postmenopausal bleeding.',
+      rp_mucinous: 'Mucinous tumours fill the abdomen with jelly-like mucus.',
+    },
+    vs: 'rp_serous_ca',
+  },
+  {
+    id: 'rp_torsion_adnexal', name: 'Adnexal torsion', chapter: 'ovary', tag: 'Twisting of ovary and tube',
+    s: 'A 22-year-old woman with a known **large ovarian cyst** has **sudden severe one-sided pelvic pain with vomiting**. Pregnancy test is negative. Doppler ultrasound shows an enlarged ovary with **no blood flow**.',
+    w: {
+      'large ovarian cyst': 'A heavy cyst or mass makes the ovary more likely to twist on its ligaments.',
+      'sudden severe one-sided pelvic pain with vomiting': 'Twisting cuts off the blood supply, causing sudden ischaemic pain and nausea.',
+      'no blood flow': 'Twisted vessels stop blood reaching the ovary, which will die without urgent surgery.',
+    },
+    x: 'Adnexal torsion is twisting of the ovary and fallopian tube around their supporting ligaments, cutting off blood flow. An ovarian mass is the main risk. It causes sudden severe pain and vomiting and needs urgent surgery to untwist and save the ovary.',
+    hy: ['Adnexal torsion twists the infundibulopelvic (suspensory) and utero-ovarian ligaments; ovarian masses are the main risk factor; treat with urgent laparoscopic detorsion.'],
+    lookalikes: {
+      rp_ectopic: 'An ectopic pregnancy also causes one-sided pain, but the pregnancy test is POSITIVE.',
+      rp_endometriosis: 'Endometriosis gives cyclic chronic pain, not a sudden emergency.',
+      rp_teratoma: 'A mature teratoma is a common cause of torsion; the question here is the event itself.',
+    },
+    vs: 'rp_ectopic',
+  },
+];

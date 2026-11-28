@@ -1,0 +1,412 @@
+/**
+ * HY Diseases · Reproductive — sex development, puberty, pregnancy and the
+ * placenta. Case format: see hyd/immuno/immunoCases.js. Original wording.
+ */
+export default [
+  // ── Sex development and puberty ────────────────────────────────────────
+  {
+    id: 'rp_klinefelter', name: 'Klinefelter syndrome', chapter: 'sexdev', tag: '47,XXY',
+    s: 'A tall 17-year-old boy with **long arms and legs** has breast enlargement, sparse body hair and **small, firm testes**. Semen analysis shows **no sperm**. FSH and LH are high and testosterone is low.',
+    w: {
+      'long arms and legs': 'Low testosterone delays closure of the growth plates, so the long bones keep growing (eunuchoid proportions).',
+      'small, firm testes': 'The seminiferous tubules are scarred and shrunken (tubular dysgenesis).',
+      'no sperm': 'Damaged tubules cannot make sperm, causing infertility; low inhibin B lets FSH rise.',
+    },
+    x: 'Klinefelter syndrome is an extra X chromosome in a male (47,XXY), usually from nondisjunction. The testes are small and scarred, so sperm and testosterone are low and FSH and LH rise. Boys are tall, with breast development and infertility.',
+    hy: ['Klinefelter has a Barr body (inactivated X), high FSH and LH, low testosterone and inhibin B, and an increased risk of male breast cancer.'],
+    lookalikes: {
+      rp_kallmann: 'Kallmann syndrome has LOW FSH and LH (no GnRH) with a poor sense of smell.',
+      rp_xyy: 'XYY males are very tall but have normal testes, hormones and fertility.',
+      rp_ais: 'Androgen insensitivity is a 46,XY person who looks female, with high testosterone.',
+    },
+    vs: 'rp_kallmann',
+  },
+  {
+    id: 'rp_turner', name: 'Turner syndrome', chapter: 'sexdev', tag: '45,X',
+    s: 'A 15-year-old girl has **not started her periods**. She is short, with a **webbed neck** and widely spaced nipples. Her **femoral pulses are weak compared with her arm pulses**. FSH and LH are high.',
+    w: {
+      'not started her periods': 'The ovaries degenerate into streak gonads before puberty, so there is no oestrogen and no menarche.',
+      'webbed neck': 'Lymphatic vessels develop poorly in the fetus; the fluid (cystic hygroma) leaves loose skin folds on the neck.',
+      'femoral pulses are weak compared with her arm pulses': 'Coarctation of the aorta narrows the aorta beyond the arm branches, so leg pulses are weaker.',
+    },
+    x: 'Turner syndrome is the loss of one X chromosome (45,X). The ovaries become streaks, so there is no oestrogen and puberty does not happen; FSH and LH rise. Girls are short, with lymphatic, heart and kidney abnormalities.',
+    hy: ['Turner syndrome is the most common cause of primary amenorrhoea, with no Barr body; heart defects are bicuspid aortic valve and coarctation, and a horseshoe kidney is common.', 'Growth hormone helps prevent short stature.'],
+    lookalikes: {
+      rp_mullerian: 'Müllerian agenesis has normal ovaries, breasts and height, but no uterus or upper vagina.',
+      rp_kallmann: 'Kallmann syndrome has LOW FSH and LH and anosmia, with normal height and heart.',
+      rp_poi: 'Primary ovarian insufficiency starts AFTER normal puberty, with menopausal symptoms before 40.',
+    },
+    vs: 'rp_mullerian',
+  },
+  {
+    id: 'rp_xyy', name: 'Double Y males (47,XYY)', chapter: 'sexdev', tag: '47,XYY',
+    s: 'A **very tall** 16-year-old boy is seen for **severe acne** and learning difficulties. His testes, hormones and **fertility are normal**.',
+    w: {
+      'very tall': 'Extra copies of the Y chromosome carry growth genes that add height.',
+      'severe acne': 'Severe acne is a recognised but unexplained association.',
+      'fertility are normal': 'Testicular development is normal, unlike Klinefelter.',
+    },
+    x: 'XYY syndrome is an extra Y chromosome in a male, from nondisjunction in the father\'s sperm. Most men look normal and never know. They are very tall and may have acne, learning difficulty or autism, but have normal fertility.',
+    hy: ['47,XYY males are phenotypically normal and very tall, with normal fertility; it is usually undiagnosed.'],
+    lookalikes: {
+      rp_klinefelter: 'Klinefelter syndrome is also tall, but with small testes, infertility and breast enlargement.',
+      rp_kallmann: 'Kallmann syndrome has absent puberty and anosmia.',
+      rp_5ard: 'Five-alpha-reductase deficiency has ambiguous genitals until puberty.',
+    },
+    vs: 'rp_klinefelter',
+  },
+  {
+    id: 'rp_ais', name: 'Androgen insensitivity syndrome', chapter: 'sexdev', tag: '46,XY DSD (androgen receptor)',
+    s: 'A 16-year-old girl with **normal breasts** has never had a period. She has **almost no pubic or armpit hair**, a short blind vagina and **no uterus**. **Groin masses** are testes. Karyotype is 46,XY, and testosterone is high.',
+    w: {
+      'normal breasts': 'Testosterone is turned into oestrogen, and with no androgen effect to oppose it, breasts develop normally.',
+      'almost no pubic or armpit hair': 'Body hair growth needs androgen signalling, which does not work.',
+      'no uterus': 'The testes still make anti-Müllerian hormone, which removes the uterus and tubes.',
+      'Groin masses': 'The testes are present but undescended, often in the labia or inguinal canal.',
+    },
+    x: 'In androgen insensitivity syndrome, a 46,XY person has a faulty androgen receptor. The testes make testosterone and anti-Müllerian hormone, but the body cannot respond to testosterone, so the external genitals are female. There is no uterus, and the testes must be removed later because of cancer risk.',
+    hy: ['Androgen insensitivity: female appearance with breasts, scant body hair, no uterus, and HIGH testosterone, oestrogen and LH.'],
+    lookalikes: {
+      rp_mullerian: 'Müllerian agenesis is a 46,XX female with normal ovaries and normal pubic hair.',
+      rp_5ard: 'Five-alpha-reductase deficiency has ambiguous genitals that masculinise at puberty.',
+      rp_turner: 'Turner syndrome is short with streak ovaries and NO breast development.',
+    },
+    vs: 'rp_mullerian',
+  },
+  {
+    id: 'rp_5ard', name: '5α-reductase deficiency', chapter: 'sexdev', tag: '46,XY DSD (autosomal recessive)',
+    s: 'A 46,XY child raised as a girl had **ambiguous external genitals at birth**. **At puberty the voice deepens and the phallus grows**. Internal male structures are normal, and testosterone is normal.',
+    w: {
+      'ambiguous external genitals at birth': 'DHT, made from testosterone by 5α-reductase, is needed to form the penis, scrotum and prostate in the fetus.',
+      'At puberty the voice deepens and the phallus grows': 'The surge of testosterone at puberty is high enough to masculinise the body directly.',
+    },
+    x: 'In 5α-reductase deficiency, testosterone cannot be converted to the stronger DHT. Internal male structures, which need testosterone, form normally, but the external genitals, which need DHT, are ambiguous at birth. At puberty, rising testosterone masculinises the body.',
+    hy: ['5α-reductase deficiency: autosomal recessive, 46,XY, ambiguous genitals until puberty, normal testosterone and normal internal genitals.'],
+    lookalikes: {
+      rp_ais: 'Androgen insensitivity looks fully female and does NOT masculinise at puberty.',
+      rp_aromatase: 'Aromatase deficiency virilises a 46,XX baby and the mother during pregnancy.',
+      rp_klinefelter: 'Klinefelter is a 47,XXY boy with small testes and breast enlargement.',
+    },
+    vs: 'rp_ais',
+  },
+  {
+    id: 'rp_kallmann', name: 'Kallmann syndrome', chapter: 'sexdev', tag: 'Hypogonadotropic hypogonadism',
+    s: 'A 17-year-old boy has **not gone through puberty**. He **cannot smell coffee or perfume**. FSH, LH and testosterone are all **low**.',
+    w: {
+      'not gone through puberty': 'Without GnRH, the pituitary does not release LH and FSH, so the testes are never switched on.',
+      'cannot smell coffee or perfume': 'GnRH neurons migrate to the hypothalamus alongside the olfactory nerves; when the olfactory bulbs fail to form, both are lost.',
+      'low': 'Low FSH and LH (not high) show the problem is above the gonads.',
+    },
+    x: 'In Kallmann syndrome, GnRH neurons fail to migrate from the nose to the hypothalamus during development. Without GnRH, LH and FSH stay low and puberty never completes. The olfactory bulbs also fail to develop, so the sense of smell is poor or absent.',
+    hy: ['Kallmann syndrome: low GnRH, FSH, LH and testosterone with anosmia or hyposmia; it causes infertility in both sexes.'],
+    lookalikes: {
+      rp_klinefelter: 'Klinefelter has HIGH FSH and LH, small firm testes and a normal sense of smell.',
+      rp_fha: 'Functional hypothalamic amenorrhoea is low GnRH from stress, weight loss or exercise, with a normal sense of smell.',
+      rp_turner: 'Turner syndrome has HIGH FSH and LH, short stature and a webbed neck.',
+    },
+    vs: 'rp_klinefelter',
+  },
+  {
+    id: 'rp_aromatase', name: 'Aromatase deficiency', chapter: 'sexdev', tag: 'Autosomal recessive',
+    s: 'During pregnancy, a woman develops **acne and excess facial hair**. Her 46,XX baby is born with **virilised, ambiguous genitals**.',
+    w: {
+      'acne and excess facial hair': 'Fetal androgens cannot be turned into oestrogen by the placenta, so they build up and cross into the mother.',
+      'virilised, ambiguous genitals': 'High androgens in the fetus masculinise the external genitals of a female baby.',
+    },
+    x: 'Aromatase turns androgens into oestrogens, including in the placenta. When it is missing, DHEA from the fetal adrenals is turned into testosterone instead of oestrogen. Both the female fetus and the mother become virilised.',
+    hy: ['Aromatase deficiency virilises both the 46,XX infant and the mother during pregnancy.'],
+    lookalikes: {
+      rp_5ard: 'Five-alpha-reductase deficiency affects 46,XY babies and does not virilise the mother.',
+      rp_ais: 'Androgen insensitivity is a 46,XY person who looks female.',
+      rp_sertoli_leydig: 'A Sertoli-Leydig cell tumour virilises a woman through an androgen-making ovarian mass, not during pregnancy.',
+    },
+    vs: 'rp_5ard',
+  },
+  {
+    id: 'rp_mullerian', name: 'Müllerian agenesis', chapter: 'sexdev', tag: 'Mayer-Rokitansky-Küster-Hauser',
+    s: 'A 16-year-old girl has never had a period. She has **normal breasts and pubic hair**, but only a **short, blind-ending vagina**, and ultrasound shows **no uterus**. Karyotype is 46,XX and hormones are normal.',
+    w: {
+      'normal breasts and pubic hair': 'The ovaries are normal, so oestrogen drives normal breast development, and androgen signalling gives normal hair.',
+      'short, blind-ending vagina': 'The upper vagina comes from the Müllerian (paramesonephric) ducts, which failed to develop.',
+      'no uterus': 'The uterus also comes from the Müllerian ducts.',
+    },
+    x: 'In Müllerian agenesis, the paramesonephric ducts fail to develop, so the uterus, cervix and upper vagina are missing. The ovaries are normal, so puberty and hormones are normal. The only problem is primary amenorrhoea.',
+    hy: ['Müllerian agenesis is primary amenorrhoea with normal secondary sexual characteristics, 46,XX and normal ovaries; kidney anomalies may coexist.'],
+    lookalikes: {
+      rp_ais: 'Androgen insensitivity is 46,XY with scant pubic hair and testes in the groin.',
+      rp_hymen: 'Imperforate hymen has a uterus, with cyclic pain and a bulging blue membrane.',
+      rp_turner: 'Turner syndrome is short with streak ovaries and no breast development.',
+    },
+    vs: 'rp_ais',
+  },
+  {
+    id: 'rp_hymen', name: 'Imperforate hymen', chapter: 'sexdev', tag: 'Incomplete canalisation',
+    s: 'A 14-year-old girl with normal breasts and no periods has **monthly cramping lower abdominal pain**. Examination shows a **bulging, bluish membrane** at the vaginal opening.',
+    w: {
+      'monthly cramping lower abdominal pain': 'She is menstruating, but the blood cannot get out and builds up each month.',
+      'bulging, bluish membrane': 'Trapped menstrual blood fills the vagina (haematocolpos) and pushes the thin hymen outward.',
+    },
+    x: 'With an imperforate hymen, the central part of the hymen never breaks down. Menstrual blood collects behind it each month, causing cyclic pain and a bulging blue membrane. A simple incision cures it.',
+    hy: ['Imperforate hymen causes primary amenorrhoea with cyclic pain and haematocolpos; in newborns it can present as a bulge of trapped mucus.'],
+    lookalikes: {
+      rp_mullerian: 'Müllerian agenesis has no uterus, so there is no cyclic pain or trapped blood.',
+      rp_endometriosis: 'Endometriosis causes cyclic pain with normal periods, not a bulging hymen.',
+      rp_ais: 'Androgen insensitivity has no uterus and testes in the groin.',
+    },
+    vs: 'rp_mullerian',
+  },
+
+  // ── Pregnancy and placenta ─────────────────────────────────────────────
+  {
+    id: 'rp_accreta', name: 'Placenta accreta spectrum', chapter: 'preg', tag: 'Abnormal trophoblast invasion',
+    s: 'A woman with **three previous C-sections** delivers vaginally, but the **placenta will not separate**. Attempted manual removal brings it out **in pieces** with massive bleeding.',
+    w: {
+      'three previous C-sections': 'Scar tissue in the uterus stops the decidua from forming properly, so the placenta attaches straight to the muscle.',
+      'placenta will not separate': 'Without the decidua as a cleavage layer, the placenta is stuck to (or into) the myometrium.',
+      'in pieces': 'Pulling tears the placenta because it is anchored in the muscle.',
+    },
+    x: 'In placenta accreta, the placenta attaches directly to the myometrium because the decidua is missing, usually over an old scar. It may go into the muscle (increta) or through it (percreta). After delivery it will not separate, causing severe bleeding that often needs a hysterectomy.',
+    hy: ['Placenta accreta spectrum: risk factors are prior C-section or uterine surgery, placenta previa, older age and multiparity; percreta can invade the bladder (haematuria).'],
+    lookalikes: {
+      rp_previa: 'Placenta previa causes painless bleeding BEFORE delivery from a placenta over the cervix.',
+      rp_pph: 'Uterine atony is a soft, boggy uterus after the placenta delivers normally.',
+      rp_rupture: 'Uterine rupture happens during labour with sudden pain and loss of fetal station.',
+    },
+    vs: 'rp_pph',
+  },
+  {
+    id: 'rp_previa', name: 'Placenta previa', chapter: 'preg', tag: 'Placenta over the internal os',
+    s: 'At 33 weeks, a woman with two previous C-sections has **sudden, bright red vaginal bleeding with no pain**. The uterus is **soft and non-tender**, and the fetal heart rate is normal.',
+    w: {
+      'sudden, bright red vaginal bleeding with no pain': 'As the lower uterus stretches late in pregnancy, the placenta over the cervix is torn away, bleeding painlessly.',
+      'soft and non-tender': 'There is no bleeding into the uterine wall and no contraction, unlike abruption.',
+    },
+    x: 'In placenta previa, the placenta attaches over the internal cervical os. As the lower uterus thins in the third trimester, the placenta separates slightly and bleeds. The bleeding is painless, and a digital vaginal exam must be avoided.',
+    hy: ['Placenta previa presents with painless third-trimester bleeding; risk factors are prior C-section and multiparity; do not do a digital cervical exam.'],
+    lookalikes: {
+      rp_abruption: 'Placental abruption is PAINFUL bleeding with a tense, tender uterus and fetal distress.',
+      rp_vasa: 'Vasa previa bleeds when the membranes rupture, with fetal bradycardia, because the blood is fetal.',
+      rp_rupture: 'Uterine rupture is painful, during labour, with loss of fetal station.',
+    },
+    vs: 'rp_abruption',
+  },
+  {
+    id: 'rp_vasa', name: 'Vasa previa', chapter: 'preg', tag: 'Fetal vessels over the os',
+    s: 'Moments after her **membranes rupture**, a woman has painless vaginal bleeding and the **fetal heart rate drops sharply**. Ultrasound earlier noted a **cord inserted into the membranes** instead of the placenta.',
+    w: {
+      'membranes rupture': 'Unprotected fetal vessels run across the membranes over the cervix and tear when the membranes break.',
+      'fetal heart rate drops sharply': 'The blood being lost is the baby\'s own, so even a small amount causes fetal distress.',
+      'cord inserted into the membranes': 'With a velamentous cord insertion, vessels travel through the membranes without Wharton jelly to protect them.',
+    },
+    x: 'In vasa previa, fetal blood vessels run across or near the internal os, unprotected by placenta or cord jelly. When the membranes rupture, the vessels tear and the baby bleeds. The baby can die quickly from blood loss, so an emergency C-section is needed.',
+    hy: ['Vasa previa: painless bleeding at membrane rupture with fetal bradycardia; risk factors are velamentous cord insertion and bilobed or succenturiate placenta.'],
+    lookalikes: {
+      rp_previa: 'Placenta previa is painless MATERNAL bleeding, with a normal fetal heart rate early on.',
+      rp_abruption: 'Placental abruption is painful bleeding with a tense, tender uterus.',
+      rp_rupture: 'Uterine rupture is sudden pain in labour with palpable fetal parts.',
+    },
+    vs: 'rp_previa',
+  },
+  {
+    id: 'rp_abruption', name: 'Placental abruption', chapter: 'preg', tag: 'Premature placental separation',
+    s: 'At 34 weeks, a woman who **uses cocaine** has **sudden painful vaginal bleeding** with a **rigid, tender uterus**. Fetal heart rate shows late decelerations, and she starts **oozing from her IV site**.',
+    w: {
+      'uses cocaine': 'Cocaine (like hypertension and smoking) constricts and damages placental vessels, so the placenta tears away.',
+      'sudden painful vaginal bleeding': 'Blood collects between the placenta and uterine wall, irritating the muscle and causing pain.',
+      'rigid, tender uterus': 'Blood in the uterine wall makes the uterus contract tightly and become tender.',
+      'oozing from her IV site': 'The damaged placenta releases tissue factor, triggering DIC.',
+    },
+    x: 'In placental abruption, the placenta separates from the uterus before delivery. Bleeding behind the placenta causes pain, a tense uterus and fetal distress. Shock and DIC can follow, and it can be life-threatening for both mother and baby.',
+    hy: ['Placental abruption risk factors: maternal hypertension, preeclampsia, smoking, cocaine and abdominal trauma; complications include DIC and hypovolaemic shock.'],
+    lookalikes: {
+      rp_previa: 'Placenta previa is PAINLESS bleeding with a soft uterus.',
+      rp_rupture: 'Uterine rupture happens in labour after a prior C-section, with palpable fetal parts and loss of station.',
+      rp_vasa: 'Vasa previa is painless bleeding at membrane rupture with fetal bradycardia.',
+    },
+    vs: 'rp_previa',
+  },
+  {
+    id: 'rp_rupture', name: 'Uterine rupture', chapter: 'preg', tag: 'Full-thickness tear',
+    s: 'During labour, a woman with a **previous C-section** suddenly has severe abdominal pain and bleeding. The fetal heart rate falls, **fetal parts are easily felt through the abdomen**, and the baby\'s head has **moved back up**.',
+    w: {
+      'previous C-section': 'The old scar is the weak point that tears under the strain of contractions.',
+      'fetal parts are easily felt through the abdomen': 'The baby has moved partly through the tear into the abdomen, so it lies just under the skin.',
+      'moved back up': 'Loss of fetal station: the presenting part slips back as the baby leaves the uterus.',
+    },
+    x: 'Uterine rupture is a full-thickness tear in the uterine wall, usually through an old C-section scar during labour. The mother has sudden pain and bleeding, and the baby becomes distressed and may move into the abdomen. It is an emergency for both.',
+    hy: ['Uterine rupture: risk factors are prior C-section and trauma; signs are painful bleeding, fetal bradycardia, palpable fetal parts and loss of station.'],
+    lookalikes: {
+      rp_abruption: 'Placental abruption gives a rigid, tender uterus with the baby still in place.',
+      rp_accreta: 'Placenta accreta presents AFTER delivery with a placenta that will not separate.',
+      rp_previa: 'Placenta previa causes painless bleeding before labour.',
+    },
+    vs: 'rp_abruption',
+  },
+  {
+    id: 'rp_pph', name: 'Postpartum hemorrhage (uterine atony)', chapter: 'preg', tag: 'Tone, Trauma, Tissue, Thrombin',
+    s: 'After a long labour with a **very large baby**, a woman keeps bleeding heavily after the placenta delivers completely. Her uterus feels **soft and boggy** above the navel.',
+    w: {
+      'very large baby': 'An over-stretched uterus (large baby, twins, long labour) contracts poorly afterwards.',
+      'soft and boggy': 'After delivery, the uterus must clamp down to squeeze the vessels shut. A soft uterus has not contracted (atony).',
+    },
+    x: 'Postpartum haemorrhage is heavy bleeding after delivery and a leading cause of maternal death worldwide. The most common cause is uterine atony: the muscle does not contract to close the placental bed vessels. Other causes are trauma, retained tissue and clotting problems.',
+    hy: ['Causes of postpartum haemorrhage: the 4 Ts — Tone (atony, most common), Trauma, Tissue (retained products), Thrombin (coagulopathy).', 'Treat with uterine massage and oxytocin; ligating the uterine or internal iliac arteries preserves fertility because the ovarian arteries supply collaterals.'],
+    lookalikes: {
+      rp_accreta: 'Placenta accreta bleeds because the placenta will NOT separate and comes out in pieces.',
+      rp_rupture: 'Uterine rupture happens during labour with pain and loss of fetal station.',
+      rp_endometritis: 'Endometritis causes fever, a tender uterus and foul lochia days after delivery.',
+    },
+    vs: 'rp_accreta',
+  },
+  {
+    id: 'rp_ectopic', name: 'Ectopic pregnancy', chapter: 'preg', tag: 'Most often in the ampulla',
+    s: 'A 27-year-old woman with a **past episode of pelvic inflammatory disease** has 7 weeks of amenorrhoea, light bleeding and **sharp one-sided lower abdominal pain**. Her **hCG is rising more slowly than expected**, and the uterus is empty on ultrasound.',
+    w: {
+      'past episode of pelvic inflammatory disease': 'Infection scars the fallopian tube, so the fertilised egg gets stuck in the tube instead of reaching the uterus.',
+      'sharp one-sided lower abdominal pain': 'The growing pregnancy stretches the tube and can rupture it, causing bleeding into the abdomen.',
+      'hCG is rising more slowly than expected': 'A pregnancy outside the uterus has a poor blood supply, so hCG rises less than in a normal pregnancy.',
+    },
+    x: 'An ectopic pregnancy implants outside the uterus, most often in the ampulla of the fallopian tube. It causes first-trimester bleeding and pain and can rupture, causing life-threatening bleeding. It is often mistaken for appendicitis.',
+    hy: ['Ectopic risk factors: tubal scarring (PID, surgery), previous ectopic, IUD and IVF; confirm with ultrasound and treat with methotrexate or surgery.'],
+    lookalikes: {
+      rp_torsion_adnexal: 'Adnexal torsion causes sudden one-sided pain with an enlarged ovary, and a negative pregnancy test.',
+      rp_complete_mole: 'A complete mole has a very HIGH hCG and a big uterus with a "snowstorm" appearance.',
+      rp_endometriosis: 'Endometriosis gives cyclic pain and infertility, not a positive pregnancy test.',
+    },
+    vs: 'rp_torsion_adnexal',
+  },
+  {
+    id: 'rp_complete_mole', name: 'Complete hydatidiform mole', chapter: 'preg', tag: '46,XX (paternal only)',
+    s: 'At 11 weeks, a woman has vaginal bleeding, severe vomiting and a **uterus large for dates**. Her **hCG is extremely high**, and she has a tremor and fast heart rate. Ultrasound shows a **"snowstorm" pattern with no fetus**.',
+    w: {
+      'uterus large for dates': 'Swollen villi and growing trophoblast fill and enlarge the uterus.',
+      'hCG is extremely high': 'The trophoblast makes huge amounts of hCG, which also stimulates the thyroid (shared alpha subunit), causing tremor.',
+      '"snowstorm" pattern with no fetus': 'Many swollen, fluid-filled villi give this pattern; with no maternal DNA, no fetus forms.',
+    },
+    x: 'A complete mole forms when a sperm fertilises an empty egg and its DNA doubles (46,XX, all paternal). There is no fetus, only swollen villi and overgrowing trophoblast. It causes bleeding, a large uterus and very high hCG, and can progress to choriocarcinoma.',
+    hy: ['Complete mole: 46,XX (enucleated egg + sperm), no fetal parts, p57-negative, very high hCG, about 2% risk of choriocarcinoma; treat with suction curettage and monitor hCG.', 'hCG excess causes hyperthyroidism, theca lutein cysts, hyperemesis and early preeclampsia (before 20 weeks).'],
+    lookalikes: {
+      rp_partial_mole: 'A partial mole is triploid (69,XXY) with some fetal parts, a smaller rise in hCG and p57 staining.',
+      rp_chorio: 'Choriocarcinoma is a malignant tumour with lung metastases and no villi, often after a mole.',
+      rp_ectopic: 'An ectopic pregnancy has a LOW, slow-rising hCG and an empty uterus.',
+    },
+    vs: 'rp_partial_mole',
+  },
+  {
+    id: 'rp_partial_mole', name: 'Partial hydatidiform mole', chapter: 'preg', tag: 'Triploid (69,XXY)',
+    s: 'At 14 weeks, a woman has vaginal bleeding and a uterus about the right size. Ultrasound shows **some fetal parts** among cystic placental tissue. Karyotype is **69,XXY**, and the villi **stain for p57**.',
+    w: {
+      'some fetal parts': 'A maternal set of chromosomes is present, so some fetal tissue can form.',
+      '69,XXY': 'Two sperm fertilise one normal egg, giving three sets of chromosomes (triploidy).',
+      'stain for p57': 'p57 is made from the maternal copy of its gene, so it stains only when maternal DNA is present.',
+    },
+    x: 'A partial mole forms when two sperm fertilise a normal egg, giving a triploid pregnancy. Some villi swell and some fetal tissue develops, but the fetus is not viable. hCG rises less than in a complete mole, and the risk of choriocarcinoma is low.',
+    hy: ['Partial mole: triploid (2 sperm + 1 egg), fetal parts present, p57-positive, smaller hCG rise, rare progression to choriocarcinoma.'],
+    lookalikes: {
+      rp_complete_mole: 'A complete mole is 46,XX all-paternal, with no fetus, p57-negative, and a much higher hCG.',
+      rp_chorio: 'Choriocarcinoma is malignant trophoblast with no villi and spread to the lungs.',
+      rp_ectopic: 'An ectopic pregnancy implants outside the uterus with a slow-rising hCG.',
+    },
+    vs: 'rp_complete_mole',
+  },
+  {
+    id: 'rp_chorio', name: 'Choriocarcinoma', chapter: 'preg', tag: 'Malignant trophoblast',
+    s: 'Two months after a **molar pregnancy was removed**, a woman has irregular bleeding, **coughing up blood**, and an **hCG that is rising again**. Chest X-ray shows **multiple round "cannonball" lesions**.',
+    w: {
+      'molar pregnancy was removed': 'Choriocarcinoma most often follows an abnormal pregnancy, especially a complete mole.',
+      'coughing up blood': 'The tumour spreads through the blood to the lungs, where its fragile tissue bleeds.',
+      'hCG that is rising again': 'The malignant trophoblast keeps making hCG, which is used to follow it.',
+      'multiple round "cannonball" lesions': 'Blood-borne metastases settle in the lungs as round nodules.',
+    },
+    x: 'Choriocarcinoma is a malignant tumour of trophoblast cells (cytotrophoblast and syncytiotrophoblast) without chorionic villi. It usually follows a molar pregnancy or abortion and spreads early through the blood to the lungs. It makes hCG and responds well to methotrexate.',
+    hy: ['Choriocarcinoma: no villi, high hCG, haematogenous spread to the lungs ("cannonball" metastases); treat with methotrexate.'],
+    lookalikes: {
+      rp_complete_mole: 'A complete mole has swollen villi confined to the uterus, without lung metastases.',
+      rp_partial_mole: 'A partial mole has fetal parts and a lower hCG, rarely becoming malignant.',
+      rp_embryonal: 'Embryonal carcinoma is a testicular germ cell tumour in a young man.',
+    },
+    vs: 'rp_complete_mole',
+  },
+  {
+    id: 'rp_preeclampsia', name: 'Preeclampsia', chapter: 'preg', tag: 'Abnormal spiral arteries',
+    s: 'At 34 weeks, a 19-year-old in her **first pregnancy** has a blood pressure of 160/105, a **headache with blurred vision** and **protein in her urine**. She had no high blood pressure before 20 weeks.',
+    w: {
+      'first pregnancy': 'Nulliparity is a classic risk factor, as are multiple pregnancy, chronic hypertension, diabetes and kidney disease.',
+      'headache with blurred vision': 'Endothelial damage and vasospasm affect the brain and retina, signs of severe disease.',
+      'protein in her urine': 'Damaged glomerular endothelium leaks protein.',
+    },
+    x: 'In preeclampsia, the placental spiral arteries are poorly remodelled, so the placenta is starved of blood. It releases factors that damage the mother\'s blood vessel lining, causing high blood pressure and organ damage after 20 weeks. It can lead to seizures, HELLP, abruption and kidney failure.',
+    hy: ['Preeclampsia: new hypertension after 20 weeks with proteinuria or end-organ damage; give magnesium sulfate to prevent seizures, and delivery is the cure; low-dose aspirin is used for prevention.', 'Preeclampsia before 20 weeks suggests a molar pregnancy.'],
+    lookalikes: {
+      rp_eclampsia: 'Eclampsia is the same disease WITH seizures.',
+      rp_hellp: 'HELLP syndrome adds haemolysis, high liver enzymes and low platelets, sometimes without high blood pressure.',
+      rp_complete_mole: 'A complete mole can cause high blood pressure BEFORE 20 weeks, with a very high hCG.',
+    },
+    vs: 'rp_eclampsia',
+  },
+  {
+    id: 'rp_eclampsia', name: 'Eclampsia', chapter: 'preg', tag: 'Seizures in pregnancy',
+    s: 'At 36 weeks, a woman with a blood pressure of 170/110 and protein in her urine has a **generalised tonic-clonic seizure**. She has **no history of epilepsy**.',
+    w: {
+      'generalised tonic-clonic seizure': 'Severe vasospasm and endothelial damage in the brain trigger seizures.',
+      'no history of epilepsy': 'A new seizure with high blood pressure and proteinuria in late pregnancy points to this, not epilepsy.',
+    },
+    x: 'Eclampsia is the severe end of the preeclampsia spectrum: high blood pressure with organ damage plus seizures. Death can result from stroke, brain haemorrhage or ARDS. Treatment is magnesium sulfate, blood pressure control and immediate delivery.',
+    hy: ['Eclampsia: treat with IV magnesium sulfate, antihypertensives and immediate delivery; watch for magnesium toxicity (loss of reflexes, respiratory depression).'],
+    lookalikes: {
+      rp_preeclampsia: 'Preeclampsia has high blood pressure and organ damage but NO seizures.',
+      rp_hellp: 'HELLP syndrome is haemolysis, high liver enzymes and low platelets, often with right upper quadrant pain.',
+      rp_supine: 'Supine hypotensive syndrome is LOW blood pressure when lying flat late in pregnancy.',
+    },
+    vs: 'rp_preeclampsia',
+  },
+  {
+    id: 'rp_hellp', name: 'HELLP syndrome', chapter: 'preg', tag: 'Thrombotic microangiopathy of the liver',
+    s: 'At 35 weeks, a woman has **right upper abdominal pain** and nausea. She has **schistocytes on the smear**, high LDH, **high liver enzymes** and a platelet count of 60,000.',
+    w: {
+      'right upper abdominal pain': 'Microthrombi damage the liver and stretch its capsule; a subcapsular haematoma can form and rupture.',
+      'schistocytes on the smear': 'Red cells are sliced by small clots in damaged vessels (microangiopathic haemolysis).',
+      'high liver enzymes': 'Liver cells die from blocked small vessels.',
+    },
+    x: 'HELLP is a severe form of preeclampsia with a thrombotic microangiopathy of the liver: Haemolysis, Elevated Liver enzymes, Low Platelets. It can occur even without high blood pressure or proteinuria. It can cause a liver haematoma and DIC, and the treatment is immediate delivery.',
+    hy: ['HELLP = Haemolysis, Elevated Liver enzymes, Low Platelets; treat with immediate delivery; it can cause hepatic subcapsular haematoma and DIC.'],
+    lookalikes: {
+      rp_preeclampsia: 'Preeclampsia has high blood pressure and proteinuria without haemolysis and low platelets.',
+      rp_eclampsia: 'Eclampsia is preeclampsia with seizures.',
+      rp_abruption: 'Placental abruption is painful VAGINAL bleeding with a rigid uterus.',
+    },
+    vs: 'rp_preeclampsia',
+  },
+  {
+    id: 'rp_supine', name: 'Supine hypotensive syndrome', chapter: 'preg', tag: 'Aortocaval compression',
+    s: 'At 32 weeks, a woman becomes **dizzy, pale and hypotensive whenever she lies flat on her back** for an ultrasound. Her symptoms **resolve when she rolls onto her left side**.',
+    w: {
+      'dizzy, pale and hypotensive whenever she lies flat on her back': 'The heavy uterus presses on the inferior vena cava, cutting venous return to the heart and dropping blood pressure.',
+      'resolve when she rolls onto her left side': 'Lying on the left moves the uterus off the vena cava (which is on the right), restoring blood flow.',
+    },
+    x: 'After 20 weeks, the pregnant uterus can compress the aorta and inferior vena cava when the woman lies on her back. Less blood returns to the heart, so blood pressure falls and placental blood flow drops. Lying on the left side relieves it.',
+    hy: ['Supine hypotensive syndrome (aortocaval compression) after 20 weeks is relieved by the left lateral decubitus position.'],
+    lookalikes: {
+      rp_eclampsia: 'Eclampsia is HIGH blood pressure with seizures.',
+      rp_abruption: 'Placental abruption causes painful bleeding with a tender uterus and shock.',
+      rp_preeclampsia: 'Preeclampsia is high blood pressure with proteinuria after 20 weeks.',
+    },
+    vs: 'rp_abruption',
+  },
+  {
+    id: 'rp_fas', name: 'Fetal alcohol syndrome', chapter: 'preg', tag: 'Leading cause of preventable intellectual disability',
+    s: 'A small 3-year-old boy with developmental delay and hyperactivity has a **smooth philtrum, thin upper lip and short eye openings**. His mother **drank heavily during pregnancy**.',
+    w: {
+      'smooth philtrum, thin upper lip and short eye openings': 'Alcohol disrupts the migration of facial cells in early pregnancy, giving these classic features.',
+      'drank heavily during pregnancy': 'Alcohol crosses the placenta and is toxic to the developing brain and face.',
+    },
+    x: 'Alcohol in pregnancy damages the developing face, brain and heart by disrupting cell migration. Children have growth restriction, a typical face and learning and behaviour problems. It is the leading preventable cause of intellectual disability.',
+    hy: ['Fetal alcohol syndrome: smooth philtrum, thin vermilion border, small palpebral fissures, microcephaly and heart defects; holoprosencephaly can occur in severe cases.'],
+    lookalikes: {
+      rp_turner: 'Turner syndrome is a short girl with a webbed neck and widely spaced nipples.',
+      rp_klinefelter: 'Klinefelter syndrome is a tall boy with small testes, noticed at puberty.',
+      rp_xyy: 'XYY males are very tall with normal faces.',
+    },
+    vs: 'rp_turner',
+  },
+];
