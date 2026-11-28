@@ -106,8 +106,13 @@ for (const c of cases) {
   const bare = q.s.replace(/\*\*/g, '').toLowerCase();
   const head = c.name.toLowerCase().replace(/\s*\(.*\)$/, '');
   if (bare.includes(head)) at('stem names the disease');
-  if (!Array.isArray(q.hy) || q.hy.length !== 3) at('needs exactly 3 hy points');
-  for (const h of q.hy || []) if (h.length > 130) at(`hy point too long: ${h.slice(0, 40)}…`);
+  const clues = [...q.s.matchAll(/\*\*(.+?)\*\*/g)].map(m => m[1]);
+  if (!clues.length) at('stem has no highlighted clue');
+  for (const k of clues) if (!q.w?.[k] || q.w[k].length < 30) at(`clue "${k}" has no why-it-happens note`);
+  for (const k of Object.keys(q.w || {})) if (!clues.includes(k)) at(`note for "${k}" matches no clue in the stem`);
+  if (!q.x || q.x.length < 80 || !/[.!?]$/.test(q.x)) at('x (explanation) missing or not full sentences');
+  if (!Array.isArray(q.hy) || q.hy.length < 1 || q.hy.length > 2) at('needs 1-2 hy points');
+  for (const h of q.hy || []) if (!/[.!?]$/.test(h)) at(`hy point is not a full sentence: ${h.slice(0, 40)}…`);
   if (!Array.isArray(q.vs) || q.vs.length !== 2) at('vs must be [id, text]');
   else if (!Object.keys(c.lookalikes).includes(q.vs[0])) at(`vs ${q.vs[0]} is not one of its lookalikes`);
   if (/[‘’“”]/.test(JSON.stringify(q))) at('smart quotes present');

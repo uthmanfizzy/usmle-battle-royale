@@ -76,6 +76,16 @@ export const hydSfx = {
   streak: play((bus) => {
     [1568, 1760, 2093, 2637].forEach((f, i) => tone(bus, { at: 0.75 + i * 0.05, freq: f, dur: 0.18, peak: 0.035 }));
   }),
+  /** Last seconds on the clock: a monitor tick, higher on the final one. */
+  tick: play((bus, secondsLeft = 5) => {
+    tone(bus, { freq: secondsLeft <= 1 ? 1568 : 1175, dur: 0.05, peak: 0.05, type: 'square' });
+  }),
+  /** Clock ran out: a flat alarm. */
+  timeUp: play((bus) => {
+    tone(bus, { freq: 440, dur: 0.18, peak: 0.07, type: 'square' });
+    tone(bus, { at: 0.2, freq: 440, dur: 0.18, peak: 0.07, type: 'square' });
+    tone(bus, { at: 0.4, freq: 330, dur: 0.4, peak: 0.07, type: 'square' });
+  }),
   /** Next question. */
   next: play((bus) => { tone(bus, { freq: 660, dur: 0.06, peak: 0.05, type: 'triangle' }); tone(bus, { at: 0.06, freq: 990, dur: 0.08, peak: 0.05, type: 'triangle' }); }),
   /** Block started. */

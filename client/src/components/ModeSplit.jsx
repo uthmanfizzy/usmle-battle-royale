@@ -617,7 +617,7 @@ export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld, onSaudiMLE, o
         )}
 
         {/* HY Diseases: high-yield diseases taught as patients to diagnose.
-            A hub of subjects (/hy-diseases); Biochemistry is open. */}
+            Opens straight on the Qbank setup (/hy-diseases), where the subject is picked. */}
         {!isDentistry && !step2 && (
         <button className="ms-journey-card ms-journey-card--hyd" onClick={() => { window.location.href = '/hy-diseases'; }}>
           <div className="ms-journey-art" aria-hidden="true">
@@ -626,7 +626,7 @@ export function StoryMenu({ onBack, onJourney, onAnKing, onUWorld, onSaudiMLE, o
           <div className="ms-journey-body">
             <span className="ms-journey-name">HY DISEASES</span>
             <span className="ms-journey-sub">
-              Meet animated patients and diagnose them: history, exam, look-alikes, explained simply.
+              Fast, high-yield disease cases: tap the diagnosis, learn why, beat the clock.
             </span>
           </div>
         </button>
