@@ -4,6 +4,9 @@ import QB from '../hyd/qbank/bioQbank';
 import { IMMUNO_CASES, IMMUNO_BY_ID, IMMUNO_CHAPTERS } from '../hyd/immuno/immunoCases';
 import { hydSfx } from '../hydSfx';
 import { createHydMusic, hydMusicPref, setHydMusicPref } from '../hydMusic';
+import { HEME_CASES, HEME_BY_ID, HEME_CHAPTERS } from '../hyd/heme/hemeCases';
+import { useStudySession } from '../studySession';
+import { useStudyActivity } from '../studyPresence';
 import './HydQbank.css';
 
 /**
@@ -32,7 +35,7 @@ const SUBJECTS = [
   { id: 'biochem', name: 'Biochemistry', icon: '⚗️', open: true },
   { id: 'immuno', name: 'Immunology', icon: '🛡️', open: true },
   { id: 'micro', name: 'Microbiology', icon: '🦠' },
-  { id: 'heme', name: 'Haematology', icon: '🩸' },
+  { id: 'heme', name: 'Heme & Onc', icon: '🩸', open: true },
   { id: 'neuro', name: 'Neurology', icon: '🧠' },
   { id: 'cardio', name: 'Cardiology', icon: '🫀' },
   { id: 'endo', name: 'Endocrinology', icon: '🦋' },
@@ -44,10 +47,13 @@ const SUBJECTS = [
 const DATA = {
   biochem: { cases: BIO_CASES, chapters: BIO_CHAPTERS },
   immuno: { cases: IMMUNO_CASES, chapters: IMMUNO_CHAPTERS },
+  heme: { cases: HEME_CASES, chapters: HEME_CHAPTERS },
 };
 const dataFor = (subject) => DATA[subject] || DATA.biochem;
-const BY_ID = { ...BIO_BY_ID, ...IMMUNO_BY_ID };
-const CHAPTERS = [...BIO_CHAPTERS, ...IMMUNO_CHAPTERS];
+const BY_ID = { ...BIO_BY_ID, ...IMMUNO_BY_ID, ...HEME_BY_ID };
+const CHAPTERS = [...BIO_CHAPTERS, ...IMMUNO_CHAPTERS, ...HEME_CHAPTERS];
+// The subject name sent to Daily Activity and shown on study presence.
+const SUBJECT_NAME = { biochem: 'Biochemistry', immuno: 'Immunology', heme: 'Haematology & Oncology' };
 // The Qbank card: Biochemistry keeps its cards in bioQbank.js (its cases also
 // drive the Clinic); Immunology cases carry the card fields themselves.
 const cardOf = (c) => QB[c.id] || c;
@@ -266,7 +272,7 @@ function Setup({ onStart, onExit, clinic, onClinic, progress, musicOn, toggleMus
         {pool.length === 0 ? (
           <p className="hq-empty">You have done every question in these wards today. 🎉 Turn off “Skip questions I did today” to go again.</p>
         ) : (
-          <button type="button" className="hq-start" onClick={() => onStart(shuffle(pool).slice(0, want))}>
+          <button type="button" className="hq-start" onClick={() => onStart(shuffle(pool).slice(0, want), cfg.subject)}>
             Start {want} question{want === 1 ? '' : 's'} <span aria-hidden="true">→</span>
           </button>
         )}
@@ -561,8 +567,15 @@ export default function HydQbank({ onExit, clinic, onClinic, progress, onResult 
   const [best, setBest] = useState(0);
   const [flash, setFlash] = useState(null);
   const [paused, setPaused] = useState(false);
+  const [subject, setSubject] = useState(() => readSetup().subject);
   const [musicOn, setMusicOn] = useState(hydMusicPref);
   const music = useRef(null);
+
+  // Daily Activity + Study Time: one session per cycle (questions answered,
+  // correct, active seconds), sent when the results show or the page is left.
+  // Active only while a question is on screen and not paused.
+  const study = useStudySession({ mode: 'hy_diseases', active: phase === 'run' && !paused, subject: SUBJECT_NAME[subject] || null });
+  useStudyActivity('HY Diseases', SUBJECT_NAME[subject] || null, 'hy_diseases');
   if (!music.current) music.current = createHydMusic();
 
   useEffect(() => {
@@ -573,7 +586,9 @@ export default function HydQbank({ onExit, clinic, onClinic, progress, onResult 
 
   function toggleMusic() { const n = !musicOn; setMusicOn(n); setHydMusicPref(n); }
 
-  function start(list) {
+  function start(list, subj) {
+    study.flush();                       // anything left from a cycle ended early
+    if (subj) setSubject(subj);
     setQueue(list); setIndex(0); setLog([]); setStreak(0); setBest(0); setPaused(false);
     setPhase('run');
     hydSfx.start();
@@ -581,6 +596,7 @@ export default function HydQbank({ onExit, clinic, onClinic, progress, onResult 
   }
 
   function answer(id, right) {
+    study.count(right);
     markSeen(id);
     onResult?.(id, right);
     setLog(l => [...l, { id, right }]);
@@ -595,20 +611,21 @@ export default function HydQbank({ onExit, clinic, onClinic, progress, onResult 
   function next() {
     setPaused(false);
     if (index + 1 < queue.length) { setIndex(i => i + 1); hydSfx.next(); toTop(true); }
-    else { setPhase('summary'); hydSfx.complete(); toTop(); }
+    else { setPhase('summary'); study.flush(); hydSfx.complete(); toTop(); }
   }
 
   function again() {
     const cfg = readSetup();
     const { pool } = poolFor(cfg);
     if (!pool.length) { setPhase('setup'); return; }
-    start(shuffle(pool).slice(0, cfg.size === 0 ? pool.length : cfg.size));
+    start(shuffle(pool).slice(0, cfg.size === 0 ? pool.length : cfg.size), cfg.subject);
   }
 
   const score = log.filter(r => r.right).length;
 
   return (
-    <div className="hq-screen">
+    // Any tap counts as activity (reading clue pop-ups, scrolling the explanation).
+    <div className="hq-screen" onPointerDown={study.touch} onKeyDown={study.touch}>
       <Backdrop flash={flash} />
       <div className="hq-wrap">
         {phase === 'setup' && (
@@ -624,7 +641,7 @@ export default function HydQbank({ onExit, clinic, onClinic, progress, onResult 
             score={score}
             onAnswer={answer}
             onNext={next}
-            onQuit={() => { setPaused(false); setPhase(log.length ? 'summary' : 'setup'); }}
+            onQuit={() => { setPaused(false); study.flush(); setPhase(log.length ? 'summary' : 'setup'); }}
             musicOn={musicOn}
             toggleMusic={toggleMusic}
             paused={paused}

@@ -118,42 +118,48 @@ for (const c of cases) {
   if (/[‘’“”]/.test(JSON.stringify(q))) at('smart quotes present');
 }
 
-// Immunology (Qbank-only cases, hyd/immuno/immunoCases.js): same card rules,
-// plus the case shape itself.
-const im = await import(pathToFileURL(path.join(dir, 'immuno', 'immunoCases.js')).href);
-const imIds = new Set();
-const imChapters = new Set(im.IMMUNO_CHAPTERS.map(c => c.id));
-for (const c of im.IMMUNO_CASES) {
-  const at = (m) => errs.push(`immuno ${c.id}: ${m}`);
-  if (!c.id.startsWith('im_')) at('id must start with im_');
-  if (imIds.has(c.id) || ids.has(c.id)) at('duplicate id'); imIds.add(c.id);
-  if (!imChapters.has(c.chapter)) at(`bad chapter ${c.chapter}`);
-  for (const k of ['name', 'tag', 's', 'x']) if (!c[k]) at(`missing ${k}`);
-}
-for (const c of im.IMMUNO_CASES) {
-  const at = (m) => errs.push(`immuno ${c.id}: ${m}`);
-  const la = Object.keys(c.lookalikes || {});
-  if (la.length !== 3) at(`needs exactly 3 lookalikes (has ${la.length})`);
-  for (const o of la) {
-    if (!imIds.has(o)) at(`lookalike ${o} is not an immuno case`);
-    if (o === c.id) at('lookalike is itself');
-    if (!/[.!?]$/.test(c.lookalikes[o] || '')) at(`lookalike ${o} needs a full-sentence why-not`);
+// Qbank-only subjects (Immunology, Haematology & Oncology): same card rules,
+// plus the case shape itself. Ids must be unique across EVERY subject.
+const allIds = new Set(ids);
+async function checkSubject(label, file, casesKey, chaptersKey, prefix) {
+  const mod = await import(pathToFileURL(path.join(dir, file)).href);
+  const cases = mod[casesKey], chapters = new Set(mod[chaptersKey].map(c => c.id));
+  const own = new Set();
+  for (const c of cases) {
+    const at = (m) => errs.push(`${label} ${c.id}: ${m}`);
+    if (!c.id.startsWith(prefix)) at(`id must start with ${prefix}`);
+    if (own.has(c.id) || allIds.has(c.id)) at('duplicate id');
+    own.add(c.id); allIds.add(c.id);
+    if (!chapters.has(c.chapter)) at(`bad chapter ${c.chapter}`);
+    for (const k of ['name', 'tag', 's', 'x']) if (!c[k]) at(`missing ${k}`);
   }
-  if (!la.includes(c.vs)) at(`vs ${c.vs} is not one of its lookalikes`);
-  if (c.s.length > 420) at(`stem too long (${c.s.length})`);
-  const bare = c.s.replace(/\*\*/g, '').toLowerCase();
-  const head = c.name.toLowerCase().replace(/\s*\(.*\)$/, '');
-  if (bare.includes(head)) at('stem names the disease');
-  const clues = [...c.s.matchAll(/\*\*(.+?)\*\*/g)].map(m => m[1]);
-  if (!clues.length) at('stem has no highlighted clue');
-  for (const k of clues) if (!c.w?.[k] || c.w[k].length < 30) at(`clue "${k}" has no why-it-happens note`);
-  for (const k of Object.keys(c.w || {})) if (!clues.includes(k)) at(`note for "${k}" matches no clue in the stem`);
-  if (c.x.length < 80 || !/[.!?]$/.test(c.x)) at('x not full sentences');
-  if (!Array.isArray(c.hy) || c.hy.length < 1 || c.hy.length > 2) at('needs 1-2 hy points');
-  for (const h of c.hy || []) if (!/[.!?]$/.test(h)) at(`hy point is not a full sentence: ${h.slice(0, 40)}…`);
-  if (/[‘’“”]/.test(JSON.stringify(c))) at('smart quotes present');
+  for (const c of cases) {
+    const at = (m) => errs.push(`${label} ${c.id}: ${m}`);
+    const la = Object.keys(c.lookalikes || {});
+    if (la.length !== 3) at(`needs exactly 3 lookalikes (has ${la.length})`);
+    for (const o of la) {
+      if (!own.has(o)) at(`lookalike ${o} is not a ${label} case`);
+      if (o === c.id) at('lookalike is itself');
+      if (!/[.!?]$/.test(c.lookalikes[o] || '')) at(`lookalike ${o} needs a full-sentence why-not`);
+    }
+    if (!la.includes(c.vs)) at(`vs ${c.vs} is not one of its lookalikes`);
+    if (c.s.length > 420) at(`stem too long (${c.s.length})`);
+    const bare = c.s.replace(/\*\*/g, '').toLowerCase();
+    const head = c.name.toLowerCase().replace(/\s*\(.*\)$/, '');
+    if (bare.includes(head)) at('stem names the disease');
+    const clues = [...c.s.matchAll(/\*\*(.+?)\*\*/g)].map(m => m[1]);
+    if (!clues.length) at('stem has no highlighted clue');
+    for (const k of clues) if (!c.w?.[k] || c.w[k].length < 30) at(`clue "${k}" has no why-it-happens note`);
+    for (const k of Object.keys(c.w || {})) if (!clues.includes(k)) at(`note for "${k}" matches no clue in the stem`);
+    if (c.x.length < 80 || !/[.!?]$/.test(c.x)) at('x not full sentences');
+    if (!Array.isArray(c.hy) || c.hy.length < 1 || c.hy.length > 2) at('needs 1-2 hy points');
+    for (const h of c.hy || []) if (!/[.!?]$/.test(h)) at(`hy point is not a full sentence: ${h.slice(0, 40)}…`);
+    if (/[‘’“”]/.test(JSON.stringify(c))) at('smart quotes present');
+  }
+  console.log(`${label}: ${cases.length} cases`, Object.fromEntries([...chapters].map(ch => [ch, cases.filter(c => c.chapter === ch).length])));
 }
-console.log(`immunology: ${im.IMMUNO_CASES.length} cases`, Object.fromEntries([...imChapters].map(ch => [ch, im.IMMUNO_CASES.filter(c => c.chapter === ch).length])));
+await checkSubject('immuno', 'immuno/immunoCases.js', 'IMMUNO_CASES', 'IMMUNO_CHAPTERS', 'im_');
+await checkSubject('heme', 'heme/hemeCases.js', 'HEME_CASES', 'HEME_CHAPTERS', 'hm_');
 
 const byChapter =Object.fromEntries(CHAPTERS.map(ch => [ch, cases.filter(c => c.chapter === ch).length]));
 console.log(`${cases.length} cases`, byChapter);

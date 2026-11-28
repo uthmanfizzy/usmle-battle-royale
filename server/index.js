@@ -14020,6 +14020,7 @@ const FA_STUDY_MODES = {
   amboss_qbank: { perItem: 240 },                // a vignette, the hint and every choice's explanation
   kaplan_hy_ethics: { perItem: 90 },             // a Kaplan ethics case file and its verdict
   tower: { perItem: 90 },                        // a timed floor question and its explanation
+  hy_diseases: { perItem: 120 },                 // HY Diseases Qbank: 40 s to answer + 30 s explanation + clue pop-ups
   // Minigames (client/src/StudyTracked.jsx wraps their routes): time only.
   // They mix learning screens with play, so there is no question count to
   // cap by; `items` is the session's active minutes, rounded up, and the
@@ -14027,7 +14028,7 @@ const FA_STUDY_MODES = {
   ...Object.fromEntries([
     'ecg_reader', 'abg_reader', 'muscle_mapper', 'biostats_lab', 'spot_the_diagnosis',
     'genetics_roulette', 'drug_match', 'lab_range', 'murmurs', 'pv_loops',
-    'clot_cascade', 'vitamin_vault', 'pathway_navigator', 'onco_atlas', 'hy_diseases',
+    'clot_cascade', 'vitamin_vault', 'pathway_navigator', 'onco_atlas',
   ].map(m => [m, { perItem: 60, timeOnly: true }])),
 };
 app.post('/api/fa-study-session', requireAuth, async (req, res) => {

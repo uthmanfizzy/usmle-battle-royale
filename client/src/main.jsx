@@ -197,8 +197,8 @@ ReactDOM.createRoot(document.getElementById('root')).render(
                 <Route path="/kaplan" element={<RouteErrorBoundary name="KaplanHub"><KaplanHub /></RouteErrorBoundary>} />
                 <Route path="/kaplan-ethics" element={<RouteErrorBoundary name="KaplanEthics"><KaplanEthics /></RouteErrorBoundary>} />
                 {/* HY Diseases: a hub of subjects; Biochemistry is "Clinic Rounds". */}
-                <Route path="/hy-diseases" element={<RouteErrorBoundary name="HyDiseasesBio"><StudyTracked mode="hy_diseases"><HyDiseasesBio onExit={() => { window.location.href = '/?story=1'; }} /></StudyTracked></RouteErrorBoundary>} />
-                <Route path="/hy-diseases/biochem" element={<RouteErrorBoundary name="HyDiseasesBio"><StudyTracked mode="hy_diseases"><HyDiseasesBio onExit={() => { window.location.href = '/?story=1'; }} /></StudyTracked></RouteErrorBoundary>} />
+                <Route path="/hy-diseases" element={<RouteErrorBoundary name="HyDiseasesBio"><HyDiseasesBio onExit={() => { window.location.href = '/?story=1'; }} /></RouteErrorBoundary>} />
+                <Route path="/hy-diseases/biochem" element={<RouteErrorBoundary name="HyDiseasesBio"><HyDiseasesBio onExit={() => { window.location.href = '/?story=1'; }} /></RouteErrorBoundary>} />
                 <Route path="/hy-flashcards" element={<RouteErrorBoundary name="HYFlashcards"><HYFlashcards /></RouteErrorBoundary>} />
                 <Route path="/reels"          element={<RouteErrorBoundary name="ReelsPage"><ReelsPage /></RouteErrorBoundary>} />
                 <Route path="/fa-hy-qs" element={<RouteErrorBoundary name="FAHYQs"><FAHYQs /></RouteErrorBoundary>} />
