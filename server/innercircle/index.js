@@ -7,7 +7,11 @@
  * (or all of them). The banks are CODE, so a change ships with a commit; run
  * `node server/innercircle/check.js` after editing.
  *
- * Row shape (see endo/*.js): [topic, notesPage, stem, [correct, wrong x4], explanation, takeHome]
+ * Row shape (see endo/*.js): [topic, notesPage, stem, [correct, wrong x4], explanation, takeHome, extras?]
+ * extras (optional): { img, alt, exp } — picture names (no extension) in
+ * client/public/inner-circle/<system>/<name>.webp. `img` shows under the stem
+ * (an image question; it must not give the answer away), `exp` under the
+ * explanation.
  * The explanation is plain full sentences; ==phrase== marks the line to remember.
  */
 
@@ -29,18 +33,37 @@ const SYSTEMS = [
       ['Pediatric Endocrine', './endo/peds'],
     ],
   },
+  {
+    id: 'renal', name: 'Nephrology', icon: '💧', pages: [7, 62],
+    sections: [
+      ['Acid-Base', './renal/acidbase'],
+      ['Electrolytes', './renal/electrolytes'],
+      ['Cysts & Renovascular', './renal/vascular'],
+      ['AKI, Dialysis & CKD', './renal/aki'],
+      ['Stones & Urinary Infection', './renal/stones'],
+      ['Glomerular & Interstitial', './renal/glomerular'],
+      ['Urinary Incontinence', './renal/bladder'],
+      ['Hematuria, Cancer & Drugs', './renal/hematuria'],
+      ['Pediatric Renal', './renal/peds'],
+      ['GU Trauma & Surgery', './renal/trauma'],
+    ],
+  },
 ];
+
+const picture = (sys, name) => (name ? `/inner-circle/${sys}/${name}.webp` : null);
 
 const ID_RE = /^ic_[a-z0-9]+-[0-9a-f]{10}$/;
 
 function build(sys) {
   const out = [];
   for (const [section, file] of sys.sections) {
-    for (const [topic, page, stem, options, explanation, takeHome] of require(file)) {
+    for (const [topic, page, stem, options, explanation, takeHome, extras = {}] of require(file)) {
       out.push({
         // Stable id from the stem, so a question keeps its ratings when rows move.
         id: `ic_${sys.id}-${crypto.createHash('sha1').update(stem).digest('hex').slice(0, 10)}`,
         system: sys.id, section, topic, page, stem, answer: options[0], options, explanation, takeHome,
+        image: picture(sys.id, extras.img), imageAlt: extras.alt || null,
+        explanationImage: picture(sys.id, extras.exp),
       });
     }
   }
@@ -62,6 +85,7 @@ function catalog() {
       const bank = BANKS[s.id];
       return {
         id: s.id, name: s.name, icon: s.icon, pages: s.pages, count: bank.length,
+        images: bank.filter(q => q.image).length,
         // Every question id, so the page can count "unrated" and filter by
         // rating without a second request.
         ids: bank.map(q => q.id),
@@ -100,6 +124,7 @@ function run({ system, topics, count, ids, unrated, rated }) {
     return {
       id: q.id, section: q.section, topic: q.topic, page: q.page, stem: q.stem,
       options, correct: options.indexOf(q.answer), explanation: q.explanation, takeHome: q.takeHome,
+      image: q.image, imageAlt: q.imageAlt, explanationImage: q.explanationImage,
     };
   });
 }

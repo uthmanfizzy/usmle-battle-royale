@@ -6,7 +6,12 @@
  * should stay well under half (chance is 20%).
  */
 
+const fs = require('fs');
+const path = require('path');
 const { SYSTEMS, BANKS } = require('./index');
+
+// Pictures live in the client's public folder; every one a row names must exist.
+const PUBLIC = path.join(__dirname, '..', '..', 'client', 'public');
 
 let bad = 0;
 const fail = (q, msg) => { bad += 1; console.log(`✗ [${q.system}/${q.section}/${q.topic}] ${msg}\n    ${q.stem.slice(0, 90)}`); };
@@ -32,13 +37,19 @@ for (const sys of SYSTEMS) {
     topicSection[q.topic] = q.section;
     // Every sentence should end properly (full sentences, not notes).
     if (!/[.!?]$/.test(q.explanation.replace(/==/g, '').trim())) fail(q, 'explanation does not end in a full stop');
+    for (const url of [q.image, q.explanationImage]) {
+      if (url && !fs.existsSync(path.join(PUBLIC, url))) fail(q, `missing picture ${url}`);
+    }
+    // Stem pictures are the masked/cropped q_* versions, never a labelled figure.
+    if (q.image && !/\/q_[a-z0-9_]+\.webp$/.test(q.image)) fail(q, 'stem picture must be a q_* (unlabelled) image');
+    if (q.image && !q.imageAlt) fail(q, 'stem picture needs alt text');
     const maxOther = Math.max(...q.options.slice(1).map(o => o.length));
     if (q.answer.length > maxOther) longest += 1;
     if (q.answer.length < Math.min(...q.options.slice(1).map(o => o.length))) shortest += 1;
     if (q.answer.length > maxOther * 2.2 && q.answer.length > 30) fail(q, 'correct answer is far longer than every distractor');
   }
   const topics = Object.keys(topicSection).length;
-  console.log(`${sys.name}: ${bank.length} questions, ${topics} topics, ${sys.sections.length} sections; answer is longest ${Math.round((longest / bank.length) * 100)}%, shortest ${Math.round((shortest / bank.length) * 100)}%`);
+  console.log(`${sys.name}: ${bank.length} questions (${bank.filter(q => q.image).length} with a picture), ${topics} topics, ${sys.sections.length} sections; answer is longest ${Math.round((longest / bank.length) * 100)}%, shortest ${Math.round((shortest / bank.length) * 100)}%`);
 }
 if (bad) { console.log(`\n${bad} problem(s).`); process.exit(1); }
 console.log('OK');

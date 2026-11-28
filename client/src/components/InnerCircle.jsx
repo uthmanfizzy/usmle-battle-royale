@@ -27,6 +27,7 @@ import './InnerCircle.css';
  */
 
 const SECONDS = 30;
+const IMAGE_BONUS = 10;   // extra seconds on a picture question
 const LETTERS = ['A', 'B', 'C', 'D', 'E'];
 const COUNT_LABEL = { 0: 'All' };
 const RATING_MODE = 'inner_circle';
@@ -75,9 +76,44 @@ function Explanation({ text }) {
   );
 }
 
-/** The 30-second clock as a ring that empties; amber in the last 10 s. */
-function RingClock({ msLeft, paused, done }) {
-  const frac = Math.max(0, Math.min(1, msLeft / (SECONDS * 1000)));
+/**
+ * A picture from the notes: under the stem (an image question) or under the
+ * explanation. Click or Enter opens it full screen; Esc or a click closes it.
+ */
+function Figure({ src, alt, caption, className = '' }) {
+  const [zoom, setZoom] = useState(false);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    if (!zoom) return undefined;
+    // While enlarged, keys belong to the picture: no answering or skipping behind it.
+    const key = (e) => {
+      e.stopPropagation();
+      if (['Escape', 'Enter', ' '].includes(e.key)) { e.preventDefault(); setZoom(false); }
+    };
+    window.addEventListener('keydown', key, true);
+    return () => window.removeEventListener('keydown', key, true);
+  }, [zoom]);
+  if (failed) return null;
+  return (
+    <figure className={`ic-fig ${className}`}>
+      <button type="button" className="ic-fig-btn" onClick={() => setZoom(true)} aria-label={`Enlarge picture: ${alt}`}>
+        <img src={src} alt={alt} loading="lazy" decoding="async" onError={() => setFailed(true)} />
+        <span className="ic-fig-zoom" aria-hidden="true">⤢</span>
+      </button>
+      {caption && <figcaption>{caption}</figcaption>}
+      {zoom && (
+        <div className="ic-lightbox" role="dialog" aria-label={alt} onClick={() => setZoom(false)}>
+          <img src={src} alt={alt} />
+          <button type="button" className="ic-lightbox-x" aria-label="Close picture" autoFocus>✕</button>
+        </div>
+      )}
+    </figure>
+  );
+}
+
+/** The clock as a ring that empties; amber in the last 10 s. */
+function RingClock({ msLeft, total = SECONDS, paused, done }) {
+  const frac = Math.max(0, Math.min(1, msLeft / (total * 1000)));
   const r = 22;
   const c = 2 * Math.PI * r;
   const secs = Math.ceil(msLeft / 1000);
@@ -218,6 +254,7 @@ function Opener({ catalog, error, systemId, setSystemId, topics, setTopics, coun
 
         <div className="ic-howto" aria-label="How it works">
           <span><b>30 s</b> per question</span>
+          {system?.images > 0 && <span><b>{system.images}</b> picture questions · <b>+10 s</b> each</span>}
           <span><b>Pause</b> any time · <kbd>P</kbd></span>
           <span><kbd>1</kbd>–<kbd>5</kbd> answer · <kbd>Enter</kbd> next</span>
           <span className="ic-howto-mouse"><b>Right-click</b> an option to cross it out</span>
@@ -294,7 +331,9 @@ function Opener({ catalog, error, systemId, setSystemId, topics, setTopics, coun
 
 function QuestionView({ q, idx, total, results, picked, onAnswer, onNext, paused, setPaused, rating }) {
   const answered = picked !== null;
-  const [msLeft, setMsLeft] = useState(SECONDS * 1000);
+  // Picture questions get 10 extra seconds to look at the image.
+  const limit = q.image ? SECONDS + IMAGE_BONUS : SECONDS;
+  const [msLeft, setMsLeft] = useState(limit * 1000);
   const [struck, setStruck] = useState(() => new Set());
   const noteRef = useRef(null);
   // The clock reads the latest handler and pause state through refs, so a
@@ -305,7 +344,7 @@ function QuestionView({ q, idx, total, results, picked, onAnswer, onNext, paused
   pausedRef.current = paused;
   useEffect(() => {
     if (answered) return undefined;
-    let left = SECONDS * 1000;
+    let left = limit * 1000;
     let last = performance.now();
     let done = false;
     const t = setInterval(() => {
@@ -316,7 +355,7 @@ function QuestionView({ q, idx, total, results, picked, onAnswer, onNext, paused
       if (left <= 0 && !done) { done = true; clearInterval(t); answerRef.current(-1); }
     }, 100);
     return () => clearInterval(t);
-  }, [answered]);
+  }, [answered, limit]);
 
   useEffect(() => {
     function key(e) {
@@ -357,7 +396,7 @@ function QuestionView({ q, idx, total, results, picked, onAnswer, onNext, paused
           <span className="ic-count">Question {idx + 1} <small>of {total}</small></span>
         </div>
         <div className="ic-clock">
-          <RingClock msLeft={msLeft} paused={paused} done={answered} />
+          <RingClock msLeft={msLeft} total={limit} paused={paused} done={answered} />
           {!answered && (
             <button type="button" className="ic-pause" onClick={() => { sfx.select(); setPaused(p => !p); }}
               aria-label={paused ? 'Resume' : 'Pause'} title={paused ? 'Resume (P)' : 'Pause (P)'}>
@@ -369,6 +408,7 @@ function QuestionView({ q, idx, total, results, picked, onAnswer, onNext, paused
 
       <div className={`ic-card${paused ? ' is-hidden' : ''}`} aria-hidden={paused}>
         <p className="ic-stem">{q.stem}</p>
+        {q.image && <Figure src={q.image} alt={q.imageAlt || 'Question picture'} className="ic-fig--stem" />}
         <div className="ic-options" role="group" aria-label="Answer options">
           {q.options.map((o, i) => {
             let cls = '';
@@ -405,6 +445,9 @@ function QuestionView({ q, idx, total, results, picked, onAnswer, onNext, paused
             <span className="ic-answer-is">Answer: <b>{LETTERS[q.correct]}. {q.options[q.correct]}</b></span>
           </header>
           <Explanation text={q.explanation} />
+          {q.explanationImage && (
+            <Figure src={q.explanationImage} alt={`Notes figure for ${q.topic}`} caption={`From the notes · ${q.topic}`} className="ic-fig--expl" />
+          )}
           <div className="ic-takehome">
             <span className="ic-eyebrow">TAKE-HOME</span>
             <p>{q.takeHome}</p>
@@ -441,7 +484,7 @@ function RatingBar({ q, rating, onNext }) {
         </div>
       ))}
       {rating.problem === 'missing_mode' && <p className="ic-warn">Ratings are not saving yet — inner-circle-ratings-migration.sql needs running in the database.</p>}
-      {rating.problem === 'missing_table' && <p className="ic-warn">Ratings are not saving yet — the fa_question_ratings table needs creating.</p>}
+      {rating.problem === 'missing_table' && <p className="ic-warn">Ratings are not saving yet — inner-circle-ratings-migration.sql needs running in the database.</p>}
       {rating.problem === 'failed' && <p className="ic-warn">That rating did not save — check your connection.</p>}
     </div>
   );
